@@ -1,3 +1,4 @@
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -324,7 +325,6 @@ PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
     zend_string_release(dropped_attributes_count);
 
     RETURN_ARR(array);
-
 }
 
 /* DDTrace\SpanData */
@@ -430,7 +430,7 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
 static void ddtrace_span_data_free_storage(zend_object *object) {
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
-    memset(&object->properties_table[8], 0, sizeof(((ddtrace_span_data *)NULL)->properties_table_placeholder[8]));
+    memset(&object->properties_table[8], 0, sizeof(((ddtrace_span_data *)NULL)->properties_table_placeholder[8])); // links property
     memset(object->properties_table, 0, sizeof(((ddtrace_span_data *)NULL)->properties_table_placeholder));
 }
 

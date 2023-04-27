@@ -174,9 +174,6 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LUMEN, "Laravel\\Lumen\\Application", "__construct",
                                          "DDTrace\\Integrations\\Lumen\\LumenIntegration");
 
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVEL, "Illuminate\\Console\\Scheduling", "handle",
-                                         "DDTrace\\Integrations\\Laravel\\LaravelIntegration");
-
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHE, "Memcache", "connect",
                                          "DDTrace\\Integrations\\Memcache\\MemcacheIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHE, "Memcache", "pconnect",
