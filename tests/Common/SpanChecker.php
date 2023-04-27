@@ -277,7 +277,7 @@ final class SpanChecker
      * @param array $flatSpans
      * @return array
      */
-    public function buildSpansGraph(array $flatSpans)
+    private function buildSpansGraph(array $flatSpans)
     {
         $byId = [];
         foreach ($flatSpans as $span) {
