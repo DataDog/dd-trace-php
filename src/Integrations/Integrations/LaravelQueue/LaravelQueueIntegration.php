@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\LaravelQueue;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use Illuminate\Contracts\Queue\Job;
@@ -277,7 +276,7 @@ class LaravelQueueIntegration extends Integration
         return $metadata;
     }
 
-    public function getMetadataFromObject(object $job)
+    public function getMetadataFromObject($job)
     {
         $metadata = [
             'messaging.laravel.max_tries' => $job->tries ?? null,
