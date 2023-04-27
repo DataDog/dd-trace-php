@@ -96,6 +96,8 @@
  *     void zai_sandbox_engine_state_restore(zai_engine_state *es);
  */
 
+extern long zai_sandbox_active;
+
 #if PHP_VERSION_ID >= 80000
 /********************************** <PHP 8> **********************************/
 #include <Zend/zend_exceptions.h>
@@ -188,12 +190,14 @@ inline void zai_sandbox_engine_state_restore(zai_engine_state *es) {
 }
 
 inline void zai_sandbox_open(zai_sandbox *sandbox) {
+    ++zai_sandbox_active;
     zai_sandbox_exception_state_backup(&sandbox->exception_state);
     zai_sandbox_error_state_backup(&sandbox->error_state);
     zai_sandbox_engine_state_backup(&sandbox->engine_state);
 }
 
 inline void zai_sandbox_close(zai_sandbox *sandbox) {
+    --zai_sandbox_active;
     zai_sandbox_error_state_restore(&sandbox->error_state);
     zai_sandbox_exception_state_restore(&sandbox->exception_state);
 }
@@ -221,6 +225,8 @@ inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
         return;
     }
 
+
+    --zai_sandbox_active;
     zend_bailout();
 }
 /********************************** </PHP 8> *********************************/
@@ -274,12 +280,10 @@ inline void zai_sandbox_error_state_backup(zai_error_state *es) {
 
 inline void zai_sandbox_error_state_restore(zai_error_state *es) {
     if (PG(last_error_message)) {
-        if (PG(last_error_message) != es->message) {
-            free(PG(last_error_message));
-        }
-        if (PG(last_error_file) != es->file) {
-            free(PG(last_error_file));
-        }
+        free(PG(last_error_message));
+    }
+    if (PG(last_error_file)) {
+        free(PG(last_error_file));
     }
     zend_restore_error_handling(&es->error_handling);
     PG(last_error_type) = es->type;
@@ -327,12 +331,14 @@ inline void zai_sandbox_engine_state_restore(zai_engine_state *es) {
 }
 
 inline void zai_sandbox_open(zai_sandbox *sandbox) {
+    ++zai_sandbox_active;
     zai_sandbox_exception_state_backup(&sandbox->exception_state);
     zai_sandbox_error_state_backup(&sandbox->error_state);
     zai_sandbox_engine_state_backup(&sandbox->engine_state);
 }
 
 inline void zai_sandbox_close(zai_sandbox *sandbox) {
+    --zai_sandbox_active;
     zai_sandbox_error_state_restore(&sandbox->error_state);
     zai_sandbox_exception_state_restore(&sandbox->exception_state);
 }
@@ -358,6 +364,7 @@ inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
         return;
     }
 
+    --zai_sandbox_active;
     zend_bailout();
 }
 /********************************** </PHP 7> *********************************/

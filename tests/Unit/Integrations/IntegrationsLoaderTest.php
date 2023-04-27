@@ -160,6 +160,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'phpredis'; // PHP 7 only integration
         } else {
             // Deferred loading integrations
+            $excluded[] = 'amqp';
             $excluded[] = 'cakephp';
             $excluded[] = 'codeigniter';
             $excluded[] = 'elasticsearch';
