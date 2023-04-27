@@ -183,7 +183,7 @@ pub unsafe fn ddog_php_prof_function_run_time_cache(
     use std::os::raw::c_void;
     let non_const_func = func as *const zend_function as *mut zend_function;
 
-    // for php 8.1 is not in common, but in op_array
+    // for php 8.1 is not in common, but in "op_array"
     if (*non_const_func).common.run_time_cache__ptr.is_null() {
         let run_time_cache_ptr = vec![std::ptr::null_mut::<c_void>(); 2].into_boxed_slice();
         let cache_0 = Box::new(0 as uint);
