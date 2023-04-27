@@ -7,7 +7,6 @@ pub use platform::Interrupter;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct SignalPointers {
-    pub cpu_samples: NonNull<AtomicU32>,
     pub wall_samples: NonNull<AtomicU32>,
     pub vm_interrupt: NonNull<AtomicBool>,
 }
@@ -34,7 +33,6 @@ mod platform {
         pub fn new(
             signal_pointers: SignalPointers,
             wall_time_period_nanoseconds: u64,
-            cpu_time_enabled: bool,
         ) -> Self {
             let mut signal_pointers = Box::new(signal_pointers);
             let sival_ptr = signal_pointers.as_mut() as *mut SignalPointers as *mut libc::c_void;
@@ -42,11 +40,7 @@ mod platform {
             let wall_timer = Timer::new(
                 libc::CLOCK_MONOTONIC,
                 wall_sigval,
-                if cpu_time_enabled {
-                    Self::notify_cpu_and_wall
-                } else {
-                    Self::notify_wall
-                },
+                Self::notify_wall,
             );
             Self {
                 signal_pointers,
@@ -61,18 +55,6 @@ mod platform {
             let wall_samples: &AtomicU32 = unsafe { signal_pointers.wall_samples.as_ref() };
             let vm_interrupt: &AtomicBool = unsafe { signal_pointers.vm_interrupt.as_ref() };
 
-            wall_samples.fetch_add(1, Ordering::SeqCst);
-            vm_interrupt.store(true, Ordering::SeqCst);
-        }
-
-        extern "C" fn notify_cpu_and_wall(sigval: libc::sigval) {
-            let signal_pointers = unsafe { &*(sigval.sival_ptr as *const SignalPointers) };
-
-            let cpu_samples: &AtomicU32 = unsafe { signal_pointers.cpu_samples.as_ref() };
-            let wall_samples: &AtomicU32 = unsafe { signal_pointers.wall_samples.as_ref() };
-            let vm_interrupt: &AtomicBool = unsafe { signal_pointers.vm_interrupt.as_ref() };
-
-            cpu_samples.fetch_add(1, Ordering::SeqCst);
             wall_samples.fetch_add(1, Ordering::SeqCst);
             vm_interrupt.store(true, Ordering::SeqCst);
         }
@@ -177,7 +159,6 @@ mod platform {
 
     struct SendableSignalPointers {
         vm_interrupt: *const AtomicBool,
-        cpu_samples: *const AtomicU32,
         wall_samples: *const AtomicU32,
     }
 
@@ -185,7 +166,6 @@ mod platform {
         fn from(pointers: SignalPointers) -> Self {
             Self {
                 vm_interrupt: pointers.vm_interrupt.as_ptr(),
-                cpu_samples: pointers.cpu_samples.as_ptr(),
                 wall_samples: pointers.wall_samples.as_ptr(),
             }
         }
@@ -195,21 +175,14 @@ mod platform {
         fn from(sendable: &SendableSignalPointers) -> Self {
             Self {
                 vm_interrupt: unsafe { &*sendable.vm_interrupt }.into(),
-                cpu_samples: unsafe { &*sendable.cpu_samples }.into(),
                 wall_samples: unsafe { &*sendable.wall_samples }.into(),
             }
         }
     }
 
     impl SendableSignalPointers {
-        fn notify(&self, cpu_time_enabled: bool) {
+        fn notify(&self) {
             let sp = SignalPointers::from(self);
-
-            if cpu_time_enabled {
-                // It's not going to be accurate, but it's there.
-                let cpu_samples: &AtomicU32 = unsafe { sp.cpu_samples.as_ref() };
-                cpu_samples.fetch_add(1, Ordering::SeqCst);
-            }
 
             let wall_samples: &AtomicU32 = unsafe { sp.wall_samples.as_ref() };
             wall_samples.fetch_add(1, Ordering::SeqCst);
@@ -228,7 +201,6 @@ mod platform {
         pub fn new(
             signal_pointers: SignalPointers,
             wall_time_period_nanoseconds: u64,
-            cpu_time_enabled: bool,
         ) -> Self {
             // > A special case is zero-capacity channel, which cannot hold
             // > any messages. Instead, send and receive operations must
@@ -253,7 +225,7 @@ mod platform {
                         },
 
                         recv(ticker) -> message => match message {
-                            Ok(_) => signal_pointers.notify(cpu_time_enabled),
+                            Ok(_) => signal_pointers.notify(),
 
                             // How does a timer fail?
                             Err(err) => {

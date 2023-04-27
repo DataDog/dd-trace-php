@@ -40,7 +40,6 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 struct SampleValues {
     wall_samples: i64,
     wall_time: i64,
-    cpu_samples: i64,
     cpu_time: i64,
     alloc_samples: i64,
     alloc_size: i64,
@@ -391,7 +390,6 @@ pub struct UploadMessage {
 #[allow(unused)]
 #[derive(Debug)]
 struct ProfileTypesInfo {
-    cpu: &'static str,
     wall: &'static str,
     allocation: &'static str,
 }
@@ -523,12 +521,10 @@ impl Profiler {
     pub unsafe fn collect_time(
         &self,
         execute_data: *mut zend_execute_data,
-        cpu_samples: u32,
         wall_samples: u32,
         mut locals: &mut RequestLocals,
     ) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
-        let cpu_samples = cpu_samples as i64;
         let wall_samples = wall_samples as i64;
         let started_at = SystemTime::now();
         let before = Instant::now();
@@ -537,7 +533,6 @@ impl Profiler {
         let duration = before.elapsed().as_nanos();
 
         let profile_types = ProfileTypesInfo {
-            cpu: if cpu_samples > 0 { "yes" } else { "no" },
             wall: if wall_samples > 0 { "yes" } else { "no" },
             allocation: "no",
         };
@@ -555,21 +550,17 @@ impl Profiler {
                     0
                 };
 
-                let cpu_time = if cpu_samples > 0 {
-                    /* If CPU time is disabled, or if it's enabled but not
-                     * available on the platform, then `locals.last_cpu_time`
-                     * will be None.
-                     */
-                    if let Some(last_cpu_time) = locals.last_cpu_time {
-                        let now = cpu_time::ThreadTime::try_now().expect(
-                            "CPU time to work since it's worked before during this process",
-                        );
-                        let cpu_time = Self::cpu_sub(now, last_cpu_time);
-                        locals.last_cpu_time = Some(now);
-                        cpu_time
-                    } else {
-                        0
-                    }
+                /* If CPU time is disabled, or if it's enabled but not
+                 * available on the platform, then `locals.last_cpu_time` will
+                 * be None.
+                 */
+                 let cpu_time = if let Some(last_cpu_time) = locals.last_cpu_time {
+                    let now = cpu_time::ThreadTime::try_now().expect(
+                        "CPU time to work since it's worked before during this process",
+                    );
+                    let cpu_time = Self::cpu_sub(now, last_cpu_time);
+                    locals.last_cpu_time = Some(now);
+                    cpu_time
                 } else {
                     0
                 };
@@ -580,7 +571,6 @@ impl Profiler {
                 match self.send_sample(Profiler::prepare_sample_message(
                     frames,
                     SampleValues {
-                        cpu_samples,
                         wall_samples,
                         wall_time,
                         cpu_time,
@@ -619,7 +609,6 @@ impl Profiler {
         let duration = before.elapsed().as_nanos();
 
         let profile_types = ProfileTypesInfo {
-            cpu: "no",
             wall: "no",
             allocation: "yes",
         };
@@ -689,20 +678,18 @@ impl Profiler {
         locals: &RequestLocals,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
-        static SAMPLE_TYPES: &[ValueType; 6] = &[
+        static SAMPLE_TYPES: &[ValueType; 5] = &[
             ValueType::new("wall-samples", "count"),
             ValueType::new("wall-time", "nanoseconds"),
-            ValueType::new("cpu-samples", "count"),
             ValueType::new("cpu-time", "nanoseconds"),
             ValueType::new("alloc-samples", "count"),
             ValueType::new("alloc-size", "bytes"),
         ];
 
         // Allows us to slice the SampleValues as if they were an array.
-        let values: [i64; 6] = [
+        let values: [i64; 5] = [
             samples.wall_samples,
             samples.wall_time,
-            samples.cpu_samples,
             samples.cpu_time,
             samples.alloc_samples,
             samples.alloc_size,
@@ -712,14 +699,14 @@ impl Profiler {
         let mut sample_values = Vec::with_capacity(SAMPLE_TYPES.len());
         if locals.profiling_enabled {
             // sample, wall-time, cpu-time
-            let len = 2 + 2 * locals.profiling_experimental_cpu_time_enabled as usize;
+            let len = 2 + locals.profiling_experimental_cpu_time_enabled as usize;
             sample_types.extend_from_slice(&SAMPLE_TYPES[0..len]);
             sample_values.extend_from_slice(&values[0..len]);
 
             // alloc-samples, alloc-size
             if locals.profiling_experimental_allocation_enabled {
-                sample_types.extend_from_slice(&SAMPLE_TYPES[4..6]);
-                sample_values.extend_from_slice(&values[4..6]);
+                sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
+                sample_values.extend_from_slice(&values[3..5]);
             }
         }
 
@@ -772,14 +759,12 @@ mod tests {
             uri: Box::new(AgentEndpoint::default()),
             version: None,
             vm_interrupt: OnceCell::new(),
-            cpu_samples: Default::default(),
             time_interrupter: Default::default(),
         }
     }
 
     fn get_samples() -> SampleValues {
         SampleValues {
-            cpu_samples: 5,
             wall_samples: 10,
             wall_time: 20,
             cpu_time: 30,
@@ -849,11 +834,10 @@ mod tests {
             vec![
                 ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-samples", "count"),
                 ValueType::new("cpu-time", "nanoseconds"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20, 5, 30]);
+        assert_eq!(message.value.sample_values, vec![10, 20, 30]);
     }
 
     #[test]
@@ -899,12 +883,11 @@ mod tests {
             vec![
                 ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-samples", "count"),
                 ValueType::new("cpu-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
                 ValueType::new("alloc-size", "bytes"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20, 5, 30, 40, 50]);
+        assert_eq!(message.value.sample_values, vec![10, 20, 30, 40, 50]);
     }
 }

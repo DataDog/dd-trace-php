@@ -316,7 +316,6 @@ pub struct RequestLocals {
     pub uri: Box<AgentEndpoint>,
     pub version: Option<Cow<'static, str>>,
     pub vm_interrupt: OnceCell<&'static AtomicBool>,
-    pub cpu_samples: AtomicU32,
     pub wall_samples: AtomicU32,
     pub time_interrupter: OnceCell<Interrupter>,
 }
@@ -404,7 +403,6 @@ thread_local! {
         uri: Box::new(AgentEndpoint::default()),
         version: None,
         vm_interrupt: OnceCell::new(),
-        cpu_samples: AtomicU32::new(0),
         wall_samples: AtomicU32::new(0),
         time_interrupter: OnceCell::new(),
     });
@@ -461,7 +459,6 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         locals
             .vm_interrupt
             .get_or_init(|| unsafe { zend::datadog_php_profiling_vm_interrupt_addr() });
-        locals.cpu_samples.store(0, Ordering::SeqCst);
         locals.wall_samples.store(0, Ordering::SeqCst);
 
         locals.profiling_enabled = profiling_enabled;
@@ -610,16 +607,14 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             let pointers = SignalPointers {
                 // Safety: this was initialized earlier in this safe fn.
                 vm_interrupt: NonNull::from(*unsafe { locals.vm_interrupt.get_unchecked() }),
-                cpu_samples: NonNull::from(&locals.cpu_samples),
                 wall_samples: NonNull::from(&locals.wall_samples),
             };
 
-            let cpu_enabled = locals.profiling_experimental_cpu_time_enabled;
             if let Err(err) = locals
                 .time_interrupter
                 .get_or_init(move || {
                     let wall_nanos: u64 = WALL_TIME_PERIOD.as_nanos().try_into().unwrap();
-                    Interrupter::new(pointers, wall_nanos, cpu_enabled)
+                    Interrupter::new(pointers, wall_nanos)
                 })
                 .start()
             {
@@ -1046,18 +1041,17 @@ fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
          *  1. Track how many interrupts there were.
          *  2. Ensure we don't collect on someone else's interrupt.
          */
-        let cpu_samples = locals.cpu_samples.swap(0, Ordering::SeqCst);
         let wall_samples = locals.wall_samples.swap(0, Ordering::SeqCst);
 
         // The bitwise-or allows for a single conditional.
-        if (cpu_samples | wall_samples) == 0 {
+        if wall_samples == 0 {
             return;
         }
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
             unsafe {
-                profiler.collect_time(execute_data, cpu_samples, wall_samples, locals.deref_mut())
+                profiler.collect_time(execute_data, wall_samples, locals.deref_mut())
             };
         }
     });
