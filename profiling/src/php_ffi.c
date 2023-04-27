@@ -237,6 +237,24 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 #endif
 }
 
+uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
+    zend_function *non_const_func = (zend_function *)func;
+#if PHP_VERSION_ID < 80200
+    if (non_const_func->op_array.run_time_cache__ptr == NULL) {
+        non_const_func->op_array.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
+        non_const_func->op_array.run_time_cache__ptr[0] = calloc(1, sizeof(uint));
+        non_const_func->op_array.run_time_cache__ptr[1] = calloc(1, sizeof(uint));
+    }
+#else
+    if (non_const_func->common.run_time_cache__ptr == NULL) {
+        non_const_func->common.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
+        non_const_func->common.run_time_cache__ptr[0] = calloc(1, sizeof(uint));
+        non_const_func->common.run_time_cache__ptr[1] = calloc(1, sizeof(uint));
+    }
+#endif
+    return *non_const_func->common.run_time_cache__ptr;
+}
+
 zend_execute_data* create_fake_zend_execute_data(int depth) {
     if (depth <= 0) {
         return NULL;

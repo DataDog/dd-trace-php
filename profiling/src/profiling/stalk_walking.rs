@@ -175,35 +175,12 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
     }
 }
 
-#[cfg(all(test, php_run_time_cache))]
-pub unsafe fn ddog_php_prof_function_run_time_cache(
-    func: &zend_function,
-) -> Option<&mut [usize; 2]> {
-    use crate::bindings::uint;
-    use std::os::raw::c_void;
-    let non_const_func = func as *const zend_function as *mut zend_function;
-
-    // for php 8.1 is not in common, but in "op_array"
-    if (*non_const_func).common.run_time_cache__ptr.is_null() {
-        let run_time_cache_ptr = vec![std::ptr::null_mut::<c_void>(); 2].into_boxed_slice();
-        let cache_0 = Box::new(0 as uint);
-        let cache_1 = Box::new(0 as uint);
-        (*non_const_func).common.run_time_cache__ptr =
-            Box::into_raw(run_time_cache_ptr) as *mut *mut c_void;
-        *(*non_const_func).common.run_time_cache__ptr.add(0) =
-            Box::into_raw(cache_0) as *mut c_void;
-        *(*non_const_func).common.run_time_cache__ptr.add(1) =
-            Box::into_raw(cache_1) as *mut c_void;
-    }
-
-    let run_time_cache_ptr = *(*non_const_func).common.run_time_cache__ptr as *mut [usize; 2];
-    run_time_cache_ptr.as_mut()
-}
-
 #[cfg(php_run_time_cache)]
 unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
     #[cfg(not(test))]
     use crate::bindings::ddog_php_prof_function_run_time_cache;
+    #[cfg(test)]
+    use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
     let func = execute_data.func.as_ref()?;
     CACHED_STRINGS.with(|cell| {
         let mut string_table = cell.borrow_mut();
