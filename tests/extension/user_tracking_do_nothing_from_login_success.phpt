@@ -2,6 +2,8 @@
 Don't block or redirect from user login success event
 --INI--
 extension=ddtrace.so
+--ENV--
+DD_APPSEC_ENABLED=1
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;

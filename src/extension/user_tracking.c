@@ -7,6 +7,7 @@
 #include "user_tracking.h"
 #include "commands/request_exec.h"
 #include "ddappsec.h"
+#include "ddtrace.h"
 #include "helper_process.h"
 #include "logging.h"
 #include "php_compat.h"
@@ -42,6 +43,9 @@ static PHP_FUNCTION(set_user_wrapper)
 
 void dd_user_tracking_startup(void)
 {
+    if (!dd_trace_is_loaded()) {
+        return;
+    }
     zend_function *set_user = zend_hash_str_find_ptr(
         CG(function_table), LSTRARG("ddtrace\\set_user"));
     if (set_user != NULL) {

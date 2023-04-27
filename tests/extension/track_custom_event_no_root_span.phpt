@@ -6,6 +6,7 @@ datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_APPSEC_ENABLED=1
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;

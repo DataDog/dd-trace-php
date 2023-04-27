@@ -770,6 +770,11 @@ static void _add_custom_event_metadata(zend_array *nonnull meta_ht,
 static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
 {
     UNUSED(return_value);
+    if (DDAPPSEC_G(enabled) != ENABLED) {
+        mlog(dd_log_debug, "Trying to access to track_user_login_success_event "
+                           "function while appsec is disabled");
+        return;
+    }
 
     zend_string *user_id = NULL;
     HashTable *metadata = NULL;
@@ -810,6 +815,11 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
 static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
 {
     UNUSED(return_value);
+    if (DDAPPSEC_G(enabled) != ENABLED) {
+        mlog(dd_log_debug, "Trying to access to track_user_login_failure_event "
+                           "function while appsec is disabled");
+        return;
+    }
 
     zend_string *user_id = NULL;
     zend_bool exists = false;
@@ -854,6 +864,11 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
 static PHP_FUNCTION(datadog_appsec_track_custom_event)
 {
     UNUSED(return_value);
+    if (DDAPPSEC_G(enabled) != ENABLED) {
+        mlog(dd_log_debug, "Trying to access to track_custom_event "
+                           "function while appsec is disabled");
+        return;
+    }
 
     zend_string *event_name = NULL;
     HashTable *metadata = NULL;
