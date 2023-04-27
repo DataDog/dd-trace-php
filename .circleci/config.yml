@@ -1091,7 +1091,7 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
-      - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
+      - run: DD_DISTRIBUTED_TRACING=false make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
   verify_alpine:
     working_directory: ~/datadog
