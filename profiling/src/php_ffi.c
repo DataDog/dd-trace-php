@@ -245,7 +245,7 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
     if (non_const_func->op_array.run_time_cache__ptr == NULL) {
         non_const_func->op_array.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
         non_const_func->op_array.run_time_cache__ptr[0] = calloc(4, sizeof(int64_t));
-        non_const_func->op_array.run_time_cache__ptr[1] = calloc(4, sizeof(inti64_t));
+        non_const_func->op_array.run_time_cache__ptr[1] = calloc(4, sizeof(int64_t));
     }
     return *non_const_func->op_array.run_time_cache__ptr;
 #else
