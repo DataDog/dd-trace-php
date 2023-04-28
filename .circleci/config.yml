@@ -743,7 +743,7 @@ jobs:
     resource_class: << parameters.resource_class >>
     executor:
       name: with_integrations
-      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster:latest
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
