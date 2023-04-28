@@ -349,6 +349,38 @@ mod tests {
 
     #[cfg(feature = "nightly")]
     #[bench]
+    fn bench_collect_deep_stack_sample_with_run_time_cache_and_50_pc_hit_ratio(bencher: &mut Bencher) {
+        unsafe {
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let mut stats = cell.borrow_mut();
+                stats.hit = 0;
+                stats.not_applicable = 0;
+                stats.missed = 0;
+            });
+            zend::ddog_php_prof_set_ignore_run_time_cache(false);
+            let fake_execute_data = zend::create_fake_zend_execute_data(99);
+            // first run should produce three cache misses
+            collect_stack_sample(fake_execute_data).unwrap();
+            let mut counter: u64 = 0;
+            bencher.iter(|| {
+                counter = counter + 1;
+                if counter % 2 == 0 {
+                    zend::ddog_php_prof_set_ignore_run_time_cache(true);
+                } else {
+                    zend::ddog_php_prof_set_ignore_run_time_cache(false);
+                }
+                collect_stack_sample(fake_execute_data).unwrap();
+            });
+            zend::free_fake_zend_execute_data(fake_execute_data);
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let stats = cell.borrow();
+                println!("{:?}", stats);
+            });
+        }
+    }
+
+    #[cfg(feature = "nightly")]
+    #[bench]
     fn bench_collect_deep_stack_sample_without_run_time_cache(bencher: &mut Bencher) {
         unsafe {
             FUNCTION_CACHE_STATS.with(|cell| {
