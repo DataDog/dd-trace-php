@@ -422,15 +422,18 @@ jobs:
   "Lint files":
     working_directory: ~/datadog
     docker:
-      - image: cimg/php:8.1-node
+      - image: datadog/dd-trace-ci:php-8.1_buster
     steps:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Install npm
+          command: sudo apt update; sudo apt -y install npm
       - lib_curl_workaround:
-          command: sudo apt update; sudo apt -y install libcurl4-nss-dev
+          command: sudo apt -y install libcurl4-nss-dev
       - prepare_extension_and_composer_with_cache
       - restore_cache:
           <<: *CACHE_NPM_KEY
