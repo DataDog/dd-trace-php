@@ -234,6 +234,7 @@ class LaravelIntegration extends Integration
             }
         );
 
+        // Used by Laravel >= 5.0
         \DDTrace\hook_method(
             'Illuminate\Contracts\Debug\ExceptionHandler',
             'report',

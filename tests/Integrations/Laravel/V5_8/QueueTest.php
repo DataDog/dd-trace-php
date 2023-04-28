@@ -24,7 +24,6 @@ class QueueTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_AUTO_FLUSH_ENABLED' => '1',
             'DD_TRACE_CLI_ENABLED' => '1',
-            'DD_TRACE_DEBUG' => '1',
             'APP_NAME' => 'laravel_queue_test'
         ]);
     }
@@ -155,10 +154,11 @@ class QueueTest extends WebFrameworkTestCase
         $connection = 'database'
     ) {
         $commonTags = [
-            Tag::SPAN_KIND      => 'client',
-            Tag::COMPONENT      => 'laravelqueue',
+            Tag::SPAN_KIND                  => 'client',
+            Tag::COMPONENT                  => 'laravelqueue',
 
-            Tag::MQ_SYSTEM      => 'laravel',
+            Tag::MQ_SYSTEM                  => 'laravel',
+            Tag::MQ_DESTINATION_KIND        => 'queue',
 
             'messaging.laravel.attempts'    => 1,
             'messaging.laravel.max_tries'   => 1,
@@ -171,7 +171,7 @@ class QueueTest extends WebFrameworkTestCase
         }
 
         if ($queue) {
-            $commonTags['messaging.laravel.queue'] = $queue;
+            $commonTags[Tag::MQ_DESTINATION] = $queue;
         }
 
         if ($connection) {
@@ -213,7 +213,7 @@ class QueueTest extends WebFrameworkTestCase
             return $span;
         } else {
             return $span->withExistingTagsNames([
-                'messaging.laravel.id'
+                Tag::MQ_MESSAGE_ID
             ]);
         }
     }
@@ -236,7 +236,7 @@ class QueueTest extends WebFrameworkTestCase
             return $span;
         } else {
             return $span->withExistingTagsNames([
-                'messaging.laravel.id'
+                Tag::MQ_MESSAGE_ID
             ]);
         }
     }
@@ -259,7 +259,7 @@ class QueueTest extends WebFrameworkTestCase
             return $span;
         } else {
             return $span->withExistingTagsNames([
-                'messaging.laravel.id'
+                Tag::MQ_MESSAGE_ID
             ]);
         }
     }
@@ -281,7 +281,7 @@ class QueueTest extends WebFrameworkTestCase
         ])->withExactTags(
             $this->getCommonTags('receive', $queue, $connection)
         )->withExistingTagsNames([
-            'messaging.laravel.id'
+            Tag::MQ_MESSAGE_ID
         ])->withChildren([
             $this->spanEventJobProcessing(),
             $this->spanQueueFire($connection, $queue, $resourceDetails)
@@ -289,7 +289,7 @@ class QueueTest extends WebFrameworkTestCase
                     $this->spanQueueResolve($connection, $queue, $resourceDetails),
                     $this->spanQueueAction($connection, $queue, $resourceDetails)
                         ->withExistingTagsNames([
-                            'messaging.laravel.id'
+                            Tag::MQ_MESSAGE_ID
                         ])
                 ]),
             $this->spanEventJobProcessed()

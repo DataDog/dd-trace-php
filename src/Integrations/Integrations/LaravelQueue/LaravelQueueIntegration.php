@@ -236,8 +236,8 @@ class LaravelQueueIntegration extends Integration
             $queue = $queue ?? ($job->queue ?? (config("queue.connections.$connectionName.queue") ?? 'default'));
 
             $span->meta['messaging.laravel.name'] = $jobName;
-            $span->meta['messaging.laravel.queue'] = $queue;
             $span->meta['messaging.laravel.connection'] = $connectionName;
+            $span->meta[Tag::MQ_DESTINATION] = $queue;
             $span->meta = array_merge(
                 $span->meta,
                 $this->getMetadataFromObject($job)
@@ -262,12 +262,13 @@ class LaravelQueueIntegration extends Integration
         $metadata = [
             'messaging.laravel.attempts' => $job->attempts(),
             'messaging.laravel.connection' => $job->getConnectionName() ?? config('queue.default'),
-            'messaging.laravel.id' => $job->getJobId(),
             'messaging.laravel.max_tries' => $job->maxTries(),
-            'messaging.laravel.queue' => $job->getQueue(),
             'messaging.laravel.timeout' => $job->timeout(),
             'messaging.laravel.name' => $job->resolveName(),
-            'messaging.system' => 'laravel',
+            Tag::MQ_SYSTEM => 'laravel',
+            Tag::MQ_MESSAGE_ID => $job->getJobId(),
+            Tag::MQ_DESTINATION => $job->getQueue(),
+            Tag::MQ_DESTINATION_KIND => 'queue',
         ];
 
         $metadata = array_filter($metadata, function ($value) {
@@ -283,9 +284,9 @@ class LaravelQueueIntegration extends Integration
             'messaging.laravel.max_tries' => $job->tries ?? null,
             'messaging.laravel.attempts' => $job->attempts() ?? null,
             'messaging.laravel.timeout' => $job->timeout ?? null,
-            'messaging.laravel.queue' => $job->queue ?? null,
             'messaging.laravel.batch_id' => $job->batchId ?? null, // Laravel 8
-            'messaging.system' => 'laravel',
+            Tag::MQ_SYSTEM => 'laravel',
+            Tag::MQ_DESTINATION_KIND => 'queue',
         ];
 
         $metadata = array_filter($metadata, function ($value) {
