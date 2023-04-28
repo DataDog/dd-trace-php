@@ -158,7 +158,8 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y \
       msodbcsql18 \
-      mssql-tools18;
+      mssql-tools18 \
+      $(if [ "$TARGETPLATFORM" = "linux/amd64" ]; then echo msodbcsql17 mssql-tools; fi);
 
 # Apache config
 ENV APACHE_CONFDIR /etc/apache2
