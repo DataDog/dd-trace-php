@@ -162,12 +162,6 @@ aliases:
         # Avoid intermittent DNS hangs: See https://github.com/curl/curl/issues/593#issuecomment-170146252
         echo "options single-request" | sudo tee -a /etc/resolv.conf
 
-  - &STEP_PERSIST_TO_WORKSPACE
-    persist_to_workspace:
-      root: '.'
-      paths:
-      - tmp/build_extension
-
   - &STEP_STORE_TEST_RESULTS
     store_test_results:
       path: test-results
@@ -570,7 +564,6 @@ jobs:
             if [[ "<<parameters.xdebug_version_one>>" != "2.7.2" ]]; then
               TEST_EXTRA_INI='-d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so' make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
             fi
-      - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
 
   test: &TEST_BASE
@@ -611,7 +604,6 @@ jobs:
             set -euo pipefail
             make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
             rm -rf tmp/build_extension/tests/opcache/file_cache/* || true
-      - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -678,7 +670,6 @@ jobs:
       #     command: |
       #       set -euo pipefail
       #        make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
-      - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -817,7 +808,6 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE
-      - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
 
   php_language_tests:
@@ -960,7 +950,6 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE
-      - <<: *STEP_PERSIST_TO_WORKSPACE
 
   internal_integrations:
     parameters:
