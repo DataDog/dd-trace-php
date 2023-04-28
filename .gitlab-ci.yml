@@ -37,7 +37,7 @@ build:
 deploy_to_reliability_env:
   stage: deploy
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"' && $NIGHTLY
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
       when: always
     - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
       when: always
