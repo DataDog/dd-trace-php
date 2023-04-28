@@ -63,6 +63,10 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
  * always one PHP request, and we only reset it on each new request.
  */
 static bool _ignore_run_time_cache = false;
+
+void ddog_php_prof_set_ignore_run_time_cache(bool cache) {
+    _ignore_run_time_cache = cache;
+}
 #endif
 
 void datadog_php_profiling_startup(zend_extension *extension) {
@@ -240,6 +244,7 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 
 uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
 #if CFG_RUN_TIME_CACHE
+    if (_ignore_run_time_cache) return NULL;
     zend_function *non_const_func = (zend_function *)func;
 #if PHP_VERSION_ID < 80200
     if (non_const_func->op_array.run_time_cache__ptr == NULL) {

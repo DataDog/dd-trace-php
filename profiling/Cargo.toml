@@ -33,6 +33,7 @@ uuid = { version = "1.0", features = ["v4"] }
 [features]
 default = ["allocation_profiling"]
 allocation_profiling = []
+nightly = []
 
 [build-dependencies]
 bindgen = { version = "0.59" }

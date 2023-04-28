@@ -313,4 +313,111 @@ mod tests {
             });
         }
     }
+
+    #[cfg(feature = "nightly")]
+    extern crate test;
+
+    #[cfg(feature = "nightly")]
+    use test::Bencher;
+
+    #[cfg(feature = "nightly")]
+    #[bench]
+    fn bench_collect_deep_stack_sample_with_run_time_cache(bencher: &mut Bencher) {
+        unsafe {
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let mut stats = cell.borrow_mut();
+                stats.hit = 0;
+                stats.not_applicable = 0;
+                stats.missed = 0;
+            });
+            zend::ddog_php_prof_set_ignore_run_time_cache(false);
+            let fake_execute_data = zend::create_fake_zend_execute_data(9);
+            // first run should produce three cache misses
+            collect_stack_sample(fake_execute_data).unwrap();
+            bencher.iter(|| {
+                collect_stack_sample(fake_execute_data).unwrap();
+            });
+            zend::free_fake_zend_execute_data(fake_execute_data);
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let stats = cell.borrow();
+                println!("{:?}", stats);
+            });
+        }
+    }
+
+    #[cfg(feature = "nightly")]
+    #[bench]
+    fn bench_collect_deep_stack_sample_without_run_time_cache(bencher: &mut Bencher) {
+        unsafe {
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let mut stats = cell.borrow_mut();
+                stats.hit = 0;
+                stats.not_applicable = 0;
+                stats.missed = 0;
+            });
+            zend::ddog_php_prof_set_ignore_run_time_cache(true);
+            let fake_execute_data = zend::create_fake_zend_execute_data(9);
+            // first run should produce three cache misses
+            collect_stack_sample(fake_execute_data).unwrap();
+            bencher.iter(|| {
+                collect_stack_sample(fake_execute_data).unwrap();
+            });
+            zend::free_fake_zend_execute_data(fake_execute_data);
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let stats = cell.borrow();
+                println!("{:?}", stats);
+            });
+        }
+    }
+
+    #[cfg(feature = "nightly")]
+    #[bench]
+    fn bench_collect_shallow_stack_sample_with_run_time_cache(bencher: &mut Bencher) {
+        unsafe {
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let mut stats = cell.borrow_mut();
+                stats.hit = 0;
+                stats.not_applicable = 0;
+                stats.missed = 0;
+            });
+            zend::ddog_php_prof_set_ignore_run_time_cache(false);
+            let fake_execute_data = zend::create_fake_zend_execute_data(1);
+            // first run should produce three cache misses
+            collect_stack_sample(fake_execute_data).unwrap();
+            bencher.iter(|| {
+                collect_stack_sample(fake_execute_data).unwrap();
+            });
+            zend::free_fake_zend_execute_data(fake_execute_data);
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let stats = cell.borrow();
+                println!("{:?}", stats);
+            });
+        }
+    }
+
+    #[cfg(feature = "nightly")]
+    #[bench]
+    fn bench_collect_shallow_stack_sample_without_run_time_cache(bencher: &mut Bencher) {
+        unsafe {
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let mut stats = cell.borrow_mut();
+                stats.hit = 0;
+                stats.not_applicable = 0;
+                stats.missed = 0;
+            });
+            zend::ddog_php_prof_set_ignore_run_time_cache(true);
+            let fake_execute_data = zend::create_fake_zend_execute_data(1);
+            // first run should produce three cache misses
+            collect_stack_sample(fake_execute_data).unwrap();
+            bencher.iter(|| {
+                collect_stack_sample(fake_execute_data).unwrap();
+            });
+            zend::free_fake_zend_execute_data(fake_execute_data);
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let stats = cell.borrow();
+                println!("{:?}", stats);
+            });
+        }
+    }
+
 }

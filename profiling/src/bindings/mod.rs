@@ -289,6 +289,9 @@ extern "C" {
     /// startup/shutdown cycle. This is useful to know. For example,
     /// preloading occurs while this is false.
     pub fn ddog_php_prof_is_post_startup() -> bool;
+
+    #[cfg(test)]
+    pub fn ddog_php_prof_set_ignore_run_time_cache(cache: bool);
 }
 
 pub use zend_module_dep as ModuleDep;

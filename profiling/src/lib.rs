@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "nightly", feature(test))]
+
 mod bindings;
 pub mod capi;
 mod config;

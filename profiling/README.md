@@ -57,6 +57,14 @@ if you haven't already, build the release version with `cargo build --release`.
 Also the `run-tests.php` version has to match the PHP version used to run the
 tests.
 
+## Benchmarking
+
+There are some benchmarks which you can run using:
+
+```sh
+cargo +nightly bench --features nightly
+```
+
 ## Troubleshooting
 
 #### ld: symbol(s) not found for architecture arm64
