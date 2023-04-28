@@ -1,4 +1,4 @@
 [submodule "libdatadog"]
 	path = libdatadog
 	url = https://github.com/DataDog/libdatadog
-	branch = bob/sidecar-mockgen
+	branch = main
