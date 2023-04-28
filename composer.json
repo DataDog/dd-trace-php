@@ -69,12 +69,12 @@
             "@static-analyze-api",
             "@static-analyze-ddtrace"
         ],
-        "static-analyze-api": "phpstan analyse --configuration=./phpstan.api.neon --level=2 src/api",
+        "static-analyze-api": "php -dmemory_limit=1G $(which phpstan) analyse --configuration=./phpstan.ddtrace.neon --level=2 src/api",
         "static-analyze-clear-cache": [
             "phpstan clear-result-cache --configuration=./phpstan.api.neon",
             "phpstan clear-result-cache --configuration=./phpstan.ddtrace.neon"
         ],
-        "static-analyze-ddtrace": "phpstan analyse --configuration=./phpstan.ddtrace.neon --level=2 src/DDTrace",
+        "static-analyze-ddtrace": "php -dmemory_limit=1G $(which phpstan) analyse --configuration=./phpstan.ddtrace.neon --level=2 src/DDTrace",
         "run-agent": [
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
