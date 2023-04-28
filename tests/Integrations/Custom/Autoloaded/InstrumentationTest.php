@@ -21,7 +21,8 @@ final class InstrumentationTest extends WebFrameworkTestCase
         ]);
     }
 
-    private function readTelemetryPayloads($response) {
+    private function readTelemetryPayloads($response)
+    {
         $telemetryPayloads = [];
         foreach ($response as $request) {
             if (strpos($request["uri"], "/telemetry/") === 0) {
