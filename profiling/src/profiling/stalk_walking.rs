@@ -292,13 +292,13 @@ mod tests {
 
             assert_eq!(stack.len(), 3);
 
-            assert_eq!(stack[0].function, "function: 03");
+            assert_eq!(stack[0].function, "function name 3");
             assert_eq!(stack[0].line, 0);
 
-            assert_eq!(stack[1].function, "function: 02");
+            assert_eq!(stack[1].function, "function name 2");
             assert_eq!(stack[1].line, 0);
 
-            assert_eq!(stack[2].function, "function: 01");
+            assert_eq!(stack[2].function, "function name 1");
             assert_eq!(stack[2].line, 0);
 
             // Free the allocated memory

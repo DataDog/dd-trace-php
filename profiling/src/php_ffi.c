@@ -260,7 +260,7 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
 }
 
 zend_execute_data* create_fake_zend_execute_data(int depth) {
-    if (depth <= 0) {
+    if (depth <= 0 || depth > 9) {
         return NULL;
     }
 
@@ -270,21 +270,21 @@ zend_execute_data* create_fake_zend_execute_data(int depth) {
     execute_data->prev_execute_data = create_fake_zend_execute_data(depth - 1);
 
     // add function name to stack frame
-    uint len = strlen("function: 99");
-    zend_string *func_name = malloc(sizeof(zend_string) + len);
+    zend_string *func_name = malloc(sizeof(zend_string) + 15);
     func_name->h = 0;
-    func_name->len = len;
-    sprintf(func_name->val, "function: %02d", depth);
+    func_name->len = 15;
+    memcpy(func_name->val, "function name ", 14);
+    func_name->val[14] = depth + 48;
     execute_data->func = (zend_function *) malloc(sizeof(zend_function));
     memset(execute_data->func, 0, sizeof(zend_function));
     execute_data->func->common.function_name = func_name;
 
     // add file name to stack frame
-    len = strlen("file-99.php");
-    zend_string *file_name = malloc(sizeof(zend_string) + len);
+    zend_string *file_name = malloc(sizeof(zend_string) + 14);
     file_name->h = 0;
-    file_name->len = len;
-    sprintf(file_name->val, "file-%02d.php", depth);
+    file_name->len = 14;
+    memcpy(file_name->val, "filename-0.php", 14);
+    file_name->val[9] = depth + 48;
     execute_data->func->op_array.filename = file_name;
     execute_data->func->type = ZEND_USER_FUNCTION;
 
