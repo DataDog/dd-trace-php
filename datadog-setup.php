@@ -9,6 +9,11 @@ const THREAD_SAFETY = 'Thread Safety';
 const PHP_API = 'PHP API';
 const IS_DEBUG = 'Debug Build';
 
+// Commands
+const CMD_CONFIG_GET = 'config get';
+const CMD_CONFIG_SET = 'config set';
+const CMD_CONFIG_LIST = 'config list';
+
 // Options
 const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
@@ -17,6 +22,7 @@ const OPT_FILE = 'file';
 const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_APPSEC = 'enable-appsec';
 const OPT_ENABLE_PROFILING = 'enable-profiling';
+const OPT_INI_SETTING = 'd';
 
 // Release version is set while generating the final release files
 const RELEASE_VERSION = '@release_version@';
@@ -27,17 +33,35 @@ const RELEASE_VERSION = '@release_version@';
 define('RELEASE_URL_PREFIX', (getenv('DD_TEST_INSTALLER_REPO') ?: "https://github.com/DataDog/dd-trace-php") . "/releases/download/" . RELEASE_VERSION . "/");
 // phpcs:enable Generic.Files.LineLength.TooLong
 
+/**
+ * The number of items to shift off `get_ini_settings` for config commands.
+ */
+const CMD_CONFIG_NUM_SHIFT = 3;
+
 function main()
 {
     if (is_truthy(getenv('DD_TEST_EXECUTION'))) {
         return;
     }
 
-    $options = parse_validate_user_options();
-    if ($options[OPT_UNINSTALL]) {
-        uninstall($options);
-    } else {
-        install($options);
+    $arguments = parse_validate_user_options();
+    $options = $arguments['opts'];
+    switch ($arguments['cmd']) {
+        case CMD_CONFIG_GET:
+            cmd_config_get($options);
+            break;
+        case CMD_CONFIG_SET:
+            cmd_config_set($options);
+            break;
+        case CMD_CONFIG_LIST:
+            cmd_config_list($options);
+            break;
+        default:
+            if ($options[OPT_UNINSTALL]) {
+                uninstall($options);
+            } else {
+                install($options);
+            }
     }
 }
 
@@ -47,21 +71,355 @@ function print_help()
 
 Usage:
     Interactive
-        php datadog-setup.php ...
+        php datadog-setup.php [command] ...
     Non-Interactive
         php datadog-setup.php --php-bin php ...
         php datadog-setup.php --php-bin php --php-bin /usr/local/sbin/php-fpm ...
+        php datadog-setup.php config get --php-bin php -d datadog.profiling.enabled
+        php datadog-setup.php config set --php-bin php -d datadog.profiling.enabled=On
 
 Options:
-    -h, --help                  Print this help text and exit
-    --php-bin all|<path to php> Install the library to the specified binary or all php binaries in standard search
-                                paths. The option can be provided multiple times.
+    -h, --help                  Print this help text and exit.
+    --php-bin all|<path to php> Install the library to the specified binary or
+                                all php binaries in standard search paths. The
+                                option can be provided multiple times.
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
-    --uninstall                 Uninstall the library from the specified binaries
+    --uninstall                 Uninstall the library from the specified binaries.
     --enable-appsec             Enable the application security monitoring module.
     --enable-profiling          Enable the BETA profiling module.
+    -d setting[=value]          Used in conjunction with `config <set|get>`
+                                command to specify the INI setting to get or set.
+
+Available commands:
+    config list                 List Datadog's INI setting for the specified binaries.
+    config get                  Get INI setting for the specified binaries.
+    config set                  Set INI setting for the specified binaries.
 
 EOD;
+}
+
+// phpcs:disable PSR1.Classes.ClassDeclaration.MissingNamespace
+class IniRecord
+{
+    /** @var string */
+    public $setting;
+    /** @var string */
+    public $currentValue;
+    /** @var string */
+    public $defaultValue;
+    /** @var string */
+    public $iniFile;
+    /** @var string */
+    public $binary;
+
+    public function println()
+    {
+        // phpcs:disable Generic.Files.LineLength.TooLong
+        echo "$this->setting = $this->currentValue; default: $this->defaultValue, binary: $this->binary, INI file: $this->iniFile\n";
+    }
+}
+
+/**
+ * @param array $options
+ * @return Iterator<string, IniRecord>
+ */
+function config_list(array $options)
+{
+    $iniSettings = get_ini_settings('', '', '');
+
+    // The first 3 are 'extension' type of settings.
+    $iniSettings = array_slice($iniSettings, CMD_CONFIG_NUM_SHIFT);
+
+    // Build an index by unique names for filtering.
+    $indexByName = array_column($iniSettings, null, 'name');
+
+    foreach (require_binaries_or_exit($options) as $command => $fullPath) {
+        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
+        $iniFilePaths = find_all_ini_files(ini_values($fullPath));
+
+        foreach ($iniFilePaths as $iniFilePath) {
+            $iniFileSettings = parse_ini_file($iniFilePath, false, INI_SCANNER_RAW);
+            $settings = array_intersect_key($iniFileSettings, $indexByName);
+
+            foreach ($settings as $iniFileSetting => $currentValue) {
+                $iniSetting = $indexByName[$iniFileSetting];
+                $record = new IniRecord();
+                $record->setting = $iniFileSetting;
+                $record->currentValue = $currentValue;
+                $record->defaultValue = $iniSetting['default'];
+                $record->iniFile = $iniFilePath;
+                $record->binary = $binaryForLog;
+                yield $record->setting => $record;
+            }
+        }
+    }
+}
+
+/**
+ * This function will print out all Datadog specific PHP INI settings. The list
+ * of Datadog specific settings is retrieved by calling `get_ini_settings()`. It
+ * will also show the default and INI file this setting was found.
+ * The output will be grouped by PHP binary, example:
+ *
+ * $ php datadog-setup.php config list --php-bin all
+ * Searching for available php binaries, this operation might take a while.
+ * datadog.profiling.enabled = On; default: 1, binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.experimental_allocation_enabled = On; default: 1, binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ *
+ * @see get_ini_settings
+ * @return void
+ */
+function cmd_config_list(array $options)
+{
+    foreach (config_list($options) as $record) {
+        $record->println();
+    }
+}
+
+/**
+ * This function will print the specified PHP INI settings. It only prints
+ * information for Datadog's own settings; it can't be used to parse opcache,
+ * xdebug, etc.
+ * The output will be grouped by PHP binary, example:
+ *
+ * $ php datadog-setup.php config get --php-bin all \
+ *   -ddatadog.profiling.experimental_allocation_enabled \
+ *   -ddatadog.profiling.experimental_cpu_time_enabled \
+ *   -dnonexisting \
+ *   -dopcache.preload
+ * datadog.profiling.experimental_allocation_enabled = On; binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * datadog.profiling.experimental_cpu_time_enabled = On; binary: /opt/php/8.2/bin/php, INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * nonexisting = undefined; is missing in INI files
+ * opcache.preload = undefined; is missing in INI files
+ * @return void
+ */
+function cmd_config_get(array $options)
+{
+    if (!isset($options['d'])) {
+        print_help();
+        return;
+    }
+    /* A value could be set in multiple places:
+     * - /opt/php/8.1/etc/conf.d/98-ddtrace.ini
+     * - /opt/php/8.1/etc/conf.d/90-ddtrace-custom.ini
+     * So, a given setting like 'datadog.trace.enabled' is not necessarily
+     * unique in the iterator's keys.
+     */
+    $records = [];
+    foreach (config_list($options) as $setting => $record) {
+        $records[$setting][] = $record;
+    }
+
+    foreach ($options['d'] as $iniSetting) {
+        if (!isset($records[$iniSetting])) {
+            echo '; ', $iniSetting, ' = undefined; is missing in INI files', PHP_EOL;
+        } else {
+            foreach ($records[$iniSetting] as $record) {
+                $record->println();
+            }
+        }
+    }
+}
+
+/**
+ * This function will set the given INI settings for any given PHP binary
+ *
+ * 1. Scan all INI files for for this INI setting and update if found (updates
+ *    in all INI files in case it finds in multiple places and warns about the
+ *    mess it found).
+ * 2. In case it could not find, it searches for commented out versions of this
+ *    INI setting, uncomments it and updates the value. It first checks this in
+ *    the "default" INI file (the one that holds the `extension = ddtrace` line,
+ *    then others and only promotes the first commented version found.
+ * 3. In case this INI setting is not there yet it creates a new entry in the
+ *    "default" INI file (see above).
+ *
+ * $ php datadog-setup.php config set --php-bin all \
+ *   -ddatadog.profiling.experimental_allocation_enabled=On \
+ *   -ddatadog.profiling.experimental_cpu_time_enabled=On \
+ * Setting configuration for binary: php (/opt/php/8.2/bin/php)
+ * Set 'datadog.profiling.experimental_allocation_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ * Set 'datadog.profiling.experimental_cpu_time_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
+ */
+function cmd_config_set(array $options): void
+{
+    if (!isset($options['d'])) {
+        print_help();
+        return;
+    }
+    $selectedBinaries = require_binaries_or_exit($options);
+    foreach ($selectedBinaries as $command => $fullPath) {
+        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
+        echo "Setting configuration for binary: $binaryForLog", PHP_EOL;
+
+        $phpProps = ini_values($fullPath);
+
+        foreach ($options['d'] as $cliIniSetting) {
+            if (($setting = parse_ini_setting($cliIniSetting)) === false) {
+                echo "The given INI setting '", $cliIniSetting,
+                    "' can't be converted to a valid INI setting, skipping.", PHP_EOL;
+                continue;
+            }
+
+            $allIniFilePaths = find_all_ini_files($phpProps);
+
+            $matchCount = 0;
+            // look for INI setting in INI files
+            foreach ($allIniFilePaths as $iniFile) {
+                $count = update_ini_setting($setting, $iniFile, false);
+                if ($count === 0) {
+                    continue;
+                }
+                if ($count === false) {
+                    echo "Could not set '", $setting[0], "' to '", $setting[1],
+                        "' in INI file: ", $iniFile , PHP_EOL;
+                    continue;
+                }
+                echo "Set '", $setting[0], "' to '", $setting[1], "' in INI file: ", $iniFile, PHP_EOL;
+                $matchCount += $count;
+            }
+
+            if ($matchCount >= 1) {
+                // found and updated
+                if ($matchCount >= 2) {
+                    echo "Warning: '$setting[0]' was found in multiple places, ",
+                        "you might want to remove duplicates.", PHP_EOL;
+                }
+                continue;
+            }
+
+            // If we are here, we could not find the INI setting in any files, so
+            // we try and look for commented versions
+
+            $matchCount = 0;
+            // look for INI setting in INI files
+            foreach ($allIniFilePaths as $iniFile) {
+                $count = update_ini_setting($setting, $iniFile, true);
+                if ($count === 0) {
+                    continue;
+                }
+                if ($count === false) {
+                    echo "Could not set '", $setting[0], "' to '", $setting[1],
+                        "' in INI file: ", $iniFile , PHP_EOL;
+                    continue;
+                }
+                echo "Set '", $setting[0], "' to '", $setting[1], "' in INI file: ", $iniFile, PHP_EOL;
+                $matchCount += $count;
+                break;
+            }
+
+            if ($matchCount >= 1) {
+                // found, promoted from comment and updated
+                continue;
+            }
+
+            // Now we are here, meaning we could not find it, not in active nor in
+            // commented version, so we just add it to the default INI file(s)
+
+            $mainIniFilePaths = find_main_ini_files($phpProps);
+
+            $set = false;
+            foreach ($mainIniFilePaths as $iniFile) {
+                if (!file_exists($iniFile)) {
+                    echo "File '$iniFile' does not exist. Trying to create it... ";
+                    if (file_put_contents($iniFile, '') === false) {
+                        echo "Could not set '{$setting[0]}' to '{$setting[1]}' in INI file: {$iniFile}.\n";
+                        $directory = dirname($iniFile);
+                        if (!is_dir($directory)) {
+                            echo "Directory '$directory' doesn't exist. Create it and try again if you want to use '$iniFile'.\n";
+                        }
+                        continue;
+                    } else {
+                        echo "Success.\n";
+                    }
+                }
+
+                $iniFileContent = file_get_contents($iniFile);
+                // check for "End of Line" symbol at the end of the file and
+                // add in case it is missing
+                if (strlen($iniFileContent) > 0 && substr($iniFileContent, -1, 1) !== PHP_EOL) {
+                    $iniFileContent .= PHP_EOL;
+                }
+                $iniFileContent .= implode(' = ', $setting) . PHP_EOL;
+                if (file_put_contents($iniFile, $iniFileContent) === false) {
+                    echo "Could not set '{$setting[0]}' to '{$setting[1]}' in INI file: {$iniFile}.\n";
+                    continue;
+                }
+                echo "Set '{$setting[0]}' to '{$setting[1]}' in INI file: $iniFile.\n";
+                $set = true;
+            }
+
+            if (!$set) {
+                echo "Unable to set '{$setting[0]}' to '{$setting[1]}' in any INI file for $binaryForLog.\n";
+                exit(1);
+            }
+        }
+    }
+}
+
+/**
+ * Parse a given INI setting (from CLI) into an array and return it. It also tries
+ * to parse the new setting with `parse_ini_string()` to validate it is actually
+ * working
+ *
+ * @return false|array{0:string, 1:string}
+ */
+function parse_ini_setting(string $setting)
+{
+    // `trim()` should not be needed, but better safe than sorry
+    $setting = array_map(
+        'trim',
+        explode(
+            '=',
+            $setting,
+            2
+        )
+    );
+    if (count($setting) !== 2) {
+        return false;
+    }
+    // safety: try out if parsing the generated ini setting is actually possible
+    if (parse_ini_string($setting[0] . '=' . $setting[1], false, INI_SCANNER_RAW) === false) {
+        return false;
+    }
+    return $setting;
+}
+
+
+/**
+ * This function will try and update a given `$setting` in the INI file given in
+ * `$iniFile`. First it tries to find an uncommented version of the setting in
+ * the file and replace this with the new value. In case no uncommented version
+ * was found it tries to find commented versions of this INI setting.
+ *
+ * In case `$promoteComment` is set to `true`, this function will replace and
+ * therefore promote only the first occurrence it finds from a comment to an INI
+ * setting in the given `$iniFile`.
+ *
+ * @param array{0: string, 1: string} $setting
+ * @return false|int
+ */
+function update_ini_setting(array $setting, string $iniFile, bool $promoteComment)
+{
+    $iniFileContent = file_get_contents($iniFile);
+    if ($promoteComment) {
+        $regex = '/^[\h;]*' . preg_quote($setting[0]) . '\h*=\h*?[^;\n\r]*/mi';
+    } else {
+        $regex = '/^\h*' . preg_quote($setting[0]) . '\h*=\h*?[^;\n\r]*/mi';
+    }
+    $count = 0;
+    $iniFileContent = preg_replace($regex, implode(' = ', $setting), $iniFileContent, $promoteComment ? 1 : -1, $count);
+    if ($iniFileContent === null) {
+        // something wrong with the regex, the user should see a warning
+        // in the form of "Warning: preg_replace(): Compilation failed ..."
+        return false;
+    }
+    if ($count > 0) {
+        if (file_put_contents($iniFile, $iniFileContent) === false) {
+            return false;
+        }
+    }
+    return $count;
 }
 
 function install($options)
@@ -215,40 +573,7 @@ function install($options)
         }
         $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
 
-        // Writing the ini file
-        if ($phpProperties[INI_SCANDIR]) {
-            $iniFileName = '98-ddtrace.ini';
-            // Search for pre-existing files with extension = ddtrace.so to avoid conflicts
-            // See issue https://github.com/DataDog/dd-trace-php/issues/1833
-            foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
-                $path = "{$phpProperties[INI_SCANDIR]}/$ini";
-                if (is_file($path)) {
-                    // match /path/to/ddtrace.so, plain extension = ddtrace or future extensions like ddtrace.dll
-                    if (preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", file_get_contents($path), $res)) {
-                        if (basename($res[1]) == "ddtrace") {
-                            $iniFileName = $ini;
-                        }
-                    }
-                }
-            }
-
-            $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
-
-            if (strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
-                /* debian based distros have INI folders split by SAPI, in a predefined way:
-                 *   - <...>/cli/conf.d       <-- we know this from php -i
-                 *   - <...>/apache2/conf.d   <-- we derive this from relative path
-                 *   - <...>/fpm/conf.d       <-- we derive this from relative path
-                 */
-                $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
-                if (is_dir($apacheConfd)) {
-                    $iniFilePaths[] = "$apacheConfd/$iniFileName";
-                }
-            }
-        } else {
-            $iniFileName = $phpProperties[INI_MAIN];
-            $iniFilePaths = [$iniFileName];
-        }
+        $iniFilePaths = find_main_ini_files($phpProperties);
 
         foreach ($iniFilePaths as $iniFilePath) {
             if (!file_exists($iniFilePath)) {
@@ -394,6 +719,120 @@ function install($options)
         );
         echo "  php " . implode(" ", array_map("escapeshellarg", $args)) . "\n";
     }
+}
+
+/**
+ * Returns a list of all INI files found for the `$phpProperties` given.
+ *
+ * Does so by scanning the INI scan directory for `.ini` files. Additionally we
+ * check if we are running on a Debian based distribution so we assume the INI
+ * files are split by SAPI, so we try and add the Apache SAPI INI files as
+ * well. In case it exists, we also add the default `php.ini` file to the list.
+ *
+ * The returned array is somewhat sorted to have the "default" INI file for
+ * Datadog (`98-ddtrace.ini`) in the beginning of the array.
+ *
+ * @see ini_values
+ * @return string[]
+ */
+function find_all_ini_files(array $phpProperties): array
+{
+    $iniFilePaths = [];
+
+    $addIniFiles = function (string $path) use (&$iniFilePaths) {
+        if (!is_dir($path)) {
+            return;
+        }
+        foreach (scandir($path) as $ini) {
+            if (!is_file($path . '/' . $ini) || substr($ini, -4) !== '.ini') {
+                continue;
+            }
+            $iniFile = $path . '/' . $ini;
+            if (strpos($ini, '98-ddtrace.ini') !== false) {
+                array_unshift($iniFilePaths, $iniFile);
+            } else {
+                $iniFilePaths[] = $iniFile;
+            }
+        }
+    };
+
+    if ($phpProperties[INI_SCANDIR]) {
+        $addIniFiles($phpProperties[INI_SCANDIR]);
+
+        if (strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
+            /* debian based distros have INI folders split by SAPI, in a predefined way:
+             *   - <...>/cli/conf.d       <-- we know this from php -i
+             *   - <...>/apache2/conf.d   <-- we derive this from relative path
+             *   - <...>/fpm/conf.d       <-- we derive this from relative path
+             */
+            $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
+            $addIniFiles($apacheConfd);
+        }
+    }
+
+    if (isset($phpProperties[INI_MAIN]) && is_file($phpProperties[INI_MAIN])) {
+        $iniFilePaths = [$phpProperties[INI_MAIN]];
+    }
+
+    return $iniFilePaths;
+}
+
+/**
+ * This function will find the main INI file(s) for the given `$phpProperties`.
+ *
+ * The "main" or "default" INI file is either a `98-ddtrace.ini` file or
+ * another INI file that loads the extension (or rephrasing this as: the file
+ * the has the `extension = ddtrace` line in it).
+ *
+ * In most cases this function will return an array with exactly one element,
+ * only in case we detect a Debian based distribution, it might contain two
+ * elements, as debian based distributions split the INI folders based on SAPI
+ * and we include those as well.
+ *
+ * The `$phpProperties` can be retrieved by calling `ini_values($pathToPHPBinary)`.
+ *
+ * @see ini_values
+ * @return string[]
+ */
+function find_main_ini_files(array $phpProperties): array
+{
+    $iniFilePaths = [];
+    if (isset($phpProperties[INI_SCANDIR])) {
+        $iniFileName = '98-ddtrace.ini';
+        // Search for pre-existing files with extension = ddtrace.so to avoid conflicts
+        // See issue https://github.com/DataDog/dd-trace-php/issues/1833
+        if (is_dir($phpProperties[INI_SCANDIR])) {
+            foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
+                $path = "{$phpProperties[INI_SCANDIR]}/$ini";
+                if (is_file($path)) {
+                    // match /path/to/ddtrace.so, plain extension = ddtrace or future extensions like ddtrace.dll
+                    if (preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", file_get_contents($path), $res)) {
+                        if (basename($res[1]) == "ddtrace") {
+                            $iniFileName = $ini;
+                        }
+                    }
+                }
+            }
+        }
+
+        $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
+
+        if (strpos($phpProperties[INI_SCANDIR], '/cli/conf.d') !== false) {
+            /* debian based distros have INI folders split by SAPI, in a predefined way:
+             *   - <...>/cli/conf.d       <-- we know this from php -i
+             *   - <...>/apache2/conf.d   <-- we derive this from relative path
+             *   - <...>/fpm/conf.d       <-- we derive this from relative path
+             */
+            $apacheConfd = str_replace('/cli/conf.d', '/apache2/conf.d', $phpProperties[INI_SCANDIR]);
+            if (is_dir($apacheConfd)) {
+                $iniFilePaths[] = "$apacheConfd/$iniFileName";
+            }
+        }
+    } else {
+        $iniFileName = $phpProperties[INI_MAIN];
+        $iniFilePaths = [$iniFileName];
+    }
+    return $iniFilePaths;
 }
 
 /**
@@ -650,42 +1089,106 @@ function get_architecture()
 }
 
 /**
+ * @return array|false
+ */
+function parse_cli_arguments(array $argv = null)
+{
+    if (is_null($argv)) {
+        $argv = $_SERVER['argv'];
+    }
+
+    // strip the application name
+    array_shift($argv);
+
+    $arguments = [
+        'cmd' => null,
+        'opts' => [],
+    ];
+
+    while (null !== $token = array_shift($argv)) {
+        if (substr($token, 0, 2) === '--') {
+            // parse long option
+            $key = substr($token, 2);
+            $value = false;
+            // --php-bin=php
+            if (strpos($key, '=') !== false) {
+                list($key, $value) = explode('=', $key, 2);
+            } else {
+                // look ahead to next $token
+                if (isset($argv[0]) && substr($argv[0], 0, 1) !== '-') {
+                    $value = array_shift($argv);
+                    if ($value === null) {
+                        $value = false;
+                    }
+                }
+            }
+        } elseif (substr($token, 0, 1) === '-') {
+            // parse short option
+            $key = $token[1];
+            $value = false;
+            if (strlen($token) === 2) {
+                // -d datadog.profiling.enabled or -h
+                // look ahead to next $token
+                if (isset($argv[0]) && substr($argv[0], 0, 1) !== '-') {
+                    $value = array_shift($argv);
+                    if ($value === null) {
+                        $value = false;
+                    }
+                }
+            } else {
+                // -ddatadog.profiling.enabled
+                $value = substr($token, 2);
+            }
+        } else {
+            if (count($arguments['opts'])) {
+                // php datadog-setup.php --php-bin=all php6
+                // The "php6" is a problem
+                echo "Parse error at token '$token'", PHP_EOL;
+                return false;
+            }
+            // parse command
+            if ($arguments['cmd'] === null) {
+                $arguments['cmd'] = $token;
+            } else {
+                $arguments['cmd'] .= ' ' . $token;
+            }
+            continue;
+        }
+
+        if (!isset($arguments['opts'][$key])) {
+            $arguments['opts'][$key] = $value;
+        } elseif (is_string($arguments['opts'][$key])) {
+            $arguments['opts'][$key] = [
+                $arguments['opts'][$key],
+                $value,
+            ];
+        } else {
+            $arguments['opts'][$key][] = $value;
+        }
+    }
+
+    if ($arguments['cmd'] === null) {
+        $arguments['cmd'] = 'install';
+    }
+
+    return $arguments;
+}
+
+/**
  * Parses command line options provided by the user and generate a normalized $options array.
  * @return array
  */
 function parse_validate_user_options()
 {
-    $shortOptions = "h";
-    $longOptions = [
-        OPT_HELP,
-        OPT_PHP_BIN . ':',
-        OPT_FILE . ':',
-        OPT_INSTALL_DIR . ':',
-        OPT_UNINSTALL,
-        OPT_ENABLE_APPSEC,
-        OPT_ENABLE_PROFILING,
-    ];
-    $options = getopt($shortOptions, $longOptions);
-
-    global $argc;
-    if ($options === false || (empty($options) && $argc > 1)) {
-        /* Note that the above conditions are not as robust as I'd like.
-         * Consider:
-         *   php datadog-setup.php --enable-profiling 0.69.0 --php-bin php
-         * getopt will stop at 0.69.0 as it doesn't recognize it, but it will
-         * return an array that only has enable-profiling in it.
-         * I don't see an obvious way out of this, but catching some failures
-         * here is better than not catching any.
-         */
-        print_error_and_exit("Failed to parse options", true);
-    }
+    $args = parse_cli_arguments();
 
     // Help and exit
-    if (key_exists('h', $options) || key_exists(OPT_HELP, $options)) {
+    if ($args === false || key_exists('h', $args['opts']) || key_exists(OPT_HELP, $args['opts'])) {
         print_help();
         exit(0);
     }
 
+    $options = $args['opts'];
     $normalizedOptions = [];
 
     $normalizedOptions[OPT_UNINSTALL] = isset($options[OPT_UNINSTALL]);
@@ -700,6 +1203,9 @@ function parse_validate_user_options()
     }
 
     if (isset($options[OPT_PHP_BIN])) {
+        if ($options[OPT_PHP_BIN] === false) {
+            print_error_and_exit('PHP binary needs to be provided when using --php-bin', true);
+        }
         $normalizedOptions[OPT_PHP_BIN] = is_array($options[OPT_PHP_BIN])
             ? $options[OPT_PHP_BIN]
             : [$options[OPT_PHP_BIN]];
@@ -713,7 +1219,16 @@ function parse_validate_user_options()
     $normalizedOptions[OPT_ENABLE_APPSEC] = isset($options[OPT_ENABLE_APPSEC]);
     $normalizedOptions[OPT_ENABLE_PROFILING] = isset($options[OPT_ENABLE_PROFILING]);
 
-    return $normalizedOptions;
+    if (isset($options[OPT_INI_SETTING])) {
+        $normalizedOptions[OPT_INI_SETTING] = is_array($options[OPT_INI_SETTING])
+            ? $options[OPT_INI_SETTING]
+            : [$options[OPT_INI_SETTING]];
+    }
+
+    return [
+        'cmd' => $args['cmd'],
+        'opts' => $normalizedOptions,
+    ];
 }
 
 function print_error_and_exit($message, $printHelp = false)
@@ -1146,6 +1661,11 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'commented' => false,
             'description' => 'Enables the appsec module',
         ],
+
+        /* IMPORTANT! These extension ones are shifted off for config commands.
+         * If the number of extension= things changes, change the constant
+         * CMD_CONFIG_NUM_SHIFT accordingly.
+         */
 
         [
             'name' => 'datadog.profiling.enabled',

@@ -53,6 +53,7 @@ static zend_long zai_hook_test_index;
         REQUIRE(tea_sapi_sinit());                              \
         REQUIRE(tea_sapi_minit());                              \
         REQUIRE(zai_hook_minit());                              \
+        REQUIRE(zai_hook_ginit());                              \
         zend_execute_internal_function = zend_execute_internal; \
         if (!zend_execute_internal_function) {                  \
             zend_execute_internal_function = execute_internal;  \
@@ -69,6 +70,7 @@ static zend_long zai_hook_test_index;
         TEA_TEST_CASE_WITHOUT_BAILOUT_END()                     \
         zai_hook_rshutdown();                                   \
         tea_sapi_rshutdown();                                   \
+        zai_hook_gshutdown();                                   \
         zai_hook_mshutdown();                                   \
         tea_sapi_mshutdown();                                   \
         tea_sapi_sshutdown();                                   \

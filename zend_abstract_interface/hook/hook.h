@@ -7,11 +7,13 @@
 /* {{{ staging functions
         Note: installation of hooks may occur after minit */
 bool zai_hook_minit(void);
+bool zai_hook_ginit(void);
 bool zai_hook_rinit(void);
 void zai_hook_post_startup(void);
 void zai_hook_activate(void);
 void zai_hook_clean(void);
 void zai_hook_rshutdown(void);
+void zai_hook_gshutdown(void);
 void zai_hook_mshutdown(void); /* }}} */
 
 typedef bool (*zai_hook_begin)(zend_ulong invocation, zend_execute_data *frame, void *auxiliary, void *dynamic);
