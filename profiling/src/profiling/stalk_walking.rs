@@ -292,14 +292,16 @@ mod tests {
 
             assert_eq!(stack.len(), 3);
 
-            assert_eq!(stack[0].function, "function name 3");
+            assert_eq!(stack[0].function, "function name 03");
             assert_eq!(stack[0].line, 0);
 
-            assert_eq!(stack[1].function, "function name 2");
+            assert_eq!(stack[1].function, "function name 02");
             assert_eq!(stack[1].line, 0);
 
-            assert_eq!(stack[2].function, "function name 1");
+            assert_eq!(stack[2].function, "function name 01");
             assert_eq!(stack[2].line, 0);
+
+            println!("{:?}", stack);
 
             // Free the allocated memory
             zend::free_fake_zend_execute_data(fake_execute_data);
@@ -331,7 +333,7 @@ mod tests {
                 stats.missed = 0;
             });
             zend::ddog_php_prof_set_ignore_run_time_cache(false);
-            let fake_execute_data = zend::create_fake_zend_execute_data(9);
+            let fake_execute_data = zend::create_fake_zend_execute_data(99);
             // first run should produce three cache misses
             collect_stack_sample(fake_execute_data).unwrap();
             bencher.iter(|| {
@@ -356,7 +358,7 @@ mod tests {
                 stats.missed = 0;
             });
             zend::ddog_php_prof_set_ignore_run_time_cache(true);
-            let fake_execute_data = zend::create_fake_zend_execute_data(9);
+            let fake_execute_data = zend::create_fake_zend_execute_data(99);
             // first run should produce three cache misses
             collect_stack_sample(fake_execute_data).unwrap();
             bencher.iter(|| {
