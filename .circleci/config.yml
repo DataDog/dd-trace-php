@@ -56,6 +56,14 @@ aliases:
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
 
+  - &IMAGE_DOCKER_SQLSRV
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    name: sqlsrv_integration
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Password12!
+      - MSSQL_PID=Developer
+
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
       at: ~/datadog
@@ -379,6 +387,7 @@ executors:
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_MONGO
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+      - <<: *IMAGE_DOCKER_SQLSRV
 
 jobs:
   "Lint files":
