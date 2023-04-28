@@ -9,6 +9,7 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
+
 use function DDTrace\install_hook;
 
 class SQLSRVIntegration extends Integration
@@ -197,7 +198,7 @@ class SQLSRVIntegration extends Integration
 
         $span->name = $name;
         $span->resource = $query ?? $name;
-        $span->type= Type::SQL;
+        $span->type = Type::SQL;
         $span->service = 'sqlsrv';
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = SQLSRVIntegration::NAME;
