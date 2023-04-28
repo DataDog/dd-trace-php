@@ -136,6 +136,11 @@ aliases:
       name: Waiting for Dockerized request replayer
       command: wait-for request-replayer:80 --timeout=120
 
+  - &STEP_WAIT_SQLSRV
+    run:
+      name: Waiting for Dockerized SQLSRV
+      command: wait-for sqlsrv_integration:1433 --timeout=60
+
   # Fix intermittent error: "Could not resolve host: httpbin_integration"
   - &STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
     run:
@@ -769,6 +774,7 @@ jobs:
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_WAIT_SQLSRV
       - run:
           name: Run tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
@@ -911,6 +917,7 @@ jobs:
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_WAIT_SQLSRV
       - run:
           name: Run << parameters.integration_testsuite >> integration test
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.integration_testsuite >>
