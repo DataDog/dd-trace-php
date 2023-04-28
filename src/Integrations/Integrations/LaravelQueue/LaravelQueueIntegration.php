@@ -92,43 +92,45 @@ class LaravelQueueIntegration extends Integration
             }
         );
 
-        hook_method(
-            'Illuminate\Queue\Jobs\Job',
-            'fire',
-            function ($job, $scope, $args) use ($integration) {
-                $payload = $job->payload();
-                list($class, $method) = JobName::parse($payload['job']);
+        if (PHP_MAJOR_VERSION > 5) {
+            hook_method(
+                'Illuminate\Queue\Jobs\Job',
+                'fire',
+                function ($job, $scope, $args) use ($integration) {
+                    $payload = $job->payload();
+                    list($class, $method) = JobName::parse($payload['job']);
 
-                if ($class == 'Illuminate\\Queue\\CallQueuedHandler') {
-                    $class = $payload['data']['commandName'];
-                    $method = 'handle';
+                    if ($class == 'Illuminate\\Queue\\CallQueuedHandler') {
+                        $class = $payload['data']['commandName'];
+                        $method = 'handle';
+                    }
+
+                    trace_method($class, $method, function (SpanData $span) use ($integration, $class, $method) {
+                        $span->name = 'laravel.queue.action';
+                        $span->type = 'queue';
+                        $span->service = $integration->getName();
+                        $span->resource = $class . '@' . $method;
+                        $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
+
+                        if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
+                            $span->meta['messaging.laravel.batch_id'] = $this->batchId ?? null;
+                        }
+
+                        if (isset($this->job)) {
+                            $integration->setSpanAttributes(
+                                $span,
+                                'laravel.queue.action',
+                                null,
+                                $this->job,
+                                null,
+                                null,
+                                $class . '@' . $method
+                            );
+                        }
+                    });
                 }
-
-                trace_method($class, $method, function (SpanData $span) use ($integration, $class, $method) {
-                    $span->name = 'laravel.queue.action';
-                    $span->type = 'queue';
-                    $span->service = $integration->getName();
-                    $span->resource = $class . '@' . $method;
-                    $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
-
-                    if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
-                        $span->meta['messaging.laravel.batch_id'] = $this->batchId ?? null;
-                    }
-
-                    if (isset($this->job)) {
-                        $integration->setSpanAttributes(
-                            $span,
-                            'laravel.queue.action',
-                            null,
-                            $this->job,
-                            null,
-                            null,
-                            $class . '@' . $method
-                        );
-                    }
-                });
-            }
-        );
+            );
+        }
 
         trace_method(
             'Illuminate\Queue\Jobs\Job',
