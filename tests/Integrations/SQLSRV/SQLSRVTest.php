@@ -18,15 +18,29 @@ class SQLSRVTest extends IntegrationTestCase
 
     // phpcs:disable
     const ERROR_CONNECT = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
-    const ERROR_QUERY = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
+    const ERROR_QUERY = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
     const ERROR_PREPARE = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
-    const ERROR_EXECUTE = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
+    const ERROR_EXECUTE = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Statement(s) could not be prepared.';
     // phpcs:enable
 
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
         IntegrationsLoader::load();
+        self::putenv('DD_SQLSRV_ANALYTICS_ENABLED=true');
+    }
+
+    public static function ddTearDownAfterClass()
+    {
+        parent::ddTearDownAfterClass();
+        self::putenv('DD_SQLSRV_ANALYTICS_ENABLED');
+    }
+
+    protected static function getEnvs()
+    {
+        return array_merge(parent::getEnvs(), [
+            'DD_TRACE_DEBUG' => '1'
+        ]);
     }
 
     protected function ddSetUp()
@@ -60,7 +74,6 @@ class SQLSRVTest extends IntegrationTestCase
             $conn = sqlsrv_connect(self::$host, ['PWD' => 'wrong_password']);
             $this->assertFalse($conn);
         });
-        //'SQLSTATE[28000] [1045] Access denied for user \'sa\'@\'%\' (using password: YES)'
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect')
@@ -73,7 +86,7 @@ class SQLSRVTest extends IntegrationTestCase
         $query = 'SELECT * FROM tests WHERE id=1';
         $traces = $this->isolateTracer(function () use ($query) {
             $conn = $this->createConnection();
-            sqlsrv_query($conn, $query);
+            sqlsrv_query($conn, $query, [], ['Scrollable' => 'static']);
             sqlsrv_close($conn);
         });
 
@@ -81,8 +94,11 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
-                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0])
+                ->withExactTags(self::baseTags($query))
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
         ]);
     }
 
@@ -95,11 +111,12 @@ class SQLSRVTest extends IntegrationTestCase
             sqlsrv_close($conn);
         });
 
+        // No metrics expected, as the default 'forward' cursor type is used
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
+                ->withExactTags(self::baseTags($query))
                 ->setError('SQLSRV error', SQLSRVTest::ERROR_QUERY)
         ]);
     }
@@ -117,7 +134,7 @@ class SQLSRVTest extends IntegrationTestCase
 
         $this->assertOneRowInDatabase('tests', ['id' => 1000, 'name' => 'Sam']);
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('sqlsrv_begin_transaction'),
+            SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::exists('sqlsrv_query'),
             SpanAssertion::build('sqlsrv_commit', 'sqlsrv', 'sql', 'sqlsrv_commit')
                 ->withExactTags(self::baseTags())
@@ -129,7 +146,7 @@ class SQLSRVTest extends IntegrationTestCase
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
             $conn = $this->createConnection();
-            $stmt = sqlsrv_prepare($conn, $query, [1]);
+            $stmt = sqlsrv_prepare($conn, $query, [1], ['Scrollable' => 'buffered']);
             sqlsrv_execute($stmt);
             sqlsrv_close($conn);
         });
@@ -137,11 +154,14 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags($query)),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
-                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0])
+                ->withExactTags(self::baseTags($query))
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
         ]);
     }
 
@@ -156,6 +176,7 @@ class SQLSRVTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::exists('sqlsrv_prepare'),
             SpanAssertion::exists('sqlsrv_execute')
                 ->setError('SQLSRV error', self::ERROR_PREPARE)
@@ -168,10 +189,10 @@ class SQLSRVTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($query) {
             $conn = $this->createConnection();
             sqlsrv_begin_transaction($conn);
-            sqlsrv_prepare($conn, $query);
-            sqlsrv_execute($conn);
+            $stmt = sqlsrv_prepare($conn, $query);
+            sqlsrv_execute($stmt);
             sqlsrv_commit($conn);
-            sqlsrv_close($conn); // TODO: check if this is needed
+            sqlsrv_close($conn);
         });
 
         $this->assertFlameGraph($traces, [
@@ -180,7 +201,7 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('SQLSRV error', SQLSRVTest::ERROR_EXECUTE)
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags($query)),
             SpanAssertion::exists('sqlsrv_commit')
         ]);
     }
@@ -240,23 +261,30 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags($query)),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
+                ->withExactTags(self::baseTags($query))
         ]);
     }
 
     private function createConnection()
     {
-        return sqlsrv_connect(
+        $conn = sqlsrv_connect(
             self::$host . ', ' . self::$port,
             [
                 'PWD' => self::$password,
                 'Database' => self::$database,
-                'UID' => self::$user
+                'UID' => self::$user,
+                'TrustServerCertificate' => true
             ]
         );
+        if ($conn === false) {
+            // Retrieve the error
+            $errors = sqlsrv_errors();
+            throw new \Exception(print_r($errors, true));
+        }
+        return $conn;
     }
 
     private function queryDatabaseAllAssociative($table, $wheres)
@@ -283,7 +311,7 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertCount(1, $results);
     }
 
-    private static function baseTags()
+    private static function baseTags($query = null)
     {
         return [
             Tag::SPAN_KIND => 'client',
@@ -293,30 +321,26 @@ class SQLSRVTest extends IntegrationTestCase
             Tag::DB_USER => self::$user,
             Tag::TARGET_HOST => self::$host,
             Tag::TARGET_PORT => self::$port,
-        ];
+        ] + ($query ? [Tag::DB_STMT => $query] : []);
     }
 
     private function clearDatabase()
     {
-        $this->isolateTracer(function () {
-            $conn = $this->createConnection();
-            $sql = 'DROP TABLE IF EXISTS tests';
-            sqlsrv_query($conn, $sql);
-            sqlsrv_commit($conn);
-            sqlsrv_close($conn);
-        });
+        $conn = $this->createConnection();
+        $sql = 'DROP TABLE IF EXISTS tests';
+        sqlsrv_query($conn, $sql);
+        sqlsrv_commit($conn);
+        sqlsrv_close($conn);
     }
 
     private function setUpDatabase()
     {
-        $this->isolateTracer(function () {
-            $conn = $this->createConnection();
-            $sql1 = 'CREATE TABLE tests (id INT PRIMARY KEY, name VARCHAR(100))';
-            sqlsrv_query($conn, $sql1);
-            $sql2 = "INSERT INTO tests (id, name) VALUES (1, 'Tom')";
-            sqlsrv_query($conn, $sql2);
-            sqlsrv_commit($conn);
-            sqlsrv_close($conn);
-        });
+        $conn = $this->createConnection();
+        $sql1 = 'CREATE TABLE tests (id INT PRIMARY KEY, name VARCHAR(100))';
+        sqlsrv_query($conn, $sql1);
+        $sql2 = "INSERT INTO tests (id, name) VALUES (1, 'Tom')";
+        sqlsrv_query($conn, $sql2);
+        sqlsrv_commit($conn);
+        sqlsrv_close($conn);
     }
 }

@@ -37,10 +37,22 @@ if [[ $PHP_VERSION_ID -le 74 ]]; then
   MEMCACHE_VERSION=-4.0.5.2
 fi
 
+SQLSRV_VERSION=
+if [[ $PHP_VERSION_ID -le 70 ]]; then
+  SQLSRV_VERSION=-5.3.0
+elif [[ $PHP_VERSION_ID -le 71 ]]; then
+  SQLSRV_VERSION=-5.6.1
+elif [[ $PHP_VERSION_ID -le 74 ]]; then
+  SQLSRV_VERSION=-5.8.0
+else
+  SQLSRV_VERSION=-5.11.0
+fi
+
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
 
 export PKG_CONFIG=/usr/bin/$HOST_ARCH-linux-gnu-pkg-config
 export CC=$HOST_ARCH-linux-gnu-gcc
+export CXX=$HOST_ARCH-linux-gnu-g++
 
 iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}');
 
@@ -100,8 +112,7 @@ else
   yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
   pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
   pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini;
-  pecl install sqlsrv; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
-  pecl install swoole; echo "extension=swoole.so" >> ${iniDir}/swoole.ini;
+  pecl install sqlsrv$SQLSRV_VERSION; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do
     pecl install xdebug$VERSION;

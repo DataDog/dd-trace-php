@@ -43,7 +43,7 @@ class SQLSRVIntegration extends Integration
         \DDTrace\trace_function('sqlsrv_connect', function (SpanData $span, $args, $retval) use ($integration) {
             $connectionMetadata = $integration->extractConnectionMetadata($args);
             ObjectKVStore::put($this, SQLSRVIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
-            $integration->setDefaultAttributes($connectionMetadata, $span, 'sqlsrv_connect');
+            self::setDefaultAttributes($connectionMetadata, $span, 'sqlsrv_connect');
 
             $integration->detectError($retval, $span);
         });
@@ -54,8 +54,10 @@ class SQLSRVIntegration extends Integration
                 list(, $query) = $hook->args;
 
                 $span = $hook->span();
-                $integration->setDefaultAttributes($this, $span, 'sqlsrv_query', $query);
+                self::setDefaultAttributes($this, $span, 'sqlsrv_query', $query);
                 $integration->addTraceAnalyticsIfEnabled($span);
+
+                ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
             }, function (HookData $hook) use ($integration) {
@@ -64,6 +66,10 @@ class SQLSRVIntegration extends Integration
                     ObjectKVStore::propagate($this, $hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY);
                 }
 
+                $result = $hook->returned;
+
+                $this->setMetricNumRows($span, $result);
+
                 $integration->detectError($hook->returned, $span);
             });
 
@@ -71,9 +77,10 @@ class SQLSRVIntegration extends Integration
             \DDTrace\install_hook('sqlsrv_prepare', function (HookData $hook) use ($integration) {
                 list(, $query) = $hook->args;
 
+                ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
+
                 $span = $hook->span();
-                $integration->setDefaultAttributes($this, $span, 'sqlsrv_prepare', $query);
-                $integration->addTraceAnalyticsIfEnabled($span);
+                self::setDefaultAttributes($this, $span, 'sqlsrv_prepare', $query);
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
             }, function (HookData $hook) use ($integration) {
@@ -87,11 +94,15 @@ class SQLSRVIntegration extends Integration
         } else {
             // sqlsrv_query ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
             \DDTrace\trace_function('sqlsrv_query', function (SpanData $span, $args, $retval) use ($integration) {
+                /** @var resource $conn */
+                $conn = $args[0];
                 /** @var string $query */
                 $query = $args[1];
-                $integration->setDefaultAttributes($this, $span, 'sqlsrv_query', $query, $retval);
+                self::setDefaultAttributes($this, $span, 'sqlsrv_query', $query, $retval);
                 $integration->addTraceAnalyticsIfEnabled($span);
                 ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
+
+                $this->setMetricNumRows($span, $retval);
 
                 $integration->detectError($retval, $span);
             });
@@ -100,8 +111,7 @@ class SQLSRVIntegration extends Integration
             \DDTrace\trace_function('sqlsrv_prepare', function (SpanData $span, $args, $retval) use ($integration) {
                 /** @var string $query */
                 $query = $args[1];
-                $integration->setDefaultAttributes($this, $span, 'sqlsrv_prepare', $query, $retval);
-                $integration->addTraceAnalyticsIfEnabled($span);
+                self::setDefaultAttributes($this, $span, 'sqlsrv_prepare', $query, $retval);
                 ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
 
                 $integration->detectError($retval, $span);
@@ -110,7 +120,7 @@ class SQLSRVIntegration extends Integration
 
         // sqlsrv_commit ( resource $conn ) : bool
         \DDTrace\trace_function('sqlsrv_commit', function (SpanData $span, $args, $retval) use ($integration) {
-            $integration->setDefaultAttributes($this, $span, 'sqlsrv_commit', null, $retval);
+            self::setDefaultAttributes($this, $span, 'sqlsrv_commit', null, $retval);
 
             $integration->detectError($retval, $span);
         });
@@ -118,7 +128,11 @@ class SQLSRVIntegration extends Integration
         // sqlsrv_execute ( resource $stmt ) : bool
         \DDTrace\trace_function('sqlsrv_execute', function (SpanData $span, $args, $retval) use ($integration) {
             $query = ObjectKVStore::get($this, SQLSRVIntegration::QUERY_TAGS_KEY);
-            $integration->setDefaultAttributes($this, $span, 'sqlsrv.execute', $query, $retval);
+            self::setDefaultAttributes($this, $span, 'sqlsrv_execute', $query, $retval);
+            $integration->addTraceAnalyticsIfEnabled($span);
+            if ($retval) {
+                $this->setMetricNumRows($span, $args[0]);
+            }
 
             $integration->detectError($retval, $span);
         });
@@ -188,11 +202,9 @@ class SQLSRVIntegration extends Integration
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = SQLSRVIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = SQLSRVIntegration::SYSTEM;
+
         if ($query) {
             $span->meta[Tag::DB_STMT] = $query;
-        }
-        if (is_object($result)) {
-            $span->metrics[Tag::DB_ROW_COUNT] = sqlsrv_num_rows($result);
         }
 
         foreach ($storedConnectionInfo as $tag => $value) {
@@ -225,5 +237,19 @@ class SQLSRVIntegration extends Integration
 
         $span->meta[Tag::ERROR_MSG] = $errorMessages;
         $span->meta[Tag::ERROR_TYPE] = 'SQLSRV error';
+    }
+
+    protected function setMetricNumRows(SpanData $span, $stmt)
+    {
+        if ($stmt) {
+            $numRows = sqlsrv_num_rows($stmt);
+            if ($numRows) {
+                // If the default cursor type (SQLSRC_CURSOR_FORWARD) is used, the number of rows
+                // in a result set can be retrieved only after all rows in the result set
+                // have been read, and we cannot do that without fetching all the rows, which
+                // could lead to some non-negligible overhead.
+                $span->metrics[Tag::DB_ROW_COUNT] = $numRows;
+            }
+        }
     }
 }

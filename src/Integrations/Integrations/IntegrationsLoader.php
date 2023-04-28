@@ -76,6 +76,8 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
+        $this->integrations[SQLSRVIntegration::NAME] =
+            '\DDTrace\Integrations\SQLSRV\SQLSRVIntegration';
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
@@ -103,8 +105,6 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\PDO\PDOIntegration';
             $this->integrations[PredisIntegration::NAME] =
                 '\DDTrace\Integrations\Predis\PredisIntegration';
-            $this->integrations[SQLSRVIntegration::NAME] =
-                '\DDTrace\Integrations\SQLSRV\SQLSRVIntegration';
             $this->integrations[SlimIntegration::NAME] =
                 '\DDTrace\Integrations\Slim\SlimIntegration';
             $this->integrations[YiiIntegration::NAME] =

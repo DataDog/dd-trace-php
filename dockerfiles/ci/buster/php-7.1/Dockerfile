@@ -50,6 +50,8 @@ COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR/debug-zts $
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR/nts $PHP_INSTALL_DIR/nts
 
+USER root
+
 RUN set -eux; \
     # Enable the apache config \
     echo "LoadModule php7_module /usr/lib/apache2/modules/libphp.so" | sudo tee /etc/apache2/mods-enabled/php.load; \
@@ -61,5 +63,7 @@ COPY --from=composer:2.2 /usr/bin/composer /usr/local/bin/composer
 
 COPY welcome /etc/motd
 RUN sudo sed -i "s/VERSIONS/$(ls $PHP_INSTALL_DIR | xargs)/" /etc/motd
+
+USER circleci
 
 CMD ["php-fpm", "-F"]

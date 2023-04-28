@@ -2,6 +2,7 @@ FROM debian:buster AS base
 
 ENV LANG=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
+ENV ACCEPT_EULA=Y
 
 ENV DEVLIBS \
     libclang-13-dev \
@@ -20,8 +21,8 @@ ENV DEVLIBS \
     zlib1g-dev \
     libasan5 \
     gnupg \
-    unixodbc \
-    unixodbc-dev
+    unixodbc-dev \
+    unixodbc
 
 ENV RUNTIME_DEPS \
     apache2 \
@@ -84,6 +85,7 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         gcc-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
+        g++-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
         libc6-dev-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo arm64; else echo amd64; fi)-cross \
         $DEVLIBS \
         $PHPIZE_DEPS \
@@ -148,13 +150,15 @@ RUN set -eux; \
     lcov --version; \
     rm -rfv /tmp/*
 
-# Install SqlServer PHP Driver (Using bullseye's list despite being a buster image)
+# Install SqlServer PHP Driver
 # https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
 RUN set -eux; \
-    curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -; \
-    curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list; \
+    curl -s https://packages.microsoft.com/keys/microsoft.asc | apt-key add -; \
+    curl -s https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list; \
     apt-get update; \
-    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 mssql-tools18
+    apt-get install -y \
+      msodbcsql18 \
+      mssql-tools18;
 
 # Apache config
 ENV APACHE_CONFDIR /etc/apache2
