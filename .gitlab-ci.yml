@@ -9,9 +9,6 @@ variables:
   DOWNSTREAM_REL_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
-  FORCE_TRIGGER:
-    value: "false"
-    description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
 include:
   remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
@@ -40,9 +37,12 @@ build:
 deploy_to_reliability_env:
   stage: deploy
   rules:
-    - if: '$FORCE_TRIGGER == "true"'
-    - if: '$CI_PIPELINE_SOURCE != "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"' && $NIGHTLY
       when: always
+    - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
+      when: always
+    - when: manual
+      allow_failure: true
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $DOWNSTREAM_REL_BRANCH
@@ -54,7 +54,6 @@ deploy_to_reliability_env:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
 #    COMMIT_SHA would be wrong because the artifact is not built here
 #    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
-    FORCE_TRIGGER: $FORCE_TRIGGER
 
 tracer-base-image:
   extends: .ci_authenticated_job
