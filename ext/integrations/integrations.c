@@ -223,8 +223,11 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Symfony\\Component\\HttpKernel\\HttpKernel", "__construct",
                                          "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_SQLSRV, "sqlsrv_connect",
+                                         "DDTrace\\Integrations\\SQLSRV\\SQLSRVIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_WORDPRESS, "wp_check_php_mysql_versions",
-                                           "DDTrace\\Integrations\\WordPress\\WordPressIntegration");
+                                         "DDTrace\\Integrations\\WordPress\\WordPressIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_YII, "yii\\di\\Container", "__construct",
                                          "DDTrace\\Integrations\\Yii\\YiiIntegration");

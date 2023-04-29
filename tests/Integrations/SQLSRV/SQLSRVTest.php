@@ -18,10 +18,17 @@ class SQLSRVTest extends IntegrationTestCase
 
     // phpcs:disable
     const ERROR_CONNECT = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
-    const ERROR_QUERY = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
+    const ERROR_QUERY_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
+    const ERROR_QUERY_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
     const ERROR_PREPARE = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
-    const ERROR_EXECUTE = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Statement(s) could not be prepared.';
+    const ERROR_EXECUTE_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Statement(s) could not be prepared.';
+    const ERROR_EXECUTE_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Statement(s) could not be prepared.';
     // phpcs:enable
+
+    private static function getArchitecture()
+    {
+        return php_uname('m');
+    }
 
     public static function ddSetUpBeforeClass()
     {
@@ -110,7 +117,10 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
-                ->setError('SQLSRV error', self::ERROR_QUERY)
+                ->setError(
+                    'SQLSRV error',
+                    self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
+                )
         ]);
     }
 
@@ -193,8 +203,10 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::exists('sqlsrv_prepare'),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('SQLSRV error', self::ERROR_EXECUTE)
-                ->withExactTags(self::baseTags($query)),
+                ->setError(
+                    'SQLSRV error',
+                    self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
+                )->withExactTags(self::baseTags($query)),
             SpanAssertion::exists('sqlsrv_commit')
         ]);
     }

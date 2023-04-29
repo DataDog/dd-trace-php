@@ -19,7 +19,6 @@ use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Psr18\Psr18Integration;
 use DDTrace\Integrations\Slim\SlimIntegration;
-use DDTrace\Integrations\SQLSRV\SQLSRVIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
@@ -76,8 +75,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-        $this->integrations[SQLSRVIntegration::NAME] =
-            '\DDTrace\Integrations\SQLSRV\SQLSRVIntegration';
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
