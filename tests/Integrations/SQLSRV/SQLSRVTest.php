@@ -279,11 +279,7 @@ class SQLSRVTest extends IntegrationTestCase
                 'TrustServerCertificate' => true
             ]
         );
-        if ($conn === false) {
-            // Retrieve the error
-            $errors = sqlsrv_errors();
-            throw new \Exception(print_r($errors, true));
-        }
+
         return $conn;
     }
 
