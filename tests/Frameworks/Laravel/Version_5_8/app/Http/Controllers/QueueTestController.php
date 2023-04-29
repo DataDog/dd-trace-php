@@ -20,6 +20,16 @@ class QueueTestController extends BaseController
         return __METHOD__;
     }
 
+    public function jobFailure()
+    {
+        $tmp = SendVerificationEmail::dispatch(42, true)
+            ->onQueue('emails')
+            ->onConnection('database')
+            ->delay(1);
+
+        return __METHOD__;
+    }
+
     public function workOn()
     {
         Artisan::call('queue:work database --stop-when-empty --queue=emails --sleep=2');

@@ -183,6 +183,22 @@ class LaravelQueueIntegration extends Integration
             }
         );
 
+        trace_method(
+            'Illuminate\Contracts\Queue\Queue',
+            'later',
+            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+                $integration->setSpanAttributes(
+                    $span,
+                    'laravel.queue.later',
+                    'send',
+                    $args[1],
+                    $exception,
+                    $args[3] ?? null,
+                    get_class($this)
+                );
+            }
+        );
+
         // Laravel 8
         trace_method(
             'Illuminate\Bus\Batch',

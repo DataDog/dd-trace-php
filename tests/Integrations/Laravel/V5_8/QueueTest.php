@@ -113,6 +113,78 @@ class QueueTest extends WebFrameworkTestCase
         $this->assertSame($pushSpanFromCreateTrace['span_id'], $processParentId);
     }
 
+    public function testJobFailure()
+    {
+        $createTraces = $this->tracesFromWebRequest(function () {
+            $spec = GetSpec::create('Queue create', '/queue/jobFailure');
+            $this->call($spec);
+            sleep(3);
+        });
+
+        $workTraces = $this->tracesFromWebRequest(function () {
+            $spec = GetSpec::create('Queue work emails', '/queue/workOn');
+            $this->call($spec);
+            sleep(3);
+        });
+
+        $this->assertFlameGraph(
+            $createTraces,
+            [
+                SpanAssertion::exists('laravel.request')
+                    ->withChildren([
+                        SpanAssertion::exists('laravel.action')
+                            ->withExactTags([
+                                Tag::COMPONENT => 'laravel'
+                            ])->withChildren([
+                                $this->spanQueueLater('database', 'emails', 'Illuminate\Queue\DatabaseQueue')
+                            ])
+                    ])
+            ],
+            false
+        );
+
+        // $workTraces should have 2 traces: 1 'laravel.queue.process' and 1 'laravel.artisan'
+        $processTrace1 = $workTraces[0];
+        $artisanTrace = $workTraces[1];
+
+        $this->assertFlameGraph(
+            $processTrace1,
+            [
+                $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                    ->withExistingTagsNames([Tag::HTTP_URL, Tag::HTTP_METHOD, Tag::HTTP_STATUS_CODE])
+                    ->setError('Exception', 'Triggered Exception', true)
+                    ->withChildren([
+                        $this->spanQueueResolve('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails'),
+                        $this->spanQueueFire('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                            ->setError('Exception', 'Triggered Exception', true)
+                            ->withChildren([
+                                $this->spanQueueAction('database', 'emails')
+                                    ->withExistingTagsNames([Tag::MQ_MESSAGE_ID])
+                                    ->setError('Exception', 'Triggered Exception', true)
+                            ])
+                    ])
+            ],
+            false
+        );
+
+        $this->assertFlameGraph(
+            $artisanTrace,
+            [
+                SpanAssertion::exists('laravel.artisan')
+                    ->setError('Exception', 'Triggered Exception', true)
+                    ->withChildren([
+                        SpanAssertion::exists('laravel.action')
+                            ->withChildren([
+                                $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                                    ->setError('Exception', 'Triggered Exception', true)
+                                    ->withExistingTagsNames(['_dd.span_links'])
+                            ])
+                    ])
+            ],
+            false
+        );
+    }
+
     protected function resetQueue()
     {
         $this->connection()->exec("DELETE from jobs");
@@ -303,6 +375,21 @@ class QueueTest extends WebFrameworkTestCase
     ) {
         return SpanAssertion::build(
             'laravel.queue.push',
+            'laravel_queue_test',
+            'queue',
+            $resourceDetails
+        )->withExactTags(
+            $this->getCommonTags('send', $queue, $connection)
+        );
+    }
+
+    protected function spanQueueLater(
+        $connection = 'database',
+        $queue = 'emails',
+        $resourceDetails = 'App\Jobs\SendVerificationEmail'
+    ) {
+        return SpanAssertion::build(
+            'laravel.queue.later',
             'laravel_queue_test',
             'queue',
             $resourceDetails

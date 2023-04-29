@@ -22,4 +22,5 @@ Route::get('/eloquent/refresh', 'EloquentTestController@refresh');
 Route::get('queue/batch', 'QueueTestController@batch');
 Route::get('queue/batchDefault', 'QueueTestController@batchDefault');
 Route::get('queue/create', 'QueueTestController@create');
+Route::get('queue/jobFailure', 'QueueTestController@jobFailure');
 Route::get('queue/workOn', 'QueueTestController@workOn');

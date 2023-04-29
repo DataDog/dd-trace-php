@@ -142,7 +142,10 @@ class QueueTest extends WebFrameworkTestCase
                             ->withExactTags([
                                 Tag::COMPONENT => 'laravel'
                             ])->withChildren([
-                                $this->spanQueueEnqueue('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                                $this->spanQueueLater('database', 'emails', 'Illuminate\Queue\DatabaseQueue')
+                                    ->withChildren([
+                                        $this->spanQueueEnqueue('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                                    ])
                             ])
                     ])
             ],
@@ -477,6 +480,21 @@ class QueueTest extends WebFrameworkTestCase
     ) {
         return SpanAssertion::build(
             'laravel.queue.push',
+            'laravel_queue_test',
+            'queue',
+            $resourceDetails
+        )->withExactTags(
+            $this->getCommonTags('send', $queue, $connection)
+        );
+    }
+
+    protected function spanQueueLater(
+        $connection = 'database',
+        $queue = 'emails',
+        $resourceDetails = 'App\Jobs\SendVerificationEmail'
+    ) {
+        return SpanAssertion::build(
+            'laravel.queue.later',
             'laravel_queue_test',
             'queue',
             $resourceDetails
