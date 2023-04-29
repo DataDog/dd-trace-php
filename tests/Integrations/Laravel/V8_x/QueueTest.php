@@ -119,6 +119,68 @@ class QueueTest extends WebFrameworkTestCase
         $this->assertSame($pushSpanFromCreateTrace['span_id'], $processParentId);
     }
 
+    public function testJobFailure()
+    {
+        $createTraces = $this->tracesFromWebRequest(function () {
+            $spec = GetSpec::create('Queue create', '/queue/jobFailure');
+            $this->call($spec);
+            sleep(3);
+        });
+
+        $workTraces = $this->tracesFromWebRequest(function () {
+            $spec = GetSpec::create('Queue work emails', '/queue/workEmails');
+            $this->call($spec);
+            sleep(3);
+        });
+
+        $this->assertFlameGraph(
+            $createTraces,
+            [
+                SpanAssertion::exists('laravel.request')
+                    ->withChildren([
+                        SpanAssertion::exists('laravel.action')
+                            ->withExactTags([
+                                Tag::COMPONENT => 'laravel'
+                            ])->withChildren([
+                                $this->spanQueuePush('database', 'emails', 'Illuminate\Queue\SyncQueue')
+                                    ->withChildren([
+                                        $this->spanQueueEnqueue('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                                    ])
+                            ])
+                    ])
+            ],
+            false
+        );
+
+        // $workTraces should have 2 traces: 1 'laravel.queue.process' and 1 'laravel.artisan'
+        $processTrace1 = $workTraces[0];
+        $artisanTrace = $workTraces[1];
+
+        $this->assertFlameGraph(
+            $processTrace1,
+            [
+                $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                    ->withExistingTagsNames(['error.msg', 'error.stack'])
+            ],
+            false
+        );
+
+        $this->assertFlameGraph(
+            $artisanTrace,
+            [
+                SpanAssertion::exists('laravel.artisan')
+                    ->withChildren([
+                        SpanAssertion::exists('laravel.action')
+                            ->withChildren([
+                                $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                                    ->withExistingTagsNames(['_dd.span_links'])
+                            ])
+                    ])
+            ],
+            false
+        );
+    }
+
     public function testDispatchBatchAndProcess()
     {
         $createTraces = $this->tracesFromWebRequest(function () {
