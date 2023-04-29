@@ -401,6 +401,7 @@ PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 
 TEST_INTEGRATIONS_70 := \
+	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
@@ -438,6 +439,7 @@ TEST_WEB_70 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_71 := \
+	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
@@ -484,6 +486,7 @@ TEST_WEB_71 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_72 := \
+	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
@@ -535,6 +538,7 @@ TEST_WEB_72 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_73 :=\
+	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
@@ -583,6 +587,7 @@ TEST_WEB_73 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_74 := \
+	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
