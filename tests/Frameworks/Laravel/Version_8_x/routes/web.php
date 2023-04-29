@@ -33,7 +33,6 @@ Route::get('queue/batch', [QueueTestController::class, 'batch']);
 Route::get('queue/batchDefault', [QueueTestController::class, 'batchDefault']);
 Route::get('queue/create', [QueueTestController::class, 'create']);
 Route::get('queue/jobFailure', [QueueTestController::class, 'jobFailure']);
-Route::get('queue/workEmails', [QueueTestController::class, 'workEmails']);
 Route::get('queue/workOn', [QueueTestController::class, 'workOn']);
 
 // This route has to remain unnamed so we test both route cached and not cached.
