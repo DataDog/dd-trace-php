@@ -110,7 +110,7 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
-                ->setError('SQLSRV error',self::ERROR_QUERY)
+                ->setError('SQLSRV error', self::ERROR_QUERY)
         ]);
     }
 
