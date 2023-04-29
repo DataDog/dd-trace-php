@@ -18,10 +18,22 @@ class SQLSRVTest extends IntegrationTestCase
 
     // phpcs:disable
     const ERROR_CONNECT = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
-    const ERROR_QUERY = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
+    const ERROR_QUERY_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
+    const ERROR_QUERY_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
     const ERROR_PREPARE = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
-    const ERROR_EXECUTE = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Statement(s) could not be prepared.';
+    const ERROR_EXECUTE_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Statement(s) could not be prepared.';
+    const ERROR_EXECUTE_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Statement(s) could not be prepared.';
     // phpcs:enable
+
+    public static function getPhpVersion()
+    {
+        return getenv('PHP_VERSION');
+    }
+
+    public static function getODBCDriverVersion()
+    {
+        return str_starts_with(self::getPhpVersion(), '8') ? '18' : '17';
+    }
 
     public static function ddSetUpBeforeClass()
     {
@@ -34,13 +46,6 @@ class SQLSRVTest extends IntegrationTestCase
     {
         parent::ddTearDownAfterClass();
         self::putenv('DD_SQLSRV_ANALYTICS_ENABLED');
-    }
-
-    protected static function getEnvs()
-    {
-        return array_merge(parent::getEnvs(), [
-            'DD_TRACE_DEBUG' => '1'
-        ]);
     }
 
     protected function ddSetUp()
@@ -117,7 +122,12 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
-                ->setError('SQLSRV error', SQLSRVTest::ERROR_QUERY)
+                ->setError(
+                    'SQLSRV error',
+                    self::getODBCDriverVersion() === '18'
+                        ? self::ERROR_QUERY_18
+                        : self::ERROR_QUERY_17
+                )
         ]);
     }
 
@@ -200,7 +210,12 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::exists('sqlsrv_prepare'),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('SQLSRV error', SQLSRVTest::ERROR_EXECUTE)
+                ->setError(
+                    'SQLSRV error',
+                    self::getODBCDriverVersion() === '18'
+                        ? self::ERROR_QUERY_18
+                        : self::ERROR_QUERY_17
+                )
                 ->withExactTags(self::baseTags($query)),
             SpanAssertion::exists('sqlsrv_commit')
         ]);
