@@ -401,7 +401,6 @@ PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 
 TEST_INTEGRATIONS_70 := \
-	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
@@ -417,6 +416,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_beta5
 
 TEST_WEB_70 := \
@@ -439,7 +439,6 @@ TEST_WEB_70 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_71 := \
-	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
@@ -455,6 +454,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_beta5 \
 	test_opentracing_beta6 \
 	test_opentracing_10
@@ -486,7 +486,6 @@ TEST_WEB_71 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_72 := \
-	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
@@ -503,6 +502,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_beta5 \
 	test_opentracing_beta6 \
 	test_opentracing_10
@@ -538,7 +538,6 @@ TEST_WEB_72 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_73 :=\
-	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
@@ -555,6 +554,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_beta5 \
 	test_opentracing_beta6 \
 	test_opentracing_10
@@ -587,7 +587,6 @@ TEST_WEB_73 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_74 := \
-	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
@@ -606,6 +605,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
+	test_integrations_sqlsrv \
 	test_opentracing_beta5 \
 	test_opentracing_beta6 \
 	test_opentracing_10
@@ -643,7 +643,6 @@ TEST_WEB_74 := \
 # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove that additional container
 # and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
 TEST_INTEGRATIONS_80 := \
-	test_integrations_sqlsrv \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcache \
@@ -657,6 +656,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_10
 
 TEST_WEB_80 := \
@@ -678,7 +678,6 @@ TEST_WEB_80 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_81 := \
-	test_integrations_sqlsrv \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
 	test_integrations_memcache \
@@ -690,6 +689,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_10
 
 TEST_WEB_81 := \
@@ -709,7 +709,6 @@ TEST_WEB_81 := \
 #	test_web_yii_2 \
 
 TEST_INTEGRATIONS_82 := \
-	test_integrations_sqlsrv \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
 	test_integrations_memcache \
@@ -723,6 +722,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_elasticsearch8 \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
+	test_integrations_sqlsrv \
 	test_opentracing_10
 
 TEST_WEB_82 := \
