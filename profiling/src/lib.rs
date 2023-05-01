@@ -458,7 +458,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         // Safety: we are in rinit on a PHP thread.
         locals
             .vm_interrupt
-            .get_or_init(|| unsafe { zend::datadog_php_profiling_vm_interrupt_addr() });
+            .get_or_init(|| unsafe { &*zend::datadog_php_profiling_vm_interrupt_addr() });
         locals.wall_samples.store(0, Ordering::SeqCst);
 
         locals.profiling_enabled = profiling_enabled;
@@ -614,10 +614,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 .time_interrupter
                 .get_or_init(move || {
                     let wall_nanos: u64 = WALL_TIME_PERIOD.as_nanos().try_into().unwrap();
-
-                    // Safety: we're in rinit after config is initialized.
-                    let linux_timers_enabled = unsafe { config::profiling_linux_timers_enabled() };
-                    interrupter(linux_timers_enabled, pointers, wall_nanos)
+                    interrupter(pointers, wall_nanos)
                 })
                 .start()
             {

@@ -252,9 +252,8 @@ impl Default for ZendExtension {
 extern "C" {
     /// Retrieves the VM interrupt address of the calling PHP thread.
     /// # Safety
-    /// Must be called from a PHP thread during a request. It's also not truly
-    /// static; it is thread-local _only_;
-    pub fn datadog_php_profiling_vm_interrupt_addr() -> &'static AtomicBool;
+    /// Must be called from a PHP thread during a request.
+    pub fn datadog_php_profiling_vm_interrupt_addr() -> *const AtomicBool;
 
     /// Registers the extension. Note that it's kept in a zend_llist and gets
     /// pemalloc'd + memcpy'd into place. The engine says this is a mutable
@@ -269,20 +268,6 @@ extern "C" {
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
     pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_string_view;
-}
-
-#[cfg(target_os = "linux")]
-extern "C" {
-    pub fn ddog_php_prof_timer_create(
-        timerid: &mut libc::timer_t,
-        clockid: libc::clockid_t,
-        sigval: libc::sigval,
-        notify_function: extern "C" fn(libc::sigval),
-    ) -> c_int;
-
-    pub fn ddog_php_prof_timer_settime(timerid: libc::timer_t, nanoseconds: u64) -> c_int;
-
-    pub fn ddog_php_prof_timer_delete(timerid: libc::timer_t) -> c_int;
 }
 
 #[cfg(php_preload)]
