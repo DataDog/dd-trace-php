@@ -103,6 +103,16 @@ mod crossbeam {
                 let ticker = tick(wall_interval);
                 let mut active = false;
 
+                // The goal is to wait on ticker if the associated PHP thread
+                // is serving a request. A tick or two after it ends may occur,
+                // but if the PHP thread is idle, like if it's being kept open
+                // with Connection: Keep-Alive, then we really need to limit
+                // how much we wake up.
+
+                // The code below has two select!s, where one of the recv's is
+                // the same -- the code to handle receiving messages. The
+                // difference is we only recv on the ticker if we're in an
+                // `active` state.
                 loop {
                     if active {
                         select! {
