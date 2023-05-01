@@ -9,21 +9,14 @@ pub struct SignalPointers {
     pub vm_interrupt: NonNull<AtomicBool>,
 }
 
-pub trait Interrupter {
-    fn start(&self) -> anyhow::Result<()>;
-    fn stop(&self) -> anyhow::Result<()>;
-    fn shutdown(&mut self) -> anyhow::Result<()>;
-}
-
 pub fn interrupter(
     signal_pointers: SignalPointers,
     wall_time_period_nanoseconds: u64,
-) -> Box<dyn Interrupter> {
-    Box::new(crossbeam::Interrupter::new(
-        signal_pointers,
-        wall_time_period_nanoseconds,
-    ))
+) -> Interrupter {
+    Interrupter::new(signal_pointers, wall_time_period_nanoseconds)
 }
+
+pub use crossbeam::Interrupter;
 
 mod crossbeam {
     use super::*;
@@ -167,22 +160,20 @@ mod crossbeam {
                 join_handle: Some(join_handle),
             }
         }
-    }
 
-    impl super::Interrupter for Interrupter {
-        fn start(&self) -> anyhow::Result<()> {
+        pub fn start(&self) -> anyhow::Result<()> {
             self.sender.send(Message::Start).map_err(|err| {
                 anyhow::Error::from(err).context(format!("failed to start {}", Self::THREAD_NAME))
             })
         }
 
-        fn stop(&self) -> anyhow::Result<()> {
+        pub fn stop(&self) -> anyhow::Result<()> {
             self.sender.send(Message::Stop).map_err(|err| {
                 anyhow::Error::from(err).context(format!("failed to stop {}", Self::THREAD_NAME))
             })
         }
 
-        fn shutdown(&mut self) -> anyhow::Result<()> {
+        pub fn shutdown(&mut self) -> anyhow::Result<()> {
             if let Err(err) = self.sender.send(Message::Shutdown) {
                 return Err(anyhow::Error::from(err)
                     .context(format!("failed to shutdown {}", Self::THREAD_NAME)));

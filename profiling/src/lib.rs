@@ -317,7 +317,7 @@ pub struct RequestLocals {
     pub version: Option<Cow<'static, str>>,
     pub vm_interrupt: OnceCell<&'static AtomicBool>,
     pub wall_samples: AtomicU32,
-    pub time_interrupter: OnceCell<Box<dyn Interrupter>>,
+    pub time_interrupter: OnceCell<Interrupter>,
 }
 
 /// take a sample every X bytes
