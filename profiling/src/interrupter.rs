@@ -86,6 +86,8 @@ mod crossbeam {
     unsafe impl Send for SendableSignalPointers {}
 
     impl Interrupter {
+        const THREAD_NAME: &'static str = "ddprof_time";
+
         pub fn new(signal_pointers: SignalPointers, wall_time_period_nanoseconds: u64) -> Self {
             // > A special case is zero-capacity channel, which cannot hold
             // > any messages. Instead, send and receive operations must
@@ -93,7 +95,7 @@ mod crossbeam {
             // > message over.
             let (sender, receiver) = bounded(0);
             let signal_pointers = SendableSignalPointers::from(signal_pointers);
-            let join_handle = spawn("ddprof_time", move || {
+            let join_handle = spawn(Self::THREAD_NAME, move || {
                 let thread = std::thread::current();
                 let thread_name = thread.name().unwrap_or("{unknown}");
 
@@ -159,28 +161,21 @@ mod crossbeam {
 
     impl super::Interrupter for Interrupter {
         fn start(&self) -> anyhow::Result<()> {
-            match self.sender.send(Message::Start) {
-                Ok(_) => Ok(()),
-                Err(err) => {
-                    Err(anyhow::Error::from(err).context("failed to start TimeInterrupter"))
-                }
-            }
+            self.sender.send(Message::Start).map_err(|err| {
+                anyhow::Error::from(err).context(format!("failed to start {}", Self::THREAD_NAME))
+            })
         }
 
         fn stop(&self) -> anyhow::Result<()> {
-            match self.sender.send(Message::Stop) {
-                Ok(_) => Ok(()),
-                Err(err) => {
-                    Err(anyhow::Error::from(err).context("failed to stop crossbeam::Interrupter"))
-                }
-            }
+            self.sender.send(Message::Stop).map_err(|err| {
+                anyhow::Error::from(err).context(format!("failed to stop {}", Self::THREAD_NAME))
+            })
         }
 
         fn shutdown(&mut self) -> anyhow::Result<()> {
             if let Err(err) = self.sender.send(Message::Shutdown) {
-                return Err(
-                    anyhow::Error::from(err).context("failed to shutdown crossbeam::Interrupter")
-                );
+                return Err(anyhow::Error::from(err)
+                    .context(format!("failed to shutdown {}", Self::THREAD_NAME)));
             }
             // todo: write impact
             let impact = "";
