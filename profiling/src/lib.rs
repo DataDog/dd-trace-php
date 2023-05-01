@@ -12,7 +12,7 @@ use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
-use interrupter::{Interrupter, SignalPointers};
+use interrupter::*;
 use lazy_static::lazy_static;
 use libc::c_char;
 use log::{debug, error, info, trace, warn, LevelFilter};
@@ -317,7 +317,7 @@ pub struct RequestLocals {
     pub version: Option<Cow<'static, str>>,
     pub vm_interrupt: OnceCell<&'static AtomicBool>,
     pub wall_samples: AtomicU32,
-    pub time_interrupter: OnceCell<Interrupter>,
+    pub time_interrupter: OnceCell<Box<dyn Interrupter>>,
 }
 
 /// take a sample every X bytes
@@ -614,7 +614,10 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 .time_interrupter
                 .get_or_init(move || {
                     let wall_nanos: u64 = WALL_TIME_PERIOD.as_nanos().try_into().unwrap();
-                    Interrupter::new(pointers, wall_nanos)
+
+                    // Safety: we're in rinit after config is initialized.
+                    let linux_timers_enabled = unsafe { config::profiling_linux_timers_enabled() };
+                    interrupter(linux_timers_enabled, pointers, wall_nanos)
                 })
                 .start()
             {
@@ -1050,9 +1053,7 @@ fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe {
-                profiler.collect_time(execute_data, wall_samples, locals.deref_mut())
-            };
+            unsafe { profiler.collect_time(execute_data, wall_samples, locals.deref_mut()) };
         }
     });
 }

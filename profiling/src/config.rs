@@ -140,6 +140,7 @@ pub(crate) enum ConfigId {
     ProfilingEndpointCollectionEnabled,
     ProfilingExperimentalCpuTimeEnabled,
     ProfilingExperimentalAllocationEnabled,
+    ProfilingLinuxTimersEnabled,
     ProfilingLogLevel,
     ProfilingOutputPprof,
 
@@ -164,6 +165,7 @@ impl ConfigId {
             ProfilingExperimentalAllocationEnabled => {
                 b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0"
             }
+            ProfilingLinuxTimersEnabled => b"DD_PROFILING_LINUX_TIMERS_ENABLED\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             /* Note: this is meant only for debugging and testing. Please don't
@@ -271,9 +273,7 @@ pub(crate) unsafe fn version() -> Option<Cow<'static, str>> {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn trace_agent_port() -> Option<u16> {
-    let port = get_value(ConfigId::TraceAgentPort)
-        .try_into()
-        .unwrap_or(0_i64);
+    let port = get_value(TraceAgentPort).try_into().unwrap_or(0_i64);
     if port <= 0 || port > (u16::MAX as zend_long) {
         None
     } else {
@@ -303,6 +303,13 @@ pub(crate) unsafe fn profiling_log_level() -> LevelFilter {
             LevelFilter::Off // the default is off
         }
     }
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn profiling_linux_timers_enabled() -> bool {
+    get_bool(ProfilingLinuxTimersEnabled, false)
 }
 
 unsafe extern "C" fn parse_level_filter(
@@ -409,6 +416,16 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
+                    parser: None,
+                },
+                zai_config_entry {
+                    id: transmute(ProfilingLinuxTimersEnabled),
+                    name: ProfilingLinuxTimersEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: ZaiStringView::literal(b"0\0"),
+                    aliases: std::ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
@@ -541,6 +558,10 @@ mod tests {
             (
                 b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0",
                 "datadog.profiling.experimental_allocation_enabled",
+            ),
+            (
+                b"DD_PROFILING_LINUX_TIMERS_ENABLED\0",
+                "datadog.profiling.linux_timers_enabled",
             ),
             (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
             (

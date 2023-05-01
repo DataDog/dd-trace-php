@@ -554,10 +554,9 @@ impl Profiler {
                  * available on the platform, then `locals.last_cpu_time` will
                  * be None.
                  */
-                 let cpu_time = if let Some(last_cpu_time) = locals.last_cpu_time {
-                    let now = cpu_time::ThreadTime::try_now().expect(
-                        "CPU time to work since it's worked before during this process",
-                    );
+                let cpu_time = if let Some(last_cpu_time) = locals.last_cpu_time {
+                    let now = cpu_time::ThreadTime::try_now()
+                        .expect("CPU time to work since it's worked before during this process");
                     let cpu_time = Self::cpu_sub(now, last_cpu_time);
                     locals.last_cpu_time = Some(now);
                     cpu_time

@@ -1,8 +1,6 @@
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
-pub use platform::Interrupter;
-
 // TODO: support forking
 
 #[derive(Debug, Eq, PartialEq)]
@@ -11,8 +9,40 @@ pub struct SignalPointers {
     pub vm_interrupt: NonNull<AtomicBool>,
 }
 
+pub trait Interrupter {
+    fn start(&self) -> anyhow::Result<()>;
+    fn stop(&self) -> anyhow::Result<()>;
+    fn shutdown(&mut self) -> anyhow::Result<()>;
+}
+
+pub fn interrupter(
+    linux_timers_enabled: bool,
+    signal_pointers: SignalPointers,
+    wall_time_period_nanoseconds: u64,
+) -> Box<dyn Interrupter> {
+    cfg_if::cfg_if! {
+        if #[cfg(target_os = "linux")] {
+            if linux_timers_enabled {
+                log::info!("feature Linux Timers enabled");
+                return Box::new(linux::Interrupter::new(
+                    signal_pointers,
+                    wall_time_period_nanoseconds,
+                ))
+            }
+        } else {
+            if linux_timers_enabled {
+                log::debug!("feature Linux Timers were enabled, but this isn't Linux");
+            }
+        }
+    }
+    Box::new(crossbeam::Interrupter::new(
+        signal_pointers,
+        wall_time_period_nanoseconds,
+    ))
+}
+
 #[cfg(target_os = "linux")]
-mod platform {
+mod linux {
     use super::*;
     use crate::bindings::{
         ddog_php_prof_timer_create, ddog_php_prof_timer_delete, ddog_php_prof_timer_settime,
@@ -30,18 +60,11 @@ mod platform {
     }
 
     impl Interrupter {
-        pub fn new(
-            signal_pointers: SignalPointers,
-            wall_time_period_nanoseconds: u64,
-        ) -> Self {
+        pub fn new(signal_pointers: SignalPointers, wall_time_period_nanoseconds: u64) -> Self {
             let mut signal_pointers = Box::new(signal_pointers);
             let sival_ptr = signal_pointers.as_mut() as *mut SignalPointers as *mut libc::c_void;
             let wall_sigval = libc::sigval { sival_ptr };
-            let wall_timer = Timer::new(
-                libc::CLOCK_MONOTONIC,
-                wall_sigval,
-                Self::notify_wall,
-            );
+            let wall_timer = Timer::new(libc::CLOCK_MONOTONIC, wall_sigval, Self::notify_wall);
             Self {
                 signal_pointers,
                 wall_time_period_nanoseconds,
@@ -58,16 +81,18 @@ mod platform {
             wall_samples.fetch_add(1, Ordering::SeqCst);
             vm_interrupt.store(true, Ordering::SeqCst);
         }
+    }
 
-        pub fn start(&self) -> anyhow::Result<()> {
+    impl super::Interrupter for Interrupter {
+        fn start(&self) -> anyhow::Result<()> {
             self.wall_timer.start(self.wall_time_period_nanoseconds)
         }
 
-        pub fn stop(&self) -> anyhow::Result<()> {
+        fn stop(&self) -> anyhow::Result<()> {
             self.wall_timer.stop()
         }
 
-        pub fn shutdown(&mut self) -> anyhow::Result<()> {
+        fn shutdown(&mut self) -> anyhow::Result<()> {
             self.wall_timer.shutdown()
         }
     }
@@ -136,8 +161,7 @@ mod platform {
     }
 }
 
-#[cfg(not(target_os = "linux"))]
-mod platform {
+mod crossbeam {
     use super::*;
     use crate::thread_utils::{join_timeout, spawn};
     use crossbeam_channel::{bounded, select, tick, Sender};
@@ -198,10 +222,7 @@ mod platform {
     unsafe impl Send for SendableSignalPointers {}
 
     impl Interrupter {
-        pub fn new(
-            signal_pointers: SignalPointers,
-            wall_time_period_nanoseconds: u64,
-        ) -> Self {
+        pub fn new(signal_pointers: SignalPointers, wall_time_period_nanoseconds: u64) -> Self {
             // > A special case is zero-capacity channel, which cannot hold
             // > any messages. Instead, send and receive operations must
             // > appear at the same time in order to pair up and pass the
@@ -244,8 +265,10 @@ mod platform {
                 join_handle: Some(join_handle),
             }
         }
+    }
 
-        pub fn start(&self) -> anyhow::Result<()> {
+    impl super::Interrupter for Interrupter {
+        fn start(&self) -> anyhow::Result<()> {
             match self.sender.send(Message::Start) {
                 Ok(_) => Ok(()),
                 Err(err) => {
@@ -254,16 +277,20 @@ mod platform {
             }
         }
 
-        pub fn stop(&self) -> anyhow::Result<()> {
+        fn stop(&self) -> anyhow::Result<()> {
             match self.sender.send(Message::Stop) {
                 Ok(_) => Ok(()),
-                Err(err) => Err(anyhow::Error::from(err).context("failed to stop TimeInterrupter")),
+                Err(err) => {
+                    Err(anyhow::Error::from(err).context("failed to stop crossbeam::Interrupter"))
+                }
             }
         }
 
-        pub fn shutdown(&mut self) -> anyhow::Result<()> {
+        fn shutdown(&mut self) -> anyhow::Result<()> {
             if let Err(err) = self.sender.send(Message::Shutdown) {
-                return Err(anyhow::Error::from(err).context("failed to shutdown TimeInterrupter"));
+                return Err(
+                    anyhow::Error::from(err).context("failed to shutdown crossbeam::Interrupter")
+                );
             }
             // todo: write impact
             let impact = "";
