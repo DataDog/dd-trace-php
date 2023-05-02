@@ -252,26 +252,26 @@ class QueueTest extends WebFrameworkTestCase
                             $this->spanQueueBatchAdd()
                                 ->withChildren([
                                     $this->spanQueuePush('sync', 'default', 'Illuminate\Queue\SyncQueue')
-                                        ->withExistingTagsNames(['messaging.laravel.batch_id'])
+                                        ->withExistingTagsNames([Tag::LARAVELQ_BATCH_ID])
                                         ->withChildren([
                                             $this->spanEventJobProcessing(),
                                             $this->spanQueueFire('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync')
                                                 ->withChildren([
                                                     $this->spanQueueResolve('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync'),
                                                     $this->spanQueueAction('sync', 'sync')
-                                                        ->withExistingTagsNames(['messaging.laravel.batch_id'])
+                                                        ->withExistingTagsNames([Tag::LARAVELQ_BATCH_ID])
                                                 ]),
                                             $this->spanEventJobProcessed()
                                         ]),
                                     $this->spanQueuePush('sync', 'default', 'Illuminate\Queue\SyncQueue')
-                                        ->withExistingTagsNames(['messaging.laravel.batch_id'])
+                                        ->withExistingTagsNames([Tag::LARAVELQ_BATCH_ID])
                                         ->withChildren([
                                             $this->spanEventJobProcessing(),
                                             $this->spanQueueFire('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync')
                                                 ->withChildren([
                                                     $this->spanQueueResolve('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync'),
                                                     $this->spanQueueAction('sync', 'sync')
-                                                        ->withExistingTagsNames(['messaging.laravel.batch_id'])
+                                                        ->withExistingTagsNames([Tag::LARAVELQ_BATCH_ID])
                                                 ]),
                                             $this->spanEventJobProcessed()
                                         ])
@@ -329,10 +329,10 @@ class QueueTest extends WebFrameworkTestCase
             Tag::MQ_SYSTEM                  => 'laravel',
             Tag::MQ_DESTINATION_KIND        => 'queue',
 
-            'messaging.laravel.attempts'    => 1,
-            'messaging.laravel.max_tries'   => 1,
-            'messaging.laravel.timeout'     => 42,
-            'messaging.laravel.name'        => 'App\Jobs\SendVerificationEmail'
+            Tag::LARAVELQ_ATTEMPTS          => 1,
+            Tag::LARAVELQ_MAX_TRIES         => 1,
+            Tag::LARAVELQ_TIMEOUT           => 42,
+            Tag::LARAVELQ_NAME              => 'App\Jobs\SendVerificationEmail'
         ];
 
         if ($operation) {
@@ -344,7 +344,7 @@ class QueueTest extends WebFrameworkTestCase
         }
 
         if ($connection) {
-            $commonTags['messaging.laravel.connection'] = $connection;
+            $commonTags[Tag::LARAVELQ_CONNECTION] = $connection;
         }
 
         return $commonTags;
@@ -460,7 +460,7 @@ class QueueTest extends WebFrameworkTestCase
                     ($isFromBatch
                         ? $this->spanQueueAction($connection, $queue, $resourceDetails)
                             ->withExistingTagsNames([
-                                'messaging.laravel.batch_id',
+                                Tag::LARAVELQ_BATCH_ID,
                                 Tag::MQ_MESSAGE_ID
                             ])
                         : $this->spanQueueAction($connection, $queue, $resourceDetails)
@@ -530,7 +530,7 @@ class QueueTest extends WebFrameworkTestCase
             Tag::COMPONENT      => 'laravelqueue',
             Tag::MQ_OPERATION   => 'send'
         ])->withExistingTagsNames([
-            'messaging.laravel.batch_id'
+            Tag::LARAVELQ_BATCH_ID
         ]);
     }
 }

@@ -113,7 +113,7 @@ class LaravelQueueIntegration extends Integration
                         $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
 
                         if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
-                            $span->meta['messaging.laravel.batch_id'] = $this->batchId ?? null;
+                            $span->meta[Tag::LARAVELQ_BATCH_ID] = $this->batchId ?? null;
                         }
 
                         if (isset($this->job)) {
@@ -214,7 +214,7 @@ class LaravelQueueIntegration extends Integration
                     get_class($this)
                 );
                 if ($retval) {
-                    $span->meta['messaging.laravel.batch_id'] = $retval->id;
+                    $span->meta[Tag::LARAVELQ_BATCH_ID] = $retval->id;
                 }
             }
         );
@@ -253,8 +253,8 @@ class LaravelQueueIntegration extends Integration
             $connectionName = $job->connection ?? config('queue.default');
             $queue = $queue ?? ($job->queue ?? (config("queue.connections.$connectionName.queue") ?? 'default'));
 
-            $span->meta['messaging.laravel.name'] = $jobName;
-            $span->meta['messaging.laravel.connection'] = $connectionName;
+            $span->meta[Tag::LARAVELQ_NAME] = $jobName;
+            $span->meta[Tag::LARAVELQ_CONNECTION] = $connectionName;
             $span->meta[Tag::MQ_DESTINATION] = $queue;
             $span->meta = array_merge(
                 $span->meta,
@@ -278,11 +278,11 @@ class LaravelQueueIntegration extends Integration
     public function getMetadataFromJob(Job $job)
     {
         $metadata = [
-            'messaging.laravel.attempts' => $job->attempts(),
-            'messaging.laravel.connection' => $job->getConnectionName() ?? config('queue.default'),
-            'messaging.laravel.max_tries' => $job->maxTries(),
-            'messaging.laravel.timeout' => $job->timeout(),
-            'messaging.laravel.name' => $job->resolveName(),
+            Tag::LARAVELQ_ATTEMPTS => $job->attempts(),
+            Tag::LARAVELQ_CONNECTION => $job->getConnectionName() ?? config('queue.default'),
+            Tag::LARAVELQ_MAX_TRIES => $job->maxTries(),
+            Tag::LARAVELQ_TIMEOUT => $job->timeout(),
+            Tag::LARAVELQ_NAME => $job->resolveName(),
             Tag::MQ_SYSTEM => 'laravel',
             Tag::MQ_MESSAGE_ID => $job->getJobId(),
             Tag::MQ_DESTINATION => $job->getQueue(),
@@ -299,10 +299,10 @@ class LaravelQueueIntegration extends Integration
     public function getMetadataFromObject($job)
     {
         $metadata = [
-            'messaging.laravel.max_tries' => $job->tries ?? null,
-            'messaging.laravel.attempts' => $job->attempts() ?? null,
-            'messaging.laravel.timeout' => $job->timeout ?? null,
-            'messaging.laravel.batch_id' => $job->batchId ?? null, // Laravel 8
+            Tag::LARAVELQ_MAX_TRIES => $job->tries ?? null,
+            Tag::LARAVELQ_ATTEMPTS => $job->attempts() ?? null,
+            Tag::LARAVELQ_TIMEOUT => $job->timeout ?? null,
+            Tag::LARAVELQ_BATCH_ID => $job->batchId ?? null, // Laravel 8
             Tag::MQ_SYSTEM => 'laravel',
             Tag::MQ_DESTINATION_KIND => 'queue',
         ];

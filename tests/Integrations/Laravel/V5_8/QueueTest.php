@@ -232,10 +232,10 @@ class QueueTest extends WebFrameworkTestCase
             Tag::MQ_SYSTEM                  => 'laravel',
             Tag::MQ_DESTINATION_KIND        => 'queue',
 
-            'messaging.laravel.attempts'    => 1,
-            'messaging.laravel.max_tries'   => 1,
-            'messaging.laravel.timeout'     => 42,
-            'messaging.laravel.name'        => 'App\Jobs\SendVerificationEmail'
+            Tag::LARAVELQ_ATTEMPTS          => 1,
+            Tag::LARAVELQ_MAX_TRIES         => 1,
+            Tag::LARAVELQ_TIMEOUT           => 42,
+            Tag::LARAVELQ_NAME              => 'App\Jobs\SendVerificationEmail'
         ];
 
         if ($operation) {
@@ -247,7 +247,7 @@ class QueueTest extends WebFrameworkTestCase
         }
 
         if ($connection) {
-            $commonTags['messaging.laravel.connection'] = $connection;
+            $commonTags[Tag::LARAVELQ_CONNECTION] = $connection;
         }
 
         return $commonTags;

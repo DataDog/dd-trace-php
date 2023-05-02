@@ -48,6 +48,14 @@ class Tag
     const DB_SYSTEM = 'db.system';
     const DB_ROW_COUNT = 'db.row_count';
 
+    // Laravel Queue
+    const LARAVELQ_ATTEMPTS = 'messaging.laravel.attempts';
+    const LARAVELQ_BATCH_ID = 'messaging.laravel.batch_id';
+    const LARAVELQ_CONNECTION = 'messaging.laravel.connection';
+    const LARAVELQ_MAX_TRIES = 'messaging.laravel.max_tries';
+    const LARAVELQ_NAME = 'messaging.laravel.name';
+    const LARAVELQ_TIMEOUT = 'messaging.laravel.timeout';
+
     // MongoDB
     const MONGODB_BSON_ID = 'mongodb.bson.id';
     const MONGODB_COLLECTION = 'mongodb.collection';
