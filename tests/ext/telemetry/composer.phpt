@@ -21,7 +21,7 @@ DDTrace\close_span();
 dd_trace_internal_fn("finalize_telemetry");
 
 // More timeout for asan
-usleep(100000 * (getenv("SKIP_ASAN") ? 10 : 1));
+usleep(100000 * (getenv("SKIP_ASAN") ? 50 : 1));
 foreach (file(__DIR__ . '/composer-telemetry.out') as $l) {
     if ($l) {
         $json = json_decode($l, true);
