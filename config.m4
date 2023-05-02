@@ -34,7 +34,8 @@ if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_HEADERS([linux/securebits.h])
   AC_CHECK_HEADERS([linux/capability.h])
 
-  AC_LIBTOOL_OBJDIR
+  dnl
+  m4_ifndef([_LT_CHECK_OBJDIR], AC_LIBTOOL_OBJDIR, _LT_CHECK_OBJDIR)
 
   if test -n "$PHP_DDTRACE_CARGO" && test "$PHP_DDTRACE_CARGO" != "cargo"; then
     if test -x "$PHP_DDTRACE_CARGO"; then
@@ -167,8 +168,11 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
   dnl sidecar requires us to be linked against libm for pow and powf
-  PHP_CHECK_LIBRARY(m, pow,
-    [PHP_ADD_LIBRARY(m, , EXTRA_LDFLAGS)])
+  AC_CHECK_LIBM
+  EXTRA_LDFLAGS="$EXTRA_LDFLAGS $LIBM"
+  dnl as well as explicitly for pthread_atfork
+  PHP_CHECK_LIBRARY(pthread, pthread_atfork,
+    [PHP_ADD_LIBRARY(pthread, , EXTRA_LDFLAGS)])
 
   dnl rust imports these, so we need them to link
   case $host_os in
