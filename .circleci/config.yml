@@ -54,7 +54,7 @@ aliases:
       DD_REQUEST_DUMPER_FILE: dump.json
 
   - &IMAGE_DOCKER_DD_TEST_AGENT
-    image: williamconti549/dd-apm-test-agent:latest
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
     name: test-agent
     environment:
       LOG_LEVEL: DEBUG
@@ -316,7 +316,7 @@ commands:
                 -e DISABLED_CHECKS=trace_content_length \
                 -e PORT=9126 \
                 -p "127.0.0.1:9126:9126" \
-                --name test-agent williamconti549/dd-apm-test-agent:latest
+                --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
               retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               retry_docker run --detach --rm --net net \
