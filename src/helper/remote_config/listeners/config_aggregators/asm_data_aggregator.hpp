@@ -23,6 +23,9 @@ public:
             std::optional<uint64_t> expiration;
         };
 
+        void emplace(data_with_expiration &&data_point);
+        void merge(rule_data &other);
+
         std::string id;
         std::string type;
         std::map<std::string, data_with_expiration> data;
@@ -41,7 +44,7 @@ public:
     }
 
     void add(const config &config) override;
-    void remove(const config &config) override {}
+    void remove(const config & /*config*/) override {}
     void aggregate(rapidjson::Document &doc) override;
 
 protected:

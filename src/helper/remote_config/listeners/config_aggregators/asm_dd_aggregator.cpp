@@ -10,10 +10,16 @@
 
 void dds::remote_config::asm_dd_aggregator::add(const config &config)
 {
-    if (!json_helper::get_json_base64_encoded_content(
-            config.contents, ruleset_)) {
+    rapidjson::Document doc(&ruleset_.GetAllocator());
+    if (!json_helper::get_json_base64_encoded_content(config.contents, doc)) {
         throw error_applying_config("Invalid config contents");
     }
+
+    if (!doc.IsObject()) {
+        throw error_applying_config("Invalid type for config, expected object");
+    }
+
+    ruleset_ = std::move(doc);
 }
 
 void dds::remote_config::asm_dd_aggregator::remove(const config & /*config*/)
@@ -22,9 +28,13 @@ void dds::remote_config::asm_dd_aggregator::remove(const config & /*config*/)
         return;
     }
 
+    rapidjson::Document doc(&ruleset_.GetAllocator());
     auto ruleset = read_file(fallback_rules_file_);
-    rapidjson::ParseResult const result = ruleset_.Parse(ruleset.data());
-    if ((result == nullptr) || !ruleset_.IsObject()) {
-        throw parsing_error("invalid json rule");
+    rapidjson::ParseResult const result = doc.Parse(ruleset.data());
+    if ((result == nullptr) || !doc.IsObject()) {
+        throw error_applying_config(
+            "Invalid fallback rule file " + fallback_rules_file_);
     }
+
+    ruleset_ = std::move(doc);
 }

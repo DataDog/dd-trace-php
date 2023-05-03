@@ -16,59 +16,63 @@ namespace dds::remote_config {
 
 using rule_data = asm_data_aggregator::rule_data;
 
+void rule_data::emplace(rule_data::data_with_expiration &&data_point)
+{
+    auto it = data.find(data_point.value);
+    if (it == data.end()) {
+        data.emplace(data_point.value, data_point);
+        return;
+    }
+
+    if (!data_point.expiration) {
+        // This has no expiration so it last forever
+        it->second.expiration = std::nullopt;
+    } else {
+        auto expiration = data_point.expiration.value();
+        if (it->second.expiration &&
+            (expiration == 0 || it->second.expiration < expiration)) {
+            it->second.expiration = expiration;
+        }
+    }
+}
+
+void rule_data::merge(rule_data &other)
+{
+    for (auto &[key, value] : other.data) { emplace(std::move(value)); }
+}
+
 namespace {
 void extract_data(
     rapidjson::Value::ConstMemberIterator itr, rule_data &rule_data)
 {
-    for (const auto *data_entry_itr = itr->value.Begin();
-         data_entry_itr != itr->value.End(); ++data_entry_itr) {
-        if (!data_entry_itr->IsObject()) {
+    for (const auto *data_entry_it = itr->value.Begin();
+         data_entry_it != itr->value.End(); ++data_entry_it) {
+        if (!data_entry_it->IsObject()) {
             throw dds::remote_config::error_applying_config(
                 "Invalid config json contents: "
                 "Entry on data not a valid object");
         }
 
-        auto value_itr = dds::json_helper::get_field_of_type(
-            data_entry_itr, "value", rapidjson::kStringType);
-        if (!value_itr) {
+        rule_data::data_with_expiration data_point;
+
+        auto value_it = dds::json_helper::get_field_of_type(
+            data_entry_it, "value", rapidjson::kStringType);
+        if (!value_it) {
             throw dds::remote_config::error_applying_config(
                 "Invalid value of data entry");
         }
+        data_point.value = value_it.value()->value.GetString();
 
-        std::optional<rapidjson::Value::ConstMemberIterator> expiration_itr =
-            data_entry_itr->FindMember("expiration");
-        if (expiration_itr == data_entry_itr->MemberEnd()) {
-            expiration_itr = std::nullopt;
-        } else if (expiration_itr.value()->value.GetType() !=
-                   rapidjson::kNumberType) {
-            throw dds::remote_config::error_applying_config(
-                "Invalid type for expiration entry");
+        auto expiration_it = data_entry_it->FindMember("expiration");
+        if (expiration_it != data_entry_it->MemberEnd()) {
+            if (expiration_it->value.GetType() != rapidjson::kNumberType) {
+                throw error_applying_config(
+                    "Invalid type for expiration entry");
+            }
+            data_point.expiration = expiration_it->value.GetUint64();
         }
 
-        auto value = value_itr.value();
-
-        auto previous = rule_data.data.find(value->value.GetString());
-        if (previous != rule_data.data.end()) {
-            if (!expiration_itr) {
-                // This has no expiration so it last forever
-                previous->second.expiration = std::nullopt;
-            } else {
-                auto expiration = expiration_itr.value()->value.GetUint64();
-                if (previous->second.expiration &&
-                    (expiration == 0 ||
-                        previous->second.expiration < expiration)) {
-                    previous->second.expiration =
-                        expiration_itr.value()->value.GetUint64();
-                }
-            }
-        } else {
-            std::optional<uint64_t> expiration = std::nullopt;
-            if (expiration_itr) {
-                expiration = expiration_itr.value()->value.GetUint64();
-            }
-            rule_data.data.insert({value->value.GetString(),
-                {value->value.GetString(), expiration}});
-        }
+        rule_data.emplace(std::move(data_point));
     }
 }
 
@@ -91,6 +95,7 @@ void asm_data_aggregator::add(const config &config)
 
     auto rules_data_value = rules_data_itr.value();
 
+    decltype(rules_data_) new_rules_data_;
     for (const auto *itr = rules_data_value->value.Begin();
          itr != rules_data_value->value.End(); ++itr) {
         if (!itr->IsObject()) {
@@ -118,16 +123,26 @@ void asm_data_aggregator::add(const config &config)
             continue;
         }
 
-        auto rule = rules_data_.find(id->value.GetString());
-        if (rule == rules_data_.end()) { // New rule
+        auto rule = new_rules_data_.find(id->value.GetString());
+        if (rule == new_rules_data_.end()) { // New rule
             rule_data new_rule_data = {
                 id->value.GetString(), std::string(type)};
             extract_data(data_itr.value(), new_rule_data);
             if (!new_rule_data.data.empty()) {
-                rules_data_.emplace(id->value.GetString(), new_rule_data);
+                new_rules_data_.emplace(id->value.GetString(), new_rule_data);
             }
         } else {
             extract_data(data_itr.value(), rule->second);
+        }
+    }
+
+    // Once we reach this point, we can atomically update the aggregator
+    for (auto &[key, value] : new_rules_data_) {
+        auto it = rules_data_.find(key);
+        if (it != rules_data_.end()) {
+            it->second.merge(value);
+        } else {
+            rules_data_.emplace(key, std::move(value));
         }
     }
 }

@@ -32,16 +32,33 @@ ACTION_P(SaveDocument, param)
 }
 } // namespace
 
-// RulesUpdate
-//
-// RulesOverrideUpdate
-// ExclusionsUpdate
-// ActionsUpdate
-// CustomRulesUpdate
-//
-// RulesDataUpdate
-//
-// Multiple combinations of them
+TEST(RemoteConfigEngineListener, NoUpdates)
+{
+    auto engine = mock::engine::create();
+
+    rapidjson::Document doc;
+
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
+
+    remote_config::engine_listener listener(engine);
+    listener.init();
+    listener.commit();
+}
+
+TEST(RemoteConfigEngineListener, UnknownConfig)
+{
+    auto engine = mock::engine::create();
+
+    rapidjson::Document doc;
+
+    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
+
+    remote_config::engine_listener listener(engine);
+    listener.init();
+    EXPECT_THROW(listener.on_update(generate_config("UNKNOWN", waf_rule)),
+        error_applying_config);
+    listener.commit();
+}
 
 TEST(RemoteConfigEngineListener, RuleUpdate)
 {
@@ -69,9 +86,7 @@ TEST(RemoteConfigEngineListener, RuleUpdate)
         "actions", "custom_rules", "rules_data"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
-        ASSERT_NE(it, doc.MemberEnd());
-        EXPECT_TRUE(it->value.IsArray());
-        EXPECT_EQ(it->value.Size(), 0);
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -101,9 +116,7 @@ TEST(RemoteConfigEngineListener, RuleUpdateFallback)
         "actions", "custom_rules", "rules_data"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
-        ASSERT_NE(it, doc.MemberEnd());
-        EXPECT_TRUE(it->value.IsArray());
-        EXPECT_EQ(it->value.Size(), 0);
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -132,14 +145,19 @@ TEST(RemoteConfigEngineListener, RulesOverrideUpdate)
         EXPECT_GT(it->value.Size(), 0);
     }
 
-    // Rules aren't present if there are no updates
-    std::array<std::string_view, 4> keys = {
-        "exclusions", "actions", "custom_rules", "rules_data"};
-    for (auto key : keys) {
+    std::array<std::string_view, 3> empty_keys = {
+        "exclusions", "actions", "custom_rules"};
+    for (auto key : empty_keys) {
         const auto &it = doc.FindMember(StringRef(key));
         ASSERT_NE(it, doc.MemberEnd());
         EXPECT_TRUE(it->value.IsArray());
         EXPECT_EQ(it->value.Size(), 0);
+    }
+
+    std::array<std::string_view, 2> unavailable_keys = {"rules", "rules_data"};
+    for (auto key : unavailable_keys) {
+        const auto &it = doc.FindMember(StringRef(key));
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -176,13 +194,19 @@ TEST(RemoteConfigEngineListener, RulesAndRulesOverrideUpdate)
         EXPECT_GT(it->value.Size(), 0);
     }
 
-    std::array<std::string_view, 4> keys = {
-        "exclusions", "actions", "custom_rules", "rules_data"};
-    for (auto key : keys) {
+    std::array<std::string_view, 3> empty_keys = {
+        "exclusions", "actions", "custom_rules"};
+    for (auto key : empty_keys) {
         const auto &it = doc.FindMember(StringRef(key));
         ASSERT_NE(it, doc.MemberEnd());
         EXPECT_TRUE(it->value.IsArray());
         EXPECT_EQ(it->value.Size(), 0);
+    }
+
+    std::array<std::string_view, 1> unavailable_keys = {"rules_data"};
+    for (auto key : unavailable_keys) {
+        const auto &it = doc.FindMember(StringRef(key));
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -212,13 +236,19 @@ TEST(RemoteConfigEngineListener, ExclusionsUpdate)
     }
 
     // Rules aren't present if there are no updates
-    std::array<std::string_view, 4> keys = {
-        "rules_override", "actions", "custom_rules", "rules_data"};
+    std::array<std::string_view, 3> keys = {
+        "rules_override", "actions", "custom_rules"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
         ASSERT_NE(it, doc.MemberEnd());
         EXPECT_TRUE(it->value.IsArray());
         EXPECT_EQ(it->value.Size(), 0);
+    }
+
+    std::array<std::string_view, 2> unavailable_keys = {"rules", "rules_data"};
+    for (auto key : unavailable_keys) {
+        const auto &it = doc.FindMember(StringRef(key));
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -255,13 +285,19 @@ TEST(RemoteConfigEngineListener, RulesAndExclusionsUpdate)
         EXPECT_GT(it->value.Size(), 0);
     }
 
-    std::array<std::string_view, 4> keys = {
-        "rules_override", "actions", "custom_rules", "rules_data"};
+    std::array<std::string_view, 3> keys = {
+        "rules_override", "actions", "custom_rules"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
         ASSERT_NE(it, doc.MemberEnd());
         EXPECT_TRUE(it->value.IsArray());
         EXPECT_EQ(it->value.Size(), 0);
+    }
+
+    std::array<std::string_view, 1> unavailable_keys = {"rules_data"};
+    for (auto key : unavailable_keys) {
+        const auto &it = doc.FindMember(StringRef(key));
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -292,13 +328,19 @@ TEST(RemoteConfigEngineListener, ActionsUpdate)
     }
 
     // Rules aren't present if there are no updates
-    std::array<std::string_view, 4> keys = {
-        "rules_override", "exclusions", "custom_rules", "rules_data"};
+    std::array<std::string_view, 3> keys = {
+        "rules_override", "exclusions", "custom_rules"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
         ASSERT_NE(it, doc.MemberEnd());
         EXPECT_TRUE(it->value.IsArray());
         EXPECT_EQ(it->value.Size(), 0);
+    }
+
+    std::array<std::string_view, 2> unavailable_keys = {"rules", "rules_data"};
+    for (auto key : unavailable_keys) {
+        const auto &it = doc.FindMember(StringRef(key));
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -336,13 +378,19 @@ TEST(RemoteConfigEngineListener, RulesAndActionsUpdate)
         EXPECT_GT(it->value.Size(), 0);
     }
 
-    std::array<std::string_view, 4> keys = {
-        "rules_override", "exclusions", "custom_rules", "rules_data"};
+    std::array<std::string_view, 3> keys = {
+        "rules_override", "exclusions", "custom_rules"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
         ASSERT_NE(it, doc.MemberEnd());
         EXPECT_TRUE(it->value.IsArray());
         EXPECT_EQ(it->value.Size(), 0);
+    }
+
+    std::array<std::string_view, 1> unavailable_keys = {"rules_data"};
+    for (auto key : unavailable_keys) {
+        const auto &it = doc.FindMember(StringRef(key));
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -375,13 +423,19 @@ TEST(RemoteConfigEngineListener, CustomRulesUpdate)
     }
 
     // Rules aren't present if there are no updates
-    std::array<std::string_view, 4> keys = {
-        "rules_override", "exclusions", "actions", "rules_data"};
+    std::array<std::string_view, 3> keys = {
+        "rules_override", "exclusions", "actions"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
         ASSERT_NE(it, doc.MemberEnd());
         EXPECT_TRUE(it->value.IsArray());
         EXPECT_EQ(it->value.Size(), 0);
+    }
+
+    std::array<std::string_view, 2> unavailable_keys = {"rules", "rules_data"};
+    for (auto key : unavailable_keys) {
+        const auto &it = doc.FindMember(StringRef(key));
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -421,13 +475,19 @@ TEST(RemoteConfigEngineListener, RulesAndCustomRulesUpdate)
         EXPECT_GT(it->value.Size(), 0);
     }
 
-    std::array<std::string_view, 4> keys = {
-        "rules_override", "exclusions", "actions", "rules_data"};
+    std::array<std::string_view, 3> keys = {
+        "rules_override", "exclusions", "actions"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
         ASSERT_NE(it, doc.MemberEnd());
         EXPECT_TRUE(it->value.IsArray());
         EXPECT_EQ(it->value.Size(), 0);
+    }
+
+    std::array<std::string_view, 1> unavailable_keys = {"rules_data"};
+    for (auto key : unavailable_keys) {
+        const auto &it = doc.FindMember(StringRef(key));
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -457,13 +517,11 @@ TEST(RemoteConfigEngineListener, RulesDataUpdate)
     }
 
     // Rules aren't present if there are no updates
-    std::array<std::string_view, 4> keys = {
-        "rules_override", "exclusions", "actions", "custom_rules"};
+    std::array<std::string_view, 5> keys = {
+        "rules", "rules_override", "exclusions", "actions", "custom_rules"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
-        ASSERT_NE(it, doc.MemberEnd());
-        EXPECT_TRUE(it->value.IsArray());
-        EXPECT_EQ(it->value.Size(), 0);
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -504,9 +562,7 @@ TEST(RemoteConfigEngineListener, RulesAndRuleDataUpdate)
         "rules_override", "exclusions", "actions", "custom_rules"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
-        ASSERT_NE(it, doc.MemberEnd());
-        EXPECT_TRUE(it->value.IsArray());
-        EXPECT_EQ(it->value.Size(), 0);
+        ASSERT_EQ(it, doc.MemberEnd());
     }
 }
 
@@ -605,9 +661,7 @@ TEST(RemoteConfigEngineListener, MultipleInitCommitUpdates)
             "rules_override", "exclusions", "actions", "custom_rules"};
         for (auto key : keys) {
             const auto &it = doc.FindMember(StringRef(key));
-            ASSERT_NE(it, doc.MemberEnd());
-            EXPECT_TRUE(it->value.IsArray());
-            EXPECT_EQ(it->value.Size(), 0);
+            ASSERT_EQ(it, doc.MemberEnd());
         }
     }
 
@@ -643,13 +697,19 @@ TEST(RemoteConfigEngineListener, MultipleInitCommitUpdates)
             EXPECT_GT(it->value.Size(), 0);
         }
 
-        std::array<std::string_view, 3> keys = {
-            "rules_override", "actions", "rules_data"};
+        std::array<std::string_view, 2> keys = {"rules_override", "actions"};
         for (auto key : keys) {
             const auto &it = doc.FindMember(StringRef(key));
             ASSERT_NE(it, doc.MemberEnd());
             EXPECT_TRUE(it->value.IsArray());
             EXPECT_EQ(it->value.Size(), 0);
+        }
+
+        std::array<std::string_view, 2> unavailable_keys = {
+            "rules", "rules_data"};
+        for (auto key : unavailable_keys) {
+            const auto &it = doc.FindMember(StringRef(key));
+            ASSERT_EQ(it, doc.MemberEnd());
         }
     }
 
@@ -690,13 +750,18 @@ TEST(RemoteConfigEngineListener, MultipleInitCommitUpdates)
             EXPECT_GT(it->value.Size(), 0);
         }
 
-        std::array<std::string_view, 3> keys = {
-            "exclusions", "custom_rules", "rules_data"};
+        std::array<std::string_view, 2> keys = {"exclusions", "custom_rules"};
         for (auto key : keys) {
             const auto &it = doc.FindMember(StringRef(key));
             ASSERT_NE(it, doc.MemberEnd());
             EXPECT_TRUE(it->value.IsArray());
             EXPECT_EQ(it->value.Size(), 0);
+        }
+
+        std::array<std::string_view, 1> unavailable_keys = {"rules_data"};
+        for (auto key : unavailable_keys) {
+            const auto &it = doc.FindMember(StringRef(key));
+            ASSERT_EQ(it, doc.MemberEnd());
         }
     }
 }
@@ -775,7 +840,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
 
     remote_config::engine_listener listener(e, create_sample_rules_ok());
     listener.init();
-    listener.on_unapply(generate_config("ASM_DD", std::string("")));
+    listener.on_unapply(generate_config("ASM_DD", ""));
     listener.commit();
 
     {

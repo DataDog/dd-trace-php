@@ -13,12 +13,14 @@
 
 namespace dds::remote_config {
 
+namespace {
+constexpr std::array<std::string_view, 4> expected_keys{
+    "exclusions", "actions", "rules_override", "custom_rules"};
+} // namespace
+
 void asm_aggregator::init(rapidjson::Document::AllocatorType *allocator)
 {
     ruleset_ = rapidjson::Document(rapidjson::kObjectType, allocator);
-    static constexpr std::array<std::string_view, 4> expected_keys{
-        "exclusions", "actions", "rules_override", "custom_rules"};
-
     for (const auto &key : expected_keys) {
         rapidjson::Value empty_array(rapidjson::kArrayType);
         ruleset_.AddMember(
@@ -28,25 +30,37 @@ void asm_aggregator::init(rapidjson::Document::AllocatorType *allocator)
 
 void asm_aggregator::add(const config &config)
 {
-    rapidjson::Document doc(rapidjson::kObjectType, &ruleset_.GetAllocator());
+    rapidjson::Document doc(&ruleset_.GetAllocator());
     if (!json_helper::get_json_base64_encoded_content(config.contents, doc)) {
         throw error_applying_config("Invalid config contents");
     }
 
-    for (auto destination_it = ruleset_.MemberBegin();
-         destination_it != ruleset_.MemberEnd(); ++destination_it) {
-        auto source_it = doc.FindMember(destination_it->name);
-        if (source_it != doc.MemberEnd()) {
-            auto &source_value = source_it->value;
-            if (!source_value.IsArray()) {
-                const std::string &key = destination_it->name.GetString();
-                throw dds::remote_config::error_applying_config(
-                    "Invalid type for " + key);
-            }
+    if (!doc.IsObject()) {
+        throw error_applying_config("Invalid type for config, expected object");
+    }
 
-            json_helper::merge_arrays(destination_it->value, source_it->value,
-                ruleset_.GetAllocator());
+    std::vector<std::string_view> available_keys;
+    available_keys.reserve(doc.MemberCount());
+
+    // Validate contents and extract available keys
+    for (const auto &key : expected_keys) {
+        auto it = doc.FindMember(StringRef(key));
+        if (it != doc.MemberEnd()) {
+            auto &value = it->value;
+            if (!value.IsArray()) {
+                throw error_applying_config(
+                    "Invalid type for " + std::string(key));
+            }
+            available_keys.emplace_back(key);
         }
+    }
+
+    for (const auto &key : available_keys) {
+        // All keys should be available so no need for extra checks
+        auto dest = ruleset_.FindMember(StringRef(key));
+        auto source = doc.FindMember(StringRef(key));
+        json_helper::merge_arrays(
+            dest->value, source->value, ruleset_.GetAllocator());
     }
 }
 

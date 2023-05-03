@@ -27,7 +27,7 @@ public:
 
     void init(rapidjson::Document::AllocatorType *allocator) override;
     void add(const config &config) override;
-    void remove(const config &config) override {}
+    void remove(const config & /*config*/) override {}
     void aggregate(rapidjson::Document &doc) override
     {
         json_helper::merge_objects(doc, ruleset_, doc.GetAllocator());

@@ -41,10 +41,4 @@ inline remote_config::config generate_config(
         ""};
 }
 
-inline remote_config::config generate_config(
-    const std::string &content, bool encode = true)
-{
-    return generate_config("product", content, encode);
-}
-
 } // namespace dds::remote_config::mock
