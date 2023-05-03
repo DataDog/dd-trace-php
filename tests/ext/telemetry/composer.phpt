@@ -5,6 +5,8 @@ Read telemetry via composer
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow');
 ?>
+--CONFLICTS--
+all
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --INI--
@@ -21,7 +23,7 @@ DDTrace\close_span();
 dd_trace_internal_fn("finalize_telemetry");
 
 // More timeout for asan
-usleep(100000 * (getenv("SKIP_ASAN") ? 50 : 1));
+usleep(100000 * (getenv("SKIP_ASAN") ? 10 : 1));
 foreach (file(__DIR__ . '/composer-telemetry.out') as $l) {
     if ($l) {
         $json = json_decode($l, true);

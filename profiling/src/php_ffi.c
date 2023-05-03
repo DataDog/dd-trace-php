@@ -8,7 +8,7 @@
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
-uint8_t *ddtrace_runtime_id;
+uint8_t *ddtrace_runtime_id = NULL;
 
 static void locate_ddtrace_runtime_id(const zend_extension *extension) {
     ddtrace_runtime_id = DL_FETCH_SYMBOL(extension->handle, "ddtrace_runtime_id");

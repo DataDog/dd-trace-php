@@ -616,7 +616,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
      * temporary avoids the warning without a performance penalty.
      */
     zend_string *encoded_id = zend_string_alloc(36, false);
-    ddtrace_format_runtime_id((uint8_t *)ZSTR_VAL(encoded_id));
+    ddtrace_format_runtime_id((uint8_t(*)[36])&ZSTR_VAL(encoded_id));
     ZSTR_VAL(encoded_id)[36] = '\0';
 
     zval zv;

@@ -23,6 +23,7 @@ if test "$PHP_DDTRACE" != "no"; then
   define(DDTRACE_BASEDIR, esyscmd(printf %s "$(dirname "__file__")"))
   m4_include(DDTRACE_BASEDIR/m4/polyfill.m4)
   m4_include(DDTRACE_BASEDIR/m4/ax_execinfo.m4)
+  m4_include(DDTRACE_BASEDIR/m4/threads.m4)
 
   AX_EXECINFO
 
@@ -174,8 +175,9 @@ if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_LIBM
   EXTRA_LDFLAGS="$EXTRA_LDFLAGS $LIBM"
   dnl as well as explicitly for pthread_atfork
-  PHP_CHECK_LIBRARY(pthread, pthread_atfork,
-    [PHP_ADD_LIBRARY(pthread, , EXTRA_LDFLAGS)])
+  PTHREADS_CHECK
+  EXTRA_CFLAGS="$EXTRA_CFLAGS $ac_cv_pthreads_cflags"
+  EXTRA_LIBS="$EXTRA_LIBS -l$ac_cv_pthreads_lib"
 
   dnl rust imports these, so we need them to link
   case $host_os in
@@ -256,7 +258,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
 
   dnl consider it debug if -g is specified (but not -g0)
-  ddtrace_cargodir=$(test "$PHP_DDTRACE_RUST_SYMBOLS" != "no" && echo debug || echo release)
+  ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_SYMBOLS" != "no" && echo debug || echo tracer-release)
 
   if test "$ext_shared" = "yes"; then
     all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
@@ -269,13 +271,13 @@ if test "$PHP_DDTRACE" != "no"; then
   fi
 
   cat <<EOT >> Makefile.fragments
-\$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a: $( (find "$ext_srcdir/components/rust" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -exclude "target"; find "$ext_srcdir/libdatadog" -name "*.rs" -exclude "target"; echo "$all_object_files" ) | xargs )
-	(cd "$ext_srcdir/components/rust"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargodir" == debug || echo --release) && test "$ddtrace_cargodir" == debug || strip -d \$(builddir)/target/release/libddtrace_php.a)
+\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components/rust" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -exclude "target"; find "$ext_srcdir/libdatadog" -name "*.rs" -exclude "target"; echo "$all_object_files" ) | xargs )
+	(cd "$ext_srcdir/components/rust"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) && test "$ddtrace_cargo_profile" == debug || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
 EOT
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then
-    shared_objects_ddtrace="\$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a $shared_objects_ddtrace"
+    shared_objects_ddtrace="\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a $shared_objects_ddtrace"
   else
-    PHP_GLOBAL_OBJS="\$(builddir)/target/$ddtrace_cargodir/libddtrace_php.a $PHP_GLOBAL_OBJS"
+    PHP_GLOBAL_OBJS="\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a $PHP_GLOBAL_OBJS"
   fi
 fi

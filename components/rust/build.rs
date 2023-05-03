@@ -7,6 +7,9 @@ pub use cc_utils::cc;
 pub use sidecar_mockgen::generate_mock_symbols;
 
 fn main() {
+    // DD_SIDECAR_MOCK_SOURCES is necessary to avoid the linker puking when the sidecar tries to load our ddtrace.so
+    // As php itself is not available within the sidecar, it needs to make sure that all symbols ddtrace.so depends on, are available.
+    // The mock_generator takes care of generating these symbols.
     match env::var("DD_SIDECAR_MOCK_SOURCES") {
         Ok(mock_sources) => {
             let split_vec: Vec<_> = mock_sources.split_terminator("\n").collect();

@@ -64,8 +64,6 @@ fn run_sidecar(cfg: config::Config) -> io::Result<TelemetryTransport> {
     ddtelemetry::ipc::sidecar::start_or_connect_to_sidecar(cfg)
 }
 
-/// # Safety
-/// Caller must ensure the process is safe to fork, at the time when this method is called
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_connect_php(connection: &mut *mut TelemetryTransport) -> MaybeError {
     let cfg = config::FromEnv::config();

@@ -11,8 +11,6 @@
 #include <stdio.h>
 #include "common.h"
 
-typedef void ddog_TelemetryTransport;
-
 typedef uint64_t ddog_QueueId;
 
 void ddog_MaybeError_drop(ddog_MaybeError);

@@ -69,7 +69,7 @@
             "@static-analyze-api",
             "@static-analyze-ddtrace"
         ],
-        "static-analyze-api": "php -dmemory_limit=1G $(which phpstan) analyse --configuration=./phpstan.ddtrace.neon --level=2 src/api",
+        "static-analyze-api": "php -dmemory_limit=1G $(which phpstan) analyse --configuration=./phpstan.api.neon --level=2 src/api",
         "static-analyze-clear-cache": [
             "phpstan clear-result-cache --configuration=./phpstan.api.neon",
             "phpstan clear-result-cache --configuration=./phpstan.ddtrace.neon"

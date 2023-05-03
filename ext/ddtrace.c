@@ -599,8 +599,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     mod_ptr->handle = NULL;
     /* }}} */
 
-    ddtrace_generate_runtime_id();
-
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }

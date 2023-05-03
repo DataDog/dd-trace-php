@@ -5,6 +5,8 @@ Signal integration telemetry
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow');
 ?>
+--CONFLICTS--
+all
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1

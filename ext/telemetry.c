@@ -35,7 +35,7 @@ void ddtrace_telemetry_setup(void) {
     }
 
     uint8_t formatted_run_time_id[36];
-    ddtrace_format_runtime_id(formatted_run_time_id);
+    ddtrace_format_runtime_id(&formatted_run_time_id);
     ddog_CharSlice runtime_id = (ddog_CharSlice){ .ptr = (char *)formatted_run_time_id, .len = sizeof(formatted_run_time_id) };
     dd_telemetry_instance_id = ddog_sidecar_instanceId_build(runtime_id, runtime_id);
     char *agent_url = ddtrace_agent_url();

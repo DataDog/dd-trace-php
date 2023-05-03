@@ -5,11 +5,14 @@ members = ["components/rust", "profiling"]
 debug = 2 # full debug info
 
 [profile.release]
+debug = 1
+lto = "thin"
+incremental = false
+
+[profile.tracer-release]
 debug = 1 # line tables only
 lto = true
 codegen-units = 1
-opt-level = "s" # optimize for size
-
-# Further optimizations -> 18->17mb unstripped
-# opt-level = "z" 
-# panic = "abort"
+opt-level = "z" # optimize for size
+panic = "abort"
+inherits = "release"

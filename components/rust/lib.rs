@@ -10,18 +10,18 @@ pub use ddtelemetry_ffi::*;
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_runtime_id: [u8; 16] = [0; 16];
+pub static mut ddtrace_runtime_id: Uuid = Uuid::from_bytes([0; 16]);
 
 #[must_use]
 #[no_mangle]
 pub unsafe extern "C" fn ddtrace_generate_runtime_id() {
-    core::ptr::copy(Uuid::new_v4().as_bytes() as *const [u8; 16], &mut ddtrace_runtime_id, 1);
+    ddtrace_runtime_id = Uuid::new_v4();
 }
 
 #[must_use]
 #[no_mangle]
-pub unsafe extern "C" fn ddtrace_format_runtime_id(buf: *mut u8) {
-    Uuid::from_bytes_ref(&ddtrace_runtime_id).as_hyphenated().encode_lower(std::slice::from_raw_parts_mut(buf, 36));
+pub unsafe extern "C" fn ddtrace_format_runtime_id(buf: &mut [u8; 36]) {
+    ddtrace_runtime_id.as_hyphenated().encode_lower(buf);
 }
 
 #[must_use]

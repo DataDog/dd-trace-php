@@ -328,7 +328,8 @@ clang_format_check:
 clang_format_fix:
 	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
-cbindgen: components/rust/ddtrace.h components/rust/telemetry.h components/rust/telemetry.h
+# nightly to have 1.66+, remove nightly once we have a rust version 1.66+ in our containers
+cbindgen: components/rust/ddtrace.h components/rust/telemetry.h components/rust/common.h
 	( \
 		cd libdatadog; \
 		if test -d $(PROJECT_ROOT)/tmp; then \

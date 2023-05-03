@@ -25,4 +25,4 @@ rename_variants = "ScreamingSnakeCase"
 
 [parse]
 parse_deps = true
-include = ["ddcommon", "ddtelemetry", "ddcommon-ffi", "ddtelemetry-ffi"]
+include = ["ddcommon", "ddtelemetry", "ddcommon-ffi", "ddtelemetry-ffi", "datadog-ipc", "uuid"]

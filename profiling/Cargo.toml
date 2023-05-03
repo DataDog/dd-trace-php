@@ -35,7 +35,4 @@ allocation_profiling = []
 bindgen = { version = "0.59" }
 cc = { version = "1.0" }
 
-[profile.release]
-debug = 1
-lto = "thin"
-incremental = false
+# profiling release options in root Cargo.toml

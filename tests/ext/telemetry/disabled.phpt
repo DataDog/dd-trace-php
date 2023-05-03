@@ -4,6 +4,8 @@ Disabled telemetry test
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
 ?>
+--CONFLICTS--
+all
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TELEMETRY_ENABLED=0
