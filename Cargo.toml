@@ -9,3 +9,7 @@ debug = 1 # line tables only
 lto = true
 codegen-units = 1
 opt-level = "s" # optimize for size
+
+# Further optimizations -> 18->17mb unstripped
+# opt-level = "z" 
+# panic = "abort"
