@@ -1865,7 +1865,7 @@ jobs:
           command: |
             set -eo pipefail
             switch-php debug-zts-asan
-            make
+            make RUST_DEBUG_SYMBOLS=1
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-debug-zts.so
       - persist_to_workspace:
           root: '.'
