@@ -10,6 +10,7 @@
 #include "engine.hpp"
 #include "listener.hpp"
 #include "parameter.hpp"
+#include "remote_config/protocol/client.hpp"
 #include <optional>
 #include <rapidjson/document.h>
 #include <utility>
@@ -40,7 +41,8 @@ public:
                     protocol::capabilities_e::ASM_EXCLUSIONS |
                         protocol::capabilities_e::ASM_CUSTOM_BLOCKING_RESPONSE |
                         protocol::capabilities_e::ASM_REQUEST_BLOCKING |
-                        protocol::capabilities_e::ASM_RESPONSE_BLOCKING},
+                        protocol::capabilities_e::ASM_RESPONSE_BLOCKING |
+                        protocol::capabilities_e::ASM_CUSTOM_RULES},
             {asm_dd_product, protocol::capabilities_e::ASM_DD_RULES},
             {asm_data_product,
                 protocol::capabilities_e::ASM_IP_BLOCKING |
