@@ -1,4 +1,42 @@
 # Datadog AppSec for PHP Release
+
+### v0.8.0
+#### Fixes
+- ([#230](https://github.com/DataDog/dd-appsec-php/pull/230)) Amend issue when getting agent host and port
+- ([#233](https://github.com/DataDog/dd-appsec-php/pull/233)) Flush socket on body limit
+- ([#245](https://github.com/DataDog/dd-appsec-php/pull/245)) Set appsec disabled when ddtrace is not enabled
+- ([#246](https://github.com/DataDog/dd-appsec-php/pull/246)) Cap retry to five minutes rc polling
+- ([#250](https://github.com/DataDog/dd-appsec-php/pull/250)) Avoid updating waf when no updates provided on poll
+
+#### Additions
+- ([#227](https://github.com/DataDog/dd-appsec-php/pull/227)) Refactor capabilities
+- ([#229](https://github.com/DataDog/dd-appsec-php/pull/229)) Refactor service
+- ([#235](https://github.com/DataDog/dd-appsec-php/pull/235)) Custom rules support
+- ([#237](https://github.com/DataDog/dd-appsec-php/pull/237)) Update ip algorithm
+- ([#249](https://github.com/DataDog/dd-appsec-php/pull/249)) Handle request-lifecycle atomically
+- ([#248](https://github.com/DataDog/dd-appsec-php/pull/248)) Engine update batcher
+- ([#253](https://github.com/DataDog/dd-appsec-php/pull/253)) Update-only engine listener and atomic config handling 
+
+#### Miscellaneous Changes
+- ([#226](https://github.com/DataDog/dd-appsec-php/pull/226)) Upgrade tracer to 0.85.0
+- ([#228](https://github.com/DataDog/dd-appsec-php/pull/228)) Setup python 3.9 for system tests
+- ([#234](https://github.com/DataDog/dd-appsec-php/pull/234)) Update WAF to 1.9.0, Ruleset to 1.6.0 and Tracer to 0.86.1
+- ([#236](https://github.com/DataDog/dd-appsec-php/pull/236)) Disable apache2 restart test on ZTS
+- ([#239](https://github.com/DataDog/dd-appsec-php/pull/239)) Implement abstract methods of listener on test
+- ([#240](https://github.com/DataDog/dd-appsec-php/pull/240)) Add test to ensure path parser does not count on /config ending
+- ([#252](https://github.com/DataDog/dd-appsec-php/pull/252)) Update ruleset to 1.7.0
+- ([#254](https://github.com/DataDog/dd-appsec-php/pull/254)) Update html blocked template
+- ([#255](https://github.com/DataDog/dd-appsec-php/pull/255)) Upgrade WAF to 1.10.0 and add custom_rules capability 
+
+### v0.7.2
+#### Fixes
+- ([#233](https://github.com/DataDog/dd-appsec-php/pull/233)) Flush socket on body limit
+
+### v0.7.1
+#### Fixes
+- ([#231](https://github.com/DataDog/dd-appsec-php/pull/231)) Fallback to default agent host and port.
+- ([#231](https://github.com/DataDog/dd-appsec-php/pull/231)) Support `DD_TRACE_AGENT_URL`
+
 ### v0.7.0
 #### Breaking Changes
  - ([#182](https://github.com/DataDog/dd-appsec-php/pull/182)) Delete `enabled_on_cli` ini setting
