@@ -280,7 +280,11 @@ extern "C" {
     pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
 
     /// mock for testing
+    #[cfg(test)]
     pub fn ddog_test_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
+
+    #[cfg(test)]
+    pub fn ddog_php_prof_set_ignore_run_time_cache(cache: bool);
 }
 
 #[cfg(php_preload)]
@@ -289,9 +293,6 @@ extern "C" {
     /// startup/shutdown cycle. This is useful to know. For example,
     /// preloading occurs while this is false.
     pub fn ddog_php_prof_is_post_startup() -> bool;
-
-    #[cfg(test)]
-    pub fn ddog_php_prof_set_ignore_run_time_cache(cache: bool);
 }
 
 pub use zend_module_dep as ModuleDep;

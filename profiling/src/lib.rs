@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "nightly", feature(test))]
+#![cfg_attr(feature = "bench", feature(test))]
 
 mod bindings;
 pub mod capi;

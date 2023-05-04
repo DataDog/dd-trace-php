@@ -316,13 +316,13 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "bench")]
     extern crate test;
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "bench")]
     use test::Bencher;
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "bench")]
     #[bench]
     fn bench_collect_deep_stack_sample_with_run_time_cache(bencher: &mut Bencher) {
         unsafe {
@@ -347,7 +347,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "bench")]
     #[bench]
     fn bench_collect_deep_stack_sample_with_run_time_cache_and_50_pc_hit_ratio(bencher: &mut Bencher) {
         unsafe {
@@ -379,7 +379,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "bench")]
     #[bench]
     fn bench_collect_deep_stack_sample_without_run_time_cache(bencher: &mut Bencher) {
         unsafe {
@@ -404,7 +404,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "bench")]
     #[bench]
     fn bench_collect_shallow_stack_sample_with_run_time_cache(bencher: &mut Bencher) {
         unsafe {
@@ -429,7 +429,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "nightly")]
+    #[cfg(feature = "bench")]
     #[bench]
     fn bench_collect_shallow_stack_sample_without_run_time_cache(bencher: &mut Bencher) {
         unsafe {

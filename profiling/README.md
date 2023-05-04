@@ -62,7 +62,7 @@ tests.
 There are some benchmarks which you can run using:
 
 ```sh
-cargo +nightly bench --features nightly
+cargo +nightly bench --features bench
 ```
 
 ## Troubleshooting
