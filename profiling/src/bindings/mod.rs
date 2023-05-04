@@ -277,13 +277,14 @@ extern "C" {
     /// if it detects incomplete initialization, which is always a bug but
     /// none-the-less has been seen in the wild. It may also return None if
     /// the run_time_cache is not available on this function type.
+    #[cfg(not(feature = "stack_walking_tests"))]
     pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
 
     /// mock for testing
-    #[cfg(test)]
+    #[cfg(feature = "stack_walking_tests")]
     pub fn ddog_test_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
 
-    #[cfg(test)]
+    #[cfg(feature = "bench")]
     pub fn ddog_php_prof_set_ignore_run_time_cache(cache: bool);
 }
 

@@ -177,9 +177,9 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
 
 #[cfg(php_run_time_cache)]
 unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
-    #[cfg(not(test))]
+    #[cfg(not(feature = "stack_walking_tests"))]
     use crate::bindings::ddog_php_prof_function_run_time_cache;
-    #[cfg(test)]
+    #[cfg(feature = "stack_walking_tests")]
     use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
     let func = execute_data.func.as_ref()?;
     CACHED_STRINGS.with(|cell| {
@@ -281,6 +281,7 @@ mod tests {
     use crate::bindings as zend;
 
     #[test]
+    #[cfg(feature = "stack_walking_tests")]
     fn test_collect_stack_sample() {
         unsafe {
             let fake_execute_data = zend::create_fake_zend_execute_data(3);

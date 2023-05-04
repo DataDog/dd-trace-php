@@ -100,10 +100,17 @@ fn build_zend_php_ffis(php_config_includes: &str, preload: bool, run_time_cache:
     let preload = if preload { "1" } else { "0" };
     let run_time_cache = if run_time_cache { "1" } else { "0" };
 
+    #[cfg(any(feature = "stack_walking_tests")]
+    let stack_walking_tests = "1";
+
+    #[cfg(not(feature = "stack_walking_tests"))]
+    let stack_walking_tests = "0";
+
     cc::Build::new()
         .files(files.into_iter().chain(zai_c_files.into_iter()))
         .define("CFG_PRELOAD", preload)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
+        .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .includes([Path::new("../ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")

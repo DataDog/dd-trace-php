@@ -64,9 +64,11 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
  */
 static bool _ignore_run_time_cache = false;
 
+#if CFG_STACK_WALKING_TESTS
 void ddog_php_prof_set_ignore_run_time_cache(bool cache) {
     _ignore_run_time_cache = cache;
 }
+#endif
 #endif
 
 void datadog_php_profiling_startup(zend_extension *extension) {
@@ -242,6 +244,7 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 #endif
 }
 
+#if CFG_STACK_WALKING_TESTS
 uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
 #if CFG_RUN_TIME_CACHE
     if (_ignore_run_time_cache) return NULL;
@@ -326,3 +329,4 @@ void free_fake_zend_execute_data(zend_execute_data *execute_data) {
 
     free(execute_data);
 }
+#endif
