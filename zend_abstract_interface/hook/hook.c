@@ -43,30 +43,30 @@ typedef struct {
     size_t dynamic_offset;
 } zai_hook_info;
 
-ZEND_TLS zend_ulong zai_hook_invocation = 0;
-ZEND_TLS zend_ulong zai_hook_id;
-
 /* {{{ private tables */
+ZEND_TLS struct {
+    zend_ulong invocation;
+    zend_ulong id;
+    // zai_hook_tls->request_functions is a map name -> array<zai_hook_t>
+    HashTable request_functions;
+    // zai_hook_tls->request_classes is a map class name -> map function name -> array<zai_hook_t>
+    HashTable request_classes;
+    // zai_hook_tls->request_files is an array<zai_hook_t>
+    zai_hooks_entry request_files;
+    // zai_hook_tls->inheritors is a map of class entries (interfaces and abstract classes) to a list of class entries
+    HashTable inheritors;
+} *zai_hook_tls;
+
 // zai_hook_static is a simple array of persistently allocated zai_hook_t
 // these persistently allocated zai_hook_t are always duplicated (with is_global = true) into zai_hook_request_* on request start
 static HashTable zai_hook_static;
 
-// zai_hook_request_functions is a map name -> array<zai_hook_t>
-ZEND_TLS HashTable zai_hook_request_functions;
-// zai_hook_request_classes is a map class name -> map function name -> array<zai_hook_t>
-ZEND_TLS HashTable zai_hook_request_classes;
-// zai_hook_request_files is an array<zai_hook_t>
-ZEND_TLS zai_hooks_entry zai_hook_request_files;
-
 // zai_hook_resolved is a map op_array/internal_function -> array<zai_hook_t>
-// if indirect, then it's pointing to some hashtable in zai_hook_request_functions/classes
+// if indirect, then it's pointing to some hashtable in zai_hook_tls->request_functions/classes
 TSRM_TLS HashTable zai_hook_resolved;
 
-// zai_hook_inheritors is a map of persistent class entries (interfaces and abstract classes) to a list of persistent class entries
+// zai_hook_static_inheritors is a map of persistent class entries (interfaces and abstract classes) to a list of persistent class entries
 static HashTable zai_hook_static_inheritors;
-
-// zai_hook_inheritors is a map of class entries (interfaces and abstract classes) to a list of class entries
-ZEND_TLS HashTable zai_hook_inheritors;
 
 typedef struct {
     size_t size;
@@ -159,7 +159,7 @@ static void zai_hook_inheritors_destroy(zval *zv) {
 }
 
 static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_address) {
-    if (hooks == &zai_hook_request_files) {
+    if (hooks == &zai_hook_tls->request_files) {
         return;
     }
 
@@ -320,7 +320,7 @@ move: ;
 }
 
 static zend_long zai_hook_add_entry(zai_hooks_entry *hooks, zai_hook_t *hook) {
-    zend_ulong index = ++zai_hook_id;
+    zend_ulong index = ++zai_hook_tls->id;
     if (!zend_hash_index_add_ptr(&hooks->hooks, index, hook)) {
         // handle the edge case where a static hook is re-inserted after tracer shutdown and re-startup
         hook->id = (zend_long)index;
@@ -435,7 +435,7 @@ static inline void zai_hook_resolved_install_abstract_recursive(zai_hook_t *hook
     // find implementers by searching through all inheritors, recursively, stopping upon finding a non-abstract implementation
     zai_hook_inheritor_list *inheritors;
     zend_ulong ce_addr = ((zend_ulong)scope) << 3;
-    if ((inheritors = zend_hash_index_find_ptr(&zai_hook_inheritors, ce_addr))) {
+    if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
             zend_function *override = zend_hash_find_ptr(&inheritor->function_table, hook->function);
@@ -453,7 +453,7 @@ static inline void zai_hook_resolved_install_inherited_internal_function_recursi
     // find implementers by searching through all inheritors, recursively, stopping upon finding an explicit override
     zai_hook_inheritor_list *inheritors;
     zend_ulong ce_addr = ((zend_ulong)scope) << 3;
-    if ((inheritors = zend_hash_index_find_ptr(&zai_hook_inheritors, ce_addr))) {
+    if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
             zend_function *child_function = zend_hash_find_ptr(&inheritor->function_table, hook->function);
@@ -480,7 +480,7 @@ static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *reso
 
 static zend_long zai_hook_request_install(zai_hook_t *hook) {
     if (!hook->function) {
-        return zai_hook_add_entry(&zai_hook_request_files, hook);
+        return zai_hook_add_entry(&zai_hook_tls->request_files, hook);
     }
 
     zend_class_entry *ce = NULL;
@@ -494,14 +494,14 @@ static zend_long zai_hook_request_install(zai_hook_t *hook) {
 
     HashTable *funcs;
     if (hook->scope) {
-        funcs = zend_hash_find_ptr(&zai_hook_request_classes, hook->scope);
+        funcs = zend_hash_find_ptr(&zai_hook_tls->request_classes, hook->scope);
         if (!funcs) {
             funcs = emalloc(sizeof(*funcs));
             zend_hash_init(funcs, 8, NULL, zai_hook_hash_destroy, 0);
-            zend_hash_add_ptr(&zai_hook_request_classes, hook->scope, funcs);
+            zend_hash_add_ptr(&zai_hook_tls->request_classes, hook->scope, funcs);
         }
     } else {
-        funcs = &zai_hook_request_functions;
+        funcs = &zai_hook_tls->request_functions;
     }
 
     zai_hooks_entry *hooks = zend_hash_find_ptr(funcs, hook->function);
@@ -519,7 +519,7 @@ static inline void zai_hook_register_inheritor(zend_class_entry *child, zend_cla
     zend_ulong addr = ((zend_ulong)parent) << 3;
     zai_hook_inheritor_list *inheritors;
     zval *inheritors_zv;
-    HashTable *ht = persistent ? &zai_hook_static_inheritors : &zai_hook_inheritors;
+    HashTable *ht = persistent ? &zai_hook_static_inheritors : &zai_hook_tls->inheritors;
     if (!(inheritors_zv = zend_hash_index_find(ht, addr))) {
         inheritors = pemalloc(sizeof(zai_hook_inheritor_list) + sizeof(zend_class_entry *) * min_size, persistent);
         zend_hash_index_add_new_ptr(ht, addr, inheritors);
@@ -724,7 +724,7 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, ze
 
 /* {{{ */
 void zai_hook_resolve_function(zend_function *function, zend_string *lcname) {
-    zai_hook_resolve(&zai_hook_request_functions, NULL, function, lcname);
+    zai_hook_resolve(&zai_hook_tls->request_functions, NULL, function, lcname);
     zai_store_func_location(function);
 }
 
@@ -734,7 +734,7 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
     zai_hook_register_all_inheritors(ce, false);
 
     zend_string *fnname;
-    HashTable *method_table = zend_hash_find_ptr(&zai_hook_request_classes, lcname);
+    HashTable *method_table = zend_hash_find_ptr(&zai_hook_tls->request_classes, lcname);
     if (!method_table) {
         ZEND_HASH_FOREACH_STR_KEY_PTR(&ce->function_table, fnname, function) {
             zai_store_func_location(function);
@@ -755,18 +755,18 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
 
     if (zend_hash_num_elements(method_table) == 0) {
         // note: no pDestructor handling needed: zai_hook_resolve empties the table for us
-        zend_hash_del(&zai_hook_request_classes, lcname);
+        zend_hash_del(&zai_hook_tls->request_classes, lcname);
     }
 }
 
 void zai_hook_resolve_file(zend_op_array *op_array) {
     zai_install_address addr = zai_hook_install_address_user(op_array);
-    zend_hash_index_add_ptr(&zai_hook_resolved, addr, &zai_hook_request_files);
+    zend_hash_index_add_ptr(&zai_hook_resolved, addr, &zai_hook_tls->request_files);
 }
 
 void zai_hook_unresolve_op_array(zend_op_array *op_array) {
     // May be called in shutdown_executor, which is after extension rshutdown
-    if ((zend_long)zai_hook_id == -1) {
+    if ((zend_long)zai_hook_tls->id == -1) {
         return;
     }
 
@@ -774,7 +774,7 @@ void zai_hook_unresolve_op_array(zend_op_array *op_array) {
     if (op_array->function_name) {
         zai_hook_entries_remove_resolved(addr);
     } else {
-        // skip freeing for file op_arrays, these are handled via zai_hook_request_files
+        // skip freeing for file op_arrays, these are handled via zai_hook_tls->request_files
         zend_hash_index_del(&zai_hook_resolved, addr);
     }
 }
@@ -796,7 +796,7 @@ static void zai_hook_remove_abstract_recursive(zai_hooks_entry *base_hooks, zend
     // find implementers by searching through all inheritors, recursively, stopping upon finding a non-abstract implementation
     zai_hook_inheritor_list *inheritors;
     zend_ulong ce_addr = ((zend_ulong)scope) << 3;
-    if ((inheritors = zend_hash_index_find_ptr(&zai_hook_inheritors, ce_addr))) {
+    if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
             zend_function *override = zend_hash_find_ptr(&inheritor->function_table, function_name);
@@ -814,7 +814,7 @@ static void zai_hook_remove_internal_inherited_recursive(zend_class_entry *scope
     // find implementers by searching through all inheritors, recursively, stopping upon finding an explicit override
     zai_hook_inheritor_list *inheritors;
     zend_ulong ce_addr = ((zend_ulong)scope) << 3;
-    if ((inheritors = zend_hash_index_find_ptr(&zai_hook_inheritors, ce_addr))) {
+    if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
             zend_function *child_function = zend_hash_find_ptr(&inheritor->function_table, function_name);
@@ -866,7 +866,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     size_t dynamic_size = hooks->dynamic + hook_info_size;
     // a vector of first N hook_info entries, then N entries of variable size (as much memory as the individual hooks require)
     memory->dynamic = ecalloc(1, dynamic_size);
-    memory->invocation = ++zai_hook_invocation;
+    memory->invocation = ++zai_hook_tls->invocation;
 
     // iterate the array in a safe way, i.e. handling possible updates at runtime
     HashPosition pos;
@@ -1022,16 +1022,21 @@ bool zai_hook_minit(void) {
     return true;
 }
 
+bool zai_hook_ginit(void) {
+    zai_hook_tls = calloc(1, sizeof(*zai_hook_tls));
+    return true;
+}
+
 bool zai_hook_rinit(void) {
-    zend_hash_init(&zai_hook_inheritors, 8, NULL, zai_hook_inheritors_destroy, 0);
-    zend_hash_init(&zai_hook_request_files.hooks, 8, NULL, zai_hook_destroy, 0);
-    zend_hash_init(&zai_hook_request_functions, 8, NULL, zai_hook_hash_destroy, 0);
-    zend_hash_init(&zai_hook_request_classes, 8, NULL, zai_hook_hash_destroy, 0);
+    zend_hash_init(&zai_hook_tls->inheritors, 8, NULL, zai_hook_inheritors_destroy, 0);
+    zend_hash_init(&zai_hook_tls->request_files.hooks, 8, NULL, zai_hook_destroy, 0);
+    zend_hash_init(&zai_hook_tls->request_functions, 8, NULL, zai_hook_hash_destroy, 0);
+    zend_hash_init(&zai_hook_tls->request_classes, 8, NULL, zai_hook_hash_destroy, 0);
     zend_hash_init(&zai_hook_resolved, 8, NULL, NULL, 0);
     zend_hash_init(&zai_function_location_map, 8, NULL, zai_function_location_destroy, 0);
 
     // reserve low hook ids for static hooks
-    zai_hook_id = (zend_ulong)zai_hook_static.nNextFreeElement;
+    zai_hook_tls->id = (zend_ulong)zai_hook_static.nNextFreeElement;
 
     zend_ulong index;
     zai_hook_inheritor_list *inheritors;
@@ -1051,7 +1056,7 @@ bool zai_hook_rinit(void) {
 
         zai_hook_inheritor_list *copy = emalloc(sizeof(zai_hook_inheritor_list) + size * sizeof(zend_class_entry *));
         memcpy(copy, inheritors, sizeof(zai_hook_inheritor_list) + inheritors->size * sizeof(zend_class_entry *));
-        zend_hash_index_add_new_ptr(&zai_hook_inheritors, index, copy);
+        zend_hash_index_add_new_ptr(&zai_hook_tls->inheritors, index, copy);
     } ZEND_HASH_FOREACH_END();
 
     return true;
@@ -1071,8 +1076,8 @@ void zai_hook_post_startup(void) {
 }
 
 void zai_hook_activate(void) {
-    zend_ulong current_hook_id = zai_hook_id;
-    zai_hook_id = 0;
+    zend_ulong current_hook_id = zai_hook_tls->id;
+    zai_hook_tls->id = 0;
 
     zai_hook_t *hook;
     ZEND_HASH_FOREACH_PTR(&zai_hook_static, hook) {
@@ -1082,7 +1087,7 @@ void zai_hook_activate(void) {
         zai_hook_request_install(copy);
     } ZEND_HASH_FOREACH_END();
 
-    zai_hook_id = current_hook_id;
+    zai_hook_tls->id = current_hook_id;
 }
 
 static int zai_hook_clean_graceful_del(zval *zv) {
@@ -1091,20 +1096,22 @@ static int zai_hook_clean_graceful_del(zval *zv) {
 }
 
 void zai_hook_rshutdown(void) {
-    zai_hook_id = -1;
+    zai_hook_tls->id = -1;
 
     // freeing this after a bailout is a bad idea: at least resolved hooks will contain objects, which are invalid when destroyed here.
     if (!CG(unclean_shutdown)) {
         zend_hash_apply(&zai_hook_resolved, zai_hook_clean_graceful_del);
         zend_hash_destroy(&zai_hook_resolved);
 
-        zend_hash_destroy(&zai_hook_inheritors);
-        zend_hash_destroy(&zai_hook_request_functions);
-        zend_hash_destroy(&zai_hook_request_classes);
-        zend_hash_destroy(&zai_hook_request_files.hooks);
+        zend_hash_destroy(&zai_hook_tls->inheritors);
+        zend_hash_destroy(&zai_hook_tls->request_functions);
+        zend_hash_destroy(&zai_hook_tls->request_classes);
+        zend_hash_destroy(&zai_hook_tls->request_files.hooks);
         zend_hash_destroy(&zai_function_location_map);
     }
 }
+
+void zai_hook_gshutdown(void) { free(zai_hook_tls); }
 
 void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
 
@@ -1207,7 +1214,7 @@ bool zai_hook_remove_resolved(zai_install_address function_address, zend_long in
 
 bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index) {
     if (!function.len) {
-        return zai_hook_remove_from_entry(&zai_hook_request_files, (zend_ulong)index);
+        return zai_hook_remove_from_entry(&zai_hook_tls->request_files, (zend_ulong)index);
     }
 
     zend_class_entry *ce;
@@ -1218,12 +1225,12 @@ bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long 
 
     HashTable *base_ht;
     if (scope.len) {
-        base_ht = zend_hash_str_find_ptr_lc(&zai_hook_request_classes, scope.ptr, scope.len);
+        base_ht = zend_hash_str_find_ptr_lc(&zai_hook_tls->request_classes, scope.ptr, scope.len);
         if (!base_ht) {
             return false;
         }
     } else {
-        base_ht = &zai_hook_request_functions;
+        base_ht = &zai_hook_tls->request_functions;
     }
     zai_hooks_entry *hooks = zend_hash_str_find_ptr_lc(base_ht, function.ptr, function.len);
     if (hooks) {
@@ -1234,7 +1241,7 @@ bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long 
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
             zend_hash_str_del(base_ht, function.ptr, function.len);
             if (zend_hash_num_elements(base_ht) == 0 && scope.len) {
-                zend_hash_str_del(&zai_hook_request_classes, scope.ptr, scope.len);
+                zend_hash_str_del(&zai_hook_tls->request_classes, scope.ptr, scope.len);
             }
         }
 
@@ -1247,12 +1254,12 @@ bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long 
 void zai_hook_clean(void) {
     // graceful clean: ensure that destructors executing during cleanup may still access zai_hook_resolved
     zend_hash_apply(&zai_hook_resolved, zai_hook_clean_graceful_del);
-    zend_hash_clean(&zai_hook_request_functions);
-    zend_hash_clean(&zai_hook_request_classes);
+    zend_hash_clean(&zai_hook_tls->request_functions);
+    zend_hash_clean(&zai_hook_tls->request_classes);
 
-    zend_hash_iterators_remove(&zai_hook_request_files.hooks);
-    zend_hash_clean(&zai_hook_request_files.hooks);
-    zai_hook_request_files.dynamic = 0;
+    zend_hash_iterators_remove(&zai_hook_tls->request_files.hooks);
+    zend_hash_clean(&zai_hook_tls->request_files.hooks);
+    zai_hook_tls->request_files.dynamic = 0;
 
     zend_hash_clean(&zai_function_location_map);
 }
@@ -1307,12 +1314,12 @@ static zai_hook_iterator zai_hook_iterator_init(HashTable *hooks) {
     \
     HashTable *base_ht; \
     if (scope.len) { \
-        base_ht = zend_hash_str_find_ptr(&zai_hook_request_classes, scope.ptr, scope.len); \
+        base_ht = zend_hash_str_find_ptr(&zai_hook_tls->request_classes, scope.ptr, scope.len); \
         if (!base_ht) { \
             return default; \
         } \
     } else { \
-        base_ht = &zai_hook_request_functions; \
+        base_ht = &zai_hook_tls->request_functions; \
     } \
     HashTable *hooks = zend_hash_str_find_ptr(base_ht, function.ptr, function.len); \
     if (!hooks) { \
