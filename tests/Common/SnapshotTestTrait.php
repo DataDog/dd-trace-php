@@ -30,21 +30,14 @@ trait SnapshotTestTrait
      *
      * Example: If a function DDTrace\Tests\Integrations\Framework\VX\TestClass::testFunction() calls
      * tracesFromWebRequest defined in this trait, which then calls generateToken, the token would be:
-     * DDTrace.Tests.Integrations.Framework.VX.TestClass.testFunction
-     *
-     * // TODO: Ask if this would be better: tests.integrations.framework.vx.test_class.test_function
+     * tests.integrations.framework.vx.test_class.test_function
      *
      * @return string The generated token
      */
     private function generateToken(): string
     {
-        // Backtrace: generateToken -> Trait's test method -> testHttpCall
-        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
-        $caller = $trace[2];
-        //return str_replace('\\', '.', $caller['class'] . '.' . $caller['function']);
-
-        $class = $caller['class'];
-        $function = $caller['function'];
+        $class = get_class($this);
+        $function = $this->getName();
 
         $class = explode('\\', $class);
 
