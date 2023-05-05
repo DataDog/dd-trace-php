@@ -288,6 +288,12 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
+    zai_hook_ginit();
+}
+
+static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
+    UNUSED(ddtrace_globals);
+    zai_hook_gshutdown();
 }
 
 /* DDTrace\SpanData */
@@ -2117,7 +2123,7 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
                                           PHP_MSHUTDOWN(ddtrace),    PHP_RINIT(ddtrace),
                                           PHP_RSHUTDOWN(ddtrace),    PHP_MINFO(ddtrace),
                                           PHP_DDTRACE_VERSION,       PHP_MODULE_GLOBALS(ddtrace),
-                                          PHP_GINIT(ddtrace),        NULL,
+                                          PHP_GINIT(ddtrace),        PHP_GSHUTDOWN(ddtrace),
                                           ddtrace_post_deactivate,   STANDARD_MODULE_PROPERTIES_EX};
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:
