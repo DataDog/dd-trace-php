@@ -210,7 +210,7 @@ pub(crate) unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_experimental_allocation_enabled() -> bool {
-    get_bool(ProfilingExperimentalAllocationEnabled, false)
+    get_bool(ProfilingExperimentalAllocationEnabled, true)
 }
 
 /// # Safety
@@ -405,7 +405,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingExperimentalAllocationEnabled),
                     name: ProfilingExperimentalAllocationEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStringView::literal(b"0\0"),
+                    default_encoded_value: ZaiStringView::literal(b"1\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
