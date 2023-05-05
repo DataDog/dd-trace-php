@@ -68,9 +68,6 @@ trait TracerTestTrait
         $headers = array(
             'Content-Type: application/json',
             'Datadog-Meta-Lang: php',
-            'Datadog-Meta-Lang-Interpreter: cli-server',
-            'Datadog-Meta-Lang-Version: 8.2.0',
-            'Datadog-Meta-Tracer-Version: 1.0.0-nightly',
             'X-Datadog-Agent-Proxy-Disabled: true',
             'X-Datadog-Trace-Count: ' . count($traces)
         );
