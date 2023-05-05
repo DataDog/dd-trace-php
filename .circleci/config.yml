@@ -60,12 +60,15 @@ aliases:
   - &IMAGE_DOCKER_DD_TEST_AGENT
     image: williamconti549/dd-apm-test-agent:php-dev
     name: test-agent
+    volumes:
+      - .tests/snapshots:/snapshots
     environment:
       LOG_LEVEL: DEBUG
       TRACE_LANGUAGE: php
       DD_TRACE_AGENT_URL: http://request-replayer:80
       DISABLED_CHECKS: trace_content_length
       PORT: 9126
+      SNAPSHOT_DIR: /snapshots
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
