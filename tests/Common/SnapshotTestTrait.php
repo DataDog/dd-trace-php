@@ -115,7 +115,7 @@ trait SnapshotTestTrait
     private function stopAndCompareSnapshotSession(
         string $token,
         array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms'],
-        ?int $numExpectedTraces = null
+        int $numExpectedTraces = 1
     ): void {
         $this->waitForTraces($token, $numExpectedTraces);
 
