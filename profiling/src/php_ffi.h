@@ -121,5 +121,9 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
 
 zend_execute_data* ddog_php_prof_get_current_execute_data();
 
+/**
+ * The following two functions exist for the sole purpose of creating fake stack
+ * frames that can be used in testing/benchmarking scenarios
+ */
 zend_execute_data* ddog_php_test_create_fake_zend_execute_data(int depth);
 void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data);
