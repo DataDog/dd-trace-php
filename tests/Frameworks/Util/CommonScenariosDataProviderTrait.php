@@ -13,7 +13,7 @@ trait CommonScenariosDataProviderTrait
      * @param array $definedExpectations
      * @return array
      */
-    public function buildDataProvider($definedExpectations)
+    public function buildDataProvider($definedExpectations = null)
     {
         $scenarios = TestScenarios::all();
 
@@ -21,6 +21,10 @@ trait CommonScenariosDataProviderTrait
             return $spec->getName();
         }, $scenarios);
         sort($allRequestNames);
+
+        if ($definedExpectations === null) {
+            return $allRequestNames;
+        }
 
         $allExpectationNames = array_keys($definedExpectations);
         sort($allExpectationNames);

@@ -161,13 +161,17 @@ services:
   test-agent:
     image: williamconti549/dd-apm-test-agent:php-dev
     ports:
-        - "127.0.0.1:9126:8126"
+      - "127.0.0.1:9126:8126"
+    volumes:
+      - ./tests/snapshots:/snapshots
     environment:
-        - LOG_LEVEL=DEBUG
-        - TRACE_LANGUAGE=php
-        - DD_TRACE_AGENT_URL=http://request-replayer:80
-        - DISABLED_CHECKS=trace_content_length
-        - PORT=9126
+      - LOG_LEVEL=DEBUG
+      - TRACE_LANGUAGE=php
+      - DD_TRACE_AGENT_URL=http://request-replayer:80
+      - DISABLED_CHECKS=trace_content_length
+      - PORT=9126
+      - SNAPSHOTS_DIR=/snapshots
+      - SNAPSHOT_CI=0
 
 volumes:
   agent-socket:

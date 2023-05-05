@@ -11,6 +11,7 @@ use DDTrace\NoopTracer;
 abstract class IntegrationTestCase extends BaseTestCase
 {
     use TracerTestTrait;
+    use SnapshotTestTrait;
     use SpanAssertionTrait;
 
     private $errorReportingBefore;
