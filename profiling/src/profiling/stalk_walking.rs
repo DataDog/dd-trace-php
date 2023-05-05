@@ -123,3 +123,33 @@ pub(super) unsafe fn collect_stack_sample(
     }
     Ok(samples)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bindings as zend;
+
+    #[test]
+    #[cfg(feature = "stack_walking_tests")]
+    fn test_collect_stack_sample() {
+        unsafe {
+            let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
+
+            let stack = collect_stack_sample(fake_execute_data).unwrap();
+
+            assert_eq!(stack.len(), 3);
+
+            assert_eq!(stack[0].function, "function name 03");
+            assert_eq!(stack[0].line, 0);
+
+            assert_eq!(stack[1].function, "function name 02");
+            assert_eq!(stack[1].line, 0);
+
+            assert_eq!(stack[2].function, "function name 01");
+            assert_eq!(stack[2].line, 0);
+
+            // Free the allocated memory
+            zend::ddog_php_test_free_fake_zend_execute_data(fake_execute_data);
+        }
+    }
+}
