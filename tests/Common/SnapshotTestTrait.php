@@ -132,8 +132,18 @@ trait SnapshotTestTrait
         $numExpectedTraces = 1,
         $tracer = null
     ): void {
+        // Do a 'ls' of '~/app' (the command)
+        fwrite(STDERR, "Content of the app directory:\n");
+        fwrite(STDERR, shell_exec('ls ~/datadog') . "\n");
+
+        fwrite(STDERR, "Content of the tests directory:\n");
+        fwrite(STDERR, shell_exec('ls ~/datadog/tests') . "\n");
+
+        fwrite(STDERR, "Content of the snapshots directory:\n");
+        fwrite(STDERR, shell_exec('ls ~/datadog/tests/snapshots') . "\n");
+
         if ($tracer === null) {
-            $this->resetTracerState(); // TODO: See about TracerTestTrait::resetTracer
+            $this->resetTracerState();
         }
 
         $token = $this->generateToken();
