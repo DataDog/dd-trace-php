@@ -196,6 +196,7 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
 
     ddog_php_test_free_fake_zend_execute_data(execute_data->prev_execute_data);
 
+    // free function name
     if (execute_data->func) {
         if (execute_data->func->common.function_name) {
             free(execute_data->func->common.function_name);
@@ -203,8 +204,9 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
         free(execute_data->func);
     }
 
-    if (execute_data->opline) {
-        /* free(execute_data->opline); */
+    // free filename
+    if (execute_data->func->op_array.filename) {
+        free(execute_data->func->op_array.filename);
     }
 
     free(execute_data);
