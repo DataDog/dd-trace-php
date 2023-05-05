@@ -4,6 +4,10 @@
 #include <stdbool.h>
 #include <string.h>
 
+#if CFG_STACK_WALKING_TESTS
+#include <dlfcn.h> // for dlsym
+#endif
+
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
@@ -149,41 +153,36 @@ zend_execute_data* ddog_php_prof_get_current_execute_data()
 
 #if CFG_STACK_WALKING_TESTS
 zend_execute_data* ddog_php_test_create_fake_zend_execute_data(int depth) {
-    if (depth <= 0 || depth > 99) {
+    if (depth <= 0) {
         return NULL;
     }
-
     zend_execute_data *execute_data = (zend_execute_data *) malloc(sizeof(zend_execute_data));
     memset(execute_data, 0, sizeof(zend_execute_data));
 
     execute_data->prev_execute_data = ddog_php_test_create_fake_zend_execute_data(depth - 1);
 
+    int (*original_snprintf)(char *, size_t, const char *, ...);
+    original_snprintf = dlsym(RTLD_NEXT, "snprintf");
+
+    int len = 0;
+
     // add function name to stack frame
-    zend_string *func_name = malloc(sizeof(zend_string) + 16);
+    len = original_snprintf(NULL, 0, "function name %03d", depth) + 1;
+    zend_string *func_name = malloc(sizeof(zend_string) + len);
     func_name->h = 0;
-    func_name->len = 16;
-    memcpy(func_name->val, "function name 00", 16);
-    if (depth > 9) {
-        func_name->val[12] = depth / 10 + '0';
-        func_name->val[15] = depth % 10 + '0';
-    } else {
-        func_name->val[15] = depth + '0';
-    }
+    func_name->len = len-1;
+    original_snprintf(func_name->val, len, "function name %03d", depth);
+
     execute_data->func = (zend_function *) malloc(sizeof(zend_function));
     memset(execute_data->func, 0, sizeof(zend_function));
     execute_data->func->common.function_name = func_name;
 
     // add file name to stack frame
-    zend_string *file_name = malloc(sizeof(zend_string) + 15);
+    len = original_snprintf(NULL, 0, "filename-%03d.php", depth) + 1;
+    zend_string *file_name = malloc(sizeof(zend_string) + len);
     file_name->h = 0;
-    file_name->len = 15;
-    memcpy(file_name->val, "filename-00.php", 15);
-    if (depth > 9) {
-        file_name->val[9] = depth / 10 + '0';
-        file_name->val[10] = depth % 10 + '0';
-    } else {
-        file_name->val[10] = depth + '0';
-    }
+    file_name->len = len-1;
+    original_snprintf(file_name->val, len, "filename-%03d.php", depth);
     execute_data->func->op_array.filename = file_name;
     execute_data->func->type = ZEND_USER_FUNCTION;
 
