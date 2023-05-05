@@ -818,9 +818,16 @@ static void zai_hook_memory_dtor(zval *zv) {
     efree(Z_PTR_P(zv));
 }
 
+#if PHP_VERSION_ID < 80200
+void zai_interceptor_reset_resolver(void);
+#endif
 void zai_interceptor_activate(void) {
     zend_hash_init(&zai_hook_memory, 8, nothing, zai_hook_memory_dtor, 0);
     zend_hash_init(&zai_interceptor_implicit_generators, 8, nothing, NULL, 0);
+
+#if PHP_VERSION_ID < 80200
+    zai_interceptor_reset_resolver();
+#endif
 }
 
 void zai_interceptor_deactivate(void) {

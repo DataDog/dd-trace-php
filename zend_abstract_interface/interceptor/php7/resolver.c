@@ -79,7 +79,7 @@ PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
 #define ZAI_INTERCEPTOR_POST_DECLARE_OP 224 // random 8 bit number greater than ZEND_VM_LAST_OPCODE
 static zend_op zai_interceptor_post_declare_op;
 ZEND_TLS zend_op zai_interceptor_post_declare_ops[4];
-struct zai_interceptor_opline { const zend_op *op; struct zai_interceptor_opline *prev; };
+struct zai_interceptor_opline { const zend_op *op; const zend_execute_data *execute_data; struct zai_interceptor_opline *prev; };
 ZEND_TLS struct zai_interceptor_opline zai_interceptor_opline_before_binding = {0};
 static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_data) {
     // We replace the current opline *before* it is executed. Thus we need to preserve opline data first:
@@ -109,10 +109,24 @@ static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_d
         zai_interceptor_opline_before_binding.prev = backup;
     }
     zai_interceptor_opline_before_binding.op = EX(opline);
+    zai_interceptor_opline_before_binding.execute_data = execute_data;
     EX(opline) = zai_interceptor_post_declare_ops;
 }
 
-static void zai_interceptor_pop_opline_before_binding() {
+static void zai_interceptor_pop_opline_before_binding(zend_execute_data *execute_data) {
+    // Normally the zai_interceptor_opline_before_binding stack should be in sync with the actual executing stack, but it might not after bailouts
+    if (execute_data) {
+        if (zai_interceptor_opline_before_binding.execute_data == execute_data) {
+            return;
+        }
+
+        while (zai_interceptor_opline_before_binding.prev && zai_interceptor_opline_before_binding.prev->execute_data != execute_data) {
+            struct zai_interceptor_opline *backup = zai_interceptor_opline_before_binding.prev;
+            zai_interceptor_opline_before_binding = *backup;
+            efree(backup);
+        }
+    }
+
     struct zai_interceptor_opline *backup = zai_interceptor_opline_before_binding.prev;
     if (backup) {
         zai_interceptor_opline_before_binding = *backup;
@@ -171,8 +185,9 @@ static int zai_interceptor_post_declare_handler(zend_execute_data *execute_data)
             }
         }
         // preserve offset
+        zai_interceptor_pop_opline_before_binding(execute_data);
         EX(opline) = zai_interceptor_opline_before_binding.op + (EX(opline) - &zai_interceptor_post_declare_ops[0]);
-        zai_interceptor_pop_opline_before_binding();
+        zai_interceptor_pop_opline_before_binding(NULL);
         return ZEND_USER_OPCODE_CONTINUE;
     } else if (prev_post_declare_handler) {
         return prev_post_declare_handler(execute_data);
@@ -244,10 +259,11 @@ static int zai_interceptor_add_interface_handler(zend_execute_data *execute_data
 }
 #endif
 
-void zai_interceptor_check_for_opline_before_exception(void) {
+void zai_interceptor_check_for_opline_before_exception(zend_execute_data *execute_data) {
     if (EG(opline_before_exception) == zai_interceptor_post_declare_ops) {
+        zai_interceptor_pop_opline_before_binding(execute_data);
         EG(opline_before_exception) = zai_interceptor_opline_before_binding.op;
-        zai_interceptor_pop_opline_before_binding();
+        zai_interceptor_pop_opline_before_binding(NULL);
     }
 }
 
@@ -256,12 +272,18 @@ static void zai_interceptor_exception_hook(zval *ex) {
     zend_function *func = EG(current_execute_data)->func;
     if (func && ZEND_USER_CODE(func->type) && EG(current_execute_data)->opline == zai_interceptor_post_declare_ops) {
         // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
+        zai_interceptor_pop_opline_before_binding(EG(current_execute_data));
         EG(current_execute_data)->opline = zai_interceptor_opline_before_binding.op;
-        zai_interceptor_pop_opline_before_binding();
+        zai_interceptor_pop_opline_before_binding(NULL);
     }
     if (prev_exception_hook) {
         prev_exception_hook(ex);
     }
+}
+
+void zai_interceptor_reset_resolver() {
+    // reset in case a prior request had a bailout
+    zai_interceptor_opline_before_binding = (struct zai_interceptor_opline){0};
 }
 
 // post startup hook to be after opcache
