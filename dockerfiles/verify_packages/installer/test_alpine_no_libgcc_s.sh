@@ -10,7 +10,7 @@ apk add php7 curl
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.78.0"
+new_version="0.86.0"
 generate_installers "${new_version}"
 
 set +e

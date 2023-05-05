@@ -183,6 +183,9 @@ if test "$PHP_DDTRACE" != "no"; then
   case $host_os in
    darwin*)
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -framework CoreFoundation -framework Security"
+    PHP_ADD_FRAMEWORK([CoreFoundation])
+    PHP_ADD_FRAMEWORK([Security])
+    PHP_SUBST(EXTRA_LDFLAGS)
   esac
 
   PHP_CHECK_LIBRARY(rt, shm_open,

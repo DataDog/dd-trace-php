@@ -3,6 +3,7 @@
 #include "configuration.h"
 #include "coms.h"
 #include "logging.h"
+#include "integrations/integrations.h"
 #include <hook/hook.h>
 #include <components/rust/ddtrace.h>
 
@@ -69,6 +70,16 @@ void ddtrace_telemetry_finalize(void) {
                                                      dd_zend_string_to_CharSlice(ini->name), dd_zend_string_to_CharSlice(ini->value),
                                                      cfg->name_index >= 0 ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE);
             }
+        }
+    }
+
+    // Send information about explicitly disabled integrations
+    for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
+        ddtrace_integration *integration = &ddtrace_integrations[i];
+        if (!integration->is_enabled()) {
+            ddog_CharSlice integration_name = (ddog_CharSlice) {.len = integration->name_len, .ptr = integration->name_lcase};
+            ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration_name,
+                                                  DDOG_CHARSLICE_C("0"), false);
         }
     }
 
