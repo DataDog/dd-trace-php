@@ -61,7 +61,7 @@ aliases:
     image: williamconti549/dd-apm-test-agent:php-dev
     name: test-agent
     volumes:
-      - .tests/snapshots:/snapshots
+      - ./tests/snapshots:/snapshots
     environment:
       LOG_LEVEL: DEBUG
       TRACE_LANGUAGE: php
