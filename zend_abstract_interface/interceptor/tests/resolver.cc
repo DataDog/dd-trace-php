@@ -15,6 +15,7 @@ extern "C" {
 #if PHP_VERSION_ID >= 80000
         zai_interceptor_minit();
 #endif
+        zai_hook_ginit();
         return SUCCESS;
     }
 
@@ -43,6 +44,7 @@ extern "C" {
     }
 
     static PHP_MSHUTDOWN_FUNCTION(ddtrace_testing_hook) {
+        zai_hook_gshutdown();
         zai_hook_mshutdown();
         return SUCCESS;
     }
@@ -61,6 +63,7 @@ extern "C" {
         tea_extension_op_array_ctor(zai_interceptor_op_array_ctor);
         tea_extension_op_array_handler(zai_interceptor_op_array_pass_two);
 #endif
+        tea_extension_op_array_dtor(zai_hook_unresolve_op_array);
         tea_extension_startup(ddtrace_testing_startup);
         tea_extension_minit(PHP_MINIT(ddtrace_testing_hook));
         tea_extension_rinit(PHP_RINIT(ddtrace_testing_hook));
@@ -191,8 +194,9 @@ INTERCEPTOR_TEST_CASE("runtime class_alias resolving", {
 
 #if PHP_VERSION_ID < 80000  // not a scenario which can happen on PHP 8
 INTERCEPTOR_TEST_CASE("ensure runtime post-declare resolving does not impact error", {
+    int orig_resolved = zend_hash_num_elements(&zai_hook_resolved);
     INSTALL_CLASS_HOOK("Inherited", "bar");
     CALL_FN("failDeclare", REQUIRE(zval_is_true(&result)););
-    REQUIRE(zend_hash_num_elements(&zai_hook_resolved) == 0);
+    REQUIRE(zend_hash_num_elements(&zai_hook_resolved) == orig_resolved);
 });
 #endif

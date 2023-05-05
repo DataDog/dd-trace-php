@@ -47,6 +47,10 @@ aliases:
       - MONGO_INITDB_ROOT_USERNAME=test
       - MONGO_INITDB_ROOT_PASSWORD=test
 
+  - &IMAGE_DOCKER_RABBITMQ
+    image: rabbitmq:3.8.9-alpine
+    name: rabbitmq_integration
+
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: datadog/dd-trace-ci:php-request-replayer-2.0
     name: request-replayer
@@ -66,6 +70,20 @@ aliases:
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
       at: ~/datadog
+
+  - &STEP_APPEND_BUILD_ID
+    run:
+      name: Append build id to version number
+      command: |
+        githash="${CIRCLE_SHA1?}"
+        if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
+          echo "Release branch detected; not adding git sha1 to version number."
+        else
+          sed -E -i "s/const\s+VERSION\s*=\s*'(.*)'/const VERSION = '\1+$githash'/g" "src/DDTrace/Tracer.php"
+          sed -E -i "s/define\s+PHP_DDTRACE_VERSION\s*\"(.*)\"/define PHP_DDTRACE_VERSION \"\1+$githash\"/g" "ext/version.h"
+          sed -E -i "s/^version\s*=\s*\"(.*)\"/version = \"\1+$githash\"/g" "profiling/Cargo.toml"
+          echo "Appended +$githash to version number."
+        fi
 
   - &STEP_EXT_INSTALL
     run:
@@ -335,6 +353,7 @@ commands:
                   -e DD_AGENT_HOST=127.0.0.1 \
                   -e DATADOG_HAVE_DEV_ENV=1 \
                   -e BASH_ENV=/home/circleci/bashenv/bash.sh \
+                  -e CIRCLE_SHA1 \
                   -v $(pwd):/home/circleci/datadog \
                   -v /tmp/bashenv:/home/circleci/bashenv \
                   -v /rust:/rust \
@@ -403,11 +422,36 @@ executors:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_RABBITMQ
       - <<: *IMAGE_DOCKER_MONGO
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
       - <<: *IMAGE_DOCKER_DD_TEST_AGENT
 
 jobs:
+  "Lint PHP 5":
+    parameters:
+      resource_class:
+        type: string
+        default: small
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          command: |
+            docker run --rm -v "$HOME/datadog:/src" -i php:5.4-cli bash \<<'CMD'
+              set -eu
+              cd /src/bridge
+              for file in *.php; do
+                if [ "$file" != "_generated_integrations.php" ]; then
+                  php -l "$file"
+                fi
+              done
+            CMD
+
   "Lint files":
     working_directory: ~/datadog
     docker:
@@ -768,7 +812,9 @@ jobs:
       - when:
           condition:
             and:
-              - equal: [ "8.0", << parameters.php_major_minor >> ]
+              - or:
+                - equal: [ "8.0", << parameters.php_major_minor >> ]
+                - equal: [ "8.1", << parameters.php_major_minor >> ]
               - not:
                 equal: [ "test_composer", << parameters.make_target >> ]
           steps:
@@ -912,8 +958,9 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - when:
           condition:
-            and:
+            or:
               - equal: [ "8.0", << parameters.php_major_minor >> ]
+              - equal: [ "8.1", << parameters.php_major_minor >> ]
           steps:
             - run:
                 name: Updating composer to v2
@@ -1929,6 +1976,7 @@ jobs:
           name: Restore Cargo Package Cache
           keys:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+      - <<: *STEP_APPEND_BUILD_ID
       - run:
           name: Build Profiler
           command: |
@@ -2068,6 +2116,7 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_APPEND_BUILD_ID
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_GENERATE
@@ -2076,7 +2125,12 @@ jobs:
           command: ls -al ~/datadog/bridge
       - persist_to_workspace:
           root: '.'
-          paths: ['./bridge/_generated*.php']
+          paths:
+            - './bridge/_generated*.php'
+            # Persist files below because we generate a new version number.
+            - './src/DDTrace/Tracer.php'
+            - './ext/version.h'
+            - './profiling/Cargo.toml'
 
   "package extension":
     working_directory: ~/datadog
@@ -2123,7 +2177,30 @@ jobs:
           command: |
             <<# parameters.asan_build >>export DDTRACE_MAKE_PACKAGES_ASAN=1<</ parameters.asan_build >>
             make packages
-      - run: cd build/packages && find . -type f -exec sha256sum {} +
+      - run:
+          name: Display sha256sums
+          command: cd build/packages && find . -type f -exec sha256sum {} + && cd -
+      - run:
+          name: Spot-check shape of library name
+          command: |
+            version=$(awk -F\' '/const VERSION/ { print $2 }' < src/DDTrace/Tracer.php)
+            filename="dd-library-php-${version}-x86_64-linux-gnu.tar.gz"
+            if ! [[ -f "build/packages/$filename" ]] ; then
+              echo "Expected file 'build/packages/$filename' to exist!"
+              exit 1
+            fi
+
+            if ! [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
+              githash="${CIRCLE_SHA1?}"
+              echo "Non-release branch detected. Checking for git sha1: $githash."
+              if echo "$filename" | grep -q "+$githash" ; then
+                echo "Confirmed: '$filename' contains git sha1 hash '$githash'."
+              else
+                echo "'$filename' didn't contain git sha1 hash '$githash'."
+                exit 1
+              fi
+            fi
+
       - store_artifacts: { path: 'build/packages', destination: / }
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
       - store_artifacts: { path: 'pecl', destination: '/pecl' }
@@ -3500,6 +3577,8 @@ workflows:
           ext_name: "curl"
           docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
       - "Lint files":
+          requires: [ 'Prepare Code' ]
+      - "Lint PHP 5":
           requires: [ 'Prepare Code' ]
       - static_analysis:
           requires: [ 'Prepare Code' ]
