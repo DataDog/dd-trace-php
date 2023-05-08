@@ -31,6 +31,7 @@ rand_distr = { version = "0.4.3" }
 default = ["allocation_profiling"]
 allocation_profiling = []
 timeline = []
+stack_walking_tests = []
 
 [build-dependencies]
 bindgen = { version = "0.59" }
