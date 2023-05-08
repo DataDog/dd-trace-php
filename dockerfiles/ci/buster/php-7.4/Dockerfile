@@ -67,7 +67,7 @@ USER root
 
 RUN set -eux; \
     # Enable the apache config \
-    echo "LoadModule php7_module /usr/lib/apache2/modules/libphp.so" | sudo tee /etc/apache2/mods-enabled/php.load; \
+    echo "LoadModule php7_module /usr/lib/apache2/modules/libphp.so" | tee /etc/apache2/mods-enabled/php.load; \
     # Set the default PHP version
     switch-php debug;
 
