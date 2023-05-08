@@ -2003,7 +2003,7 @@ jobs:
             set -u
             command -v switch-php && switch-php "${PHP_VERSION}"
             cd profiling
-            cargo test --release
+            cargo test --release --features stack_walking_tests
       - run:
           name: phpt tests
           command: |
