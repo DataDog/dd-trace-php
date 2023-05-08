@@ -139,7 +139,7 @@ pub(crate) enum ConfigId {
     ProfilingEnabled = 0,
     ProfilingEndpointCollectionEnabled,
     ProfilingExperimentalCpuTimeEnabled,
-    ProfilingExperimentalAllocationEnabled,
+    ProfilingAllocationEnabled,
     ProfilingLogLevel,
     ProfilingOutputPprof,
 
@@ -161,9 +161,7 @@ impl ConfigId {
             ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
-            ProfilingExperimentalAllocationEnabled => {
-                b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0"
-            }
+            ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             /* Note: this is meant only for debugging and testing. Please don't
@@ -209,8 +207,8 @@ pub(crate) unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_allocation_enabled() -> bool {
-    get_bool(ProfilingExperimentalAllocationEnabled, false)
+pub(crate) unsafe fn profiling_allocation_enabled() -> bool {
+    get_bool(ProfilingAllocationEnabled, true)
 }
 
 /// # Safety
@@ -332,7 +330,7 @@ unsafe extern "C" fn parse_level_filter(
                 }
                 _ => false,
             }
-        },
+        }
         _ => false,
     }
 }
@@ -364,6 +362,12 @@ pub(crate) fn minit(module_number: libc::c_int) {
         const CPU_TIME_ALIASES: &[ZaiStringView] = unsafe {
             &[ZaiStringView::literal(
                 b"DD_PROFILING_EXPERIMENTAL_CPU_ENABLED\0",
+            )]
+        };
+
+        const ALLOCATION_ALIASES: &[ZaiStringView] = unsafe {
+            &[ZaiStringView::literal(
+                b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0",
             )]
         };
 
@@ -402,12 +406,12 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalAllocationEnabled),
-                    name: ProfilingExperimentalAllocationEnabled.env_var_name(),
+                    id: transmute(ProfilingAllocationEnabled),
+                    name: ProfilingAllocationEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStringView::literal(b"0\0"),
-                    aliases: std::ptr::null_mut(),
-                    aliases_count: 0,
+                    default_encoded_value: ZaiStringView::literal(b"1\0"),
+                    aliases: ALLOCATION_ALIASES.as_ptr(),
+                    aliases_count: ALLOCATION_ALIASES.len() as u8,
                     ini_change: None,
                     parser: None,
                 },
@@ -541,6 +545,10 @@ mod tests {
             (
                 b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0",
                 "datadog.profiling.experimental_allocation_enabled",
+            ),
+            (
+                b"DD_PROFILING_ALLOCATION_ENABLED\0",
+                "datadog.profiling.allocation_enabled",
             ),
             (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
             (

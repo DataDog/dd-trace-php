@@ -237,7 +237,9 @@ impl TimeCollector {
 
         // check if we have the `alloc-size` and `alloc-samples` sample types
         #[cfg(feature = "allocation_profiling")]
-        let alloc_samples_offset = sample_types.iter().position(|&x| x.r#type == "alloc-samples");
+        let alloc_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "alloc-samples");
         #[cfg(feature = "allocation_profiling")]
         let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
 
@@ -259,9 +261,10 @@ impl TimeCollector {
             let upscaling_info = UpscalingInfo::Poisson {
                 sum_value_offset: alloc_size_offset.unwrap(),
                 count_value_offset: alloc_samples_offset.unwrap(),
-                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
             };
-            let values_offset: Vec<usize> = vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
+            let values_offset: Vec<usize> =
+                vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
             match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
@@ -715,7 +718,7 @@ impl Profiler {
             sample_values.extend_from_slice(&values[0..len]);
 
             // alloc-samples, alloc-size
-            if locals.profiling_experimental_allocation_enabled {
+            if locals.profiling_allocation_enabled {
                 sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
                 sample_values.extend_from_slice(&values[3..5]);
             }
@@ -761,7 +764,7 @@ mod tests {
             profiling_enabled: true,
             profiling_endpoint_collection_enabled: true,
             profiling_experimental_cpu_time_enabled: false,
-            profiling_experimental_allocation_enabled: false,
+            profiling_allocation_enabled: false,
             profiling_log_level: LevelFilter::Off,
             service: None,
             tags: Arc::new(static_tags()),
@@ -790,7 +793,7 @@ mod tests {
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
         locals.profiling_enabled = false;
-        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_allocation_enabled = false;
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
@@ -808,7 +811,7 @@ mod tests {
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
         locals.profiling_enabled = true;
-        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_allocation_enabled = false;
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
@@ -831,7 +834,7 @@ mod tests {
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
         locals.profiling_enabled = true;
-        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_allocation_enabled = false;
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
@@ -855,7 +858,7 @@ mod tests {
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
         locals.profiling_enabled = true;
-        locals.profiling_experimental_allocation_enabled = true;
+        locals.profiling_allocation_enabled = true;
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
@@ -880,7 +883,7 @@ mod tests {
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
         locals.profiling_enabled = true;
-        locals.profiling_experimental_allocation_enabled = true;
+        locals.profiling_allocation_enabled = true;
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
