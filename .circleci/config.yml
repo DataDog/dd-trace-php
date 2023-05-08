@@ -2986,10 +2986,11 @@ workflows:
           requires: [ "Framework tests" ]
           framework_target: flow_no_ddtrace
           name: "Flow baseline testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: laravel
-          name: "Laravel testsuite"
+      # The dd-trace-ci:php-framework-laravel docker image needs to be modified to handle the laravel queue integration
+      #- framework_tests:
+      #    requires: [ "Framework tests" ]
+      #    framework_target: laravel
+      #    name: "Laravel testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
           framework_target: laravel_no_ddtrace

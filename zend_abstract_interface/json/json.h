@@ -49,6 +49,8 @@ static inline int zai_json_decode_assoc(zval *return_value, const char *str, int
 }
 #endif
 
+extern __attribute__((weak)) zend_class_entry *php_json_serializable_ce;
+
 bool zai_json_setup_bindings(void);
 
 #endif  // ZAI_JSON_H
