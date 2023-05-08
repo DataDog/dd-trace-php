@@ -44,8 +44,6 @@ elif [[ $PHP_VERSION_ID -le 71 ]]; then
   SQLSRV_VERSION=-5.6.1
 elif [[ $PHP_VERSION_ID -le 74 ]]; then
   SQLSRV_VERSION=-5.8.0
-else
-  SQLSRV_VERSION=-5.11.0
 fi
 
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
