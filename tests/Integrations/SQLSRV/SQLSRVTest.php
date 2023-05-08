@@ -20,7 +20,7 @@ class SQLSRVTest extends IntegrationTestCase
     const ERROR_CONNECT = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
     const ERROR_QUERY_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
     const ERROR_QUERY_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
-    const ERROR_PREPARE = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
+    const ERROR_PREPARE = "SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name 'non_existing_table'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Statement(s) could not be prepared.";
     const ERROR_EXECUTE_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Statement(s) could not be prepared.';
     const ERROR_EXECUTE_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Statement(s) could not be prepared.';
     // phpcs:enable
@@ -120,7 +120,9 @@ class SQLSRVTest extends IntegrationTestCase
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
-                )
+                )->withExactMetrics([
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
         ]);
     }
 
@@ -138,7 +140,13 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertOneRowInDatabase('tests', ['id' => 1000, 'name' => 'Sam']);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
-            SpanAssertion::exists('sqlsrv_query'),
+            SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags($query))
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0
+                ]),
             SpanAssertion::build('sqlsrv_commit', 'sqlsrv', 'sql', 'sqlsrv_commit')
                 ->withExactTags(self::baseTags())
         ]);
@@ -181,8 +189,13 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::exists('sqlsrv_prepare'),
-            SpanAssertion::exists('sqlsrv_execute')
+            SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
                 ->setError('SQLSRV error', self::ERROR_PREPARE)
+                ->withExactTags(self::baseTags($query))
+                ->withExactMetrics([
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
         ]);
     }
 
@@ -270,6 +283,10 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
         ]);
     }
 

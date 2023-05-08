@@ -68,10 +68,8 @@ class SQLSRVIntegration extends Integration
                 }
 
                 $result = $hook->returned;
-
-                $this->setMetricNumRows($span, $result);
-
-                $integration->detectError($hook->returned, $span);
+                $this->setMetrics($span, $result);
+                $integration->detectError($result, $span);
             });
 
             // sqlsrv_prepare ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
@@ -103,7 +101,7 @@ class SQLSRVIntegration extends Integration
                 $integration->addTraceAnalyticsIfEnabled($span);
                 ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
 
-                $this->setMetricNumRows($span, $retval);
+                $this->setMetrics($span, $retval);
 
                 $integration->detectError($retval, $span);
             });
@@ -132,7 +130,7 @@ class SQLSRVIntegration extends Integration
             self::setDefaultAttributes($this, $span, 'sqlsrv_execute', $query, $retval);
             $integration->addTraceAnalyticsIfEnabled($span);
             if ($retval) {
-                $this->setMetricNumRows($span, $args[0]);
+                $this->setMetrics($span, $args[0]);
             }
 
             $integration->detectError($retval, $span);
@@ -240,7 +238,7 @@ class SQLSRVIntegration extends Integration
         $span->meta[Tag::ERROR_TYPE] = 'SQLSRV error';
     }
 
-    protected function setMetricNumRows(SpanData $span, $stmt)
+    protected function setMetrics(SpanData $span, $stmt)
     {
         if ($stmt) {
             $numRows = sqlsrv_num_rows($stmt);
@@ -250,6 +248,19 @@ class SQLSRVIntegration extends Integration
                 // have been read, and we cannot do that without fetching all the rows, which
                 // could lead to some non-negligible overhead.
                 $span->metrics[Tag::DB_ROW_COUNT] = $numRows;
+            } else {
+                $this->setMetricRowsAffected($span, $stmt);
+            }
+        }
+    }
+
+    protected function setMetricRowsAffected(SpanData $span, $stmt)
+    {
+        if ($stmt) {
+            $rowsAffected = sqlsrv_rows_affected($stmt);
+            if ($rowsAffected !== false && $rowsAffected !== -1) {
+                // If the function returns -1, the number of rows cannot be determined.
+                $span->metrics[Tag::DB_ROW_COUNT] = $rowsAffected;
             }
         }
     }
