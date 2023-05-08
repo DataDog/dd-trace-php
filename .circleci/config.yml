@@ -60,7 +60,6 @@ aliases:
       LOG_LEVEL: DEBUG
       TRACE_LANGUAGE: php
       DD_TRACE_AGENT_URL: http://request-replayer:80
-      DISABLED_CHECKS: trace_content_length
       PORT: 9126
 
   - &STEP_ATTACH_WORKSPACE
@@ -313,7 +312,6 @@ commands:
                 -e LOG_LEVEL=DEBUG \
                 -e TRACE_LANGUAGE=php \
                 -e DD_TRACE_AGENT_URL=http://request-replayer:80 \
-                -e DISABLED_CHECKS=trace_content_length \
                 -e PORT=9126 \
                 -p "127.0.0.1:9126:9126" \
                 --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest

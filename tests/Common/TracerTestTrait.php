@@ -521,20 +521,21 @@ trait TracerTestTrait
 }
 
 
-function addEnvironmentToHeaders(&$headers) {
-    $ddEnvVars = array_filter($_ENV, function($key) {
-      return strpos($key, 'DD_') === 0;
+function addEnvironmentToHeaders(&$headers)
+{
+    $ddEnvVars = array_filter($_ENV, function ($key) {
+        return strpos($key, 'DD_') === 0;
     }, ARRAY_FILTER_USE_KEY);
-  
+
     if (count($ddEnvVars) > 0) {
-      $ddEnvVarsString = implode(',', array_map(function($key, $value) {
-        return "$key=$value";
-      }, array_keys($ddEnvVars), $ddEnvVars));
-  
-      if (isset($headers['X-Datadog-Environment'])) {
-        $headers['X-Datadog-Environment'] .= ",$ddEnvVarsString";
-      } else {
-        $headers['X-Datadog-Environment'] = $ddEnvVarsString;
-      }
+        $ddEnvVarsString = implode(',', array_map(function ($key, $value) {
+            return "$key=$value";
+        }, array_keys($ddEnvVars), $ddEnvVars));
+
+        if (isset($headers['X-Datadog-Environment'])) {
+            $headers['X-Datadog-Environment'] .= ",$ddEnvVarsString";
+        } else {
+            $headers['X-Datadog-Environment'] = $ddEnvVarsString;
+        }
     }
 }
