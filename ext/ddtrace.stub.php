@@ -26,13 +26,13 @@ namespace DDTrace {
     class SpanLink implements \JsonSerializable {
         /**
          * @var string $traceId A 32-character, lower-case hexadecimal encoded string of the linked trace ID. This field
-         * shouldn't be directly assigned. Use the SpanData::getLinks() method instead.
+         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLinks() method instead.
          */
         public string $traceId;
 
         /**
          * @var string $spanId A 16-character, lower-case hexadecimal encoded string of the linked span ID. This field
-         * shouldn't be directly assigned. Use the SpanData::getLinks() method instead.
+         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLinks() method instead.
          */
         public string $spanId;
 
