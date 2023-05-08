@@ -20,9 +20,8 @@ class SQLSRVTest extends IntegrationTestCase
     const ERROR_CONNECT = 'SQL Error: 1045. Driver error: 28000. Driver-specific error data: Access denied for user \'sa\'@\'%\' (using password: YES)';
     const ERROR_QUERY_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
     const ERROR_QUERY_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'.';
-    const ERROR_PREPARE = "SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name 'non_existing_table'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Statement(s) could not be prepared.";
-    const ERROR_EXECUTE_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Statement(s) could not be prepared.';
-    const ERROR_EXECUTE_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Statement(s) could not be prepared.';
+    const ERROR_PREPARE_17 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Statement(s) could not be prepared.';
+    const ERROR_PREPARE_18 = 'SQL error: 208. Driver error: 42S02. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid object name \'non_existing_table\'. | SQL error: 8180. Driver error: 42000. Driver-specific error data: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Statement(s) could not be prepared.';
     // phpcs:enable
 
     private static function getArchitecture()
@@ -191,8 +190,10 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::exists('sqlsrv_prepare'),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('SQLSRV error', self::ERROR_PREPARE)
-                ->withExactTags(self::baseTags($query))
+                ->setError(
+                    'SQLSRV error',
+                    self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
+                )->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::ANALYTICS_KEY => 1.0
                 ])
