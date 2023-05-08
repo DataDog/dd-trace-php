@@ -72,6 +72,9 @@ trait TracerTestTrait
             'X-Datadog-Trace-Count: ' . count($traces)
         );
 
+        // add environment variables to headers
+        addEnvironmentToHeaders($headers);
+
         // Initialize a cURL session
         $curl = curl_init();
 
@@ -514,5 +517,24 @@ trait TracerTestTrait
         $tracesProperty = $tracerReflection->getProperty('traces');
         $tracesProperty->setAccessible(true);
         return $tracesProperty->getValue($tracer);
+    }
+}
+
+
+function addEnvironmentToHeaders(&$headers) {
+    $ddEnvVars = array_filter($_ENV, function($key) {
+      return strpos($key, 'DD_') === 0;
+    }, ARRAY_FILTER_USE_KEY);
+  
+    if (count($ddEnvVars) > 0) {
+      $ddEnvVarsString = implode(',', array_map(function($key, $value) {
+        return "$key=$value";
+      }, array_keys($ddEnvVars), $ddEnvVars));
+  
+      if (isset($headers['X-Datadog-Environment'])) {
+        $headers['X-Datadog-Environment'] .= ",$ddEnvVarsString";
+      } else {
+        $headers['X-Datadog-Environment'] = $ddEnvVarsString;
+      }
     }
 }

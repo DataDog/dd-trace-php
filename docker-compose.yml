@@ -159,7 +159,6 @@ services:
         - LOG_LEVEL=DEBUG
         - TRACE_LANGUAGE=php
         - DD_TRACE_AGENT_URL=http://request-replayer:80
-        - DISABLED_CHECKS=trace_content_length
         - PORT=9126
 
 volumes:
