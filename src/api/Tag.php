@@ -45,8 +45,11 @@ class Tag
     const ELASTICSEARCH_URL = 'elasticsearch.url';
 
     // Database
+    const DB_INSTANCE = 'db.instance';
     const DB_SYSTEM = 'db.system';
     const DB_ROW_COUNT = 'db.row_count';
+    const DB_STMT = 'db.statement';
+    const DB_USER = 'db.user';
 
     // Laravel Queue
     const LARAVELQ_ATTEMPTS = 'messaging.laravel.attempts';

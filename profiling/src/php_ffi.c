@@ -4,6 +4,10 @@
 #include <stdbool.h>
 #include <string.h>
 
+#if CFG_STACK_WALKING_TESTS
+#include <dlfcn.h> // for dlsym
+#endif
+
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
@@ -146,3 +150,75 @@ zend_execute_data* ddog_php_prof_get_current_execute_data()
 {
     return EG(current_execute_data);
 }
+
+#if CFG_STACK_WALKING_TESTS
+static int (*og_snprintf)(char *, size_t, const char *, ...);
+
+// "weak" let's us polyfill, needed by zend_string_init(..., persistent: 1).
+void *__attribute__((weak)) __zend_malloc(size_t len) {
+    void *tmp = malloc(len);
+    if (EXPECTED(tmp || !len)) {
+        return tmp;
+    }
+    fprintf(stderr, "Out of memory\n");
+    exit(1);
+}
+
+static zend_execute_data *create_fake_frame(int depth) {
+    zend_execute_data *execute_data = calloc(1, sizeof(zend_execute_data));
+    zend_op_array *op_array = calloc(1, sizeof(zend_function));
+    op_array->type = ZEND_USER_FUNCTION;
+    execute_data->func = (zend_function *)op_array;
+
+    char buffer[64] = {0};
+    int len = og_snprintf(buffer, sizeof buffer, "function name %03d", depth) + 1;
+    ZEND_ASSERT(len >= 0 && sizeof buffer > (size_t)len);
+    op_array->function_name = zend_string_init(buffer, len - 1, true);
+
+    len = og_snprintf(buffer, sizeof buffer, "filename-%03d.php", depth) + 1;
+    ZEND_ASSERT(len >= 0 && sizeof buffer > (size_t)len);
+    op_array->filename = zend_string_init(buffer, len - 1, true);
+
+    return execute_data;
+}
+
+static zend_execute_data *create_fake_zend_execute_data(int depth) {
+    if (depth <= 0) return NULL;
+    zend_execute_data *execute_data = create_fake_frame(depth);
+    execute_data->prev_execute_data = create_fake_zend_execute_data(depth - 1);
+    return execute_data;
+}
+
+zend_execute_data *ddog_php_test_create_fake_zend_execute_data(int depth) {
+    if (!og_snprintf) {
+        og_snprintf = dlsym(RTLD_NEXT, "snprintf");
+        if (!og_snprintf) {
+            fprintf(stderr, "Failed to locate symbol: %s", dlerror());
+            exit(1);
+        }
+    }
+
+    return create_fake_zend_execute_data(depth);
+}
+
+void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) {
+    if (!execute_data) return;
+
+    ddog_php_test_free_fake_zend_execute_data(execute_data->prev_execute_data);
+
+    // free function name
+    if (execute_data->func) {
+        if (execute_data->func->common.function_name) {
+            free(execute_data->func->common.function_name);
+        }
+        free(execute_data->func);
+    }
+
+    // free filename
+    if (execute_data->func->op_array.filename) {
+        free(execute_data->func->op_array.filename);
+    }
+
+    free(execute_data);
+}
+#endif
