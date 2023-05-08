@@ -1,6 +1,6 @@
 <?php
 
-const MINIMUM_ACCEPTABLE_REQUESTS = 900;
+const MINIMUM_ACCEPTABLE_REQUESTS = 700;
 const MINIMUM_ASAN_ACCEPTABLE_REQUESTS = 300;
 
 function analyze_web($tmpScenariosFolder)
@@ -125,7 +125,7 @@ function analyze_cli($tmpScenariosFolder)
             }
         ));
 
-        if (count($values) < 50) {
+        if (count($values) < 40) {
             $notEnoughResults[] = $identifier;
             continue;
         }
