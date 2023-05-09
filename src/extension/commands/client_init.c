@@ -157,7 +157,7 @@ static dd_result _pack_command(
 
     // Remote config settings
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    mpack_start_map(w, 5);
+    mpack_start_map(w, 4);
 
     dd_mpack_write_lstr(w, "enabled");
     mpack_write_bool(w, get_DD_REMOTE_CONFIG_ENABLED());
@@ -166,9 +166,6 @@ static dd_result _pack_command(
 
     dd_mpack_write_lstr(w, "poll_interval");
     mpack_write_u32(w, get_DD_REMOTE_CONFIG_POLL_INTERVAL());
-
-    dd_mpack_write_lstr(w, "max_payload_size");
-    mpack_write_u64(w, get_DD_REMOTE_CONFIG_MAX_PAYLOAD_SIZE());
 
     mpack_finish_map(w);
 

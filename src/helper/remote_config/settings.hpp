@@ -22,42 +22,37 @@ namespace dds::remote_config {
  */
 struct settings {
     static constexpr uint32_t default_poll_interval{1000};
-    static constexpr uint64_t default_max_payload_size{4096};
     static constexpr unsigned default_port{8126};
     // Remote config settings
     bool enabled{false};
     std::string host;
     unsigned port = default_port;
     std::uint32_t poll_interval = default_poll_interval;
-    std::uint64_t max_payload_size = default_max_payload_size;
 
     // these two are specified in RCTE1
     // std::string targets_key;
     // std::string targets_key_id;
     // bool integrity_check_enabled{false};
 
-    MSGPACK_DEFINE_MAP(enabled, host, port, poll_interval, max_payload_size);
+    MSGPACK_DEFINE_MAP(enabled, host, port, poll_interval);
 
     bool operator==(const settings &oth) const noexcept
     {
         return enabled == oth.enabled && host == oth.host && port == oth.port &&
-               poll_interval == oth.poll_interval &&
-               max_payload_size == oth.max_payload_size;
+               poll_interval == oth.poll_interval;
     }
 
     friend auto &operator<<(std::ostream &os, const settings &c)
     {
         return os << "{enabled=" << std::boolalpha << c.enabled
                   << ", host=" << c.host << ", port=" << c.port
-                  << ", poll_interval=" << c.poll_interval
-                  << ", max_payload_size=" << c.max_payload_size << "}";
+                  << ", poll_interval=" << c.poll_interval << "}";
     }
 
     struct settings_hash {
         std::size_t operator()(const settings &s) const noexcept
         {
-            return hash(
-                s.enabled, s.host, s.port, s.poll_interval, s.max_payload_size);
+            return hash(s.enabled, s.host, s.port, s.poll_interval);
         }
     };
 };
