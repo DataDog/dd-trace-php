@@ -45,11 +45,12 @@ class QueueTest extends WebFrameworkTestCase
             sleep(3);
         });
 
-        $workTraces = $this->tracesFromWebRequest(function () {
+        $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
             sleep(3);
         });
+        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertFlameGraph(
             $createTraces,
@@ -127,11 +128,12 @@ class QueueTest extends WebFrameworkTestCase
             sleep(3);
         });
 
-        $workTraces = $this->tracesFromWebRequest(function () {
+        $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
             sleep(3);
         });
+        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertFlameGraph(
             $createTraces,
