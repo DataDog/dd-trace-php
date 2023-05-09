@@ -58,6 +58,19 @@ if you haven't already, build the release version with `cargo build --release`.
 Also the `run-tests.php` version has to match the PHP version used to run the
 tests.
 
+## Benchmarks
+
+Benchmarks are implemented using [criterion](https://github.com/bheisler/criterion.rs)
+and can be execute by calling:
+
+```sh
+cargo bench --all-features
+```
+
+Note: the `--all-features` is necessary as some code in the `php_ffi.c` is only
+compiled for tests and benchmarks and compilation is guarded behind a feature
+flag.
+
 ## Troubleshooting
 
 #### ld: symbol(s) not found for architecture arm64
