@@ -33,7 +33,7 @@ class DebugTransport implements Transport
      */
     public function setHeader($key, $value)
     {
-        array_push($headers, [$key => $value]);
+        array_push($this->headers, [$key => $value]);
     }
 
     /**

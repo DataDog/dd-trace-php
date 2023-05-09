@@ -33,6 +33,11 @@ trait TracerTestTrait
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
         $transport = new DebugTransport();
+        $headers = $transport->getHeaders();
+        $dd_header_with_env = getHeaderWithEnvironment();
+        if ($dd_header_with_env) {
+            $transport->setHeader("X-Datadog-Trace-Env-Variables", $dd_header_with_env);
+        }
         $tracer = $tracer ?: new Tracer($transport, null, $config);
         GlobalTracer::set($tracer);
     }
@@ -73,7 +78,10 @@ trait TracerTestTrait
         );
 
         // add environment variables to headers
-        addEnvironmentToHeaders($headers);
+        $dd_header_with_env = getHeaderWithEnvironment();
+        if ($dd_header_with_env) {
+            $headers["X-Datadog-Trace-Env-Variables"] = $dd_header_with_env;
+        }
 
         // Initialize a cURL session
         $curl = curl_init();
@@ -521,7 +529,7 @@ trait TracerTestTrait
 }
 
 
-function addEnvironmentToHeaders(&$headers)
+function getHeaderWithEnvironment()
 {
     $ddEnvVars = array_filter($_ENV, function ($key) {
         return strpos($key, 'DD_') === 0;
@@ -531,11 +539,6 @@ function addEnvironmentToHeaders(&$headers)
         $ddEnvVarsString = implode(',', array_map(function ($key, $value) {
             return "$key=$value";
         }, array_keys($ddEnvVars), $ddEnvVars));
-
-        if (isset($headers['X-Datadog-Environment'])) {
-            $headers['X-Datadog-Environment'] .= ",$ddEnvVarsString";
-        } else {
-            $headers['X-Datadog-Environment'] = $ddEnvVarsString;
-        }
     }
+    return $ddEnvVarsString;
 }
