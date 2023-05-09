@@ -11,10 +11,12 @@ extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
 extern zend_class_entry *ddtrace_ce_span_stack;
 extern zend_class_entry *ddtrace_ce_fatal_error;
+extern zend_class_entry *ddtrace_ce_span_link;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_data ddtrace_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
+typedef struct ddtrace_span_link ddtrace_span_link;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"  // useful compiler does not like the struct hack
@@ -56,7 +58,15 @@ static inline zend_array *ddtrace_spandata_property_metrics(ddtrace_span_data *s
 static inline zval *ddtrace_spandata_property_exception(ddtrace_span_data *span) {
     return OBJ_PROP_NUM((zend_object *)span, 6);
 }
-static inline zval *ddtrace_spandata_property_id(ddtrace_span_data *span) { return OBJ_PROP_NUM((zend_object *)span, 7); }
+static inline zval *ddtrace_spandata_property_id(ddtrace_span_data *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 7);
+}
+static inline zval *ddtrace_spandata_property_links_zval(ddtrace_span_data *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 8);
+}
+static inline zend_array *ddtrace_spandata_property_links(ddtrace_span_data *span) {
+    return ddtrace_spandata_property_force_array(ddtrace_spandata_property_links_zval(span));
+}
 #pragma GCC diagnostic pop
 
 bool ddtrace_tracer_is_limited(void);

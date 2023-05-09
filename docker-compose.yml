@@ -22,6 +22,7 @@ x-aliases:
         - elasticsearch7_integration
         - httpbin_integration
         - redis_integration
+        - sqlsrv_integration
         - mongodb_integration
         - mysql_integration
         - memcached_integration
@@ -86,6 +87,15 @@ services:
       - MYSQL_PASSWORD=test
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
+
+  sqlsrv_integration:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Password12!
+      - MSSQL_PID=Developer
 
   elasticsearch2_integration:
     image: "elasticsearch:2"

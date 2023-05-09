@@ -321,14 +321,20 @@ trait TracerTestTrait
             return [];
         }
 
-        // For now we only support asserting traces against one dump at a time.
         $loaded = json_decode($response, true);
 
-        // Data is returned as [{trace_1}, {trace_2}]. As of today we only support parsing 1 trace.
         if (count($loaded) > 1) {
-            TestCase::fail(
-                sprintf("Received multiple bodys from request replayer: %s", \var_export($loaded, true))
-            );
+            // There are multiple bodies. Parse them all and return them.
+            $dumps = [];
+            foreach ($loaded as $dump) {
+                if (!isset($dump['body'])) {
+                    $dumps[] = [];
+                } else {
+                    $dumps[] = $this->parseRawDumpedTraces(json_decode($dump['body'], true));
+                }
+            }
+
+            return $dumps;
         }
 
         $uniqueRequest = $loaded[0];

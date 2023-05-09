@@ -59,7 +59,7 @@ final class WebServer
         'DD_AGENT_HOST' => 'request-replayer',
         'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
         // Short flush interval by default or our tests will take all day
-        'DD_TRACE_AGENT_FLUSH_INTERVAL' => 333,
+        'DD_TRACE_AGENT_FLUSH_INTERVAL' => 111,
     ];
 
     /**
