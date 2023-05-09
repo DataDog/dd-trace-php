@@ -707,7 +707,7 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
         } while (rootstack);
 
         // Also flush possible cycles here
-        zend_gc_collect_cycles();
+        gc_collect_cycles();
     }
 }
 
