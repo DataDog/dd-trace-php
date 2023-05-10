@@ -10,9 +10,11 @@ if (!extension_loaded('datadog-profiling'))
 if (PHP_VERSION_ID < 80100)
     echo "skip: php 8.1 or above is required for fibers.\n";
 ?>
---ENV--
-DD_PROFILING_ENABLED=yes
-DD_PROFILING_LOG_LEVEL=info
+--INI--
+datadog.profiling.enabled=yes
+datadog.profiling.log_level=debug
+datadog.profiling.experimental_allocation_enabled=no
+datadog.profiling.experimental_cpu_time_enabled=no
 --FILE--
 <?php
 $fiber = new Fiber(function (): void {

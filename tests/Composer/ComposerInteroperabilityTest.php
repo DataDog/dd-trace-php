@@ -141,6 +141,46 @@ class ComposerInteroperabilityTest extends BaseTestCase
     }
 
     /**
+     * Simulates an autoloading scenario when preloading and composer are used. Manual tracing is done, but DDTrace
+     * classes are not used in the preloading script, but composer is used in the preloading script.
+     */
+    public function testPreloadDDTraceNotUsedWithComposerManualTracing()
+    {
+        if (PHP_VERSION_ID < 70400) {
+            $this->markTestSkipped('opcache.preload is not available before PHP 7.4');
+        }
+        $this->assertFalse(file_exists($this->getPreloadTouchFilePath()));
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $output = $execute(GetSpec::create('default', '/manual-tracing'));
+                TestCase::assertSame("OK - preload:'DDTrace classes NOT used in preload'", $output);
+            },
+            __DIR__ . "/app/index.php",
+            [],
+            [
+                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'zend_extension' => 'opcache.so',
+                'opcache.preload' => __DIR__ . '/app/preload.composer.no.ddtrace.php',
+            ]
+        );
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'web.request', 'web', 'GET /manual-tracing')
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://127.0.0.1:6666/manual-tracing',
+                    'http.status_code' => '200',
+                ])
+                ->withChildren([
+                    SpanAssertion::build('my_operation', 'web.request', 'memcached', 'my_resource')
+                        ->withExactTags([
+                            'http.method' => 'GET',
+                        ]),
+                ]),
+        ]);
+    }
+
+    /**
      * Simulates an autoloading scenario when preloading and composer are used. Moreover, DDTrace classes are
      * referenced in the preloading script, but no manual tracing is performed.
      */

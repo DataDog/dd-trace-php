@@ -315,10 +315,9 @@ pub struct RequestLocals {
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
-/// take a sample every X bytes
-/// this value is temporary but the overhead looks promising, Go profiler samples every 512 KiB
+/// take a sample every 2048 KB
 #[cfg(feature = "allocation_profiling")]
-const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 512.0;
+pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 2048.0;
 
 #[cfg(feature = "allocation_profiling")]
 pub struct AllocationProfilingStats {
@@ -347,11 +346,6 @@ impl AllocationProfilingStats {
             return;
         }
 
-        let scale = 1.0 / (1.0 - (len as f64 * -1.0 / ALLOCATION_PROFILING_INTERVAL).exp());
-
-        let count = 1.0 * scale;
-        let bytes = len as f64 * scale;
-
         self.next_sample = AllocationProfilingStats::next_sampling_interval();
 
         REQUEST_LOCALS.with(|cell| {
@@ -367,8 +361,8 @@ impl AllocationProfilingStats {
                 unsafe {
                     profiler.collect_allocations(
                         zend::ddog_php_prof_get_current_execute_data(),
-                        count as i64,
-                        bytes as i64,
+                        1 as i64,
+                        len as i64,
                         &locals,
                     )
                 };

@@ -143,6 +143,9 @@ void ddtrace_integrations_minit(void) {
 
     dd_load_test_integrations();
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_AMQP, "PhpAmqpLib\\Connection\\AbstractConnection", "__construct",
+                                        "DDTrace\\Integrations\\AMQP\\AMQPIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "App", "init",
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "Dispatcher", "__construct",
@@ -162,6 +165,11 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Eloquent\\EloquentIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELOQUENT, "Illuminate\\Database\\Eloquent\\Model", "destroy",
                                          "DDTrace\\Integrations\\Eloquent\\EloquentIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "init",
+                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "__construct",
+                                             "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LUMEN, "Laravel\\Lumen\\Application", "__construct",
                                          "DDTrace\\Integrations\\Lumen\\LumenIntegration");
@@ -218,10 +226,24 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SLIM, "Slim\\App", "__construct",
                                          "DDTrace\\Integrations\\Slim\\SlimIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVELQUEUE, "Illuminate\\Queue\\Worker", "__construct",
+                                         "DDTrace\\Integrations\\LaravelQueue\\LaravelQueueIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVELQUEUE, "Illuminate\\Contracts\\Queue\\Queue", "push",
+                                         "DDTrace\\Integrations\\LaravelQueue\\LaravelQueueIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVELQUEUE, "Illuminate\\Contracts\\Queue\\Queue", "later",
+                                             "DDTrace\\Integrations\\LaravelQueue\\LaravelQueueIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVELQUEUE, "Illuminate\\Bus\\PendingBatch", "__construct",
+                                         "DDTrace\\Integrations\\LaravelQueue\\LaravelQueueIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVELQUEUE, "Illuminate\\Foundation\\Bus\\PendingChain", "__construct",
+                                             "DDTrace\\Integrations\\LaravelQueue\\LaravelQueueIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Symfony\\Component\\HttpKernel\\Kernel", "__construct",
                                          "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Symfony\\Component\\HttpKernel\\HttpKernel", "__construct",
                                          "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_SQLSRV, "sqlsrv_connect",
+                                         "DDTrace\\Integrations\\SQLSRV\\SQLSRVIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_WORDPRESS, "wp_check_php_mysql_versions",
                                            "DDTrace\\Integrations\\WordPress\\WordPressIntegration");

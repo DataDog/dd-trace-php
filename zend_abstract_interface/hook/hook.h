@@ -7,11 +7,13 @@
 /* {{{ staging functions
         Note: installation of hooks may occur after minit */
 bool zai_hook_minit(void);
+bool zai_hook_ginit(void);
 bool zai_hook_rinit(void);
 void zai_hook_post_startup(void);
 void zai_hook_activate(void);
 void zai_hook_clean(void);
 void zai_hook_rshutdown(void);
+void zai_hook_gshutdown(void);
 void zai_hook_mshutdown(void); /* }}} */
 
 typedef bool (*zai_hook_begin)(zend_ulong invocation, zend_execute_data *frame, void *auxiliary, void *dynamic);
@@ -87,6 +89,10 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
 /* {{{ zai_hook_resolve_* functions are designed to do individual resolving */
 void zai_hook_resolve_function(zend_function *function, zend_string *lcname);
 void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname);
+void zai_hook_resolve_file(zend_op_array *op_array);
+
+/* cleanup function to avoid memory leaking */
+void zai_hook_unresolve_op_array(zend_op_array *op_array);
 
 /* {{{ private but externed for performance reasons */
 extern TSRM_TLS HashTable zai_hook_resolved;

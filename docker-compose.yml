@@ -19,9 +19,11 @@ x-aliases:
         - request-replayer
         - test-agent
         #- elasticsearch2_integration
+        - rabbitmq_integration
         - elasticsearch7_integration
         - httpbin_integration
         - redis_integration
+        - sqlsrv_integration
         - mongodb_integration
         - mysql_integration
         - memcached_integration
@@ -70,6 +72,12 @@ services:
   '8.1-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_centos-7' }
   '8.2-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.2_centos-7' }
 
+  rabbitmq_integration:
+    image: rabbitmq:3.8.9-alpine # 3.8.9 is the latest version that supports Erlang 20
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
   mysql_integration:
     image: mysql/mysql-server:8.0
     command: --default-authentication-plugin=mysql_native_password
@@ -80,6 +88,15 @@ services:
       - MYSQL_PASSWORD=test
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
+
+  sqlsrv_integration:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Password12!
+      - MSSQL_PID=Developer
 
   elasticsearch2_integration:
     image: "elasticsearch:2"

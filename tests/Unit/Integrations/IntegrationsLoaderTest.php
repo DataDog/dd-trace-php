@@ -160,10 +160,13 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'phpredis'; // PHP 7 only integration
         } else {
             // Deferred loading integrations
+            $excluded[] = 'amqp';
             $excluded[] = 'cakephp';
             $excluded[] = 'codeigniter';
             $excluded[] = 'elasticsearch';
             $excluded[] = 'eloquent';
+            $excluded[] = 'laminas';
+            $excluded[] = 'laravelqueue';
             $excluded[] = 'lumen';
             $excluded[] = 'memcache';
             $excluded[] = 'memcached';
@@ -175,6 +178,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'psr18';
             $excluded[] = 'roadrunner';
             $excluded[] = 'slim';
+            $excluded[] = 'sqlsrv';
             $excluded[] = 'symfony';
             $excluded[] = 'wordpress';
             $excluded[] = 'yii';

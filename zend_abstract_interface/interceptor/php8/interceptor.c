@@ -14,6 +14,8 @@
 int zai_registered_observers = 0;
 #endif
 
+void (*zai_interceptor_included_file)(zend_op_array *op_array);
+
 typedef struct {
     zai_hook_memory_t hook_data;
     zend_execute_data *ex;

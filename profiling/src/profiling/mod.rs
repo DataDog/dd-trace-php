@@ -24,6 +24,11 @@ use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
+#[cfg(feature = "allocation_profiling")]
+use crate::ALLOCATION_PROFILING_INTERVAL;
+#[cfg(feature = "allocation_profiling")]
+use datadog_profiling::profile::api::UpscalingInfo;
+
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
 // Guide: upload period / upload timeout should give about the order of
@@ -220,7 +225,7 @@ impl TimeCollector {
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
     fn create_profile(message: &SampleMessage, started_at: SystemTime) -> profile::Profile {
-        let sample_types = message
+        let sample_types: Vec<profile::api::ValueType> = message
             .key
             .sample_types
             .iter()
@@ -230,8 +235,14 @@ impl TimeCollector {
             })
             .collect();
 
+        // check if we have the `alloc-size` and `alloc-samples` sample types
+        #[cfg(feature = "allocation_profiling")]
+        let alloc_samples_offset = sample_types.iter().position(|&x| x.r#type == "alloc-samples");
+        #[cfg(feature = "allocation_profiling")]
+        let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
+
         let period = WALL_TIME_PERIOD.as_nanos();
-        profile::ProfileBuilder::new()
+        let mut profile = profile::ProfileBuilder::new()
             .period(Some(Period {
                 r#type: profile::api::ValueType {
                     r#type: WALL_TIME_PERIOD_TYPE.r#type.borrow(),
@@ -241,7 +252,25 @@ impl TimeCollector {
             }))
             .start_time(Some(started_at))
             .sample_types(sample_types)
-            .build()
+            .build();
+
+        #[cfg(feature = "allocation_profiling")]
+        if alloc_samples_offset.is_some() && alloc_size_offset.is_some() {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: alloc_size_offset.unwrap(),
+                count_value_offset: alloc_samples_offset.unwrap(),
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64
+            };
+            let values_offset: Vec<usize> = vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
+            match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        profile
     }
 
     fn handle_resource_message(

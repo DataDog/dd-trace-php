@@ -1,5 +1,7 @@
 #include "../sandbox.h"
 
+long zai_sandbox_active = 0;
+
 extern inline void zai_sandbox_open(zai_sandbox *sandbox);
 extern inline void zai_sandbox_close(zai_sandbox *sandbox);
 extern inline void zai_sandbox_bailout(zai_sandbox *sandbox);
@@ -16,16 +18,14 @@ extern inline void zai_sandbox_error_state_backup(zai_error_state *es);
  */
 void zai_sandbox_error_state_restore(zai_error_state *es) {
     if (PG(last_error_message)) {
-        if (PG(last_error_message) != es->message) {
-            zend_string_release(PG(last_error_message));
-        }
-        if (PG(last_error_file) != es->file) {
+        zend_string_release(PG(last_error_message));
+    }
+    if (PG(last_error_file)) {
 #if PHP_VERSION_ID < 80100
-            free(PG(last_error_file));
+        free(PG(last_error_file));
 #else
-            zend_string_release(PG(last_error_file));
+        zend_string_release(PG(last_error_file));
 #endif
-        }
     }
     zend_restore_error_handling(&es->error_handling);
     PG(last_error_type) = es->type;

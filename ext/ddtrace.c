@@ -1,3 +1,4 @@
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -25,6 +26,7 @@
 
 #include <ext/standard/info.h>
 #include <ext/standard/php_string.h>
+#include <json/json.h>
 
 #include "auto_flush.h"
 #include "circuit_breaker.h"
@@ -72,6 +74,7 @@
 #define ZVAL_EMPTY_STRING(z) ZVAL_NEW_STR(z, zend_string_init("", 0, 1))
 #endif
 #include "ddtrace_arginfo.h"
+
 #if PHP_VERSION_ID < 70200
 #undef ZVAL_EMPTY_STRING
 #define ZVAL_EMPTY_STRING(z) ZVAL_INTERNED_STR(z, ZSTR_EMPTY_ALLOC())
@@ -79,6 +82,11 @@
 #if PHP_VERSION_ID < 80000
 #undef ZVAL_EMPTY_ARRAY
 #define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
+#endif
+
+// For manual ZPP
+#if PHP_VERSION_ID < 70400
+#define _error_code error_code
 #endif
 
 bool ddtrace_has_excluded_module;
@@ -272,7 +280,7 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
 #else
                                                   NULL,
 #endif
-                                                  NULL,
+                                                  zai_hook_unresolve_op_array,
 
                                                   STANDARD_ZEND_EXTENSION_PROPERTIES};
 
@@ -283,6 +291,46 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
+    zai_hook_ginit();
+}
+
+static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
+    UNUSED(ddtrace_globals);
+    zai_hook_gshutdown();
+}
+
+/* DDTrace\SpanLink */
+zend_class_entry *ddtrace_ce_span_link;
+
+PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
+    ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(ZEND_THIS);
+
+    zend_array *array = zend_new_array(5);
+
+    zend_string *trace_id = zend_string_init("trace_id", sizeof("trace_id") - 1, 0);
+    zend_string *span_id = zend_string_init("span_id", sizeof("span_id") - 1, 0);
+    zend_string *trace_state = zend_string_init("trace_state", sizeof("trace_state") - 1, 0);
+    zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
+    zend_string *dropped_attributes_count = zend_string_init("dropped_attributes_count", sizeof("dropped_attributes_count") - 1, 0);
+
+    Z_TRY_ADDREF(link->property_trace_id);
+    zend_hash_add(array, trace_id, &link->property_trace_id);
+    Z_TRY_ADDREF(link->property_span_id);
+    zend_hash_add(array, span_id, &link->property_span_id);
+    Z_TRY_ADDREF(link->property_trace_state);
+    zend_hash_add(array, trace_state, &link->property_trace_state);
+    Z_TRY_ADDREF(link->property_attributes);
+    zend_hash_add(array, attributes, &link->property_attributes);
+    Z_TRY_ADDREF(link->property_dropped_attributes_count);
+    zend_hash_add(array, dropped_attributes_count, &link->property_dropped_attributes_count);
+
+    zend_string_release(trace_id);
+    zend_string_release(span_id);
+    zend_string_release(trace_state);
+    zend_string_release(attributes);
+    zend_string_release(dropped_attributes_count);
+
+    RETURN_ARR(array);
 }
 
 /* DDTrace\SpanData */
@@ -300,6 +348,7 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     // Not handled in arginfo on these old versions
     array_init(ddtrace_spandata_property_meta_zval(span));
     array_init(ddtrace_spandata_property_metrics_zval(span));
+    array_init(ddtrace_spandata_property_links_zval(span));
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
@@ -387,7 +436,7 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
 static void ddtrace_span_data_free_storage(zend_object *object) {
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
-    memset(object->properties_table, 0, sizeof(((ddtrace_span_data *)NULL)->properties_table_placeholder));
+    memset(object->properties_table, 0, sizeof(zval) + sizeof(((ddtrace_span_data *)NULL)->properties_table_placeholder));
 }
 
 #if PHP_VERSION_ID < 80000
@@ -470,6 +519,19 @@ PHP_METHOD(DDTrace_SpanData, getStartTime) {
     RETURN_LONG(span->start);
 }
 
+PHP_METHOD(DDTrace_SpanData, getLink) {
+    ddtrace_span_data *span = (ddtrace_span_data *)Z_OBJ_P(ZEND_THIS);
+
+    zval fci_zv;
+    object_init_ex(&fci_zv, ddtrace_ce_span_link);
+    ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(&fci_zv);
+
+    ZVAL_STR(&link->property_trace_id, ddtrace_trace_id_as_hex_string(span->trace_id));
+    ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(span->span_id));
+
+    RETURN_OBJ(Z_OBJ(fci_zv));
+}
+
 static void dd_register_span_data_ce(void) {
     memcpy(&ddtrace_span_data_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     ddtrace_span_data_handlers.clone_obj = ddtrace_span_data_clone_obj;
@@ -525,7 +587,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
     zai_hook_minit();
-    zai_uhook_minit();
+    zai_uhook_minit(module_number);
 #if PHP_VERSION_ID >= 80000
     zai_interceptor_minit();
 #endif
@@ -589,6 +651,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
+    ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
 
     ddtrace_engine_hooks_minit();
 
@@ -1661,10 +1724,6 @@ PHP_FUNCTION(DDTrace_create_stack) {
     RETURN_OBJ(&stack->std);
 }
 
-#if PHP_VERSION_ID < 70400
-#define _error_code error_code
-#endif
-
 /* {{{ proto string DDTrace\switch_stack(DDTrace\SpanData|DDTrace\SpanStack) */
 PHP_FUNCTION(DDTrace_switch_stack) {
     ddtrace_span_stack *stack = NULL;
@@ -1696,8 +1755,6 @@ PHP_FUNCTION(DDTrace_switch_stack) {
 
     RETURN_OBJ_COPY(&DDTRACE_G(active_stack)->std);
 }
-
-#undef _error_code
 
 PHP_FUNCTION(DDTrace_flush) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
@@ -1896,11 +1953,45 @@ static bool dd_read_userspace_header(zai_string_view zai_header, const char *low
     return true;
 }
 
+static bool dd_read_array_header(zai_string_view zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
+    UNUSED(zai_header);
+    zend_array *array = (zend_array *) data;
+    zval *value = zend_hash_str_find(array, lowercase_header, strlen(lowercase_header));
+    if (!value) {
+        return false;
+    }
+
+    *header_value = zval_get_string(value);
+    return true;
+}
+
 PHP_FUNCTION(DDTrace_consume_distributed_tracing_headers) {
     dd_fci_fcc_pair func;
+    zend_array *array = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_FUNC(func.fci, func.fcc)
+        DD_PARAM_PROLOGUE(0, 0);
+        if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error))) {
+            if (!_error) {
+                zend_argument_type_error(1, "must be a valid callback or of type array, %s given", zend_zval_value_name(_arg));
+                _error_code = ZPP_ERROR_FAILURE;
+                break;
+            } else if (Z_TYPE_P(_arg) == IS_ARRAY) {
+                array = Z_ARR_P(_arg);
+                efree(_error);
+            } else {
+                _error_code = ZPP_ERROR_WRONG_CALLBACK;
+                break;
+            }
+#if PHP_VERSION_ID < 70300
+        } else if (UNEXPECTED(_error != NULL)) {
+#if PHP_VERSION_ID < 70200
+            zend_wrong_callback_error(E_DEPRECATED, 1, _error);
+#else
+            zend_wrong_callback_error(_flags & ZEND_PARSE_PARAMS_THROW, E_DEPRECATED, 1, _error);
+#endif
+#endif
+        }
     ZEND_PARSE_PARAMETERS_END();
 
     if (!get_DD_TRACE_ENABLED()) {
@@ -1917,7 +2008,11 @@ PHP_FUNCTION(DDTrace_consume_distributed_tracing_headers) {
     }
     dd_clear_propagated_tags_from_root_span();
 
-    ddtrace_read_distributed_tracing_ids(dd_read_userspace_header, &func);
+    if (array) {
+        ddtrace_read_distributed_tracing_ids(dd_read_array_header, array);
+    } else {
+        ddtrace_read_distributed_tracing_ids(dd_read_userspace_header, &func);
+    }
 
     if (DDTRACE_G(active_stack)->root_span) {
         ddtrace_get_propagated_tags(ddtrace_spandata_property_meta(DDTRACE_G(active_stack)->root_span));
@@ -1933,7 +2028,7 @@ PHP_FUNCTION(DDTrace_generate_distributed_tracing_headers) {
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
-        Z_PARAM_ARRAY_HT(inject)
+        Z_PARAM_ARRAY_HT_EX(inject, true, false)
     ZEND_PARSE_PARAMETERS_END();
 
     array_init(return_value);
@@ -2080,7 +2175,7 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
                                           PHP_MSHUTDOWN(ddtrace),    PHP_RINIT(ddtrace),
                                           PHP_RSHUTDOWN(ddtrace),    PHP_MINFO(ddtrace),
                                           PHP_DDTRACE_VERSION,       PHP_MODULE_GLOBALS(ddtrace),
-                                          PHP_GINIT(ddtrace),        NULL,
+                                          PHP_GINIT(ddtrace),        PHP_GSHUTDOWN(ddtrace),
                                           ddtrace_post_deactivate,   STANDARD_MODULE_PROPERTIES_EX};
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:

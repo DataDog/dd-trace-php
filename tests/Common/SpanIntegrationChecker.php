@@ -25,6 +25,7 @@ final class SpanIntegrationChecker
             '/curl_.*/' => 'DDTrace\Integrations\Curl\CurlIntegration',
             '/Elasticsearch(.).*/' => 'DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
             '/GuzzleHttp.*/' => 'DDTrace\Integrations\Guzzle\GuzzleIntegration',
+            '/laminas.*/' => 'DDTrace\Integrations\Laminas\LaminasIntegration',
             '/laravel.*/' => 'DDTrace\Integrations\Laravel\LaravelIntegration',
             '/Memcached.*/' => 'DDTrace\Integrations\Memcached\MemcachedIntegration',
             '/Memcache.*/' => 'DDTrace\Integrations\Memcache\MemcacheIntegration',

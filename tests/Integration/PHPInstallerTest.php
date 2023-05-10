@@ -143,6 +143,145 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertNotEmpty($values[IS_DEBUG]);
     }
 
+    public function cliArguments()
+    {
+        return [
+            [
+                'datadog-setup.php config set -d datadog.profiling.enabled=1 -ddatadog.profiling.log_level=trace',
+                [
+                    'cmd' => 'config set',
+                    'opts' => [
+                        'd' => [
+                            'datadog.profiling.enabled=1',
+                            'datadog.profiling.log_level=trace'
+                        ]
+                    ]
+                ]
+            ], [
+                'datadog-setup.php config get -d datadog.profiling.enabled -dfoobar',
+                [
+                    'cmd' => 'config get',
+                    'opts' => [
+                        'd' => [
+                            'datadog.profiling.enabled',
+                            'foobar',
+                        ]
+                    ]
+                ]
+            ], [
+                'datadog-setup.php --php-bin php --php-bin php-cli --install-dir /opt/ --enable-profiling',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'php-bin' => [
+                            'php',
+                            'php-cli',
+                        ],
+                        'install-dir' => '/opt/',
+                        'enable-profiling' => false,
+                    ]
+                ]
+            ], [
+                'datadog-setup.php --php-bin=php --php-bin=php-cli --install-dir /opt/ --enable-profiling',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'php-bin' => [
+                            'php',
+                            'php-cli',
+                        ],
+                        'install-dir' => '/opt/',
+                        'enable-profiling' => false,
+                    ]
+                ]
+            ], [
+                'datadog-setup.php --help',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'help' => false
+                    ]
+                ]
+            ], [
+                'datadog-setup.php -h --enable-profiling',
+                [
+                    'cmd' => 'install',
+                    'opts' => [
+                        'h' => false,
+                        'enable-profiling' => false,
+                    ]
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * @dataProvider cliArguments
+     */
+    public function testCliArgumentParsing(string $cli, array $expect)
+    {
+        $command = explode(' ', $cli);
+        $opts = parse_cli_arguments($command);
+        $this->assertSame(
+            $expect,
+            $opts
+        );
+    }
+
+    public function testFailingCliArgumentParsing()
+    {
+        $this->expectOutputString("Parse error at token 'php6'" . PHP_EOL);
+        $command = explode(' ', 'datadog-setup.php config get --php-bin=all php6 -ddatadog.profiling.enabled');
+        $opts = parse_cli_arguments($command);
+        $this->assertFalse(
+            $opts
+        );
+    }
+
+    public function iniFileContents()
+    {
+        return [
+            [
+                ';foo.bar=On;comment',
+                ';foo.bar=On;comment',
+                false,
+                0
+            ], [
+                ';foo.bar=On;comment',
+                'foo.bar = Off;comment',
+                true,
+                1
+            ], [
+                'foo.bar=On;comment
+
+foo.bar=baz',
+                'foo.bar = Off;comment
+
+foo.bar = Off',
+                false,
+                2
+            ]
+        ];
+    }
+
+    /**
+     * @dataProvider iniFileContents
+     */
+    public function testUpdateIniSetting(string $before, string $after, bool $promoteComment, int $expCount)
+    {
+        // Create a temporary file
+        $tempFile = tempnam(sys_get_temp_dir(), 'test');
+        file_put_contents($tempFile, $before);
+
+        $count = update_ini_setting(['foo.bar', 'Off'], $tempFile, $promoteComment);
+
+        $output = file_get_contents($tempFile);
+        $this->assertSame($after, $output);
+        $this->assertSame($count, $expCount);
+
+        unlink($tempFile);
+    }
+
     private static function getTmpRootPath()
     {
         return sys_get_temp_dir() . '/dd-php-setup-tests';

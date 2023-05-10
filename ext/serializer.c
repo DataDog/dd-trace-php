@@ -14,8 +14,10 @@
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
 #include <exceptions/exceptions.h>
+#include <json/json.h>
 #include <stdatomic.h>
 #include <zai_string/string.h>
+#include <sandbox/sandbox.h>
 
 #include "arrays.h"
 #include "compat_string.h"
@@ -781,6 +783,13 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
 }
 
+static void _dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
+    zval zv;
+    ZVAL_ARR(&zv, arr);
+    zai_json_encode(buf, &zv, options);
+    smart_str_0(buf);
+}
+
 static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     bool is_top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     bool is_local_root_span = span->parent_id == 0 || is_top_level_span;
@@ -808,6 +817,13 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
         }
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array, exception_type);
+    }
+
+    zend_array *span_links_zv = ddtrace_spandata_property_links(span);
+    if (zend_hash_num_elements(span_links_zv) > 0) {
+        smart_str buf = {0};
+        _dd_serialize_json(span_links_zv, &buf, 0);
+        add_assoc_str(meta, "_dd.span_links", buf.s);
     }
 
     if (is_top_level_span) {
@@ -1249,17 +1265,63 @@ void ddtrace_save_active_error_to_metadata(void) {
     }
 }
 
-void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
-    UNUSED(error_filename, error_lineno);
+static void clear_last_error(void) {
+    if (PG(last_error_message)) {
+#if PHP_VERSION_ID < 80000
+        free(PG(last_error_message));
+#else
+        zend_string_release(PG(last_error_message));
+#endif
+        PG(last_error_message) = NULL;
+    }
+    if (PG(last_error_file)) {
+#if PHP_VERSION_ID < 80100
+        free(PG(last_error_file));
+#else
+        zend_string_release(PG(last_error_file));
+#endif
+        PG(last_error_file) = NULL;
+    }
+}
 
-    /* We need the error handling to place nicely with the sandbox. The best
-     * idea so far is to execute fatal error handling code iff the error handling
-     * mode is set to EH_NORMAL. If it's something else, such as EH_SUPPRESS or
-     * EH_THROW, then they are likely to be handled and accordingly they
-     * shouldn't be treated as fatal.
-     */
+void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
+    // We need the error handling to place nicely with the sandbox. Our choice here is to skip any error handling if the sandbox is active.
+    // We just save the error for later handling by sandbox error reporting functionality.
+    // On fatal error we explicitly bail out.
     bool is_fatal_error = orig_type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
-    if (EXPECTED(EG(active)) && EG(error_handling) == EH_NORMAL && UNEXPECTED(is_fatal_error)) {
+    if (zai_sandbox_active) {
+        clear_last_error();
+        PG(last_error_type) = orig_type & E_ALL;
+#if PHP_VERSION_ID < 80000
+        char *buf;
+        // vsssprintf uses Zend allocator, but PG(last_error_message) must be malloc() memory
+        vspprintf(&buf, PG(log_errors_max_len), format, args);
+        PG(last_error_message) = strdup(buf);
+        efree(buf);
+#else
+        PG(last_error_message) = zend_string_copy(message);
+#endif
+#if PHP_VERSION_ID < 80100
+        if (!error_filename) {
+            error_filename = "Unknown";
+        }
+        PG(last_error_file) = strdup(error_filename);
+#else
+        if (!error_filename) {
+            error_filename = ZSTR_KNOWN(ZEND_STR_UNKNOWN_CAPITALIZED);
+        }
+        PG(last_error_file) = zend_string_copy(error_filename);
+#endif
+        PG(last_error_lineno) = (int)error_lineno;
+
+        if (is_fatal_error) {
+            zend_bailout();
+        }
+        return;
+    }
+
+    // If this is a fatal error we have to handle it early. These are always bailing out, independently of the configured EG(error_handling) mode.
+    if (EXPECTED(EG(active)) && UNEXPECTED(is_fatal_error)) {
         /* If there is a fatal error in shutdown then this might not be an array
          * because we set it to IS_NULL in RSHUTDOWN. We probably want a more
          * robust way of detecting this, but I'm not sure how yet.

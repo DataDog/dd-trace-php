@@ -12,11 +12,11 @@ $closure = (new ReflectionFunction('foo'))->getClosure();
 
 \DDTrace\install_hook('foo', function(\DDTrace\HookData $hook) {
     $hook->span()->meta['global'] = 1;
-}, null);
+}, null, DDTrace\HOOK_INSTANCE);
 
 $hook = \DDTrace\install_hook($closure, function(\DDTrace\HookData $hook) {
     $hook->span()->meta['fake'] = 1;
-}, null);
+}, null, DDTrace\HOOK_INSTANCE);
 
 foo(); // Not traced by closure hook
 $closure();

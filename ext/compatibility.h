@@ -105,7 +105,7 @@ static inline zend_string *get_active_function_or_method_name(void) {
 
 #define zend_argument_type_error(arg_num, format, ...) do { \
         zend_string *func_name = get_active_function_or_method_name(); \
-        zend_internal_type_error(ZEND_ARG_USES_STRICT_TYPES(), "%s(): Argument #%d " format, ZSTR_VAL(func_name), arg_num, #__VA_ARGS__); \
+        zend_internal_type_error(ZEND_ARG_USES_STRICT_TYPES(), "%s(): Argument #%d " format, ZSTR_VAL(func_name), arg_num, ##__VA_ARGS__); \
         zend_string_release(func_name); \
     } while (0)
 

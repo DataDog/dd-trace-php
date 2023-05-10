@@ -75,8 +75,8 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
         }
     }
 
-    if (!success || (PG(last_error_message) && sandbox.error_state.message != PG(last_error_message))) {
-        dd_uhook_report_sandbox_error(execute_data, closure, &sandbox);
+    if (!success || PG(last_error_message)) {
+        dd_uhook_report_sandbox_error(execute_data, closure);
     }
     zai_sandbox_close(&sandbox);
 

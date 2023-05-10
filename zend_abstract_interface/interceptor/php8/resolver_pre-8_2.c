@@ -43,10 +43,9 @@ static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle
     zend_hash_iterator_del(class_iter);
     zend_hash_iterator_del(func_iter);
 
-#if 0
-    // TODO: on branch merge with libdatadog
-    zai_hook_resolve_file(op_array);
-#endif
+    if (op_array) {
+        zai_hook_resolve_file(op_array);
+    }
 
     return op_array;
 }

@@ -8,13 +8,16 @@
 #define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 13  // "zendframework" FTW!
 
 #define DD_INTEGRATIONS                         \
+    INTEGRATION(AMQP, "amqp")                   \
     INTEGRATION(CAKEPHP, "cakephp")             \
     INTEGRATION(CODEIGNITER, "codeigniter")     \
     INTEGRATION(CURL, "curl")                   \
     INTEGRATION(ELASTICSEARCH, "elasticsearch") \
     INTEGRATION(ELOQUENT, "eloquent")           \
     INTEGRATION(GUZZLE, "guzzle")               \
+    INTEGRATION(LAMINAS, "laminas")             \
     INTEGRATION(LARAVEL, "laravel")             \
+    INTEGRATION(LARAVELQUEUE, "laravelqueue")   \
     INTEGRATION(LUMEN, "lumen")                 \
     INTEGRATION(MEMCACHE, "memcache")           \
     INTEGRATION(MEMCACHED, "memcached")         \
@@ -28,6 +31,7 @@
     INTEGRATION(PREDIS, "predis")               \
     INTEGRATION(PSR18, "psr18")                 \
     INTEGRATION(ROADRUNNER, "roadrunner")       \
+    INTEGRATION(SQLSRV, "sqlsrv")               \
     INTEGRATION(SLIM, "slim")                   \
     INTEGRATION(SYMFONY, "symfony")             \
     INTEGRATION(WEB, "web")                     \
