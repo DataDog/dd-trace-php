@@ -99,8 +99,10 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
      * the result which avoids unsafe code and unnecessary locks.
      */
 
-    static DEPS: [zend::ModuleDep; 2] = [
+    static DEPS: [zend::ModuleDep; 4] = [
         // Safety: string is nul terminated with no interior nul bytes.
+        zend::ModuleDep::required(unsafe { CStr::from_bytes_with_nul_unchecked(b"standard\0") }),
+        zend::ModuleDep::required(unsafe { CStr::from_bytes_with_nul_unchecked(b"json\0") }),
         zend::ModuleDep::optional(unsafe { CStr::from_bytes_with_nul_unchecked(b"ddtrace\0") }),
         zend::ModuleDep::end(),
     ];
