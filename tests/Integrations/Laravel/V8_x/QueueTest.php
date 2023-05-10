@@ -207,8 +207,8 @@ class QueueTest extends WebFrameworkTestCase
         $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work batch', '/queue/workOn');
             $this->call($spec);
+            sleep(6); // 2+2+2
         });
-        sleep(6); // 2+2+2
         $workTraces = $this->parseMultipleRequestsFromDumpedData(2);
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
