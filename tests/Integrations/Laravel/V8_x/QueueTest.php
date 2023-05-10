@@ -39,18 +39,21 @@ class QueueTest extends WebFrameworkTestCase
 
     public function testSimplePushAndProcess()
     {
+        fwrite(STDERR, "Creating -> ");
         $createTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create', '/queue/create');
             $this->call($spec);
             sleep(3);
         });
+        fwrite(STDERR, "Received " . count($createTraces) . " traces\n");
 
+        fwrite(STDERR, "Working -> ");
         $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
-            sleep(3);
         });
-        $workTraces = $this->parseMultipleRequestsFromDumpedData();
+        sleep(3);
+        $workTraces = $this->parseMultipleRequestsFromDumpedData(2);
 
         $this->assertFlameGraph(
             $createTraces,
@@ -122,18 +125,21 @@ class QueueTest extends WebFrameworkTestCase
 
     public function testJobFailure()
     {
+        fwrite(STDERR, "Creating -> ");
         $createTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create', '/queue/jobFailure');
             $this->call($spec);
             sleep(3);
         });
+        fwrite(STDERR, "Received " . count($createTraces) . " traces\n");
 
+        fwrite(STDERR, "Working -> ");
         $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
-            sleep(3);
         });
-        $workTraces = $this->parseMultipleRequestsFromDumpedData();
+        sleep(3);
+        $workTraces = $this->parseMultipleRequestsFromDumpedData(2);
 
         $this->assertFlameGraph(
             $createTraces,
@@ -198,18 +204,22 @@ class QueueTest extends WebFrameworkTestCase
 
     public function testDispatchBatchAndProcess()
     {
+        fwrite(STDERR, "Creating -> ");
         $createTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create batch', '/queue/batch');
             $this->call($spec);
             sleep(3);
         });
 
+        fwrite(STDERR, "Working -> ");
         $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work batch', '/queue/workOn');
             $this->call($spec);
-            sleep(3);
         });
-        $workTraces = $this->parseMultipleRequestsFromDumpedData();
+        fwrite(STDERR, "Sleeping ");
+        sleep(4);
+        fwrite(STDERR, "Waking up ");
+        $workTraces = $this->parseMultipleRequestsFromDumpedData(2);
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
         $processTrace1 = [$workTraces[0][0]];

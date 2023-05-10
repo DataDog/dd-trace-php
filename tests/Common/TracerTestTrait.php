@@ -347,9 +347,9 @@ trait TracerTestTrait
         return $this->parseRawDumpedTraces($rawTraces);
     }
 
-    public function parseMultipleRequestsFromDumpedData()
+    public function parseMultipleRequestsFromDumpedData($expectedNumTraces = null)
     {
-        $response = $this->retrieveDumpedData();
+        $response = $this->retrieveDumpedData($expectedNumTraces);
         if (!$response) {
             return [];
         }
@@ -371,13 +371,15 @@ trait TracerTestTrait
     /**
      * Returns the raw response body, if any, or null otherwise.
      */
-    private function retrieveDumpedData()
+    private function retrieveDumpedData($expectedNumTraces = null)
     {
+        fwrite(STDERR, "Retrieving Data [");
         $response = null;
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
         // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
         // for loop.
-        for ($attemptNumber = 1; $attemptNumber <= 20; $attemptNumber++) {
+        for ($attemptNumber = 1; $attemptNumber <= 42; $attemptNumber++) {
+            fwrite(STDERR, ".");
             $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             // Retrieving data
@@ -391,10 +393,11 @@ trait TracerTestTrait
                         : 50 * 1000 // 50 ms for other SAPIs
                 );
                 continue;
-            } else {
+            } elseif (!$expectedNumTraces || count(json_decode($response, true)) == $expectedNumTraces) {
                 break;
             }
         }
+        fwrite(STDERR, "]\n");
         return $response;
     }
 
