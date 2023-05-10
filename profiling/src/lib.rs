@@ -10,6 +10,7 @@ use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
+use ddcommon::cstr;
 use lazy_static::lazy_static;
 use libc::c_char;
 use log::{debug, error, info, trace, warn, LevelFilter};
@@ -101,9 +102,9 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
 
     static DEPS: [zend::ModuleDep; 4] = [
         // Safety: string is nul terminated with no interior nul bytes.
-        zend::ModuleDep::required(unsafe { CStr::from_bytes_with_nul_unchecked(b"standard\0") }),
-        zend::ModuleDep::required(unsafe { CStr::from_bytes_with_nul_unchecked(b"json\0") }),
-        zend::ModuleDep::optional(unsafe { CStr::from_bytes_with_nul_unchecked(b"ddtrace\0") }),
+        zend::ModuleDep::required(cstr!("standard")),
+        zend::ModuleDep::required(cstr!("json")),
+        zend::ModuleDep::optional(cstr!("ddtrace")),
         zend::ModuleDep::end(),
     ];
 
