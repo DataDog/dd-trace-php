@@ -25,6 +25,7 @@ aliases:
     name: elasticsearch7_integration
     environment:
       - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
 
   - &IMAGE_DOCKER_HTTPBIN
     image: kong/httpbin
