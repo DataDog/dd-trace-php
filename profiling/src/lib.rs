@@ -101,7 +101,6 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
      */
 
     static DEPS: [zend::ModuleDep; 4] = [
-        // Safety: string is nul terminated with no interior nul bytes.
         zend::ModuleDep::required(cstr!("standard")),
         zend::ModuleDep::required(cstr!("json")),
         zend::ModuleDep::optional(cstr!("ddtrace")),
