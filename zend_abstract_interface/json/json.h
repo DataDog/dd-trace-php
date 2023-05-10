@@ -50,7 +50,7 @@ static inline int zai_json_decode_assoc(zval *return_value, const char *str, int
 #endif
 
 #ifdef __APPLE__
-extern __attribute__((weak)) __attribute__((weak_import)) zend_class_entry *php_json_serializable_ce;
+extern __attribute__((weak, weak_import)) zend_class_entry *php_json_serializable_ce;
 #else
 extern __attribute__((weak)) zend_class_entry *php_json_serializable_ce;
 #endif
