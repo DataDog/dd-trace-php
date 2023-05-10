@@ -58,7 +58,7 @@ aliases:
       DD_REQUEST_DUMPER_FILE: dump.json
 
   - &IMAGE_DOCKER_DD_TEST_AGENT
-    image: williamconti549/dd-apm-test-agent:php-dev
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
     name: test-agent
     environment:
       LOG_LEVEL: DEBUG
