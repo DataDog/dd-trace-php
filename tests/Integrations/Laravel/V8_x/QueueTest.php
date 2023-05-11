@@ -37,32 +37,33 @@ class QueueTest extends WebFrameworkTestCase
         $this->resetQueue();
     }
 
-    // More information: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
-    protected static function largeBaseConvert($numstring, $frombase, $tobase)
+    // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
+    protected static function largeBaseConvert($numString, $fromBase, $toBase)
     {
         $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
-        $tostring = substr($chars, 0, $tobase);
+        $toString = substr($chars, 0, $toBase);
 
-        $length = strlen($numstring);
+        $length = strlen($numString);
         $result = '';
         for ($i = 0; $i < $length; $i++) {
-            $number[$i] = strpos($chars, $numstring[$i]);
+            $number[$i] = strpos($chars, $numString[$i]);
         }
         do {
             $divide = 0;
-            $newlen = 0;
+            $newLen = 0;
             for ($i = 0; $i < $length; $i++) {
-                $divide = $divide * $frombase + $number[$i];
-                if ($divide >= $tobase) {
-                    $number[$newlen++] = (int)($divide / $tobase);
-                    $divide = $divide % $tobase;
-                } elseif ($newlen > 0) {
-                    $number[$newlen++] = 0;
+                $divide = $divide * $fromBase + $number[$i];
+                if ($divide >= $toBase) {
+                    $number[$newLen++] = (int)($divide / $toBase);
+                    $divide = $divide % $toBase;
+                } elseif ($newLen > 0) {
+                    $number[$newLen++] = 0;
                 }
             }
-            $length = $newlen;
-            $result = $tostring[$divide] . $result;
-        } while ($newlen != 0);
+            $length = $newLen;
+            $result = $toString[$divide] . $result;
+        } while ($newLen != 0);
+
         return $result;
     }
 
@@ -249,9 +250,16 @@ class QueueTest extends WebFrameworkTestCase
         $workTraces = $this->parseMultipleRequestsFromDumpedData(2);
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
-        $processTrace1 = [$workTraces[0][0]];
-        $processTrace2 = [$workTraces[0][1]];
-        $artisanTrace = $workTraces[1];
+        if (count($workTraces[0]) === 3) {
+            // Request-replayer doing its things. All request were received at once and are therefore in the same body
+            $processTrace1 = [$workTraces[0][0]];
+            $processTrace2 = [$workTraces[0][1]];
+            $artisanTrace = [$workTraces[0][2]];
+        } else {
+            $processTrace1 = [$workTraces[0][0]];
+            $processTrace2 = [$workTraces[0][1]];
+            $artisanTrace = $workTraces[1];
+        }
 
         $this->assertFlameGraph($processTrace1, [
             $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true)
