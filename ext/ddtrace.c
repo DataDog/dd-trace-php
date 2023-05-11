@@ -819,7 +819,7 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = true;
 
     ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
-    if (ddtrace_flush_tracer(false) == FAILURE) {
+    if (ddtrace_flush_tracer(false, true) == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
 
@@ -1124,7 +1124,8 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     ddtrace_mark_all_span_stacks_flushable();
 
-    ddtrace_serialize_closed_spans(return_value);
+    array_init(return_value);
+    ddtrace_serialize_closed_spans_with_cycle(return_value);
 
     ddtrace_free_span_stacks(false);
     ddtrace_init_span_stacks();
@@ -1764,7 +1765,7 @@ PHP_FUNCTION(DDTrace_flush) {
     if (get_DD_AUTOFINISH_SPANS()) {
         ddtrace_close_userland_spans_until(NULL);
     }
-    if (ddtrace_flush_tracer(false) == FAILURE) {
+    if (ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
     RETURN_NULL();
