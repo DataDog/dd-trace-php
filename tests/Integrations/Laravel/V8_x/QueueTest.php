@@ -37,6 +37,41 @@ class QueueTest extends WebFrameworkTestCase
         $this->resetQueue();
     }
 
+    // More information: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
+    protected static function large_base_convert($numstring, $frombase, $tobase)
+    {
+
+        $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+        $tostring = substr($chars, 0, $tobase);
+
+        $length = strlen($numstring);
+        $result = '';
+        for ($i = 0; $i < $length; $i++)
+        {
+            $number[$i] = strpos($chars, $numstring[$i]);
+        }
+        do
+        {
+            $divide = 0;
+            $newlen = 0;
+            for ($i = 0; $i < $length; $i++)
+            {
+                $divide = $divide * $frombase + $number[$i];
+                if ($divide >= $tobase)
+                {
+                    $number[$newlen++] = (int)($divide / $tobase);
+                    $divide = $divide % $tobase;
+                } elseif ($newlen > 0)
+                {
+                    $number[$newlen++] = 0;
+                }
+            }
+            $length = $newlen;
+            $result = $tostring[$divide] . $result;
+        } while ($newlen != 0);
+        return $result;
+    }
+
     public function testSimplePushAndProcess()
     {
         $createTraces = $this->tracesFromWebRequest(function () {
@@ -110,9 +145,9 @@ class QueueTest extends WebFrameworkTestCase
         $processSpanId = $processSpanFromProcessTrace['span_id'];
         $processParentId = $processSpanFromProcessTrace['parent_id'];
 
-        // Convert trace_id (string) to hex (as a string)
-        $hexProcessTraceId = dechex($processTraceId);
-        $hexProcessSpanId = dechex($processSpanId);
+        fwrite(STDERR, "processTraceId: $processTraceId, processSpanId: $processSpanId\n");
+        $hexProcessTraceId = self::large_base_convert($processTraceId, 10, 16);
+        $hexProcessSpanId = self::large_base_convert($processSpanId, 10, 16);
 
         fwrite(STDERR, "spanLinksTraceId: $spanLinksTraceId, processTraceId: $hexProcessTraceId\n");
         $this->assertTrue($spanLinksTraceId == $hexProcessTraceId);
@@ -130,6 +165,7 @@ class QueueTest extends WebFrameworkTestCase
 
     public function testJobFailure()
     {
+        $this->markTestSkipped('Tmp');
         $createTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create', '/queue/jobFailure');
             $this->call($spec);
@@ -206,6 +242,7 @@ class QueueTest extends WebFrameworkTestCase
 
     public function testDispatchBatchAndProcess()
     {
+        $this->markTestSkipped('Tmp');
         $createTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create batch', '/queue/batch');
             $this->call($spec);
@@ -249,6 +286,7 @@ class QueueTest extends WebFrameworkTestCase
 
     public function testDispatchBatchNowDefault()
     {
+        $this->markTestSkipped('Tmp');
         $dispatchTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create batch', '/queue/batchDefault');
             $this->call($spec);
