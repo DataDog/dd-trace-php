@@ -499,11 +499,15 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
     dd_mark_closed_spans_flushable(stack);
 
     if (!stack->root_span || stack->root_span->stack == stack) {
-        // Enforce a sampling decision here
-        ddtrace_fetch_prioritySampling_from_root();
+        // Ensure the root span is cleared before allocations may happen in priority sampling deciding
+        ddtrace_span_data *root_span = stack->root_span;
+        if (stack->root_span) {
+            // Root span stacks are automatic and tied to the lifetime of that root
+            stack->root_span = NULL;
 
-        // Root span stacks are automatic and tied to the lifetime of that root
-        stack->root_span = NULL;
+            // Enforce a sampling decision here
+            ddtrace_fetch_prioritySampling_from_span(root_span);
+        }
         if (stack == stack->root_stack && DDTRACE_G(active_stack) == stack) {
             // We are always active stack except if ddtrace_close_top_span_without_stack_swap is used
             ddtrace_switch_span_stack(stack->parent_stack);
@@ -667,8 +671,6 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized) {
-    dd_reset_span_counters();
-
     array_init(serialized);
 
     // We need to loop here, as closing the last span root stack could add other spans here
@@ -709,6 +711,10 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
         // Also flush possible cycles here
         zend_gc_collect_cycles();
     }
+
+    // Reset closed span counter for limit-refresh, don't touch open spans
+    DDTRACE_G(closed_spans_count) = 0;
+    DDTRACE_G(dropped_spans_count) = 0;
 }
 
 zend_string *ddtrace_span_id_as_string(uint64_t id) { return zend_strpprintf(0, "%" PRIu64, id); }
@@ -720,5 +726,17 @@ zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id) {
     for (int i = 0; i <= len; ++i) {
         ZSTR_VAL(str)[i] = reverse[len - i];
     }
+    return str;
+}
+
+zend_string *ddtrace_span_id_as_hex_string(uint64_t id) {
+    zend_string *str = zend_string_alloc(16, 0);
+    snprintf(ZSTR_VAL(str), 17, "%016" PRIx64, id);
+    return str;
+}
+
+zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id) {
+    zend_string *str = zend_string_alloc(32, 0);
+    snprintf(ZSTR_VAL(str), 33, "%016" PRIx64 "%016" PRIx64, id.high, id.low);
     return str;
 }

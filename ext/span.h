@@ -30,7 +30,7 @@ enum ddtrace_span_dataype {
 // Open spans as well as flushed spans keep a reference to the span stack
 struct ddtrace_span_data {
     zend_object std;
-    zval properties_table_placeholder[7];
+    zval properties_table_placeholder[8];
     union {
         struct ddtrace_span_data *parent;
         zval property_parent;
@@ -77,6 +77,20 @@ struct ddtrace_span_stack {
     struct ddtrace_span_data *closed_ring_flush;
 };
 
+struct ddtrace_span_link {
+    union {
+        zend_object std;
+        struct {
+            char object_placeholder[sizeof(zend_object) - sizeof(zval)];
+            zval property_trace_id;
+            zval property_span_id;
+            zval property_trace_state;
+            zval property_attributes;
+            zval property_dropped_attributes_count;
+        };
+    };
+};
+
 void ddtrace_init_span_stacks(void);
 void ddtrace_free_span_stacks(bool silent);
 void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack);
@@ -108,6 +122,8 @@ void ddtrace_mark_all_span_stacks_flushable(void);
 void ddtrace_serialize_closed_spans(zval *serialized);
 zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id);
+zend_string *ddtrace_span_id_as_hex_string(uint64_t id);
+zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id);
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value);
 

@@ -234,6 +234,15 @@ class LaravelIntegration extends Integration
             }
         );
 
+        // Used by Laravel >= 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Contracts\Debug\ExceptionHandler',
+            'report',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $integration->setError($rootSpan, $args[0]);
+            }
+        );
+
         return Integration::LOADED;
     }
 

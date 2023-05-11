@@ -315,10 +315,9 @@ pub struct RequestLocals {
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
-/// take a sample every X bytes
-/// this value is temporary but the overhead looks promising, Go profiler samples every 512 KiB
+/// take a sample every 2048 KB
 #[cfg(feature = "allocation_profiling")]
-pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 512.0;
+pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 2048.0;
 
 #[cfg(feature = "allocation_profiling")]
 pub struct AllocationProfilingStats {

@@ -33,6 +33,11 @@ trait TracerTestTrait
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
         $transport = new DebugTransport();
+        $headers = $transport->getHeaders();
+        $dd_header_with_env = getHeaderWithEnvironment();
+        if ($dd_header_with_env) {
+            $transport->setHeader("X-Datadog-Trace-Env-Variables", $dd_header_with_env);
+        }
         $tracer = $tracer ?: new Tracer($transport, null, $config);
         GlobalTracer::set($tracer);
     }
@@ -68,12 +73,15 @@ trait TracerTestTrait
         $headers = array(
             'Content-Type: application/json',
             'Datadog-Meta-Lang: php',
-            'Datadog-Meta-Lang-Interpreter: cli-server',
-            'Datadog-Meta-Lang-Version: 8.2.0',
-            'Datadog-Meta-Tracer-Version: 1.0.0-nightly',
-            'Do-Not-Proxy-To-Agent: true',
+            'X-Datadog-Agent-Proxy-Disabled: true',
             'X-Datadog-Trace-Count: ' . count($traces)
         );
+
+        // add environment variables to headers
+        $dd_header_with_env = getHeaderWithEnvironment();
+        if ($dd_header_with_env) {
+            $headers["X-Datadog-Trace-Env-Variables"] = $dd_header_with_env;
+        }
 
         // Initialize a cURL session
         $curl = curl_init();
@@ -362,14 +370,20 @@ trait TracerTestTrait
             return [];
         }
 
-        // For now we only support asserting traces against one dump at a time.
         $loaded = json_decode($response, true);
 
-        // Data is returned as [{trace_1}, {trace_2}]. As of today we only support parsing 1 trace.
         if (count($loaded) > 1) {
-            TestCase::fail(
-                sprintf("Received multiple bodys from request replayer: %s", \var_export($loaded, true))
-            );
+            // There are multiple bodies. Parse them all and return them.
+            $dumps = [];
+            foreach ($loaded as $dump) {
+                if (!isset($dump['body'])) {
+                    $dumps[] = [];
+                } else {
+                    $dumps[] = $this->parseRawDumpedTraces(json_decode($dump['body'], true));
+                }
+            }
+
+            return $dumps;
         }
 
         $uniqueRequest = $loaded[0];
@@ -518,4 +532,19 @@ trait TracerTestTrait
         $tracesProperty->setAccessible(true);
         return $tracesProperty->getValue($tracer);
     }
+}
+
+
+function getHeaderWithEnvironment()
+{
+    $ddEnvVars = array_filter($_ENV, function ($key) {
+        return strpos($key, 'DD_') === 0;
+    }, ARRAY_FILTER_USE_KEY);
+
+    if (count($ddEnvVars) > 0) {
+        $ddEnvVarsString = implode(',', array_map(function ($key, $value) {
+            return "$key=$value";
+        }, array_keys($ddEnvVars), $ddEnvVars));
+    }
+    return $ddEnvVarsString;
 }
