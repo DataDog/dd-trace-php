@@ -63,4 +63,4 @@ services:
       - ../../:/datadog
 
   request-replayer:
-    image: profenom/php-request-replayer
+    image: datadog/dd-trace-ci:php-request-replayer
