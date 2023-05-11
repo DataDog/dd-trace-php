@@ -37,6 +37,19 @@ class QueueTest extends WebFrameworkTestCase
         $this->resetQueue();
     }
 
+    protected static function flattenArray($arr)
+    {
+        $retArr = [];
+        foreach ($arr as $val) {
+            if (isset($val[0]['trace_id'])) {
+                $retArr[] = [$val];
+            } else {
+                $retArr = array_merge($retArr, self::flattenArray($val));
+            }
+        }
+        return $retArr;
+    }
+
     // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
     protected static function largeBaseConvert($numString, $fromBase, $toBase)
     {
@@ -246,21 +259,13 @@ class QueueTest extends WebFrameworkTestCase
         $workTraces = $this->parseMultipleRequestsFromDumpedData(2);
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
-        // Depends on both the order and how the request replayer receives the traces
-        // TODO: Change this. Ugly.
-        if (count($workTraces[0]) === 2) {
-            $processTrace1 = [$workTraces[0][0]];
-            $processTrace2 = [$workTraces[0][1]];
-            $artisanTrace = $workTraces[1];
-        } elseif (count($workTraces[1]) === 2) {
-            $processTrace1 = [$workTraces[1][0]];
-            $processTrace2 = [$workTraces[1][1]];
-            $artisanTrace = $workTraces[0];
-        } else {
-            $processTrace1 = $workTraces[0];
-            $processTrace2 = $workTraces[1];
-            $artisanTrace = $workTraces[2];
-        }
+        $workTraces = self::flattenArray($workTraces);
+        usort($workTraces, function ($a, $b) {
+            return $a[0][0]['start'] - $b[0][0]['start'];
+        });
+        $artisanTrace = $workTraces[0];
+        $processTrace1 = $workTraces[1];
+        $processTrace2 = $workTraces[2];
 
         $this->assertFlameGraph($processTrace1, [
             $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true)
