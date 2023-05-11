@@ -165,7 +165,6 @@ class QueueTest extends WebFrameworkTestCase
 
     public function testJobFailure()
     {
-        $this->markTestSkipped('Tmp');
         $createTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create', '/queue/jobFailure');
             $this->call($spec);
@@ -242,7 +241,6 @@ class QueueTest extends WebFrameworkTestCase
 
     public function testDispatchBatchAndProcess()
     {
-        $this->markTestSkipped('Tmp');
         $createTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create batch', '/queue/batch');
             $this->call($spec);
@@ -286,7 +284,6 @@ class QueueTest extends WebFrameworkTestCase
 
     public function testDispatchBatchNowDefault()
     {
-        $this->markTestSkipped('Tmp');
         $dispatchTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue create batch', '/queue/batchDefault');
             $this->call($spec);
