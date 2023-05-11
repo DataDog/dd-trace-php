@@ -22,7 +22,9 @@ __attribute__((weak)) int php_json_encode(smart_str *buf, zval *val, int options
 __attribute__((weak)) int php_json_decode_ex(zval *return_value, const char *str, size_t str_len, zend_long options,
                                              zend_long depth);
 #endif
+#ifndef __APPLE__
 __attribute__((weak)) zend_class_entry *php_json_serializable_ce;
+#endif
 
 bool zai_json_setup_bindings(void) {
     if (php_json_encode && php_json_decode_ex && php_json_serializable_ce) {
