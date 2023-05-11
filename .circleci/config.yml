@@ -393,7 +393,6 @@ commands:
 
 executors:
   with_agent:
-    working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
     parameters:
@@ -403,7 +402,6 @@ executors:
       - image: << parameters.docker_image >>
       - <<: *IMAGE_DOCKER_DD_TEST_AGENT
   with_httpbin_and_request_replayer:
-    working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
     parameters:
@@ -415,7 +413,6 @@ executors:
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
       - <<: *IMAGE_DOCKER_DD_TEST_AGENT
   with_integrations:
-    working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       COMPOSER_MEMORY_LIMIT: -1 # disable composer memory limit completely
