@@ -48,9 +48,9 @@ class QueueTest extends WebFrameworkTestCase
         $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
+            sleep(4);
         });
-        sleep(3);
-        $workTraces = $this->parseMultipleRequestsFromDumpedData(2);
+        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertFlameGraph(
             $createTraces,
@@ -131,9 +131,9 @@ class QueueTest extends WebFrameworkTestCase
         $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
+            sleep(4);
         });
-        sleep(4);
-        $workTraces = $this->parseMultipleRequestsFromDumpedData(2);
+        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertFlameGraph(
             $createTraces,
@@ -209,7 +209,7 @@ class QueueTest extends WebFrameworkTestCase
             $this->call($spec);
             sleep(6); // 2+2+2
         });
-        $workTraces = $this->parseMultipleRequestsFromDumpedData(2);
+        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
         $processTrace1 = [$workTraces[0][0]];

@@ -347,9 +347,9 @@ trait TracerTestTrait
         return $this->parseRawDumpedTraces($rawTraces);
     }
 
-    public function parseMultipleRequestsFromDumpedData($expectedNumTraces = null)
+    public function parseMultipleRequestsFromDumpedData()
     {
-        $response = $this->retrieveDumpedData($expectedNumTraces);
+        $response = $this->retrieveDumpedData();
         if (!$response) {
             return [];
         }
@@ -371,7 +371,7 @@ trait TracerTestTrait
     /**
      * Returns the raw response body, if any, or null otherwise.
      */
-    private function retrieveDumpedData($expectedNumTraces = null)
+    private function retrieveDumpedData()
     {
         $response = null;
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
@@ -391,7 +391,7 @@ trait TracerTestTrait
                         : 50 * 1000 // 50 ms for other SAPIs
                 );
                 continue;
-            } elseif (!$expectedNumTraces || count(json_decode($response, true)) == $expectedNumTraces) {
+            } else {
                 break;
             }
         }
