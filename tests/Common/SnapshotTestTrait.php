@@ -145,6 +145,9 @@ trait SnapshotTestTrait
         fwrite(STDERR, "Content of the snapshots directory:\n");
         fwrite(STDERR, shell_exec('ls ~/datadog/tests/snapshots') . "\n");
 
+        fwrite(STDERR, shell_exec('df -T .') . "\n");
+        fwrite(STDERR, shell_exec('getconf NAME_MAX .') . "\n");
+
         if ($tracer === null) {
             $this->resetTracerState();
         }
