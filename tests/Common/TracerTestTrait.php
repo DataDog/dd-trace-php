@@ -347,9 +347,9 @@ trait TracerTestTrait
         return $this->parseRawDumpedTraces($rawTraces);
     }
 
-    public function parseMultipleRequestsFromDumpedData($expectedNumTraces = null)
+    public function parseMultipleRequestsFromDumpedData()
     {
-        $response = $this->retrieveDumpedData($expectedNumTraces);
+        $response = $this->retrieveDumpedData();
         if (!$response) {
             return [];
         }
@@ -371,21 +371,18 @@ trait TracerTestTrait
     /**
      * Returns the raw response body, if any, or null otherwise.
      */
-    private function retrieveDumpedData($expectedNumTraces = null)
+    private function retrieveDumpedData()
     {
-        fwrite(STDERR, "[");
         $response = null;
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
         // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
         // for loop.
         for ($attemptNumber = 1; $attemptNumber <= 20; $attemptNumber++) {
-            fwrite(STDERR, ".");
             $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             // Retrieving data
             $response = curl_exec($curl);
             if (!$response) {
-                fwrite(STDERR, "e");
                 // PHP-FPM requests are much slower in the container
                 // Temporary workaround until we get a proper test runner
                 \usleep(
@@ -398,7 +395,6 @@ trait TracerTestTrait
                 break;
             }
         }
-        fwrite(STDERR, "]\n");
         return $response;
     }
 

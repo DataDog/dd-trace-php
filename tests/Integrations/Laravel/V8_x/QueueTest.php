@@ -128,7 +128,6 @@ class QueueTest extends WebFrameworkTestCase
 
         $spanLinks = $processSpanFromArtisanTrace['meta']['_dd.span_links'];
         $spanLinks = json_decode($spanLinks, true)[0];
-        fwrite(STDERR, "spanLinks: " . print_r($spanLinks, true) . "\n");
         $spanLinksTraceId = ltrim($spanLinks['trace_id'], '0');
         $spanLinksSpanId = ltrim($spanLinks['span_id'], '0');
 
@@ -140,13 +139,10 @@ class QueueTest extends WebFrameworkTestCase
         $processSpanId = $processSpanFromProcessTrace['span_id'];
         $processParentId = $processSpanFromProcessTrace['parent_id'];
 
-        fwrite(STDERR, "processTraceId: $processTraceId, processSpanId: $processSpanId\n");
         $hexProcessTraceId = self::largeBaseConvert($processTraceId, 10, 16);
         $hexProcessSpanId = self::largeBaseConvert($processSpanId, 10, 16);
 
-        fwrite(STDERR, "spanLinksTraceId: $spanLinksTraceId, processTraceId: $hexProcessTraceId\n");
         $this->assertTrue($spanLinksTraceId == $hexProcessTraceId);
-        fwrite(STDERR, "spanLinksSpanId: $spanLinksSpanId, processSpanId: $hexProcessSpanId\n");
         $this->assertTrue($spanLinksSpanId == $hexProcessSpanId);
 
         $pushSpanFromCreateTrace = array_filter($createTraces[0], function ($span) {
