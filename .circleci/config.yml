@@ -2130,7 +2130,7 @@ jobs:
                 name: Fetch PHP 5 packages
                 command: |
                   set -eu
-                  sudo apt-get install jq
+                  sudo curl -L -o /usr/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
                   PIPELINE_ID=$(curl 'https://circleci.com/api/v2/project/gh/DataDog/dd-trace-php/pipeline?branch=PHP-5' | jq -r '.items[0].id')
                   WORKFLOW_ID=$(curl "https://circleci.com/api/v2/pipeline/$PIPELINE_ID/workflow" | jq -r '.items[]|select(.name == "build_packages").id' | head -1)
                   JOB_ID=$(curl "https://circleci.com/api/v2/workflow/$WORKFLOW_ID/job" | jq -r '.items[]|select(.name == "package extension").id')
