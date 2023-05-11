@@ -251,19 +251,12 @@ class QueueTest extends WebFrameworkTestCase
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
         // Depends on both the order and how the request replayer receives the traces
-        if (count($workTraces[0]) === 2) {
-            $processTrace1 = [$workTraces[0][0]];
-            $processTrace2 = [$workTraces[0][1]];
-            $artisanTrace = $workTraces[1];
-        } elseif (count($workTraces[1]) === 2) {
-            $processTrace1 = [$workTraces[1][0]];
-            $processTrace2 = [$workTraces[1][1]];
-            $artisanTrace = $workTraces[0];
-        } else {
-            $processTrace1 = $workTraces[0];
-            $processTrace2 = $workTraces[1];
-            $artisanTrace = $workTraces[2];
-        }
+        // Flatten traces $workTraces (e.g., [[[1], [2]], [3]] -> [[1], [2], [3]])
+        // Unnest nested-arrays
+
+
+
+
 
         $this->assertFlameGraph($processTrace1, [
             $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true)

@@ -368,14 +368,6 @@ trait TracerTestTrait
         return $tracesAllRequests;
     }
 
-    private static function getNumberOfReceivedTraces(): int
-    {
-        $curl = curl_init(self::$agentRequestDumperUrl . '/traces');
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        $response = curl_exec($curl);
-        return (int) $response;
-    }
-
     /**
      * Returns the raw response body, if any, or null otherwise.
      */
@@ -387,13 +379,7 @@ trait TracerTestTrait
         // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
         // for loop.
         for ($attemptNumber = 1; $attemptNumber <= 20; $attemptNumber++) {
-            fwrite(STDERR, self::getNumberOfReceivedTraces());
-            if ($expectedNumTraces && self::getNumberOfReceivedTraces() < $expectedNumTraces) {
-                fwrite(STDERR, "x");
-                continue;
-            }
-            fwrite(STDERR, "!");
-
+            fwrite(STDERR, ".");
             $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             // Retrieving data
