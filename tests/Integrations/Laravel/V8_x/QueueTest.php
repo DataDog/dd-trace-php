@@ -109,7 +109,7 @@ class QueueTest extends WebFrameworkTestCase
         $processParentId = $processSpanFromProcessTrace['parent_id'];
 
         $this->assertTrue($spanLinksTraceId == $processTraceId);
-        fwrite(STDERR, "spanLinksSpanId: $spanLinksSpanId, processSpanId: $processSpanId\n"
+        fwrite(STDERR, "spanLinksSpanId: $spanLinksSpanId, processSpanId: $processSpanId\n");
         $this->assertTrue($spanLinksSpanId == $processSpanId);
 
         $pushSpanFromCreateTrace = array_filter($createTraces[0], function ($span) {
