@@ -924,7 +924,7 @@ jobs:
           path: /tmp/artifacts/
 
   integration_tests:
-    working_directory: ~/datadog
+    working_directory: /home/circleci/datadog
     parameters:
       php_major_minor:
         # Expected in the format: <major>.<minor>, e.g. 8.2
