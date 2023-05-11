@@ -132,7 +132,10 @@ trait SnapshotTestTrait
         $numExpectedTraces = 1,
         $tracer = null
     ): void {
-        // Do a 'ls' of '~/app' (the command)
+        fwrite(STDERR, "Current wd: " . getcwd() . "\n");
+        fwrite(STDERR, "Current Path:\n");
+        fwrite(STDERR, shell_exec('pwd') . "\n");
+
         fwrite(STDERR, "Content of the app directory:\n");
         fwrite(STDERR, shell_exec('ls ~/datadog') . "\n");
 
