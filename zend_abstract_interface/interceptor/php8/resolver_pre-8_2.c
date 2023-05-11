@@ -25,8 +25,32 @@ static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition 
     }
 }
 
+// Work around https://github.com/php/php-src/issues/11222
+// This is not a pretty workaround, but we don't have any better possibilities...
+static void zai_resolver_force_space(HashTable *ht) {
+    // Assuming files don't declare more than a thousand functions
+    const int reserved = 1000;
+
+    while (ht->nTableSize < reserved + ht->nNumOfElements) {
+        // A rehash happens when all elements are used. The rehash also resets the nNumUsed.
+        // However, all ht entries within nNumUsed are required to have a valid value.
+        memset(ht->arData + ht->nNumUsed, IS_UNDEF, (ht->nTableSize - ht->nNumUsed) * sizeof(Bucket));
+        ht->nNumUsed = ht->nTableSize;
+        ht->nNumOfElements += reserved;
+        dtor_func_t dtor = ht->pDestructor;
+        ht->pDestructor = NULL;
+        zend_hash_index_add_ptr(ht, 0, NULL);
+        zend_hash_index_del(ht, 0);
+        ht->pDestructor = dtor;
+        ht->nNumOfElements -= reserved;
+    }
+}
+
 static zend_op_array *(*prev_compile_file)(zend_file_handle *file_handle, int type);
 static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle, int type) {
+    zai_resolver_force_space(CG(class_table));
+    zai_resolver_force_space(CG(function_table));
+
     HashPosition classpos, funcpos;
     zend_hash_internal_pointer_end_ex(CG(class_table), &classpos);
     uint32_t class_iter = zend_hash_iterator_add(CG(class_table), classpos);
