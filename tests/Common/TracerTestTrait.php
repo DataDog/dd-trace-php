@@ -347,9 +347,9 @@ trait TracerTestTrait
         return $this->parseRawDumpedTraces($rawTraces);
     }
 
-    public function parseMultipleRequestsFromDumpedData()
+    public function parseMultipleRequestsFromDumpedData($expectedNumTraces = null)
     {
-        $response = $this->retrieveDumpedData();
+        $response = $this->retrieveDumpedData($expectedNumTraces);
         if (!$response) {
             return [];
         }
@@ -368,21 +368,38 @@ trait TracerTestTrait
         return $tracesAllRequests;
     }
 
+    private static function getNumberOfReceivedTraces(): int
+    {
+        $curl = curl_init(self::$agentRequestDumperUrl . '/traces');
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        $response = curl_exec($curl);
+        return (int) $response;
+    }
+
     /**
      * Returns the raw response body, if any, or null otherwise.
      */
-    private function retrieveDumpedData()
+    private function retrieveDumpedData($expectedNumTraces = null)
     {
+        fwrite(STDERR, "[");
         $response = null;
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
         // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
         // for loop.
-        for ($attemptNumber = 1; $attemptNumber <= 42; $attemptNumber++) {
+        for ($attemptNumber = 1; $attemptNumber <= 20; $attemptNumber++) {
+            fwrite(STDERR, self::getNumberOfReceivedTraces());
+            if ($expectedNumTraces && self::getNumberOfReceivedTraces() !== $expectedNumTraces) {
+                fwrite(STDERR, "x");
+                continue;
+            }
+            fwrite(STDERR, "!");
+
             $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             // Retrieving data
             $response = curl_exec($curl);
             if (!$response) {
+                fwrite(STDERR, "e");
                 // PHP-FPM requests are much slower in the container
                 // Temporary workaround until we get a proper test runner
                 \usleep(
@@ -395,6 +412,7 @@ trait TracerTestTrait
                 break;
             }
         }
+        fwrite(STDERR, "]\n");
         return $response;
     }
 

@@ -56,7 +56,7 @@ aliases:
     name: rabbitmq_integration
 
   - &IMAGE_DOCKER_REQUEST_REPLAYER
-    image: datadog/dd-trace-ci:php-request-replayer-2.0
+    image: profenom/php-request-replayer-2.0
     name: request-replayer
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
@@ -329,7 +329,7 @@ commands:
                 --name httpbin_integration kong/httpbin
               retry_docker run --detach --rm --net net \
                 -e DD_REQUEST_DUMPER_FILE=dump.json \
-                --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0
+                --name request-replayer profenom/php-request-replayer-2.0
             fi
             touch /tmp/docker.out
             mkdir /tmp/bashenv

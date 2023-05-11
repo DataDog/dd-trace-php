@@ -31,6 +31,16 @@ set_error_handler(function ($number, $message) {
 });
 
 switch ($_SERVER['REQUEST_URI']) {
+    case '/traces':
+        if (file_exists(REQUEST_LATEST_DUMP_FILE)) {
+            $tracesStack = json_decode(file_get_contents(REQUEST_LATEST_DUMP_FILE), true);
+        } else {
+            $tracesStack = [];
+        }
+        $traces = count($tracesStack);
+        echo $traces;
+        logRequest("Number of traces received: $traces");
+        break;
     case '/replay':
         if (!file_exists(REQUEST_LATEST_DUMP_FILE)) {
             logRequest('Cannot replay last request; request log does not exist');
