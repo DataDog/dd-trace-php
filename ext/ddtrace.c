@@ -291,6 +291,46 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
+    zai_hook_ginit();
+}
+
+static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
+    UNUSED(ddtrace_globals);
+    zai_hook_gshutdown();
+}
+
+/* DDTrace\SpanLink */
+zend_class_entry *ddtrace_ce_span_link;
+
+PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
+    ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(ZEND_THIS);
+
+    zend_array *array = zend_new_array(5);
+
+    zend_string *trace_id = zend_string_init("trace_id", sizeof("trace_id") - 1, 0);
+    zend_string *span_id = zend_string_init("span_id", sizeof("span_id") - 1, 0);
+    zend_string *trace_state = zend_string_init("trace_state", sizeof("trace_state") - 1, 0);
+    zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
+    zend_string *dropped_attributes_count = zend_string_init("dropped_attributes_count", sizeof("dropped_attributes_count") - 1, 0);
+
+    Z_TRY_ADDREF(link->property_trace_id);
+    zend_hash_add(array, trace_id, &link->property_trace_id);
+    Z_TRY_ADDREF(link->property_span_id);
+    zend_hash_add(array, span_id, &link->property_span_id);
+    Z_TRY_ADDREF(link->property_trace_state);
+    zend_hash_add(array, trace_state, &link->property_trace_state);
+    Z_TRY_ADDREF(link->property_attributes);
+    zend_hash_add(array, attributes, &link->property_attributes);
+    Z_TRY_ADDREF(link->property_dropped_attributes_count);
+    zend_hash_add(array, dropped_attributes_count, &link->property_dropped_attributes_count);
+
+    zend_string_release(trace_id);
+    zend_string_release(span_id);
+    zend_string_release(trace_state);
+    zend_string_release(attributes);
+    zend_string_release(dropped_attributes_count);
+
+    RETURN_ARR(array);
 }
 
 /* DDTrace\SpanLink */
@@ -2169,7 +2209,7 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
                                           PHP_MSHUTDOWN(ddtrace),    PHP_RINIT(ddtrace),
                                           PHP_RSHUTDOWN(ddtrace),    PHP_MINFO(ddtrace),
                                           PHP_DDTRACE_VERSION,       PHP_MODULE_GLOBALS(ddtrace),
-                                          PHP_GINIT(ddtrace),        NULL,
+                                          PHP_GINIT(ddtrace),        PHP_GSHUTDOWN(ddtrace),
                                           ddtrace_post_deactivate,   STANDARD_MODULE_PROPERTIES_EX};
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:

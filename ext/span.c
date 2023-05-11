@@ -499,11 +499,15 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
     dd_mark_closed_spans_flushable(stack);
 
     if (!stack->root_span || stack->root_span->stack == stack) {
-        // Enforce a sampling decision here
-        ddtrace_fetch_prioritySampling_from_root();
+        // Ensure the root span is cleared before allocations may happen in priority sampling deciding
+        ddtrace_span_data *root_span = stack->root_span;
+        if (stack->root_span) {
+            // Root span stacks are automatic and tied to the lifetime of that root
+            stack->root_span = NULL;
 
-        // Root span stacks are automatic and tied to the lifetime of that root
-        stack->root_span = NULL;
+            // Enforce a sampling decision here
+            ddtrace_fetch_prioritySampling_from_span(root_span);
+        }
         if (stack == stack->root_stack && DDTRACE_G(active_stack) == stack) {
             // We are always active stack except if ddtrace_close_top_span_without_stack_swap is used
             ddtrace_switch_span_stack(stack->parent_stack);

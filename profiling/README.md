@@ -40,7 +40,8 @@ cases where they are ABI compatible.
 
 ## Testing
 
-The command `cargo test` will run the tests on the profiler.
+The command `cargo test` will run the tests on the profiler. To also run the
+stack walking test run `cargo test --features stack_walking_tests`.
 
 To see if the profiler is recognised by your PHP version as an extension you
 may run `/path/to/php -d extension=target/debug/libdatadog_php_profiling.so

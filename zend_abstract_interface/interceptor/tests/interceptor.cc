@@ -12,6 +12,7 @@ extern "C" {
 
     static PHP_MINIT_FUNCTION(ddtrace_testing_hook) {
         zai_hook_minit();
+        zai_hook_ginit();
         return SUCCESS;
     }
 
@@ -38,6 +39,7 @@ extern "C" {
     }
 
     static PHP_MSHUTDOWN_FUNCTION(ddtrace_testing_hook) {
+        zai_hook_gshutdown();
         zai_hook_mshutdown();
         return SUCCESS;
     }
