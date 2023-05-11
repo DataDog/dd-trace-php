@@ -250,15 +250,19 @@ class QueueTest extends WebFrameworkTestCase
         $workTraces = $this->parseMultipleRequestsFromDumpedData(2);
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
-        if (count($workTraces[0]) === 3) {
-            // Request-replayer doing its things. All request were received at once and are therefore in the same body
-            $processTrace1 = [$workTraces[0][0]];
-            $processTrace2 = [$workTraces[0][1]];
-            $artisanTrace = [$workTraces[0][2]];
-        } else {
+        // Depends on both the order and how the request replayer receives the traces
+        if (count($workTraces[0]) === 2) {
             $processTrace1 = [$workTraces[0][0]];
             $processTrace2 = [$workTraces[0][1]];
             $artisanTrace = $workTraces[1];
+        } elseif (count($workTraces[1]) === 2) {
+            $processTrace1 = [$workTraces[1][0]];
+            $processTrace2 = [$workTraces[1][1]];
+            $artisanTrace = $workTraces[0];
+        } else {
+            $processTrace1 = $workTraces[0];
+            $processTrace2 = $workTraces[1];
+            $artisanTrace = $workTraces[2];
         }
 
         $this->assertFlameGraph($processTrace1, [
