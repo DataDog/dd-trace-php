@@ -38,31 +38,25 @@ class QueueTest extends WebFrameworkTestCase
     }
 
     // More information: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
-    protected static function large_base_convert($numstring, $frombase, $tobase)
+    protected static function largeBaseConvert($numstring, $frombase, $tobase)
     {
-
         $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
         $tostring = substr($chars, 0, $tobase);
 
         $length = strlen($numstring);
         $result = '';
-        for ($i = 0; $i < $length; $i++)
-        {
+        for ($i = 0; $i < $length; $i++) {
             $number[$i] = strpos($chars, $numstring[$i]);
         }
-        do
-        {
+        do {
             $divide = 0;
             $newlen = 0;
-            for ($i = 0; $i < $length; $i++)
-            {
+            for ($i = 0; $i < $length; $i++) {
                 $divide = $divide * $frombase + $number[$i];
-                if ($divide >= $tobase)
-                {
+                if ($divide >= $tobase) {
                     $number[$newlen++] = (int)($divide / $tobase);
                     $divide = $divide % $tobase;
-                } elseif ($newlen > 0)
-                {
+                } elseif ($newlen > 0) {
                     $number[$newlen++] = 0;
                 }
             }
@@ -135,7 +129,7 @@ class QueueTest extends WebFrameworkTestCase
         $spanLinks = json_decode($spanLinks, true)[0];
         fwrite(STDERR, "spanLinks: " . print_r($spanLinks, true) . "\n");
         $spanLinksTraceId = ltrim($spanLinks['trace_id'], '0');
-        $spanLinksSpanId = $spanLinks['span_id'];
+        $spanLinksSpanId = ltrim($spanLinks['span_id'], '0');
 
         $processSpanFromProcessTrace = array_filter($processTrace1[0], function ($span) {
             return $span['name'] === 'laravel.queue.process';
@@ -146,8 +140,8 @@ class QueueTest extends WebFrameworkTestCase
         $processParentId = $processSpanFromProcessTrace['parent_id'];
 
         fwrite(STDERR, "processTraceId: $processTraceId, processSpanId: $processSpanId\n");
-        $hexProcessTraceId = self::large_base_convert($processTraceId, 10, 16);
-        $hexProcessSpanId = self::large_base_convert($processSpanId, 10, 16);
+        $hexProcessTraceId = self::largeBaseConvert($processTraceId, 10, 16);
+        $hexProcessSpanId = self::largeBaseConvert($processSpanId, 10, 16);
 
         fwrite(STDERR, "spanLinksTraceId: $spanLinksTraceId, processTraceId: $hexProcessTraceId\n");
         $this->assertTrue($spanLinksTraceId == $hexProcessTraceId);
