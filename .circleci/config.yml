@@ -66,7 +66,7 @@ aliases:
       DD_TRACE_AGENT_URL: http://request-replayer:80
       DISABLED_CHECKS: trace_content_length
       PORT: 9126
-      SNAPSHOT_DIR: /home/circleci/datadog/tests/snapshots
+      SNAPSHOT_DIR: /snapshots
       SNAPSHOT_CI: 1
 
   - &STEP_ATTACH_WORKSPACE
