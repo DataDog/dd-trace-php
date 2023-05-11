@@ -347,7 +347,7 @@ commands:
                 -e DD_SUPPRESS_TRACE_PARSE_ERRORS=true \
                 -e PORT=9126 \
                 -p "127.0.0.1:9126:9126" \
-                -v ./tests/snapshots:/snapshots \
+                -v $HOME/datadog/tests/snapshots:/snapshots \
                 --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
               retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
