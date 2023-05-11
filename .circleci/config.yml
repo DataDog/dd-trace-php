@@ -348,8 +348,9 @@ commands:
                 -e PORT=9126 \
                 -e SNAPSHOT_DIR=/snapshots \
                 -p "127.0.0.1:9126:9126" \
-                -v "/home/circleci/datadog/tests/snapshots:/snapshots" \
-                --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+                -v $(pwd):/home/circleci/datadog \
+                --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest \
+                bash -c "ls /home/circleci/datadog"
               retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               retry_docker run --detach --rm --net net \
