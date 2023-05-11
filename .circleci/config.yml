@@ -70,8 +70,6 @@ aliases:
       SNAPSHOT_CI: 1
       DD_SUPPRESS_TRACE_PARSE_ERRORS: true
       DISABLED_CHECKS: trace_content_length
-    volumes:
-      - ./tests/snapshots:/snapshots
 
   - &IMAGE_DOCKER_SQLSRV
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -930,6 +928,8 @@ jobs:
           path: /tmp/artifacts/
 
   integration_tests:
+    machine:
+      image: ubuntu-2004:current
     working_directory: ~/datadog
     parameters:
       php_major_minor:
