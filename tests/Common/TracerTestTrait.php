@@ -388,7 +388,7 @@ trait TracerTestTrait
         // for loop.
         for ($attemptNumber = 1; $attemptNumber <= 20; $attemptNumber++) {
             fwrite(STDERR, self::getNumberOfReceivedTraces());
-            if ($expectedNumTraces && self::getNumberOfReceivedTraces() !== $expectedNumTraces) {
+            if ($expectedNumTraces && self::getNumberOfReceivedTraces() < $expectedNumTraces) {
                 fwrite(STDERR, "x");
                 continue;
             }
