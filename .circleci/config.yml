@@ -346,7 +346,7 @@ commands:
                 -e DISABLED_CHECKS=trace_content_length \
                 -e DD_SUPPRESS_TRACE_PARSE_ERRORS=true \
                 -e PORT=9126 \
-                -e SNAPSHOT_DIR=/snapshots
+                -e SNAPSHOT_DIR=/snapshots \
                 -p "127.0.0.1:9126:9126" \
                 -v "$HOME/datadog/tests/snapshots:/snapshots" \
                 --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
