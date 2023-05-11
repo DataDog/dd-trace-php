@@ -97,8 +97,10 @@ class QueueTest extends WebFrameworkTestCase
         $processSpanFromArtisanTrace = array_values($processSpanFromArtisanTrace)[0];
 
         $spanLinks = $processSpanFromArtisanTrace['meta']['_dd.span_links'];
-        $spanLinksTraceId = number_format(hexdec(json_decode($spanLinks, true)[0]['trace_id']), 0, '', '');
-        $spanLinksSpanId = number_format(hexdec(json_decode($spanLinks, true)[0]['span_id']), 0, '', '');
+        $spanLinks = json_decode($spanLinks, true)[0];
+        fwrite(STDERR, "spanLinks: " . print_r($spanLinks, true) . "\n");
+        $spanLinksTraceId = ltrim($spanLinks['trace_id'], '0');
+        $spanLinksSpanId = $spanLinks['span_id'];
 
         $processSpanFromProcessTrace = array_filter($processTrace1[0], function ($span) {
             return $span['name'] === 'laravel.queue.process';
@@ -108,9 +110,14 @@ class QueueTest extends WebFrameworkTestCase
         $processSpanId = $processSpanFromProcessTrace['span_id'];
         $processParentId = $processSpanFromProcessTrace['parent_id'];
 
-        $this->assertTrue($spanLinksTraceId == $processTraceId);
-        fwrite(STDERR, "spanLinksSpanId: $spanLinksSpanId, processSpanId: $processSpanId\n");
-        $this->assertTrue($spanLinksSpanId == $processSpanId);
+        // Convert trace_id (string) to hex (as a string)
+        $hexProcessTraceId = dechex($processTraceId);
+        $hexProcessSpanId = dechex($processSpanId);
+
+        fwrite(STDERR, "spanLinksTraceId: $spanLinksTraceId, processTraceId: $hexProcessTraceId\n");
+        $this->assertTrue($spanLinksTraceId == $hexProcessTraceId);
+        fwrite(STDERR, "spanLinksSpanId: $spanLinksSpanId, processSpanId: $hexProcessSpanId\n");
+        $this->assertTrue($spanLinksSpanId == $hexProcessSpanId);
 
         $pushSpanFromCreateTrace = array_filter($createTraces[0], function ($span) {
             return $span['name'] === 'laravel.queue.push';
