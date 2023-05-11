@@ -281,7 +281,7 @@ static void zai_interceptor_exception_hook(zval *ex) {
     }
 }
 
-void zai_interceptor_reset_resolver() {
+void zai_interceptor_reset_resolver(void) {
     // reset in case a prior request had a bailout
     zai_interceptor_opline_before_binding = (struct zai_interceptor_opline){0};
 }
