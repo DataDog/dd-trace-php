@@ -1643,7 +1643,8 @@ function add_missing_ini_settings($iniFilePath, $settings)
     }
 }
 
-function map_env_to_ini($env) {
+function map_env_to_ini($env)
+{
     foreach (get_ini_settings('', '', '') as $setting) {
         if (isset($setting['environment']) && $setting['environment'] == $env) {
             return $setting['name'];
