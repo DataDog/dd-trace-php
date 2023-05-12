@@ -812,6 +812,9 @@ jobs:
       disable_runner_distributed_tracing:
         type: boolean
         default: false
+      fix_permissions:
+        type: boolean
+        default: true
     resource_class: << parameters.resource_class >>
     executor:
       name: with_integrations
@@ -839,7 +842,7 @@ jobs:
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_httpbin_and_request_replayer
-          fix_permissions: false
+          fix_permissions: << parameters.fix_permissions >>
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - install_extension
@@ -3459,6 +3462,8 @@ workflows:
                 - '8.2'
               make_target:
                 - test_web
+              fix_permissions:
+                - true
 
       - integration:
           requires: [ 'Prepare Code' ]
