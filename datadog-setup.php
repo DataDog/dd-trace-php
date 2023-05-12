@@ -45,6 +45,8 @@ function main()
     }
 
     $arguments = parse_validate_user_options();
+    var_dump($arguments);
+    die();
     $options = $arguments['opts'];
     switch ($arguments['cmd']) {
         case CMD_CONFIG_GET:
@@ -1144,19 +1146,30 @@ function parse_cli_arguments(array $argv = null)
                 $value = substr($token, 2);
             }
         } else {
-            if (count($arguments['opts'])) {
-                // php datadog-setup.php --php-bin=all php6
-                // The "php6" is a problem
-                echo "Parse error at token '$token'", PHP_EOL;
-                return false;
-            }
-            // parse command
-            if ($arguments['cmd'] === null) {
-                $arguments['cmd'] = $token;
+            if (substr($token, 0, 2) === 'DD') {
+                $key = 'd';
+                list($env, $value) = explode('=', $token, 2);
+                $ini = map_env_to_ini($env);
+                if ($ini === null) {
+                    echo "Parse error at token '$token', environment variable not recognized.", PHP_EOL;
+                    return false;
+                }
+                $value = $ini . '=' . $value;
             } else {
-                $arguments['cmd'] .= ' ' . $token;
+                if (count($arguments['opts'])) {
+                    // php datadog-setup.php --php-bin=all php6
+                    // The "php6" is a problem
+                    echo "Parse error at token '$token'", PHP_EOL;
+                    return false;
+                }
+                // parse command
+                if ($arguments['cmd'] === null) {
+                    $arguments['cmd'] = $token;
+                } else {
+                    $arguments['cmd'] .= ' ' . $token;
+                }
+                continue;
             }
-            continue;
         }
 
         if (!isset($arguments['opts'][$key])) {
@@ -1630,6 +1643,15 @@ function add_missing_ini_settings($iniFilePath, $settings)
     }
 }
 
+function map_env_to_ini($env) {
+    foreach (get_ini_settings('', '', '') as $setting) {
+        if (isset($setting['environment']) && $setting['environment'] == $env) {
+            return $setting['name'];
+        }
+    }
+    return null;
+}
+
 /**
  * Returns array of associative arrays with the following keys:
  *   - name (string): the setting name;
@@ -1673,6 +1695,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
 
         [
             'name' => 'datadog.profiling.enabled',
+            'environment' => 'DD_PROFILING_ENABLED',
             'default' => '1',
             'commented' => true,
             'description' => 'Enable the Datadog profiling module.',
@@ -1754,6 +1777,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         ],
         [
             'name' => 'datadog.env',
+            'environment' => 'DD_ENV',
             'default' => 'my_env',
             'commented' => true,
             'description' => 'Sets a custom environment name for the application',
