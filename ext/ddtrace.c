@@ -1,3 +1,4 @@
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -25,6 +26,7 @@
 
 #include <ext/standard/info.h>
 #include <ext/standard/php_string.h>
+#include <json/json.h>
 
 #include "auto_flush.h"
 #include "circuit_breaker.h"
@@ -72,6 +74,7 @@
 #define ZVAL_EMPTY_STRING(z) ZVAL_NEW_STR(z, zend_string_init("", 0, 1))
 #endif
 #include "ddtrace_arginfo.h"
+
 #if PHP_VERSION_ID < 70200
 #undef ZVAL_EMPTY_STRING
 #define ZVAL_EMPTY_STRING(z) ZVAL_INTERNED_STR(z, ZSTR_EMPTY_ALLOC())
@@ -296,6 +299,40 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     zai_hook_gshutdown();
 }
 
+/* DDTrace\SpanLink */
+zend_class_entry *ddtrace_ce_span_link;
+
+PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
+    ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(ZEND_THIS);
+
+    zend_array *array = zend_new_array(5);
+
+    zend_string *trace_id = zend_string_init("trace_id", sizeof("trace_id") - 1, 0);
+    zend_string *span_id = zend_string_init("span_id", sizeof("span_id") - 1, 0);
+    zend_string *trace_state = zend_string_init("trace_state", sizeof("trace_state") - 1, 0);
+    zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
+    zend_string *dropped_attributes_count = zend_string_init("dropped_attributes_count", sizeof("dropped_attributes_count") - 1, 0);
+
+    Z_TRY_ADDREF(link->property_trace_id);
+    zend_hash_add(array, trace_id, &link->property_trace_id);
+    Z_TRY_ADDREF(link->property_span_id);
+    zend_hash_add(array, span_id, &link->property_span_id);
+    Z_TRY_ADDREF(link->property_trace_state);
+    zend_hash_add(array, trace_state, &link->property_trace_state);
+    Z_TRY_ADDREF(link->property_attributes);
+    zend_hash_add(array, attributes, &link->property_attributes);
+    Z_TRY_ADDREF(link->property_dropped_attributes_count);
+    zend_hash_add(array, dropped_attributes_count, &link->property_dropped_attributes_count);
+
+    zend_string_release(trace_id);
+    zend_string_release(span_id);
+    zend_string_release(trace_state);
+    zend_string_release(attributes);
+    zend_string_release(dropped_attributes_count);
+
+    RETURN_ARR(array);
+}
+
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
 zend_class_entry *ddtrace_ce_span_stack;
@@ -311,6 +348,7 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     // Not handled in arginfo on these old versions
     array_init(ddtrace_spandata_property_meta_zval(span));
     array_init(ddtrace_spandata_property_metrics_zval(span));
+    array_init(ddtrace_spandata_property_links_zval(span));
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
@@ -398,7 +436,7 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
 static void ddtrace_span_data_free_storage(zend_object *object) {
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
-    memset(object->properties_table, 0, sizeof(((ddtrace_span_data *)NULL)->properties_table_placeholder));
+    memset(object->properties_table, 0, sizeof(zval) + sizeof(((ddtrace_span_data *)NULL)->properties_table_placeholder));
 }
 
 #if PHP_VERSION_ID < 80000
@@ -479,6 +517,19 @@ PHP_METHOD(DDTrace_SpanData, getDuration) {
 PHP_METHOD(DDTrace_SpanData, getStartTime) {
     ddtrace_span_data *span = (ddtrace_span_data *)Z_OBJ_P(ZEND_THIS);
     RETURN_LONG(span->start);
+}
+
+PHP_METHOD(DDTrace_SpanData, getLink) {
+    ddtrace_span_data *span = (ddtrace_span_data *)Z_OBJ_P(ZEND_THIS);
+
+    zval fci_zv;
+    object_init_ex(&fci_zv, ddtrace_ce_span_link);
+    ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(&fci_zv);
+
+    ZVAL_STR(&link->property_trace_id, ddtrace_trace_id_as_hex_string(span->trace_id));
+    ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(span->span_id));
+
+    RETURN_OBJ(Z_OBJ(fci_zv));
 }
 
 static void dd_register_span_data_ce(void) {
@@ -600,6 +651,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
+    ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
 
     ddtrace_engine_hooks_minit();
 
@@ -767,7 +819,7 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = true;
 
     ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
-    if (ddtrace_flush_tracer(false) == FAILURE) {
+    if (ddtrace_flush_tracer(false, true) == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
 
@@ -1072,7 +1124,8 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     ddtrace_mark_all_span_stacks_flushable();
 
-    ddtrace_serialize_closed_spans(return_value);
+    array_init(return_value);
+    ddtrace_serialize_closed_spans_with_cycle(return_value);
 
     ddtrace_free_span_stacks(false);
     ddtrace_init_span_stacks();
@@ -1712,7 +1765,7 @@ PHP_FUNCTION(DDTrace_flush) {
     if (get_DD_AUTOFINISH_SPANS()) {
         ddtrace_close_userland_spans_until(NULL);
     }
-    if (ddtrace_flush_tracer(false) == FAILURE) {
+    if (ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE) {
         ddtrace_log_debug("Unable to flush the tracer");
     }
     RETURN_NULL();

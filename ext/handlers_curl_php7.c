@@ -145,6 +145,7 @@ static int dd_inject_distributed_tracing_headers(zval *ch) {
     ZVAL_COPY_VALUE(ZEND_CALL_ARG(call, 3), &headers);
 
     zend_execute_data *ex = EG(current_execute_data);
+    call->prev_execute_data = ex;
     EG(current_execute_data) = call;
     zval ret;
     dd_curl_setopt_handler(call, &ret);

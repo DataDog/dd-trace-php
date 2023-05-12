@@ -26,12 +26,18 @@ class FakeSpan extends Span
 trait TracerTestTrait
 {
     protected static $agentRequestDumperUrl = 'http://request-replayer';
+    protected static $testAgentUrl = 'http://test-agent:9126';
 
     public function resetTracer($tracer = null, $config = [])
     {
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
         $transport = new DebugTransport();
+        $headers = $transport->getHeaders();
+        $dd_header_with_env = getHeaderWithEnvironment();
+        if ($dd_header_with_env) {
+            $transport->setHeader("X-Datadog-Trace-Env-Variables", $dd_header_with_env);
+        }
         $tracer = $tracer ?: new Tracer($transport, null, $config);
         GlobalTracer::set($tracer);
     }
@@ -51,7 +57,50 @@ trait TracerTestTrait
         }
         $fn($tracer);
 
-        return $this->flushAndGetTraces();
+        $traces = $this->flushAndGetTraces();
+        if (!empty($traces)) {
+            $this->sendTracesToTestAgent($traces);
+        }
+        return $traces;
+    }
+
+    public function sendTracesToTestAgent($traces)
+    {
+        // The data to be sent in the POST request
+        $data_json = json_encode($traces);
+
+        // The headers to be included in the request
+        $headers = array(
+            'Content-Type: application/json',
+            'Datadog-Meta-Lang: php',
+            'X-Datadog-Agent-Proxy-Disabled: true',
+            'X-Datadog-Trace-Count: ' . count($traces)
+        );
+
+        // add environment variables to headers
+        $dd_header_with_env = getHeaderWithEnvironment();
+        if ($dd_header_with_env) {
+            $headers["X-Datadog-Trace-Env-Variables"] = $dd_header_with_env;
+        }
+
+        // Initialize a cURL session
+        $curl = curl_init();
+
+        // Set the cURL options
+        curl_setopt($curl, CURLOPT_URL, 'http://test-agent:9126/v0.4/traces'); // The URL to send the request to
+        curl_setopt($curl, CURLOPT_POST, true); // Use POST method
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $data_json); // Set the POST data
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); // Return the response instead of outputting it
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers); // Set the headers
+
+        // Execute the cURL session
+        $response = curl_exec($curl);
+
+        // Close the cURL session
+        curl_close($curl);
+
+        // Output the response for debugging purposes
+        // echo $response;
     }
 
     /**
@@ -119,7 +168,7 @@ trait TracerTestTrait
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
 
-        $transport = new Http(new MessagePack(), ['endpoint' => self::$agentRequestDumperUrl]);
+        $transport = new Http(new MessagePack(), ['endpoint' => self::$testAgentUrl . "/v0.4/traces"]);
 
         /* Disable Expect: 100-Continue that automatically gets added by curl,
          * as it adds a 1s delay, causing tests to sometimes fail.
@@ -199,8 +248,8 @@ trait TracerTestTrait
             [
                 'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
                 'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_AGENT_HOST' => 'request-replayer',
-                'DD_TRACE_AGENT_PORT' => '80',
+                'DD_AGENT_HOST' => 'test-agent',
+                'DD_TRACE_AGENT_PORT' => '9126',
                 // Uncomment to see debug-level messages
                 //'DD_TRACE_DEBUG' => 'true',
             ],
@@ -321,14 +370,20 @@ trait TracerTestTrait
             return [];
         }
 
-        // For now we only support asserting traces against one dump at a time.
         $loaded = json_decode($response, true);
 
-        // Data is returned as [{trace_1}, {trace_2}]. As of today we only support parsing 1 trace.
         if (count($loaded) > 1) {
-            TestCase::fail(
-                sprintf("Received multiple bodys from request replayer: %s", \var_export($loaded, true))
-            );
+            // There are multiple bodies. Parse them all and return them.
+            $dumps = [];
+            foreach ($loaded as $dump) {
+                if (!isset($dump['body'])) {
+                    $dumps[] = [];
+                } else {
+                    $dumps[] = $this->parseRawDumpedTraces(json_decode($dump['body'], true));
+                }
+            }
+
+            return $dumps;
         }
 
         $uniqueRequest = $loaded[0];
@@ -477,4 +532,19 @@ trait TracerTestTrait
         $tracesProperty->setAccessible(true);
         return $tracesProperty->getValue($tracer);
     }
+}
+
+
+function getHeaderWithEnvironment()
+{
+    $ddEnvVars = array_filter($_ENV, function ($key) {
+        return strpos($key, 'DD_') === 0;
+    }, ARRAY_FILTER_USE_KEY);
+
+    if (count($ddEnvVars) > 0) {
+        $ddEnvVarsString = implode(',', array_map(function ($key, $value) {
+            return "$key=$value";
+        }, array_keys($ddEnvVars), $ddEnvVars));
+    }
+    return $ddEnvVarsString;
 }

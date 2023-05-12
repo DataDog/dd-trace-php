@@ -284,6 +284,15 @@ extern "C" {
 pub use zend_module_dep as ModuleDep;
 
 impl ModuleDep {
+    pub const fn required(name: &CStr) -> Self {
+        Self {
+            name: name.as_ptr(),
+            rel: std::ptr::null(),
+            version: std::ptr::null(),
+            type_: MODULE_DEP_REQUIRED as c_uchar,
+        }
+    }
+
     pub const fn optional(name: &CStr) -> Self {
         Self {
             name: name.as_ptr(),
