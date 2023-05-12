@@ -1147,6 +1147,10 @@ function parse_cli_arguments(array $argv = null)
             }
         } else {
             if (substr($token, 0, 2) === 'DD') {
+                // we do support using environment variables as well, all those
+                // start with DD_, so we make sure to check this and then map
+                // to an INI setting. Example
+                // php datadog-setup.php config set --php-bin all DD_ENV=prod
                 $key = 'd';
                 list($env, $value) = explode('=', $token, 2);
                 $ini = map_env_to_ini($env);
