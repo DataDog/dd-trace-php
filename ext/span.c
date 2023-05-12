@@ -513,7 +513,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
             ddtrace_switch_span_stack(stack->parent_stack);
         }
 
-        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false) == FAILURE) {
+        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE) {
             // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
@@ -568,6 +568,7 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     if (!stack->active || stack->active->stack != stack) {
         dd_close_entry_span_of_stack(stack);
     }
+
 }
 
 // i.e. what DDTrace\active_span() reports. DDTrace\active_stack()->active is the active span which will be used as parent for new spans on that stack
@@ -671,10 +672,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized) {
-    array_init(serialized);
-
-    // We need to loop here, as closing the last span root stack could add other spans here
-    while (DDTRACE_G(top_closed_stack)) {
+    if (DDTRACE_G(top_closed_stack)) {
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
         DDTRACE_G(top_closed_stack) = NULL;
         do {
@@ -707,14 +705,20 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                 }
             } while (stack);
         } while (rootstack);
-
-        // Also flush possible cycles here
-        zend_gc_collect_cycles();
     }
 
     // Reset closed span counter for limit-refresh, don't touch open spans
     DDTRACE_G(closed_spans_count) = 0;
     DDTRACE_G(dropped_spans_count) = 0;
+}
+
+void ddtrace_serialize_closed_spans_with_cycle(zval *serialized) {
+    // We need to loop here, as closing the last span root stack could add other spans here
+    while (DDTRACE_G(top_closed_stack)) {
+        ddtrace_serialize_closed_spans(serialized);
+        // Also flush possible cycles here
+        gc_collect_cycles();
+    }
 }
 
 zend_string *ddtrace_span_id_as_string(uint64_t id) { return zend_strpprintf(0, "%" PRIu64, id); }

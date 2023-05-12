@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "datadog-php-profiling"
-version = "0.86.3"
+version = "0.87.0"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -290,6 +290,7 @@ dependencies = [
  "cpu-time",
  "crossbeam-channel",
  "datadog-profiling",
+ "ddcommon",
  "env_logger 0.10.0",
  "indexmap",
  "lazy_static",

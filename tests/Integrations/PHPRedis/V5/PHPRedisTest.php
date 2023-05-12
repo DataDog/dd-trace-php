@@ -459,9 +459,9 @@ class PHPRedisTest extends IntegrationTestCase
             ],
             [
                 'pexpire', // method
-                [ 'k1', 6 ], // arguments
+                [ 'k1', 6000 ], // arguments
                 'value', // expected final value
-                'pexpire k1 6', // raw command
+                'pexpire k1 6000', // raw command
                 'value', // initial "0010 1010"
             ],
             [
