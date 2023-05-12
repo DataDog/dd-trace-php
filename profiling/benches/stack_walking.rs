@@ -2,11 +2,11 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use datadog_php_profiling::bindings as zend;
 use datadog_php_profiling::profiling::stalk_walking::collect_stack_sample;
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use criterion_perf_events::Perf;
-#[cfg(target_os = "linux")]
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use perfcnt::linux::HardwareEventType as Hardware;
-#[cfg(target_os = "linux")]
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use perfcnt::linux::PerfCounterBuilderLinux as Builder;
 
 fn benchmark(c: &mut Criterion) {
@@ -22,7 +22,7 @@ fn benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 fn benchmark_cycles(c: &mut Criterion<Perf>) {
     let mut group = c.benchmark_group("walk_stack_cycles");
     group.sampling_mode(SamplingMode::Flat);
@@ -42,15 +42,15 @@ criterion_group!(
     targets = benchmark
 );
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 criterion_group!(
     name = instructions_bench;
     config = Criterion::default().with_measurement(Perf::new(Builder::from_hardware_event(Hardware::Instructions)));
     targets = benchmark_cycles
 );
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 criterion_main!(benches, instructions_bench);
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
 criterion_main!(benches);
