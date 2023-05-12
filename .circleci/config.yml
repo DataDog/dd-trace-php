@@ -68,7 +68,7 @@ aliases:
       PORT: 9126
       DD_SUPPRESS_TRACE_PARSE_ERRORS: true
       DISABLED_CHECKS: trace_content_length
-      
+
   - &IMAGE_DOCKER_SQLSRV
     image: mcr.microsoft.com/mssql/server:2022-latest
     name: sqlsrv_integration
