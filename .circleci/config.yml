@@ -2113,7 +2113,7 @@ jobs:
   "package extension":
     working_directory: ~/datadog
     # The `Dockerfile` to this image is located at https://github.com/DataDog/docker-library/blob/master/dd-trace-php/Dockerfile_fpm
-    docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging_FLO_TEST' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
     parameters:
       asan_build:
         type: boolean
