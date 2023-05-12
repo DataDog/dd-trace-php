@@ -316,7 +316,7 @@ commands:
           name: Fix mounted folder permissions mismatch on buster (user 1000 vs user 3434 in docker)
           command: |
             if [[ "<< parameters.docker_image >>" == *buster* ]]; then
-              sudo useradd -u 3434 docker-circleci || true
+              sudo useradd -u 3434 docker-circleci
               sudo chown -R docker-circleci .
             fi
           when: << parameters.fix_permissions >>
@@ -981,7 +981,7 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
-          docker_image: << parameters.docker_image >>
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_httpbin_and_request_replayer
           fix_permissions: false
       - switch_php:
