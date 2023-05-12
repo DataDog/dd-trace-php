@@ -308,6 +308,9 @@ commands:
       extra:
         type: string
         default: none
+      fix_permissions:
+        type: boolean
+        default: true
     steps:
       - run:
           name: Fix mounted folder permissions mismatch on buster (user 1000 vs user 3434 in docker)
@@ -316,6 +319,7 @@ commands:
               sudo useradd -u 3434 docker-circleci || true
               sudo chown -R docker-circleci .
             fi
+          when: << parameters.fix_permissions >>
       - run:
           name: Setup docker image << parameters.docker_image >>
           command: |
@@ -832,9 +836,6 @@ jobs:
                 command: sudo composer self-update --2 --no-interaction
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
-      - setup_docker:
-          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
-          extra: with_httpbin_and_request_replayer
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - install_extension
@@ -958,7 +959,7 @@ jobs:
       disable_runner_distributed_tracing:
         type: boolean
         default: false
-    resource_class: << parameters.resource_class >>
+    <<: *BARE_DOCKER_MACHINE
     executor:
       name: with_integrations
       docker_image: << parameters.docker_image >>
@@ -980,8 +981,9 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
-          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+          docker_image: << parameters.docker_image >>
           extra: with_httpbin_and_request_replayer
+          fix_permissions: false
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - install_extension:
