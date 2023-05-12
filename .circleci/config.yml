@@ -9,9 +9,6 @@ aliases:
   - &CACHE_NPM_KEY
     key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
 
-  - &IMAGE_DOCKER_DD_TEST_AGENT
-    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
-
   - &IMAGE_DOCKER_REDIS
     image: datadog/dd-trace-ci:php-redis-5.0
     name: redis_integration
@@ -61,6 +58,17 @@ aliases:
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
 
+  - &IMAGE_DOCKER_DD_TEST_AGENT
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+    name: test-agent
+    environment:
+      LOG_LEVEL: DEBUG
+      TRACE_LANGUAGE: php
+      DD_TRACE_AGENT_URL: http://request-replayer:80
+      PORT: 9126
+      DD_SUPPRESS_TRACE_PARSE_ERRORS: true
+      DISABLED_CHECKS: trace_content_length
+      
   - &IMAGE_DOCKER_SQLSRV
     image: mcr.microsoft.com/mssql/server:2022-latest
     name: sqlsrv_integration
@@ -140,11 +148,6 @@ aliases:
       name: Disable Xdebug for built-in web tests
       command: test -e /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && sudo rm -f $_ || true
 
-  - &STEP_WAIT_AGENT
-    run:
-      name: Waiting for Dockerized agent
-      command: wait-for 127.0.0.1:8126 --timeout=60
-
   - &STEP_WAIT_MYSQL
     run:
       name: Waiting for Dockerized MySQL
@@ -154,6 +157,17 @@ aliases:
     run:
       name: Waiting for Dockerized request replayer
       command: wait-for request-replayer:80 --timeout=120
+
+  - &STEP_WAIT_TEST_AGENT
+    run:
+      name: Waiting for Dockerized APM Test Agent
+      command: wait-for test-agent:9126 --timeout=30
+
+  - &STEP_DOCKER_LOGS
+    run:
+      name: Outputting Docker Logs for APM Test Agent
+      command: docker logs -f test-agent
+      background: true
 
   # Fix intermittent error: "Could not resolve host: httpbin_integration"
   - &STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
@@ -324,7 +338,14 @@ commands:
                 -e DD_APM_ENABLED=true \
                 -e DD_BIND_HOST=0.0.0.0 \
                 -e DD_API_KEY=invalid_key_but_this_is_fine \
-                ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+                -e LOG_LEVEL=DEBUG \
+                -e TRACE_LANGUAGE=php \
+                -e DD_TRACE_AGENT_URL=http://request-replayer:80 \
+                -e DISABLED_CHECKS=trace_content_length \
+                -e DD_SUPPRESS_TRACE_PARSE_ERRORS=true \
+                -e PORT=9126 \
+                -p "127.0.0.1:9126:9126" \
+                --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
               retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               retry_docker run --detach --rm --net net \
@@ -386,9 +407,9 @@ executors:
         type: string
     docker:
       - image: << parameters.docker_image >>
-      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
   with_integrations:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -398,7 +419,6 @@ executors:
         type: string
     docker:
       - image: << parameters.docker_image >>
-      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_ELASTICSEARCH7
       - <<: *IMAGE_DOCKER_HTTPBIN
@@ -408,6 +428,7 @@ executors:
       - <<: *IMAGE_DOCKER_RABBITMQ
       - <<: *IMAGE_DOCKER_MONGO
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+      - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_SQLSRV
 
 jobs:
@@ -615,6 +636,7 @@ jobs:
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run tests
           command: |
@@ -728,6 +750,7 @@ jobs:
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run tests
           command: |
@@ -813,9 +836,9 @@ jobs:
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
-      - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
@@ -853,6 +876,7 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run tests
           command: |
@@ -956,9 +980,9 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
-      - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run << parameters.integration_testsuite >> integration test
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.integration_testsuite >>
@@ -1001,6 +1025,7 @@ jobs:
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Ensure ext/<< parameters.ext_name >> is missing
           command: |
@@ -1060,6 +1085,7 @@ jobs:
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Install .deb from artifacts
           command: |
