@@ -313,7 +313,7 @@ commands:
           name: Fix mounted folder permissions mismatch on buster (user 1000 vs user 3434 in docker)
           command: |
             if [[ "<< parameters.docker_image >>" == *buster* ]]; then
-              sudo useradd -u 3434 docker-circleci
+              sudo useradd -u 3434 docker-circleci || true
               sudo chown -R docker-circleci .
             fi
       - run:
