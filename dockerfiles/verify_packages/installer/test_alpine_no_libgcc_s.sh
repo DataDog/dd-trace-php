@@ -25,9 +25,9 @@ else
     exit 1
 fi
 
-if [ -z "${output##*libcurl*}" ]; then
-    echo "Ok: Output contains text 'libcurl'"
+if [ -z "${output##*libgcc*}" ]; then
+    echo "Ok: Output contains text 'libgcc'"
 else
-    echo "---\nError: Output does not contain text 'libcurl'\n---\n${output}\n---\n"
+    echo "---\nError: Output does not contain text 'libgcc'\n---\n${output}\n---\n"
     exit 1
 fi

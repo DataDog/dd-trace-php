@@ -18,6 +18,8 @@ final class InstrumentationTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'APP_NAME' => 'custom_autoloaded_app',
+            'DD_TRACE_AGENT_PORT' => 80,
+            'DD_AGENT_HOST' => 'request-replayer',
         ]);
     }
 
@@ -38,6 +40,8 @@ final class InstrumentationTest extends WebFrameworkTestCase
 
     public function testInstrumentation()
     {
+        $this->resetRequestDumper();
+
         $this->call(GetSpec::create("autoloaded", "/simple"));
         $response = $this->retrieveDumpedData();
         if (!$response) {
@@ -66,7 +70,6 @@ final class InstrumentationTest extends WebFrameworkTestCase
             $this->fail("Go no response from request-dumper");
         }
 
-        var_dump($response);
         $this->assertCount(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
