@@ -23,6 +23,40 @@ namespace DDTrace {
      */
     const DBM_PROPAGATION_FULL = UNKNOWN;
 
+    class SpanLink implements \JsonSerializable {
+        /**
+         * @var string $traceId A 32-character, lower-case hexadecimal encoded string of the linked trace ID. This field
+         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLinks() method instead.
+         */
+        public string $traceId;
+
+        /**
+         * @var string $spanId A 16-character, lower-case hexadecimal encoded string of the linked span ID. This field
+         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLinks() method instead.
+         */
+        public string $spanId;
+
+        /**
+         * @var string $traceState
+         */
+        public string $traceState;
+
+        /**
+         * @var string[] $attributes
+         */
+        public array $attributes;
+
+        /**
+         * @var int $droppedAttributesCount
+         */
+        public int $droppedAttributesCount;
+
+        /**
+         * @return mixed
+         */
+        public function jsonSerialize(): mixed {}
+    }
+
     class SpanData {
         /**
          * @var string|null The span name
@@ -67,6 +101,11 @@ namespace DDTrace {
         public readonly string $id = "";
 
         /**
+         * @var SpanLink[] $spanLinks An array of span links
+         */
+        public array $links = [];
+
+        /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
         public readonly SpanData|null $parent = null;
@@ -85,6 +124,11 @@ namespace DDTrace {
          * @return int Get the start time of the span
          */
         public function getStartTime(): int {}
+
+        /**
+         * @return SpanLink Get a pre-populated SpanLink object with the current span's trace and span IDs
+         */
+        public function getLink(): SpanLink {}
     }
 
     /**

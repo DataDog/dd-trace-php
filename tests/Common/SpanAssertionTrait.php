@@ -25,9 +25,9 @@ trait SpanAssertionTrait
      * @param array[] $traces
      * @param SpanAssertion[] $expectedSpans
      */
-    public function assertFlameGraph($traces, $expectedSpans)
+    public function assertFlameGraph($traces, $expectedSpans, bool $assertExactCount = true)
     {
-        (new SpanChecker())->assertFlameGraph($traces, $expectedSpans);
+        (new SpanChecker())->assertFlameGraph($traces, $expectedSpans, $assertExactCount);
     }
 
     /**

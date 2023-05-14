@@ -237,7 +237,9 @@ impl TimeCollector {
 
         // check if we have the `alloc-size` and `alloc-samples` sample types
         #[cfg(feature = "allocation_profiling")]
-        let alloc_samples_offset = sample_types.iter().position(|&x| x.r#type == "alloc-samples");
+        let alloc_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "alloc-samples");
         #[cfg(feature = "allocation_profiling")]
         let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
 
@@ -259,9 +261,10 @@ impl TimeCollector {
             let upscaling_info = UpscalingInfo::Poisson {
                 sum_value_offset: alloc_size_offset.unwrap(),
                 count_value_offset: alloc_samples_offset.unwrap(),
-                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
             };
-            let values_offset: Vec<usize> = vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
+            let values_offset: Vec<usize> =
+                vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
             match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {

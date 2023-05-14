@@ -7,11 +7,16 @@
 #include "serializer.h"
 #include "span.h"
 
-ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup) {
+ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles) {
     bool success = true;
 
     zval trace, traces;
-    ddtrace_serialize_closed_spans(&trace);
+    array_init(&trace);
+    if (collect_cycles) {
+        ddtrace_serialize_closed_spans_with_cycle(&trace);
+    } else {
+        ddtrace_serialize_closed_spans(&trace);
+    }
 
     // Prevent traces from requests not executing any PHP code:
     // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
@@ -61,5 +66,5 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup) {
 DDTRACE_PUBLIC void ddtrace_close_all_spans_and_flush()
 {
     ddtrace_close_all_open_spans(true);
-    ddtrace_flush_tracer(true);
+    ddtrace_flush_tracer(true, true);
 }
