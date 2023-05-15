@@ -1518,6 +1518,7 @@ jobs:
               echo 'cmake << parameters.cmake_version >> already installed'
               exit 0
             fi
+
             if [ -e /etc/alpine-release ]
             then
               # We build from source on Alpine (slow)
@@ -2318,10 +2319,9 @@ workflows:
                 - "datadog/dd-trace-ci:alpine"
                 - "datadog/dd-trace-ci:buster"
               cmake_version:
-                - "3.19.8"
-                - "3.21.4"
+                - "3.24.4"
               catch2_version:
-                - "2.13.7"
+                - "2.13.10"
 
   zend_abstract_interface:
     jobs:
@@ -2343,10 +2343,9 @@ workflows:
                 - "8.1"
                 - "8.2"
               cmake_version:
-                - "3.19.7"
-                - "3.20.1"
+                - "3.24.4"
               catch2_version:
-                - "2.13.5"
+                - "2.13.10"
 
   zend_abstract_interface_shared_exts:
     jobs:
