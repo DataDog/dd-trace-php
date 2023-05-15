@@ -45,8 +45,6 @@ function main()
     }
 
     $arguments = parse_validate_user_options();
-    var_dump($arguments);
-    die();
     $options = $arguments['opts'];
     switch ($arguments['cmd']) {
         case CMD_CONFIG_GET:
@@ -1649,8 +1647,27 @@ function add_missing_ini_settings($iniFilePath, $settings)
 
 function map_env_to_ini($env)
 {
+    $setting = explode('_', $env, 3);
+    if ($setting[0] !== 'DD') {
+        return null;
+    }
+
+    $ini = 'datadog.';
+    switch ($setting[1]) {
+        case 'PROFILING':
+        case 'TRACE':
+        case 'APPSEC':
+            $ini .= strtolower($setting[1]) . '.' . strtolower($setting[2]);
+            break;
+        default:
+            // for cases like DD_ENV or DD_DOGSTATSD_URL
+            $ini .= strtolower($setting[1]);
+            if (isset($setting[2])) {
+                $ini .= '_' . strtolower($setting[2]);
+            }
+    }
     foreach (get_ini_settings('', '', '') as $setting) {
-        if (isset($setting['environment']) && $setting['environment'] == $env) {
+        if (isset($setting['name']) && $setting['name'] == $ini) {
             return $setting['name'];
         }
     }
@@ -1700,7 +1717,6 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
 
         [
             'name' => 'datadog.profiling.enabled',
-            'environment' => 'DD_PROFILING_ENABLED',
             'default' => '1',
             'commented' => true,
             'description' => 'Enable the Datadog profiling module.',
@@ -1782,7 +1798,6 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         ],
         [
             'name' => 'datadog.env',
-            'environment' => 'DD_ENV',
             'default' => 'my_env',
             'commented' => true,
             'description' => 'Sets a custom environment name for the application',
