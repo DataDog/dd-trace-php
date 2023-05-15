@@ -70,9 +70,6 @@ trait SnapshotTestTrait
         if (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 200) {
             TestCase::fail('Error starting snapshot session: ' . $response);
         }
-
-        fwrite(STDERR, "Started snapshot session with token: $token\n");
-        fwrite(STDERR, "Response: $response\n");
     }
 
     private function waitForTraces(string $token, int $numExpectedTraces = 0): void
@@ -81,10 +78,8 @@ trait SnapshotTestTrait
             return;
         }
 
-        fwrite(STDERR, "Waiting for traces[");
         $tracesUrl = self::$testAgentUrl . '/test/session/traces?test_session_token=' . $token;
         for ($i = 0; $i < 50; $i++) { // 50 is an arbitrary number
-            fwrite(STDERR, '.');
             try {
                 $ch = curl_init($tracesUrl);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -96,11 +91,9 @@ trait SnapshotTestTrait
                 }
                 usleep(100000); // 100ms
             } catch (\Exception $e) {
-                fwrite(STDERR, $e->getMessage());
                 // ignore
             }
         }
-        fwrite(STDERR, "]\n");
 
         TestCase::fail('Expected ' . $numExpectedTraces . ' traces, got ' . count($traces));
     }
@@ -132,22 +125,6 @@ trait SnapshotTestTrait
         $numExpectedTraces = 1,
         $tracer = null
     ): void {
-        fwrite(STDERR, "Current wd: " . getcwd() . "\n");
-        fwrite(STDERR, "Current Path:\n");
-        fwrite(STDERR, shell_exec('pwd') . "\n");
-
-        fwrite(STDERR, "Content of the app directory:\n");
-        fwrite(STDERR, shell_exec('ls ~/datadog') . "\n");
-
-        fwrite(STDERR, "Content of the tests directory:\n");
-        fwrite(STDERR, shell_exec('ls ~/datadog/tests') . "\n");
-
-        fwrite(STDERR, "Content of the snapshots directory:\n");
-        fwrite(STDERR, shell_exec('ls ~/datadog/tests/snapshots') . "\n");
-
-        fwrite(STDERR, shell_exec('df -T .') . "\n");
-        fwrite(STDERR, shell_exec('getconf NAME_MAX .') . "\n");
-
         if ($tracer === null) {
             $this->resetTracerState();
         }
