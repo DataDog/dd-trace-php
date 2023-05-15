@@ -1,6 +1,5 @@
 use std::error::Error;
 use std::{fs, io};
-use std::io::Write;
 use std::path::Path;
 use ddcommon_ffi::CharSlice;
 use ddcommon_ffi::slice::AsBytes;
@@ -10,6 +9,8 @@ use ddtelemetry::ipc::interface::{blocking, InstanceId, QueueId};
 use ddtelemetry::ipc::sidecar::config;
 use ddtelemetry::worker::TelemetryActions;
 use ddtelemetry_ffi::{MaybeError, try_c};
+#[cfg(php_shared_build)]
+use spawn_worker::LibDependency;
 
 #[must_use]
 #[no_mangle]
@@ -53,9 +54,7 @@ const MOCK_PHP: &[u8] = include_bytes!(concat!(
 
 #[cfg(php_shared_build)]
 fn run_sidecar(mut cfg: config::Config) -> io::Result<TelemetryTransport> {
-    let mut file = tempfile::NamedTempFile::new()?;
-    file.write_all(MOCK_PHP)?;
-    cfg.library_dependencies.push(file.path().to_path_buf());
+    cfg.library_dependencies.push(LibDependency::Binary(MOCK_PHP));
     ddtelemetry::ipc::sidecar::start_or_connect_to_sidecar(cfg)
 }
 
