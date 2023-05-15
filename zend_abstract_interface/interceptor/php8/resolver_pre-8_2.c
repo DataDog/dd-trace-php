@@ -25,8 +25,32 @@ static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition 
     }
 }
 
+// Work around https://github.com/php/php-src/issues/11222
+// This is not a pretty workaround, but we don't have any better possibilities...
+static void zai_resolver_force_space(HashTable *ht) {
+    // Assuming files don't declare more than a thousand functions
+    const int reserved = 1000;
+
+    while (ht->nTableSize < reserved + ht->nNumOfElements) {
+        // A rehash happens when all elements are used. The rehash also resets the nNumUsed.
+        // However, all ht entries within nNumUsed are required to have a valid value.
+        memset(ht->arData + ht->nNumUsed, IS_UNDEF, (ht->nTableSize - ht->nNumUsed) * sizeof(Bucket));
+        ht->nNumUsed = ht->nTableSize;
+        ht->nNumOfElements += reserved;
+        dtor_func_t dtor = ht->pDestructor;
+        ht->pDestructor = NULL;
+        zend_hash_index_add_ptr(ht, 0, NULL);
+        zend_hash_index_del(ht, 0);
+        ht->pDestructor = dtor;
+        ht->nNumOfElements -= reserved;
+    }
+}
+
 static zend_op_array *(*prev_compile_file)(zend_file_handle *file_handle, int type);
 static zend_op_array *zai_interceptor_compile_file(zend_file_handle *file_handle, int type) {
+    zai_resolver_force_space(CG(class_table));
+    zai_resolver_force_space(CG(function_table));
+
     HashPosition classpos, funcpos;
     zend_hash_internal_pointer_end_ex(CG(class_table), &classpos);
     uint32_t class_iter = zend_hash_iterator_add(CG(class_table), classpos);
@@ -82,7 +106,7 @@ PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
 
 static zend_op zai_interceptor_post_declare_op;
 ZEND_TLS zend_op zai_interceptor_post_declare_ops[4];
-struct zai_interceptor_opline { const zend_op *op; struct zai_interceptor_opline *prev; };
+struct zai_interceptor_opline { const zend_op *op; const zend_execute_data *execute_data; struct zai_interceptor_opline *prev; };
 ZEND_TLS struct zai_interceptor_opline zai_interceptor_opline_before_binding = {0};
 static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_data) {
     // We replace the current opline *before* it is executed. Thus we need to preserve opline data first:
@@ -110,10 +134,24 @@ static void zai_interceptor_install_post_declare_op(zend_execute_data *execute_d
         zai_interceptor_opline_before_binding.prev = backup;
     }
     zai_interceptor_opline_before_binding.op = EX(opline);
+    zai_interceptor_opline_before_binding.execute_data = execute_data;
     EX(opline) = zai_interceptor_post_declare_ops;
 }
 
-static void zai_interceptor_pop_opline_before_binding() {
+static void zai_interceptor_pop_opline_before_binding(zend_execute_data *execute_data) {
+    // Normally the zai_interceptor_opline_before_binding stack should be in sync with the actual executing stack, but it might not after bailouts
+    if (execute_data) {
+        if (zai_interceptor_opline_before_binding.execute_data == execute_data) {
+            return;
+        }
+
+        while (zai_interceptor_opline_before_binding.prev && zai_interceptor_opline_before_binding.prev->execute_data != execute_data) {
+            struct zai_interceptor_opline *backup = zai_interceptor_opline_before_binding.prev;
+            zai_interceptor_opline_before_binding = *backup;
+            efree(backup);
+        }
+    }
+
     struct zai_interceptor_opline *backup = zai_interceptor_opline_before_binding.prev;
     if (backup) {
         zai_interceptor_opline_before_binding = *backup;
@@ -154,8 +192,9 @@ static int zai_interceptor_post_declare_handler(zend_execute_data *execute_data)
             }
         }
         // preserve offset
+        zai_interceptor_pop_opline_before_binding(execute_data);
         EX(opline) = zai_interceptor_opline_before_binding.op + (EX(opline) - &zai_interceptor_post_declare_ops[0]);
-        zai_interceptor_pop_opline_before_binding();
+        zai_interceptor_pop_opline_before_binding(NULL);
         return ZEND_USER_OPCODE_CONTINUE;
     } else if (prev_post_declare_handler) {
         return prev_post_declare_handler(execute_data);
@@ -237,8 +276,9 @@ static user_opcode_handler_t prev_handle_exception_handler;
 static int zai_interceptor_handle_exception_handler(zend_execute_data *execute_data) {
     // not everything goes through zend_throw_exception_hook, in particular when zend_rethrow_exception alone is used (e.g. during zend_call_function)
     if (EG(opline_before_exception) == zai_interceptor_post_declare_ops) {
+        zai_interceptor_pop_opline_before_binding(execute_data);
         EG(opline_before_exception) = zai_interceptor_opline_before_binding.op;
-        zai_interceptor_pop_opline_before_binding();
+        zai_interceptor_pop_opline_before_binding(NULL);
     }
 
     return prev_handle_exception_handler ? prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
@@ -249,12 +289,18 @@ static void zai_interceptor_exception_hook(zend_object *ex) {
     zend_function *func = EG(current_execute_data)->func;
     if (func && ZEND_USER_CODE(func->type) && EG(current_execute_data)->opline == zai_interceptor_post_declare_ops) {
         // called right before setting EG(opline_before_exception), reset to original value to ensure correct throw_op handling
+        zai_interceptor_pop_opline_before_binding(EG(current_execute_data));
         EG(current_execute_data)->opline = zai_interceptor_opline_before_binding.op;
-        zai_interceptor_pop_opline_before_binding();
+        zai_interceptor_pop_opline_before_binding(NULL);
     }
     if (prev_exception_hook) {
         prev_exception_hook(ex);
     }
+}
+
+void zai_interceptor_reset_resolver(void) {
+    // reset in case a prior request had a bailout
+    zai_interceptor_opline_before_binding = (struct zai_interceptor_opline){0};
 }
 
 static void *opcache_handle;
