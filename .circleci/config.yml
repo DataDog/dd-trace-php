@@ -66,7 +66,7 @@ aliases:
       TRACE_LANGUAGE: php
       DD_TRACE_AGENT_URL: http://request-replayer:80
       PORT: 9126
-      SNAPSHOT_DIR: ./snapshots
+      SNAPSHOT_DIR: /snapshots
       SNAPSHOT_CI: 1
       DD_SUPPRESS_TRACE_PARSE_ERRORS: true
       DISABLED_CHECKS: trace_content_length
@@ -346,7 +346,7 @@ commands:
                 -e DISABLED_CHECKS=trace_content_length \
                 -e DD_SUPPRESS_TRACE_PARSE_ERRORS=true \
                 -e PORT=9126 \
-                -e SNAPSHOT_DIR=./snapshots \
+                -e SNAPSHOT_DIR=/snapshots \
                 -p "127.0.0.1:9126:9126" \
                 -v $(pwd)/tests/snapshots:/snapshots \
                 --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
@@ -860,6 +860,11 @@ jobs:
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_snapshots
+      # Docker logs
+      - run:
+            name: Start docker logs
+            command: docker logs -f
+            background: true
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - when:
