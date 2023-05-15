@@ -1648,7 +1648,9 @@ function add_missing_ini_settings($iniFilePath, $settings)
 function map_env_to_ini($env)
 {
     $setting = explode('_', $env, 3);
-    if ($setting[0] !== 'DD') {
+    if (!isset($setting[0])
+        || $setting[0] !== 'DD'
+        || !isset($setting[1])) {
         return null;
     }
 
@@ -1657,6 +1659,10 @@ function map_env_to_ini($env)
         case 'PROFILING':
         case 'TRACE':
         case 'APPSEC':
+            if (!isset($setting[2])) {
+                // this would mean $env was DD_TRACE or DD_PROFILING or DD_APPSEC
+                return null;
+            }
             $ini .= strtolower($setting[1]) . '.' . strtolower($setting[2]);
             break;
         default:
