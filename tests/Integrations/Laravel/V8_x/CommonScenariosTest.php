@@ -188,6 +188,58 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('laravel.event.handle'),
                     ]),
                 ],
+                'A GET request to a missing route' => [
+                    SpanAssertion::build(
+                        'laravel.request',
+                        'laravel_test_app',
+                        'web',
+                        'GET /does_not_exist'
+                    )->withExactTags([
+                        Tag::HTTP_URL => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
+                        Tag::HTTP_METHOD => 'GET',
+                        Tag::COMPONENT => 'laravel',
+                        Tag::HTTP_STATUS_CODE => '404',
+                    ])->withChildren([
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.provider.load'),
+                        SpanAssertion::build(
+                            'laravel.view.render',
+                            'laravel_test_app',
+                            'web',
+                            'errors::404'
+                        )->withExactTags([
+                            TAG::COMPONENT => 'laravel'
+                        ])->withChildren([
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::build(
+                                'laravel.view',
+                                'laravel_test_app',
+                                'web',
+                                // phpcs:disable
+                                '/home/circleci/app/tests/Frameworks/Laravel/Version_8_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php'
+                                // phpcs:enable
+                            )->withExactTags([
+                                TAG::COMPONENT => 'laravel'
+                            ])->withChildren([
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle')
+                            ])
+                        ])
+                    ])
+                ]
             ]
         );
     }
