@@ -228,9 +228,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'laravel.view',
                                 'laravel_test_app',
                                 'web',
-                                // phpcs:disable
-                                '/home/circleci/app/tests/Frameworks/Laravel/Version_8_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php'
-                                // phpcs:enable
+                                '*/src/Illuminate/Foundation/Exceptions/views/404.blade.php'
                             )->withExactTags([
                                 TAG::COMPONENT => 'laravel'
                             ])->withChildren([
