@@ -1648,9 +1648,7 @@ function add_missing_ini_settings($iniFilePath, $settings)
 function map_env_to_ini($env)
 {
     $setting = explode('_', $env, 3);
-    if (!isset($setting[0])
-        || $setting[0] !== 'DD'
-        || !isset($setting[1])) {
+    if (!isset($setting[0]) || $setting[0] !== 'DD' || !isset($setting[1])) {
         return null;
     }
 
