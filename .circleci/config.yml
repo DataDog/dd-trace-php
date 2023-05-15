@@ -308,9 +308,6 @@ commands:
       extra:
         type: string
         default: none
-      fix_permissions:
-        type: boolean
-        default: true
     steps:
       - run:
           name: Fix mounted folder permissions mismatch on buster (user 1000 vs user 3434 in docker)
@@ -319,7 +316,6 @@ commands:
               sudo useradd -u 3434 docker-circleci
               sudo chown -R docker-circleci .
             fi
-          when: << parameters.fix_permissions >>
       - run:
           name: Setup docker image << parameters.docker_image >>
           command: |
@@ -327,7 +323,7 @@ commands:
             max_retries=3
             extra=<< parameters.extra >>
             docker network create net --driver=bridge -o "com.docker.network.bridge.name=br"
-            if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
+            if [[ $extra == "with_httpbin_and_request_replayer" || $extra == "with_snapshots" ]]; then
               function retry_docker() {
                 retries=$max_retries
                 while
@@ -360,6 +356,47 @@ commands:
               retry_docker run --detach --rm --net net \
                 -e DD_REQUEST_DUMPER_FILE=dump.json \
                 --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0
+            fi
+            if [[ $extra == "with_snapshots" ]]; then
+              function retry_docker() {
+                retries=$max_retries
+                while
+                  ! docker "${@}"
+                do
+                  if [[ $((--retries)) -eq 0 ]]; then
+                    exit 1
+                  fi
+                  sleep 1
+                done
+                true # Success
+              }
+              retry_docker run --detach --rm --net net \
+                --name elasticsearch2_integration elasticsearch:2
+              retry_docker run --detach --rm --net net \
+                -e ES_JAVA_OPTS="-Xms1g -Xmx1g" \
+                -e discovery.type=single-node \
+                --name elasticsearch7_integration elasticsearch:7.17.0
+              retry_docker run --detach --rm --net net \
+                --name redis_integration datadog/dd-trace-ci:php-redis-5.0
+              retry_docker run --detach --rm --net net \
+                --name memcached_integration memcached:1.5-alpine
+              retry_docker run --detach --rm --net net \
+                -e MYSQL_ROOT_PASSWORD=test \
+                -e MYSQL_PASSWORD=test \
+                -e MYSQL_USER=test \
+                -e MYSQL_DATABASE=test \
+                --name mysql_integration datadog/dd-trace-ci:php-mysql-dev-5.6
+              retry_docker run --detach --rm --net net \
+                --name rabbitmq_integration rabbitmq:3.8.9-alpine
+              retry_docker run --detach --rm --net net \
+                -e MONGO_INITDB_ROOT_USERNAME=test \
+                -e MONGO_INITDB_ROOT_PASSWORD=test \
+                --name mongodb_integration circleci/mongo:4.0
+              retry_docker run --detach --rm --net net \
+                -e ACCEPT_EULA=Y \
+                -e MSSQL_SA_PASSWORD=Password12! \
+                -e MSSQL_PID=Developer \
+                --name sqlsrv_integration mcr.microsoft.com/mssql/server:2022-latest
             fi
             touch /tmp/docker.out
             mkdir /tmp/bashenv
@@ -792,6 +829,76 @@ jobs:
 
   asan: *TEST_BASE
 
+  integration_snapshots:
+    working_directory: ~/datadog
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
+      make_target:
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+      resource_class:
+        type: string
+        default: medium
+      sapi:
+        type: string
+        default: cli-server
+      disable_runner_distributed_tracing:
+        type: boolean
+        default: false
+    <<: *BARE_DOCKER_MACHINE
+    environment:
+      COMPOSER_PROCESS_TIMEOUT: 0
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - when:
+          condition:
+            and:
+              - or:
+                  - equal: [ "8.0", << parameters.php_major_minor >> ]
+                  - equal: [ "8.1", << parameters.php_major_minor >> ]
+              - not:
+                equal: [ "test_composer", << parameters.make_target >> ]
+          steps:
+            - run:
+                name: Updating composer to v2
+                command: sudo composer self-update --2 --no-interaction
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+          extra: with_snapshots
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - install_extension
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_WAIT_TEST_AGENT
+      - run:
+          name: Run tests
+          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts
+            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts/
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+
   integration:
     working_directory: ~/datadog
     parameters:
@@ -812,9 +919,6 @@ jobs:
       disable_runner_distributed_tracing:
         type: boolean
         default: false
-      fix_permissions:
-        type: boolean
-        default: true
     resource_class: << parameters.resource_class >>
     executor:
       name: with_integrations
@@ -839,10 +943,6 @@ jobs:
                 command: sudo composer self-update --2 --no-interaction
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
-      - setup_docker:
-          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
-          extra: with_httpbin_and_request_replayer
-          fix_permissions: << parameters.fix_permissions >>
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - install_extension
@@ -3445,7 +3545,7 @@ workflows:
                 - test_distributed_tracing
                 - test_auto_instrumentation
 
-      - integration:
+      - integration_snapshots:
           requires: [ 'Prepare Code' ]
           # Due to Symfony OOM during composer update
           resource_class: xlarge
@@ -3462,8 +3562,6 @@ workflows:
                 - '8.2'
               make_target:
                 - test_web
-              fix_permissions:
-                - true
 
       - integration:
           requires: [ 'Prepare Code' ]
