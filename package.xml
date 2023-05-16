@@ -40,6 +40,12 @@
         <email>pierotibou@php.net</email>
         <active>yes</active>
     </lead>
+    <lead>
+        <name>Alejandro Estringana Ruiz</name>
+        <user>estringanadd</user>
+        <email>estringanadd@php.net</email>
+        <active>yes</active>
+    </lead>
     <!-- **Automatically updated with pecl-build script** -->
     <!-- Date only needs to be set if it was packaged on a different day from release -->
     <date>${date}</date>
@@ -56,7 +62,9 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-${notes}
+### Fixed
+- Fix opline being replaced by ZEND_HANDLE_EXCEPTION in uncaught finally on PHP 7 #2052
+- Won't set 4xx errors on Laravel root span every time an Exception is caught #2053
 ]]></notes>
     <contents>
         <dir name="/">

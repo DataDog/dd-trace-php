@@ -12,11 +12,6 @@ project(datadog-php-components
   LANGUAGES C
 )
 
-find_package(PkgConfig)
-if (PKG_CONFIG_FOUND)
-  pkg_check_modules(UV IMPORTED_TARGET libuv)
-endif ()
-
 option(DATADOG_PHP_TESTING "Enable Datadog PHP tests" OFF)
 if (${DATADOG_PHP_TESTING})
 
@@ -57,20 +52,9 @@ add_library(datadog_php_components INTERFACE)
 
 add_subdirectory(string_view)
 
-add_subdirectory(arena)
-
-if (TARGET PkgConfig::UV)
-  add_subdirectory(channel)
-else ()
-  message(WARNING "component channel was skipped because libuv is missing")
-endif ()
-
 add_subdirectory(container_id)
-add_subdirectory(log)
-add_subdirectory(queue)
 add_subdirectory(sapi)
 add_subdirectory(stack-sample)
-add_subdirectory(time)
 add_subdirectory(uuid)
 
 install(EXPORT DatadogPhpComponentsTargets

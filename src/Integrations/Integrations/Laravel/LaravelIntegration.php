@@ -239,7 +239,9 @@ class LaravelIntegration extends Integration
             'Illuminate\Contracts\Debug\ExceptionHandler',
             'report',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                $integration->setError($rootSpan, $args[0]);
+                if ($args[0] && $args[0]->getStatusCode() >= 500) {
+                    $integration->setError($rootSpan, $args[0]);
+                }
             }
         );
 
