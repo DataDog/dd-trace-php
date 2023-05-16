@@ -149,6 +149,22 @@ When you're done with development, you can stop and remove the containers with t
 $ docker-compose down -v
 ```
 
+#### Snapshot Tests
+
+[Snapshot testing](https://github.com/DataDog/dd-apm-test-agent#snapshot-testing) is utilized in some tests to validate
+the output of the tracer. To update the snapshots when modifying the tracer's output, follow these steps:
+1. Delete the previous snapshot file located in tests/snapshots that corresponds to the relevant tests.
+2. Run the tests again after updating the library.
+3. A new snapshot file will be automatically generated.
+
+When creating new tests that utilize snapshots, the initial run will generate a snapshot file in the `tests/snapshots`
+directory. For example, if the test is `DDTrace\Tests\Integrations\Framework\VX\TestClass::testFunction()`,
+the corresponding snapshot file would be `tests.integrations.framework.vx.test_class.test_function`. Subsequent test runs
+will compare the tracer's output with the generated snapshot file.
+
+Always ensure that the generated snapshot file contains the expected output before committing it. It is important to
+review the snapshot file to maintain the accuracy of the tests.
+
 ## Sending a pull request (PR)
 
 There are a number of checks that are run automatically with [CircleCI](https://circleci.com/gh/DataDog/dd-trace-php/tree/master) when a PR is submitted. To ensure your PHP code changes pass the CircleCI checks, make sure to run all the same checks before submitting a PR.
