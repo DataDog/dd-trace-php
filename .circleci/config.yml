@@ -66,8 +66,9 @@ aliases:
       TRACE_LANGUAGE: php
       DD_TRACE_AGENT_URL: http://request-replayer:80
       PORT: 9126
-      DD_SUPPRESS_TRACE_PARSE_ERRORS: true
       DISABLED_CHECKS: trace_content_length
+      DD_SUPPRESS_TRACE_PARSE_ERRORS: true
+      DD_POOL_TRACE_CHECK_FAILURES: true
 
   - &IMAGE_DOCKER_SQLSRV
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -179,8 +180,7 @@ aliases:
       name: Send HTTP Request to Test Agent
       command: |
         RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://test-agent:9126/test/check_trace/failures)
-        RESPONSE_BODY=$(cat response.txt)
-        RESPONSE_CODE=${RESPONSE_BODY##*$'\n'}
+        RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
         if [[ $RESPONSE_CODE -eq 200 ]]; then
           echo "All Check Traces returned successful! (HTTP 200)"
         else
@@ -359,6 +359,7 @@ commands:
                 -e DD_TRACE_AGENT_URL=http://request-replayer:80 \
                 -e DISABLED_CHECKS=trace_content_length \
                 -e DD_SUPPRESS_TRACE_PARSE_ERRORS=true \
+                -e DD_POOL_TRACE_CHECK_FAILURES=true \
                 -e PORT=9126 \
                 -p "127.0.0.1:9126:9126" \
                 --name test-agent williamconti549/dd-apm-test-agent:pool-failues
