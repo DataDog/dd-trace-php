@@ -656,7 +656,7 @@ jobs:
 
   test_arm:
     machine:
-      image: ubuntu-2004:202101-01
+      image: ubuntu-2004:2023.04.2
     resource_class: arm.medium
     parameters:
       php_major_minor:
@@ -1217,7 +1217,7 @@ jobs:
         # Possible values: php_installer, native_package
         default: php_installer
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2004:2023.04.2
     steps:
       - restore_cache:
           keys:
@@ -1330,7 +1330,7 @@ jobs:
   installer_tests:
     working_directory: ~/datadog
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2004:2023.04.2
     steps:
       - restore_cache:
           keys:
@@ -1349,7 +1349,7 @@ jobs:
   randomized_tests:
     working_directory: ~/datadog
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2004:2023.04.2
     resource_class: large
     environment:
       - RANDOMIZED_RESTRICT_PLATFORMS: centos7
@@ -1392,7 +1392,7 @@ jobs:
   randomized_tests_arm:
     working_directory: ~/datadog
     machine:
-      image: ubuntu-2004:202101-01
+      image: ubuntu-2004:2023.04.2
     resource_class: arm.xlarge
     environment:
       - RANDOMIZED_RESTRICT_PLATFORMS: centos7
@@ -1405,7 +1405,7 @@ jobs:
   randomized_tests_asan:
     working_directory: ~/datadog
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2004:2023.04.2
     resource_class: xlarge
     environment:
       - RANDOMIZED_RESTRICT_PLATFORMS: buster
@@ -1418,7 +1418,7 @@ jobs:
   randomized_tests_arm_asan:
     working_directory: ~/datadog
     machine:
-      image: ubuntu-2004:202101-01
+      image: ubuntu-2004:2023.04.2
     resource_class: arm.xlarge
     environment:
       - RANDOMIZED_RESTRICT_PLATFORMS: buster
