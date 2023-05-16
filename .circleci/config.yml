@@ -399,10 +399,36 @@ commands:
             fi
       - when:
           condition:
-            equal: ["with_snapshots", << parameters.extra >>]
+            or:
+              - equal: ["with_httpbin_and_request_replayer", << parameters.extra >>]
+              - equal: ["with_snapshots", << parameters.extra >>]
           steps:
             - docker_logs:
                 docker_image: test-agent
+            - docker_logs:
+                docker_image: httpbin_integration
+            - docker_logs:
+                docker_image: request-replayer
+      - when:
+          condition:
+            equal: ["with_snapshots", << parameters.extra >>]
+          steps:
+            - docker_logs:
+                docker_image: elasticsearch2_integration
+            - docker_logs:
+                docker_image: elasticsearch7_integration
+            - docker_logs:
+                docker_image: redis_integration
+            - docker_logs:
+                docker_image: memcached_integration
+            - docker_logs:
+                docker_image: mysql_integration
+            - docker_logs:
+                docker_image: rabbitmq_integration
+            - docker_logs:
+                docker_image: mongodb_integration
+            - docker_logs:
+                docker_image: sqlsrv_integration
       - run:
           name: Setup docker image << parameters.docker_image >>
           command: |
@@ -869,8 +895,6 @@ jobs:
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_snapshots
-      - docker_logs:
-          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - when:
