@@ -644,6 +644,7 @@ jobs:
             set -euo pipefail
             make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
             rm -rf tmp/build_extension/tests/opcache/file_cache/* || true
+      - setup_remote_docker
       - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
@@ -772,6 +773,7 @@ jobs:
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
+      - setup_remote_docker
       - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
       - run:
           command: |
@@ -848,6 +850,7 @@ jobs:
             mkdir -p /tmp/artifacts
             find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
           when: on_fail
+      - setup_remote_docker
       - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
       - store_artifacts:
           path: /tmp/artifacts/
@@ -921,6 +924,7 @@ jobs:
             mkdir -p /tmp/artifacts/diffs
             find -type f -name '*.diff' -exec cp --parents '{}' /tmp/artifacts/diffs \;
           when: on_fail
+      - setup_remote_docker
       - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
       - store_test_results:
           path: /tmp/artifacts/tests/
@@ -993,6 +997,7 @@ jobs:
             mkdir -p /tmp/artifacts
             find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
           when: on_fail
+      - setup_remote_docker
       - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
       - store_artifacts:
           path: /tmp/artifacts/
@@ -1055,6 +1060,7 @@ jobs:
                   TESTS="tests/ext/integrations/<< parameters.ext_name >>"
               done
             fi
+      - setup_remote_docker
       - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
@@ -1104,6 +1110,7 @@ jobs:
           name: Run phpt tests against build from source
           command: |
             make test_c
+      - setup_remote_docker
       - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
