@@ -301,6 +301,16 @@ commands:
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
 
+  docker_logs:
+    parameters:
+      docker_image:
+        type: string
+    steps:
+      - run:
+        name: Docker logs for << parameters.docker_image >>
+        command: docker logs -f << parameters.docker_image >>
+        background: true
+
   setup_docker:
     parameters:
       docker_image:
@@ -860,6 +870,8 @@ jobs:
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_snapshots
+      - docker_logs:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - when:
