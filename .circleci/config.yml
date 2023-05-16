@@ -308,7 +308,7 @@ commands:
     steps:
       - run:
           name: Docker logs for << parameters.docker_image >>
-          command: docker logs -f << parameters.docker_image >>
+          command: docker logs << parameters.docker_image >>
           background: true
 
   setup_docker:
