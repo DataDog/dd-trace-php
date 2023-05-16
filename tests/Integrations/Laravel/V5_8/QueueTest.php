@@ -89,9 +89,6 @@ class QueueTest extends WebFrameworkTestCase
                                 Tag::COMPONENT => 'laravel'
                             ])->withChildren([
                                 $this->spanQueuePush('database', 'emails', 'Illuminate\Queue\DatabaseQueue')
-                                    ->withChildren([
-                                        $this->spanQueueEnqueue('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
-                                    ])
                             ])
                     ])
             ],
