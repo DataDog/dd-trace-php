@@ -399,8 +399,7 @@ commands:
             fi
       - when:
           condition:
-            equal: << parameters.extra >>
-            value: with_snapshots
+            equal: ["with_snapshots", << parameters.extra >>]
           steps:
             - docker_logs:
                 docker_image: test-agent
