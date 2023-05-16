@@ -241,7 +241,7 @@ function cmd_config_get(array $options)
  * Set 'datadog.profiling.experimental_allocation_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  * Set 'datadog.profiling.experimental_cpu_time_enabled' to 'On' in INI file: /opt/php/etc/conf.d/98-ddtrace.ini
  */
-function cmd_config_set(array $options): void
+function cmd_config_set(array $options)
 {
     if (!isset($options['d'])) {
         print_help();
@@ -739,7 +739,7 @@ function install($options)
  * @see ini_values
  * @return string[]
  */
-function find_all_ini_files(array $phpProperties): array
+function find_all_ini_files(array $phpProperties)
 {
     $iniFilePaths = [];
 
@@ -798,7 +798,7 @@ function find_all_ini_files(array $phpProperties): array
  * @see ini_values
  * @return string[]
  */
-function find_main_ini_files(array $phpProperties): array
+function find_main_ini_files(array $phpProperties)
 {
     $iniFilePaths = [];
     if (isset($phpProperties[INI_SCANDIR])) {
