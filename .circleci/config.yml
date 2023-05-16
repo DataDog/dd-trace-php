@@ -174,6 +174,23 @@ aliases:
       command: docker logs -f test-agent
       background: true
 
+  - &STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS_VIA_CURL
+    run:
+      name: Send HTTP Request to Test Agent
+      command: |
+        RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://test-agent:9126/test/check_trace/failures)
+        RESPONSE_BODY=$(cat response.txt)
+        RESPONSE_CODE=${RESPONSE_BODY##*$'\n'}
+        if [[ $RESPONSE_CODE -eq 200 ]]; then
+          echo "All Check Traces returned successful! (HTTP 200)"
+        else
+          echo "Check Traces failed with response code: $RESPONSE_CODE"
+          echo "Failures:"
+          cat response.txt
+          exit 1
+        fi
+
+
   # Fix intermittent error: "Could not resolve host: httpbin_integration"
   - &STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
     run:
@@ -644,7 +661,7 @@ jobs:
             set -euo pipefail
             make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
             rm -rf tmp/build_extension/tests/opcache/file_cache/* || true
-      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
+      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS_VIA_CURL
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -772,7 +789,7 @@ jobs:
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
-      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
+      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS_VIA_CURL
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
@@ -848,7 +865,7 @@ jobs:
             mkdir -p /tmp/artifacts
             find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
           when: on_fail
-      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
+      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS_VIA_CURL
       - store_artifacts:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE
@@ -921,7 +938,7 @@ jobs:
             mkdir -p /tmp/artifacts/diffs
             find -type f -name '*.diff' -exec cp --parents '{}' /tmp/artifacts/diffs \;
           when: on_fail
-      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
+      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS_VIA_CURL
       - store_test_results:
           path: /tmp/artifacts/tests/
       - store_artifacts:
@@ -993,7 +1010,7 @@ jobs:
             mkdir -p /tmp/artifacts
             find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
           when: on_fail
-      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
+      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS_VIA_CURL
       - store_artifacts:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE
@@ -1055,7 +1072,7 @@ jobs:
                   TESTS="tests/ext/integrations/<< parameters.ext_name >>"
               done
             fi
-      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
+      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS_VIA_CURL
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -1104,7 +1121,7 @@ jobs:
           name: Run phpt tests against build from source
           command: |
             make test_c
-      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS
+      - <<: *STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS_VIA_CURL
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
