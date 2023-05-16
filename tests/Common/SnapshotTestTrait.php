@@ -72,6 +72,13 @@ trait SnapshotTestTrait
         }
     }
 
+    /**
+     * Wait for a given number of traces to be received by the test agent.
+     *
+     * @param string $token The token associated with the snapshotting session
+     * @param int $numExpectedTraces The number of traces to wait for. Defaults to 0 (won't check for traces)
+     * @return void
+     */
     private function waitForTraces(string $token, int $numExpectedTraces = 0): void
     {
         if ($numExpectedTraces === 0) {
@@ -97,6 +104,15 @@ trait SnapshotTestTrait
         TestCase::fail('Expected ' . $numExpectedTraces . ' traces, got ' . count($traces));
     }
 
+    /**
+     * Stop the snapshotting session associated with a given token and compare the received traces with the expected
+     * ones.
+     *
+     * @param string $token The token associated with the snapshotting session
+     * @param array $fieldsToIgnore An array of fields to ignore when comparing the received traces with the expected
+     * @param int $numExpectedTraces The number of traces to wait for. Defaults to 1
+     * @return void
+     */
     private function stopAndCompareSnapshotSession(
         string $token,
         array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack'],
