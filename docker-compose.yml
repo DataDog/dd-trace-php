@@ -173,7 +173,7 @@ services:
     ports:
         - "127.0.0.1:9126:8126"
     environment:
-        - LOG_LEVEL=WARNING
+        - LOG_LEVEL=DEBUG
         - TRACE_LANGUAGE=php
         - DISABLED_CHECKS=trace_content_length
         - DD_TRACE_AGENT_URL=http://request-replayer:80
