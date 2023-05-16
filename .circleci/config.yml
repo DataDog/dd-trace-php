@@ -308,7 +308,9 @@ commands:
     steps:
       - run:
           name: Docker logs for << parameters.docker_image >>
-          command: docker logs << parameters.docker_image >>
+          command: |
+            docker logs << parameters.docker_image >> # Retrieve previous docker logs
+            docker logs -f << parameters.docker_image >> # Follow next docker logs
           background: true
 
   setup_docker:
