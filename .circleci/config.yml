@@ -310,7 +310,6 @@ commands:
           name: Docker logs for << parameters.docker_image >>
           command: docker logs -f << parameters.docker_image >>
           background: true
-          executor: local
 
   setup_docker:
     parameters:
@@ -328,25 +327,27 @@ commands:
               sudo chown -R docker-circleci .
             fi
       - run:
-          name: Setup docker image << parameters.docker_image >>
+          name: Setup container dependencies
           command: |
             set -x
             max_retries=3
             extra=<< parameters.extra >>
             docker network create net --driver=bridge -o "com.docker.network.bridge.name=br"
+
+            function retry_docker() {
+              retries=$max_retries
+              while
+                ! docker "${@}"
+              do
+                if [[ $((--retries)) -eq 0 ]]; then
+                  exit 1
+                fi
+                sleep 1
+              done
+              true # Success
+            }
+
             if [[ $extra == "with_httpbin_and_request_replayer" || $extra == "with_snapshots" ]]; then
-              function retry_docker() {
-                retries=$max_retries
-                while
-                  ! docker "${@}"
-                do
-                  if [[ $((--retries)) -eq 0 ]]; then
-                    exit 1
-                  fi
-                  sleep 1
-                done
-                true # Success
-              }
               retry_docker run --detach --rm --net net \
                 -e DD_APM_ENABLED=true \
                 -e DD_BIND_HOST=0.0.0.0 \
@@ -368,18 +369,6 @@ commands:
                 --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0
             fi
             if [[ $extra == "with_snapshots" ]]; then
-              function retry_docker() {
-                retries=$max_retries
-                while
-                  ! docker "${@}"
-                do
-                  if [[ $((--retries)) -eq 0 ]]; then
-                    exit 1
-                  fi
-                  sleep 1
-                done
-                true # Success
-              }
               retry_docker run --detach --rm --net net \
                 --name elasticsearch2_integration elasticsearch:2
               retry_docker run --detach --rm --net net \
@@ -408,6 +397,16 @@ commands:
                 -e MSSQL_PID=Developer \
                 --name sqlsrv_integration mcr.microsoft.com/mssql/server:2022-latest
             fi
+      - when:
+          condition:
+            equal: << parameters.extra >>
+            value: with_snapshots
+          steps:
+            - docker_logs:
+                docker_image: test-agent
+      - run:
+          name: Setup docker image << parameters.docker_image >>
+          command: |
             touch /tmp/docker.out
             mkdir /tmp/bashenv
             sudo mkdir /rust
