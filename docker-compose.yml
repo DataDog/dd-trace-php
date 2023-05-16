@@ -169,7 +169,7 @@ services:
       - .:/app
 
   test-agent:
-    image: williamconti549/dd-apm-test-agent:latest
+    image: williamconti549/dd-apm-test-agent:pool-failues
     ports:
         - "127.0.0.1:9126:8126"
     environment:
