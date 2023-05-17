@@ -362,9 +362,10 @@ function cmd_config_set(array $options)
  * to parse the new setting with `parse_ini_string()` to validate it is actually
  * working
  *
+ * @param string $setting
  * @return false|array{0:string, 1:string}
  */
-function parse_ini_setting(string $setting)
+function parse_ini_setting($setting)
 {
     // `trim()` should not be needed, but better safe than sorry
     $setting = array_map(
@@ -397,9 +398,11 @@ function parse_ini_setting(string $setting)
  * setting in the given `$iniFile`.
  *
  * @param array{0: string, 1: string} $setting
+ * @param string $iniFile
+ * @param bool $promoteComment
  * @return false|int
  */
-function update_ini_setting(array $setting, string $iniFile, bool $promoteComment)
+function update_ini_setting($setting, $iniFile, $promoteComment)
 {
     $iniFileContent = file_get_contents($iniFile);
     if ($promoteComment) {
@@ -743,7 +746,7 @@ function find_all_ini_files(array $phpProperties)
 {
     $iniFilePaths = [];
 
-    $addIniFiles = function (string $path) use (&$iniFilePaths) {
+    $addIniFiles = function ($path) use (&$iniFilePaths) {
         if (!is_dir($path)) {
             return;
         }
@@ -1645,13 +1648,20 @@ function add_missing_ini_settings($iniFilePath, $settings)
     }
 }
 
+/**
+ * Maps a given environment variable name to an ini setting. Returns `null` in
+ * case the environment variable does not start with `DD` or is otherwise
+ * invalid.
+ *
+ * @param string $env
+ * @return string|null
+ */
 function map_env_to_ini($env)
 {
     $setting = explode('_', $env, 3);
     if (!isset($setting[0]) || $setting[0] !== 'DD' || !isset($setting[1])) {
         return null;
     }
-
     $ini = 'datadog.';
     switch ($setting[1]) {
         case 'PROFILING':
@@ -1664,18 +1674,13 @@ function map_env_to_ini($env)
             $ini .= strtolower($setting[1]) . '.' . strtolower($setting[2]);
             break;
         default:
-            // for cases like DD_ENV or DD_DOGSTATSD_URL
+            // for cases like DD_ENV or DD_DOGSTATSD_URL, ...
             $ini .= strtolower($setting[1]);
             if (isset($setting[2])) {
                 $ini .= '_' . strtolower($setting[2]);
             }
     }
-    foreach (get_ini_settings('', '', '') as $setting) {
-        if (isset($setting['name']) && $setting['name'] == $ini) {
-            return $setting['name'];
-        }
-    }
-    return null;
+    return $ini;
 }
 
 /**
