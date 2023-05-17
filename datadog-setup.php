@@ -121,7 +121,7 @@ class IniRecord
 
 /**
  * @param array $options
- * @return Iterator<string, IniRecord>
+ * @return array<string, IniRecord>
  */
 function config_list(array $options)
 {
@@ -132,6 +132,8 @@ function config_list(array $options)
 
     // Build an index by unique names for filtering.
     $indexByName = array_column($iniSettings, null, 'name');
+
+    $return = [];
 
     foreach (require_binaries_or_exit($options) as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
@@ -149,10 +151,12 @@ function config_list(array $options)
                 $record->defaultValue = $iniSetting['default'];
                 $record->iniFile = $iniFilePath;
                 $record->binary = $binaryForLog;
-                yield $record->setting => $record;
+                $return[$record->setting] = $record;
             }
         }
     }
+
+    return $return;
 }
 
 /**
@@ -362,9 +366,10 @@ function cmd_config_set(array $options)
  * to parse the new setting with `parse_ini_string()` to validate it is actually
  * working
  *
+ * @param string $setting
  * @return false|array{0:string, 1:string}
  */
-function parse_ini_setting(string $setting)
+function parse_ini_setting($setting)
 {
     // `trim()` should not be needed, but better safe than sorry
     $setting = array_map(
@@ -397,9 +402,11 @@ function parse_ini_setting(string $setting)
  * setting in the given `$iniFile`.
  *
  * @param array{0: string, 1: string} $setting
+ * @param string $iniFile
+ * @param bool $promoteComment
  * @return false|int
  */
-function update_ini_setting(array $setting, string $iniFile, bool $promoteComment)
+function update_ini_setting($setting, $iniFile, $promoteComment)
 {
     $iniFileContent = file_get_contents($iniFile);
     if ($promoteComment) {
@@ -743,7 +750,7 @@ function find_all_ini_files(array $phpProperties)
 {
     $iniFilePaths = [];
 
-    $addIniFiles = function (string $path) use (&$iniFilePaths) {
+    $addIniFiles = function ($path) use (&$iniFilePaths) {
         if (!is_dir($path)) {
             return;
         }
@@ -1144,19 +1151,34 @@ function parse_cli_arguments(array $argv = null)
                 $value = substr($token, 2);
             }
         } else {
-            if (count($arguments['opts'])) {
-                // php datadog-setup.php --php-bin=all php6
-                // The "php6" is a problem
-                echo "Parse error at token '$token'", PHP_EOL;
-                return false;
-            }
-            // parse command
-            if ($arguments['cmd'] === null) {
-                $arguments['cmd'] = $token;
+            if (substr($token, 0, 2) === 'DD') {
+                // we do support using environment variables as well, all those
+                // start with DD_, so we make sure to check this and then map
+                // to an INI setting. Example
+                // php datadog-setup.php config set --php-bin all DD_ENV=prod
+                $key = 'd';
+                list($env, $value) = explode('=', $token, 2);
+                $ini = map_env_to_ini($env);
+                if ($ini === null) {
+                    echo "Parse error at token '$token', environment variable not recognized.", PHP_EOL;
+                    return false;
+                }
+                $value = $ini . '=' . $value;
             } else {
-                $arguments['cmd'] .= ' ' . $token;
+                if (count($arguments['opts'])) {
+                    // php datadog-setup.php --php-bin=all php6
+                    // The "php6" is a problem
+                    echo "Parse error at token '$token'", PHP_EOL;
+                    return false;
+                }
+                // parse command
+                if ($arguments['cmd'] === null) {
+                    $arguments['cmd'] = $token;
+                } else {
+                    $arguments['cmd'] .= ' ' . $token;
+                }
+                continue;
             }
-            continue;
         }
 
         if (!isset($arguments['opts'][$key])) {
@@ -1631,6 +1653,41 @@ function add_missing_ini_settings($iniFilePath, $settings)
 }
 
 /**
+ * Maps a given environment variable name to an ini setting. Returns `null` in
+ * case the environment variable does not start with `DD` or is otherwise
+ * invalid.
+ *
+ * @param string $env
+ * @return string|null
+ */
+function map_env_to_ini($env)
+{
+    $setting = explode('_', $env, 3);
+    if (!isset($setting[0]) || $setting[0] !== 'DD' || !isset($setting[1])) {
+        return null;
+    }
+    $ini = 'datadog.';
+    switch ($setting[1]) {
+        case 'PROFILING':
+        case 'TRACE':
+        case 'APPSEC':
+            if (!isset($setting[2])) {
+                // this would mean $env was DD_TRACE or DD_PROFILING or DD_APPSEC
+                return null;
+            }
+            $ini .= strtolower($setting[1]) . '.' . strtolower($setting[2]);
+            break;
+        default:
+            // for cases like DD_ENV or DD_DOGSTATSD_URL, ...
+            $ini .= strtolower($setting[1]);
+            if (isset($setting[2])) {
+                $ini .= '_' . strtolower($setting[2]);
+            }
+    }
+    return $ini;
+}
+
+/**
  * Returns array of associative arrays with the following keys:
  *   - name (string): the setting name;
  *   - default (string): the default value;
@@ -2080,3 +2137,22 @@ function get_supported_php_versions()
 }
 
 main();
+
+// polyfill for PHP 5.4 where the `array_column()` function did not exist,
+// remove whenever we drop support for PHP 5.4
+if (!function_exists('array_column')) {
+    function array_column(array $input, $columnKey, $indexKey = null)
+    {
+        $result = array();
+        foreach ($input as $subArray) {
+            if (!is_array($subArray)) {
+                continue;
+            } elseif (is_null($indexKey)) {
+                $result[] = $subArray[$columnKey];
+            } else {
+                $result[$subArray[$indexKey]] = $subArray[$columnKey];
+            }
+        }
+        return $result;
+    }
+}
