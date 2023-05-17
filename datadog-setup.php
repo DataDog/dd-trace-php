@@ -120,8 +120,6 @@ class IniRecord
 }
 
 /**
- * TODO: refactor to a generator when we drop PHP 5.4 support
- *
  * @param array $options
  * @return array<string, IniRecord>
  */
@@ -2143,7 +2141,8 @@ main();
 // polyfill for PHP 5.4 where the `array_column()` function did not exist,
 // remove whenever we drop support for PHP 5.4
 if (!function_exists('array_column')) {
-    function array_column(array $input, $columnKey, $indexKey = null) {
+    function array_column(array $input, $columnKey, $indexKey = null)
+    {
         $result = array();
         foreach ($input as $subArray) {
             if (!is_array($subArray)) {
