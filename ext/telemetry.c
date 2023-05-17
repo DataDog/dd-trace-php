@@ -15,6 +15,7 @@ static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
 
 static ddog_TelemetryTransport *dd_sidecar;
 static struct ddog_InstanceId *dd_telemetry_instance_id;
+static uint8_t dd_telemetry_formatted_session_id[36];
 zend_long dd_composer_hook_id;
 
 static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
@@ -27,6 +28,14 @@ static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute
     return true;
 }
 
+static void ddtrace_set_telemetry_globals(void) {
+    uint8_t formatted_run_time_id[36];
+    ddtrace_format_runtime_id(&formatted_run_time_id);
+    ddog_CharSlice runtime_id = (ddog_CharSlice) {.ptr = (char *) formatted_run_time_id, .len = sizeof(formatted_run_time_id)};
+    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_telemetry_formatted_session_id, .len = sizeof(dd_telemetry_formatted_session_id)};
+    dd_telemetry_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
+}
+
 void ddtrace_telemetry_setup(void) {
     ddog_Option_VecU8 sidecar_error = ddog_sidecar_connect_php(&dd_sidecar);
     if (sidecar_error.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
@@ -35,12 +44,12 @@ void ddtrace_telemetry_setup(void) {
         return;
     }
 
-    uint8_t formatted_run_time_id[36];
-    ddtrace_format_runtime_id(&formatted_run_time_id);
-    ddog_CharSlice runtime_id = (ddog_CharSlice){ .ptr = (char *)formatted_run_time_id, .len = sizeof(formatted_run_time_id) };
-    dd_telemetry_instance_id = ddog_sidecar_instanceId_build(runtime_id, runtime_id);
+    ddtrace_format_runtime_id(&dd_telemetry_formatted_session_id);
+    ddtrace_set_telemetry_globals();
+
     char *agent_url = ddtrace_agent_url();
-    ddog_sidecar_session_config_setAgentUrl(&dd_sidecar, runtime_id, (ddog_CharSlice){ .ptr = agent_url, .len = strlen(agent_url) });
+    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_telemetry_formatted_session_id, .len = sizeof(dd_telemetry_formatted_session_id)};
+    ddog_sidecar_session_config_setAgentUrl(&dd_sidecar, session_id, (ddog_CharSlice){ .ptr = agent_url, .len = strlen(agent_url) });
     free(agent_url);
 
     dd_composer_hook_id = zai_hook_install(ZAI_STRING_EMPTY, ZAI_STRING_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
@@ -103,5 +112,12 @@ void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
         ddog_CharSlice integration = (ddog_CharSlice) {.len = name_len, .ptr = name};
         ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration,
                                               DDOG_CHARSLICE_C("0"), true);
+    }
+}
+
+void ddtrace_reset_telemetry_globals(void) {
+    if (dd_telemetry_instance_id) {
+        ddog_sidecar_instanceId_drop(dd_telemetry_instance_id);
+        ddtrace_set_telemetry_globals();
     }
 }

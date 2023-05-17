@@ -8,6 +8,7 @@
 #include "span.h"
 #include "configuration.h"
 #include "random.h"
+#include "telemetry.h"
 #include "handlers_internal.h"  // For 'ddtrace_replace_internal_function'
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -27,6 +28,7 @@ static void dd_handle_fork(zval *return_value) {
         ddtrace_coms_curl_shutdown();
         ddtrace_seed_prng();
         ddtrace_generate_runtime_id();
+        ddtrace_reset_telemetry_globals();
         if (!get_DD_TRACE_FORKED_PROCESS()) {
             ddtrace_disable_tracing_in_current_request();
         }

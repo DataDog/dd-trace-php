@@ -655,6 +655,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_set_coredumpfilter();
+    ddtrace_generate_runtime_id();
 
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
