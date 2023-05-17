@@ -1969,7 +1969,7 @@ jobs:
         type: string
       resource_class:
         type: string
-        default: xlarge # mostly for more RAM for ramdisk
+        default: large # mostly for more RAM for ramdisk
     <<: *BARE_DOCKER_MACHINE
     environment:
       - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
@@ -2013,7 +2013,7 @@ jobs:
         type: string
       resource_class:
         type: string
-        default: xlarge # mostly for more RAM for ramdisk
+        default: large # mostly for more RAM for ramdisk
     <<: *BARE_DOCKER_MACHINE
     environment:
       - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
