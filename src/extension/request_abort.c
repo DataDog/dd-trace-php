@@ -64,7 +64,7 @@ static THREAD_LOCAL_ON_ZTS int _redirection_response_code =
     DEFAULT_REDIRECTION_RESPONSE_CODE;
 static THREAD_LOCAL_ON_ZTS zend_string *_redirection_location = NULL;
 
-static void _abort_prelude(void);
+static bool _abort_prelude(void);
 void _request_abort_static_page(int response_code, int type);
 ATTR_FORMAT(1, 2)
 static void _emit_error(const char *format, ...);
@@ -192,7 +192,11 @@ void dd_request_abort_redirect()
             DEFAULT_BLOCKING_RESPONSE_CODE, DEFAULT_RESPONSE_TYPE);
         return;
     }
-    _abort_prelude();
+
+    if (!_abort_prelude()) {
+        return;
+    }
+
     char *line;
     uint line_len = (uint)spprintf(
         &line, 0, "Location: %s", ZSTR_VAL(_redirection_location));
@@ -213,14 +217,23 @@ void dd_request_abort_redirect()
         mlog(dd_log_warning, "Call to sapi_flush() failed");
     }
 
-    _emit_error("Datadog blocked the request and attempted a redirection to %s",
-        ZSTR_VAL(_redirection_location));
+    if (DDAPPSEC_G(during_request_shutdown)) {
+        mlog(dd_log_info,
+            "Datadog blocked the request and attempted a redirection to %s",
+            ZSTR_VAL(_redirection_location));
+    } else {
+        _emit_error(
+            "Datadog blocked the request and attempted a redirection to %s",
+            ZSTR_VAL(_redirection_location));
+    }
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void _request_abort_static_page(int response_code, int type)
 {
-    _abort_prelude();
+    if (!_abort_prelude()) {
+        return;
+    }
 
     SG(sapi_headers).http_response_code = response_code;
 
@@ -251,8 +264,13 @@ void _request_abort_static_page(int response_code, int type)
         mlog(dd_log_info, "call to sapi_flush() failed");
     }
 
-    _emit_error(
-        "Datadog blocked the request and presented a static error page");
+    if (DDAPPSEC_G(during_request_shutdown)) {
+        mlog(dd_log_info,
+            "Datadog blocked the request and presented a static error page");
+    } else {
+        _emit_error(
+            "Datadog blocked the request and presented a static error page");
+    }
 }
 
 void dd_request_abort_static_page()
@@ -261,7 +279,7 @@ void dd_request_abort_static_page()
 }
 
 static void _force_destroy_output_handlers(void);
-static void _abort_prelude()
+static bool _abort_prelude()
 {
     if (OG(running)) {
         /* we were told to block from inside an output handler. In this case,
@@ -273,9 +291,16 @@ static void _abort_prelude()
     if (SG(headers_sent)) {
         mlog(dd_log_info, "Headers already sent; response code was %d",
             SG(sapi_headers).http_response_code);
-        _emit_error("Datadog blocked the request, but the response has already "
-                    "been partially committed");
-        return;
+        if (DDAPPSEC_G(during_request_shutdown)) {
+            mlog(dd_log_info,
+                "Datadog blocked the request, but the response has already "
+                "been partially committed");
+        } else {
+            _emit_error(
+                "Datadog blocked the request, but the response has already "
+                "been partially committed");
+        }
+        return false;
     }
 
     int res = sapi_header_op(SAPI_HEADER_DELETE_ALL, NULL);
@@ -287,7 +312,9 @@ static void _abort_prelude()
 
     mlog_g(dd_log_debug, "Discarding output buffers");
     php_output_discard_all();
+    return true;
 }
+
 static void _force_destroy_output_handlers()
 {
     OG(active) = NULL;
@@ -308,12 +335,6 @@ static void _suppress_error_reporting(void);
 ATTR_FORMAT(1, 2)
 static void _emit_error(const char *format, ...)
 {
-    if (DDAPPSEC_G(during_request_shutdown)) {
-        // Avoid emitting errors during request shutdown, this can cause other
-        // extensions with zend error handlers to misbehave
-        return;
-    }
-
     va_list args;
 
     va_start(args, format);
