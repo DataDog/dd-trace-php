@@ -1,5 +1,9 @@
 # Datadog AppSec for PHP Release
 
+### v0.8.1
+#### Fixes
+- ([#261](https://github.com/DataDog/dd-appsec-php/pull/261)) Avoid emitting errors when blocking on RSHUTDOWN
+
 ### v0.8.0
 #### Fixes
 - ([#230](https://github.com/DataDog/dd-appsec-php/pull/230)) Amend issue when getting agent host and port
