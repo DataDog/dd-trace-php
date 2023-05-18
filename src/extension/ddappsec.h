@@ -29,6 +29,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddappsec)
     //Defines enablement status computed taking into account enabled_by_configuration and remote config
     enabled_configuration enabled;
     bool skip_rshutdown;
+    bool during_request_shutdown;
 ZEND_END_MODULE_GLOBALS(ddappsec)
 // clang-format on
 

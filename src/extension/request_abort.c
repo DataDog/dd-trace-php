@@ -308,6 +308,12 @@ static void _suppress_error_reporting(void);
 ATTR_FORMAT(1, 2)
 static void _emit_error(const char *format, ...)
 {
+    if (DDAPPSEC_G(during_request_shutdown)) {
+        // Avoid emitting errors during request shutdown, this can cause other
+        // extensions with zend error handlers to misbehave
+        return;
+    }
+
     va_list args;
 
     va_start(args, format);

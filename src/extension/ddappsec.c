@@ -241,6 +241,9 @@ static void _rinit_once()
 
 static PHP_RINIT_FUNCTION(ddappsec)
 {
+    // Safety precaution
+    DDAPPSEC_G(during_request_shutdown) = false;
+
     pthread_once(&_rinit_once_control, _rinit_once);
     zai_config_rinit();
 
@@ -330,6 +333,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddappsec)
     UNUSED(type);
     UNUSED(module_number);
 
+    DDAPPSEC_G(during_request_shutdown) = true;
+
     ZEND_RESULT_CODE result = SUCCESS;
 
     // Here now we have to disconnect from the helper in all the cases but when
@@ -351,6 +356,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddappsec)
 
 exit:
     dd_ip_extraction_rshutdown();
+    DDAPPSEC_G(during_request_shutdown) = false;
     return result;
 }
 
@@ -484,9 +490,10 @@ static PHP_FUNCTION(datadog_appsec_testing_rshutdown)
     if (zend_parse_parameters_none() == FAILURE) {
         RETURN_FALSE;
     }
-
+    DDAPPSEC_G(during_request_shutdown) = true;
     mlog(dd_log_debug, "Running rshutdown actions");
     int res = dd_appsec_rshutdown(false);
+    DDAPPSEC_G(during_request_shutdown) = false;
     if (res == 0) {
         RETURN_TRUE;
     } else {
