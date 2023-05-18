@@ -2,7 +2,10 @@
 
 ### v0.8.1
 #### Fixes
+- ([#256](https://github.com/DataDog/dd-appsec-php/pull/256)) Remove max payload size on remote config calls
+- ([#259](https://github.com/DataDog/dd-appsec-php/pull/259)) Improve output of phpinfo
 - ([#261](https://github.com/DataDog/dd-appsec-php/pull/261)) Avoid emitting errors when blocking on RSHUTDOWN
+- ([#264](https://github.com/DataDog/dd-appsec-php/pull/264)) Improve RSHUTDOWN blocking and add logging
 
 ### v0.8.0
 #### Fixes
