@@ -62,9 +62,12 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
+## Application Security Management (0.8.1)
 ### Fixed
-- Fix opline being replaced by ZEND_HANDLE_EXCEPTION in uncaught finally on PHP 7 #2052
-- Won't set 4xx errors on Laravel root span every time an Exception is caught #2053
+- Remove max payload size on remote config calls DataDog/dd-appsec-php#256
+- Improve output of phpinfo DataDog/dd-appsec-php#259
+- Avoid emitting errors when blocking on RSHUTDOWN DataDog/dd-appsec-php#261
+- Improve RSHUTDOWN blocking and add logging DataDog/dd-appsec-php#264
 ]]></notes>
     <contents>
         <dir name="/">
