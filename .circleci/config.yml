@@ -528,6 +528,8 @@ jobs:
           command: |
             docker run --rm -v "$HOME/datadog:/src" -i php:5.4-cli bash \<<'CMD'
               set -eu
+              cd /src
+              php -l datadog-setup.php
               cd /src/bridge
               for file in *.php; do
                 if [ "$file" != "_generated_integrations.php" ]; then
@@ -1668,6 +1670,7 @@ jobs:
               echo 'cmake << parameters.cmake_version >> already installed'
               exit 0
             fi
+
             if [ -e /etc/alpine-release ]
             then
               # We build from source on Alpine (slow)
@@ -2118,7 +2121,7 @@ jobs:
         type: string
       resource_class:
         type: string
-        default: xlarge # mostly for more RAM for ramdisk
+        default: large # mostly for more RAM for ramdisk
     <<: *BARE_DOCKER_MACHINE
     environment:
       - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
@@ -2162,7 +2165,7 @@ jobs:
         type: string
       resource_class:
         type: string
-        default: xlarge # mostly for more RAM for ramdisk
+        default: large # mostly for more RAM for ramdisk
     <<: *BARE_DOCKER_MACHINE
     environment:
       - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
@@ -2468,10 +2471,9 @@ workflows:
                 - "datadog/dd-trace-ci:alpine"
                 - "datadog/dd-trace-ci:buster"
               cmake_version:
-                - "3.19.8"
-                - "3.21.4"
+                - "3.24.4"
               catch2_version:
-                - "2.13.7"
+                - "2.13.10"
 
   zend_abstract_interface:
     jobs:
@@ -2493,10 +2495,9 @@ workflows:
                 - "8.1"
                 - "8.2"
               cmake_version:
-                - "3.19.7"
-                - "3.20.1"
+                - "3.24.4"
               catch2_version:
-                - "2.13.5"
+                - "2.13.10"
 
   zend_abstract_interface_shared_exts:
     jobs:

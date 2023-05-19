@@ -37,6 +37,49 @@ class QueueTest extends WebFrameworkTestCase
         $this->resetQueue();
     }
 
+    protected static function flattenArray($arr)
+    {
+        $retArr = [];
+        foreach ($arr as $val) {
+            if (isset($val[0]['trace_id'])) {
+                $retArr[] = [$val];
+            } else {
+                $retArr = array_merge($retArr, self::flattenArray($val));
+            }
+        }
+        return $retArr;
+    }
+
+    // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
+    protected static function largeBaseConvert($numString, $fromBase, $toBase)
+    {
+        $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+        $toString = substr($chars, 0, $toBase);
+
+        $length = strlen($numString);
+        $result = '';
+        for ($i = 0; $i < $length; $i++) {
+            $number[$i] = strpos($chars, $numString[$i]);
+        }
+        do {
+            $divide = 0;
+            $newLen = 0;
+            for ($i = 0; $i < $length; $i++) {
+                $divide = $divide * $fromBase + $number[$i];
+                if ($divide >= $toBase) {
+                    $number[$newLen++] = (int)($divide / $toBase);
+                    $divide = $divide % $toBase;
+                } elseif ($newLen > 0) {
+                    $number[$newLen++] = 0;
+                }
+            }
+            $length = $newLen;
+            $result = $toString[$divide] . $result;
+        } while ($newLen != 0);
+
+        return $result;
+    }
+
     public function testSimplePushAndProcess()
     {
         $createTraces = $this->tracesFromWebRequest(function () {
@@ -45,11 +88,12 @@ class QueueTest extends WebFrameworkTestCase
             sleep(3);
         });
 
-        $workTraces = $this->tracesFromWebRequest(function () {
+        $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
-            sleep(3);
+            sleep(4);
         });
+        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertFlameGraph(
             $createTraces,
@@ -96,8 +140,9 @@ class QueueTest extends WebFrameworkTestCase
         $processSpanFromArtisanTrace = array_values($processSpanFromArtisanTrace)[0];
 
         $spanLinks = $processSpanFromArtisanTrace['meta']['_dd.span_links'];
-        $spanLinksTraceId = hexdec(json_decode($spanLinks, true)[0]['trace_id']);
-        $spanLinksSpanId = hexdec(json_decode($spanLinks, true)[0]['span_id']);
+        $spanLinks = json_decode($spanLinks, true)[0];
+        $spanLinksTraceId = ltrim($spanLinks['trace_id'], '0');
+        $spanLinksSpanId = ltrim($spanLinks['span_id'], '0');
 
         $processSpanFromProcessTrace = array_filter($processTrace1[0], function ($span) {
             return $span['name'] === 'laravel.queue.process';
@@ -107,8 +152,11 @@ class QueueTest extends WebFrameworkTestCase
         $processSpanId = $processSpanFromProcessTrace['span_id'];
         $processParentId = $processSpanFromProcessTrace['parent_id'];
 
-        $this->assertTrue($spanLinksTraceId == $processTraceId);
-        $this->assertTrue($spanLinksSpanId == $processSpanId);
+        $hexProcessTraceId = self::largeBaseConvert($processTraceId, 10, 16);
+        $hexProcessSpanId = self::largeBaseConvert($processSpanId, 10, 16);
+
+        $this->assertTrue($spanLinksTraceId == $hexProcessTraceId);
+        $this->assertTrue($spanLinksSpanId == $hexProcessSpanId);
 
         $pushSpanFromCreateTrace = array_filter($createTraces[0], function ($span) {
             return $span['name'] === 'laravel.queue.push';
@@ -127,11 +175,12 @@ class QueueTest extends WebFrameworkTestCase
             sleep(3);
         });
 
-        $workTraces = $this->tracesFromWebRequest(function () {
+        $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
-            sleep(3);
+            sleep(4);
         });
+        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertFlameGraph(
             $createTraces,
@@ -202,16 +251,21 @@ class QueueTest extends WebFrameworkTestCase
             sleep(3);
         });
 
-        $workTraces = $this->tracesFromWebRequest(function () {
+        $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work batch', '/queue/workOn');
             $this->call($spec);
-            sleep(3);
+            sleep(7);
         });
+        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
-        $processTrace1 = [$workTraces[0][0]];
-        $processTrace2 = [$workTraces[0][1]];
-        $artisanTrace = $workTraces[1];
+        $workTraces = self::flattenArray($workTraces);
+        usort($workTraces, function ($a, $b) {
+            return $a[0][0]['start'] - $b[0][0]['start'];
+        });
+        $artisanTrace = $workTraces[0];
+        $processTrace1 = $workTraces[1];
+        $processTrace2 = $workTraces[2];
 
         $this->assertFlameGraph($processTrace1, [
             $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true)

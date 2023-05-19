@@ -69,8 +69,6 @@
         <exclude-pattern>*.stub.php</exclude-pattern>
     </rule>
 
-    <!-- PHP compatibility checks -->
-    <config name="testVersion" value="5.4-7.3"/>
     <exclude-pattern>*/node_modules/*</exclude-pattern>
     <exclude-pattern>*/tests/stubs/*</exclude-pattern>
     <exclude-pattern>*/vendor/*</exclude-pattern>
