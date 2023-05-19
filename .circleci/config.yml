@@ -2008,7 +2008,7 @@ jobs:
           name: Save Cargo Build Cache
           key: profiling-cargo-build-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
           paths:
-            - ${CARGO_TARGET_DIR}
+            - /mnt/ramdisk/cargo
 
   "profiling tests":
     working_directory: ~/datadog
