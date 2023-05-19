@@ -1,4 +1,5 @@
 version: "2.1"
+setup: true
 orbs:
   codecov: codecov/codecov@3.2.2
   path-filtering: circleci/path-filtering@0.1.5
