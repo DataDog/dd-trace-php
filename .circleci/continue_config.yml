@@ -1,5 +1,4 @@
 version: 2.1
-setup: true
 orbs:
   codecov: codecov/codecov@3.2.2
 
