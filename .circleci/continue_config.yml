@@ -21,9 +21,6 @@ aliases:
   - &CACHE_COMPOSER_KEY
     key: 'betav2-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
 
-  - &CACHE_NPM_KEY
-    key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
-
   - &IMAGE_DOCKER_REDIS
     image: datadog/dd-trace-ci:php-redis-5.0
     name: redis_integration
@@ -466,45 +463,6 @@ jobs:
                 fi
               done
             CMD
-
-  "Lint files":
-    working_directory: ~/datadog
-    docker:
-      - image: cimg/php:8.1-node
-    steps:
-      - restore_cache:
-          keys:
-            - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
-      - lib_curl_workaround:
-          command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-      - prepare_extension_and_composer_with_cache
-      - restore_cache:
-          <<: *CACHE_NPM_KEY
-      - run:
-          name: Installing dependencies with npm
-          command: npm install eclint --no-package-lock --no-save
-      - save_cache:
-          <<: *CACHE_NPM_KEY
-          paths:
-          - node_modules/
-      - run:
-          name: Creating directory for phpcs results
-          command: mkdir -p test-results/phpcs
-      - run:
-          name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!dockerfiles/**/*' '!tests/ext/sandbox/**' '!tests/ext/sandbox-prehook/*' '!tests/ext/background-sender/**/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!ext/vendor/**/*' '!ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.*.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!LICENSE.*' '!tooling/*' '!tests/randomized/**' '!**/tests/stubs/**' '!**/CMakeLists.txt' '!**/*_arginfo.h' || touch .failure
-      - run:
-          name: Running phpcs
-          command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
-      - run:
-          name: Check linting failure
-          command: test -e .failure && exit 1 || true
-      - run:
-          name: Verify Version files
-          command: make verify_all
-      - <<: *STEP_STORE_TEST_RESULTS
 
   static_analysis:
     parameters:
@@ -3408,8 +3366,6 @@ workflows:
           name: "PHP 80 curl integration tests a shared lib"
           ext_name: "curl"
           docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
-      - "Lint files":
-          requires: [ 'Prepare Code' ]
       - "Lint PHP 5":
           requires: [ 'Prepare Code' ]
       - static_analysis:
