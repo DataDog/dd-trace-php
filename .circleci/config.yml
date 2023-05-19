@@ -1979,6 +1979,10 @@ jobs:
       - <<: *STEP_CHECKOUT
       - setup_docker:
           docker_image: << parameters.docker_image >>
+      - run:
+          name: Fix ramdisk permissions
+          command: |
+            sudo chmod -R a+w /mnt/ramdisk
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
@@ -2038,13 +2042,17 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: << parameters.docker_image >>
+      - run:
+          name: Fix ramdisk permissions
+          command: |
+            sudo chmod -R a+w /mnt/ramdisk
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
             - profiling-cargo-cache-<< parameters.triplet >>-
       - restore_cache:
-          name: Restore Cargo Build Cache
+          name: Restore Cargo Cache
           keys:
             - profiling-cargo-build-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
             - profiling-cargo-build-cache-<< parameters.triplet >>-
