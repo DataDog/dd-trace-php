@@ -1983,6 +1983,7 @@ jobs:
           name: Restore Cargo Package Cache
           keys:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+            - profiling-cargo-build-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
       - <<: *STEP_APPEND_BUILD_ID
       - run:
           name: Build Profiler
@@ -2003,6 +2004,11 @@ jobs:
           root: .
           paths:
             - datadog-profiling
+      - save_cache:
+          name: Save Cargo Build Cache
+          key: profiling-cargo-build-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+          paths:
+            - ${CARGO_TARGET_DIR}
 
   "profiling tests":
     working_directory: ~/datadog
