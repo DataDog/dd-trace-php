@@ -6,6 +6,10 @@ services:
     image: datadog/dd-trace-ci:alpine
     build:
       context: .
+      x-bake: &bake
+        platforms:
+          - linux/arm64
+          - linux/amd64
 
   php-8.0:
     image: datadog/dd-trace-ci:php-8.0_alpine
