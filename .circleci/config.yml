@@ -1982,7 +1982,7 @@ jobs:
       - run:
           name: Fix ramdisk permissions
           command: |
-            sudo chmod -R a+w /mnt/ramdisk
+            chmod -R a+w /mnt/ramdisk
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
@@ -2045,7 +2045,7 @@ jobs:
       - run:
           name: Fix ramdisk permissions
           command: |
-            sudo chmod -R a+w /mnt/ramdisk
+            chmod -R a+w /mnt/ramdisk
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
