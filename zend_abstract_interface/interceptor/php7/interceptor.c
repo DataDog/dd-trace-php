@@ -392,7 +392,9 @@ static int zai_interceptor_fast_ret_handler(zend_execute_data *execute_data) {
                     zval retval;
                     ZVAL_NULL(&retval);
                     EG(exception) = Z_OBJ_P(fast_call);
+                    const zend_op *opline = EX(opline); // due to us lying about an exception existing, the sandbox will modify the opline
                     zai_hook_finish(execute_data, &retval, &frame_memory->hook_data);
+                    EX(opline) = opline; // restore it
                     EG(exception) = NULL;
                 }
                 zai_hook_memory_table_del(execute_data);

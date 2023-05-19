@@ -147,6 +147,17 @@ final class PHPInstallerTest extends BaseTestCase
     {
         return [
             [
+                'datadog-setup.php config set DD_PROFILING_ENABLED=1 -ddatadog.profiling.log_level=trace',
+                [
+                    'cmd' => 'config set',
+                    'opts' => [
+                        'd' => [
+                            'datadog.profiling.enabled=1',
+                            'datadog.profiling.log_level=trace'
+                        ]
+                    ]
+                ]
+            ], [
                 'datadog-setup.php config set -d datadog.profiling.enabled=1 -ddatadog.profiling.log_level=trace',
                 [
                     'cmd' => 'config set',

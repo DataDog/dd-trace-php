@@ -62,86 +62,9 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-### Added
-- Add config mode to datadog-setup.php #1951
-- Add file hooking to DDTrace\install_hook #1989
-- Allow DDTrace\install_hook to take any callable #1991
-- Add Laminas integration #1990
-- Add php-amqp integration #1996
-- Add Laravel Queue integration with Span Links #2026
-- Add SQLSRV Integration #2031
-- Implement replacing of return values #2018
-
-### Changed
-- Allow for consuming an array via DDTrace\consume_distributed_tracing_headers #2010
-- Allow DDTrace\install_hook to take any callable #1991
-- Do not force cycle collection at runtime on flush by default #2046
-
 ### Fixed
-- Add fixes for parametric testsuite #1988
-- Fix exceptions and errors in auto_prepend_file #1987
-- [Yii] Do not use module property if it doesn't exist #1999
-- Load API files relative to the ComposerBootstrap.php instead of the ddtrace autoloader #2013
-- Avoid side effects from errors within the sandbox #2015
-- Prevent execution of install_hook() hooks after disabling tracer #2016
-- Fix install_hook on functions returning by-reference #2017
-- Fix #2012: Remove PHP 7-only types from signatures #2021 Thanks, @jmakuc, for reporting the issue.
-- Ensure internal server errors are set on the root span in Laravel #2026
-- Starting multiple traces in parallel does not confuse the limiter #2026
-- Fix #2030: Segmentation fault with autoloaders bailing out #2037 Thanks, @NickStallman, for reporting the issue.
-- Possible segfault when instrumenting `curl_setopt()` in PHP 7 #2039
-- Fix resolving hooks within files declaring many functions on PHP 7.2 - 8.1 #2045
-
-### Internal changes
-- Increase the number of configuration entries in zai config #2020
-- Reduce the allocated heap size of the elasticsearch7 container #2040
-
-## Profiling
-
-The profiling version number is now in sync with the tracer for stable releases.
-
-
-### Changed
-- Sync profiling version number with tracer #1992
-- refactor: move upscaling to `libdatadog` #1984
-- perf: raise sampling distance for allocations to 2048 KB #2036
-
-### Fixed
-- Fix crashes when allocation sampling occurs in certain places #2039
-
-### Internal changes
-- add test to ensure we do not crash with fibers #2003
-- add stack walking test #2034
-
-## Application Security Management (0.8.0)
-### Fixed
-- Amend issue when getting agent host and port DataDog/dd-appsec-php#230
-- Flush socket on body limit DataDog/dd-appsec-php#233
-- Set appsec disabled when ddtrace is not enabled DataDog/dd-appsec-php#245
-- Cap retry to five minutes rc polling DataDog/dd-appsec-php#246
-- Avoid updating waf when no updates provided on poll DataDog/dd-appsec-php#250
-
-### Added
-- Custom rules support DataDog/dd-appsec-php#235
-- Engine update batcher DataDog/dd-appsec-php#248
-
-### Changed
-- Refactor capabilities DataDog/dd-appsec-php#227
-- Refactor service DataDog/dd-appsec-php#229
-- Update ip algorithm DataDog/dd-appsec-php#237
-- Handle request-lifecycle atomically DataDog/dd-appsec-php#249
-- Update-only engine listener and atomic config handling  DataDog/dd-appsec-php#253
-
-### Internal Changes
-- Upgrade tracer to 0.85.0 DataDog/dd-appsec-php#226
-- Setup python 3.9 for system tests DataDog/dd-appsec-php#228
-- Update WAF to 1.9.0, Ruleset to 1.6.0 and Tracer to 0.86.1 DataDog/dd-appsec-php#234
-- Disable apache2 restart test on ZTS DataDog/dd-appsec-php#236
-- Implement abstract methods of listener on test DataDog/dd-appsec-php#239
-- Add test to ensure path parser does not count on /config ending DataDog/dd-appsec-php#240
-- Update ruleset to 1.7.0 DataDog/dd-appsec-php#252
-- Update html blocked template DataDog/dd-appsec-php#254
-- Upgrade WAF to 1.10.0 and add custom_rules capability DataDog/dd-appsec-php#255
+- Fix opline being replaced by ZEND_HANDLE_EXCEPTION in uncaught finally on PHP 7 #2052
+- Won't set 4xx errors on Laravel root span every time an Exception is caught #2053
 ]]></notes>
     <contents>
         <dir name="/">
