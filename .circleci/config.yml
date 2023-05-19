@@ -2037,6 +2037,7 @@ jobs:
           name: Restore Cargo Package Cache
           keys:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+            - profiling-cargo-build-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
       - run:
           name: cargo tests
           command: |
