@@ -5,7 +5,7 @@ orbs:
 parameters:
   build:
     type: boolean
-    default: false
+    default: true
   components-c:
     type: boolean
     default: false
