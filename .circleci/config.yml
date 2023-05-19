@@ -10,10 +10,13 @@ workflows:
   setup-components:
     jobs:
       - path-filtering/filter:
-          base-revision: main
+          base-revision: master
           config-path: .circleci/continue_config.yml
-          # <path regular expression> <pipeline parameter> <value>
+          # <path regular expression> <pipeline parameter>  <value>
           mapping: |
             components/.*  components-c  true
-            zend_abstract_interface/.*  zend_abstract_interface  true
-            .* build true
+            zend_abstract_interface/.*  zend_abstract_interface true
+            zend_abstract_interface/.*  profiling true
+            profiling/.*  profiling true
+            ext/handlers_api.[ch] profiling true
+            .*  build true
