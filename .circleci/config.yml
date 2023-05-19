@@ -2018,6 +2018,21 @@ jobs:
           key: profiling-cargo-build-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
           paths:
             - /mnt/ramdisk/cargo
+      - run:
+          name: cargo tests
+          command: |
+            cargo test --release --features stack_walking_tests
+      - run:
+          name: phpt tests
+          command: |
+            set -e
+            libdir=$PWD/datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
+            cd tests
+            # don't anticipate there being more than one
+            run_tests_php=$(find $(php-config --prefix) -name run-tests.php)
+            cp -v "${run_tests_php}" .
+            export TEST_PHP_EXECUTABLE=$(which php)
+            php run-tests.php -d "extension=${libdir}/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt"
 
   "profiling tests":
     working_directory: ~/datadog
