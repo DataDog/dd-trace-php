@@ -5,14 +5,14 @@
     "resource": "Application\\Controller\\CommonSpecsController@error error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 1404795218209363369,
+    "parent_id": 4690303927266834989,
     "type": "web",
     "error": 1,
     "meta": {
       "_dd.p.dm": "-1",
       "component": "laminas",
       "error.message": "Controller error",
-      "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractActionController.php(71): Application\\Controller\\CommonSpecsController->errorAction()\n#1 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\Controller\\AbstractActionController->onDispatch(Object(Laminas\\Mvc\\MvcEvent))\n#2 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners(Object(Laminas\\Mvc\\MvcEvent), Object(Closure))\n#3 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractController.php(97): Laminas\\EventManager\\EventManager->triggerEventUntil(Object(Closure), Object(Laminas\\Mvc\\MvcEvent))\n#4 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/DispatchListener.php(132): Laminas\\Mvc\\Controller\\AbstractController->dispatch(Object(Laminas\\Http\\PhpEnvironment\\Request), Object(Laminas\\Http\\PhpEnvironment\\Response))\n#5 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\DispatchListener->onDispatch(Object(Laminas\\Mvc\\MvcEvent))\n#6 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners(Object(Laminas\\Mvc\\MvcEvent), Object(Closure))\n#7 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Application.php(325): Laminas\\EventManager\\EventManager->triggerEventUntil(Object(Closure), Object(Laminas\\Mvc\\MvcEvent))\n#8 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/public/index.php(42): Laminas\\Mvc\\Application->run()\n#9 {main}",
+      "error.stack": "#0 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractActionController.php(71): Application\\Controller\\CommonSpecsController->errorAction()\n#1 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\Controller\\AbstractActionController->onDispatch(Object(Laminas\\Mvc\\MvcEvent))\n#2 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners(Object(Laminas\\Mvc\\MvcEvent), Object(Closure))\n#3 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractController.php(97): Laminas\\EventManager\\EventManager->triggerEventUntil(Object(Closure), Object(Laminas\\Mvc\\MvcEvent))\n#4 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/DispatchListener.php(132): Laminas\\Mvc\\Controller\\AbstractController->dispatch(Object(Laminas\\Http\\PhpEnvironment\\Request), Object(Laminas\\Http\\PhpEnvironment\\Response))\n#5 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\DispatchListener->onDispatch(Object(Laminas\\Mvc\\MvcEvent))\n#6 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners(Object(Laminas\\Mvc\\MvcEvent), Object(Closure))\n#7 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Application.php(325): Laminas\\EventManager\\EventManager->triggerEventUntil(Object(Closure), Object(Laminas\\Mvc\\MvcEvent))\n#8 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/public/index.php(42): Laminas\\Mvc\\Application->run()\n#9 {main}",
       "error.type": "Exception",
       "http.method": "GET",
       "http.route": "error",
@@ -23,12 +23,8 @@
       "span.kind": "server"
     },
     "metrics": {
-      "_sampling_priority_v1": 1.0,
-      "php.compilation.total_time_ms": 168.396,
-      "process_id": 11799.0
-    },
-    "duration": 187673750,
-    "start": 1684139527997815127
+      "_sampling_priority_v1": 1.0
+    }
   },
      {
        "name": "laminas.application.init",
@@ -40,9 +36,7 @@
        "type": "web",
        "meta": {
          "component": "laminas"
-       },
-       "duration": 133727208,
-       "start": 1684139528021989419
+       }
      },
         {
           "name": "laminas.event.loadModules",
@@ -54,9 +48,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 2379541,
-          "start": 1684139528058511877
+          }
         },
         {
           "name": "laminas.event.loadModules.post",
@@ -68,9 +60,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 12832791,
-          "start": 1684139528060894586
+          }
         },
         {
           "name": "laminas.application.bootstrap",
@@ -82,9 +72,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 51650875,
-          "start": 1684139528104062752
+          }
         },
            {
              "name": "laminas.event.bootstrap",
@@ -96,9 +84,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 28076917,
-             "start": 1684139528127634419
+             }
            },
               {
                 "name": "laminas.mvcEventListener",
@@ -110,9 +96,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 28010167,
-                "start": 1684139528127679252
+                }
               },
      {
        "name": "laminas.application.run",
@@ -124,9 +108,7 @@
        "type": "web",
        "meta": {
          "component": "laminas"
-       },
-       "duration": 29723833,
-       "start": 1684139528155722336
+       }
      },
         {
           "name": "laminas.event.route",
@@ -138,9 +120,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 5106959,
-          "start": 1684139528155732669
+          }
         },
            {
              "name": "laminas.mvcEventListener",
@@ -152,9 +132,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 21042,
-             "start": 1684139528155746294
+             }
            },
            {
              "name": "laminas.mvcEventListener",
@@ -166,9 +144,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 5039542,
-             "start": 1684139528155776044
+             }
            },
               {
                 "name": "laminas.route.match",
@@ -180,9 +156,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 1350875,
-                "start": 1684139528155782961
+                }
               },
         {
           "name": "laminas.event.dispatch",
@@ -194,9 +168,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 236042,
-          "start": 1684139528160847752
+          }
         },
            {
              "name": "laminas.mvcEventListener",
@@ -208,9 +180,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 2625,
-             "start": 1684139528160865419
+             }
            },
            {
              "name": "laminas.mvcEventListener",
@@ -222,9 +192,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 206208,
-             "start": 1684139528160873794
+             }
            },
               {
                 "name": "laminas.controller.dispatch",
@@ -237,12 +205,10 @@
                 "error": 1,
                 "meta": {
                   "component": "laminas",
-                  "error.message": "Thrown Exception (500): Controller error in /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/module/Application/src/Controller/CommonSpecsController.php:33",
-                  "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractActionController.php(71): Application\\Controller\\CommonSpecsController->errorAction()\n#1 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\Controller\\AbstractActionController->onDispatch()\n#2 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#3 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractController.php(97): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#4 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/DispatchListener.php(132): Laminas\\Mvc\\Controller\\AbstractController->dispatch()\n#5 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\DispatchListener->onDispatch()\n#6 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#7 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Application.php(325): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#8 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/public/index.php(42): Laminas\\Mvc\\Application->run()\n#9 {main}",
+                  "error.message": "Thrown Exception (500): Controller error in /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/module/Application/src/Controller/CommonSpecsController.php:33",
+                  "error.stack": "#0 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractActionController.php(71): Application\\Controller\\CommonSpecsController->errorAction()\n#1 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\Controller\\AbstractActionController->onDispatch()\n#2 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#3 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractController.php(97): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#4 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/DispatchListener.php(132): Laminas\\Mvc\\Controller\\AbstractController->dispatch()\n#5 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\DispatchListener->onDispatch()\n#6 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#7 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Application.php(325): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#8 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/public/index.php(42): Laminas\\Mvc\\Application->run()\n#9 {main}",
                   "error.type": "Exception"
-                },
-                "duration": 44125,
-                "start": 1684139528160966044
+                }
               },
                  {
                    "name": "laminas.mvcEventListener",
@@ -255,12 +221,10 @@
                    "error": 1,
                    "meta": {
                      "component": "laminas",
-                     "error.message": "Thrown Exception (500): Controller error in /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/module/Application/src/Controller/CommonSpecsController.php:33",
-                     "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractActionController.php(71): Application\\Controller\\CommonSpecsController->errorAction()\n#1 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\Controller\\AbstractActionController->onDispatch()\n#2 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#3 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractController.php(97): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#4 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/DispatchListener.php(132): Laminas\\Mvc\\Controller\\AbstractController->dispatch()\n#5 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\DispatchListener->onDispatch()\n#6 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#7 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Application.php(325): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#8 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/public/index.php(42): Laminas\\Mvc\\Application->run()\n#9 {main}",
+                     "error.message": "Thrown Exception (500): Controller error in /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/module/Application/src/Controller/CommonSpecsController.php:33",
+                     "error.stack": "#0 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractActionController.php(71): Application\\Controller\\CommonSpecsController->errorAction()\n#1 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\Controller\\AbstractActionController->onDispatch()\n#2 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#3 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractController.php(97): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#4 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/DispatchListener.php(132): Laminas\\Mvc\\Controller\\AbstractController->dispatch()\n#5 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\DispatchListener->onDispatch()\n#6 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#7 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Application.php(325): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#8 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/public/index.php(42): Laminas\\Mvc\\Application->run()\n#9 {main}",
                      "error.type": "Exception"
-                   },
-                   "duration": 25292,
-                   "start": 1684139528160981961
+                   }
                  },
                     {
                       "name": "laminas.controller.action",
@@ -273,12 +237,10 @@
                       "error": 1,
                       "meta": {
                         "component": "laminas",
-                        "error.message": "Thrown Exception (500): Controller error in /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/module/Application/src/Controller/CommonSpecsController.php:33",
-                        "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractActionController.php(71): Application\\Controller\\CommonSpecsController->errorAction()\n#1 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\Controller\\AbstractActionController->onDispatch()\n#2 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#3 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractController.php(97): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#4 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/DispatchListener.php(132): Laminas\\Mvc\\Controller\\AbstractController->dispatch()\n#5 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\DispatchListener->onDispatch()\n#6 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#7 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Application.php(325): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#8 /home/circleci/datadog/tests/Frameworks/Laminas/Version_1_4/public/index.php(42): Laminas\\Mvc\\Application->run()\n#9 {main}",
+                        "error.message": "Thrown Exception (500): Controller error in /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/module/Application/src/Controller/CommonSpecsController.php:33",
+                        "error.stack": "#0 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractActionController.php(71): Application\\Controller\\CommonSpecsController->errorAction()\n#1 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\Controller\\AbstractActionController->onDispatch()\n#2 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#3 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Controller/AbstractController.php(97): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#4 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/DispatchListener.php(132): Laminas\\Mvc\\Controller\\AbstractController->dispatch()\n#5 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(319): Laminas\\Mvc\\DispatchListener->onDispatch()\n#6 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-eventmanager/src/EventManager.php(179): Laminas\\EventManager\\EventManager->triggerListeners()\n#7 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/vendor/laminas/laminas-mvc/src/Application.php(325): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#8 /home/circleci/app/tests/Frameworks/Laminas/Version_1_4/public/index.php(42): Laminas\\Mvc\\Application->run()\n#9 {main}",
                         "error.type": "Exception"
-                      },
-                      "duration": 9416,
-                      "start": 1684139528160990461
+                      }
                     },
               {
                 "name": "laminas.mvcEvent.setError",
@@ -290,9 +252,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 1334,
-                "start": 1684139528161019252
+                }
               },
               {
                 "name": "laminas.mvcEventListener",
@@ -304,9 +264,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 2000,
-                "start": 1684139528161037836
+                }
               },
               {
                 "name": "laminas.mvcEventListener",
@@ -318,9 +276,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 4500,
-                "start": 1684139528161043711
+                }
               },
               {
                 "name": "laminas.mvcEventListener",
@@ -332,9 +288,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 13292,
-                "start": 1684139528161051294
+                }
               },
               {
                 "name": "laminas.mvcEventListener",
@@ -346,9 +300,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 6084,
-                "start": 1684139528161068044
+                }
               },
         {
           "name": "laminas.application.completeRequest",
@@ -360,9 +312,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 24318458,
-          "start": 1684139528161086919
+          }
         },
            {
              "name": "laminas.event.render",
@@ -374,9 +324,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 24152500,
-             "start": 1684139528161089586
+             }
            },
               {
                 "name": "laminas.view.http.renderer",
@@ -388,9 +336,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 24129625,
-                "start": 1684139528161096044
+                }
               },
                  {
                    "name": "laminas.view.render",
@@ -402,9 +348,7 @@
                    "type": "web",
                    "meta": {
                      "component": "laminas"
-                   },
-                   "duration": 24111125,
-                   "start": 1684139528161101211
+                   }
                  },
                     {
                       "name": "laminas.templating.render",
@@ -416,9 +360,7 @@
                       "type": "web",
                       "meta": {
                         "component": "laminas"
-                      },
-                      "duration": 6265250,
-                      "start": 1684139528161140919
+                      }
                     },
                     {
                       "name": "laminas.templating.render",
@@ -430,9 +372,7 @@
                       "type": "web",
                       "meta": {
                         "component": "laminas"
-                      },
-                      "duration": 17771709,
-                      "start": 1684139528167418752
+                      }
                     },
            {
              "name": "laminas.event.finish",
@@ -444,9 +384,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 158125,
-             "start": 1684139528185246627
+             }
            },
               {
                 "name": "laminas.mvcEventListener",
@@ -458,7 +396,5 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 141542,
-                "start": 1684139528185259419
+                }
               }]]

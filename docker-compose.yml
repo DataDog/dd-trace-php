@@ -169,7 +169,7 @@ services:
       - .:/app
 
   test-agent:
-    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+    image: profenom/dd-apm-test-agent:latest
     ports:
       - "127.0.0.1:9126:8126"
     volumes:
@@ -183,6 +183,7 @@ services:
       - DD_SUPPRESS_TRACE_PARSE_ERRORS=true
       - SNAPSHOTS_DIR=/snapshots
       - SNAPSHOT_CI=0
+      - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.process_id
 
 volumes:
   agent-socket:
