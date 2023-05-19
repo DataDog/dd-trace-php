@@ -1983,7 +1983,12 @@ jobs:
           name: Restore Cargo Package Cache
           keys:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+            - profiling-cargo-cache-<< parameters.triplet >>-
+      - restore_cache:
+          name: Restore Cargo Build Cache
+          keys:
             - profiling-cargo-build-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+            - profiling-cargo-build-cache-<< parameters.triplet >>-
       - <<: *STEP_APPEND_BUILD_ID
       - run:
           name: Build Profiler
@@ -2037,7 +2042,12 @@ jobs:
           name: Restore Cargo Package Cache
           keys:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+            - profiling-cargo-cache-<< parameters.triplet >>-
+      - restore_cache:
+          name: Restore Cargo Build Cache
+          keys:
             - profiling-cargo-build-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+            - profiling-cargo-build-cache-<< parameters.triplet >>-
       - run:
           name: cargo tests
           command: |
