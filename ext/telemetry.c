@@ -53,6 +53,8 @@ void ddtrace_telemetry_setup(void) {
     free(agent_url);
 
     dd_composer_hook_id = zai_hook_install(ZAI_STRING_EMPTY, ZAI_STRING_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
+
+    ddtrace_share_shm_vm_interrupt(&dd_sidecar, dd_telemetry_instance_id, &EG(vm_interrupt));
 }
 
 void ddtrace_telemetry_shutdown(void) {

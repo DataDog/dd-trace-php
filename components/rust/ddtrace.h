@@ -132,4 +132,8 @@ bool ddtrace_detect_composer_installed_json(ddog_TelemetryTransport **transport,
 
 ddog_MaybeError ddog_sidecar_connect_php(ddog_TelemetryTransport **connection);
 
+ddog_MaybeError ddtrace_share_shm_vm_interrupt(ddog_TelemetryTransport **transport,
+                                               const struct ddog_InstanceId *instance_id,
+                                               void *ptr);
+
 #endif /* DDTRACE_PHP_H */

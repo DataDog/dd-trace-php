@@ -1,4 +1,5 @@
 pub mod telemetry;
+pub mod shm_vm_interrupt;
 
 use uuid::Uuid;
 use ddcommon::container_id::{get_container_id, set_cgroup_file};
