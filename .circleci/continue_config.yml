@@ -409,6 +409,7 @@ commands:
                 set -eo pipefail
             fi
             set -u
+            prefix="<< parameters.prefix >>"
             mkdir -vp "${prefix}"
             command -v switch-php && switch-php "${PHP_VERSION}"
             cd profiling
