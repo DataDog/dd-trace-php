@@ -72,11 +72,4 @@ Macros should have a prefix of `DATADOG_PHP_`.
 
 ## Components do not use globals
 
-Components must avoid creating and using global state. If you think you need
-global state, such as thread-local globals for a PHP extension, then what you
-need to do is make a component that does not use global state which is then
-wrapped by something that is specifically designed for handling the global
-state. The details haven't been fleshed out yet, but these will probably be
-called "plugins", so you would have a `component_plugin` that uses a
-`component` internally (or even publicly, we don't need to hide that).
-
+Components must avoid creating and using global state.
