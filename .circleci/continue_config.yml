@@ -1975,7 +1975,7 @@ jobs:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
       - <<: *STEP_APPEND_BUILD_ID
       - build_profiler:
-          prefix: datadog/datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
+          prefix: datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
       - persist_to_workspace:
           root: .
           paths:
