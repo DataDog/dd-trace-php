@@ -415,8 +415,8 @@ commands:
             cd profiling
             echo "${CARGO_TARGET_DIR}"
             cargo build --release
-            cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${prefix}/datadog-profiling.so"
             cd -
+            cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${prefix}/datadog-profiling.so"
 
 executors:
   with_agent:
