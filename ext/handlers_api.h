@@ -3,7 +3,7 @@
 
 // This api is used by both the tracer and profiler.
 
-#include <php.h>
+#include <zend.h>
 
 typedef struct datadog_php_zif_handler_s {
     const char *name;
