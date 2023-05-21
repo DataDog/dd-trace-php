@@ -1,5 +1,7 @@
 #include "handlers_api.h"
 
+#include <zend_globals.h>
+
 // This file is compiled by both the tracer and profiler.
 
 void datadog_php_install_handler(datadog_php_zif_handler handler) {
