@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Nuke.Common;
 using Nuke.Common.IO;
 using Nuke.Common.Tooling;
@@ -13,7 +14,7 @@ using Issue = Octokit.Issue;
 using Target = Nuke.Common.Target;
 using Logger = Serilog.Log;
 
-public class Build
+public class Build_Github
 {
     [Parameter("A GitHub token (for use in GitHub Actions)", Name = "GITHUB_TOKEN")]
     readonly string GitHubToken;
