@@ -34,9 +34,8 @@ class AMQPIntegration extends Integration
         $this->protocolVersion = "";
 
         hook_method(
-            'PhpAmqpLib\Channel\AbstractChannel',
+            'PhpAmqpLib\Connection\AbstractConnection',
             '__construct',
-            null,
             function ($This) use ($integration) {
                 $integration->protocolVersion = $This::getProtocolVersion();
             }
