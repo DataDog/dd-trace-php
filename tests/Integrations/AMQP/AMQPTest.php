@@ -48,8 +48,7 @@ final class AMQPTest extends IntegrationTestCase
                     Tag::MQ_PROTOCOL                => 'AMQP',
                     Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
                 ])
-            ]
-        );
+            ]);
     }
 
     public function testHelloWorld()
