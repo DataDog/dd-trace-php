@@ -18,7 +18,7 @@ using System.Text;
 using Octokit.GraphQL.Model;
 using System.Net.Http.Json;
 
-public class Build_Github
+partial class Build
 {
     [Parameter("A GitHub token (for use in GitHub Actions)", Name = "GITHUB_TOKEN")]
     readonly string GitHubToken;
