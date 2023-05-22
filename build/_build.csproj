@@ -5,8 +5,8 @@
         <TargetFramework>net7.0</TargetFramework>
         <RootNamespace></RootNamespace>
         <NoWarn>CS0649;CS0169;SA1652</NoWarn>
-        <NukeRootDirectory>..\..\..</NukeRootDirectory>
-        <NukeScriptDirectory>..\..</NukeScriptDirectory>
+        <NukeRootDirectory>..</NukeRootDirectory>
+        <NukeScriptDirectory>..</NukeScriptDirectory>
         <NukeExcludeDirectoryBuild>True</NukeExcludeDirectoryBuild>
         <NukeTasksEnabled>False</NukeTasksEnabled>
         <NukeTelemetryVersion>1</NukeTelemetryVersion>
