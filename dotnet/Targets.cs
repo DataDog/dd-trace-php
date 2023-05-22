@@ -8,7 +8,6 @@ using Nuke.Common.Tooling;
 using Nuke.Common.Tools.Git;
 using Octokit;
 using Octokit.GraphQL;
-using Octokit.GraphQL.Model;
 using Target = Nuke.Common.Target;
 
 public class Targets
