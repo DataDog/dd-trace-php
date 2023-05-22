@@ -8,9 +8,12 @@ using Nuke.Common.Tooling;
 using Nuke.Common.Tools.Git;
 using Octokit;
 using Octokit.GraphQL;
+using Environment = System.Environment;
+using Issue = Octokit.Issue;
 using Target = Nuke.Common.Target;
+using Logger = Serilog.Log;
 
-public class Targets
+public class Build
 {
     [Parameter("A GitHub token (for use in GitHub Actions)", Name = "GITHUB_TOKEN")]
     readonly string GitHubToken;

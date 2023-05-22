@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net7.0</TargetFramework>
+        <RootNamespace></RootNamespace>
+        <NoWarn>CS0649;CS0169;SA1652</NoWarn>
+        <NukeRootDirectory>..\..\..</NukeRootDirectory>
+        <NukeScriptDirectory>..\..</NukeScriptDirectory>
+        <NukeExcludeDirectoryBuild>True</NukeExcludeDirectoryBuild>
+        <NukeTasksEnabled>False</NukeTasksEnabled>
+        <NukeTelemetryVersion>1</NukeTelemetryVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Nuke.Common" Version="7.0.2" />
+        <PackageReference Include="Octokit.GraphQL" Version="0.1.8-beta" />
+    </ItemGroup>
+
+</Project>
