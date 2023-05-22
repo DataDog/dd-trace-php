@@ -13,6 +13,10 @@ using Environment = System.Environment;
 using Issue = Octokit.Issue;
 using Target = Nuke.Common.Target;
 using Logger = Serilog.Log;
+using System.Net.Http;
+using System.Text;
+using Octokit.GraphQL.Model;
+using System.Net.Http.Json;
 
 public class Build_Github
 {
@@ -138,6 +142,33 @@ public class Build_Github
                     }
                 }
             });
+
+    async Task PostCommentToPullRequest(int prNumber, string markdown)
+    {
+        Console.WriteLine("Posting comment to GitHub");
+
+        // post directly to GitHub as
+        var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
+        httpClient.DefaultRequestHeaders.Add("Authorization", $"token {GitHubToken}");
+        httpClient.DefaultRequestHeaders.UserAgent.Add(new(new System.Net.Http.Headers.ProductHeaderValue("nuke-ci-client")));
+
+        var url = $"https://api.github.com/repos/{GitHubRepositoryOwner}/{GitHubRepositoryName}/issues/{prNumber}/comments";
+        Console.WriteLine($"Sending request to '{url}'");
+
+        var result = await httpClient.PostAsJsonAsync(url, new { body = markdown });
+
+        if (result.IsSuccessStatusCode)
+        {
+            Console.WriteLine("Comment posted successfully");
+        }
+        else
+        {
+            var response = await result.Content.ReadAsStringAsync();
+            Console.WriteLine("Error: " + response);
+            result.EnsureSuccessStatusCode();
+        }
+    }
 
     async Task HideCommentsInPullRequest(int prNumber, string prefix)
     {
