@@ -5,4 +5,7 @@
     <ItemGroup>
         <Content Include="Targets.cs" />
     </ItemGroup>
+    <PropertyGroup>
+        <LangVersion>latest</LangVersion>
+    </PropertyGroup>
 </Project>
