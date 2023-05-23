@@ -74,6 +74,9 @@ partial class Build
                             string initialValue = lastLine.TrimStart('-', '+').Trim(charsToTrim);
                             string newValue = line.TrimStart('-', '+').Trim(charsToTrim);
 
+                            Console.WriteLine();
+                            Console.WriteLine($"Initial value: {initialValue} - New value: {newValue}");
+
                             if (initialValue != newValue)
                             {
                                 diffsInFile.AppendLine($"- {initialValue}");
