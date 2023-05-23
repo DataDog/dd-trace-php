@@ -69,9 +69,10 @@ partial class Build
                             lastLine.Trim(',').Substring(1) != line.Trim(',').Substring(1)) // and this is not just an additon of a comma
                         {
                             // We have a change
-                            // Don't consider the spaces between '-'/'+' and the text
-                            string initialValue = lastLine.TrimStart('-', '+').Trim();
-                            string newValue = line.TrimStart('-', '+').Trim();
+                            // Trim the spaces between '-'/'+' and the text, and any trailing commas
+                            Char[] charsToTrim = { ' ', ',' };
+                            string initialValue = lastLine.TrimStart('-', '+').Trim(charsToTrim);
+                            string newValue = line.TrimStart('-', '+').Trim(charsToTrim);
 
                             if (initialValue != newValue)
                             {
