@@ -1,7 +1,7 @@
 name: Check snapshots
 
 on:
-  - push # TODO: Change to 'pull_request' when the action is ready
+  - pull_request
 
 jobs:
   check-snapshots:
