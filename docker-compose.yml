@@ -169,7 +169,7 @@ services:
       - .:/app
 
   test-agent:
-    image: profenom/dd-apm-test-agent:latest
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
     ports:
       - "127.0.0.1:9126:8126"
     volumes:
