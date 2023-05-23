@@ -152,3 +152,7 @@ SKIP Test if socket_create_listen() returns false, when it cannot bind to the po
 ## `Zend/fibers/out-of-memory-in*`
 
 ddtrace request init hook consumes more than 2 MB of memory and fails too early instead of testing what it should.
+
+## `Zend/tests/fibers/gh10496-001.phpt`
+
+ddtrace affects the order of destructor execution due to creating span stacks etc.
