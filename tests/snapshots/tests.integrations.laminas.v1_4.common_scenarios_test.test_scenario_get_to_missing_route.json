@@ -1,0 +1,362 @@
+[[
+  {
+    "name": "laminas.request",
+    "service": "test_laminas_20",
+    "resource": "GET /does_not_exist",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 14033937070772079505,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-1",
+      "component": "laminas",
+      "http.method": "GET",
+      "http.status_code": "404",
+      "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
+      "http.version": "1.1",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0,
+      "php.compilation.total_time_ms": 132.999,
+      "process_id": 11914.0
+    },
+    "duration": 150594542,
+    "start": 1683294582281399461
+  },
+     {
+       "name": "laminas.application.init",
+       "service": "test_laminas_20",
+       "resource": "laminas.application.init",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laminas"
+       },
+       "duration": 96421667,
+       "start": 1683294582319379670
+     },
+        {
+          "name": "laminas.event.loadModules",
+          "service": "test_laminas_20",
+          "resource": "laminas.event.loadModules",
+          "trace_id": 0,
+          "span_id": 4,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          },
+          "duration": 1804541,
+          "start": 1683294582340403461
+        },
+        {
+          "name": "laminas.event.loadModules.post",
+          "service": "test_laminas_20",
+          "resource": "laminas.event.loadModules.post",
+          "trace_id": 0,
+          "span_id": 5,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          },
+          "duration": 9771917,
+          "start": 1683294582342211003
+        },
+        {
+          "name": "laminas.application.bootstrap",
+          "service": "test_laminas_20",
+          "resource": "laminas.application.bootstrap",
+          "trace_id": 0,
+          "span_id": 6,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          },
+          "duration": 41189209,
+          "start": 1683294582374607336
+        },
+           {
+             "name": "laminas.event.bootstrap",
+             "service": "test_laminas_20",
+             "resource": "laminas.event.bootstrap",
+             "trace_id": 0,
+             "span_id": 9,
+             "parent_id": 6,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             },
+             "duration": 22655334,
+             "start": 1683294582393137003
+           },
+              {
+                "name": "laminas.mvcEventListener",
+                "service": "test_laminas_20",
+                "resource": "Laminas\\Mvc\\View\\Http\\ViewManager@onBootstrap",
+                "trace_id": 0,
+                "span_id": 14,
+                "parent_id": 9,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                },
+                "duration": 22603625,
+                "start": 1683294582393172336
+              },
+     {
+       "name": "laminas.application.run",
+       "service": "test_laminas_20",
+       "resource": "laminas.application.run",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laminas"
+       },
+       "duration": 16141917,
+       "start": 1683294582415808711
+     },
+        {
+          "name": "laminas.event.route",
+          "service": "test_laminas_20",
+          "resource": "laminas.event.route",
+          "trace_id": 0,
+          "span_id": 7,
+          "parent_id": 3,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          },
+          "duration": 1105958,
+          "start": 1683294582415820545
+        },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_20",
+             "resource": "Laminas\\Mvc\\HttpMethodListener@onRoute",
+             "trace_id": 0,
+             "span_id": 10,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             },
+             "duration": 8041,
+             "start": 1683294582415837045
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_20",
+             "resource": "Laminas\\Mvc\\RouteListener@onRoute",
+             "trace_id": 0,
+             "span_id": 11,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             },
+             "duration": 1071583,
+             "start": 1683294582415851420
+           },
+              {
+                "name": "laminas.route.match",
+                "service": "test_laminas_20",
+                "resource": "Laminas\\Router\\Http\\TreeRouteStack@match",
+                "trace_id": 0,
+                "span_id": 15,
+                "parent_id": 11,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                },
+                "duration": 941208,
+                "start": 1683294582415857961
+              },
+              {
+                "name": "laminas.mvcEvent.setError",
+                "service": "test_laminas_20",
+                "resource": "laminas.mvcEvent.setError",
+                "trace_id": 0,
+                "span_id": 16,
+                "parent_id": 11,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                },
+                "duration": 15334,
+                "start": 1683294582416820628
+              },
+              {
+                "name": "laminas.mvcEventListener",
+                "service": "test_laminas_20",
+                "resource": "Laminas\\Mvc\\View\\Http\\RouteNotFoundStrategy@detectNotFoundError",
+                "trace_id": 0,
+                "span_id": 17,
+                "parent_id": 11,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                },
+                "duration": 11791,
+                "start": 1683294582416849086
+              },
+              {
+                "name": "laminas.mvcEventListener",
+                "service": "test_laminas_20",
+                "resource": "Laminas\\Mvc\\View\\Http\\RouteNotFoundStrategy@prepareNotFoundViewModel",
+                "trace_id": 0,
+                "span_id": 18,
+                "parent_id": 11,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                },
+                "duration": 20209,
+                "start": 1683294582416867253
+              },
+              {
+                "name": "laminas.mvcEventListener",
+                "service": "test_laminas_20",
+                "resource": "Laminas\\Mvc\\View\\Http\\ExceptionStrategy@prepareExceptionViewModel",
+                "trace_id": 0,
+                "span_id": 19,
+                "parent_id": 11,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                },
+                "duration": 8833,
+                "start": 1683294582416890461
+              },
+              {
+                "name": "laminas.mvcEventListener",
+                "service": "test_laminas_20",
+                "resource": "Laminas\\Mvc\\View\\Http\\InjectViewModelListener@injectViewModel",
+                "trace_id": 0,
+                "span_id": 20,
+                "parent_id": 11,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                },
+                "duration": 13750,
+                "start": 1683294582416903461
+              },
+        {
+          "name": "laminas.application.completeRequest",
+          "service": "test_laminas_20",
+          "resource": "laminas.application.completeRequest",
+          "trace_id": 0,
+          "span_id": 8,
+          "parent_id": 3,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          },
+          "duration": 15006834,
+          "start": 1683294582416929211
+        },
+           {
+             "name": "laminas.event.render",
+             "service": "test_laminas_20",
+             "resource": "laminas.event.render",
+             "trace_id": 0,
+             "span_id": 12,
+             "parent_id": 8,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             },
+             "duration": 14796375,
+             "start": 1683294582416933670
+           },
+              {
+                "name": "laminas.view.http.renderer",
+                "service": "test_laminas_20",
+                "resource": "Laminas\\Mvc\\View\\Http\\DefaultRenderingStrategy@render",
+                "trace_id": 0,
+                "span_id": 21,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                },
+                "duration": 14783750,
+                "start": 1683294582416941836
+              },
+                 {
+                   "name": "laminas.view.render",
+                   "service": "test_laminas_20",
+                   "resource": "laminas.view.render",
+                   "trace_id": 0,
+                   "span_id": 23,
+                   "parent_id": 21,
+                   "type": "web",
+                   "meta": {
+                     "component": "laminas"
+                   },
+                   "duration": 14763583,
+                   "start": 1683294582416947461
+                 },
+                    {
+                      "name": "laminas.templating.render",
+                      "service": "test_laminas_20",
+                      "resource": "error/404",
+                      "trace_id": 0,
+                      "span_id": 24,
+                      "parent_id": 23,
+                      "type": "web",
+                      "meta": {
+                        "component": "laminas"
+                      },
+                      "duration": 2286667,
+                      "start": 1683294582416992461
+                    },
+                    {
+                      "name": "laminas.templating.render",
+                      "service": "test_laminas_20",
+                      "resource": "layout/layout",
+                      "trace_id": 0,
+                      "span_id": 25,
+                      "parent_id": 23,
+                      "type": "web",
+                      "meta": {
+                        "component": "laminas"
+                      },
+                      "duration": 12391167,
+                      "start": 1683294582419289170
+                    },
+           {
+             "name": "laminas.event.finish",
+             "service": "test_laminas_20",
+             "resource": "laminas.event.finish",
+             "trace_id": 0,
+             "span_id": 13,
+             "parent_id": 8,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             },
+             "duration": 143500,
+             "start": 1683294582431733878
+           },
+              {
+                "name": "laminas.mvcEventListener",
+                "service": "test_laminas_20",
+                "resource": "Laminas\\Mvc\\SendResponseListener@sendResponse",
+                "trace_id": 0,
+                "span_id": 22,
+                "parent_id": 13,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                },
+                "duration": 126958,
+                "start": 1683294582431747670
+              }]]

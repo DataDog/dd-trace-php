@@ -66,6 +66,8 @@ aliases:
       TRACE_LANGUAGE: php
       DD_TRACE_AGENT_URL: http://request-replayer:80
       PORT: 9126
+      SNAPSHOT_DIR: /snapshots
+      SNAPSHOT_CI: 1
       DD_SUPPRESS_TRACE_PARSE_ERRORS: true
       DISABLED_CHECKS: trace_content_length
 
@@ -299,6 +301,16 @@ commands:
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
 
+  docker_logs:
+    parameters:
+      docker_image:
+        type: string
+    steps:
+      - run:
+          name: Docker logs for << parameters.docker_image >>
+          command: docker logs -f << parameters.docker_image >>
+          background: true
+
   setup_docker:
     parameters:
       docker_image:
@@ -315,25 +327,27 @@ commands:
               sudo chown -R docker-circleci .
             fi
       - run:
-          name: Setup docker image << parameters.docker_image >>
+          name: Setup container dependencies
           command: |
             set -x
             max_retries=3
             extra=<< parameters.extra >>
             docker network create net --driver=bridge -o "com.docker.network.bridge.name=br"
-            if [[ $extra == "with_httpbin_and_request_replayer" ]]; then
-              function retry_docker() {
-                retries=$max_retries
-                while
-                  ! docker "${@}"
-                do
-                  if [[ $((--retries)) -eq 0 ]]; then
-                    exit 1
-                  fi
-                  sleep 1
-                done
-                true # Success
-              }
+
+            function retry_docker() {
+              retries=$max_retries
+              while
+                ! docker "${@}"
+              do
+                if [[ $((--retries)) -eq 0 ]]; then
+                  exit 1
+                fi
+                sleep 1
+              done
+              true # Success
+            }
+
+            if [[ $extra == "with_httpbin_and_request_replayer" || $extra == "with_snapshots" ]]; then
               retry_docker run --detach --rm --net net \
                 -e DD_APM_ENABLED=true \
                 -e DD_BIND_HOST=0.0.0.0 \
@@ -344,7 +358,9 @@ commands:
                 -e DISABLED_CHECKS=trace_content_length \
                 -e DD_SUPPRESS_TRACE_PARSE_ERRORS=true \
                 -e PORT=9126 \
+                -e SNAPSHOT_DIR=/snapshots \
                 -p "127.0.0.1:9126:9126" \
+                -v $(pwd)/tests/snapshots:/snapshots \
                 --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
               retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
@@ -352,6 +368,70 @@ commands:
                 -e DD_REQUEST_DUMPER_FILE=dump.json \
                 --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0
             fi
+            if [[ $extra == "with_snapshots" ]]; then
+              retry_docker run --detach --rm --net net \
+                --name elasticsearch2_integration elasticsearch:2
+              retry_docker run --detach --rm --net net \
+                -e ES_JAVA_OPTS="-Xms1g -Xmx1g" \
+                -e discovery.type=single-node \
+                --name elasticsearch7_integration elasticsearch:7.17.0
+              retry_docker run --detach --rm --net net \
+                --name redis_integration datadog/dd-trace-ci:php-redis-5.0
+              retry_docker run --detach --rm --net net \
+                --name memcached_integration memcached:1.5-alpine
+              retry_docker run --detach --rm --net net \
+                -e MYSQL_ROOT_PASSWORD=test \
+                -e MYSQL_PASSWORD=test \
+                -e MYSQL_USER=test \
+                -e MYSQL_DATABASE=test \
+                --name mysql_integration datadog/dd-trace-ci:php-mysql-dev-5.6
+              retry_docker run --detach --rm --net net \
+                --name rabbitmq_integration rabbitmq:3.8.9-alpine
+              retry_docker run --detach --rm --net net \
+                -e MONGO_INITDB_ROOT_USERNAME=test \
+                -e MONGO_INITDB_ROOT_PASSWORD=test \
+                --name mongodb_integration circleci/mongo:4.0
+              retry_docker run --detach --rm --net net \
+                -e ACCEPT_EULA=Y \
+                -e MSSQL_SA_PASSWORD=Password12! \
+                -e MSSQL_PID=Developer \
+                --name sqlsrv_integration mcr.microsoft.com/mssql/server:2022-latest
+            fi
+      - when:
+          condition:
+            or:
+              - equal: ["with_httpbin_and_request_replayer", << parameters.extra >>]
+              - equal: ["with_snapshots", << parameters.extra >>]
+          steps:
+            - docker_logs:
+                docker_image: test-agent
+            - docker_logs:
+                docker_image: httpbin_integration
+            - docker_logs:
+                docker_image: request-replayer
+      - when:
+          condition:
+            equal: ["with_snapshots", << parameters.extra >>]
+          steps:
+            - docker_logs:
+                docker_image: elasticsearch2_integration
+            - docker_logs:
+                docker_image: elasticsearch7_integration
+            - docker_logs:
+                docker_image: redis_integration
+            - docker_logs:
+                docker_image: memcached_integration
+            - docker_logs:
+                docker_image: mysql_integration
+            - docker_logs:
+                docker_image: rabbitmq_integration
+            - docker_logs:
+                docker_image: mongodb_integration
+            - docker_logs:
+                docker_image: sqlsrv_integration
+      - run:
+          name: Setup docker image << parameters.docker_image >>
+          command: |
             touch /tmp/docker.out
             mkdir /tmp/bashenv
             sudo mkdir /rust
@@ -785,6 +865,76 @@ jobs:
 
   asan: *TEST_BASE
 
+  integration_snapshots:
+    working_directory: ~/datadog
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
+      make_target:
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+      resource_class:
+        type: string
+        default: medium
+      sapi:
+        type: string
+        default: cli-server
+      disable_runner_distributed_tracing:
+        type: boolean
+        default: false
+    <<: *BARE_DOCKER_MACHINE
+    environment:
+      COMPOSER_PROCESS_TIMEOUT: 0
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+          extra: with_snapshots
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - when:
+          condition:
+            and:
+              - or:
+                  - equal: [ "8.0", << parameters.php_major_minor >> ]
+                  - equal: [ "8.1", << parameters.php_major_minor >> ]
+              - not:
+                equal: [ "test_composer", << parameters.make_target >> ]
+          steps:
+            - run:
+                name: Updating composer to v2
+                command: sudo composer self-update --2 --no-interaction
+      - install_extension
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_WAIT_TEST_AGENT
+      - run:
+          name: Run tests
+          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts
+            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts/
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+
   integration:
     working_directory: ~/datadog
     parameters:
@@ -952,16 +1102,18 @@ jobs:
       disable_runner_distributed_tracing:
         type: boolean
         default: false
-    resource_class: << parameters.resource_class >>
-    executor:
-      name: with_integrations
-      docker_image: << parameters.docker_image >>
+    <<: *BARE_DOCKER_MACHINE
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+          extra: with_snapshots
       - when:
           condition:
             or:
@@ -971,8 +1123,6 @@ jobs:
             - run:
                 name: Updating composer to v2
                 command: sudo composer self-update --2 --no-interaction
-      - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - install_extension:
@@ -3430,7 +3580,7 @@ workflows:
                 - test_distributed_tracing
                 - test_auto_instrumentation
 
-      - integration:
+      - integration_snapshots:
           requires: [ 'Prepare Code' ]
           # Due to Symfony OOM during composer update
           resource_class: xlarge
