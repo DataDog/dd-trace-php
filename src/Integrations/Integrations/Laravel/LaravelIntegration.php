@@ -238,8 +238,10 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Contracts\Debug\ExceptionHandler',
             'report',
-            function ($This, $scope, $args) use ($rootSpan, $integration) {
-                $integration->setError($rootSpan, $args[0]);
+            function ($exceptionHandler, $scope, $args) use ($rootSpan, $integration) {
+                if ($args[0] && $exceptionHandler->shouldReport($args[0])) {
+                    $integration->setError($rootSpan, $args[0]);
+                }
             }
         );
 
