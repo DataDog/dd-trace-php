@@ -57,62 +57,41 @@ partial class Build
                     return;
                 }
 
-                const string unlinkedLinesExplicitor = "[...]";
-                var crossVersionTestsNamePattern = new [] {"VersionMismatchNewerNugetTests"};
                 var diffCounts = new Dictionary<string, int>();
                 StringBuilder diffsInFile = new();
-                var considerUpdatingPublicFeed = false;
                 var lastLine = string.Empty;
                 foreach (var line in changes)
                 {
-                    if (line.StartsWith("@@ ")) // new change, not looking at files cause the changes would be too different
-                    {
-                        RecordChange(diffsInFile, diffCounts);
-                        lastLine = String.Empty;
-                        continue;
-                    }
-
                     if (line.StartsWith("- ") || line.StartsWith("+ "))
                     {
                         if (!string.IsNullOrEmpty(lastLine) &&
-                            lastLine[0] != line[0] &&
-                            lastLine.Trim(',').Substring(1) == line.Trim(',').Substring(1))
+                            lastLine[0] != line[0] && // if the lines start with '-' and '+' (i.e., a change)
+                            lastLine.Trim(',').Substring(1) != line.Trim(',').Substring(1)) // and this is not just an additon of a comma
                         {
-                            // The two lines are actually the same, just an additional comma on previous line
-                            // So we can remove it from the diff for better understanding?
-                            diffsInFile.Remove(diffsInFile.Length - lastLine.Length - Environment.NewLine.Length, lastLine.Length + Environment.NewLine.Length);
-                            lastLine = string.Empty;
-                            continue;
+                            // We have a change
+                            // Don't consider the spaces between '-'/'+' and the text
+                            string initialValue = lastLine.TrimStart('-', '+').Trim();
+                            string newValue = line.TrimStart('-', '+').Trim();
+
+                            if (initialValue != newValue)
+                            {
+                                diffsInFile.AppendLine($"- {initialValue}");
+                                diffsInFile.AppendLine($"+ {newValue}");
+                            }
+
+                            RecordChange(diffsInFile, diffCounts);
                         }
-
-                        diffsInFile.AppendLine(line);
-                        lastLine = line;
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(lastLine))
-                    {
-                        diffsInFile.AppendLine(unlinkedLinesExplicitor);
-                        lastLine = string.Empty;
-                    }
-
-                    if (!considerUpdatingPublicFeed && crossVersionTestsNamePattern.Any(p => line.Contains(p)))
-                    {
-                        considerUpdatingPublicFeed = true;
+                        else
+                        {
+                            lastLine = line;
+                        }
                     }
                 }
-
-                RecordChange(diffsInFile, diffCounts);
 
                 var markdown = new StringBuilder();
                 markdown.AppendLine("## Snapshots difference summary").AppendLine();
                 markdown.AppendLine("The following differences have been observed in committed snapshots. It is meant to help the reviewer.");
                 markdown.AppendLine("The diff is simplistic, so please check some files anyway while we improve it.").AppendLine();
-
-                if (considerUpdatingPublicFeed)
-                {
-                    markdown.AppendLine("**Note** that this PR updates a version mismatch test. You may need to upgrade your code in the Azure public feed");
-                }
 
                 foreach (var diff in diffCounts)
                 {
@@ -127,15 +106,9 @@ partial class Build
 
                 void RecordChange(StringBuilder diffsInFile, Dictionary<string, int> diffCounts)
                 {
-                    var unlinkedLinesExplicitorWithNewLine = unlinkedLinesExplicitor + Environment.NewLine;
-
                     if (diffsInFile.Length > 0)
                     {
                         var change = diffsInFile.ToString();
-                        if (change.EndsWith(unlinkedLinesExplicitorWithNewLine))
-                        {
-                            change = change.Substring(0, change.Length - unlinkedLinesExplicitorWithNewLine.Length);
-                        }
                         diffCounts.TryAdd(change, 0);
                         diffCounts[change]++;
                         diffsInFile.Clear();
