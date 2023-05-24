@@ -274,8 +274,8 @@ if test "$PHP_DDTRACE" != "no"; then
   fi
 
   cat <<EOT >> Makefile.fragments
-\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components/rust" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -exclude "target"; find "$ext_srcdir/libdatadog" -name "*.rs" -exclude "target"; echo "$all_object_files" ) | xargs )
-	(cd "$ext_srcdir/components/rust"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) && test "$ddtrace_cargo_profile" == debug || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
+\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components-rs" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -exclude "target"; find "$ext_srcdir/libdatadog" -name "*.rs" -exclude "target"; echo "$all_object_files" ) | xargs )
+	(cd "$ext_srcdir/components-rs"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) && test "$ddtrace_cargo_profile" == debug || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
 EOT
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then

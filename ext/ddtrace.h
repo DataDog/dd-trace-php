@@ -3,7 +3,7 @@
 #include <dogstatsd_client/client.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <components/rust/ddtrace.h>
+#include <components-rs/ddtrace.h>
 
 #include "ext/version.h"
 #include "compatibility.h"

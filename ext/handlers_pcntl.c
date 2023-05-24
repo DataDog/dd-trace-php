@@ -1,7 +1,7 @@
 #include <php.h>
 #include <stdbool.h>
 
-#include <components/rust/ddtrace.h>
+#include <components-rs/ddtrace.h>
 
 #include "coms.h"
 #include "ddtrace.h"

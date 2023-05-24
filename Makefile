@@ -30,9 +30,9 @@ RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
 RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), -j$(shell nproc))
 
-C_FILES = $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components/rust -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog -name '*.rs' -o -name '*.c' -o -name 'Cargo.toml')
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog -name '*.rs' -o -name '*.c' -o -name 'Cargo.toml')
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -63,13 +63,13 @@ $(BUILD_DIR)/%Cargo.toml: %Cargo.toml
 	$(Q) echo Copying $*Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $*Cargo.toml $@
-	sed -i 's/"..\/../"..\/..\/..\/../g; s/, "profiling"//' $@
+	sed -i -E 's/"\.\.\/([^"]*)"/"..\/..\/..\/\1"/' $@
 
 $(BUILD_DIR)/Cargo.toml: Cargo.toml
 	$(Q) echo Copying Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a Cargo.toml $@
-	sed -i 's/"..\/../"..\/..\/..\/../g; s/, "profiling"//' $@
+	sed -i -E 's/, "profiling",?//' $@
 
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to $@
@@ -259,6 +259,7 @@ test_coverage_collect:
 		--exclude "/usr/include/*/*/*" \
 		--exclude "/opt/php/*/include/php/Zend/*" \
 		--exclude "$(BUILD_DIR)/components/*/*" \
+		--exclude "$(BUILD_DIR)/components-rs/*" \
 		--exclude "$(BUILD_DIR)/zend_abstract_interface/*/*" \
 		--exclude "$(BUILD_DIR)/ext/vendor/*/*" \
 		--exclude "$(BUILD_DIR)/src/dogstatsd/*" \
@@ -331,19 +332,19 @@ clang_format_fix:
 cbindgen: remove_cbindgen generate_cbindgen
 
 remove_cbindgen:
-	for h in components/rust/ddtrace.h components/rust/telemetry.h components/rust/sidecar.h components/rust/common.h; do if [ -f "$$h" ]; then rm "$$h"; fi; done
+	for h in components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h; do if [ -f "$$h" ]; then rm "$$h"; fi; done
 
-generate_cbindgen: components/rust/ddtrace.h components/rust/telemetry.h components/rust/sidecar.h components/rust/common.h
+generate_cbindgen: components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h
 	( \
 		cd libdatadog; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
 			mkdir -pv "$(BUILD_DIR)"; \
 			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
 		fi; \
-		cargo run -p tools -- $(PROJECT_ROOT)/components/rust/common.h $(PROJECT_ROOT)/components/rust/ddtrace.h $(PROJECT_ROOT)/components/rust/telemetry.h $(PROJECT_ROOT)/components/rust/sidecar.h  \
+		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h  \
 	)
 
-components/rust/common.h:
+components-rs/common.h:
 	( \
 		if command -v cbindgen &> /dev/null; then \
 			cd libdatadog; \
@@ -353,7 +354,7 @@ components/rust/common.h:
 		fi \
 	)
 
-components/rust/telemetry.h:
+components-rs/telemetry.h:
 	( \
 		if command -v cbindgen &> /dev/null; then \
 			cd libdatadog; \
@@ -363,7 +364,7 @@ components/rust/telemetry.h:
 		fi \
 	)
 
-components/rust/sidecar.h:
+components-rs/sidecar.h:
 	( \
 		if command -v cbindgen &> /dev/null; then \
 			cd libdatadog; \
@@ -373,7 +374,7 @@ components/rust/sidecar.h:
 		fi \
 	)
 
-components/rust/ddtrace.h:
+components-rs/ddtrace.h:
 	if command -v cbindgen &> /dev/null; then \
 		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
 			--config cbindgen.toml \

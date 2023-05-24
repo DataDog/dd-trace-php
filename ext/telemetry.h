@@ -1,7 +1,7 @@
 #ifndef DDTRACE_TELEMETRY_H
 #define DDTRACE_TELEMETRY_H
 
-#include <components/rust/telemetry.h>
+#include <components-rs/telemetry.h>
 
 void ddtrace_telemetry_setup(void);
 void ddtrace_telemetry_shutdown(void);

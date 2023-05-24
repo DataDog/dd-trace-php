@@ -1,6 +1,6 @@
 #include "ddshared.h"
 
-#include <components/rust/ddtrace.h>
+#include <components-rs/ddtrace.h>
 
 #include "ddtrace.h"
 #include "logging.h"

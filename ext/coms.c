@@ -12,7 +12,7 @@
 
 // For reasons it doesn't find asprintf() if this isn't included later...
 #include "coms.h"
-#include <components/rust/ddtrace.h>
+#include <components-rs/ddtrace.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

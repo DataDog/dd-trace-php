@@ -2229,7 +2229,7 @@ jobs:
           command: |
             set -eu
             make cbindgen
-            git diff --exit-code components/rust
+            git diff --exit-code components-rs
 
 
   placeholder:

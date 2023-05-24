@@ -5,7 +5,7 @@
 #include "logging.h"
 #include "integrations/integrations.h"
 #include <hook/hook.h>
-#include <components/rust/ddtrace.h>
+#include <components-rs/ddtrace.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

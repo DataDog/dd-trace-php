@@ -11,7 +11,7 @@
 #include <string.h>
 
 #include <ext/standard/php_string.h>
-#include <components/rust/ddtrace.h>
+#include <components-rs/ddtrace.h>
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
 #include <exceptions/exceptions.h>

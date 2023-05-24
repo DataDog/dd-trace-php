@@ -28,7 +28,7 @@
 #include <ext/standard/php_string.h>
 #include <json/json.h>
 
-#include <components/rust/ddtrace.h>
+#include <components-rs/ddtrace.h>
 
 #include "auto_flush.h"
 #include "circuit_breaker.h"
