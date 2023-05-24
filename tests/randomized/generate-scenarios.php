@@ -68,6 +68,28 @@ function generate()
     (new MakefileGenerator())->generate("$scenariosFolder/Makefile", $testIdentifiers);
 }
 
+/**
+ * From https://github.com/compose-spec/compose-spec/pull/314:
+ *
+ * > compose-spec/compose-go#261 changed docker compose behavior to require
+ * > normalized project names as input, instead of normalizing project names
+ * > automatically. This landed in compose-spec/compose-go v1.2.5 and
+ * > docker/compose v2.5.1.
+ *
+ * The normalization was modelled after NormalizeProjectName in this PR:
+ * https://github.com/compose-spec/compose-go/pull/261/files
+ *
+ * @param string $identifier
+ * @return string
+ */
+function normalizeDockerProjectName($identifier)
+{
+    $identifier = strtolower($identifier);
+    $identifier = preg_replace('/[^a-z0-9_-]/', '', $identifier, -1);
+    $identifier = ltrim($identifier, '_-');
+    return $identifier;
+}
+
 function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restrictedPlatforms = null)
 {
     srand($scenarioSeed);
@@ -110,7 +132,9 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restric
             $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
         }
     }
+
     $identifier = "randomized-$scenarioSeed-$selectedOs-$selectedPhpVersion";
+    $identifier = normalizeDockerProjectName($identifier);
     $scenarioFolder = TMP_SCENARIOS_FOLDER . DIRECTORY_SEPARATOR . $identifier;
 
     // Preparing folder
