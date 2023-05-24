@@ -62,11 +62,15 @@ partial class Build
                 var lastLine = string.Empty;
                 foreach (var line in changes)
                 {
+                    // Iterates over the diff, and when a pair (-, +) is found, records the change
                     if (line.StartsWith("- ") || line.StartsWith("+ "))
                     {
-                        if (!string.IsNullOrEmpty(lastLine) &&
-                            lastLine[0] != line[0] && // if the lines start with '-' and '+' (i.e., a change)
-                            lastLine.Trim(',').Substring(1) != line.Trim(',').Substring(1)) // and this is not just an additon of a comma
+                        if (string.IsNullOrEmpty(lastLine))
+                        {
+                            lastLine = line;
+                        }
+                        else if (lastLine[0] != line[0] // if the lines start with '-' and '+' (i.e., a change)
+                                 && lastLine.Trim(',').Substring(1) != line.Trim(',').Substring(1)) // and this is not just an additon of a comma
                         {
                             // We have a change
                             // Trim the spaces between '-'/'+' and the text, and any trailing commas
@@ -81,10 +85,12 @@ partial class Build
                             }
 
                             RecordChange(diffsInFile, diffCounts);
+
+                            lastLine = string.Empty;
                         }
                         else
                         {
-                            lastLine = line;
+                            lastLine = string.Empty;
                         }
                     }
                 }
