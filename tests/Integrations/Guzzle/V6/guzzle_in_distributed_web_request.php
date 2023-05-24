@@ -5,7 +5,8 @@ require __DIR__ . '/../../../vendor/autoload.php';
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Promise;
+use GuzzleHttp\Promise\Is;
+use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Psr7\Response;
 
 $curl = new CurlMultiHandler();
@@ -29,8 +30,8 @@ $promise2 = $client->getAsync('http://httpbin_integration/headers', [
     ],
 ])->then($resolver);
 
-$aggregate = Promise\all([$promise1, $promise2]);
-while (!Promise\is_settled($aggregate)) {
+$aggregate = Utils::all([$promise1, $promise2]);
+while (!Is::settled($aggregate)) {
     $curl->tick();
 }
 
