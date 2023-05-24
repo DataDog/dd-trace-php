@@ -211,12 +211,11 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
         if (execute_data->func->common.function_name) {
             free(execute_data->func->common.function_name);
         }
+        // free filename
+        if (execute_data->func->op_array.filename) {
+            free(execute_data->func->op_array.filename);
+        }
         free(execute_data->func);
-    }
-
-    // free filename
-    if (execute_data->func->op_array.filename) {
-        free(execute_data->func->op_array.filename);
     }
 
     free(execute_data);
