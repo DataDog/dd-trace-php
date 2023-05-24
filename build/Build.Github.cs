@@ -120,8 +120,20 @@ partial class Build
 
                 string CleanValue(string value)
                 {
-                    Char[] charsToTrim = { ' ', ',' };
-                    return value.TrimStart('-', '+').Trim(charsToTrim);
+                    char[] charsToTrim = { ' ', ',' };
+                    string cleaned = value.TrimStart('-', '+').Trim(charsToTrim);
+
+                    string[] keysToReplace = { 'start', 'duration', 'php.compilation.total_time_ms', 'process_id' };
+                    foreach (var key in keysToReplace)
+                    {
+                        if (cleaned.Contains(key))
+                        {
+                            // "key": value => "key": [...] (to avoid these noisy changes)
+                            cleaned = $"{key}: [...]";
+                        }
+                    }
+
+                    return cleaned;
                 }
             });
 
