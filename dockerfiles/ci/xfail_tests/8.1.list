@@ -16,6 +16,7 @@ Zend/tests/bug75921.phpt
 Zend/tests/bug78182.phpt
 Zend/tests/bug81104.phpt
 Zend/tests/each_002.phpt
+Zend/tests/fibers/gh10496-001.phpt
 Zend/tests/gc_031.phpt
 Zend/tests/gc_037.phpt
 Zend/tests/gc_045.phpt
@@ -143,6 +144,7 @@ ext/standard/tests/math/base_convert_variation1.phpt
 ext/standard/tests/math/bindec_variation1_64bit.phpt
 ext/standard/tests/math/hexdec_variation1_64bit.phpt
 ext/standard/tests/math/octdec_variation1.phpt
+ext/standard/tests/network/bug80067.phpt
 ext/standard/tests/serialize/005.phpt
 ext/standard/tests/streams/bug78902.phpt
 ext/standard/tests/streams/proc_open_bug69900.phpt

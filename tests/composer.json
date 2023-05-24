@@ -65,7 +65,8 @@
             },
             "guzzle7": {
                 "require": {
-                    "guzzlehttp/guzzle": "~7.0"
+                    "guzzlehttp/guzzle": "~7.0",
+                    "guzzlehttp/promises": "~2.0"
                 },
                 "scenario-options": {
                     "create-lockfile": false
