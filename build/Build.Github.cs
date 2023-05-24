@@ -123,7 +123,7 @@ partial class Build
                     char[] charsToTrim = { ' ', ',' };
                     string cleaned = value.TrimStart('-', '+').Trim(charsToTrim);
 
-                    string[] keysToReplace = { 'start', 'duration', 'php.compilation.total_time_ms', 'process_id' };
+                    string[] keysToReplace = { "start", "duration", "php.compilation.total_time_ms", "process_id" };
                     foreach (var key in keysToReplace)
                     {
                         if (cleaned.Contains(key))
