@@ -59,39 +59,35 @@ partial class Build
 
                 var diffCounts = new Dictionary<string, int>();
                 StringBuilder diffsInFile = new();
-                var lastLine = string.Empty;
+                List<string> deletions = new();
+                List<string> additions = new();
                 foreach (var line in changes)
                 {
-                    // Iterates over the diff, and when a pair (-, +) is found, records the change
-                    if (line.StartsWith("- ") || line.StartsWith("+ "))
+                    // Saves the 'blocks' of changes
+                    if (line.StartsWith("- "))
                     {
-                        if (string.IsNullOrEmpty(lastLine))
+                        deletions.Add(CleanValue(line));
+                    }
+                    else if (line.StartsWith("+ "))
+                    {
+                        additions.Add(CleanValue(line));
+                    }
+                    else if (deletions.Any() && additions.Any() && !Enumerable.SequenceEqual(deletions, additions))
+                    {
+                        // We have a change, record it
+                        foreach (var deletion in deletions)
                         {
-                            lastLine = line;
+                            diffsInFile.AppendLine($"- {deletion}");
                         }
-                        else if (lastLine[0] != line[0] // if the lines start with '-' and '+' (i.e., a change)
-                                 && lastLine.Trim(',').Substring(1) != line.Trim(',').Substring(1)) // and this is not just an additon of a comma
+                        foreach (var addition in additions)
                         {
-                            // We have a change
-                            // Trim the spaces between '-'/'+' and the text, and any trailing commas
-                            Char[] charsToTrim = { ' ', ',' };
-                            string initialValue = lastLine.TrimStart('-', '+').Trim(charsToTrim);
-                            string newValue = line.TrimStart('-', '+').Trim(charsToTrim);
-
-                            if (initialValue != newValue)
-                            {
-                                diffsInFile.AppendLine($"- {initialValue}");
-                                diffsInFile.AppendLine($"+ {newValue}");
-                            }
-
-                            RecordChange(diffsInFile, diffCounts);
-
-                            lastLine = string.Empty;
+                            diffsInFile.AppendLine($"+ {addition}");
                         }
-                        else
-                        {
-                            lastLine = string.Empty;
-                        }
+
+                        RecordChange(diffsInFile, diffCounts);
+
+                        deletions.Clear();
+                        additions.Clear();
                     }
                 }
 
@@ -120,6 +116,12 @@ partial class Build
                         diffCounts[change]++;
                         diffsInFile.Clear();
                     }
+                }
+
+                string CleanValue(string value)
+                {
+                    Char[] charsToTrim = { ' ', ',' };
+                    return value.TrimStart('-', '+').Trim(charsToTrim);
                 }
             });
 
