@@ -2211,6 +2211,27 @@ jobs:
               phpize
               php run-tests.php -p $(which php) --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
+  "cbindgen up-to-date":
+    working_directory: ~/datadog
+    docker:
+      - image: datadog/dd-trace-ci:buster
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Install cbindgen
+          command: cargo install cbindgen
+      - run:
+          name: Regenerate cbindgen headers and
+          command: |
+            set -eu
+            make cbindgen
+            git diff --exit-code components/rust
+
+
   placeholder:
     docker:
       - image: busybox
@@ -3380,6 +3401,8 @@ workflows:
           name: "Static Analysis 80"
           docker_image: datadog/dd-trace-ci:php-8.0_buster
           scenario: opentracing10
+      - "cbindgen up-to-date":
+          requires: [ 'Prepare Code' ]
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
 

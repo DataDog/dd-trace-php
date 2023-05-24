@@ -328,7 +328,6 @@ clang_format_check:
 clang_format_fix:
 	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
-# nightly to have 1.66+, remove nightly once we have a rust version 1.66+ in our containers
 cbindgen: remove_cbindgen generate_cbindgen
 
 remove_cbindgen:
