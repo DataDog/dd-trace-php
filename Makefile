@@ -329,14 +329,19 @@ clang_format_fix:
 	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
 # nightly to have 1.66+, remove nightly once we have a rust version 1.66+ in our containers
-cbindgen: components/rust/ddtrace.h components/rust/telemetry.h components/rust/common.h
+cbindgen: remove_cbindgen generate_cbindgen
+
+remove_cbindgen:
+	for h in components/rust/ddtrace.h components/rust/telemetry.h components/rust/sidecar.h components/rust/common.h; do if [ -f "$$h" ]; then rm "$$h"; fi; done
+
+generate_cbindgen: components/rust/ddtrace.h components/rust/telemetry.h components/rust/sidecar.h components/rust/common.h
 	( \
 		cd libdatadog; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
 			mkdir -pv "$(BUILD_DIR)"; \
 			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
 		fi; \
-		cargo run -p tools -- $(PROJECT_ROOT)/components/rust/common.h $(PROJECT_ROOT)/components/rust/ddtrace.h $(PROJECT_ROOT)/components/rust/telemetry.h \
+		cargo run -p tools -- $(PROJECT_ROOT)/components/rust/common.h $(PROJECT_ROOT)/components/rust/ddtrace.h $(PROJECT_ROOT)/components/rust/telemetry.h $(PROJECT_ROOT)/components/rust/sidecar.h  \
 	)
 
 components/rust/common.h:
@@ -355,6 +360,16 @@ components/rust/telemetry.h:
 			cd libdatadog; \
 			$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
 				--config ddtelemetry-ffi/cbindgen.toml \
+				--output $(PROJECT_ROOT)/$@; \
+		fi \
+	)
+
+components/rust/sidecar.h:
+	( \
+		if command -v cbindgen &> /dev/null; then \
+			cd libdatadog; \
+			$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
+				--config sidecar-ffi/cbindgen.toml \
 				--output $(PROJECT_ROOT)/$@; \
 		fi \
 	)

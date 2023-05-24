@@ -141,21 +141,9 @@ typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_DEBUG,
 } ddog_LogLevel;
 
-/**
- * PlatformHandle contains a valid reference counted FileDescriptor and associated Type information
- * allowing safe transfer and sharing of file handles across processes, and threads
- */
-typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
-
-typedef struct ddog_RuntimeMeta ddog_RuntimeMeta;
-
 typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
 
 typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
-
-typedef struct ddog_NativeFile {
-  struct ddog_PlatformHandle_File *handle;
-} ddog_NativeFile;
 
 typedef enum ddog_Option_Bool_Tag {
   DDOG_OPTION_BOOL_SOME_BOOL,
@@ -170,6 +158,18 @@ typedef struct ddog_Option_Bool {
     };
   };
 } ddog_Option_Bool;
+
+/**
+ * PlatformHandle contains a valid reference counted FileDescriptor and associated Type information
+ * allowing safe transfer and sharing of file handles across processes, and threads
+ */
+typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
+
+typedef struct ddog_RuntimeMeta ddog_RuntimeMeta;
+
+typedef struct ddog_NativeFile {
+  struct ddog_PlatformHandle_File *handle;
+} ddog_NativeFile;
 
 /**
  * # Safety

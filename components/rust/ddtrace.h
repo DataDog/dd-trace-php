@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "common.h"
+#include "telemetry.h"
+#include "sidecar.h"
 
 typedef uint64_t ddog_QueueId;
 

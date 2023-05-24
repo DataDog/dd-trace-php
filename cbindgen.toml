@@ -5,7 +5,7 @@ style = "both"
 
 no_includes = true
 sys_includes = ["stdbool.h", "stddef.h", "stdint.h"]
-includes = ["common.h"]
+includes = ["common.h", "telemetry.h", "sidecar.h"]
 
 [export]
 prefix = "ddog_"
@@ -25,4 +25,4 @@ rename_variants = "ScreamingSnakeCase"
 
 [parse]
 parse_deps = true
-include = ["ddcommon", "ddtelemetry", "ddcommon-ffi", "ddtelemetry-ffi", "datadog-ipc", "uuid"]
+include = ["ddcommon", "ddtelemetry", "ddcommon-ffi", "ddtelemetry-ffi", "datadog-sidecar", "datadog-ipc", "uuid"]

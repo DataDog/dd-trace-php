@@ -7,6 +7,7 @@ use ddcommon_ffi::CharSlice;
 pub use ddcommon_ffi::*;
 use ddcommon_ffi::slice::AsBytes;
 pub use ddtelemetry_ffi::*;
+pub use datadog_sidecar_ffi::*;
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]

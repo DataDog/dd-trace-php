@@ -4,9 +4,9 @@ use std::path::Path;
 use ddcommon_ffi::CharSlice;
 use ddcommon_ffi::slice::AsBytes;
 use ddtelemetry::data::Dependency;
-use ddtelemetry::ipc::interface::blocking::TelemetryTransport;
-use ddtelemetry::ipc::interface::{blocking, InstanceId, QueueId};
-use ddtelemetry::ipc::sidecar::config;
+use datadog_sidecar::interface::blocking::TelemetryTransport;
+use datadog_sidecar::interface::{blocking, InstanceId, QueueId};
+use datadog_sidecar::config;
 use ddtelemetry::worker::TelemetryActions;
 use ddtelemetry_ffi::{MaybeError, try_c};
 #[cfg(php_shared_build)]
@@ -55,12 +55,12 @@ const MOCK_PHP: &[u8] = include_bytes!(concat!(
 #[cfg(php_shared_build)]
 fn run_sidecar(mut cfg: config::Config) -> io::Result<TelemetryTransport> {
     cfg.library_dependencies.push(LibDependency::Binary(MOCK_PHP));
-    ddtelemetry::ipc::sidecar::start_or_connect_to_sidecar(cfg)
+    datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 #[cfg(not(php_shared_build))]
 fn run_sidecar(cfg: config::Config) -> io::Result<TelemetryTransport> {
-    ddtelemetry::ipc::sidecar::start_or_connect_to_sidecar(cfg)
+    datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 #[no_mangle]
