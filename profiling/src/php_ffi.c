@@ -206,16 +206,20 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
 
     ddog_php_test_free_fake_zend_execute_data(execute_data->prev_execute_data);
 
-    // free function name
     if (execute_data->func) {
+        // free function name
         if (execute_data->func->common.function_name) {
             free(execute_data->func->common.function_name);
+            execute_data->func->common.function_name = NULL;
         }
         // free filename
         if (execute_data->func->op_array.filename) {
             free(execute_data->func->op_array.filename);
+            execute_data->func->op_array.filename = NULL;
         }
+        // free zend_op_array
         free(execute_data->func);
+        execute_data->func = NULL;
     }
 
     free(execute_data);
