@@ -779,22 +779,44 @@ static ATTR_NO_RETURN void _continue_in_intermediate_process(
     __builtin_unreachable();
 }
 
-#define DEFAULT_RLIMIT 1024
+#define DEFAULT_BASE 10
+#define MAX_RLIMIT 1024
+
 static void _close_file_descriptors(int log_fd, int lock_fd, int sock_fd)
 {
-    int fd_max;
-    struct rlimit rl;
+    DIR *self = opendir("/proc/self/fd/");
+    if (self != NULL) {
+        struct dirent *entry = NULL;
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        while ((entry = readdir(self)) != NULL) {
+            if (*entry->d_name == '.') {
+                continue;
+            }
 
-    // determine max number of file descriptors, defaulting to 1024
-    if (getrlimit(RLIMIT_NOFILE, &rl) == -1 || rl.rlim_max == RLIM_INFINITY) {
-        fd_max = DEFAULT_RLIMIT;
+            char *endptr = NULL;
+            int fd = (int)strtol(entry->d_name, &endptr, DEFAULT_BASE);
+            if (endptr != entry->d_name && *endptr == '\0' && fd != log_fd &&
+                fd != lock_fd && fd != sock_fd) {
+                close(fd);
+            }
+        }
+
+        closedir(self);
     } else {
-        fd_max = (int)rl.rlim_max;
-    }
+        int fd_max;
+        struct rlimit rl;
 
-    for (int i = 0; i < fd_max; i++) {
-        if (i != log_fd && i != lock_fd && i != sock_fd) {
-            close(i);
+        // Determine max number of file descriptors, default and limit to 1024
+        if (getrlimit(RLIMIT_NOFILE, &rl) == -1 || rl.rlim_max > MAX_RLIMIT) {
+            fd_max = MAX_RLIMIT;
+        } else {
+            fd_max = (int)rl.rlim_max;
+        }
+
+        for (int i = 0; i < fd_max; i++) {
+            if (i != log_fd && i != lock_fd && i != sock_fd) {
+                close(i);
+            }
         }
     }
 }
