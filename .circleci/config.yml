@@ -177,9 +177,9 @@ aliases:
 
   - &STEP_GET_TEST_AGENT_TRACE_CHECK_RESULTS_VIA_CURL
     run:
-      name: Send HTTP Request to Test Agent
+      name: Get APM Test Agent Trace Check Results
       command: |
-        RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://test-agent:9126/test/check_trace/failures)
+        RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://test-agent:9126/test/trace_check/failures)
         RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
         if [[ $RESPONSE_CODE -eq 200 ]]; then
           echo "All Check Traces returned successful! (HTTP 200)"
