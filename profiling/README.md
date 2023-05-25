@@ -78,9 +78,9 @@ After this change you can execute the benchmarks using:
 cargo bench --features stack_walking_tests
 ```
 
-Note: the `--all-features` is necessary as some code in the `php_ffi.c` is only
-compiled for tests and benchmarks and compilation is guarded behind a feature
-flag.
+Note: the `--features stack_walking_tests` is necessary as some code in the
+`php_ffi.c` is only compiled for tests and benchmarks and compilation is guarded
+behind a feature flag.
 
 ## Troubleshooting
 
