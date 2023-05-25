@@ -69,7 +69,12 @@ struct ddtrace_span_stack {
     struct ddtrace_span_stack *root_stack;
     union {
         struct ddtrace_span_stack *next; // closed chunk chain
-        zend_function *fiber_entry_function;
+        struct {
+            zend_function *fiber_entry_function;
+#if PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80200
+            zend_execute_data *fiber_initial_execute_data;
+#endif
+        };
     };
     struct ddtrace_span_stack *top_closed_stack;
     // closed ring: linked list where the last element links to the first. The last inserted element is always reachable via closed_ring->next.
