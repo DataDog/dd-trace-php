@@ -6,7 +6,7 @@ license = "Apache-2.0"
 rust-version = "1.64"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 bench = false # disables cargo build in libtest bench
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

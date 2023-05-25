@@ -60,11 +60,22 @@ tests.
 
 ## Benchmarks
 
-Benchmarks are implemented using [criterion](https://github.com/bheisler/criterion.rs)
-and can be execute by calling:
+Benchmarks are implemented using
+[criterion](https://github.com/bheisler/criterion.rs). In order to execute them
+you need to change the `crate-type` in the `Cargo.toml` from `cdylib` to `rlib`
+(or add it):
+
+```diff
+ [lib]
+-crate-type = ["cdylib"]
++crate-type = ["rlib"]
+ bench = false # disables cargo build in libtest bench
+```
+
+After this change you can execute the benchmarks using:
 
 ```sh
-cargo bench --all-features
+cargo bench --features stack_walking_tests
 ```
 
 Note: the `--all-features` is necessary as some code in the `php_ffi.c` is only
