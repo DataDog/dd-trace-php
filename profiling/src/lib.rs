@@ -6,6 +6,9 @@ mod pcntl;
 mod profiling;
 mod sapi;
 
+#[cfg(feature = "profiling_metrics")]
+mod dogstatsd;
+
 use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};
 use config::AgentEndpoint;
@@ -37,6 +40,9 @@ use rand_distr::{Distribution, Poisson};
 use crate::bindings::{
     datadog_php_install_handler, datadog_php_zif_handler, ddog_php_prof_copy_long_into_zval,
 };
+
+#[cfg(feature = "profiling_metrics")]
+use profiling::stalk_walking;
 
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
@@ -311,6 +317,8 @@ pub struct RequestLocals {
     pub profiling_experimental_allocation_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
+    #[cfg(feature = "profiling_metrics")]
+    pub stack_walk_overhead: stalk_walking::OverheadMetrics,
     pub tags: Arc<Vec<Tag>>,
     pub uri: Box<AgentEndpoint>,
     pub version: Option<Cow<'static, str>>,
@@ -352,11 +360,11 @@ impl AllocationProfilingStats {
 
         REQUEST_LOCALS.with(|cell| {
             // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-            let locals = cell.try_borrow();
+            let locals = cell.try_borrow_mut();
             if locals.is_err() {
                 return;
             }
-            let locals = locals.unwrap();
+            let mut locals = locals.unwrap();
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
@@ -365,7 +373,7 @@ impl AllocationProfilingStats {
                         zend::ddog_php_prof_get_current_execute_data(),
                         1 as i64,
                         len as i64,
-                        &locals,
+                        locals.deref_mut(),
                     )
                 };
             }
@@ -373,15 +381,15 @@ impl AllocationProfilingStats {
     }
 }
 
-fn static_tags() -> Vec<Tag> {
-    vec![
+fn static_tags() -> Arc<Vec<Tag>> {
+    Arc::new(vec![
         Tag::from_value("language:php").expect("static tags to be valid"),
         // Safety: calling getpid() is safe.
         Tag::new("process_id", unsafe { libc::getpid() }.to_string())
             .expect("static tags to be valid"),
         Tag::from_value(concat!("profiler_version:", env!("CARGO_PKG_VERSION")))
             .expect("static tags to be valid"),
-    ]
+    ])
 }
 
 thread_local! {
@@ -396,7 +404,9 @@ thread_local! {
         profiling_experimental_allocation_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
-        tags: Arc::new(static_tags()),
+        #[cfg(feature = "profiling_metrics")]
+        stack_walk_overhead: stalk_walking::OverheadMetrics::new().unwrap(),
+        tags: static_tags(),
         uri: Box::new(AgentEndpoint::default()),
         version: None,
         vm_interrupt_addr: std::ptr::null_mut(),
@@ -739,7 +749,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                     warn!("Unable to find interrupt {err}.");
                 }
             }
-            locals.tags = Arc::new(static_tags());
+            locals.tags = static_tags();
         }
 
         #[cfg(feature = "allocation_profiling")]

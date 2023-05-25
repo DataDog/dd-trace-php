@@ -2,7 +2,14 @@ use crate::bindings::{
     ddog_php_prof_zend_string_view, zend_execute_data, zend_function, zend_string,
     ZEND_USER_FUNCTION,
 };
+use crate::RequestLocals;
 use std::str::Utf8Error;
+
+#[cfg(feature = "profiling_metrics")]
+mod metrics;
+
+#[cfg(feature = "profiling_metrics")]
+pub use metrics::*;
 
 #[derive(Default, Debug)]
 pub struct ZendFrame {
@@ -94,7 +101,27 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
     None
 }
 
-pub(super) unsafe fn collect_stack_sample(
+pub(super) unsafe fn collect_timed_stack_sample(
+    top_execute_data: *mut zend_execute_data,
+    _locals: &mut RequestLocals,
+    _reason: Reason,
+) -> Result<Vec<ZendFrame>, Utf8Error> {
+    #[cfg(feature = "profiling_metrics")]
+    let instant = std::time::Instant::now();
+    let result = collect_stack_sample(top_execute_data);
+
+    #[cfg(feature = "profiling_metrics")]
+    {
+        let duration = instant.elapsed();
+        _locals
+            .stack_walk_overhead
+            .record_stack_walk(_reason, duration);
+    }
+
+    result
+}
+
+unsafe fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     let max_depth = 512;
@@ -122,6 +149,11 @@ pub(super) unsafe fn collect_stack_sample(
         execute_data_ptr = execute_data.prev_execute_data;
     }
     Ok(samples)
+}
+
+pub enum Reason {
+    Alloc,
+    Wall,
 }
 
 #[cfg(test)]

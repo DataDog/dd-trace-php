@@ -1,5 +1,5 @@
 mod interrupts;
-mod stalk_walking;
+pub mod stalk_walking;
 mod thread_utils;
 mod uploader;
 
@@ -567,7 +567,7 @@ impl Profiler {
     ) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
-        let result = collect_stack_sample(execute_data);
+        let result = collect_timed_stack_sample(execute_data, locals, Reason::Wall);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -625,9 +625,9 @@ impl Profiler {
         execute_data: *mut zend_execute_data,
         alloc_samples: i64,
         alloc_size: i64,
-        locals: &RequestLocals,
+        locals: &mut RequestLocals,
     ) {
-        let result = collect_stack_sample(execute_data);
+        let result = collect_timed_stack_sample(execute_data, locals, Reason::Alloc);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -767,7 +767,9 @@ mod tests {
             profiling_experimental_allocation_enabled: false,
             profiling_log_level: LevelFilter::Off,
             service: None,
-            tags: Arc::new(static_tags()),
+            #[cfg(feature = "profiling_metrics")]
+            stack_walk_overhead: Default::default(),
+            tags: static_tags(),
             uri: Box::new(AgentEndpoint::default()),
             version: None,
             vm_interrupt_addr: std::ptr::null_mut(),
