@@ -13,7 +13,7 @@ var_dump(\DDTrace\trace_id_128());
 ini_set("datadog.trace.128_bit_traceid_logging_enabled", "1");
 var_dump(\DDTrace\trace_id_128());
 
-var_dump(\DDTrace\set_distributed_tracing_context("33475823097097752842117799874953798269", "42"));
+\DDTrace\set_distributed_tracing_context("33475823097097752842117799874953798269", "42");
 // 33475823097097752842117799874953798269 -> 192F3581C8461C79 ABF2684EE31CE27D
 var_dump(\DDTrace\trace_id_128());
 
