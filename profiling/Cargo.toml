@@ -31,6 +31,8 @@ rand_distr = { version = "0.4.3" }
 [features]
 default = ["allocation_profiling"]
 allocation_profiling = []
+# Currently, profiling_metrics is not meant for production, only perf testing,
+# which is why it is not enabled by default.
 profiling_metrics = []
 stack_walking_tests = []
 
