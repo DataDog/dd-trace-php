@@ -19,6 +19,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/Eloquent/EloquentIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Memcache/MemcacheIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Memcached/MemcachedIntegration.php',
+    __DIR__ . '/../src/Integrations/Integrations/Monolog/MonologIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Curl/CurlIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Mysqli/MysqliCommon.php',
     __DIR__ . '/../src/Integrations/Integrations/Mysqli/MysqliIntegration.php',
