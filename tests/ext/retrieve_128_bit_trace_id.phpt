@@ -3,7 +3,6 @@ Test 128-bit trace id retrieval
 --ENV--
 DD_TRACE_DEBUG_PRNG_SEED=42
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_DEBUG=1
 --FILE--
 <?php
 
