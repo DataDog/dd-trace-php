@@ -257,10 +257,12 @@ impl TimeCollector {
             .build();
 
         #[cfg(feature = "allocation_profiling")]
-        if alloc_samples_offset.is_some() && alloc_size_offset.is_some() {
+        if let (Some(sum_value_offset), Some(count_value_offset)) =
+            (alloc_samples_offset, alloc_size_offset)
+        {
             let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: alloc_size_offset.unwrap(),
-                count_value_offset: alloc_samples_offset.unwrap(),
+                sum_value_offset,
+                count_value_offset,
                 sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
             };
             let values_offset: Vec<usize> =
@@ -768,7 +770,7 @@ mod tests {
             profiling_log_level: LevelFilter::Off,
             service: None,
             #[cfg(feature = "profiling_metrics")]
-            stack_walk_overhead: Default::default(),
+            stack_walk_overhead: OverheadMetrics::new().unwrap(),
             tags: static_tags(),
             uri: Box::new(AgentEndpoint::default()),
             version: None,

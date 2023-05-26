@@ -91,7 +91,10 @@ impl Client {
         use std::io::Write;
         write!(buffer, "{stat}:{value}|{metric_type}")?;
 
-        // Handle tags. Note `|t| t` decouples a lifetime for chaining.
+        // Handle tags.
+        // The identify mapping `|t| t` decouples a lifetime for chaining,
+        // and is actually required or it will not compile.
+        #[allow(clippy::map_identity)]
         let other_tags = tags.into_iter().map(|t| t);
         let mut tags = self.default_tags.iter().chain(other_tags);
         if let Some(tag) = tags.next() {
