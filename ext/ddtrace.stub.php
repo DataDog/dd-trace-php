@@ -458,6 +458,13 @@ namespace DDTrace {
     function trace_id(): string {}
 
     /**
+     * TODO: Add Description
+     *
+     * @return string
+     */
+    function trace_id_128(): string {}
+
+    /**
      * Get information on the current context
      *
      * @return array{trace_id: string, span_id: string, version: string, env: string}

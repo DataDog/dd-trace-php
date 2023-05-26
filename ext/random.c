@@ -61,13 +61,8 @@ ddtrace_trace_id ddtrace_parse_userland_trace_id(zend_string *tid) {
 
         // split num.low * 10 into (num.low % 2^32) * 10 + floor(num.low / 2^32) * 10 to operate on sizes fitting into uint64_t
         uint64_t carry = (((((num.low & UINT32_MAX) * 10) >> 32) + (num.low >> 32)) * 10) >> 32;
-        num.low *= 10;
-        num.high += carry;
-
-        if (UNEXPECTED(UINT64_MAX - digit < num.low)) {
-            ++num.high;
-        }
-        num.low += digit;
+        num.low = num.low * 10 + digit;
+        num.high = num.high * 10 + carry;
     }
     return num;
 }
