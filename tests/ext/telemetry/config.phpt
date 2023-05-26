@@ -22,7 +22,7 @@ DDTrace\close_span();
 
 dd_trace_internal_fn("finalize_telemetry");
 
-usleep(100000);
+usleep(300000);
 foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
     if ($l) {
         $json = json_decode($l, true);
