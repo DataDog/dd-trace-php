@@ -3,7 +3,7 @@
 set -ex
 
 cd ../profiling/
-sed -i ".bck" "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
+sed -i ".bck" -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
 
 cargo bench --features stack_walking_tests
 
