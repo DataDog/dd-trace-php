@@ -60,6 +60,10 @@ class LaravelQueueIntegration extends Integration
 
                         $integration->extractContext($payload);
                         $span->links[] = $newTrace->getLink();
+                    } elseif (\dd_trace_env_config("DD_TRACE_GENERATE_ROOT_SPAN")) {
+                        $newTrace = start_trace_span();
+                        $integration->setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
+                        $span->links[] = $newTrace->getLink();
                     }
                 },
                 'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration, &$newTrace) {
