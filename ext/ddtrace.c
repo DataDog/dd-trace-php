@@ -2065,6 +2065,7 @@ bool ddtrace_tracer_is_limited(void) {
         int64_t open_spans = DDTRACE_G(open_spans_count);
         int64_t closed_spans = DDTRACE_G(closed_spans_count);
         if ((open_spans + closed_spans) >= limit) {
+            ddtrace_log_debugf("Span limit reached. Entering limited mode.");
             return true;
         }
     }
