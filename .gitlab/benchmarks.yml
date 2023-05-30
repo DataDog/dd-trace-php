@@ -5,6 +5,7 @@ benchmarks:
   stage: benchmarks
   when: on_success
   tags: ["runner:apm-k8s-tweaked-metal"]
+  needs: []
   image:
     name: $BASE_CI_IMAGE
   interruptible: true
