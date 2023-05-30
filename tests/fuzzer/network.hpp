@@ -19,20 +19,19 @@ namespace dds::fuzzer {
 
 class raw_socket : public network::base_socket {
 public:
-    raw_socket(const uint8_t *bytes, size_t size) {
-        start = new uint8_t[size];
+    raw_socket(const uint8_t *bytes, size_t size) : start(new uint8_t[size]) {
         memcpy(start, bytes, size);
         r = reader(start, size);
     }
 
-    ~raw_socket() { delete[] start; }
+    ~raw_socket() override { delete[] start; }
 
     std::size_t recv(char *buffer, std::size_t size) override
     {
         return r.read_bytes(reinterpret_cast<uint8_t*>(buffer), size);
     }
 
-    std::size_t send(const char *buffer, std::size_t len) override
+    std::size_t send(const char * /*buffer*/, std::size_t len) override
     {
         return len;
     }
@@ -75,7 +74,7 @@ public:
 
             return std::move(socket);
         }
-        return network::base_socket::ptr();
+        return {};
     }
 
     void exit() { exit_flag = true;  cv.notify_all(); }

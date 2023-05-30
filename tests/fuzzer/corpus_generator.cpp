@@ -67,6 +67,8 @@ std::string generate_string() {
 
 // TODO generate complex data types
 
+constexpr unsigned max_addresses = 64;
+
 void generate_request(msgpack::packer<std::stringstream> &packer) {
     constexpr std::array<std::string_view, 10> addrs = {{
         "server.request.query",
@@ -81,12 +83,22 @@ void generate_request(msgpack::packer<std::stringstream> &packer) {
         "server.request.path_params"
     }};
 
-    size_t num_items = rng() % 64;
+    size_t num_items = rng() % max_addresses;
     packer.pack_map(num_items);
-    while (num_items--) {
+    while (num_items-- > 0) {
         pack_str(packer, addrs[rng() % addrs.size()]);
         pack_str(packer, generate_string());
     }
+}
+
+void generate_user_id(msgpack::packer<std::stringstream> &packer) {
+    size_t num_items = rng() % max_addresses;
+    packer.pack_map(num_items);
+    while (num_items-- > 0) {
+        pack_str(packer, std::string_view{"usr.id"});
+        pack_str(packer, generate_string());
+    }
+
 }
 
 void generate_response(msgpack::packer<std::stringstream> &packer) {
@@ -99,15 +111,15 @@ void generate_response(msgpack::packer<std::stringstream> &packer) {
         "server.response.write"
     }};
     
-    size_t num_items = rng() % 64;
+    size_t num_items = rng() % max_addresses;
     packer.pack_map(num_items);
-    while (num_items--) {
+    while (num_items-- > 0) {
         pack_str(packer, addrs[rng() % addrs.size()]);
         pack_str(packer, generate_string());
     }
 }
 
-}
+} // namespace
 
 int main(int argc, char *argv[])
 {
@@ -180,6 +192,26 @@ int main(int argc, char *argv[])
             pack_str(packer, name);
             packer.pack_array(1);
 
+            generate_user_id(packer);
+
+            dds::network::header_t h{"dds"};
+            const std::string &str = ss.str();
+            h.size = str.size();
+
+            os.write(reinterpret_cast<char *>(&h), sizeof(h));
+            os.write(str.c_str(), str.size());
+        }
+
+        // Request Exec
+        {
+            std::stringstream ss;
+            msgpack::packer<std::stringstream> packer(ss);
+
+            packer.pack_array(2);
+            std::string name = dds::network::request_exec::request::name;
+            pack_str(packer, name);
+            packer.pack_array(1);
+
             generate_request(packer);
 
             dds::network::header_t h{"dds"};
@@ -189,6 +221,7 @@ int main(int argc, char *argv[])
             os.write(reinterpret_cast<char *>(&h), sizeof(h));
             os.write(str.c_str(), str.size());
         }
+
 
         // Request Shutdown
         {
@@ -209,6 +242,24 @@ int main(int argc, char *argv[])
             os.write(reinterpret_cast<char *>(&h), sizeof(h));
             os.write(str.c_str(), str.size());
         }
+
+        // Config Sync
+        {
+            std::stringstream ss;
+            msgpack::packer<std::stringstream> packer(ss);
+
+            packer.pack_array(1);
+            std::string name = dds::network::config_sync::request::name;
+            pack_str(packer, name);
+
+            dds::network::header_t h{"dds"};
+            const std::string &str = ss.str();
+            h.size = str.size();
+
+            os.write(reinterpret_cast<char *>(&h), sizeof(h));
+            os.write(str.c_str(), str.size());
+        }
+
 
         os.close();
     }
