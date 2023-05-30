@@ -21,43 +21,26 @@
 #include "../tags.hpp"
 #include "waf.hpp"
 
+namespace dds::waf {
+
 namespace {
 
 dds::subscriber::event format_waf_result(ddwaf_result &res)
 {
     dds::subscriber::event output;
-    for (unsigned i = 0; i < res.actions.size; i++) {
-        char *value = res.actions.array[i];
-        if (value == nullptr) {
-            continue;
+    try {
+        const parameter_view actions{res.actions};
+        for (const auto &action : actions) {
+            output.actions.emplace(std::string{action});
         }
-        output.actions.emplace(value);
+
+        const parameter_view events{res.events};
+        for (const auto &event : events) {
+            output.data.emplace_back(std::move(parameter_to_json(event)));
+        }
+    } catch (const std::exception &e) {
+        SPDLOG_ERROR("failed to parse WAF output: {}", e.what());
     }
-
-    const std::string_view json = res.data;
-
-    rapidjson::Document doc;
-    const rapidjson::ParseResult status = doc.Parse(json.data(), json.size());
-    if (status == nullptr) {
-        SPDLOG_ERROR("failed to parse WAF output at {}: {}",
-            rapidjson::GetParseError_En(status.Code()), status.Offset());
-        return output;
-    }
-
-    if (doc.GetType() != rapidjson::kArrayType) {
-        // perhaps throw something?
-        SPDLOG_ERROR(
-            "unexpected WAF result type {}, expected array", doc.GetType());
-        return output;
-    }
-
-    for (auto &v : doc.GetArray()) {
-        dds::string_buffer buffer;
-        rapidjson::Writer<decltype(buffer)> writer(buffer);
-        v.Accept(writer);
-        output.data.emplace_back(std::move(buffer.get_string_ref()));
-    }
-
     return output;
 }
 
@@ -115,9 +98,47 @@ void log_cb(DDWAF_LOG_LEVEL level, const char *function, const char *file,
         std::string_view(message, message_len));
 }
 
-} // namespace
+void extract_tags_and_metrics(parameter_view diagnostics, std::string &version,
+    std::map<std::string_view, std::string> &meta,
+    std::map<std::string_view, double> &metrics)
+{
+    try {
+        const parameter_view diagnostics_view{diagnostics};
+        auto info = static_cast<parameter_view::map>(diagnostics_view);
 
-namespace dds::waf {
+        auto rules_it = info.find("rules");
+        if (rules_it != info.end()) {
+            auto rules = static_cast<parameter_view::map>(rules_it->second);
+            auto it = rules.find("loaded");
+            if (it != rules.end()) {
+                metrics[tag::event_rules_loaded] =
+                    static_cast<double>(it->second.size());
+            }
+
+            it = rules.find("failed");
+            if (it != rules.end()) {
+                metrics[tag::event_rules_failed] =
+                    static_cast<double>(it->second.size());
+            }
+
+            it = rules.find("errors");
+            if (it != rules.end()) {
+                meta[tag::event_rules_errors] = parameter_to_json(it->second);
+            }
+        }
+
+        meta[tag::waf_version] = ddwaf_get_version();
+
+        auto version_it = info.find("ruleset_version");
+        if (version_it != info.end()) {
+            version = std::string(version_it->second);
+        }
+    } catch (const std::exception &e) {
+        SPDLOG_ERROR("Failed to parse WAF tags and metrics: {}", e.what());
+    }
+}
+
+} // namespace
 
 void initialise_logging(spdlog::level::level_enum level)
 {
@@ -161,15 +182,15 @@ std::optional<subscriber::event> instance::listener::call(
 
     if (spdlog::should_log(spdlog::level::debug)) {
         DD_STDLOG(DD_STDLOG_CALLING_WAF, data.debug_str());
-        auto start = std::chrono::steady_clock::now();
-
         run_waf();
 
-        auto elapsed = std::chrono::steady_clock::now() - start;
-        DD_STDLOG(DD_STDLOG_AFTER_WAF, res.data ? res.data : "(no data)",
-            std::chrono::duration_cast<
-                std::chrono::duration<double, std::milli>>(elapsed)
-                .count());
+        static constexpr unsigned millis = 1e6;
+        // This converts the events to JSON which is already done in the
+        // switch below so it's slightly inefficient, albeit since it's only
+        // done on debug, we can live with it...
+        DD_STDLOG(DD_STDLOG_AFTER_WAF,
+            parameter_to_json(parameter_view{res.events}),
+            res.total_runtime / millis);
     } else {
         run_waf();
     }
@@ -216,23 +237,17 @@ instance::instance(parameter &rule,
     std::string_view key_regex, std::string_view value_regex)
     : waf_timeout_{waf_timeout_us}
 {
-    ddwaf_ruleset_info info;
     const ddwaf_config config{
         {0, 0, 0}, {key_regex.data(), value_regex.data()}, nullptr};
 
-    handle_ = ddwaf_init(rule, &config, &info);
+    ddwaf_object diagnostics;
+    handle_ = ddwaf_init(rule, &config, &diagnostics);
 
-    metrics[tag::event_rules_loaded] = info.loaded;
-    metrics[tag::event_rules_failed] = info.failed;
-    meta[tag::event_rules_errors] =
-        parameter_to_json(dds::parameter_view(info.errors));
-    if (info.version != nullptr) {
-        ruleset_version_ = info.version;
-    }
-
+    extract_tags_and_metrics(
+        parameter_view{diagnostics}, ruleset_version_, meta, metrics);
     meta[tag::waf_version] = ddwaf_get_version();
 
-    ddwaf_ruleset_info_free(&info);
+    ddwaf_object_free(&diagnostics);
 
     if (handle_ == nullptr) {
         throw invalid_object();
@@ -297,24 +312,18 @@ subscriber::ptr instance::update(parameter &rule,
     std::map<std::string_view, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
-    ddwaf_ruleset_info info;
-    auto *new_handle = ddwaf_update(handle_, rule, &info);
-
-    metrics[tag::event_rules_loaded] = info.loaded;
-    metrics[tag::event_rules_failed] = info.failed;
-    meta[tag::event_rules_errors] =
-        parameter_to_json(dds::parameter_view(info.errors));
-
-    meta[tag::waf_version] = ddwaf_get_version();
+    ddwaf_object diagnostics;
+    auto *new_handle = ddwaf_update(handle_, rule, &diagnostics);
 
     std::string version;
-    if (info.version != nullptr) {
-        version = info.version;
-    } else {
+    extract_tags_and_metrics(
+        parameter_view{diagnostics}, version, meta, metrics);
+    meta[tag::waf_version] = ddwaf_get_version();
+    if (version.empty()) {
         version = ruleset_version_;
     }
 
-    ddwaf_ruleset_info_free(&info);
+    ddwaf_object_free(&diagnostics);
 
     if (new_handle == nullptr) {
         throw invalid_object();

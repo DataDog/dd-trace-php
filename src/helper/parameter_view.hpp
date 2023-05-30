@@ -22,6 +22,8 @@ namespace dds {
 
 class parameter_view : public parameter_base {
 public:
+    using map = std::unordered_map<std::string_view, parameter_view>;
+
     class iterator {
     public:
         explicit iterator(const parameter_view &pv, size_t index = 0)
@@ -102,6 +104,31 @@ public:
         }
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         return static_cast<parameter_view &>(ddwaf_object::array[index]);
+    }
+
+    explicit operator map() const
+    {
+        if (ddwaf_object::type != DDWAF_OBJ_MAP) {
+            throw bad_cast("parameter_view not a map");
+        }
+
+        if (array == nullptr || nbEntries == 0) {
+            return {};
+        }
+
+        std::unordered_map<std::string_view, parameter_view> map;
+        map.reserve(nbEntries);
+        for (unsigned i = 0; i < nbEntries; i++) {
+            const auto &kv = array[i];
+            if (kv.parameterName == nullptr) {
+                throw bad_cast("invalid key in map entry");
+            }
+
+            map.emplace(
+                std::string_view(kv.parameterName, kv.parameterNameLength), kv);
+        }
+
+        return map;
     }
 };
 
