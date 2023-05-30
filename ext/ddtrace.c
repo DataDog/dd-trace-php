@@ -2059,13 +2059,17 @@ PHP_FUNCTION(dd_trace_closed_spans_count) {
     RETURN_LONG(DDTRACE_G(closed_spans_count));
 }
 
+int logged_span_limit = 0;
 bool ddtrace_tracer_is_limited(void) {
     int64_t limit = get_DD_TRACE_SPANS_LIMIT();
     if (limit >= 0) {
         int64_t open_spans = DDTRACE_G(open_spans_count);
         int64_t closed_spans = DDTRACE_G(closed_spans_count);
         if ((open_spans + closed_spans) >= limit) {
-            ddtrace_log_debugf("Span limit reached. Entering limited mode.");
+            if (logged_span_limit == 0) {
+                logged_span_limit = 1;
+                ddtrace_log_debugf("Span limit reached. Entering limited mode.");
+            }
             return true;
         }
     }
