@@ -44,7 +44,9 @@ array(1) {
     ["error"]=>
     int(1)
     ["meta"]=>
-    array(2) {
+    array(3) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["error.message"]=>
       string(9) "Foo error"
       ["_dd.p.dm"]=>

@@ -3,6 +3,7 @@
 #include <dogstatsd_client/client.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <components-rs/ddtrace.h>
 
 #include "ext/version.h"
 #include "compatibility.h"
@@ -128,6 +129,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_string *dd_origin;
 
     char *cgroup_file;
+    ddog_QueueId telemetry_queue_id;
+    zend_string *last_flushed_root_service_name;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 

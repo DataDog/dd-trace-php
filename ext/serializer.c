@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include <ext/standard/php_string.h>
+#include <components-rs/ddtrace.h>
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
 #include <exceptions/exceptions.h>
@@ -28,7 +29,6 @@
 #include "logging.h"
 #include "mpack/mpack.h"
 #include "priority_sampling/priority_sampling.h"
-#include "runtime.h"
 #include "span.h"
 #include "uri_normalization.h"
 
@@ -612,22 +612,17 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
 
     zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
 
-    datadog_php_uuid runtime_id = ddtrace_profiling_runtime_id();
-    if (!datadog_php_uuid_is_nil(runtime_id)) {
-        zend_string *encoded_id = zend_string_alloc(36, false);
+    /* Compilers rightfully complain about array bounds due to the struct
+     * hack if we write straight to the char storage. Saving the char* to a
+     * temporary avoids the warning without a performance penalty.
+     */
+    zend_string *encoded_id = zend_string_alloc(36, false);
+    ddtrace_format_runtime_id((uint8_t(*)[36])&ZSTR_VAL(encoded_id));
+    ZSTR_VAL(encoded_id)[36] = '\0';
 
-        /* Compilers rightfully complain about array bounds due to the struct
-         * hack if we write straight to the char storage. Saving the char* to a
-         * temporary avoids the warning without a performance penalty.
-         */
-        char *tmp = ZSTR_VAL(encoded_id);
-        datadog_php_uuid_encode36(runtime_id, tmp);
-        ZSTR_VAL(encoded_id)[36] = '\0';
-
-        zval zv;
-        ZVAL_STR(&zv, encoded_id);
-        zend_hash_str_add_new(meta, ZEND_STRL("runtime-id"), &zv);
-    }
+    zval zv;
+    ZVAL_STR(&zv, encoded_id);
+    zend_hash_str_add_new(meta, ZEND_STRL("runtime-id"), &zv);
 
     zval http_url;
     ZVAL_STR(&http_url, dd_build_req_url());
@@ -1040,6 +1035,13 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         if (new_name) {
             zend_string_release(Z_STR(prop_service_as_string));
             ZVAL_COPY(&prop_service_as_string, new_name);
+        }
+
+        if (!span->parent) {
+            if (DDTRACE_G(last_flushed_root_service_name)) {
+                zend_string_release(DDTRACE_G(last_flushed_root_service_name));
+            }
+            DDTRACE_G(last_flushed_root_service_name) = zend_string_copy(Z_STR(prop_service_as_string));
         }
 
         add_assoc_zval(el, "service", &prop_service_as_string);
