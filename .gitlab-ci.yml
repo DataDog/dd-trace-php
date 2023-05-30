@@ -1,6 +1,7 @@
 stages:
   - build
   - deploy
+  - benchmarks
 
 variables:
   LATEST_LIBRARY_x86_64_LINUX_GNU:
