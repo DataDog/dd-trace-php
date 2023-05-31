@@ -4,6 +4,12 @@ PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,
 PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
   [  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
+PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
+  [  --with-ddtrace-cargo Location to cargo binary for rust compilation], cargo, not found)
+
+PHP_ARG_ENABLE(ddtrace-rust-symbols, whether to compile rust in debug mode,
+  [  --enable-ddtrace-rust-symbols Build with debug symbols included in the rust archive], [[$(test "${CFLAGS#*-g}" != "${CFLAGS}" && test "${CFLAGS#*-g0}" == "${CFLAGS}" && echo yes || echo no)]], [no])
+
 if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_SIZEOF([long])
   AC_MSG_CHECKING([for 64-bit platform])
@@ -17,6 +23,7 @@ if test "$PHP_DDTRACE" != "no"; then
   define(DDTRACE_BASEDIR, esyscmd(printf %s "$(dirname "__file__")"))
   m4_include(DDTRACE_BASEDIR/m4/polyfill.m4)
   m4_include(DDTRACE_BASEDIR/m4/ax_execinfo.m4)
+  m4_include(DDTRACE_BASEDIR/m4/threads.m4)
 
   AX_EXECINFO
 
@@ -30,6 +37,21 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AC_CHECK_HEADERS([linux/securebits.h])
   AC_CHECK_HEADERS([linux/capability.h])
+
+  dnl
+  m4_ifndef([_LT_CHECK_OBJDIR], AC_LIBTOOL_OBJDIR, _LT_CHECK_OBJDIR)
+
+  if test -n "$PHP_DDTRACE_CARGO" && test "$PHP_DDTRACE_CARGO" != "cargo"; then
+    if test -x "$PHP_DDTRACE_CARGO"; then
+      DDTRACE_CARGO="$PHP_DDTRACE_CARGO"
+    else
+      AC_MSG_ERROR([$PHP_DDTRACE_CARGO is not an executable])
+    fi
+  else
+    AC_CHECK_TOOL(DDTRACE_CARGO, cargo, [:])
+    AS_IF([test "$DDTRACE_CARGO" = ":"], [AC_MSG_ERROR([Please install cargo before configuring, or specify it with --with-ddtrace-cargo=])])
+  fi
+  PHP_SUBST(DDTRACE_CARGO)
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
     EXTRA_LDFLAGS="-fsanitize=address"
@@ -125,10 +147,10 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/signals.c \
     ext/span.c \
     ext/startup_logging.c \
+    ext/telemetry.c \
     ext/tracer_tag_propagation/tracer_tag_propagation.c \
     ext/hook/uhook.c \
     ext/hook/uhook_legacy.c \
-    \
   "
 
   ZAI_SOURCES="$EXTRA_ZAI_SOURCES \
@@ -149,6 +171,23 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
+  dnl sidecar requires us to be linked against libm for pow and powf
+  AC_CHECK_LIBM
+  EXTRA_LDFLAGS="$EXTRA_LDFLAGS $LIBM"
+  dnl as well as explicitly for pthread_atfork
+  PTHREADS_CHECK
+  EXTRA_CFLAGS="$EXTRA_CFLAGS $ac_cv_pthreads_cflags"
+  EXTRA_LIBS="$EXTRA_LIBS -l$ac_cv_pthreads_lib"
+
+  dnl rust imports these, so we need them to link
+  case $host_os in
+   darwin*)
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -framework CoreFoundation -framework Security"
+    PHP_ADD_FRAMEWORK([CoreFoundation])
+    PHP_ADD_FRAMEWORK([Security])
+    PHP_SUBST(EXTRA_LDFLAGS)
+  esac
+
   PHP_CHECK_LIBRARY(rt, shm_open,
     [PHP_ADD_LIBRARY(rt, , EXTRA_LDFLAGS)])
 
@@ -162,7 +201,7 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl Only export symbols defined in ddtrace.sym, which should all be marked as
     dnl DDTRACE_PUBLIC in their source files as well.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym"
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym -flto -fuse-linker-plugin"
 
     PHP_SUBST(EXTRA_CFLAGS)
     PHP_SUBST(EXTRA_LDFLAGS)
@@ -220,4 +259,28 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/tracer_tag_propagation])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
   PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
+
+  dnl consider it debug if -g is specified (but not -g0)
+  ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_SYMBOLS" != "no" && echo debug || echo tracer-release)
+
+  if test "$ext_shared" = "yes"; then
+    all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
+    all_object_files_newlines=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf '\\n$(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
+    php_binary=$(php-config --php-binary)
+    ddtrace_mock_sources='DD_SIDECAR_MOCK_SOURCES="$$(printf "'"$php_binary$all_object_files_newlines"'")"'
+  else
+    all_object_files=
+    ddtrace_mock_sources=
+  fi
+
+  cat <<EOT >> Makefile.fragments
+\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components-rs" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -exclude "target"; find "$ext_srcdir/libdatadog" -name "*.rs" -exclude "target"; echo "$all_object_files" ) | xargs )
+	(cd "$ext_srcdir/components-rs"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) && test "$ddtrace_cargo_profile" == debug || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
+EOT
+
+  if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then
+    shared_objects_ddtrace="\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a $shared_objects_ddtrace"
+  else
+    PHP_GLOBAL_OBJS="\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a $PHP_GLOBAL_OBJS"
+  fi
 fi
