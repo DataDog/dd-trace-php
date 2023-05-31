@@ -381,7 +381,7 @@ impl AllocationProfilingStats {
                 unsafe {
                     profiler.collect_allocations(
                         zend::ddog_php_prof_get_current_execute_data(),
-                        1 as i64,
+                        1_i64,
                         len as i64,
                         &locals,
                     )
