@@ -1,5 +1,13 @@
 # Datadog AppSec for PHP Release
 
+### v0.9.0
+#### Fixes
+- ([#265](https://github.com/DataDog/dd-appsec-php/pull/265)) Use ``/proc/self/fd`` to avoid rlimit iteration starvation
+
+#### Miscellaneous Changes
+- ([#266](https://github.com/DataDog/dd-appsec-php/pull/266)) Update ruleset to 1.7.1 and libddwaf to 1.11.0
+- ([#268](https://github.com/DataDog/dd-appsec-php/pull/268)) Update fuzzer corpus
+
 ### v0.8.1
 #### Fixes
 - ([#256](https://github.com/DataDog/dd-appsec-php/pull/256)) Remove max payload size on remote config calls
