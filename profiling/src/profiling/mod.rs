@@ -263,14 +263,15 @@ impl TimeCollector {
             .build();
 
         #[cfg(feature = "allocation_profiling")]
-        if alloc_samples_offset.is_some() && alloc_size_offset.is_some() {
+        if let (Some(sum_value_offset), Some(count_value_offset)) =
+            (alloc_samples_offset, alloc_size_offset)
+        {
             let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: alloc_size_offset.unwrap(),
-                count_value_offset: alloc_samples_offset.unwrap(),
+                sum_value_offset,
+                count_value_offset,
                 sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
             };
-            let values_offset: Vec<usize> =
-                vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
+            let values_offset: Vec<usize> = vec![sum_value_offset, count_value_offset];
             match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
@@ -1005,14 +1006,13 @@ mod tests {
             ]
         );
         // for now, just check that this sample has the `end_timestamp_ns` label
-        let foo: Vec<Label> = message
+        let n_end_timestamp_ns_labels = message
             .value
             .labels
             .into_iter()
             .filter(|x| x.key == "end_timestamp_ns")
-            .clone()
-            .collect();
-        assert_eq!(foo.len(), 1);
+            .count();
+        assert_eq!(n_end_timestamp_ns_labels, 1);
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 40, 50, 60]);
     }
 
@@ -1043,14 +1043,13 @@ mod tests {
                 ValueType::new("timeline", "nanoseconds"),
             ]
         );
-        let foo: Vec<Label> = message
+        let n_end_timestamp_ns_labels = message
             .value
             .labels
             .into_iter()
             .filter(|x| x.key == "end_timestamp_ns")
-            .clone()
-            .collect();
-        assert_eq!(foo.len(), 0);
+            .count();
+        assert_eq!(n_end_timestamp_ns_labels, 0);
         assert_eq!(message.value.sample_values, vec![10, 20, 40, 50, 0]);
     }
 }
