@@ -706,9 +706,11 @@ impl Profiler {
             labels,
             locals,
         )) {
-            Ok(_) => trace!("Sent event 'gc' with {n_labels} labels to profiler."),
+            Ok(_) => {
+                trace!("Sent event 'gc' with {n_labels} labels and reason {reason} to profiler.")
+            }
             Err(err) => {
-                warn!("Failed to send event 'gc' with {n_labels} labels to profiler: {err}")
+                warn!("Failed to send event 'gc' with {n_labels} and reason {reason} labels to profiler: {err}")
             }
         }
     }
