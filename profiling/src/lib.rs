@@ -427,7 +427,8 @@ thread_local! {
 
 /// Gets the runtime-id for the process.
 fn runtime_id() -> &'static Uuid {
-    RUNTIME_ID.get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
+    RUNTIME_ID
+        .get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
 }
 
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
