@@ -156,6 +156,46 @@ Then load it in `gdb`:
 gdb --core=/tmp/core php-fpm|httpd|php
 ```
 
+### Analyzing using ASAN
+
+In some cases it might be tricky to find the memory corruption, but you can
+always use an address sanitizer to try and find problems.
+
+#### Ubuntu image
+
+In case the bug was spotted in a Ubuntu image, there is PHP with ASAN already
+installed, you need to switch to it:
+
+```sh
+switch-php debug-zts-asan
+```
+
+After this you can start run the tests again with address sanitizer enabled.
+
+#### CentOS image
+
+If the bug was spotted in CentOS, you'd need to recompile PHP with ASAN:
+
+```sh
+yum install -y devtoolset-7-libasan-devel
+mkdir -p /tmp/build-php
+cd /tmp/build-php
+/root/configure.sh --prefix=${PHP_INSTALL_DIR_NTS} --with-config-file-path=${PHP_INSTALL_DIR_NTS} --with-config-file-scan-dir=${PHP_INSTALL_DIR_NTS}/conf.d --enable-address-sanitizer
+make -j
+make install
+```
+
+This will install `libasan`, reconfigure PHP to enable the address sanitizer,
+recompile and install it. You also need to set some ASAN options and make sure
+to disable the ZendMM:
+
+```sh
+export ASAN_OPTIONS=abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
+export USE_ZEND_ALLOC=0
+```
+
+After this you can start run the tests again with address sanitizer enabled.
+
 ## Rebuilding docker containers
 
 The randomized tests docker containers are based on our CentOS 7 containers.
