@@ -775,7 +775,7 @@ impl Profiler {
             sample_values.extend_from_slice(&values[0..len]);
 
             // alloc-samples, alloc-size
-            if locals.profiling_experimental_allocation_enabled {
+            if locals.profiling_allocation_enabled {
                 sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
                 sample_values.extend_from_slice(&values[3..5]);
             }
@@ -839,7 +839,7 @@ mod tests {
             profiling_enabled: true,
             profiling_endpoint_collection_enabled: true,
             profiling_experimental_cpu_time_enabled: false,
-            profiling_experimental_allocation_enabled: false,
+            profiling_allocation_enabled: false,
             profiling_experimental_timeline_enabled: false,
             profiling_log_level: LevelFilter::Off,
             service: None,
@@ -870,7 +870,7 @@ mod tests {
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
         locals.profiling_enabled = false;
-        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_allocation_enabled = false;
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
@@ -888,7 +888,7 @@ mod tests {
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
         locals.profiling_enabled = true;
-        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_allocation_enabled = false;
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
@@ -911,7 +911,7 @@ mod tests {
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
         locals.profiling_enabled = true;
-        locals.profiling_experimental_allocation_enabled = false;
+        locals.profiling_allocation_enabled = false;
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
@@ -935,7 +935,7 @@ mod tests {
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
         locals.profiling_enabled = true;
-        locals.profiling_experimental_allocation_enabled = true;
+        locals.profiling_allocation_enabled = true;
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
@@ -960,7 +960,7 @@ mod tests {
         let labels = Profiler::message_labels();
         let mut locals = get_request_locals();
         locals.profiling_enabled = true;
-        locals.profiling_experimental_allocation_enabled = true;
+        locals.profiling_allocation_enabled = true;
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
