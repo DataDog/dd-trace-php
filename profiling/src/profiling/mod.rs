@@ -25,9 +25,9 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
 #[cfg(feature = "timeline")]
-use std::time::UNIX_EPOCH;
-#[cfg(feature = "timeline")]
 use lazy_static::lazy_static;
+#[cfg(feature = "timeline")]
+use std::time::UNIX_EPOCH;
 
 #[cfg(feature = "allocation_profiling")]
 use crate::ALLOCATION_PROFILING_INTERVAL;
@@ -668,7 +668,7 @@ impl Profiler {
     pub unsafe fn collect_timeline_gc_event(
         &self,
         duration: i64,
-        reason: &str,
+        reason: &'static str,
         locals: &RequestLocals,
     ) {
         lazy_static! {
@@ -688,7 +688,7 @@ impl Profiler {
         labels.extend_from_slice(&TIMELINE_GC_LABELS);
         labels.push(Label {
             key: "gc reason",
-            value: LabelValue::Str(String::from(reason).into()),
+            value: LabelValue::Str(Cow::from(reason)),
         });
         let n_labels = labels.len();
 
@@ -781,8 +781,8 @@ impl Profiler {
 
             #[cfg(feature = "timeline")]
             if locals.profiling_experimental_timeline_enabled {
-                sample_types.extend_from_slice(&SAMPLE_TYPES[5..6]);
-                sample_values.extend_from_slice(&values[5..6]);
+                sample_types.push(SAMPLE_TYPES[5]);
+                sample_values.push(values[5]);
             }
 
             #[cfg(feature = "timeline")]
