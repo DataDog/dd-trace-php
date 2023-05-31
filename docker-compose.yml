@@ -183,6 +183,7 @@ services:
       - DD_SUPPRESS_TRACE_PARSE_ERRORS=true
       - SNAPSHOTS_DIR=/snapshots
       - SNAPSHOT_CI=0
+      - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.process_id
 
 volumes:
   agent-socket:

@@ -5,7 +5,7 @@
     "resource": "GET /does_not_exist",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 10808566427473148455,
+    "parent_id": 2747341357639439789,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -17,12 +17,8 @@
       "span.kind": "server"
     },
     "metrics": {
-      "_sampling_priority_v1": 1.0,
-      "php.compilation.total_time_ms": 131.436,
-      "process_id": 14338.0
-    },
-    "duration": 149146584,
-    "start": 1683286387219337253
+      "_sampling_priority_v1": 1.0
+    }
   },
      {
        "name": "laminas.application.init",
@@ -34,9 +30,7 @@
        "type": "web",
        "meta": {
          "component": "laminas"
-       },
-       "duration": 86088500,
-       "start": 1683286387271134420
+       }
      },
         {
           "name": "laminas.event.loadModules",
@@ -48,9 +42,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 1612750,
-          "start": 1683286387292312545
+          }
         },
         {
           "name": "laminas.event.loadModules.post",
@@ -62,9 +54,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 7926209,
-          "start": 1683286387293927628
+          }
         },
         {
           "name": "laminas.application.bootstrap",
@@ -76,9 +66,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 34903625,
-          "start": 1683286387322315628
+          }
         },
            {
              "name": "laminas.event.bootstrap",
@@ -90,9 +78,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 19899500,
-             "start": 1683286387337316253
+             }
            },
               {
                 "name": "laminas.mvcEventListener",
@@ -104,9 +90,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 19849000,
-                "start": 1683286387337353295
+                }
               },
      {
        "name": "laminas.application.run",
@@ -118,9 +102,7 @@
        "type": "web",
        "meta": {
          "component": "laminas"
-       },
-       "duration": 11203042,
-       "start": 1683286387357230295
+       }
      },
         {
           "name": "laminas.event.route",
@@ -132,9 +114,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 1071917,
-          "start": 1683286387357240503
+          }
         },
            {
              "name": "laminas.mvcEventListener",
@@ -146,9 +126,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 6584,
-             "start": 1683286387357253670
+             }
            },
            {
              "name": "laminas.mvcEventListener",
@@ -160,9 +138,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 1043667,
-             "start": 1683286387357265295
+             }
            },
               {
                 "name": "laminas.route.match",
@@ -174,9 +150,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 924416,
-                "start": 1683286387357268087
+                }
               },
               {
                 "name": "laminas.mvcEvent.setError",
@@ -188,9 +162,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 15333,
-                "start": 1683286387358213503
+                }
               },
               {
                 "name": "laminas.mvcEventListener",
@@ -202,9 +174,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 12250,
-                "start": 1683286387358242420
+                }
               },
               {
                 "name": "laminas.mvcEventListener",
@@ -216,9 +186,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 20375,
-                "start": 1683286387358258295
+                }
               },
               {
                 "name": "laminas.mvcEventListener",
@@ -230,9 +198,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 6709,
-                "start": 1683286387358281670
+                }
               },
               {
                 "name": "laminas.mvcEventListener",
@@ -244,9 +210,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 9333,
-                "start": 1683286387358291337
+                }
               },
         {
           "name": "laminas.application.completeRequest",
@@ -258,9 +222,7 @@
           "type": "web",
           "meta": {
             "component": "laminas"
-          },
-          "duration": 10106333,
-          "start": 1683286387358315212
+          }
         },
            {
              "name": "laminas.event.render",
@@ -272,9 +234,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 9949166,
-             "start": 1683286387358318253
+             }
            },
               {
                 "name": "laminas.view.http.renderer",
@@ -286,9 +246,7 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 9933709,
-                "start": 1683286387358330670
+                }
               },
                  {
                    "name": "laminas.view.render",
@@ -300,9 +258,7 @@
                    "type": "web",
                    "meta": {
                      "component": "laminas"
-                   },
-                   "duration": 9915875,
-                   "start": 1683286387358335337
+                   }
                  },
                     {
                       "name": "laminas.templating.render",
@@ -314,9 +270,7 @@
                       "type": "web",
                       "meta": {
                         "component": "laminas"
-                      },
-                      "duration": 2136250,
-                      "start": 1683286387358377128
+                      }
                     },
                     {
                       "name": "laminas.templating.render",
@@ -328,9 +282,7 @@
                       "type": "web",
                       "meta": {
                         "component": "laminas"
-                      },
-                      "duration": 7709000,
-                      "start": 1683286387360525837
+                      }
                     },
            {
              "name": "laminas.event.finish",
@@ -342,9 +294,7 @@
              "type": "web",
              "meta": {
                "component": "laminas"
-             },
-             "duration": 124875,
-             "start": 1683286387368270003
+             }
            },
               {
                 "name": "laminas.mvcEventListener",
@@ -356,7 +306,5 @@
                 "type": "web",
                 "meta": {
                   "component": "laminas"
-                },
-                "duration": 112000,
-                "start": 1683286387368280378
+                }
               }]]
