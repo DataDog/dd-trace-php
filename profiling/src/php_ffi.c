@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 
 #if CFG_STACK_WALKING_TESTS
@@ -10,6 +11,12 @@
 
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
+
+uint8_t *ddtrace_runtime_id = NULL;
+
+static void locate_ddtrace_runtime_id(const zend_extension *extension) {
+    ddtrace_runtime_id = DL_FETCH_SYMBOL(extension->handle, "ddtrace_runtime_id");
+}
 
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
     ddtrace_profiling_context (*get_profiling)(void) =
@@ -70,6 +77,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
             locate_ddtrace_get_profiling_context(maybe_ddtrace);
+            locate_ddtrace_runtime_id(maybe_ddtrace);
             break;
         }
     }
@@ -206,17 +214,20 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
 
     ddog_php_test_free_fake_zend_execute_data(execute_data->prev_execute_data);
 
-    // free function name
     if (execute_data->func) {
+        // free function name
         if (execute_data->func->common.function_name) {
             free(execute_data->func->common.function_name);
+            execute_data->func->common.function_name = NULL;
         }
+        // free filename
+        if (execute_data->func->op_array.filename) {
+            free(execute_data->func->op_array.filename);
+            execute_data->func->op_array.filename = NULL;
+        }
+        // free zend_op_array
         free(execute_data->func);
-    }
-
-    // free filename
-    if (execute_data->func->op_array.filename) {
-        free(execute_data->func->op_array.filename);
+        execute_data->func = NULL;
     }
 
     free(execute_data);

@@ -75,6 +75,10 @@ lazy_static! {
 /// so whatever it is replaced with needs to also follow the
 /// initialize-on-first-use pattern.
 static RUNTIME_ID: OnceCell<Uuid> = OnceCell::new();
+// If ddtrace is loaded, we fetch the uuid from there instead
+extern "C" {
+    pub static ddtrace_runtime_id: *const Uuid;
+}
 
 /// The Server API the profiler is running under.
 static SAPI: OnceCell<Sapi> = OnceCell::new();
@@ -308,7 +312,7 @@ pub struct RequestLocals {
     pub profiling_enabled: bool,
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
-    pub profiling_experimental_allocation_enabled: bool,
+    pub profiling_allocation_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
     pub tags: Arc<Vec<Tag>>,
@@ -393,7 +397,7 @@ thread_local! {
         profiling_enabled: false,
         profiling_endpoint_collection_enabled: true,
         profiling_experimental_cpu_time_enabled: true,
-        profiling_experimental_allocation_enabled: true,
+        profiling_allocation_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
         tags: Arc::new(static_tags()),
@@ -407,8 +411,8 @@ thread_local! {
 }
 
 /// Gets the runtime-id for the process.
-fn runtime_id() -> Uuid {
-    *RUNTIME_ID.get_or_init(Uuid::new_v4)
+fn runtime_id() -> &'static Uuid {
+    RUNTIME_ID.get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
 }
 
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
@@ -433,7 +437,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         profiling_enabled,
         profiling_endpoint_collection_enabled,
         profiling_experimental_cpu_time_enabled,
-        profiling_experimental_allocation_enabled,
+        profiling_allocation_enabled,
         log_level,
         output_pprof,
     ) = unsafe {
@@ -441,7 +445,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             config::profiling_enabled(),
             config::profiling_endpoint_collection_enabled(),
             config::profiling_experimental_cpu_time_enabled(),
-            config::profiling_experimental_allocation_enabled(),
+            config::profiling_allocation_enabled(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
         )
@@ -457,8 +461,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         locals.profiling_enabled = profiling_enabled;
         locals.profiling_endpoint_collection_enabled = profiling_endpoint_collection_enabled;
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
-        locals.profiling_experimental_allocation_enabled =
-            profiling_experimental_allocation_enabled;
+        locals.profiling_allocation_enabled = profiling_allocation_enabled;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
@@ -611,7 +614,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     {
-        if profiling_experimental_allocation_enabled {
+        if profiling_allocation_enabled {
             if !is_zend_mm() {
                 // Neighboring custom memory handlers found
                 debug!("Found another extension using the ZendMM custom handler hook");
@@ -638,7 +641,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 error!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
                 REQUEST_LOCALS.with(|cell| {
                     let mut locals = cell.borrow_mut();
-                    locals.profiling_experimental_allocation_enabled = false;
+                    locals.profiling_allocation_enabled = false;
                 });
             } else {
                 info!("Memory allocation profiling enabled.")
@@ -744,7 +747,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
         #[cfg(feature = "allocation_profiling")]
         {
-            if locals.profiling_experimental_allocation_enabled {
+            if locals.profiling_allocation_enabled {
                 // If `is_zend_mm()` is true, the custom handlers have been reset to `None`
                 // already. This is unexpected, therefore we will not touch the ZendMM handlers
                 // anymore as resetting to prev handlers might result in segfaults and other
@@ -779,7 +782,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                             }
                         }
                         // disable any further allocation profiling
-                        locals.profiling_experimental_allocation_enabled = false;
+                        locals.profiling_allocation_enabled = false;
                         info!("Memory allocation profiling disabled.");
                     } else {
                         // This is the happy path (restore previously installed custom handlers)!
@@ -834,7 +837,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         zend::php_info_print_table_row(
             2,
             b"Experimental Allocation Profiling Enabled\0".as_ptr(),
-            if locals.profiling_experimental_allocation_enabled {
+            if locals.profiling_allocation_enabled {
                 yes
             } else {
                 no
@@ -1101,7 +1104,7 @@ unsafe extern "C" fn alloc_profiling_gc_mem_caches(
             return false;
         }
         let locals = locals.unwrap();
-        locals.profiling_experimental_allocation_enabled
+        locals.profiling_allocation_enabled
     });
 
     if let Some(func) = GC_MEM_CACHES_HANDLER {

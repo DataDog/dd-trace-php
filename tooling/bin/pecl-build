@@ -30,5 +30,8 @@ pkg_xml=${pkg_xml//'${codefiles}'/${codefiles}}
 
 echo "$pkg_xml" > package.xml
 
+# no profiling in pecl
+sed -i 's/, "profiling"//' "Cargo.toml"
+
 pear package-validate package.xml
 pear package

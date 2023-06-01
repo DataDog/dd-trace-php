@@ -21,7 +21,7 @@ block_comment = *
 block_comment_end = */
 indent_size = 4
 
-[*Makefile]
+[{*Makefile,.gitmodules}]
 indent_style = tab
 
 [CMakeLists.txt]
