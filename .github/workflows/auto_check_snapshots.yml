@@ -18,7 +18,7 @@ jobs:
           dotnet-version: '7.0.101'
 
       - name: "Check Snapshots"
-        run: ./build.sh SummaryOfSnapshotChanges
+        run: ./build/build.sh SummaryOfSnapshotChanges
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           PullRequestNumber: "${{ github.event.pull_request.number }}"
