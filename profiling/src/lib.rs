@@ -1133,6 +1133,11 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
 
     let reason = gc_reason();
 
+    debug!(
+        "collecting garbage due to {reason}, took {} ns",
+        duration.as_nanos()
+    );
+
     REQUEST_LOCALS.with(|cell| {
         // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
         let locals = cell.try_borrow();

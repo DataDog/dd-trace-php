@@ -672,20 +672,15 @@ impl Profiler {
         reason: &'static str,
         locals: &RequestLocals,
     ) {
+        let mut labels = Profiler::message_labels();
+
         lazy_static! {
-            static ref TIMELINE_GC_LABELS: Vec<Label> = vec![
-                Label {
-                    key: "event",
-                    value: LabelValue::Str("gc".into()),
-                },
-                Label {
-                    key: "thread id",
-                    value: LabelValue::Str("GC".into()),
-                },
-            ];
+            static ref TIMELINE_GC_LABELS: Vec<Label> = vec![Label {
+                key: "event",
+                value: LabelValue::Str("gc".into()),
+            },];
         }
 
-        let mut labels = Profiler::message_labels();
         labels.extend_from_slice(&TIMELINE_GC_LABELS);
         labels.push(Label {
             key: "gc reason",
@@ -695,7 +690,7 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: "internal|gc_collect_cycles".to_string(),
+                function: "[gc]".to_string(),
                 file: None,
                 line: 0,
             }],
