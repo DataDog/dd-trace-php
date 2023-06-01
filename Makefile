@@ -836,7 +836,7 @@ TEST_WEB_82 := \
 FILTER := .
 
 define run_tests
-	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK)  -d datadog.distributed_tracing=0 $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 # use this as the first target if you want to use uncompiled files instead of the _generated_*.php compiled file.
