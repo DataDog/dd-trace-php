@@ -6,7 +6,7 @@
         <RootNamespace></RootNamespace>
         <NoWarn>CS0649;CS0169;SA1652</NoWarn>
         <NukeRootDirectory>..</NukeRootDirectory>
-        <NukeScriptDirectory>.</NukeScriptDirectory>
+        <NukeScriptDirectory>build</NukeScriptDirectory>
         <NukeExcludeDirectoryBuild>True</NukeExcludeDirectoryBuild>
         <NukeTasksEnabled>False</NukeTasksEnabled>
         <NukeTelemetryVersion>1</NukeTelemetryVersion>
