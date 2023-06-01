@@ -161,6 +161,11 @@ gdb --core=/tmp/core php-fpm|httpd|php
 In some cases it might be tricky to find the memory corruption, but you can
 always use an address sanitizer to try and find problems.
 
+If you want/need the tracer to be linked to ASAN as well, you need to fetch the
+package from the `package extension zts-debug-asan` step instead of the `package
+extension` job, otherwise only PHP itself will be linked to ASAN in the
+following, which might be sufficient depending on the use case.
+
 #### Ubuntu image
 
 In case the bug was spotted in a Ubuntu image, there is PHP with ASAN already
