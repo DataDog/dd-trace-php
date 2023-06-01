@@ -264,7 +264,7 @@ impl TimeCollector {
 
         #[cfg(feature = "allocation_profiling")]
         if let (Some(sum_value_offset), Some(count_value_offset)) =
-            (alloc_samples_offset, alloc_size_offset)
+            (alloc_size_offset, alloc_samples_offset)
         {
             let upscaling_info = UpscalingInfo::Poisson {
                 sum_value_offset,
