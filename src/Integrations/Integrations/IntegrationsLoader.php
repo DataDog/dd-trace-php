@@ -12,7 +12,7 @@ use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
-use DDTrace\Integrations\MonologIntegration\MonologIntegration;
+use DDTrace\Integrations\Monolog\MonologIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\Nette\NetteIntegration;
 use DDTrace\Integrations\Pcntl\PcntlIntegration;
@@ -76,6 +76,8 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
+        $this->integrations[MonologIntegration::NAME] =
+            '\DDTrace\Integrations\Monolog\MonologIntegration';
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
