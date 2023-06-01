@@ -49,3 +49,4 @@ tmp/opcache*
 *.orig
 docker-compose.override.yml
 tests/Sapi/Roadrunner/rr-*
+build/_build.csproj.DotSettings
