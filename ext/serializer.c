@@ -787,7 +787,7 @@ static void _dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
 
 static int should_report_error(bool is_root_span, int http_response_code) {
     // Assumes there is an error
-    return !is_root_span || !http_response_code || http_response_code >= 500;
+    return !is_root_span || http_response_code < 400 || http_response_code >= 500;
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_data *span) {
