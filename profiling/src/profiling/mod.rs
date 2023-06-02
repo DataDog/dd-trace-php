@@ -263,15 +263,15 @@ impl TimeCollector {
             .build();
 
         #[cfg(feature = "allocation_profiling")]
-        if let (Some(sum_value_offset), Some(count_value_offset)) =
+        if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
             (alloc_size_offset, alloc_samples_offset)
         {
             let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset,
-                count_value_offset,
+                sum_value_offset: alloc_size_offset,
+                count_value_offset: alloc_samples_offset,
                 sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
             };
-            let values_offset: Vec<usize> = vec![sum_value_offset, count_value_offset];
+            let values_offset: Vec<usize> = vec![alloc_size_offset, alloc_samples_offset];
             match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
