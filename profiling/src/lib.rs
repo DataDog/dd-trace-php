@@ -1121,41 +1121,39 @@ unsafe fn gc_reason() -> &'static str {
 #[cfg(feature = "timeline")]
 #[no_mangle]
 unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
-    if PREV_GC_COLLECT_CYCLES.is_none() {
-        // nothing to call
+    if let Some(prev) = PREV_GC_COLLECT_CYCLES {
+        let start = Instant::now();
+        let bytes = prev();
+        let duration = start.elapsed();
+        let reason = gc_reason();
+        debug!(
+            "Garbage collection with reason \"{reason}\" took {} ns",
+            duration.as_nanos()
+        );
+
+        REQUEST_LOCALS.with(|cell| {
+            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+            let locals = cell.try_borrow();
+            if locals.is_err() {
+                return;
+            }
+            let locals = locals.unwrap();
+
+            if !locals.profiling_experimental_timeline_enabled {
+                return;
+            }
+
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                profiler.collect_garbage_collection(duration.as_nanos() as i64, reason, &locals);
+            }
+        });
+        bytes
+    } else {
+        // this should never happen, as it would mean that no `gc_collect_cycles` function pointer
+        // did exist, which could only be the case if another extension was misbehaving.
+        // But technically it could be, so better safe than sorry
         return 0;
     }
-
-    let start = Instant::now();
-    let prev = PREV_GC_COLLECT_CYCLES.unwrap();
-    let bytes = prev();
-    let duration = start.elapsed();
-
-    let reason = gc_reason();
-
-    debug!(
-        "collecting garbage due to {reason}, took {} ns",
-        duration.as_nanos()
-    );
-
-    REQUEST_LOCALS.with(|cell| {
-        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-        let locals = cell.try_borrow();
-        if locals.is_err() {
-            return;
-        }
-        let locals = locals.unwrap();
-
-        if !locals.profiling_experimental_timeline_enabled {
-            return;
-        }
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            profiler.collect_timeline_gc_event(duration.as_nanos() as i64, reason, &locals);
-        }
-    });
-    bytes
 }
 
 /// Overrides the ZendMM heap's `use_custom_heap` flag with the default `ZEND_MM_CUSTOM_HEAP_NONE`

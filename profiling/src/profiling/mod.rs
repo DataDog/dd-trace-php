@@ -666,7 +666,9 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
-    pub unsafe fn collect_timeline_gc_event(
+    /// collect a stack frame for garbage collection.
+    /// as we do not know about the overhead currently, we only collect a fake frame.
+    pub unsafe fn collect_garbage_collection(
         &self,
         duration: i64,
         reason: &'static str,
