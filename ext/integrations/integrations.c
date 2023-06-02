@@ -190,8 +190,24 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHED, "Memcached", "__construct",
                                          "DDTrace\\Integrations\\Memcached\\MemcachedIntegration");
 
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MONOLOG, "Monolog\\Logger", "__construct",
-                                         "DDTrace\\Integrations\\Monolog\\MonologIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "emergency",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "alert",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "critical",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "error",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "warning",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "notice",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "info",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "debug",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "log",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MONGODB, "mongodb\\driver\\manager", "__construct",
                                          "DDTrace\\Integrations\\MongoDB\\MongoDBIntegration");

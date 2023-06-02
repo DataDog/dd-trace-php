@@ -18,10 +18,10 @@
     INTEGRATION(LAMINAS, "laminas")             \
     INTEGRATION(LARAVEL, "laravel")             \
     INTEGRATION(LARAVELQUEUE, "laravelqueue")   \
+    INTEGRATION(LOGS, "logs")                   \
     INTEGRATION(LUMEN, "lumen")                 \
     INTEGRATION(MEMCACHE, "memcache")           \
     INTEGRATION(MEMCACHED, "memcached")         \
-    INTEGRATION(MONOLOG, "monolog")             \
     INTEGRATION(MONGO, "mongo")                 \
     INTEGRATION(MONGODB, "mongodb")             \
     INTEGRATION(MYSQLI, "mysqli")               \

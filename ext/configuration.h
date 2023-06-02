@@ -80,6 +80,7 @@ enum ddtrace_dbm_propagation_mode {
     CALIAS(MAP, DD_TAGS, "", CALIASES("DD_TRACE_GLOBAL_TAGS"))                                                 \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(BOOL, DD_TRACE_ANALYTICS_ENABLED, "false")                                                          \
+    CONFIG(BOOL, DD_TRACE_APPEND_TRACE_IDS_TO_LOGS, "false")                                                   \
     CONFIG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false")                                                         \
     CONFIG(BOOL, DD_TRACE_CLI_ENABLED, "false")                                                                \
     CONFIG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                                        \

@@ -9,10 +9,10 @@ use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleIntegration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
+use DDTrace\Integrations\Logs\LogsIntegration;
 use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
-use DDTrace\Integrations\Monolog\MonologIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\Nette\NetteIntegration;
 use DDTrace\Integrations\Pcntl\PcntlIntegration;
@@ -76,8 +76,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-        $this->integrations[MonologIntegration::NAME] =
-            '\DDTrace\Integrations\Monolog\MonologIntegration';
 
         // Add integrations as they support PHP 8
         if (\PHP_MAJOR_VERSION >= 8) {
@@ -101,8 +99,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Lumen\LumenIntegration';
             $this->integrations[MemcachedIntegration::NAME] =
                 '\DDTrace\Integrations\Memcached\MemcachedIntegration';
-            $this->integrations[MonologIntegration::NAME] =
-                '\DDTrace\Integrations\Monolog\MonologIntegration';
+            $this->integrations[LogsIntegration::NAME] =
+                '\DDTrace\Integrations\Logs\LogsIntegration';
             $this->integrations[PDOIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOIntegration';
             $this->integrations[PredisIntegration::NAME] =
