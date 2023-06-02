@@ -5,10 +5,6 @@ namespace DDTrace\Integrations\Logs;
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 
-use function DDTrace\hook_method;
-use function DDTrace\install_hook;
-use function DDTrace\trace_id_128;
-
 class LogsIntegration extends Integration
 {
     const NAME = 'logs';
@@ -24,7 +20,7 @@ class LogsIntegration extends Integration
     public function getPlaceholders(): array
     {
         return [
-            '%dd.trace_id%' => 'dd.trace_id="' . trace_id_128() . '"',
+            '%dd.trace_id%' => 'dd.trace_id="' . \DDTrace\trace_id_128() . '"',
             '%dd.span_id%'  => 'dd.span_id="' . dd_trace_peek_span_id() . '"',
             '%dd.service%'  => 'dd.service="' . ddtrace_config_app_name() . '"',
             '%dd.version%'  => 'dd.version="' . \DDTrace\current_context()['version'] . '"',
@@ -79,7 +75,7 @@ class LogsIntegration extends Integration
     public function addTraceIdentifiersToContext(array $context): array
     {
         $context['dd'] = [
-            'trace_id' => trace_id_128(),
+            'trace_id' => \DDTrace\trace_id_128(),
             'span_id' => dd_trace_peek_span_id()
         ];
 
@@ -100,13 +96,13 @@ class LogsIntegration extends Integration
         return $context;
     }
 
-    public function init()
+    public function getHookFn(int $messageIndex, int $contextIndex): callable
     {
-        $hookFn = function(HookData $hook) {
+        return function (HookData $hook) use ($messageIndex, $contextIndex) {
             /** @var string $message */
-            $message = $hook->args[0];
+            $message = $hook->args[$messageIndex];
             /** @var array $context */
-            $context = $hook->args[1] ?? [];
+            $context = $hook->args[$contextIndex] ?? [];
 
             if (dd_trace_env_config("DD_TRACE_APPEND_TRACE_IDS_TO_LOGS")) {
                 // Always append the trace identifiers at the end of the message
@@ -120,9 +116,15 @@ class LogsIntegration extends Integration
                 $context = $this->addTraceIdentifiersToContext($context);
             }
 
-            $hook->overrideArguments([$message, $context]);
-        };
+            $hook->args[$messageIndex] = $message;
+            $hook->args[$contextIndex] = $context;
 
+            $hook->overrideArguments($hook->args);
+        };
+    }
+
+    public function init()
+    {
         $levels = [
             'debug',
             'info',
@@ -135,8 +137,10 @@ class LogsIntegration extends Integration
         ];
 
         foreach ($levels as $level) {
-            install_hook("Psr\Log\LoggerInterface::$level", $hookFn);
+            \DDTrace\install_hook("Psr\Log\LoggerInterface::$level", $this->getHookFn(0, 1));
         }
+
+        \DDTrace\install_hook("Psr\Log\LoggerInterface::log", $this->getHookFn(1, 2));
 
         return Integration::LOADED;
     }

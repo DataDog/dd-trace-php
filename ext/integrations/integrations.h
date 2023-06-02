@@ -52,7 +52,7 @@ struct ddtrace_integration {
     bool (*is_enabled)(void);
     bool (*is_analytics_enabled)(void);
     double (*get_sample_rate)(void);
-    void *aux[7]; // Needs to be the max number of deferred loading hooks for any integration plus one NULL sentinel
+    void *aux[10]; // Needs to be the max number of deferred loading hooks for any integration plus one NULL sentinel
 };
 typedef struct ddtrace_integration ddtrace_integration;
 
