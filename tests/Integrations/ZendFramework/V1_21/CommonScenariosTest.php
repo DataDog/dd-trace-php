@@ -72,6 +72,19 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     ])
                     ->setError('Exception', 'Controller error', true)
             ],
+            'A GET request to a missing route' => [
+                SpanAssertion::build('zf1.request', 'zf1', 'web', 'error@error default')
+                    ->withExactTags([
+                        'zf1.controller' => 'error',
+                        'zf1.action' => 'error',
+                        'zf1.route_name' => 'default',
+                        Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'zendframework',
+                        Tag::HTTP_URL => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
+                        Tag::HTTP_METHOD => 'GET',
+                        Tag::HTTP_STATUS_CODE => '404',
+                    ])
+            ]
         ];
 
         return $this->buildDataProvider($specs);

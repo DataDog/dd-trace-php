@@ -785,6 +785,11 @@ static void _dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
     smart_str_0(buf);
 }
 
+static int should_report_error(bool is_root_span, int http_response_code) {
+    // Assumes there is an error
+    return !is_root_span || !http_response_code || http_response_code >= 500;
+}
+
 static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     bool is_top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     bool is_local_root_span = span->parent_id == 0 || is_top_level_span;
@@ -811,7 +816,9 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         if (is_local_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
         }
-        ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array, exception_type);
+        if (should_report_error(is_local_root_span, SG(sapi_headers).http_response_code)) {
+            ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array, exception_type);
+        }
     }
 
     zend_array *span_links_zv = ddtrace_spandata_property_links(span);
@@ -876,7 +883,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.message")) ||
                       ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
-    if (error) {
+    if (error && should_report_error(is_local_root_span, SG(sapi_headers).http_response_code)) {
         add_assoc_long(el, "error", 1);
     }
 
