@@ -17,20 +17,35 @@ class LogsIntegration extends Integration
         return self::NAME;
     }
 
-    public function getPlaceholders(): array
+    public function getPlaceholders(string $level): array
     {
-        return [
+        $placeholders = [
             '%dd.trace_id%' => 'dd.trace_id="' . \DDTrace\trace_id_128() . '"',
             '%dd.span_id%'  => 'dd.span_id="' . dd_trace_peek_span_id() . '"',
-            '%dd.service%'  => 'dd.service="' . ddtrace_config_app_name() . '"',
-            '%dd.version%'  => 'dd.version="' . \DDTrace\current_context()['version'] . '"',
-            '%dd.env%'      => 'dd.env="' . \DDTrace\current_context()['env'] . '"'
         ];
+
+        $appName = ddtrace_config_app_name();
+        if ($appName) {
+            $placeholders['%dd.service%'] = 'dd.service="' . $appName . '"';
+        }
+
+        $currentContext = \DDTrace\current_context();
+        if ($currentContext['version']) {
+            $placeholders['%dd.version%'] = 'dd.version="' . $currentContext['version'] . '"';
+        }
+
+        if ($currentContext['env']) {
+            $placeholders['%dd.env%'] = 'dd.env="' . $currentContext['env'] . '"';
+        }
+
+        $placeholders['%level%'] = 'level="' . $level . '"';
+
+        return $placeholders;
     }
 
-    public function messageContainsPlaceholders(string $message): bool
+    public function messageContainsPlaceholders(string $message, string $level): bool
     {
-        $placeholders = $this->getPlaceholders();
+        $placeholders = $this->getPlaceholders($level);
 
         foreach ($placeholders as $placeholder => $value) {
             if (str_contains($message, $placeholder)) {
@@ -41,38 +56,34 @@ class LogsIntegration extends Integration
         return false;
     }
 
-    public function appendTraceIdentifiersToMessage(string $message): string
+    public function appendTraceIdentifiersToMessage(string $message, string $level): string
     {
-        if (str_contains($message, 'dd.trace_id')) {
-            // Don't append the identifiers if they are already included in the message
-            // The logger interface's methods will be called multiple times across abstract classes and all for a
-            // same message
-            return $message;
-        }
+        $additional = "";
 
-        $message .= '[ ';
-
-        $placeholders = $this->getPlaceholders();
+        $placeholders = $this->getPlaceholders($level);
 
         foreach ($placeholders as $placeholder => $value) {
-            if ($value) {
-                $key = str_replace('%', '', $placeholder);
-                $message .= "$key=\"$value\" ";
+            if (str_contains($message, $placeholder)) {
+                $message = str_replace($placeholder, $value, $message);
+            } elseif ($value) {
+                $additional .= "$value ";
             }
         }
 
-        $message = substr($message, 0, -1);
-        $message .= ']';
+        if ($additional) {
+            $additional = substr($additional, 0, -1);
+            $message .= " [$additional]";
+        }
 
         return $message;
     }
 
-    public function replacePlaceholders(string $message): string
+    public function replacePlaceholders(string $message, string $level): string
     {
-        return strtr($message, $this->getPlaceholders());
+        return strtr($message, $this->getPlaceholders($level));
     }
 
-    public function addTraceIdentifiersToContext(array $context): array
+    public function addTraceIdentifiersToContext(array $context, string $level): array
     {
         $context['dd'] = [
             'trace_id' => \DDTrace\trace_id_128(),
@@ -93,27 +104,38 @@ class LogsIntegration extends Integration
             $context['dd']['env'] = $currentContext['env'];
         }
 
+        if (!isset($context['level'])) {
+            $context['level'] = $level;
+        }
+
         return $context;
     }
 
-    public function getHookFn(int $messageIndex, int $contextIndex): callable
+    public function getHookFn(string $level, int $messageIndex, int $contextIndex, LogsIntegration $integration): callable
     {
-        return function (HookData $hook) use ($messageIndex, $contextIndex) {
+        return function (HookData $hook) use ($level, $messageIndex, $contextIndex, $integration) {
             /** @var string $message */
             $message = $hook->args[$messageIndex];
             /** @var array $context */
             $context = $hook->args[$contextIndex] ?? [];
 
+            if (str_contains($message, '"trace_id"') || str_contains($message, 'dd.trace_id=')) {
+                // Don't add the identifiers if they are already included in the message
+                // The logger interface's methods will be called multiple times across abstract classes, trait, etc.
+                // for a same message
+                return;
+            }
+
             if (dd_trace_env_config("DD_TRACE_APPEND_TRACE_IDS_TO_LOGS")) {
                 // Always append the trace identifiers at the end of the message
-                $message = $this->appendTraceIdentifiersToMessage($message);
-            } elseif ($this->messageContainsPlaceholders($message)) {
+                $message = $integration->appendTraceIdentifiersToMessage($message, $level);
+            } elseif ($integration->messageContainsPlaceholders($message, $level)) {
                 // Replace the placeholders with the actual values
-                $message = $this->replacePlaceholders($message);
+                $message = $integration->replacePlaceholders($message, $level);
             } else {
                 // Add the trace identifiers to the context
                 // They may or may not be used by the formatter
-                $context = $this->addTraceIdentifiersToContext($context);
+                $context = $integration->addTraceIdentifiersToContext($context, $level);
             }
 
             $hook->args[$messageIndex] = $message;
@@ -125,6 +147,8 @@ class LogsIntegration extends Integration
 
     public function init()
     {
+        $integration = $this;
+
         $levels = [
             'debug',
             'info',
@@ -137,10 +161,16 @@ class LogsIntegration extends Integration
         ];
 
         foreach ($levels as $level) {
-            \DDTrace\install_hook("Psr\Log\LoggerInterface::$level", $this->getHookFn(0, 1));
+            \DDTrace\install_hook(
+                "Psr\Log\LoggerInterface::$level",
+                $this->getHookFn($level, 0, 1, $integration)
+            );
         }
 
-        \DDTrace\install_hook("Psr\Log\LoggerInterface::log", $this->getHookFn(1, 2));
+        \DDTrace\install_hook(
+            "Psr\Log\LoggerInterface::log",
+            $this->getHookFn($level, 1, 2, $integration)
+        );
 
         return Integration::LOADED;
     }
