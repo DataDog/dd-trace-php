@@ -1152,7 +1152,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         // this should never happen, as it would mean that no `gc_collect_cycles` function pointer
         // did exist, which could only be the case if another extension was misbehaving.
         // But technically it could be, so better safe than sorry
-        return 0;
+        0
     }
 }
 
