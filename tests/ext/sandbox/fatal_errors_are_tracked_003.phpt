@@ -1,5 +1,7 @@
 --TEST--
 E_ERROR fatal errors are tracked from hitting the max execution time
+--SKIPIF--
+<?php if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--

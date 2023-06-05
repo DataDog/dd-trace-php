@@ -645,11 +645,16 @@ static zend_object *zai_interceptor_generator_create(zend_class_entry *class_typ
 
     zai_frame_memory frame_memory;
     zend_execute_data *execute_data = EG(current_execute_data);
-    if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
-        frame_memory.resumed = false;
-        frame_memory.implicit = false;
-        frame_memory.ex = execute_data;
-        zai_hook_memory_table_insert((zend_execute_data *)generator, &frame_memory);
+    // We also land here when new Generator is invoked. We only care about ZEND_GENERATOR_CREATE.
+    if (execute_data && execute_data->func
+     && (execute_data->func->common.fn_flags & ZEND_ACC_GENERATOR)
+     && execute_data->opline->opcode == ZEND_GENERATOR_CREATE) {
+        if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
+            frame_memory.resumed = false;
+            frame_memory.implicit = false;
+            frame_memory.ex = execute_data;
+            zai_hook_memory_table_insert((zend_execute_data *) generator, &frame_memory);
+        }
     }
 
     return &generator->std;
