@@ -364,13 +364,10 @@ trait TracerTestTrait
      */
     private function parseTracesFromDumpedData()
     {
-        $response = $this->retrieveDumpedData();
-
-        if (!$response) {
+        $loaded = $this->retrieveDumpedTraceData();
+        if (!$loaded) {
             return [];
         }
-
-        $loaded = json_decode($response, true);
 
         if (count($loaded) > 1) {
             // There are multiple bodies. Parse them all and return them.
@@ -398,13 +395,12 @@ trait TracerTestTrait
 
     public function parseMultipleRequestsFromDumpedData()
     {
-        $response = $this->retrieveDumpedData();
-        if (!$response) {
+        $manyRequests = $this->retrieveDumpedTraceData();
+        if (!$manyRequests) {
             return [];
         }
 
         // For now we only support asserting traces against one dump at a time.
-        $manyRequests = json_decode($response, true);
         $tracesAllRequests = [];
 
         // We receive back an array of traces
@@ -420,9 +416,10 @@ trait TracerTestTrait
     /**
      * Returns the raw response body, if any, or null otherwise.
      */
-    private function retrieveDumpedData()
+    public function retrieveDumpedData()
     {
-        $response = null;
+        $allResponses = [];
+
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
         // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
         // for loop.
@@ -441,10 +438,23 @@ trait TracerTestTrait
                 );
                 continue;
             } else {
-                break;
+                $loaded = json_decode($response, true);
+                array_push($allResponses, ...$loaded);
+                foreach ($loaded as $request) {
+                    if (strpos($request["uri"] ?? "", "/telemetry/") !== 0) {
+                        break 2;
+                    }
+                }
             }
         }
-        return $response;
+        return $allResponses;
+    }
+
+    public function retrieveDumpedTraceData()
+    {
+        return array_values(array_filter($this->retrieveDumpedData(), function ($request) {
+            return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
+        }));
     }
 
     /**

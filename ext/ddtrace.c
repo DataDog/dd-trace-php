@@ -28,6 +28,8 @@
 #include <ext/standard/php_string.h>
 #include <json/json.h>
 
+#include <components-rs/ddtrace.h>
+
 #include "auto_flush.h"
 #include "circuit_breaker.h"
 #include "comms_php.h"
@@ -55,6 +57,7 @@
 #include "signals.h"
 #include "span.h"
 #include "startup_logging.h"
+#include "telemetry.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "ext/standard/file.h"
 
@@ -209,7 +212,19 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
-static pthread_once_t dd_activate_config_once_control = PTHREAD_ONCE_INIT;
+static void dd_activate_once(void) {
+    ddtrace_config_first_rinit();
+
+    // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
+    if (!DDTRACE_G(disable) && get_global_DD_TRACE_TELEMETRY_ENABLED()) {
+        bool modules_activated = PG(modules_activated);
+        PG(modules_activated) = false;
+        ddtrace_telemetry_setup();
+        PG(modules_activated) = modules_activated;
+    }
+}
+
+static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 
 static void ddtrace_activate(void) {
     zai_hook_rinit();
@@ -223,7 +238,7 @@ static void ddtrace_activate(void) {
     }
 
     // ZAI config is always set up
-    pthread_once(&dd_activate_config_once_control, ddtrace_config_first_rinit);
+    pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
 
     zend_string *sampling_rules_file = get_DD_SPAN_SAMPLING_RULES_FILE();
@@ -640,6 +655,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_set_coredumpfilter();
+    ddtrace_generate_runtime_id();
 
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
@@ -695,6 +711,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_limiter_destroy();
     zai_config_mshutdown();
 
+    ddtrace_telemetry_shutdown();
+
     return SUCCESS;
 }
 
@@ -742,6 +760,10 @@ static void dd_initialize_request(void) {
     dd_prepare_for_new_trace();
 
     dd_read_distributed_tracing_ids();
+
+    if (!DDTRACE_G(telemetry_queue_id)) {
+        DDTRACE_G(telemetry_queue_id) = ddog_sidecar_queueId_generate();
+    }
 
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();
@@ -832,6 +854,13 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = false;
 }
 
+static void dd_finalize_telemtry(void) {
+    if (DDTRACE_G(telemetry_queue_id)) {
+        ddtrace_telemetry_finalize();
+        DDTRACE_G(telemetry_queue_id) = 0;
+    }
+}
+
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
@@ -846,6 +875,12 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (!DDTRACE_G(disable)) {
         OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
         DDTRACE_G(active_stack) = NULL;
+    }
+
+    dd_finalize_telemtry();
+    if (DDTRACE_G(last_flushed_root_service_name)) {
+        zend_string_release(DDTRACE_G(last_flushed_root_service_name));
+        DDTRACE_G(last_flushed_root_service_name) = NULL;
     }
 
     return SUCCESS;
@@ -1345,9 +1380,9 @@ PHP_FUNCTION(DDTrace_Config_integration_analytics_sample_rate) {
  */
 PHP_FUNCTION(DDTrace_System_container_id) {
     UNUSED(execute_data);
-    char *id = ddshared_container_id();
-    if (id != NULL && id[0] != '\0') {
-        RETVAL_STRING(id);
+    ddog_CharSlice id = ddtrace_get_container_id();
+    if (id.len) {
+        RETVAL_STRINGL(id.ptr, id.len);
     } else {
         RETURN_NULL();
     }
@@ -1500,6 +1535,9 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("test_msgpack_consumer")) {
             ddtrace_coms_test_msgpack_consumer();
+            RETVAL_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
+            dd_finalize_telemtry();
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
             uint32_t timeout = 100;

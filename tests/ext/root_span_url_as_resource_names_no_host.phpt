@@ -18,7 +18,9 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
-array(4) {
+array(5) {
+  ["runtime-id"]=>
+  string(36) "%s"
   ["http.url"]=>
   string(25) "http://localhost:8888/foo"
   ["http.method"]=>

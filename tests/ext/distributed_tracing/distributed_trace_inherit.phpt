@@ -44,7 +44,7 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(5) {
+    array(6) {
       ["_dd.p.custom_tag"]=>
       string(9) "inherited"
       ["_dd.propagation_error"]=>
@@ -53,6 +53,8 @@ array(2) {
       string(4) "also"
       ["_dd.p.dm"]=>
       string(2) "-0"
+      ["runtime-id"]=>
+      string(36) "%s"
       ["_dd.origin"]=>
       string(7) "datadog"
     }
