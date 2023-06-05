@@ -7,6 +7,8 @@ indicating that gc events in the engine are sampled for the timeline feature.
 <?php
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires Datadog Continuous Profiler\n";
+if (ini_get('datadog.profiling.experimental_timeline_enabled') === false)
+    echo "skip: datadog profiler is compiled without timeline support\n";
 ?>
 --ENV--
 DD_PROFILING_ENABLED=yes
