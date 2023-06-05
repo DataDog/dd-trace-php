@@ -2,7 +2,7 @@ use crate::bindings::{
     ddog_php_prof_zend_string_view, zend_execute_data, zend_function, zend_string,
     ZEND_USER_FUNCTION,
 };
-use std::{str::Utf8Error, thread, time::Duration};
+use std::{str::Utf8Error, time::Duration};
 
 #[derive(Default, Debug)]
 pub struct ZendFrame {
@@ -102,7 +102,7 @@ pub unsafe fn collect_stack_sample(
     let mut execute_data_ptr = top_execute_data;
 
     while let Some(execute_data) = execute_data_ptr.as_ref() {
-        thread::sleep(Duration::from_nanos(100));
+        collect_call_frame(execute_data);
         if let Some(frame) = collect_call_frame(execute_data) {
             samples.push(frame);
 
