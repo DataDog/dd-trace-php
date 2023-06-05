@@ -233,3 +233,39 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
     free(execute_data);
 }
 #endif
+
+bool ddog_php_jit_enabled() {
+    bool jit = false;
+
+    const zend_llist *list = &zend_extensions;
+    zend_extension *maybe_opcache = NULL;
+    static void* opcache_handle;
+    for (const zend_llist_element *item = list->head; item; item = item->next) {
+        maybe_opcache = (zend_extension *)item->data;
+        if (maybe_opcache->name && strcmp(maybe_opcache->name, "Zend OPcache") == 0)
+        {
+            opcache_handle = maybe_opcache->handle;
+            printf("ext: %s, handle: %p\n", maybe_opcache->name, opcache_handle);
+            break;
+        }
+    }
+
+    if (opcache_handle) {
+        void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(opcache_handle, "zend_jit_status");
+        if (zend_jit_status == NULL) {
+            zend_jit_status = DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_status");
+        }
+        if (zend_jit_status) {
+            zval jit_stats_arr;
+            array_init(&jit_stats_arr);
+            zend_jit_status(&jit_stats_arr);
+
+            zval *jit_stats = zend_hash_str_find(Z_ARR(jit_stats_arr), ZEND_STRL("jit"));
+            zval *jit_buffer = zend_hash_str_find(Z_ARR_P(jit_stats), ZEND_STRL("buffer_size"));
+            jit = Z_LVAL_P(jit_buffer) > 0; // JIT is active!
+
+            zval_ptr_dtor(&jit_stats_arr);
+        }
+    }
+    return jit;
+}
