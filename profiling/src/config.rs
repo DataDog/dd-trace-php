@@ -424,7 +424,6 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     ini_change: None,
                     parser: None,
                 },
-                #[cfg(feature = "timeline")]
                 zai_config_entry {
                     id: transmute(ProfilingExperimentalTimelineEnabled),
                     name: ProfilingExperimentalTimelineEnabled.env_var_name(),
