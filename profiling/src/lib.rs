@@ -830,6 +830,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         let locals = cell.borrow();
         let yes: &[u8] = b"true\0";
         let no: &[u8] = b"false\0";
+        let na: &[u8] = b"Not available\0";
         zend::php_info_print_table_start();
         zend::php_info_print_table_row(2, b"Version\0".as_ptr(), module.version);
         zend::php_info_print_table_row(
@@ -850,11 +851,15 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
         zend::php_info_print_table_row(
             2,
-            b"Experimental Allocation Profiling Enabled\0".as_ptr(),
+            b"Allocation Profiling Enabled\0".as_ptr(),
             if locals.profiling_allocation_enabled {
                 yes
             } else {
-                no
+                if zend::ddog_php_jit_enabled() {
+                    na
+                } else {
+                    no
+                }
             },
         );
 
