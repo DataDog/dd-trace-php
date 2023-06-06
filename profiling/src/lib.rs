@@ -624,7 +624,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     {
         if profiling_allocation_enabled {
             let jit = JIT_ENABLED.get_or_init(|| unsafe { zend::ddog_php_jit_enabled() });
-            if *jit == true {
+            if *jit {
                 error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT. See https://github.com/DataDog/dd-trace-php/pull/2088");
                 REQUEST_LOCALS.with(|cell| {
                     let mut locals = cell.borrow_mut();
@@ -857,12 +857,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             b"Allocation Profiling Enabled\0".as_ptr(),
             if locals.profiling_allocation_enabled {
                 yes
+            } else if zend::ddog_php_jit_enabled() {
+                na
             } else {
-                if zend::ddog_php_jit_enabled() {
-                    na
-                } else {
-                    no
-                }
+                no
             },
         );
 
