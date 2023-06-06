@@ -7,9 +7,12 @@ we make sure to disable allocation profiling when we detect the JIT is enabled.
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80000)
-    echo "skip: no JIT before PHP 8.0", PHP_EOL;
+    echo "skip: JIT requires PHP >= 8.0", PHP_EOL;
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires datadog-profiling", PHP_EOL;
+$arch = php_uname('m');
+if (PHP_VERSION_ID < 80100 && in_array($arch, ['aarch64', 'arm64']))
+    echo "skip: JIT not available on aarch64 on PHP 8.0", PHP_EOL;
 ?>
 --INI--
 datadog.profiling.enabled=yes
