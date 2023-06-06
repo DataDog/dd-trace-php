@@ -234,7 +234,7 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
 }
 #endif
 
-uint8_t *opcache_handle = NULL;
+void *opcache_handle = NULL;
 
 // OPcache NULLs its handle, so this function will only get the handle during
 // MINIT phase. You as the caller has to make sure to only call this function
