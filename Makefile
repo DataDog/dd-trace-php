@@ -880,6 +880,9 @@ test_integrations_memcached: global_test_run_dependencies
 test_integrations_memcache: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Memcache)
+test_integrations_monolog1: global_test_run_dependencies
+	$(MAKE) test_scenario_monolog1
+	$(call run_tests,tests/Integrations/Logs/MonologV1)
 test_integrations_mysqli: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Mysqli)
