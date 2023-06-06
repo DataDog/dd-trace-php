@@ -244,8 +244,7 @@ void ddog_php_opcache_init_handle() {
     zend_extension *maybe_opcache = NULL;
     for (const zend_llist_element *item = list->head; item; item = item->next) {
         maybe_opcache = (zend_extension *)item->data;
-        if (maybe_opcache->name && strcmp(maybe_opcache->name, "Zend OPcache") == 0)
-        {
+        if (maybe_opcache->name && strcmp(maybe_opcache->name, "Zend OPcache") == 0) {
             opcache_handle = maybe_opcache->handle;
             break;
         }
