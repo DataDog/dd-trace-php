@@ -789,6 +789,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     bool is_top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     bool is_local_root_span = span->parent_id == 0 || is_top_level_span;
     zval meta_zv, *meta = ddtrace_spandata_property_meta_zval(span);
+    bool ignore_error = false;
 
     array_init(&meta_zv);
     ZVAL_DEREF(meta);
@@ -796,6 +797,11 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         zend_string *str_key;
         zval *orig_val, val_as_string;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(meta), str_key, orig_val) {
+            if (str_key && zend_string_equals_literal_ci(str_key, "error.ignored")) {
+                ignore_error = !!zend_is_true(orig_val);
+                continue;
+            }
+
             if (str_key) {
                 ddtrace_convert_to_string(&val_as_string, orig_val);
                 add_assoc_zval(&meta_zv, ZSTR_VAL(str_key), &val_as_string);
@@ -806,7 +812,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     meta = &meta_zv;
 
     zval *exception_zv = ddtrace_spandata_property_exception(span);
-    if (Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
+    if (!ignore_error && Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
         if (is_local_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
@@ -824,7 +830,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     if (is_top_level_span) {
         if (SG(sapi_headers).http_response_code) {
             add_assoc_str(meta, "http.status_code", zend_long_to_str(SG(sapi_headers).http_response_code));
-            if (SG(sapi_headers).http_response_code >= 500) {
+            if (SG(sapi_headers).http_response_code >= 500 && !ignore_error) {
                 zval zv = {0}, *value;
                 if ((value = zend_hash_str_add(Z_ARR_P(meta), ZEND_STRL("error.type"), &zv))) {
                     ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
@@ -876,7 +882,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.message")) ||
                       ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
-    if (error) {
+    if (error && !ignore_error) {
         add_assoc_long(el, "error", 1);
     }
 
