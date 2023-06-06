@@ -10,6 +10,7 @@ if (!extension_loaded('datadog-profiling'))
 ?>
 --INI--
 assert.exception=1
+opcache.jit=off
 datadog.profiling.enabled=no
 datadog.profiling.log_level=info
 datadog.profiling.experimental_cpu_time_enabled=yes

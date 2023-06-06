@@ -234,21 +234,30 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
 }
 #endif
 
-bool ddog_php_jit_enabled() {
-    bool jit = false;
+uint8_t *opcache_handle = NULL;
 
+// OPcache NULLs its handle, so this function will only get the handle during
+// MINIT phase. You as the caller has to make sure to only call this function
+// during MINIT and not later.
+void ddog_php_opcache_init_handle() {
     const zend_llist *list = &zend_extensions;
     zend_extension *maybe_opcache = NULL;
-    static void* opcache_handle;
     for (const zend_llist_element *item = list->head; item; item = item->next) {
         maybe_opcache = (zend_extension *)item->data;
         if (maybe_opcache->name && strcmp(maybe_opcache->name, "Zend OPcache") == 0)
         {
             opcache_handle = maybe_opcache->handle;
-            printf("ext: %s, handle: %p\n", maybe_opcache->name, opcache_handle);
             break;
         }
     }
+    return;
+}
+
+// This checks if the JIT actually has a buffer, if so, JIT is active, otherwise
+// JIT is inactive. This will only work after OPcache was initialized (after it
+// assigned its PHP.INI settings), so make sure to call this in RINIT.
+bool ddog_php_jit_enabled() {
+    bool jit = false;
 
     if (opcache_handle) {
         void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(opcache_handle, "zend_jit_status");

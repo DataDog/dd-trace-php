@@ -21,6 +21,7 @@ DD_TRACE_AGENT_PORT=80
 DD_TRACE_AGENT_URL=http://datadog:8126
 --INI--
 assert.exception=1
+opcache.jit=off
 --FILE--
 <?php
 

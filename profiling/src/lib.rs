@@ -289,6 +289,11 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
      */
     unsafe { zend::zend_register_extension(&extension, handle) };
 
+    /* We need to fetch the handle for the OPcache extension during MINIT, as OPcache will NULL
+     * it's handle later
+     */
+    unsafe { zend::ddog_php_opcache_init_handle() };
+
     ZendResult::Success
 }
 
@@ -616,8 +621,8 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     {
         if profiling_allocation_enabled {
-            if unsafe { zend::ddog_php_jit_enabled() } {
-                error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling, please disable JIT.");
+            if unsafe { zend::ddog_php_jit_enabled() } == true {
+                error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT. See https://github.com/DataDog/dd-trace-php/pull/2088");
                 REQUEST_LOCALS.with(|cell| {
                     let mut locals = cell.borrow_mut();
                     locals.profiling_allocation_enabled = false;
