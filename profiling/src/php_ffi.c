@@ -249,7 +249,6 @@ void ddog_php_opcache_init_handle() {
             break;
         }
     }
-    return;
 }
 
 // This checks if the JIT actually has a buffer, if so, JIT is active, otherwise
