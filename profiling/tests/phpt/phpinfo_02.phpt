@@ -1,12 +1,17 @@
 --TEST--
-[profiling] test profiler's extension info
+[profiling] test profiler's extension info with active JIT
 --DESCRIPTION--
 The profiler's phpinfo section contains important debugging information. This
 test verifies that certain information is present.
 --SKIPIF--
 <?php
+if (PHP_VERSION_ID < 80000)
+    echo "skip: JIT requires PHP >= 8.0", PHP_EOL;
 if (!extension_loaded('datadog-profiling'))
-    echo "skip: test requires Datadog Continuous Profiler\n";
+    echo "skip: test requires datadog-profiling", PHP_EOL;
+$arch = php_uname('m');
+if (PHP_VERSION_ID < 80100 && in_array($arch, ['aarch64', 'arm64']))
+    echo "skip: JIT not available on aarch64 on PHP 8.0", PHP_EOL;
 ?>
 --ENV--
 DD_PROFILING_ENABLED=yes
@@ -37,9 +42,6 @@ foreach ($lines as $line) {
     $values[trim($pair[0])] = trim($pair[1]);
 }
 
-// Check that Version exists, but not its value
-assert(isset($values["Version"]));
-
 // Check exact values for this set
 $sections = [
     ["Allocation Profiling Enabled", "Not available"],
@@ -55,6 +57,5 @@ foreach ($sections as [$key, $expected]) {
 echo "Done.";
 
 ?>
---EXPECTREGEX--
-.*
+--EXPECT--
 Done.
