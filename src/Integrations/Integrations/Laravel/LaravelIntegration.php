@@ -122,7 +122,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Http\Response',
             'send',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                $ignoreError = $rootSpan->meta['error.ignored'] ?? false;
+                $ignoreError = isset($rootSpan->meta['error.ignored']) && $rootSpan->meta['error.ignored'];
                 if (isset($This->exception) && $This->getStatusCode() >= 500 && !$ignoreError) {
                     $integration->setError($rootSpan, $This->exception);
                 }
