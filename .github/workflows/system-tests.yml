@@ -102,8 +102,8 @@ jobs:
         run: ./run.sh APPSEC_CUSTOM_OBFUSCATION
       - name: Run APPSEC_RATE_LIMITER scenario
         run: ./run.sh APPSEC_RATE_LIMITER
-      - name: Run APPSEC_IP_BLOCKING scenario
-        run: ./run.sh APPSEC_IP_BLOCKING
+      - name: Run APPSEC_BLOCKING_FULL_DENYLIST scenario
+        run: ./run.sh APPSEC_BLOCKING_FULL_DENYLIST
       - name: Run APPSEC_RUNTIME_ACTIVATION scenario
         run: ./run.sh APPSEC_RUNTIME_ACTIVATION
       - name: Run APPSEC_WAF_TELEMETRY scenario
