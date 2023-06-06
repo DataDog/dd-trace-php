@@ -42,6 +42,8 @@ use crate::bindings::{
 /// a profile tag.
 static PHP_VERSION: OnceCell<String> = OnceCell::new();
 
+static JIT_ENABLED: OnceCell<bool> = OnceCell::new();
+
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
 static PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
@@ -621,7 +623,8 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     {
         if profiling_allocation_enabled {
-            if unsafe { zend::ddog_php_jit_enabled() } == true {
+            let jit = JIT_ENABLED.get_or_init(|| unsafe { zend::ddog_php_jit_enabled() });
+            if *jit == true {
                 error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT. See https://github.com/DataDog/dd-trace-php/pull/2088");
                 REQUEST_LOCALS.with(|cell| {
                     let mut locals = cell.borrow_mut();

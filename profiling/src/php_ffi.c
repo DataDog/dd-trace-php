@@ -253,7 +253,13 @@ void ddog_php_opcache_init_handle() {
 
 // This checks if the JIT actually has a buffer, if so, JIT is active, otherwise
 // JIT is inactive. This will only work after OPcache was initialized (after it
-// assigned its PHP.INI settings), so make sure to call this in RINIT.
+// assigned its PHP.INI settings), so make sure to call this in RINIT.a
+//
+// Attention: this will check for the `opcache.jit_buffer_size` setting as this
+// one is a PHP_INI_SYSTEM (can not be changed on a per directory basis). This
+// means that the `opcache.jit` setting could be `off` and this function would
+// still consider JIT to be enabled, as it could be enabled at anytime (runtime
+// and per directory settings).
 bool ddog_php_jit_enabled() {
     bool jit = false;
 
