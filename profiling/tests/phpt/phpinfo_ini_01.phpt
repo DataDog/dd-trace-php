@@ -46,7 +46,7 @@ assert(isset($values["Version"]));
 $sections = [
     ["Profiling Enabled", "false"],
     ["Experimental CPU Time Profiling Enabled", "true"],
-    ["Experimental Allocation Profiling Enabled", "true"],
+    ["Allocation Profiling Enabled", "true"],
     ["Endpoint Collection Enabled", "true"],
     ["Profiling Log Level", "info"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],
