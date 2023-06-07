@@ -27,7 +27,8 @@ class QueueTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_AUTO_FLUSH_ENABLED' => '1',
             'DD_TRACE_CLI_ENABLED' => '1',
-            'APP_NAME' => 'laravel_queue_test'
+            'APP_NAME' => 'laravel_queue_test',
+            'DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE' => '0'
         ]);
     }
 
