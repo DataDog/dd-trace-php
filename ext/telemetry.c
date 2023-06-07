@@ -67,18 +67,20 @@ void ddtrace_telemetry_finalize(void) {
         return;
     }
 
+    ddog_TelemetryActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
+
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
         zend_ini_entry *ini = cfg->ini_entries[0];
 #if ZTS
         ini = zend_hash_find_ptr(EG(ini_directives), ini->name);
 #endif
-        if (!zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
-            if (!zend_string_equals_literal(ini->name, "datadog.trace.enabled")) { // datadog.trace.enabled is meaningless: always off at rshutdown
-                ddog_sidecar_telemetry_enqueueConfig(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id),
-                                                     dd_zend_string_to_CharSlice(ini->name), dd_zend_string_to_CharSlice(ini->value),
-                                                     cfg->name_index >= 0 ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE);
+        if (!zend_string_equals_literal(ini->name, "datadog.trace.enabled")) { // datadog.trace.enabled is meaningless: always off at rshutdown
+            ddog_ConfigurationOrigin origin = DDOG_CONFIGURATION_ORIGIN_DEFAULT;
+            if (!zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
+                origin = cfg->name_index >= 0 ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE;
             }
+            ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, dd_zend_string_to_CharSlice(ini->name), dd_zend_string_to_CharSlice(ini->value), origin);
         }
     }
 
@@ -87,10 +89,10 @@ void ddtrace_telemetry_finalize(void) {
         ddtrace_integration *integration = &ddtrace_integrations[i];
         if (!integration->is_enabled()) {
             ddog_CharSlice integration_name = (ddog_CharSlice) {.len = integration->name_len, .ptr = integration->name_lcase};
-            ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), integration_name,
-                                                  DDOG_CHARSLICE_C("0"), false);
+            ddog_sidecar_telemetry_addIntegration_buffer(buffer, integration_name, DDOG_CHARSLICE_C("0"), false);
         }
     }
+    ddog_sidecar_telemetry_buffer_flush(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 
     ddog_CharSlice service_name = DDOG_CHARSLICE_C("unnamed-php-service");
     if (DDTRACE_G(last_flushed_root_service_name)) {

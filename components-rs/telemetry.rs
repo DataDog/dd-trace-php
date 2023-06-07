@@ -3,10 +3,11 @@ use std::{fs, io};
 use std::path::Path;
 use ddcommon_ffi::CharSlice;
 use ddcommon_ffi::slice::AsBytes;
-use ddtelemetry::data::Dependency;
+use ddtelemetry::data::{Dependency, Integration};
 use datadog_sidecar::interface::blocking::TelemetryTransport;
 use datadog_sidecar::interface::{blocking, InstanceId, QueueId};
 use datadog_sidecar::config;
+use ddtelemetry::data;
 use ddtelemetry::worker::TelemetryActions;
 use ddtelemetry_ffi::{MaybeError, try_c};
 #[cfg(php_shared_build)]
@@ -68,6 +69,67 @@ pub extern "C" fn ddog_sidecar_connect_php(connection: &mut *mut TelemetryTransp
     let cfg = config::FromEnv::config();
     let stream = Box::new(try_c!(run_sidecar(cfg)));
     *connection = Box::into_raw(stream);
+
+    MaybeError::None
+}
+
+#[derive(Default)]
+pub struct TelemetryActionsBuffer {
+    buffer: Vec<TelemetryActions>
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_telemetry_buffer_alloc() -> Box<TelemetryActionsBuffer> {
+    TelemetryActionsBuffer::default().into()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_addIntegration_buffer(
+    buffer: &mut TelemetryActionsBuffer,
+    integration_name: CharSlice,
+    integration_version: CharSlice,
+    integration_enabled: bool,
+) -> () {
+    let version = integration_version
+        .is_empty()
+        .then(|| integration_version.to_utf8_lossy().into_owned());
+
+    buffer.buffer.push(TelemetryActions::AddIntegration(Integration {
+        name: integration_name.to_utf8_lossy().into_owned(),
+        enabled: integration_enabled,
+        version,
+        compatible: None,
+        auto_enabled: None,
+    }));
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
+    buffer: &mut TelemetryActionsBuffer,
+    config_key: CharSlice,
+    config_value: CharSlice,
+    origin: data::ConfigurationOrigin,
+) -> () {
+    buffer.buffer.push(TelemetryActions::AddConfig(data::Configuration {
+        name: config_key.to_utf8_lossy().into_owned(),
+        value: config_value.to_utf8_lossy().into_owned(),
+        origin,
+    }));
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_telemetry_buffer_flush(
+    transport: &mut Box<TelemetryTransport>,
+    instance_id: &InstanceId,
+    queue_id: &QueueId,
+    buffer: Box<TelemetryActionsBuffer>,
+) -> MaybeError {
+    try_c!(blocking::enqueue_actions(
+        transport,
+        instance_id,
+        queue_id,
+        buffer.buffer,
+    ));
 
     MaybeError::None
 }

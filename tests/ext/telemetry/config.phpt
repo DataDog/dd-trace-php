@@ -27,7 +27,16 @@ foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
     if ($l) {
         $json = json_decode($l, true);
         if ($json["request_type"] == "app-started") {
-            print_r($json["payload"]["configuration"]);
+            $cfg = $json["payload"]["configuration"];
+            print_r(array_values(array_filter($cfg, function($c) {
+                return $c["origin"] == "EnvVar";
+            })));
+            var_dump(count(array_filter($cfg, function($c) {
+                return $c["origin"] == "Default";
+            })) > 100); // all the configs, no point in asserting them all here
+            var_dump(count(array_filter($cfg, function($c) {
+                return $c["origin"] != "Default" && $c["origin"] != "EnvVar";
+            }))); // all other configs
         }
     }
 }
@@ -59,6 +68,8 @@ Array
         )
 
 )
+bool(true)
+int(0)
 --CLEAN--
 <?php
 
