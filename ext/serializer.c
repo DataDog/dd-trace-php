@@ -797,12 +797,12 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         zend_string *str_key;
         zval *orig_val, val_as_string;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(meta), str_key, orig_val) {
-            if (str_key && zend_string_equals_literal_ci(str_key, "error.ignored")) {
-                ignore_error = !!zend_is_true(orig_val);
-                continue;
-            }
-
             if (str_key) {
+                if (zend_string_equals_literal_ci(str_key, "error.ignored")) {
+                    ignore_error = zend_is_true(orig_val);
+                    continue;
+                }
+
                 ddtrace_convert_to_string(&val_as_string, orig_val);
                 add_assoc_zval(&meta_zv, ZSTR_VAL(str_key), &val_as_string);
             }
@@ -812,7 +812,8 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     meta = &meta_zv;
 
     zval *exception_zv = ddtrace_spandata_property_exception(span);
-    if (!ignore_error && Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
+    if (Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
+        ignore_error = false;
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
         if (is_local_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
