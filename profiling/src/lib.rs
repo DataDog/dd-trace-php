@@ -645,6 +645,12 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                         ALLOCATION_PROFILING_FREE = allocation_profiling_prev_free;
                         ALLOCATION_PROFILING_REALLOC = allocation_profiling_prev_realloc;
                     }
+                } else {
+                    unsafe {
+                        ALLOCATION_PROFILING_ALLOC = allocation_profiling_orig_alloc;
+                        ALLOCATION_PROFILING_FREE = allocation_profiling_orig_free;
+                        ALLOCATION_PROFILING_REALLOC = allocation_profiling_orig_realloc;
+                    }
                 }
 
                 unsafe {
