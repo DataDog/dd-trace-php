@@ -25,7 +25,7 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
 #[cfg(feature = "allocation_profiling")]
-use crate::ALLOCATION_PROFILING_INTERVAL;
+use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 #[cfg(feature = "allocation_profiling")]
 use datadog_profiling::profile::api::UpscalingInfo;
 
