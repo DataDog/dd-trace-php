@@ -641,6 +641,9 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                             &mut PREV_CUSTOM_MM_FREE,
                             &mut PREV_CUSTOM_MM_REALLOC,
                         );
+                        ALLOCATION_PROFILING_ALLOC = allocation_profiling_prev_alloc;
+                        ALLOCATION_PROFILING_FREE = allocation_profiling_prev_free;
+                        ALLOCATION_PROFILING_REALLOC = allocation_profiling_prev_realloc;
                     }
                 }
 
@@ -1112,6 +1115,9 @@ unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) 
 }
 
 #[cfg(feature = "allocation_profiling")]
+/// The PHP userland function `gc_mem_caches()` directly calls the `zend_mm_gc()` function which
+/// does nothing in case custom handlers are installed on the heap used. So we prepare the heap for
+/// this operation, call the original function and restore the heap again
 unsafe extern "C" fn alloc_profiling_gc_mem_caches(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
@@ -1143,18 +1149,7 @@ unsafe extern "C" fn alloc_profiling_gc_mem_caches(
 
 #[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
-    let ptr: *mut libc::c_void;
-
-    // TODO: prepare a function pointer to use so we don't need a runtime check
-    if PREV_CUSTOM_MM_ALLOC.is_none() {
-        let heap = zend::zend_mm_get_heap();
-        let custom_heap = prepare_zend_heap(heap);
-        ptr = zend::_zend_mm_alloc(heap, len);
-        restore_zend_heap(heap, custom_heap);
-    } else {
-        let prev = PREV_CUSTOM_MM_ALLOC.unwrap();
-        ptr = prev(len);
-    }
+    let ptr: *mut libc::c_void = ALLOCATION_PROFILING_ALLOC(len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -1170,19 +1165,43 @@ unsafe extern "C" fn alloc_profiling_malloc(len: u64) -> *mut ::libc::c_void {
     ptr
 }
 
+static mut ALLOCATION_PROFILING_ALLOC: unsafe fn(u64) -> *mut ::libc::c_void =
+    allocation_profiling_orig_alloc;
+
+unsafe fn allocation_profiling_prev_alloc(len: u64) -> *mut ::libc::c_void {
+    let prev = PREV_CUSTOM_MM_ALLOC.unwrap();
+    prev(len)
+}
+
+unsafe fn allocation_profiling_orig_alloc(len: u64) -> *mut ::libc::c_void {
+    let ptr: *mut libc::c_void;
+    let heap = zend::zend_mm_get_heap();
+    let custom_heap = prepare_zend_heap(heap);
+    ptr = zend::_zend_mm_alloc(heap, len);
+    restore_zend_heap(heap, custom_heap);
+    ptr
+}
+
 // The reason this function exists is because when calling `zend_mm_set_custom_handlers()` you need
 // to pass a pointer to a `free()` function as well, otherwise your custom handlers won't be
 // installed. We can not just point to the original `zend::_zend_mm_free()` as the function
 // definitions differ.
 #[cfg(feature = "allocation_profiling")]
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut ::libc::c_void) {
-    if PREV_CUSTOM_MM_FREE.is_none() {
-        let heap = zend::zend_mm_get_heap();
-        zend::_zend_mm_free(heap, ptr);
-    } else {
-        let prev = PREV_CUSTOM_MM_FREE.unwrap();
-        prev(ptr);
-    }
+    ALLOCATION_PROFILING_FREE(ptr);
+}
+
+static mut ALLOCATION_PROFILING_FREE: unsafe fn(*mut ::libc::c_void) =
+    allocation_profiling_orig_free;
+
+unsafe fn allocation_profiling_prev_free(ptr: *mut ::libc::c_void) {
+    let prev = PREV_CUSTOM_MM_FREE.unwrap();
+    prev(ptr);
+}
+
+unsafe fn allocation_profiling_orig_free(ptr: *mut ::libc::c_void) {
+    let heap = zend::zend_mm_get_heap();
+    zend::_zend_mm_free(heap, ptr);
 }
 
 #[cfg(feature = "allocation_profiling")]
@@ -1190,16 +1209,7 @@ unsafe extern "C" fn alloc_profiling_realloc(
     prev_ptr: *mut ::libc::c_void,
     len: u64,
 ) -> *mut ::libc::c_void {
-    let ptr: *mut libc::c_void;
-    if PREV_CUSTOM_MM_REALLOC.is_none() {
-        let heap = zend::zend_mm_get_heap();
-        let custom_heap = prepare_zend_heap(heap);
-        ptr = zend::_zend_mm_realloc(heap, prev_ptr, len);
-        restore_zend_heap(heap, custom_heap);
-    } else {
-        let prev = PREV_CUSTOM_MM_REALLOC.unwrap();
-        ptr = prev(prev_ptr, len);
-    }
+    let ptr: *mut libc::c_void = ALLOCATION_PROFILING_REALLOC(prev_ptr, len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -1212,6 +1222,31 @@ unsafe extern "C" fn alloc_profiling_realloc(
         allocations.track_allocation(len)
     });
 
+    ptr
+}
+
+static mut ALLOCATION_PROFILING_REALLOC: unsafe fn(
+    *mut ::libc::c_void,
+    u64,
+) -> *mut ::libc::c_void = allocation_profiling_orig_realloc;
+
+unsafe fn allocation_profiling_prev_realloc(
+    prev_ptr: *mut ::libc::c_void,
+    len: u64,
+) -> *mut ::libc::c_void {
+    let prev = PREV_CUSTOM_MM_REALLOC.unwrap();
+    prev(prev_ptr, len)
+}
+
+unsafe fn allocation_profiling_orig_realloc(
+    prev_ptr: *mut ::libc::c_void,
+    len: u64,
+) -> *mut ::libc::c_void {
+    let ptr: *mut libc::c_void;
+    let heap = zend::zend_mm_get_heap();
+    let custom_heap = prepare_zend_heap(heap);
+    ptr = zend::_zend_mm_realloc(heap, prev_ptr, len);
+    restore_zend_heap(heap, custom_heap);
     ptr
 }
 
