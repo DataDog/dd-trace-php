@@ -31,7 +31,12 @@ foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
             print_r(array_values(array_filter($cfg, function($c) {
                 return $c["origin"] == "EnvVar";
             })));
-            var_dump(count($cfg) > 100); // all the configs, no point in asserting them all here
+            var_dump(count(array_filter($cfg, function($c) {
+                return $c["origin"] == "Default";
+            })) > 100); // all the configs, no point in asserting them all here
+            var_dump(count(array_filter($cfg, function($c) {
+                return $c["origin"] != "Default" && $c["origin"] != "EnvVar";
+            }))); // all other configs
         }
     }
 }
@@ -64,6 +69,7 @@ Array
 
 )
 bool(true)
+int(0)
 --CLEAN--
 <?php
 
