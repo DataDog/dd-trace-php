@@ -42,6 +42,8 @@ use crate::bindings::{
 /// a profile tag.
 static PHP_VERSION: OnceCell<String> = OnceCell::new();
 
+static JIT_ENABLED: OnceCell<bool> = OnceCell::new();
+
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
 static PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
@@ -289,6 +291,11 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
      */
     unsafe { zend::zend_register_extension(&extension, handle) };
 
+    /* We need to fetch the handle for the OPcache extension during MINIT, as OPcache will NULL
+     * it's handle later
+     */
+    unsafe { zend::ddog_php_opcache_init_handle() };
+
     ZendResult::Success
 }
 
@@ -412,7 +419,8 @@ thread_local! {
 
 /// Gets the runtime-id for the process.
 fn runtime_id() -> &'static Uuid {
-    RUNTIME_ID.get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
+    RUNTIME_ID
+        .get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
 }
 
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
@@ -615,36 +623,45 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     {
         if profiling_allocation_enabled {
-            if !is_zend_mm() {
-                // Neighboring custom memory handlers found
-                debug!("Found another extension using the ZendMM custom handler hook");
-                unsafe {
-                    zend::zend_mm_get_custom_handlers(
-                        zend::zend_mm_get_heap(),
-                        &mut PREV_CUSTOM_MM_ALLOC,
-                        &mut PREV_CUSTOM_MM_FREE,
-                        &mut PREV_CUSTOM_MM_REALLOC,
-                    );
-                }
-            }
-
-            unsafe {
-                zend::ddog_php_prof_zend_mm_set_custom_handlers(
-                    zend::zend_mm_get_heap(),
-                    Some(alloc_profiling_malloc),
-                    Some(alloc_profiling_free),
-                    Some(alloc_profiling_realloc),
-                );
-            }
-
-            if is_zend_mm() {
-                error!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
+            let jit = JIT_ENABLED.get_or_init(|| unsafe { zend::ddog_php_jit_enabled() });
+            if *jit {
+                error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT. See https://github.com/DataDog/dd-trace-php/pull/2088");
                 REQUEST_LOCALS.with(|cell| {
                     let mut locals = cell.borrow_mut();
                     locals.profiling_allocation_enabled = false;
                 });
             } else {
-                info!("Memory allocation profiling enabled.")
+                if !is_zend_mm() {
+                    // Neighboring custom memory handlers found
+                    debug!("Found another extension using the ZendMM custom handler hook");
+                    unsafe {
+                        zend::zend_mm_get_custom_handlers(
+                            zend::zend_mm_get_heap(),
+                            &mut PREV_CUSTOM_MM_ALLOC,
+                            &mut PREV_CUSTOM_MM_FREE,
+                            &mut PREV_CUSTOM_MM_REALLOC,
+                        );
+                    }
+                }
+
+                unsafe {
+                    zend::ddog_php_prof_zend_mm_set_custom_handlers(
+                        zend::zend_mm_get_heap(),
+                        Some(alloc_profiling_malloc),
+                        Some(alloc_profiling_free),
+                        Some(alloc_profiling_realloc),
+                    );
+                }
+
+                if is_zend_mm() {
+                    error!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
+                    REQUEST_LOCALS.with(|cell| {
+                        let mut locals = cell.borrow_mut();
+                        locals.profiling_allocation_enabled = false;
+                    });
+                } else {
+                    info!("Memory allocation profiling enabled.")
+                }
             }
         }
     }
@@ -816,6 +833,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         let locals = cell.borrow();
         let yes: &[u8] = b"true\0";
         let no: &[u8] = b"false\0";
+        let na: &[u8] = b"Not available\0";
         zend::php_info_print_table_start();
         zend::php_info_print_table_row(2, b"Version\0".as_ptr(), module.version);
         zend::php_info_print_table_row(
@@ -836,9 +854,11 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
         zend::php_info_print_table_row(
             2,
-            b"Experimental Allocation Profiling Enabled\0".as_ptr(),
+            b"Allocation Profiling Enabled\0".as_ptr(),
             if locals.profiling_allocation_enabled {
                 yes
+            } else if zend::ddog_php_jit_enabled() {
+                na
             } else {
                 no
             },

@@ -127,3 +127,6 @@ zend_execute_data* ddog_php_prof_get_current_execute_data();
  */
 zend_execute_data* ddog_php_test_create_fake_zend_execute_data(int depth);
 void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data);
+
+void ddog_php_opcache_init_handle();
+bool ddog_php_jit_enabled();

@@ -10,6 +10,7 @@ if (!extension_loaded('datadog-profiling'))
 ?>
 --INI--
 assert.exception=1
+opcache.jit=off
 datadog.profiling.enabled=no
 datadog.profiling.log_level=info
 datadog.profiling.experimental_cpu_time_enabled=yes
@@ -45,7 +46,7 @@ assert(isset($values["Version"]));
 $sections = [
     ["Profiling Enabled", "false"],
     ["Experimental CPU Time Profiling Enabled", "true"],
-    ["Experimental Allocation Profiling Enabled", "true"],
+    ["Allocation Profiling Enabled", "true"],
     ["Endpoint Collection Enabled", "true"],
     ["Profiling Log Level", "info"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],
