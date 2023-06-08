@@ -64,7 +64,7 @@ class LaravelIntegration extends Integration
 
         $integration = $this;
 
-        if ($this->isArtisanQueueCommand()) {
+        if (\ddtrace_config_app_name("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE") && $this->isArtisanQueueCommand()) {
             ini_set("datadog.trace.auto_flush", 1);
             ini_set("datadog.trace.generate_root_span", 0);
         }
@@ -149,8 +149,10 @@ class LaravelIntegration extends Integration
             'fire',
             [
                 'prehook' => function (SpanData $span, $args) use ($integration) {
-                    if (dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                        && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP) {
+                    if (
+                        dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                        && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                    ) {
                         \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
                     }
 
@@ -171,8 +173,10 @@ class LaravelIntegration extends Integration
             'dispatch',
             [
                 'prehook' => function (SpanData $span, $args) use ($integration) {
-                    if (dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                    && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP) {
+                    if (
+                        dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                        && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                    ) {
                         \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
                     }
 
@@ -216,8 +220,10 @@ class LaravelIntegration extends Integration
             'Illuminate\Foundation\ProviderRepository',
             'load',
             function (SpanData $span) use ($rootSpan, $integration) {
-                if (dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                    && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP) {
+                if (
+                    dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                    && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                ) {
                     \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
                 }
 
