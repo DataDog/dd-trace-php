@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\AMQP;
 use DDTrace\Integrations\Integration;
 use DDTrace\Log\Logger;
 use DDTrace\SpanData;
+use DDTrace\SpanLink;
 use DDTrace\Tag;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
@@ -322,10 +323,6 @@ class AMQPIntegration extends Integration
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_get',
             [
-                'prehook' => function (SpanData $span) {
-                    // TODO: Add a span link to the RabbitMQ consuming span
-                    //$span->links[] = $span->getLink();
-                },
                 'posthook' => function (SpanData $span, $args, $message, $exception) use ($integration) {
                     /** @var string $queue */
                     $queue = $args[0];
@@ -356,6 +353,19 @@ class AMQPIntegration extends Integration
                         $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
 
                         $integration->setOptionalMessageTags($span, $message);
+
+                        // Create the span link to the emitting trace
+                        if ($message->has('application_headers')) {
+                            $headers = $message->get('application_headers')->getNativeData();
+                            $spanLink = $headers['_dd.span_links'] ?? null;
+                            if ($spanLink) {
+                                $spanLink = json_decode($spanLink, true);
+                                $spanLinkInstance = new SpanLink();
+                                $spanLinkInstance->traceId = $spanLink['trace_id'];
+                                $spanLinkInstance->spanId = $spanLink['span_id'];
+                                $span->links[] = $spanLinkInstance;
+                            }
+                        }
                     }
                 }
             ]
@@ -426,7 +436,12 @@ class AMQPIntegration extends Integration
             return;
         }
 
-        $distributedHeaders = \DDTrace\generate_distributed_tracing_headers();
+        $distributedHeaders = array_merge(
+            \DDTrace\generate_distributed_tracing_headers(),
+            [
+                '_dd.span_links' => json_encode(active_span()->getLink())
+            ]
+        );
         if ($message->has('application_headers')) {
             // If the message already has application headers, we need to merge them so user headers are not overwritten
             /** @var AMQPTable $headersObj */
