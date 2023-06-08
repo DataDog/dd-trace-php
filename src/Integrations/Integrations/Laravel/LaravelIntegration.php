@@ -43,8 +43,8 @@ class LaravelIntegration extends Integration
         $artisanCommand = $_SERVER['argv'][1];
 
         return !empty($artisanCommand)
-            && (str_contains($artisanCommand, 'horizon:work')
-                || str_contains($artisanCommand, 'queue:work'));
+            && (strpos($artisanCommand, 'horizon:work') !== false
+                || strpos($artisanCommand, 'queue:work') !== false);
     }
 
     /**
