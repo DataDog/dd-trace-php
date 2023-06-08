@@ -34,9 +34,8 @@ class AMQPIntegration extends Integration
         $this->protocolVersion = "";
 
         hook_method(
-            'PhpAmqpLib\Channel\AbstractChannel',
+            'PhpAmqpLib\Connection\AbstractConnection',
             '__construct',
-            null,
             function ($This) use ($integration) {
                 $integration->protocolVersion = $This::getProtocolVersion();
             }
@@ -243,7 +242,7 @@ class AMQPIntegration extends Integration
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_cancel_ok',
             function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setGenericTags($span, 'basic.cancel_ok', 'server', $exception);
+                $integration->setGenericTags($span, 'basic.cancel_ok', 'server', null, $exception);
             }
         );
 
@@ -251,7 +250,7 @@ class AMQPIntegration extends Integration
             'PhpAmqpLib\Connection\AbstractConnection',
             'connect',
             function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setGenericTags($span, 'connect', 'client', $exception);
+                $integration->setGenericTags($span, 'connect', 'client', null, $exception);
             }
         );
 
@@ -259,7 +258,7 @@ class AMQPIntegration extends Integration
             'PhpAmqpLib\Connection\AbstractConnection',
             'reconnect',
             function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setGenericTags($span, 'reconnect', 'client', $exception);
+                $integration->setGenericTags($span, 'reconnect', 'client', null, $exception);
             }
         );
 
