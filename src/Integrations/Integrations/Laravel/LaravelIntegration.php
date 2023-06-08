@@ -38,7 +38,7 @@ class LaravelIntegration extends Integration
         return false;
     }
 
-    public function isArtisanQueueCommand(): bool
+    public function isArtisanQueueCommand()
     {
         $artisanCommand = $_SERVER['argv'][1];
 
