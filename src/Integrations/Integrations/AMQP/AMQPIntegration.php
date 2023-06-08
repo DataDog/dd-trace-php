@@ -3,12 +3,17 @@
 namespace DDTrace\Integrations\AMQP;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
 
+use function DDTrace\active_span;
+use function DDTrace\close_span;
 use function DDTrace\hook_method;
+use function DDTrace\start_trace_span;
+use function DDTrace\trace_id;
 use function DDTrace\trace_method;
 
 class AMQPIntegration extends Integration
@@ -45,31 +50,59 @@ class AMQPIntegration extends Integration
         trace_method(
             "PhpAmqpLib\Channel\AMQPChannel",
             "basic_deliver",
-            function (SpanData $span, $args) use ($integration) {
-                /** @var AMQPMessage $message */
-                $message = $args[1];
+            [
+                'prehook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
+                    /** @var AMQPMessage $message */
+                    $message = $args[1];
+                    if ($integration->hasDistributedHeaders($message)) {
+                        Logger::get()->debug("AMQP message has distributed headers");
+                        $newTrace = start_trace_span();
+                        $integration->extractContext($message);
+                        $span->links[] = $newTrace->getLink();
+                    }
+                },
+                'posthook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
+                    Logger::get()->debug("AMQP basic_deliver posthook");
+                    /** @var AMQPMessage $message */
+                    $message = $args[1];
 
-                $exchangeDisplayName = $integration->formatExchangeName($message->getExchange());
-                $routingKeyDisplayName = $integration->formatRoutingKey($message->getRoutingKey());
+                    $exchangeDisplayName = $integration->formatExchangeName($message->getExchange());
+                    $routingKeyDisplayName = $integration->formatRoutingKey($message->getRoutingKey());
 
-                $integration->setGenericTags(
-                    $span,
-                    'basic.deliver',
-                    'consumer',
-                    "$exchangeDisplayName -> $routingKeyDisplayName"
-                );
-                $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
-                $span->meta[Tag::MQ_OPERATION] = 'receive';
-                $span->meta[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
+                    $integration->setGenericTags(
+                        $span,
+                        'basic.deliver',
+                        'consumer',
+                        "$exchangeDisplayName -> $routingKeyDisplayName"
+                    );
+                    $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
+                    $span->meta[Tag::MQ_OPERATION] = 'receive';
+                    $span->meta[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
+                    $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                    $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
 
-                $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
-                $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                    $integration->setOptionalMessageTags($span, $message);
 
-                $integration->setOptionalMessageTags($span, $message);
+                    // Try to extract propagated context values from headers
+                    $activeSpan = active_span();
+                    if ($activeSpan !== $span && $activeSpan == $newTrace) {
+                        $integration->setGenericTags(
+                            $newTrace,
+                            'basic.deliver',
+                            'consumer',
+                            "$exchangeDisplayName -> $routingKeyDisplayName"
+                        );
+                        $newTrace->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
+                        $newTrace->meta[Tag::MQ_OPERATION] = 'receive';
+                        $newTrace->meta[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
+                        $newTrace->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                        $newTrace->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                        $integration->setOptionalMessageTags($newTrace, $message);
 
-                // Try to extract propagated context values from headers
-                $integration->extractContext($message);
-            }
+                        close_span();
+                    }
+                }
+            ]
         );
 
         trace_method(
@@ -288,41 +321,44 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_get',
-            function (SpanData $span, $args, $message, $exception) use ($integration) {
-                /** @var string $queue */
-                $queue = $args[0];
+            [
+                'prehook' => function (SpanData $span) {
+                    // TODO: Add a span link to the RabbitMQ consuming span
+                    //$span->links[] = $span->getLink();
+                },
+                'posthook' => function (SpanData $span, $args, $message, $exception) use ($integration) {
+                    /** @var string $queue */
+                    $queue = $args[0];
 
-                $queueDisplayName = $integration->formatQueueName($queue);
+                    $queueDisplayName = $integration->formatQueueName($queue);
 
-                $integration->setGenericTags(
-                    $span,
-                    'basic.get',
-                    'consumer',
-                    $queueDisplayName,
-                    $exception
-                );
-                $span->meta[Tag::MQ_OPERATION] = 'receive';
-                $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
+                    $integration->setGenericTags(
+                        $span,
+                        'basic.get',
+                        'consumer',
+                        $queueDisplayName,
+                        $exception
+                    );
+                    $span->meta[Tag::MQ_OPERATION] = 'receive';
+                    $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
 
-                if (!is_null($message)) {
-                    /** @var AMQPMessage $message */
-                    $exchange = $message->getExchange();
-                    $routingKey = $message->getRoutingKey();
+                    if (!is_null($message)) {
+                        /** @var AMQPMessage $message */
+                        $exchange = $message->getExchange();
+                        $routingKey = $message->getRoutingKey();
 
-                    $exchangeDisplayName = $integration->formatExchangeName($exchange);
-                    $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
+                        $exchangeDisplayName = $integration->formatExchangeName($exchange);
+                        $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
 
-                    $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
+                        $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
 
-                    $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
-                    $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                        $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                        $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
 
-                    $integration->setOptionalMessageTags($span, $message);
-
-                    // Try to extract propagated context values from headers
-                    $integration->extractContext($message);
+                        $integration->setOptionalMessageTags($span, $message);
+                    }
                 }
-            }
+            ]
         );
 
         return Integration::LOADED;
@@ -412,5 +448,23 @@ class AMQPIntegration extends Integration
 
             \DDTrace\consume_distributed_tracing_headers($headers);
         }
+    }
+
+    public function hasDistributedHeaders(AMQPMessage $message)
+    {
+        if ($message->has('application_headers')) {
+            $headers = $message->get('application_headers');
+            $headers = $headers->getNativeData();
+
+            $distributedHeadersKeys = array_keys(\DDTrace\generate_distributed_tracing_headers());
+
+            foreach ($distributedHeadersKeys as $distributedHeaderKey) {
+                if (array_key_exists($distributedHeaderKey, $headers)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
