@@ -64,7 +64,7 @@ class LaravelIntegration extends Integration
 
         $integration = $this;
 
-        if (\ddtrace_config_app_name("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE") && $this->isArtisanQueueCommand()) {
+        if (dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE") && $this->isArtisanQueueCommand()) {
             ini_set("datadog.trace.auto_flush", 1);
             ini_set("datadog.trace.generate_root_span", 0);
         }
