@@ -14,7 +14,6 @@ use function DDTrace\active_span;
 use function DDTrace\close_span;
 use function DDTrace\hook_method;
 use function DDTrace\start_trace_span;
-use function DDTrace\trace_id;
 use function DDTrace\trace_method;
 
 class AMQPIntegration extends Integration
