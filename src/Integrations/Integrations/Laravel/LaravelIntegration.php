@@ -7,6 +7,7 @@ use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
+use stdClass;
 
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
@@ -40,7 +41,7 @@ class LaravelIntegration extends Integration
 
     public function isArtisanQueueCommand()
     {
-        $artisanCommand = $_SERVER['argv'][1];
+        $artisanCommand = $_SERVER['argv'][1] ?? '';
 
         return !empty($artisanCommand)
             && (strpos($artisanCommand, 'horizon:work') !== false
