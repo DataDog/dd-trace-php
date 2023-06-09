@@ -41,7 +41,7 @@ class LaravelIntegration extends Integration
 
     public function isArtisanQueueCommand()
     {
-        $artisanCommand = $_SERVER['argv'][1] ?? '';
+        $artisanCommand = $_SERVER['argv'][1] ?: '';
 
         return !empty($artisanCommand)
             && (strpos($artisanCommand, 'horizon:work') !== false
