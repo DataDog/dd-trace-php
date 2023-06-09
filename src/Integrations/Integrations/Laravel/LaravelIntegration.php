@@ -7,7 +7,6 @@ use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use stdClass;
 
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
