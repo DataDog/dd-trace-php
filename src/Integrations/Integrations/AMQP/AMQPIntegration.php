@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\AMQP;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\Propagator;
 use DDTrace\SpanData;
 use DDTrace\SpanLink;
@@ -32,7 +31,7 @@ class AMQPIntegration extends Integration
         return self::NAME;
     }
 
-    protected static function largeBaseConvert($numString, $fromBase, $toBase)
+    public static function largeBaseConvert($numString, $fromBase, $toBase)
     {
         $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
         $toString = substr($chars, 0, $toBase);
@@ -86,14 +85,12 @@ class AMQPIntegration extends Integration
                     /** @var AMQPMessage $message */
                     $message = $args[1];
                     if ($integration->hasDistributedHeaders($message)) {
-                        Logger::get()->debug("AMQP message has distributed headers");
                         $newTrace = start_trace_span();
                         $integration->extractContext($message);
                         $span->links[] = $newTrace->getLink();
                     }
                 },
                 'posthook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
-                    Logger::get()->debug("AMQP basic_deliver posthook");
                     /** @var AMQPMessage $message */
                     $message = $args[1];
 
