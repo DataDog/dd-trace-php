@@ -111,7 +111,6 @@ class AMQPIntegration extends Integration
 
                     $integration->setOptionalMessageTags($span, $message);
 
-                    // Try to extract propagated context values from headers
                     $activeSpan = active_span();
                     if ($activeSpan !== $span && $activeSpan == $newTrace) {
                         $integration->setGenericTags(
@@ -127,6 +126,7 @@ class AMQPIntegration extends Integration
                         $newTrace->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
                         $integration->setOptionalMessageTags($newTrace, $message);
 
+                        // Close the created root span in the prehook
                         close_span();
                     }
                 }
@@ -349,59 +349,57 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_get',
-            [
-                'posthook' => function (SpanData $span, $args, $message, $exception) use ($integration) {
-                    /** @var string $queue */
-                    $queue = $args[0];
+            function (SpanData $span, $args, $message, $exception) use ($integration) {
+                /** @var string $queue */
+                $queue = $args[0];
 
-                    $queueDisplayName = $integration->formatQueueName($queue);
+                $queueDisplayName = $integration->formatQueueName($queue);
 
-                    $integration->setGenericTags(
-                        $span,
-                        'basic.get',
-                        'consumer',
-                        $queueDisplayName,
-                        $exception
-                    );
-                    $span->meta[Tag::MQ_OPERATION] = 'receive';
-                    $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
+                $integration->setGenericTags(
+                    $span,
+                    'basic.get',
+                    'consumer',
+                    $queueDisplayName,
+                    $exception
+                );
+                $span->meta[Tag::MQ_OPERATION] = 'receive';
+                $span->meta[Tag::MQ_DESTINATION] = $queueDisplayName;
 
-                    if (!is_null($message)) {
-                        /** @var AMQPMessage $message */
-                        $exchange = $message->getExchange();
-                        $routingKey = $message->getRoutingKey();
+                if (!is_null($message)) {
+                    /** @var AMQPMessage $message */
+                    $exchange = $message->getExchange();
+                    $routingKey = $message->getRoutingKey();
 
-                        $exchangeDisplayName = $integration->formatExchangeName($exchange);
-                        $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
+                    $exchangeDisplayName = $integration->formatExchangeName($exchange);
+                    $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
 
-                        $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
+                    $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
 
-                        $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
-                        $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                    $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                    $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
 
-                        $integration->setOptionalMessageTags($span, $message);
+                    $integration->setOptionalMessageTags($span, $message);
 
-                        // Create the span link to the emitting trace
-                        if ($message->has('application_headers')) {
-                            $headers = $message->get('application_headers')->getNativeData();
-                            $traceId = $headers[Propagator::DEFAULT_TRACE_ID_HEADER] ?? null;
-                            $parentId = $headers[Propagator::DEFAULT_PARENT_ID_HEADER] ?? null;
-                            if ($traceId && $parentId) {
-                                $traceId = AMQPIntegration::largeBaseConvert($traceId, 10, 16);
-                                $traceId = str_pad(strtolower($traceId), 32, '0', STR_PAD_LEFT);
+                    // Create the span link to the emitting trace
+                    if ($message->has('application_headers')) {
+                        $headers = $message->get('application_headers')->getNativeData();
+                        $traceId = $headers[Propagator::DEFAULT_TRACE_ID_HEADER] ?? null;
+                        $parentId = $headers[Propagator::DEFAULT_PARENT_ID_HEADER] ?? null;
+                        if ($traceId && $parentId) {
+                            $traceId = AMQPIntegration::largeBaseConvert($traceId, 10, 16);
+                            $traceId = str_pad(strtolower($traceId), 32, '0', STR_PAD_LEFT);
 
-                                $parentId = AMQPIntegration::largeBaseConvert($parentId, 10, 16);
-                                $parentId = str_pad(strtolower($parentId), 16, '0', STR_PAD_LEFT);
+                            $parentId = AMQPIntegration::largeBaseConvert($parentId, 10, 16);
+                            $parentId = str_pad(strtolower($parentId), 16, '0', STR_PAD_LEFT);
 
-                                $spanLinkInstance = new SpanLink();
-                                $spanLinkInstance->traceId = $traceId;
-                                $spanLinkInstance->spanId = $parentId;
-                                $span->links[] = $spanLinkInstance;
-                            }
+                            $spanLinkInstance = new SpanLink();
+                            $spanLinkInstance->traceId = $traceId;
+                            $spanLinkInstance->spanId = $parentId;
+                            $span->links[] = $spanLinkInstance;
                         }
                     }
                 }
-            ]
+            }
         );
 
         return Integration::LOADED;
