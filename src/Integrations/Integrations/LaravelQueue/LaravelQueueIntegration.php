@@ -13,6 +13,7 @@ use Illuminate\Queue\Jobs\JobName;
 use function DDTrace\active_span;
 use function DDTrace\close_span;
 use function DDTrace\remove_hook;
+use function DDTrace\set_distributed_tracing_context;
 use function DDTrace\start_trace_span;
 use function DDTrace\trace_method;
 use function DDTrace\install_hook;
@@ -77,6 +78,13 @@ class LaravelQueueIntegration extends Integration
                             $exception
                         );
                         close_span();
+
+                        if (
+                            dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE")
+                            && dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                        ) {
+                            set_distributed_tracing_context("0", "0");
+                        }
                     }
 
                     $integration->setSpanAttributes($span, 'laravel.queue.process', 'receive', $job, $exception);
