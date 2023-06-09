@@ -384,12 +384,22 @@ class AMQPIntegration extends Integration
                         $headers = $message->get('application_headers')->getNativeData();
                         $traceId = $headers[Propagator::DEFAULT_TRACE_ID_HEADER] ?? null;
                         $parentId = $headers[Propagator::DEFAULT_PARENT_ID_HEADER] ?? null;
-                        if ($traceId && $parentId) {
-                            $traceId = AMQPIntegration::largeBaseConvert($traceId, 10, 16);
-                            $traceId = str_pad(strtolower($traceId), 32, '0', STR_PAD_LEFT);
 
-                            $parentId = AMQPIntegration::largeBaseConvert($parentId, 10, 16);
-                            $parentId = str_pad(strtolower($parentId), 16, '0', STR_PAD_LEFT);
+                        if ($traceId && $parentId) {
+                            // Only convert to hex if it's not already in hex
+                            if (preg_match('/^[a-fA-F0-9]{32}$/', $traceId)) {
+                                $traceId = strtolower($traceId);
+                            } else {
+                                $traceId = AMQPIntegration::largeBaseConvert($traceId, 10, 16);
+                                $traceId = str_pad(strtolower($traceId), 32, '0', STR_PAD_LEFT);
+                            }
+
+                            if (preg_match('/^[a-fA-F0-9]{16}$/', $parentId)) {
+                                $parentId = strtolower($parentId);
+                            } else {
+                                $parentId = AMQPIntegration::largeBaseConvert($parentId, 10, 16);
+                                $parentId = str_pad(strtolower($parentId), 16, '0', STR_PAD_LEFT);
+                            }
 
                             $spanLinkInstance = new SpanLink();
                             $spanLinkInstance->traceId = $traceId;
