@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\AMQP;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\Log\Logger;
+use DDTrace\Propagator;
 use DDTrace\SpanData;
 use DDTrace\SpanLink;
 use DDTrace\Tag;
@@ -29,6 +30,35 @@ class AMQPIntegration extends Integration
     public function getName()
     {
         return self::NAME;
+    }
+
+    protected static function largeBaseConvert($numString, $fromBase, $toBase)
+    {
+        $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+        $toString = substr($chars, 0, $toBase);
+
+        $length = strlen($numString);
+        $result = '';
+        for ($i = 0; $i < $length; $i++) {
+            $number[$i] = strpos($chars, $numString[$i]);
+        }
+        do {
+            $divide = 0;
+            $newLen = 0;
+            for ($i = 0; $i < $length; $i++) {
+                $divide = $divide * $fromBase + $number[$i];
+                if ($divide >= $toBase) {
+                    $number[$newLen++] = (int)($divide / $toBase);
+                    $divide = $divide % $toBase;
+                } elseif ($newLen > 0) {
+                    $number[$newLen++] = 0;
+                }
+            }
+            $length = $newLen;
+            $result = $toString[$divide] . $result;
+        } while ($newLen != 0);
+
+        return $result;
     }
 
     /**
@@ -357,12 +387,18 @@ class AMQPIntegration extends Integration
                         // Create the span link to the emitting trace
                         if ($message->has('application_headers')) {
                             $headers = $message->get('application_headers')->getNativeData();
-                            $spanLink = $headers['_dd.span_links'] ?? null;
-                            if ($spanLink) {
-                                $spanLink = json_decode($spanLink, true);
+                            $traceId = $headers[Propagator::DEFAULT_TRACE_ID_HEADER] ?? null;
+                            $parentId = $headers[Propagator::DEFAULT_PARENT_ID_HEADER] ?? null;
+                            if ($traceId && $parentId) {
+                                $traceId = AMQPIntegration::largeBaseConvert($traceId, 10, 16);
+                                $traceId = str_pad(strtolower($traceId), 32, '0', STR_PAD_LEFT);
+
+                                $parentId = AMQPIntegration::largeBaseConvert($parentId, 10, 16);
+                                $parentId = str_pad(strtolower($parentId), 16, '0', STR_PAD_LEFT);
+
                                 $spanLinkInstance = new SpanLink();
-                                $spanLinkInstance->traceId = $spanLink['trace_id'];
-                                $spanLinkInstance->spanId = $spanLink['span_id'];
+                                $spanLinkInstance->traceId = $traceId;
+                                $spanLinkInstance->spanId = $parentId;
                                 $span->links[] = $spanLinkInstance;
                             }
                         }
@@ -436,12 +472,7 @@ class AMQPIntegration extends Integration
             return;
         }
 
-        $distributedHeaders = array_merge(
-            \DDTrace\generate_distributed_tracing_headers(),
-            [
-                '_dd.span_links' => json_encode(active_span()->getLink())
-            ]
-        );
+        $distributedHeaders = \DDTrace\generate_distributed_tracing_headers();
         if ($message->has('application_headers')) {
             // If the message already has application headers, we need to merge them so user headers are not overwritten
             /** @var AMQPTable $headersObj */
