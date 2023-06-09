@@ -152,6 +152,7 @@ class LaravelIntegration extends Integration
                     if (
                         dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
                         && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                        && \DDTrace\trace_id() == $span->id
                     ) {
                         \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
                     }
@@ -176,6 +177,7 @@ class LaravelIntegration extends Integration
                     if (
                         dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
                         && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                        && \DDTrace\trace_id() == $span->id
                     ) {
                         \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
                     }
@@ -223,6 +225,7 @@ class LaravelIntegration extends Integration
                 if (
                     dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
                     && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                    && \DDTrace\trace_id() == $span->id
                 ) {
                     \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
                 }
