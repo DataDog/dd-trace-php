@@ -7,6 +7,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 
+use DDTrace\Util\ObjectKVStore;
 use function DDTrace\trace_id_128;
 
 class LogsIntegration extends Integration
@@ -24,7 +25,7 @@ class LogsIntegration extends Integration
     public function getPlaceholders(string $levelName, string $traceIdSubstitute = null, string $spanIdSubstitute = null): array
     {
         $placeholders = [
-            '%dd.trace_id%' => 'dd.trace_id="' . ($traceIdSubstitute ?? \DDTrace\trace_id_128()) . '"',
+            '%dd.trace_id%' => 'dd.trace_id="' . ($traceIdSubstitute ?? trace_id_128()) . '"',
             '%dd.span_id%'  => 'dd.span_id="' . ($spanIdSubstitute ?? dd_trace_peek_span_id()) . '"',
         ];
 
@@ -105,7 +106,7 @@ class LogsIntegration extends Integration
         //Logger::get()->debug("Current trace id $traceId");
 
         $context['dd'] = [
-            'trace_id' => $traceIdSubstitute ?? \DDTrace\trace_id_128(),
+            'trace_id' => $traceIdSubstitute ?? trace_id_128(),
             'span_id' => $spanIdSubstitute ?? dd_trace_peek_span_id()
         ];
 
@@ -148,13 +149,12 @@ class LogsIntegration extends Integration
 
             $traceIdSubstitute = null;
             $spanIdSubstitute = null;
-            if ($levelName === 'error' /*&& isset($context['dd'])*/) {
-                // If the message is an exception, the trace identifiers are added to the context
-                // to track the original trace
-                $traceIdSubstitute = $context['dd']['trace_id'] ?? null;
-                $spanIdSubstitute = $context['dd']['span_id'] ?? null;
-                Logger::get()->debug("Error trace id $traceIdSubstitute");
-                Logger::get()->debug("Error span id $spanIdSubstitute");
+            if ($levelName === 'error' && isset($context['exception'])) {
+                // Track the origin of an exception
+                $exception = $context['exception'];
+                $traceIdentifiers = ObjectKVStore::get($exception, 'exception_trace_identifiers');
+                $traceIdSubstitute = isset($traceIdentifiers['trace_id']) ? $traceIdentifiers['trace_id'] : null;
+                $spanIdSubstitute = isset($traceIdentifiers['span_id']) ? $traceIdentifiers['span_id'] : null;
             }
 
             if (dd_trace_env_config("DD_TRACE_APPEND_TRACE_IDS_TO_LOGS")) {

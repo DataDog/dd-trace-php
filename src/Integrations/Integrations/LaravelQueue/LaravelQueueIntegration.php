@@ -7,12 +7,14 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\ObjectKVStore;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Jobs\JobName;
 
 use function DDTrace\active_span;
 use function DDTrace\close_span;
 use function DDTrace\start_trace_span;
+use function DDTrace\trace_id;
 use function DDTrace\trace_method;
 use function DDTrace\install_hook;
 use function DDTrace\hook_method;
@@ -60,15 +62,23 @@ class LaravelQueueIntegration extends Integration
 
                         $integration->extractContext($payload);
                         $span->links[] = $newTrace->getLink();
-                    } elseif (\dd_trace_env_config("DD_TRACE_GENERATE_ROOT_SPAN")) {
-                        $newTrace = start_trace_span();
-                        $integration->setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
-                        $span->links[] = $newTrace->getLink();
                     }
                 },
                 'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration, &$newTrace) {
                     /** @var Job $job */
                     $job = $args[1];
+
+                    if ($exception) {
+                        // Used by Logs Correlation to track the origin of an exception
+                        ObjectKVStore::put(
+                            $exception,
+                            'exception_trace_identifiers',
+                            [
+                                'trace_id' => trace_id(),
+                                'span_id' => dd_trace_peek_span_id()
+                            ]
+                        );
+                    }
 
                     $activeSpan = active_span(); // This is the span created in the prehook, if any
                     if ($activeSpan !== $span && $activeSpan == $newTrace) {
@@ -84,8 +94,7 @@ class LaravelQueueIntegration extends Integration
 
                     $integration->setSpanAttributes($span, 'laravel.queue.process', 'receive', $job, $exception);
                 },
-                'recurse' => true,
-                'instrument_when_limited' => 1
+                'recurse' => true
             ]
         );
 
