@@ -87,6 +87,7 @@ class AMQPIntegration extends Integration
                         $newTrace = start_trace_span();
                         $integration->extractContext($message);
                         $span->links[] = $newTrace->getLink();
+                        $newTrace->links[] = $span->getLink();
                     }
                 },
                 'posthook' => function (SpanData $span, $args) use ($integration, &$newTrace) {

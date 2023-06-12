@@ -170,7 +170,8 @@ final class AMQPTest extends IntegrationTestCase
                     Tag::MQ_OPERATION               => 'receive',
                     Tag::RABBITMQ_EXCHANGE          => '<default>',
                 ])->withExistingTagsNames([
-                    Tag::MQ_CONSUMER_ID
+                    Tag::MQ_CONSUMER_ID,
+                    '_dd.span_links'
                 ])
             ]),
             SpanAssertion::build(
@@ -425,7 +426,8 @@ final class AMQPTest extends IntegrationTestCase
                     Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 29,
                     Tag::MQ_OPERATION               => 'receive',
                 ])->withExistingTagsNames([
-                    Tag::MQ_CONSUMER_ID
+                    Tag::MQ_CONSUMER_ID,
+                    '_dd.span_links'
                 ])
             ]),
             SpanAssertion::build(
