@@ -119,35 +119,29 @@ class LaravelQueueIntegration extends Integration
                         $method = 'handle';
                     }
 
-                    trace_method(
-                        $class,
-                        $method,
-                        [
-                            'prehook' => function (SpanData $span) use ($integration, $class, $method) {
-                                $span->name = 'laravel.queue.action';
-                                $span->type = 'queue';
-                                $span->service = $integration->getName();
-                                $span->resource = $class . '@' . $method;
-                                $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
+                    trace_method($class, $method, function (SpanData $span) use ($integration, $class, $method) {
+                        $span->name = 'laravel.queue.action';
+                        $span->type = 'queue';
+                        $span->service = $integration->getName();
+                        $span->resource = $class . '@' . $method;
+                        $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
 
-                                if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
-                                    $span->meta[Tag::LARAVELQ_BATCH_ID] = $this->batchId ?? null;
-                                }
+                        if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
+                            $span->meta[Tag::LARAVELQ_BATCH_ID] = $this->batchId ?? null;
+                        }
 
-                                if (isset($this->job)) {
-                                    $integration->setSpanAttributes(
-                                        $span,
-                                        'laravel.queue.action',
-                                        null,
-                                        $this->job,
-                                        null,
-                                        null,
-                                        $class . '@' . $method
-                                    );
-                                }
-                            }
-                        ]
-                    );
+                        if (isset($this->job)) {
+                            $integration->setSpanAttributes(
+                                $span,
+                                'laravel.queue.action',
+                                null,
+                                $this->job,
+                                null,
+                                null,
+                                $class . '@' . $method
+                            );
+                        }
+                    });
                 }
             );
         }

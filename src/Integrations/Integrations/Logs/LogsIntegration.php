@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Logs;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 
 use DDTrace\Util\ObjectKVStore;
@@ -69,7 +68,6 @@ class LogsIntegration extends Integration
 
     public function appendTraceIdentifiersToMessage(string $message, string $levelName, string $traceIdSubstitute = null, string $spanIdSubstitute = null): string
     {
-        Logger::get()->debug("Appending trace identifiers to message");
         $additional = "";
 
         $placeholders = $this->getPlaceholders($levelName, $traceIdSubstitute, $spanIdSubstitute);
@@ -92,18 +90,12 @@ class LogsIntegration extends Integration
 
     public function replacePlaceholders(string $message, string $levelName, string $traceIdSubstitute = null, string $spanIdSubstitute = null): string
     {
-        Logger::get()->debug("Replacing placeholders");
-        // TODO: Remove placeholders that end up being empty?
         return strtr($message, $this->getPlaceholders($levelName, $traceIdSubstitute, $spanIdSubstitute));
     }
 
     public function addTraceIdentifiersToContext(array $context, string $levelName, string $traceIdSubstitute = null, string $spanIdSubstitute = null): array
     {
-        Logger::get()->debug("Adding trace identifiers to context");
-        Logger::get()->debug("Trade id substitute $traceIdSubstitute");
-        Logger::get()->debug("Span id substitute $spanIdSubstitute");
         $traceId = \DDTrace\trace_id();
-        //Logger::get()->debug("Current trace id $traceId");
 
         $context['dd'] = [
             'trace_id' => $traceIdSubstitute ?? trace_id_128(),
@@ -134,7 +126,6 @@ class LogsIntegration extends Integration
     public function getHookFn(string $levelName, int $messageIndex, int $contextIndex, LogsIntegration $integration): callable
     {
         return function (HookData $hook) use ($levelName, $messageIndex, $contextIndex, $integration) {
-            Logger::get()->debug("Hook $levelName called");
             /** @var string $message */
             $message = $hook->args[$messageIndex];
             /** @var array $context */
