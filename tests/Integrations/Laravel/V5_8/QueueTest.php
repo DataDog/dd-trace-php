@@ -384,12 +384,12 @@ class QueueTest extends WebFrameworkTestCase
         )->withExactTags([
             Tag::HTTP_URL => 'http://localhost:9999/queue/workOn',
             Tag::HTTP_METHOD => 'GET',
-            Tag::HTTP_STATUS_CODE => 200,
-            '_dd.span_links'
+            Tag::HTTP_STATUS_CODE => 200
         ])->withExactTags(
             $this->getCommonTags('receive', $queue, $connection)
         )->withExistingTagsNames([
-            Tag::MQ_MESSAGE_ID
+            Tag::MQ_MESSAGE_ID,
+            '_dd.span_links'
         ])->withChildren([
             $this->spanEventJobProcessing(),
             $this->spanQueueFire($connection, $queue, $resourceDetails)
