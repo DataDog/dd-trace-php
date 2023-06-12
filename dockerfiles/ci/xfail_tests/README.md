@@ -156,3 +156,7 @@ ddtrace request init hook consumes more than 2 MB of memory and fails too early 
 ## `Zend/tests/fibers/gh10496-001.phpt`
 
 ddtrace affects the order of destructor execution due to creating span stacks etc.
+
+## `ext/zend_test/tests/`
+
+Observer tests trace all functions, including dd setup. Exclude these from being observed.

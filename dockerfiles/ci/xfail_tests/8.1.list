@@ -153,6 +153,7 @@ ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/sprintf_variation54.phpt
 ext/tokenizer/tests/PhpToken_getAll.phpt
 ext/zip/tests/bug38943.phpt
+ext/zend_test/tests/
 sapi/cli/tests/upload_2G.phpt
 sapi/fpm/tests/log-bm-in-shutdown-fn.phpt
 sapi/fpm/tests/log-bm-limit-1024-msg-80.phpt
