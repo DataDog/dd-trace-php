@@ -384,7 +384,8 @@ class QueueTest extends WebFrameworkTestCase
         )->withExactTags([
             Tag::HTTP_URL => 'http://localhost:9999/queue/workOn',
             Tag::HTTP_METHOD => 'GET',
-            Tag::HTTP_STATUS_CODE => 200
+            Tag::HTTP_STATUS_CODE => 200,
+            '_dd.span_links'
         ])->withExactTags(
             $this->getCommonTags('receive', $queue, $connection)
         )->withExistingTagsNames([
