@@ -62,6 +62,7 @@ class LaravelQueueIntegration extends Integration
 
                         $integration->extractContext($payload);
                         $span->links[] = $newTrace->getLink();
+                        $newTrace->links[] = $span->getLink();
                     }
                 },
                 'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration, &$newTrace) {
