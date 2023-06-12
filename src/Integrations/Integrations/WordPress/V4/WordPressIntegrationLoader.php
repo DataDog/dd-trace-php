@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\WordPress\V4;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
@@ -239,6 +240,76 @@ class WordPressIntegrationLoader
             $span->service = $service;
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
+
+        // Hooks. The goal is to emit metrics for the hooks installed by each plugin.
+        // 1. Detect when plugins are loaded. There are 3 types of plugins:
+        //   - Must Use plugins (mu plugins)
+        //   - Network plugins, also known as Sitewide Active plugins
+        //   - Regular plugins
+        static $plugin_loading_funcs = [
+            'wp_get_active_and_valid_plugins',
+            'wp_get_active_network_plugins',
+            'wp_get_mu_plugins',
+        ];
+        $plugins = [];
+        foreach ($plugin_loading_funcs as $plugin_loading_func) {
+            \DDTrace\install_hook(
+                $plugin_loading_func,
+                null,
+                function (HookData $hook) use (&$plugins, $plugin_loading_func) {
+                    foreach ($hook->returned as $plugin) {
+                        // Use the plugin's basename instead of absolute path. For example,
+                        // instead of:
+                        //   /var/www/html/wp-content/plugins/hello.php
+                        // Just use `hello.php`.
+                        $basename = \plugin_basename($plugin);
+
+                        // 2. Track when each plugin is loaded, so in the add_filter callbacks we
+                        // know which plugin installs the hook.
+                        \DDTrace\install_hook($plugin,
+                            function ($hook) use (&$plugins, $basename) {
+                                $plugins[] = $hook->data = $basename;
+                            },
+                            function ($hook) use (&$plugins) {
+                                $top = \array_pop($plugins);
+                                // Integrity check; should be stackful.
+                                assert($top === $hook->data);
+                            }
+                        );
+
+                        // todo: emit instrumentation telemetry?
+                    }
+                });
+        }
+
+        // 3. Hook actions and filters loaded by each plugin.
+        $add_hook_begin = function (HookData $hook) use (&$plugins) {
+            // The action/filter is only interesting if a plugin installed it.
+            if (!empty($plugins)) {
+                // Assign the hook to the plugin at the top of the stack.
+                $plugin = \end($plugins);
+
+                // Signature: add_filter(string $hook_name, callable $callback, ...)
+                if (isset($hook->args[1])) {
+                    $callback = $hook->args[1];
+
+                    // 4. Measure the execution time of $callback.
+                    \DDTrace\install_hook(
+                        $callback,
+                        function (HookData $hook) {
+                            $hook->data = \hrtime(true);
+                        },
+                        function (HookData $hook) use ($plugin) {
+                            $elapsed = \hrtime(true) - $hook->data;
+                            \error_log("wordpress.plugin.hook{elapsed:$elapsed,plugin:$plugin}");
+                        }
+                    );
+                }
+            }
+        };
+
+        // Note: add_action delegates to add_filter.
+        \DDTrace\install_hook('add_filter', $add_hook_begin, null);
 
         return Integration::LOADED;
     }

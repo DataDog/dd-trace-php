@@ -159,8 +159,11 @@ services:
       - DD_APM_ENABLED=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
       - DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket
+      - DD_DOGSTATSD_SOCKET=/var/run/datadog/dsd.socket
+      - DD_DOGSTATSD_ORIGIN_DETECTION=true
     ports:
       - "8126:8126"
+      - "8125:8125/udp"
 
   packager:
     image: datadog/docker-library:ddtrace_php_fpm_packaging
