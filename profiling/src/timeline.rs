@@ -1,7 +1,6 @@
 use crate::bindings as zend;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
-use log::debug;
 use std::time::Instant;
 
 /// The engine's original (or previous) `gc_collect_cycles()` function
@@ -36,6 +35,7 @@ unsafe fn gc_reason() -> &'static str {
 #[no_mangle]
 unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if let Some(prev) = PREV_GC_COLLECT_CYCLES {
+        #[cfg(php_gc_status)]
         let mut status: zend::zend_gc_status = zend::zend_gc_status {
             runs: 0,
             collected: 0,
@@ -48,6 +48,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         let duration = start.elapsed();
         let reason = gc_reason();
 
+        #[cfg(php_gc_status)]
         zend::zend_gc_get_status(&mut status);
 
         REQUEST_LOCALS.with(|cell| {
@@ -63,11 +64,19 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
             }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                #[cfg(php_gc_status)]
                 profiler.collect_garbage_collection(
                     duration.as_nanos() as i64,
                     reason,
                     collected as i64,
                     status.runs as i64,
+                    &locals,
+                );
+                #[cfg(not(php_gc_status))]
+                profiler.collect_garbage_collection(
+                    duration.as_nanos() as i64,
+                    reason,
+                    collected as i64,
                     &locals,
                 );
             }

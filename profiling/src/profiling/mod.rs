@@ -673,7 +673,7 @@ impl Profiler {
         duration: i64,
         reason: &'static str,
         collected: i64,
-        runs: i64,
+        #[cfg(php_gc_status)] runs: i64,
         locals: &RequestLocals,
     ) {
         let mut labels = Profiler::message_labels();
@@ -690,6 +690,7 @@ impl Profiler {
             key: "gc reason",
             value: LabelValue::Str(Cow::from(reason)),
         });
+        #[cfg(php_gc_status)]
         labels.push(Label {
             key: "gc runs",
             value: LabelValue::Num(runs, Some("count")),
