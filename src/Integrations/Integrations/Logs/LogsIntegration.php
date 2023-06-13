@@ -171,7 +171,7 @@ class LogsIntegration extends Integration
     {
         $integration = $this;
 
-        $levelNames = [
+        $levelNamesPSR = [
             'debug',
             'info',
             'notice',
@@ -182,9 +182,27 @@ class LogsIntegration extends Integration
             'emergency'
         ];
 
-        foreach ($levelNames as $levelName) {
+        $levelNamesLaminas = [
+            'debug',
+            'info',
+            'notice',
+            'warn',
+            'err',
+            'crit',
+            'alert',
+            'emerg'
+        ];
+
+        foreach ($levelNamesPSR as $levelName) {
             \DDTrace\install_hook(
                 "Psr\Log\LoggerInterface::$levelName",
+                $this->getHookFn($levelName, 0, 1, $integration)
+            );
+        }
+
+        foreach ($levelNamesLaminas as $levelName) {
+            \DDTrace\install_hook(
+                "Laminas\Log\Logger::$levelName",
                 $this->getHookFn($levelName, 0, 1, $integration)
             );
         }
@@ -194,7 +212,12 @@ class LogsIntegration extends Integration
             $this->getHookFn('log', 1, 2, $integration)
         );
 
-        foreach ($levelNames as $levelName) {
+        \DDTrace\install_hook(
+            "Laminas\Log\Logger::log",
+            $this->getHookFn('log', 1, 2, $integration)
+        );
+
+        foreach ($levelNamesPSR as $levelName) {
             \DDTrace\hook_method(
                 'Monolog\Logger',
                 $levelName,
