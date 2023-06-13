@@ -9,6 +9,9 @@ mod sapi;
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
 
+#[cfg(feature = "timeline")]
+mod timeline;
+
 use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};
 use config::AgentEndpoint;
@@ -134,10 +137,6 @@ static mut PREV_INTERRUPT_FUNCTION: MaybeUninit<Option<zend::VmInterruptFn>> =
 static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
     unsafe extern "C" fn(execute_data: *mut zend::zend_execute_data, return_value: *mut zend::zval),
 > = MaybeUninit::uninit();
-
-/// The engine's original (or previous) `gc_collect_cycles()` function
-#[cfg(feature = "timeline")]
-static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
 
 /* Important note on the PHP lifecycle:
  * Based on how some SAPIs work and the documentation, one might expect that
@@ -268,15 +267,6 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         zend::zend_execute_internal = Some(execute_internal);
     };
 
-    #[cfg(feature = "timeline")]
-    {
-        unsafe {
-            // register our function in `gc_collect_cycles`
-            PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
-            zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);
-        }
-    }
-
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
      */
@@ -284,6 +274,9 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_minit();
+
+    #[cfg(feature = "timeline")]
+    timeline::timeline_minit();
 
     ZendResult::Success
 }
@@ -934,63 +927,6 @@ extern "C" fn execute_internal(
         prev_execute_internal(execute_data, return_value);
     }
     interrupt_function(execute_data);
-}
-
-/// Find out the reason for the current garbage collection cycle. If there is
-/// a `gc_collect_cycles` function at the top of the call stack, it is because
-/// of a userland call  to `gc_collect_cycles()`, otherwise the engine decided
-/// to run it.
-#[cfg(feature = "timeline")]
-unsafe fn gc_reason() -> &'static str {
-    let execute_data = zend::ddog_php_prof_get_current_execute_data();
-    let fname = || execute_data.as_ref()?.func.as_ref()?.name();
-    match fname() {
-        Some(name) if name == b"gc_collect_cycles" => "induced",
-        _ => "engine",
-    }
-}
-
-/// This function gets called whenever PHP does a garbage collection cycle instead of the original
-/// handler. This is done by letting the `zend::gc_collect_cycles` pointer point to this function
-/// and store the previous pointer in `PREV_GC_COLLECT_CYCLES` for later use.
-/// When called, we do collect the time the call to the `PREV_GC_COLLECT_CYCLES` took and report
-/// this to the profiler.
-#[cfg(feature = "timeline")]
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
-    if let Some(prev) = PREV_GC_COLLECT_CYCLES {
-        let start = Instant::now();
-        let bytes = prev();
-        let duration = start.elapsed();
-        let reason = gc_reason();
-        debug!(
-            "Garbage collection with reason \"{reason}\" took {} ns",
-            duration.as_nanos()
-        );
-
-        REQUEST_LOCALS.with(|cell| {
-            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-            let locals = cell.try_borrow();
-            if locals.is_err() {
-                return;
-            }
-            let locals = locals.unwrap();
-
-            if !locals.profiling_experimental_timeline_enabled {
-                return;
-            }
-
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                profiler.collect_garbage_collection(duration.as_nanos() as i64, reason, &locals);
-            }
-        });
-        bytes
-    } else {
-        // this should never happen, as it would mean that no `gc_collect_cycles` function pointer
-        // did exist, which could only be the case if another extension was misbehaving.
-        // But technically it could be, so better safe than sorry
-        0
-    }
 }
 
 #[cfg(test)]
