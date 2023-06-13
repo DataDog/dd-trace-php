@@ -105,9 +105,19 @@ typedef struct ddog_Vec_Tag_ParseResult {
   struct ddog_Error *error_message;
 } ddog_Vec_Tag_ParseResult;
 
+typedef enum ddog_ConfigurationOrigin {
+  DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
+  DDOG_CONFIGURATION_ORIGIN_CODE,
+  DDOG_CONFIGURATION_ORIGIN_DD_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_REMOTE_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_DEFAULT,
+} ddog_ConfigurationOrigin;
+
 typedef struct ddog_BlockingTransport_TelemetryInterfaceResponse__TelemetryInterfaceRequest ddog_BlockingTransport_TelemetryInterfaceResponse__TelemetryInterfaceRequest;
 
 typedef struct ddog_InstanceId ddog_InstanceId;
+
+typedef struct ddog_TelemetryActionsBuffer ddog_TelemetryActionsBuffer;
 
 typedef struct ddog_BlockingTransport_TelemetryInterfaceResponse__TelemetryInterfaceRequest ddog_TelemetryTransport;
 
@@ -126,14 +136,6 @@ typedef struct ddog_Option_VecU8 {
 } ddog_Option_VecU8;
 
 typedef struct ddog_Option_VecU8 ddog_MaybeError;
-
-typedef enum ddog_ConfigurationOrigin {
-  DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
-  DDOG_CONFIGURATION_ORIGIN_CODE,
-  DDOG_CONFIGURATION_ORIGIN_DD_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_REMOTE_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_DEFAULT,
-} ddog_ConfigurationOrigin;
 
 typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_ERROR,
