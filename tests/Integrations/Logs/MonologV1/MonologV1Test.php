@@ -56,12 +56,12 @@ class MonologV1Test extends IntegrationTestCase
         $levelNameUpper = strtoupper($levelName);
 
         if ($is128bit) {
-            $this->assertMatchesRegularExpression(
+            $this->assertRegularExpression(
                 "/^\[.*\] test.$levelNameUpper: A $levelName message \[dd.trace_id=\"192f3581c8461c79abf2684ee31ce27d\" dd.span_id=\"\d+\" dd.service=\"my-service\" dd.version=\"4.2\" dd.env=\"my-env\" level_name=\"$levelName\"\] \[\] \[\]/",
                 $contents
             );
         } else {
-            $this->assertMatchesRegularExpression(
+            $this->assertRegularExpression(
                 "/^\[.*\] test.$levelNameUpper: A $levelName message \[dd.trace_id=\"\d+\" dd.span_id=\"\d+\" dd.service=\"my-service\" dd.version=\"4.2\" dd.env=\"my-env\" level_name=\"$levelName\"\] \[\] \[\]/",
                 $contents
             );
@@ -107,12 +107,12 @@ class MonologV1Test extends IntegrationTestCase
         $levelNameUpper = strtoupper($levelName);
 
         if ($is128bit) {
-            $this->assertMatchesRegularExpression(
+            $this->assertRegularExpression(
                 "/^\[.*\] test.$levelNameUpper: A $levelName message {\"dd\":{\"trace_id\":\"192f3581c8461c79abf2684ee31ce27d\",\"span_id\":\"\d+\",\"service\":\"my-service\",\"version\":\"4.2\",\"env\":\"my-env\"},\"level_name\":\"$levelName\"} \[\]$/",
                 $contents
             );
         } else {
-            $this->assertMatchesRegularExpression(
+            $this->assertRegularExpression(
                 "/^\[.*\] test.$levelNameUpper: A $levelName message {\"dd\":{\"trace_id\":\"\d+\",\"span_id\":\"\d+\",\"service\":\"my-service\",\"version\":\"4.2\",\"env\":\"my-env\"},\"level_name\":\"$levelName\"} \[\]$/",
                 $contents
             );
@@ -158,12 +158,12 @@ class MonologV1Test extends IntegrationTestCase
         $levelNameUpper = strtoupper($levelName);
 
         if ($is128bit) {
-            $this->assertMatchesRegularExpression(
+            $this->assertRegularExpression(
                 "/^\[.*\] test.$levelNameUpper: A $levelName message \[dd.trace_id=\"192f3581c8461c79abf2684ee31ce27d\" dd.span_id=\"\d+\" dd.service=\"my-service\" dd.version=\"4.2\" dd.env=\"my-env\" level_name=\"$levelName\"\] \[\] \[\]/",
                 $contents
             );
         } else {
-            $this->assertMatchesRegularExpression(
+            $this->assertRegularExpression(
                 "/^\[.*\] test.$levelNameUpper: A $levelName message \[dd.trace_id=\"\d+\" dd.span_id=\"\d+\" dd.service=\"my-service\" dd.version=\"4.2\" dd.env=\"my-env\" level_name=\"$levelName\"\] \[\] \[\]/",
                 $contents
             );
