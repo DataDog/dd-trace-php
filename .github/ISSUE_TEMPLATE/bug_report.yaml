@@ -32,12 +32,11 @@ body:
       label: Output of `phpinfo()` (`ddtrace` >= 0.47.0)
       description: |
         1. Create a `phpinfo()` page: `<?php phpinfo(); ?>` and load the page from a web browser.
-        2. Scroll down to the "ddtrace" section.
-        2.1 Take a screenshot of the whole "ddtrace" section and drag the image into this text box to attach the screenshot.
-        2.2 OR copy the "DATADOG TRACER CONFIGURATION" JSON and the "Diagnostics" section and paste them here.
+        2. Scroll down to the "ddtrace" section and:
+           1. Take a screenshot of the whole "ddtrace" section and drag the image into this text box to attach the screenshot.
+           2. OR copy the "DATADOG TRACER CONFIGURATION" JSON and the "Diagnostics" section and paste them here.
 
         If this issue is related to the CLI SAPI, copy the output of `php --ri=ddtrace` and paste it here.
-
 
   - type: textarea
     attributes:
