@@ -1,0 +1,54 @@
+name: Bug report 🐛
+description: Create a report to help us improve
+title: "[Bug]: "
+labels: ["\U0001F41B bug"]
+body:
+  - type: markdown
+    attributes:
+      label: Bug report
+      description: Please add a cleare and concise description of your problem here
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: PHP version
+      description: Output of the `php -v` command
+      placeholder: 8.2.7
+
+  - type: input
+    attributes:
+      label: Tracer version
+      description: Output of the `php -r "echo phpversion('ddtrace').PHP_EOL;"` command
+      placeholder: 0.87.2
+
+  - type: textarea
+    attributes:
+      label: Installed extensions
+      description: Output of the `php -m` command
+
+  - type: textarea
+    attributes:
+      label: Output of `phpinfo()` (`ddtrace` >= 0.47.0)
+      description: |
+        1. Create a `phpinfo()` page: `<?php phpinfo(); ?>` and load the page from a web browser.
+        2. Scroll down to the "ddtrace" section.
+        2.1 Take a screenshot of the whole "ddtrace" section and drag the image into this text box to attach the screenshot.
+        2.2 OR copy the "DATADOG TRACER CONFIGURATION" JSON and the "Diagnostics" section and paste them here.
+
+        If this issue is related to the CLI SAPI, copy the output of `php --ri=ddtrace` and paste it here.
+
+
+  - type: textarea
+    attributes:
+      label: Output of dd-doctor (`ddtrace` < 0.47.0)
+      description: |
+        1. Deploy `dd-doctor.php` to your root folder `curl https://raw.githubusercontent.com/DataDog/dd-trace-php/master/src/dd-doctor.php -o <path-to-webroot>/<some-random-name>.php`
+        2. Access it at `http://your-host/<some-random-name>.php`
+        3. Paste the output here
+        4. Remember to remove the file `<path-to-webroot>/<some-random-name>.php` when you are done
+
+  - type: textarea
+    attributes:
+      label: Upgrading info
+      description: If you are upgrading from a previous version of ddtrace and/or PHP, please provide the previously installed version number(s) here.
