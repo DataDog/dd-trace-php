@@ -30,7 +30,7 @@ use lazy_static::lazy_static;
 use std::time::UNIX_EPOCH;
 
 #[cfg(feature = "allocation_profiling")]
-use crate::ALLOCATION_PROFILING_INTERVAL;
+use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 #[cfg(feature = "allocation_profiling")]
 use datadog_profiling::profile::api::UpscalingInfo;
 

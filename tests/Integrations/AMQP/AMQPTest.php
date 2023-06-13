@@ -19,6 +19,38 @@ final class AMQPTest extends IntegrationTestCase
         return new AMQPStreamConnection('rabbitmq_integration', 5672, 'guest', 'guest');
     }
 
+    public function testConnectError()
+    {
+        $traces = $this->isolateTracer(function () {
+            try {
+                $connection = new AMQPStreamConnection('rabbitmq_integration', 5673, 'guest', 'guest'); // wrong port
+                $connection->close();
+            } catch (\Exception $e) {
+                // Ignore exception
+            }
+        });
+
+        $this->assertSpans($traces, [
+                SpanAssertion::build(
+                    'amqp.connect',
+                    'amqp',
+                    'queue',
+                    'connect'
+                )->setError(
+                    'PhpAmqpLib\Exception\AMQPIOException',
+                    'Connection refused',
+                    true
+                )->withExactTags([
+                    Tag::SPAN_KIND                  => 'client',
+                    Tag::COMPONENT                  => 'amqp',
+                    Tag::MQ_SYSTEM                  => 'rabbitmq',
+                    Tag::MQ_DESTINATION_KIND        => 'queue',
+                    Tag::MQ_PROTOCOL                => 'AMQP',
+                    Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                ])
+            ]);
+    }
+
     public function testHelloWorld()
     {
         $receivedMessage = false;
