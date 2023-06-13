@@ -3,7 +3,7 @@ description: Create a report to help us improve
 title: "[Bug]: "
 labels: ["\U0001F41B bug"]
 body:
-  - type: markdown
+  - type: textarea
     attributes:
       label: Bug report
       description: Please add a cleare and concise description of your problem here
