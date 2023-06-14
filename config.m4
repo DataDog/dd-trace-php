@@ -68,7 +68,6 @@ if test "$PHP_DDTRACE" != "no"; then
     components/container_id/container_id.c \
     components/sapi/sapi.c \
     components/string_view/string_view.c \
-    components/uuid/uuid.c \
   "
 
   if test -z ${PHP_VERSION_ID+x}; then
