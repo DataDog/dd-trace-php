@@ -23,14 +23,8 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
 ) -> bool {
     let pathstr = unsafe { path.to_utf8_lossy() };
     if let Some(index) = pathstr.rfind("/vendor/autoload.php") {
-        if parse_composer_installed_json(
-            transport,
-            instance_id,
-            queue_id,
-            format!("{}{}", &pathstr[..index], "/vendor/composer/installed.json"),
-        )
-        .is_ok()
-        {
+        let path = format!("{}{}", &pathstr[..index], "/vendor/composer/installed.json");
+        if parse_composer_installed_json(transport, instance_id, queue_id, path).is_ok() {
             return true;
         }
     }
@@ -109,15 +103,14 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addIntegration_buffer(
         .is_empty()
         .then(|| integration_version.to_utf8_lossy().into_owned());
 
-    buffer
-        .buffer
-        .push(TelemetryActions::AddIntegration(Integration {
-            name: integration_name.to_utf8_lossy().into_owned(),
-            enabled: integration_enabled,
-            version,
-            compatible: None,
-            auto_enabled: None,
-        }));
+    let action = TelemetryActions::AddIntegration(Integration {
+        name: integration_name.to_utf8_lossy().into_owned(),
+        enabled: integration_enabled,
+        version,
+        compatible: None,
+        auto_enabled: None,
+    });
+    buffer.buffer.push(action);
 }
 
 #[no_mangle]
@@ -127,13 +120,12 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
     config_value: CharSlice,
     origin: data::ConfigurationOrigin,
 ) -> () {
-    buffer
-        .buffer
-        .push(TelemetryActions::AddConfig(data::Configuration {
-            name: config_key.to_utf8_lossy().into_owned(),
-            value: config_value.to_utf8_lossy().into_owned(),
-            origin,
-        }));
+    let action = TelemetryActions::AddConfig(data::Configuration {
+        name: config_key.to_utf8_lossy().into_owned(),
+        value: config_value.to_utf8_lossy().into_owned(),
+        origin,
+    });
+    buffer.buffer.push(action);
 }
 
 #[no_mangle]
