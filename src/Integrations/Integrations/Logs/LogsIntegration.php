@@ -117,16 +117,16 @@ class LogsIntegration extends Integration
 
         $service = ddtrace_config_app_name();
         if ($service) {
-            $context['dd']['service'] = $service;
+            $context['dd.service'] = $service;
         }
 
         $currentContext = \DDTrace\current_context();
         if ($currentContext['version']) {
-            $context['dd']['version'] = $currentContext['version'];
+            $context['dd.version'] = $currentContext['version'];
         }
 
         if ($currentContext['env']) {
-            $context['dd']['env'] = $currentContext['env'];
+            $context['dd.env'] = $currentContext['env'];
         }
 
         if (!isset($context['level_name'])) {

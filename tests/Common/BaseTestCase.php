@@ -116,7 +116,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 
     protected function assertRegularExpression($pattern, $string, $message = '')
     {
-        if (PHPUNIT_MAJOR >= 10) {
+        if (PHPUNIT_MAJOR >= 9) {
             parent::assertMatchesRegularExpression($pattern, $string, $message);
         } else {
             parent::assertRegExp($pattern, $string, $message);

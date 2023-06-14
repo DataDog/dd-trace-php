@@ -672,6 +672,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_amqp2 \
 	test_integrations_amqp35 \
 	test_integrations_curl \
+	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
@@ -714,6 +715,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_amqp35 \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
@@ -751,6 +753,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_amqp35 \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
@@ -898,6 +901,9 @@ test_integrations_guzzle6: global_test_run_dependencies
 test_integrations_guzzle7: global_test_run_dependencies
 	$(MAKE) test_scenario_guzzle7
 	$(call run_tests,tests/Integrations/Guzzle/V7)
+test_integrations_laminaslog2: global_test_run_dependencies
+	$(MAKE) test_scenario_laminaslog2
+	$(call run_tests,tests/Integrations/Logs/LaminasLogV2)
 test_integrations_memcached: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Memcached)

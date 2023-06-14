@@ -33,6 +33,31 @@ class LaminasIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
+        // Logs Correlation
+        $levelNames = [
+            'debug',
+            'info',
+            'notice',
+            'warn',
+            'err',
+            'crit',
+            'alert',
+            'emerg'
+        ];
+
+        foreach ($levelNames as $levelName) {
+            install_hook(
+                "Laminas\Log\Logger::$levelName",
+                LogsIntegration::getHookFn($levelName, 0, 1)
+            );
+        }
+
+        install_hook(
+            "Laminas\Log\Logger::log",
+            LogsIntegration::getHookFn('log', 1, 2)
+        );
+
+        // Web Integration
         $rootSpan = \DDTrace\root_span();
 
         if (is_null($rootSpan)) {
@@ -410,30 +435,6 @@ class LaminasIntegration extends Integration
                     $span->resource = $controllerName;
                 }
             }
-        );
-
-        // Logs Correlation
-        $levelNames = [
-            'debug',
-            'info',
-            'notice',
-            'warn',
-            'err',
-            'crit',
-            'alert',
-            'emerg'
-        ];
-
-        foreach ($levelNames as $levelName) {
-            install_hook(
-                "Laminas\Log\Logger::$levelName",
-                LogsIntegration::getHookFn($levelName, 0, 1)
-            );
-        }
-
-        install_hook(
-            "Laminas\Log\Logger::log",
-            LogsIntegration::getHookFn('log', 1, 2)
         );
 
         return Integration::LOADED;

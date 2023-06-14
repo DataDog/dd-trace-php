@@ -72,6 +72,14 @@
                     "create-lockfile": false
                 }
             },
+            "laminaslog2": {
+                "require": {
+                    "laminas/laminas-log": "~2.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "mongodb1": {
                 "require": {
                     "mongodb/mongodb": "1.*"
