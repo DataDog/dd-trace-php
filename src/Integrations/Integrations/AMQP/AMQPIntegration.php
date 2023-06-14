@@ -30,6 +30,7 @@ class AMQPIntegration extends Integration
         return self::NAME;
     }
 
+    // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
     public static function largeBaseConvert($numString, $fromBase, $toBase)
     {
         $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
