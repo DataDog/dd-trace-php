@@ -18,7 +18,7 @@ body:
 
   - type: input
     attributes:
-      label: Tracer version
+      label: Tracer or profiler version
       description: Output of the `php -r "echo phpversion('ddtrace').PHP_EOL;"` command
       placeholder: 0.87.2
 
