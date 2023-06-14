@@ -1,13 +1,13 @@
 pub mod telemetry;
 
-use uuid::Uuid;
 use ddcommon::container_id::{get_container_id, set_cgroup_file};
 use ddcommon_ffi::CharSlice;
+use uuid::Uuid;
 
-pub use ddcommon_ffi::*;
-use ddcommon_ffi::slice::AsBytes;
-pub use ddtelemetry_ffi::*;
 pub use datadog_sidecar_ffi::*;
+use ddcommon_ffi::slice::AsBytes;
+pub use ddcommon_ffi::*;
+pub use ddtelemetry_ffi::*;
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
@@ -36,5 +36,3 @@ pub extern "C" fn ddtrace_get_container_id() -> CharSlice<'static> {
 pub unsafe extern "C" fn ddtrace_set_container_cgroup_path(path: CharSlice) {
     set_cgroup_file(String::from(path.try_to_utf8().unwrap()))
 }
-
-
