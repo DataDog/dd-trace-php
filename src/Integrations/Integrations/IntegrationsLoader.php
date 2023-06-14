@@ -74,8 +74,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
         $this->integrations[LaravelIntegration::NAME] =
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
-        $this->integrations[LogsIntegration::NAME] =
-            '\DDTrace\Integrations\Logs\LogsIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
 

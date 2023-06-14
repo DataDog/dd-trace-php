@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Laminas;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\Logs\LogsIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -14,6 +15,7 @@ use Laminas\Stdlib\RequestInterface;
 use Laminas\View\Model\ModelInterface;
 
 use function DDTrace\hook_method;
+use function DDTrace\install_hook;
 use function DDTrace\trace_method;
 
 class LaminasIntegration extends Integration
@@ -408,6 +410,30 @@ class LaminasIntegration extends Integration
                     $span->resource = $controllerName;
                 }
             }
+        );
+
+        // Logs Correlation
+        $levelNames = [
+            'debug',
+            'info',
+            'notice',
+            'warn',
+            'err',
+            'crit',
+            'alert',
+            'emerg'
+        ];
+
+        foreach ($levelNames as $levelName) {
+            install_hook(
+                "Laminas\Log\Logger::$levelName",
+                LogsIntegration::getHookFn($levelName, 0, 1)
+            );
+        }
+
+        install_hook(
+            "Laminas\Log\Logger::log",
+            LogsIntegration::getHookFn('log', 1, 2)
         );
 
         return Integration::LOADED;
