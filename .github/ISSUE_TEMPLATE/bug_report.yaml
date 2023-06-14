@@ -40,14 +40,5 @@ body:
 
   - type: textarea
     attributes:
-      label: Output of dd-doctor (`ddtrace` < 0.47.0)
-      description: |
-        1. Deploy `dd-doctor.php` to your root folder `curl https://raw.githubusercontent.com/DataDog/dd-trace-php/master/src/dd-doctor.php -o <path-to-webroot>/<some-random-name>.php`
-        2. Access it at `http://your-host/<some-random-name>.php`
-        3. Paste the output here
-        4. Remember to remove the file `<path-to-webroot>/<some-random-name>.php` when you are done
-
-  - type: textarea
-    attributes:
       label: Upgrading info
       description: If you are upgrading from a previous version of ddtrace and/or PHP, please provide the previously installed version number(s) here.
