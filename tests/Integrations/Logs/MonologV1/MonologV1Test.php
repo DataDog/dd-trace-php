@@ -15,7 +15,7 @@ class MonologV1Test extends IntegrationTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        shell_exec('rm -f /tmp/monolog1.log');
+        shell_exec('rm -f /tmp/monolog.log');
     }
     protected function withPlaceholders(string $levelName, bool $is128bit = false)
     {
@@ -30,8 +30,7 @@ class MonologV1Test extends IntegrationTestCase
 
         $traces = $this->isolateTracer(function () use ($levelName, $is128bit) {
             $logger = new Logger('test');
-            // Log to a temporary file
-            $logger->pushHandler(new StreamHandler('/tmp/monolog1.log'));
+            $logger->pushHandler(new StreamHandler('/tmp/monolog.log'));
 
             $span = start_span();
 
@@ -44,14 +43,10 @@ class MonologV1Test extends IntegrationTestCase
             close_span();
         });
 
-        //fwrite(STDERR, json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL);
-
-        $filename = '/tmp/monolog1.log';
+        $filename = '/tmp/monolog.log';
         $handle = fopen($filename, 'r');
         $contents = fread($handle, filesize($filename));
         fclose($handle);
-
-        #fwrite(STDERR, $contents . PHP_EOL);
 
         $levelNameUpper = strtoupper($levelName);
 
@@ -81,8 +76,7 @@ class MonologV1Test extends IntegrationTestCase
 
         $traces = $this->isolateTracer(function () use ($levelName, $is128bit) {
             $logger = new Logger('test');
-            // Log to a temporary file
-            $logger->pushHandler(new StreamHandler('/tmp/monolog1.log'));
+            $logger->pushHandler(new StreamHandler('/tmp/monolog.log'));
 
             $span = start_span();
 
@@ -97,7 +91,7 @@ class MonologV1Test extends IntegrationTestCase
 
         //fwrite(STDERR, json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL);
 
-        $filename = '/tmp/monolog1.log';
+        $filename = '/tmp/monolog.log';
         $handle = fopen($filename, 'r');
         $contents = fread($handle, filesize($filename));
         fclose($handle);
@@ -132,8 +126,7 @@ class MonologV1Test extends IntegrationTestCase
 
         $traces = $this->isolateTracer(function () use ($levelName, $is128bit) {
             $logger = new Logger('test');
-            // Log to a temporary file
-            $logger->pushHandler(new StreamHandler('/tmp/monolog1.log'));
+            $logger->pushHandler(new StreamHandler('/tmp/monolog.log'));
 
             $span = start_span();
 
@@ -146,14 +139,10 @@ class MonologV1Test extends IntegrationTestCase
             close_span();
         });
 
-        //fwrite(STDERR, json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL);
-
-        $filename = '/tmp/monolog1.log';
+        $filename = '/tmp/monolog.log';
         $handle = fopen($filename, 'r');
         $contents = fread($handle, filesize($filename));
         fclose($handle);
-
-        #fwrite(STDERR, $contents . PHP_EOL);
 
         $levelNameUpper = strtoupper($levelName);
 
@@ -199,6 +188,4 @@ class MonologV1Test extends IntegrationTestCase
     {
         $this->appended64bit('debug', true);
     }
-
-    // TODO: Error tracking
 }

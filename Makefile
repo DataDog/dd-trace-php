@@ -406,6 +406,8 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
@@ -448,6 +450,8 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -498,6 +502,8 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -553,6 +559,8 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -606,6 +614,8 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -666,6 +676,8 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -706,6 +718,8 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
@@ -741,6 +755,8 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
@@ -891,6 +907,12 @@ test_integrations_memcache: global_test_run_dependencies
 test_integrations_monolog1: global_test_run_dependencies
 	$(MAKE) test_scenario_monolog1
 	$(call run_tests,tests/Integrations/Logs/MonologV1)
+test_integrations_monolog2: global_test_run_dependencies
+	$(MAKE) test_scenario_monolog2
+	$(call run_tests,tests/Integrations/Logs/MonologV2)
+test_integrations_monolog3: global_test_run_dependencies
+	$(MAKE) test_scenario_monolog3
+	$(call run_tests,tests/Integrations/Logs/MonologV3)
 test_integrations_mysqli: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Mysqli)
