@@ -29,7 +29,7 @@ body:
 
   - type: textarea
     attributes:
-      label: Output of `phpinfo()` (`ddtrace` >= 0.47.0)
+      label: Output of `phpinfo()`
       description: |
         1. Create a `phpinfo()` page: `<?php phpinfo(); ?>` and load the page from a web browser.
         2. Scroll down to the "ddtrace" section and:
