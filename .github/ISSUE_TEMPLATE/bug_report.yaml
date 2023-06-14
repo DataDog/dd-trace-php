@@ -6,7 +6,7 @@ body:
   - type: textarea
     attributes:
       label: Bug report
-      description: Please add a cleare and concise description of your problem here
+      description: Please add a clear and concise description of your problem here
     validations:
       required: true
 
