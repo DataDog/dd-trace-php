@@ -37,9 +37,17 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if let Some(prev) = PREV_GC_COLLECT_CYCLES {
         #[cfg(php_gc_status)]
         let mut status: zend::zend_gc_status = zend::zend_gc_status {
+            #[cfg(php_gc_status_extended)]
+            active: false,
+            #[cfg(php_gc_status_extended)]
+            gc_protected: false,
+            #[cfg(php_gc_status_extended)]
+            full: false,
             runs: 0,
             collected: 0,
             threshold: 0,
+            #[cfg(php_gc_status_extended)]
+            buf_size: 0,
             num_roots: 0,
         };
 
