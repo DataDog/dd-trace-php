@@ -119,6 +119,10 @@ typedef ddog_Bytes ddog_Uuid;
 
 extern ddog_Uuid ddtrace_runtime_id;
 
+/**
+ * # Safety
+ * Must be called from a single-threaded context, such as MINIT.
+ */
 void ddtrace_generate_runtime_id(void);
 
 void ddtrace_format_runtime_id(uint8_t (*buf)[36]);
