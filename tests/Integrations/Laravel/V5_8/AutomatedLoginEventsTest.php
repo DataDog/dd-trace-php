@@ -1,0 +1,75 @@
+<?php
+
+namespace DDTrace\Tests\Integrations\Laravel\V5_8;
+
+use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use datadog\appsec\AppsecStatus;
+
+class AutomatedLoginEventsTest extends WebFrameworkTestCase
+{
+    protected static function getAppIndexScript()
+    {
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_5_8/public/index.php';
+    }
+   
+    protected function connection()
+    {
+        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+    }
+
+    public static function ddSetUpBeforeClass()
+    {
+        parent::ddSetUpBeforeClass();
+        AppsecStatus::getInstance()->init();
+    }
+
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        $this->connection()->exec("DELETE from users where email LIKE 'test-user%'");
+        AppsecStatus::getInstance()->setDefaults();
+        
+    }
+
+    public static function ddTearDownAfterClass()
+    {
+        AppsecStatus::getInstance()->destroy();
+        parent::ddTearDownAfterClass();
+    }
+
+    protected function login($email)
+    {
+        $this->call(
+            GetSpec::create('Login success event', '/login/auth?email='.$email)
+        );
+    }
+
+    public function testUserLoginSuccessEvent()
+    {
+        $id = 1234;
+        $email = 'test-user@email.com';
+        //Password is password
+        $this->connection()->exec("insert into users (id, email, password) VALUES (".$id.", '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
+
+        AppsecStatus::getInstance()->setEnabled();
+        $this->login($email);
+
+        $events = AppsecStatus::getInstance()->getEvents();
+        $this->assertEquals(1, count($events));
+        $this->assertEquals($id, $events[0]['userId']);
+        $this->assertEquals('track_user_login_success_event', $events[0]['eventName']);
+    }
+
+    public function testUserLoginFailureEvent()
+    {
+        $email = 'test-user-non-existing@email.com';
+
+        AppsecStatus::getInstance()->setEnabled();
+        $this->login($email);
+
+        $events = AppsecStatus::getInstance()->getEvents();
+        $this->assertEquals(1, count($events));
+        $this->assertEquals('track_user_login_failure_event', $events[0]['eventName']);
+    }
+}

@@ -288,6 +288,56 @@ class LaravelIntegration extends Integration
             }
         );
 
+        \DDTrace\hook_method(
+            'Illuminate\Auth\SessionGuard',
+            'attempt',
+            null,
+            function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
+                if ($loginSuccess) {
+                    return;
+                }
+
+                if (!function_exists('\datadog\appsec\is_enabled') || !\datadog\appsec\is_enabled())
+                {
+                    return;
+                }
+
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event'))
+                {
+                    return;
+                }
+                \datadog\appsec\track_user_login_failure_event(null, false, []);
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Illuminate\Auth\SessionGuard',
+            'setUser',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (!function_exists('\datadog\appsec\is_enabled') || !\datadog\appsec\is_enabled())
+                {
+                    return;
+                }
+                if (!function_exists('\datadog\appsec\track_user_login_success_event'))
+                {
+                    return;
+                }
+                if (!isset($args[0])) {
+                    return;
+                }
+                $user = $args[0];
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
+                if (!$user || !($user instanceof $authClass)) {
+                    return;
+                }
+                $value = $user->getAuthIdentifier();
+                if (in_array($user->getAuthIdentifierName(), array('email', 'name'))) {
+                    $value = "";
+                }
+                \datadog\appsec\track_user_login_success_event($value, []);
+            }
+        );
+
         return Integration::LOADED;
     }
 
