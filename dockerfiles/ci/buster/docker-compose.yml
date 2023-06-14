@@ -11,6 +11,17 @@ services:
           - linux/arm64
           - linux/amd64
 
+  php-8.3:
+    image: datadog/dd-trace-ci:php-8.3_buster
+    build:
+      context: .
+      dockerfile: php-8.3/Dockerfile
+      x-bake: *bake
+      args:
+        phpVersion: "8.3"
+        phpTarGzUrl: https://downloads.php.net/~jakub/php-8.3.0alpha1.tar.gz
+        phpSha256Hash: "741a9da205a18a754902a39e3cd7c4e66ef2611975a0f94027be001b6a8ed020"
+
   php-8.2:
     image: datadog/dd-trace-ci:php-8.2_buster
     build:
