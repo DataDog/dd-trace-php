@@ -36,7 +36,7 @@ body:
            1. Take a screenshot of the whole "ddtrace" section and drag the image into this text box to attach the screenshot.
            2. OR copy the "DATADOG TRACER CONFIGURATION" JSON and the "Diagnostics" section and paste them here.
 
-        If this issue is related to the CLI SAPI, copy the output of `php --ri=ddtrace` and paste it here.
+        If this issue is related to the CLI SAPI, copy the output of `php --ri=ddtrace; php --ri=datadog-profiler` and paste it here.
 
   - type: textarea
     attributes:
