@@ -97,10 +97,8 @@ class LogsIntegration extends Integration
     {
         $traceId = \DDTrace\trace_id();
 
-        $context['dd'] = [
-            'trace_id' => $traceIdSubstitute ?? trace_id_128(),
-            'span_id' => $spanIdSubstitute ?? dd_trace_peek_span_id()
-        ];
+        $context['dd.trace_id'] = $traceIdSubstitute ?? trace_id_128();
+        $context['dd.span_id'] = $spanIdSubstitute ?? dd_trace_peek_span_id();
 
         $service = ddtrace_config_app_name();
         if ($service) {
@@ -217,19 +215,18 @@ class LogsIntegration extends Integration
             $this->getHookFn('log', 1, 2, $integration)
         );
 
-        foreach ($levelNamesPSR as $levelName) {
-            \DDTrace\hook_method(
-                'Monolog\Logger',
-                $levelName,
-                null,
-                function ($This, $scope, $args) {
-                    // Set all the handlers to use the JSON formatter
-                    foreach ($This->getHandlers() as $handler) {
-                        $handler->setFormatter(new \Monolog\Formatter\JsonFormatter());
-                    }
+        // TODO: Remove this once the Monolog integration is ready
+        \DDTrace\hook_method(
+            'Monolog\Logger',
+            '__construct',
+            null,
+            function ($This, $scope, $args) {
+                // Set all the handlers to use the JSON formatter
+                foreach ($This->getHandlers() as $handler) {
+                    $handler->setFormatter(new \Monolog\Formatter\JsonFormatter());
                 }
-            );
-        }
+            }
+        );
 
         return Integration::LOADED;
     }
