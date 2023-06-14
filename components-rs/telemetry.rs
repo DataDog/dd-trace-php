@@ -51,7 +51,7 @@ fn parse_composer_installed_json(
         }
     }
 
-    if deps.len() > 0 {
+    if !deps.is_empty() {
         blocking::enqueue_actions(transport, instance_id, queue_id, deps)?;
     }
 
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addIntegration_buffer(
     integration_name: CharSlice,
     integration_version: CharSlice,
     integration_enabled: bool,
-) -> () {
+) {
     let version = integration_version
         .is_empty()
         .then(|| integration_version.to_utf8_lossy().into_owned());
@@ -119,7 +119,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
     config_key: CharSlice,
     config_value: CharSlice,
     origin: data::ConfigurationOrigin,
-) -> () {
+) {
     let action = TelemetryActions::AddConfig(data::Configuration {
         name: config_key.to_utf8_lossy().into_owned(),
         value: config_value.to_utf8_lossy().into_owned(),
