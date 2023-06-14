@@ -7,6 +7,7 @@ if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing s
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_TELEMETRY_ENABLED=1
 --INI--
 datadog.trace.agent_url=file://{PWD}/simple-telemetry.out
 --FILE--
