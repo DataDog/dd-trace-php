@@ -110,7 +110,6 @@ class QueueTest extends WebFrameworkTestCase
                     SpanAssertion::exists('laravel.action')
                         ->withChildren([
                             $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
-                                ->withExistingTagsNames(['_dd.span_links'])
                         ])
                 ])
         ], false);
@@ -213,7 +212,6 @@ class QueueTest extends WebFrameworkTestCase
                             ->withChildren([
                                 $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
                                     ->setError('Exception', 'Triggered Exception', true)
-                                    ->withExistingTagsNames(['_dd.span_links'])
                             ])
                     ])
             ],
@@ -367,7 +365,8 @@ class QueueTest extends WebFrameworkTestCase
             return $span;
         } else {
             return $span->withExistingTagsNames([
-                Tag::MQ_MESSAGE_ID
+                Tag::MQ_MESSAGE_ID,
+                '_dd.span_links'
             ]);
         }
     }
@@ -389,7 +388,8 @@ class QueueTest extends WebFrameworkTestCase
         ])->withExactTags(
             $this->getCommonTags('receive', $queue, $connection)
         )->withExistingTagsNames([
-            Tag::MQ_MESSAGE_ID
+            Tag::MQ_MESSAGE_ID,
+            '_dd.span_links'
         ])->withChildren([
             $this->spanEventJobProcessing(),
             $this->spanQueueFire($connection, $queue, $resourceDetails)

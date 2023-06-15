@@ -14,8 +14,10 @@ DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']);
 ?>
---EXPECT--
-array(1) {
+--EXPECTF--
+array(2) {
+  ["runtime-id"]=>
+  string(36) "%s"
   ["_dd.p.dm"]=>
   string(2) "-1"
 }

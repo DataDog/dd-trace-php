@@ -12,7 +12,7 @@ if (!extension_loaded('datadog-profiling'))
 DD_PROFILING_ENABLED=no
 DD_PROFILING_LOG_LEVEL=info
 DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=yes
-DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED=yes
+DD_PROFILING_ALLOCATION_ENABLED=yes
 DD_SERVICE=datadog-profiling-phpt
 DD_ENV=dev
 DD_VERSION=13
@@ -21,6 +21,7 @@ DD_TRACE_AGENT_PORT=80
 DD_TRACE_AGENT_URL=http://datadog:8126
 --INI--
 assert.exception=1
+opcache.jit=off
 --FILE--
 <?php
 
@@ -46,7 +47,7 @@ assert(isset($values["Version"]));
 $sections = [
     ["Profiling Enabled", "false"],
     ["Experimental CPU Time Profiling Enabled", "true"],
-    ["Experimental Allocation Profiling Enabled", "true"],
+    ["Allocation Profiling Enabled", "true"],
     ["Endpoint Collection Enabled", "true"],
     ["Profiling Log Level", "info"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],

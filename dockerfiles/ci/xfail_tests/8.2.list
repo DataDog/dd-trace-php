@@ -22,6 +22,7 @@ Zend/tests/gc_045.phpt
 Zend/tests/get_defined_functions_basic.phpt
 Zend/tests/get_required_files.phpt
 Zend/tests/gh7958.phpt
+Zend/tests/gh10346.phpt
 Zend/tests/list_keyed_conversions.phpt
 Zend/tests/multibyte/multibyte_encoding_004.phpt
 Zend/tests/object_gc_in_shutdown.phpt
@@ -121,6 +122,7 @@ ext/spl/tests/spl_autoload_013.phpt
 ext/standard/tests/array/array_map_variation4.phpt
 ext/standard/tests/array/array_reverse_variation4.phpt
 ext/standard/tests/array/array_unique_variation3.phpt
+ext/standard/tests/file/bug52820.phpt
 ext/standard/tests/file/disk_free_space_basic.phpt
 ext/standard/tests/file/lstat_stat_variation10.phpt
 ext/standard/tests/filters/bug54350.phpt
@@ -147,6 +149,7 @@ ext/standard/tests/streams/proc_open_bug69900.phpt
 ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/sprintf_variation54.phpt
+ext/zend_test/tests/
 sapi/cli/tests/upload_2G.phpt
 sapi/fpm/tests/log-bm-in-shutdown-fn.phpt
 sapi/fpm/tests/log-bm-limit-1024-msg-80.phpt

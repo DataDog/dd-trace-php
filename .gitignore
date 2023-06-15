@@ -13,6 +13,7 @@ composer.lock*
 .tmp/
 **.code-workspace
 /Makefile*
+Cargo.lock
 acinclude.m4
 aclocal.m4
 autom4te*
@@ -37,6 +38,7 @@ modules/*
 php_test_results*
 results.bin
 run-tests.php
+/target
 tests/ext/*.php
 tests/ext/*.out
 tests/ext/*.diff
@@ -49,3 +51,4 @@ tmp/opcache*
 *.orig
 docker-compose.override.yml
 tests/Sapi/Roadrunner/rr-*
+github-actions-helpers/_build.csproj.DotSettings

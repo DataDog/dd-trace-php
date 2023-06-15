@@ -398,7 +398,7 @@ class LaminasIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = 'laminas';
 
                 /** @var MvcEvent $event */
-                $event = $retval[0];
+                $event = $retval;
 
                 $exception = $event->getParam('exception');
                 if ($exception) {

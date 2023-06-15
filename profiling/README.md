@@ -1,5 +1,7 @@
 # PHP Profiler
 
+<img align="right" style="margin-left:10px" src="profiling_bits_211220.png" alt="profiling bits php" width="200px"/>
+
 The profiler is implemented in Rust. To see the currently required Rust
 version, refer to the [rust-toolchain](rust-toolchain) file. The profiler
 requires PHP 7.1+, and does not support debug nor ZTS builds. There are bits of
