@@ -1818,10 +1818,10 @@ PHP_FUNCTION(DDTrace_trace_id) {
     RETURN_STR(ddtrace_trace_id_as_string(ddtrace_peek_trace_id()));
 }
 
-/* {{{ proto string \DDTrace\trace_id_128() */
-PHP_FUNCTION(DDTrace_trace_id_128) {
+/* {{{ proto string \DDTrace\logs_correlation_trace_id() */
+PHP_FUNCTION(DDTrace_logs_correlation_trace_id) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        ddtrace_log_onceerrf("Unexpected parameters to DDTrace\\trace_id_128");
+        ddtrace_log_onceerrf("Unexpected parameters to DDTrace\\logs_correlation_trace_id");
     }
 
     ddtrace_trace_id trace_id = ddtrace_peek_trace_id();

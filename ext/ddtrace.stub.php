@@ -462,7 +462,7 @@ namespace DDTrace {
      *
      * @return string
      */
-    function trace_id_128(): string {}
+    function logs_correlation_trace_id(): string {}
 
     /**
      * Get information on the current context

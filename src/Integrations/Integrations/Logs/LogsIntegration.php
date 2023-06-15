@@ -7,7 +7,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Util\ObjectKVStore;
 
-use function DDTrace\trace_id_128;
+use function DDTrace\logs_correlation_trace_id;
 
 class LogsIntegration extends Integration
 {
@@ -27,7 +27,7 @@ class LogsIntegration extends Integration
         string $spanIdSubstitute = null
     ): array {
         $placeholders = [
-            '%dd.trace_id%' => 'dd.trace_id="' . ($traceIdSubstitute ?? trace_id_128()) . '"',
+            '%dd.trace_id%' => 'dd.trace_id="' . ($traceIdSubstitute ?? logs_correlation_trace_id()) . '"',
             '%dd.span_id%'  => 'dd.span_id="' . ($spanIdSubstitute ?? dd_trace_peek_span_id()) . '"',
         ];
 
@@ -112,7 +112,7 @@ class LogsIntegration extends Integration
     ): array {
         $traceId = \DDTrace\trace_id();
 
-        $context['dd.trace_id'] = $traceIdSubstitute ?? trace_id_128();
+        $context['dd.trace_id'] = $traceIdSubstitute ?? logs_correlation_trace_id();
         $context['dd.span_id'] = $spanIdSubstitute ?? dd_trace_peek_span_id();
 
         $service = ddtrace_config_app_name();

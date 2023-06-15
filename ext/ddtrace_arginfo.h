@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 64a856080556a3206618722983cd04bd3d4008ed */
+ * Stub hash: 07799b058d0a1575e4524bea976a95085be1f51d */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -101,7 +101,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_trace_id arginfo_DDTrace_startup_logs
 
-#define arginfo_DDTrace_trace_id_128 arginfo_DDTrace_startup_logs
+#define arginfo_DDTrace_logs_correlation_trace_id arginfo_DDTrace_startup_logs
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_current_context, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -268,7 +268,7 @@ ZEND_FUNCTION(DDTrace_find_active_exception);
 ZEND_FUNCTION(DDTrace_extract_ip_from_headers);
 ZEND_FUNCTION(DDTrace_startup_logs);
 ZEND_FUNCTION(DDTrace_trace_id);
-ZEND_FUNCTION(DDTrace_trace_id_128);
+ZEND_FUNCTION(DDTrace_logs_correlation_trace_id);
 ZEND_FUNCTION(DDTrace_current_context);
 ZEND_FUNCTION(DDTrace_set_distributed_tracing_context);
 ZEND_FUNCTION(DDTrace_flush);
@@ -341,7 +341,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace", extract_ip_from_headers, DDTrace_extract_ip_from_headers, arginfo_DDTrace_extract_ip_from_headers)
 	ZEND_NS_FALIAS("DDTrace", startup_logs, DDTrace_startup_logs, arginfo_DDTrace_startup_logs)
 	ZEND_NS_FALIAS("DDTrace", trace_id, DDTrace_trace_id, arginfo_DDTrace_trace_id)
-	ZEND_NS_FALIAS("DDTrace", trace_id_128, DDTrace_trace_id_128, arginfo_DDTrace_trace_id_128)
+	ZEND_NS_FALIAS("DDTrace", logs_correlation_trace_id, DDTrace_logs_correlation_trace_id, arginfo_DDTrace_logs_correlation_trace_id)
 	ZEND_NS_FALIAS("DDTrace", current_context, DDTrace_current_context, arginfo_DDTrace_current_context)
 	ZEND_NS_FALIAS("DDTrace", set_distributed_tracing_context, DDTrace_set_distributed_tracing_context, arginfo_DDTrace_set_distributed_tracing_context)
 	ZEND_NS_FALIAS("DDTrace", flush, DDTrace_flush, arginfo_DDTrace_flush)
