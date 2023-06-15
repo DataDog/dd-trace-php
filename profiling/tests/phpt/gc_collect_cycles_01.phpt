@@ -18,7 +18,7 @@ DD_PROFILING_ENABLED=yes
 DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
 DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED=yes
 DD_PROFILING_ALLOCATION_ENABLED=no
-DD_PROFILING_LOG_LEVEL=debug
+DD_PROFILING_LOG_LEVEL=trace
 --FILE--
 <?php
 
@@ -48,7 +48,10 @@ echo 'Done.';
 
 ?>
 --EXPECTREGEX--
-.* Garbage collection with reason "engine" took [0-9]+ ns
-.* Garbage collection with reason "engine" took [0-9]+ ns
-.* Garbage collection with reason "induced" took [0-9]+ ns
+.* Garbage collection with reason "engine" took [0-9]+ nanoseconds
+.*
+.* Garbage collection with reason "engine" took [0-9]+ nanoseconds
+.*
+.* Garbage collection with reason "induced" took [0-9]+ nanoseconds
+.*
 Done..*

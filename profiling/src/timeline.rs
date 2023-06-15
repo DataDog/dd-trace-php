@@ -1,3 +1,5 @@
+use log::trace;
+
 use crate::bindings as zend;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
@@ -48,6 +50,11 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         zend::zend_gc_get_status(status.as_mut_ptr());
         #[cfg(php_gc_status)]
         let status = status.assume_init();
+
+        trace!(
+            "Garbage collection with reason \"{reason}\" took {} nanoseconds",
+            duration.as_nanos()
+        );
 
         REQUEST_LOCALS.with(|cell| {
             // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
