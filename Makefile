@@ -407,7 +407,6 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_memcached \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
-	test_integrations_monolog3 \
 	test_integrations_mongodb1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
@@ -451,7 +450,6 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
-	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -503,7 +501,6 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
-	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -560,7 +557,6 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
-	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -615,7 +611,6 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
-	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -678,7 +673,6 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_mongodb1 \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
-	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
