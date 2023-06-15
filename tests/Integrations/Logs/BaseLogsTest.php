@@ -28,7 +28,7 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
         string $levelName,
         $logger,
         string $expectedRegex,
-        bool $is128bit = false,
+        bool $is128bit = false
     ) {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=0',
@@ -58,7 +58,7 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
         string $levelName,
         $logger,
         string $expectedRegex,
-        bool $is128bit = false,
+        bool $is128bit = false
     ) {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=0',
@@ -88,7 +88,7 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
         string $levelName,
         $logger,
         string $expectedRegex,
-        bool $is128bit = false,
+        bool $is128bit = false
     ) {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=1',
