@@ -72,21 +72,24 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
             }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                #[cfg(php_gc_status)]
-                profiler.collect_garbage_collection(
-                    duration.as_nanos() as i64,
-                    reason,
-                    collected as i64,
-                    status.runs as i64,
-                    &locals,
-                );
-                #[cfg(not(php_gc_status))]
-                profiler.collect_garbage_collection(
-                    duration.as_nanos() as i64,
-                    reason,
-                    collected as i64,
-                    &locals,
-                );
+                cfg_if::cfg_if! {
+                    if #[cfg(php_gc_status)] {
+                        profiler.collect_garbage_collection(
+                            duration.as_nanos() as i64,
+                            reason,
+                            collected as i64,
+                            status.runs as i64,
+                            &locals,
+                        );
+                    } else {
+                        profiler.collect_garbage_collection(
+                            duration.as_nanos() as i64,
+                            reason,
+                            collected as i64,
+                            &locals,
+                        );
+                    }
+                }
             }
         });
         collected
