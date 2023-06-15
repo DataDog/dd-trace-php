@@ -794,17 +794,13 @@ impl Profiler {
             if locals.profiling_experimental_timeline_enabled {
                 sample_types.push(SAMPLE_TYPES[5]);
                 sample_values.push(values[5]);
-            }
-
-            #[cfg(feature = "timeline")]
-            if locals.profiling_experimental_timeline_enabled
-                && (samples.timeline > 0 || samples.cpu_time > 0)
-            {
-                if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                    labels.push(Label {
-                        key: "end_timestamp_ns",
-                        value: LabelValue::Num(now.as_nanos() as i64, Some("nanoseconds")),
-                    });
+                if samples.timeline > 0 || samples.cpu_time > 0 {
+                    if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                        labels.push(Label {
+                            key: "end_timestamp_ns",
+                            value: LabelValue::Num(now.as_nanos() as i64, Some("nanoseconds")),
+                        });
+                    }
                 }
             }
         }
