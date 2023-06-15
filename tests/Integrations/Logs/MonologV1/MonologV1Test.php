@@ -21,7 +21,7 @@ class MonologV1Test extends BaseLogsTest
         $this->withPlaceholders(
             'debug',
             $this->getLogger(),
-            '/^\[.*\] test.DEBUG: A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" level_name="debug"\] \[\] \[\]/',
+            '/^\[.*\] test.DEBUG: A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" level_name="debug"\] \[\] \[\]/'
         );
     }
 
