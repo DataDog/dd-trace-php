@@ -110,8 +110,6 @@ class LogsIntegration extends Integration
         string $traceIdSubstitute = null,
         string $spanIdSubstitute = null
     ): array {
-        $traceId = \DDTrace\trace_id();
-
         $context['dd.trace_id'] = $traceIdSubstitute ?? logs_correlation_trace_id();
         $context['dd.span_id'] = $spanIdSubstitute ?? dd_trace_peek_span_id();
 

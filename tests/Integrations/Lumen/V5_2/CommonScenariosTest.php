@@ -18,6 +18,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'lumen_test_app',
+            'DD_TRACE_DEBUG' => '1'
         ]);
     }
 
