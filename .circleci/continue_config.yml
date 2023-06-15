@@ -450,6 +450,7 @@ commands:
                   -e DATADOG_HAVE_DEV_ENV=1 \
                   -e BASH_ENV=/home/circleci/bashenv/bash.sh \
                   -e CIRCLE_SHA1 \
+                  -e CIRCLE_BRANCH \
                   -v $(pwd):/home/circleci/datadog \
                   -v /tmp/bashenv:/home/circleci/bashenv \
                   -v /rust:/rust \
