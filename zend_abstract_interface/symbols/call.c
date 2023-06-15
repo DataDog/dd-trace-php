@@ -17,7 +17,7 @@
 
 #if PHP_VERSION_ID >= 80000
 // stack allocate some memory to avoid overwriting stack allocated things needed for observers
-static char (*throwaway_buffer_pointer)[];
+char (*zai_call_throwaway_buffer_pointer)[];
 zend_result zend_call_function_wrapper(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache) {
 #ifdef __SANITIZE_ADDRESS__
 #define STACK_BUFFER_SIZE 8192 // asan has more overhead
@@ -25,7 +25,7 @@ zend_result zend_call_function_wrapper(zend_fcall_info *fci, zend_fcall_info_cac
 #define STACK_BUFFER_SIZE 6144
 #endif
     char buffer[STACK_BUFFER_SIZE];  // dynamic runtime symbol resolving can have some stack overhead
-    throwaway_buffer_pointer = &buffer;
+    zai_call_throwaway_buffer_pointer = &buffer;
     return zend_call_function(fci, fci_cache);
 }
 

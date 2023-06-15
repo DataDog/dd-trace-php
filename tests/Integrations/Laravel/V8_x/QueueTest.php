@@ -27,7 +27,8 @@ class QueueTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_AUTO_FLUSH_ENABLED' => '1',
             'DD_TRACE_CLI_ENABLED' => '1',
-            'APP_NAME' => 'laravel_queue_test'
+            'APP_NAME' => 'laravel_queue_test',
+            'DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE' => '0'
         ]);
     }
 
@@ -129,7 +130,6 @@ class QueueTest extends WebFrameworkTestCase
                     SpanAssertion::exists('laravel.action')
                         ->withChildren([
                             $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
-                                ->withExistingTagsNames(['_dd.span_links'])
                         ])
                 ])
         ], false);
@@ -235,7 +235,6 @@ class QueueTest extends WebFrameworkTestCase
                             ->withChildren([
                                 $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
                                     ->setError('Exception', 'Triggered Exception', true)
-                                    ->withExistingTagsNames(['_dd.span_links'])
                             ])
                     ])
             ],
@@ -279,12 +278,9 @@ class QueueTest extends WebFrameworkTestCase
         $this->assertFlameGraph($artisanTrace, [
             SpanAssertion::exists('laravel.artisan')->withChildren([
                 SpanAssertion::exists('laravel.action')->withChildren([
+                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails'),
+                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails'),
                     $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
-                        ->withExistingTagsNames(['_dd.span_links']),
-                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
-                        ->withExistingTagsNames(['_dd.span_links']),
-                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
-                        ->withExistingTagsNames(['_dd.span_links']),
                 ])
             ])
         ], false);
@@ -482,7 +478,8 @@ class QueueTest extends WebFrameworkTestCase
             return $span;
         } else {
             return $span->withExistingTagsNames([
-                Tag::MQ_MESSAGE_ID
+                Tag::MQ_MESSAGE_ID,
+                '_dd.span_links'
             ]);
         }
     }
@@ -505,7 +502,8 @@ class QueueTest extends WebFrameworkTestCase
         ])->withExactTags(
             $this->getCommonTags('receive', $queue, $connection)
         )->withExistingTagsNames([
-            Tag::MQ_MESSAGE_ID
+            Tag::MQ_MESSAGE_ID,
+            '_dd.span_links'
         ])->withChildren([
             $this->spanEventJobProcessing(),
             $this->spanQueueFire($connection, $queue, $resourceDetails)

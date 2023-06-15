@@ -20,6 +20,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
             'APP_NAME' => 'custom_autoloaded_app',
             'DD_TRACE_AGENT_PORT' => 80,
             'DD_AGENT_HOST' => 'request-replayer',
+            'DD_TRACE_TELEMETRY_ENABLED' => 1,
         ]);
     }
 

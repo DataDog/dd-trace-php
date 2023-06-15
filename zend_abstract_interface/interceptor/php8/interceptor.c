@@ -10,7 +10,7 @@
 # include <sanitizer/common_interface_defs.h>
 #endif
 
-#if PHP_VERSION_ID < 80200
+#if PHP_VERSION_ID < 80300
 int zai_registered_observers = 0;
 #endif
 
@@ -414,6 +414,17 @@ static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(ze
 }
 
 #if PHP_VERSION_ID < 80200
+#define ZEND_OBSERVER_DATA(function) \
+    ZEND_OP_ARRAY_EXTENSION((&(function)->op_array), zend_observer_fcall_op_array_extension)
+#else
+#define ZEND_OBSERVER_DATA(function) \
+    ZEND_OP_ARRAY_EXTENSION((&(function)->common), zend_observer_fcall_op_array_extension)
+#endif
+
+#if PHP_VERSION_ID < 80300
+#define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
+
+#if PHP_VERSION_ID < 80200
 static inline bool zai_interceptor_is_attribute_ctor(zend_function *func) {
     zend_class_entry *ce = func->common.scope;
     return ce && UNEXPECTED(ce->attributes) && UNEXPECTED(zend_get_attribute_str(ce->attributes, ZEND_STRL("attribute")) != NULL)
@@ -429,11 +440,6 @@ static void zai_interceptor_observer_begin_handler_attribute_ctor(zend_execute_d
     }
     zai_interceptor_observer_begin_handler(execute_data);
 }
-
-#define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
-
-#define ZEND_OBSERVER_DATA(op_array) \
-    ZEND_OP_ARRAY_EXTENSION(op_array, zend_observer_fcall_op_array_extension)
 
 typedef struct {
     // points after the last handler
@@ -452,7 +458,7 @@ void zai_interceptor_replace_observer_legacy(zend_function *func, bool remove) {
         return;
     }
 
-    zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(op_array);
+    zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(func);
     if (!data) {
         return;
     }
@@ -485,7 +491,7 @@ void zai_interceptor_replace_observer_legacy(zend_function *func, bool remove) {
 // Allocate some space. This space can be used to install observers afterwards
 // ... I would love to make use of ZEND_OBSERVER_NOT_OBSERVED optimization, but this does not seem possible :-(
 static void zai_interceptor_observer_placeholder_handler(zend_execute_data *execute_data) {
-    zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(&execute_data->func->op_array);
+    zend_observer_fcall_data *data = ZEND_OBSERVER_DATA(execute_data->func);
     for (zend_observer_fcall_handlers *handlers = data->handlers, *end = data->end; handlers != end; ++handlers) {
         if (handlers->begin == zai_interceptor_observer_placeholder_handler) {
             data->end = end - 1;
@@ -499,9 +505,14 @@ static void zai_interceptor_observer_placeholder_handler(zend_execute_data *exec
         }
     }
 }
+#endif
 
 void zai_interceptor_replace_observer(zend_function *func, bool remove) {
+#if PHP_VERSION_ID < 80200
     if (!RUN_TIME_CACHE(&func->op_array) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
+#else
+    if (!RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
+#endif
         return;
     }
 
@@ -511,7 +522,7 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove) {
         }
     }
 
-    zend_observer_fcall_begin_handler *beginHandler = (void *)&ZEND_OBSERVER_DATA(&func->op_array), *beginEnd = beginHandler + zai_registered_observers - 1;
+    zend_observer_fcall_begin_handler *beginHandler = (void *)&ZEND_OBSERVER_DATA(func), *beginEnd = beginHandler + zai_registered_observers - 1;
     zend_observer_fcall_end_handler *endHandler = (zend_observer_fcall_end_handler *)beginEnd + 1, *endEnd = endHandler + zai_registered_observers - 1;
 
     if (remove) {
@@ -522,9 +533,8 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove) {
                 } else {
                     if (curHandler != beginEnd) {
                         memmove(curHandler, curHandler + 1, sizeof(curHandler) * (beginEnd - curHandler));
-                    } else {
-                        *beginEnd = NULL;
                     }
+                    *beginEnd = NULL;
                 }
                 break;
             }
@@ -537,9 +547,8 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove) {
                 } else {
                     if (curHandler != endEnd) {
                         memmove(curHandler, curHandler + 1, sizeof(curHandler) * (endEnd - curHandler));
-                    } else {
-                        *endEnd = NULL;
                     }
+                    *endEnd = NULL;
                 }
                 break;
             }
@@ -560,15 +569,12 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove) {
             }
         }
         if (*endHandler != ZEND_OBSERVER_NOT_OBSERVED) {
-            memmove(endHandler + 1, endHandler, endEnd - endHandler);
+            memmove(endHandler + 1, endHandler, sizeof(endHandler) * (endEnd - endHandler));
         }
         *endHandler = handlers.end;
     }
 }
 #else
-#define ZEND_OBSERVER_DATA(function) \
-    ZEND_OP_ARRAY_EXTENSION((&(function)->common), zend_observer_fcall_op_array_extension)
-
 void zai_interceptor_replace_observer(zend_function *func, bool remove) {
     if (!RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
         return;
@@ -766,7 +772,7 @@ zend_result zai_interceptor_post_startup(void) {
 
     zai_hook_post_startup();
     zai_interceptor_setup_resolving_post_startup();
-#if PHP_VERSION_ID < 80200
+#if PHP_VERSION_ID < 80300
     zai_registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
 #endif
 

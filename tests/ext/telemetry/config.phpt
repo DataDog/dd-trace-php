@@ -8,6 +8,7 @@ if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing s
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_AUTOFINISH_SPANS=1
+DD_TRACE_TELEMETRY_ENABLED=1
 DD_AGENT_HOST=
 --INI--
 datadog.trace.agent_url=file://{PWD}/config-telemetry.out
@@ -61,6 +62,13 @@ Array
         )
 
     [2] => Array
+        (
+            [name] => datadog.trace.telemetry_enabled
+            [value] => 1
+            [origin] => EnvVar
+        )
+
+    [3] => Array
         (
             [name] => datadog.trace.generate_root_span
             [value] => 0

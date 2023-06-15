@@ -62,9 +62,52 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
+### Added
+- Add support for environment variable syntax to config mode in datadog-setup.php #2050
+
+### Changed
+- Use span links in the RabbitMQ Integration #2092
+- Disable root span generation and removes orphans for Laravel Horizon #2091
+
 ### Fixed
-- Fix opline being replaced by ZEND_HANDLE_EXCEPTION in uncaught finally on PHP 7 #2052
-- Won't set 4xx errors on Laravel root span every time an Exception is caught #2053
+- datadog-setup.php: remove return types for compatibility with PHP 5 #2059 Thanks @dserodio!
+- Work around fiber->execute_data only being correct upon yielding #2072
+- Skip error assignment on the root span for 5xx errors that shouldn't be reported #2089
+- Ensure no crashes happen with multiple observers installed #2093
+- Fix incorrect offset access in Laminas Integration #2094
+
+### Internal Changes
+- build: delete unused C components #2055
+- build: bump cmake and catch2 versions #2056
+- build: reduce Laravel queues' tests flakiness #2057
+- testing: add snapshot testing #2058
+- build: pin guzzlehttp/promises to ^1.5.3 #2071
+- Update removed methods used in Guzzle V6 & V7 test suites #2073
+- build: drop now-unused uuid component #2096
+- Prepare instrumentation telemetry #2029, #2086, #2099
+- build: Add rebuild with ASAN section to randomized tests README.md #2084
+
+## Profiling
+Allocation profiling is now enabled by default. You can manage it using the `DD_PROFILING_ALLOCATION_ENABLED` environment variable or the `datadog.profiling.allocation_enabled` setting in the INI file. Although the `DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED` environment variable and `datadog.profiling.experimental_allocation_enabled` INI setting still work, the new ones take precedence.
+
+### Added
+- GA allocation profiling #2038
+- disable allocation profiling if JIT is enabled #2088
+
+### Fixed
+- fixed segfault in test suite #2077
+
+### Internal changes
+- move allocation profiling to its own module #2090
+
+## Application Security Management (0.9.0)
+
+### Fixed
+- Use /proc/self/fd to avoid rlimit iteration starvation DataDog/dd-appsec-php#265
+
+### Internal changes
+- Update ruleset to 1.7.1 and libddwaf to 1.11.0 DataDog/dd-appsec-php#267
+- Update fuzzer corpus DataDog/dd-appsec-php#268
 ]]></notes>
     <contents>
         <dir name="/">

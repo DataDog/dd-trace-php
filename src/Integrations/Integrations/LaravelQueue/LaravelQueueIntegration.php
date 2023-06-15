@@ -12,6 +12,8 @@ use Illuminate\Queue\Jobs\JobName;
 
 use function DDTrace\active_span;
 use function DDTrace\close_span;
+use function DDTrace\remove_hook;
+use function DDTrace\set_distributed_tracing_context;
 use function DDTrace\start_trace_span;
 use function DDTrace\trace_method;
 use function DDTrace\install_hook;
@@ -60,6 +62,7 @@ class LaravelQueueIntegration extends Integration
 
                         $integration->extractContext($payload);
                         $span->links[] = $newTrace->getLink();
+                        $newTrace->links[] = $span->getLink();
                     }
                 },
                 'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration, &$newTrace) {
@@ -76,6 +79,13 @@ class LaravelQueueIntegration extends Integration
                             $exception
                         );
                         close_span();
+
+                        if (
+                            dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE")
+                            && dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                        ) {
+                            set_distributed_tracing_context("0", "0");
+                        }
                     }
 
                     $integration->setSpanAttributes($span, 'laravel.queue.process', 'receive', $job, $exception);
@@ -105,29 +115,35 @@ class LaravelQueueIntegration extends Integration
                         $method = 'handle';
                     }
 
-                    trace_method($class, $method, function (SpanData $span) use ($integration, $class, $method) {
-                        $span->name = 'laravel.queue.action';
-                        $span->type = 'queue';
-                        $span->service = $integration->getName();
-                        $span->resource = $class . '@' . $method;
-                        $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
+                    install_hook(
+                        "$class::$method",
+                        function (HookData $hook) use ($integration, $class, $method) {
+                            $span = $hook->span();
+                            $span->name = 'laravel.queue.action';
+                            $span->type = 'queue';
+                            $span->service = $integration->getName();
+                            $span->resource = $class . '@' . $method;
+                            $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
 
-                        if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
-                            $span->meta[Tag::LARAVELQ_BATCH_ID] = $this->batchId ?? null;
-                        }
+                            if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
+                                $span->meta[Tag::LARAVELQ_BATCH_ID] = $this->batchId ?? null;
+                            }
 
-                        if (isset($this->job)) {
-                            $integration->setSpanAttributes(
-                                $span,
-                                'laravel.queue.action',
-                                null,
-                                $this->job,
-                                null,
-                                null,
-                                $class . '@' . $method
-                            );
+                            if (isset($this->job)) {
+                                $integration->setSpanAttributes(
+                                    $span,
+                                    'laravel.queue.action',
+                                    null,
+                                    $this->job,
+                                    null,
+                                    null,
+                                    $class . '@' . $method
+                                );
+                            }
+
+                            remove_hook($hook->id);
                         }
-                    });
+                    );
                 }
             );
         }
