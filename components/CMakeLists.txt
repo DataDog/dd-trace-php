@@ -55,7 +55,6 @@ add_subdirectory(string_view)
 add_subdirectory(container_id)
 add_subdirectory(sapi)
 add_subdirectory(stack-sample)
-add_subdirectory(uuid)
 
 install(EXPORT DatadogPhpComponentsTargets
   FILE DatadogPhpComponentsTargets.cmake

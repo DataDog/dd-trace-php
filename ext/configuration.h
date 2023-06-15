@@ -85,7 +85,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                                        \
     CONFIG(BOOL, DD_TRACE_DEBUG, "false")                                                                      \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true", .ini_change = ddtrace_alter_dd_trace_disabled_config)               \
-    CONFIG(BOOL, DD_TRACE_TELEMETRY_ENABLED, "true", .ini_change = zai_config_system_ini_change)               \
+    CONFIG(BOOL, DD_TRACE_TELEMETRY_ENABLED, "false", .ini_change = zai_config_system_ini_change)              \
     CONFIG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false", .ini_change = zai_config_system_ini_change)         \
     CONFIG(DOUBLE, DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE, "0.001")                                     \
     CONFIG(BOOL, DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE, "false")                                                \
@@ -94,6 +94,8 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                  \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                            \
     CONFIG(BOOL, DD_TRACE_FLUSH_COLLECT_CYCLES, "false")                                                       \
+    CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE, "true")                                              \
+    CONFIG(BOOL, DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS, "false")                                         \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                      \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                    \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                                                    \

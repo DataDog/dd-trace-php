@@ -1,5 +1,6 @@
 ddtrace_close_all_spans_and_flush
 ddtrace_get_profiling_context
 ddtrace_root_span_add_tag
+ddtrace_runtime_id
 get_module
 ddog_daemon_entry_point
