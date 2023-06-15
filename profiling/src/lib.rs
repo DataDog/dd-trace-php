@@ -668,6 +668,8 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         let yes: &[u8] = b"true\0";
         let no: &[u8] = b"false\0";
         let na: &[u8] = b"Not available\0";
+        #[cfg(not(feature = "allocation_profiling"))]
+        let nc: &[u8] = b"Not compiled\0";
         zend::php_info_print_table_start();
         zend::php_info_print_table_row(2, b"Version\0".as_ptr(), module.version);
         zend::php_info_print_table_row(
@@ -686,18 +688,28 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             },
         );
 
-        #[cfg(feature = "allocation_profiling")]
-        zend::php_info_print_table_row(
-            2,
-            b"Allocation Profiling Enabled\0".as_ptr(),
-            if locals.profiling_allocation_enabled {
-                yes
-            } else if zend::ddog_php_jit_enabled() {
-                na
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "allocation_profiling")] {
+                zend::php_info_print_table_row(
+                    2,
+                    b"Allocation Profiling Enabled\0".as_ptr(),
+                    if locals.profiling_allocation_enabled {
+                        yes
+                    } else if zend::ddog_php_jit_enabled() {
+                        na
+                    } else {
+                        no
+                    }
+                );
             } else {
-                no
-            },
-        );
+                zend::php_info_print_table_row(
+                    2,
+                    b"Allocation Profiling Enabled\0".as_ptr(),
+                    nc
+                );
+
+            }
+        }
 
         #[cfg(feature = "timeline")]
         zend::php_info_print_table_row(
