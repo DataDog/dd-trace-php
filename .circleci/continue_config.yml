@@ -100,6 +100,10 @@ aliases:
       name: Append build id to version number
       command: |
         githash="${CIRCLE_SHA1?}"
+        if [[ "x$CIRCLE_BRANCH" == "x" ]] ; then
+          echo "The environment variable CIRCLE_BRANCH was not set or was empty."
+          exit 1
+        fi
         if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
           echo "Release branch detected; not adding git sha1 to version number."
         else
