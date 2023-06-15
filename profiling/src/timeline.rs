@@ -1,6 +1,7 @@
 use crate::bindings as zend;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
+use std::mem::MaybeUninit;
 use std::time::Instant;
 
 /// The engine's original (or previous) `gc_collect_cycles()` function
@@ -36,20 +37,7 @@ unsafe fn gc_reason() -> &'static str {
 unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if let Some(prev) = PREV_GC_COLLECT_CYCLES {
         #[cfg(php_gc_status)]
-        let mut status: zend::zend_gc_status = zend::zend_gc_status {
-            #[cfg(php_gc_status_extended)]
-            active: false,
-            #[cfg(php_gc_status_extended)]
-            gc_protected: false,
-            #[cfg(php_gc_status_extended)]
-            full: false,
-            runs: 0,
-            collected: 0,
-            threshold: 0,
-            #[cfg(php_gc_status_extended)]
-            buf_size: 0,
-            num_roots: 0,
-        };
+        let mut status = MaybeUninit::<zend::zend_gc_status>::uninit();
 
         let start = Instant::now();
         let collected = prev();
@@ -57,7 +45,9 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         let reason = gc_reason();
 
         #[cfg(php_gc_status)]
-        zend::zend_gc_get_status(&mut status);
+        zend::zend_gc_get_status(status.as_mut_ptr());
+        #[cfg(php_gc_status)]
+        let status = status.assume_init();
 
         REQUEST_LOCALS.with(|cell| {
             // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
