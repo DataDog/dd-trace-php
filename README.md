@@ -20,6 +20,10 @@ Datadog’s PHP Tracing Library supports many of the most common PHP versions, P
 
 Visit the [PHP tracer documentation](https://docs.datadoghq.com/tracing/languages/php/) for complete installation instructions.
 
+#### Installation from PECL (datadog_trace) or from source
+
+Compilation of the tracer and the profiler requires cargo to be installed. Ensure that cargo is minimum version 1.64.0, otherwise follow the [official instructions for installing cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html).
+
 ### Advanced configuration
 
 For more information about configuring and instrumenting **ddtrace**, view the [configuration documentation](https://docs.datadoghq.com/tracing/setup/php/#configuration).
