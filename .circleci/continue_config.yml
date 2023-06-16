@@ -2211,9 +2211,7 @@ jobs:
             set -u
             command -v switch-php && switch-php "${PHP_VERSION}"
             cd profiling
-            cargo test --release --features stack_walking_tests
-      - build_profiler:
-          prefix: /tmp/datadog-profiling
+            cargo test --release --all-features
       - run:
           name: phpt tests
           command: |
@@ -2221,12 +2219,14 @@ jobs:
             command -v switch-php && switch-php "${PHP_VERSION}"
             set -e
             libdir="/tmp/datadog-profiling"
-            cd profiling/tests
+            cd profiling
+            cargo build --release --all-features
+            cd tests
             # don't anticipate there being more than one
             run_tests_php=$(find $(php-config --prefix) -name run-tests.php)
             cp -v "${run_tests_php}" .
             export TEST_PHP_EXECUTABLE=$(which php)
-            php run-tests.php -d "extension=${libdir}/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt"
+            php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt"
 
   compile_extension_centos:
     working_directory: ~/datadog
