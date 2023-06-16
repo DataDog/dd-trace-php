@@ -23,7 +23,7 @@ DD_PROFILING_LOG_LEVEL=trace
 <?php
 
 class SomeClass {
-    public SomeClass $someProperty;
+    public $someProperty;
 }
 
 function generateGarbage() {
