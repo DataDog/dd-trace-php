@@ -147,6 +147,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/random.c \
     ext/request_hooks.c \
     ext/serializer.c \
+    ext/sidecar.c \
     ext/signals.c \
     ext/span.c \
     ext/startup_logging.c \

@@ -55,6 +55,7 @@
 #include "random.h"
 #include "request_hooks.h"
 #include "serializer.h"
+#include "sidecar.h"
 #include "signals.h"
 #include "span.h"
 #include "startup_logging.h"
@@ -246,7 +247,7 @@ static void dd_activate_once(void) {
     if (!DDTRACE_G(disable) && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         bool modules_activated = PG(modules_activated);
         PG(modules_activated) = false;
-        ddtrace_telemetry_setup();
+        ddtrace_sidecar_setup();
         PG(modules_activated) = modules_activated;
     }
 }
@@ -262,7 +263,7 @@ static void ddtrace_activate(void) {
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
 
-    if (ddtrace_has_excluded_module == true) {
+    if (!DDTRACE_G(disable) && ddtrace_has_excluded_module == true) {
         DDTRACE_G(disable) = 2;
     }
 
@@ -270,12 +271,16 @@ static void ddtrace_activate(void) {
     pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
 
+    if (!DDTRACE_G(disable) && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+        ddtrace_sidecar_ensure_active();
+    }
+
     zend_string *sampling_rules_file = get_DD_SPAN_SAMPLING_RULES_FILE();
     if (ZSTR_LEN(sampling_rules_file) > 0 && !zend_string_equals(get_global_DD_SPAN_SAMPLING_RULES_FILE(), sampling_rules_file)) {
         dd_save_sampling_rules_file_config(sampling_rules_file, PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
     }
 
-    if (strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
+    if (!DDTRACE_G(disable) && strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
         DDTRACE_G(disable) = 2;
     }
 
@@ -336,10 +341,15 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
     zai_hook_ginit();
+    if (ddtrace_coms_agent_config_handle) {
+        ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &ddtrace_globals->remote_config_reader);
+    }
 }
 
 static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
-    UNUSED(ddtrace_globals);
+    if (ddtrace_globals->remote_config_reader) {
+        ddog_agent_remote_config_reader_drop(ddtrace_globals->remote_config_reader);
+    }
     zai_hook_gshutdown();
 }
 
@@ -705,6 +715,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
                        get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                        get_global_DD_TRACE_AGENT_STACK_BACKLOG());
+    ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(remote_config_reader));
 
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();
@@ -742,7 +753,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_limiter_destroy();
     zai_config_mshutdown();
 
-    ddtrace_telemetry_shutdown();
+    ddtrace_sidecar_shutdown();
 
     return SUCCESS;
 }
@@ -901,6 +912,11 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         dd_force_shutdown_tracing();
     } else if (!DDTRACE_G(disable)) {
         dd_shutdown_hooks_and_observer();
+    }
+
+    if (DDTRACE_G(agent_rate_by_service)) {
+        zend_array_destroy(DDTRACE_G(agent_rate_by_service));
+        DDTRACE_G(agent_rate_by_service) = NULL;
     }
 
     if (!DDTRACE_G(disable)) {

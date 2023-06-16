@@ -3,6 +3,7 @@
 #include <mt19937-64.h>
 
 #include <uri_normalization/uri_normalization.h>
+#include <json/json.h>
 
 #include "../compat_string.h"
 #include "../configuration.h"
@@ -10,6 +11,28 @@
 #include "../limiter/limiter.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+
+void ddtrace_try_read_agent_rate(void) {
+    ddog_CharSlice data;
+    if (DDTRACE_G(remote_config_reader) && ddog_agent_remote_config_read(DDTRACE_G(remote_config_reader), &data)) {
+        zval json;
+        if ((int)data.len > 0) {
+            zai_json_decode_assoc(&json, data.ptr, (int)data.len, 3);
+            if (Z_TYPE(json) == IS_ARRAY) {
+                zval *rules = zend_hash_str_find(Z_ARR(json), ZEND_STRL("rate_by_service"));
+                if (rules && Z_TYPE_P(rules) == IS_ARRAY) {
+                    if (DDTRACE_G(agent_rate_by_service)) {
+                        zend_array_destroy(DDTRACE_G(agent_rate_by_service));
+                    }
+
+                    Z_TRY_ADDREF_P(rules);
+                    DDTRACE_G(agent_rate_by_service) = Z_ARR_P(rules);
+                }
+            }
+            zval_ptr_dtor(&json);
+        }
+    }
+}
 
 static void dd_update_decision_maker_tag(ddtrace_span_data *span, enum dd_sampling_mechanism mechanism) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
@@ -47,8 +70,10 @@ static void dd_decide_on_sampling(ddtrace_span_data *span) {
     enum dd_sampling_mechanism mechanism = DD_MECHANISM_MANUAL;
     if (priority == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         zval *rule;
-        bool explicit_rule = zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index >= 0;
-        double default_sample_rate = get_DD_TRACE_SAMPLE_RATE(), sample_rate = default_sample_rate;
+        double default_sample_rate = get_DD_TRACE_SAMPLE_RATE(), sample_rate = default_sample_rate >= 0 ? default_sample_rate : 1;
+        bool explicit_rule = default_sample_rate >= 0;
+
+        zval *service = ddtrace_spandata_property_service(span);
 
         ZEND_HASH_FOREACH_VAL(get_DD_TRACE_SAMPLING_RULES(), rule) {
             if (Z_TYPE_P(rule) != IS_ARRAY) {
@@ -80,6 +105,28 @@ static void dd_decide_on_sampling(ddtrace_span_data *span) {
             }
         }
         ZEND_HASH_FOREACH_END();
+
+        if (!explicit_rule) {
+            ddtrace_try_read_agent_rate();
+
+            if (DDTRACE_G(agent_rate_by_service)) {
+                zval *env = zend_hash_str_find(ddtrace_spandata_property_meta(span), ZEND_STRL("env"));
+                zval *sample_rate_zv = NULL;
+                if (Z_TYPE_P(service) == IS_STRING && env && Z_TYPE_P(env) == IS_STRING) {
+                    zend_string *sample_key = zend_strpprintf(0, "service:%.*s,env:%.*s",(int) Z_STRLEN_P(service), Z_STRVAL_P(service),
+                                                              (int) Z_STRLEN_P(env), Z_STRVAL_P(env));
+                    sample_rate_zv = zend_hash_find(DDTRACE_G(agent_rate_by_service), sample_key);
+                    zend_string_release(sample_key);
+                }
+                if (!sample_rate_zv) {
+                    // Default rate if no service+env pair matches
+                    sample_rate_zv = zend_hash_str_find(DDTRACE_G(agent_rate_by_service), ZEND_STRL("service:,env:"));
+                }
+                if (sample_rate_zv) {
+                    sample_rate = zval_get_double(sample_rate_zv);
+                }
+            }
+        }
 
         bool sampling = (double)genrand64_int64() < sample_rate * (double)~0ULL;
         bool limited  = ddtrace_limiter_active() && (sampling && !ddtrace_limiter_allow());

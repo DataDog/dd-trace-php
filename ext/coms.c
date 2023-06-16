@@ -33,6 +33,8 @@
 #include "ext/version.h"
 #include "logging.h"
 #include "mpack/mpack.h"
+#include "sidecar.h"
+#include "zend_smart_str.h"
 
 extern inline bool ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack);
 extern inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack);
@@ -42,6 +44,8 @@ typedef uint32_t group_id_t;
 #define GROUP_ID_PROCESSED (1UL << 31UL)
 
 ddtrace_coms_state_t ddtrace_coms_globals = {.stacks = NULL};
+static struct ddog_AgentRemoteConfigWriter_ShmHandle *dd_agent_config_writer;
+struct ddog_ShmHandle *ddtrace_coms_agent_config_handle;
 
 static bool _dd_is_memory_pressure_high(void) {
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
@@ -157,6 +161,13 @@ bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_stack_size, size_t
 
     atomic_store(&ddtrace_coms_globals.next_group_id, 1);
     atomic_store(&ddtrace_coms_globals.current_stack, stack);
+
+    ddog_Option_VecU8 writer_result = ddog_create_agent_remote_config_writer(&dd_agent_config_writer, &ddtrace_coms_agent_config_handle);
+    if (writer_result.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
+        ddtrace_bgs_logf("error crating config writer: %.*s", (int)writer_result.some.len, writer_result.some.ptr);
+        ddog_MaybeError_drop(writer_result);
+        return false;
+    }
 
     _dd_ptr_at_exit_callback = _dd_at_exit_callback;
     atexit(_dd_at_exit_hook);
@@ -707,7 +718,12 @@ static void dd_agent_headers_free(struct curl_slist *list) {
     }
 }
 
-void ddtrace_coms_curl_shutdown(void) { dd_agent_headers_free(dd_agent_curl_headers); }
+void ddtrace_coms_curl_shutdown(void) {
+    dd_agent_headers_free(dd_agent_curl_headers);
+
+    ddog_agent_remote_config_writer_drop(dd_agent_config_writer);
+    ddog_drop_anon_shm_handle(ddtrace_coms_agent_config_handle);
+}
 
 static long _dd_max_long(long a, long b) { return a >= b ? a : b; }
 
@@ -827,6 +843,11 @@ static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trac
     writer->headers = headers;
 }
 
+static size_t _dd_curl_writefunc(char *ptr, size_t size, size_t nmemb, void *s) {
+    smart_str_appendl_ex((smart_str *)s, ptr, size * nmemb, true);
+    return size * nmemb;
+}
+
 static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
     if (!writer->curl) {
         ddtrace_bgs_logf("[bgs] no curl session - dropping the current stack.\n", NULL);
@@ -843,21 +864,32 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
         ddtrace_curl_set_timeout(writer->curl);
         ddtrace_curl_set_connect_timeout(writer->curl);
 
+        smart_str response = {0};
+
         curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
         curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long)get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
-
+        curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_curl_writefunc);
+        curl_easy_setopt(writer->curl, CURLOPT_WRITEDATA, &response);
         res = curl_easy_perform(writer->curl);
 
         if (res != CURLE_OK) {
             ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-        } else if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
-            double uploaded;
+        } else {
+            if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
+                double uploaded;
 // only deprecated on relatively new libcurl versions
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-            curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
+                curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
 #pragma GCC diagnostic pop
-            ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
+                ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
+            }
+
+            // No response happens with test agents for example
+            if (response.s) {
+                ddog_agent_remote_config_write(dd_agent_config_writer, dd_zend_string_to_CharSlice(response.s));
+                smart_str_free_ex(&response, true);
+            }
         }
 
         _dd_deinit_read_userdata(read_data);

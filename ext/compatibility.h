@@ -213,6 +213,8 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define zend_hash_str_add(...) _zend_hash_str_add(__VA_ARGS__ ZEND_FILE_LINE_CC)
 #undef zend_hash_str_add_new
 #define zend_hash_str_add_new(...) _zend_hash_str_add_new(__VA_ARGS__ ZEND_FILE_LINE_CC)
+
+#define smart_str_free_ex(str, persistent) smart_str_free(str)
 #endif
 
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))

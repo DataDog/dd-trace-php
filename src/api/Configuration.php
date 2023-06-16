@@ -92,8 +92,14 @@ class Configuration extends AbstractConfiguration
     public function getSamplingRate()
     {
         // DD_SAMPLING_RATE is deprecated and will be removed in 0.40.0
-        $deprecatedValue = $this->floatValue('sampling.rate', 1.0, 0.0, 1.0);
-        return $this->floatValue('trace.sample.rate', $deprecatedValue, 0.0, 1.0);
+        $deprecatedValue = $this->floatValue('sampling.rate', 1.0);
+        $value = $this->floatValue('trace.sample.rate', $deprecatedValue);
+        if ($value < 0) {
+            $value = 1;
+        } else {
+            $value = min(1, max(0, $value));
+        }
+        return $value;
     }
 
     /**

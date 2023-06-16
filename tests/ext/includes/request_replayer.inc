@@ -61,6 +61,16 @@ class RequestReplayer
         return $headers;
     }
 
+    public function setResponse($array) {
+        file_get_contents($this->endpoint . '/next-response', false, stream_context_create([
+            "http" => [
+                "method" => "POST",
+                "content" => json_encode($array),
+                "header" => "Content-Type: application/json"
+            ],
+        ]));
+    }
+
     public static function launchUnixProxy($socketPath) {
         @unlink($socketPath);
         $code = str_replace("\n", "", '

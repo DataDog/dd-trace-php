@@ -36,6 +36,7 @@ x-aliases:
         - COMPOSER_MEMORY_LIMIT=-1
         - PHP_IDE_CONFIG=serverName=docker
         - DD_TRACE_DOCKER_DEBUG
+        - DATADOG_HAVE_DEV_ENV=1
       cap_add:
         - SYS_PTRACE
       security_opt:
