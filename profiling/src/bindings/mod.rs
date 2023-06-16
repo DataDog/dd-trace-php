@@ -10,6 +10,9 @@ use std::sync::atomic::AtomicBool;
 
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
+#[cfg(feature = "timeline")]
+pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;
+
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(u64) -> *mut libc::c_void;
 #[cfg(feature = "allocation_profiling")]

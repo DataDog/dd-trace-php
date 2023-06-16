@@ -9,6 +9,9 @@ mod sapi;
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
 
+#[cfg(feature = "timeline")]
+mod timeline;
+
 use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};
 use config::AgentEndpoint;
@@ -272,6 +275,9 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_minit();
 
+    #[cfg(feature = "timeline")]
+    timeline::timeline_minit();
+
     ZendResult::Success
 }
 
@@ -296,6 +302,7 @@ pub struct RequestLocals {
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
+    pub profiling_experimental_timeline_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
     pub tags: Arc<Vec<Tag>>,
@@ -325,6 +332,7 @@ thread_local! {
         profiling_endpoint_collection_enabled: true,
         profiling_experimental_cpu_time_enabled: true,
         profiling_allocation_enabled: true,
+        profiling_experimental_timeline_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
         tags: Arc::new(static_tags()),
@@ -363,6 +371,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         profiling_endpoint_collection_enabled,
         profiling_experimental_cpu_time_enabled,
         profiling_allocation_enabled,
+        profiling_experimental_timeline_enabled,
         log_level,
         output_pprof,
     ) = unsafe {
@@ -371,6 +380,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             config::profiling_endpoint_collection_enabled(),
             config::profiling_experimental_cpu_time_enabled(),
             config::profiling_allocation_enabled(),
+            config::profiling_experimental_timeline_enabled(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
         )
@@ -387,6 +397,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         locals.profiling_endpoint_collection_enabled = profiling_endpoint_collection_enabled;
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
         locals.profiling_allocation_enabled = profiling_allocation_enabled;
+        locals.profiling_experimental_timeline_enabled = profiling_experimental_timeline_enabled;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
@@ -657,6 +668,8 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         let yes: &[u8] = b"true\0";
         let no: &[u8] = b"false\0";
         let na: &[u8] = b"Not available\0";
+        #[cfg(not(feature = "allocation_profiling"))]
+        let nc: &[u8] = b"Not compiled\0";
         zend::php_info_print_table_start();
         zend::php_info_print_table_row(2, b"Version\0".as_ptr(), module.version);
         zend::php_info_print_table_row(
@@ -675,13 +688,35 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             },
         );
 
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "allocation_profiling")] {
+                zend::php_info_print_table_row(
+                    2,
+                    b"Allocation Profiling Enabled\0".as_ptr(),
+                    if locals.profiling_allocation_enabled {
+                        yes
+                    } else if zend::ddog_php_jit_enabled() {
+                        na
+                    } else {
+                        no
+                    }
+                );
+            } else {
+                zend::php_info_print_table_row(
+                    2,
+                    b"Allocation Profiling Enabled\0".as_ptr(),
+                    nc
+                );
+
+            }
+        }
+
+        #[cfg(feature = "timeline")]
         zend::php_info_print_table_row(
             2,
-            b"Allocation Profiling Enabled\0".as_ptr(),
-            if locals.profiling_allocation_enabled {
+            b"Experimental Timeline Enabled\0".as_ptr(),
+            if locals.profiling_experimental_timeline_enabled {
                 yes
-            } else if zend::ddog_php_jit_enabled() {
-                na
             } else {
                 no
             },

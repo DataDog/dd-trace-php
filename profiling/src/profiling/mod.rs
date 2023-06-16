@@ -24,6 +24,11 @@ use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
+#[cfg(feature = "timeline")]
+use lazy_static::lazy_static;
+#[cfg(feature = "timeline")]
+use std::time::UNIX_EPOCH;
+
 #[cfg(feature = "allocation_profiling")]
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 #[cfg(feature = "allocation_profiling")]
@@ -46,6 +51,7 @@ struct SampleValues {
     cpu_time: i64,
     alloc_samples: i64,
     alloc_size: i64,
+    timeline: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -257,14 +263,15 @@ impl TimeCollector {
             .build();
 
         #[cfg(feature = "allocation_profiling")]
-        if alloc_samples_offset.is_some() && alloc_size_offset.is_some() {
+        if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
+            (alloc_size_offset, alloc_samples_offset)
+        {
             let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: alloc_size_offset.unwrap(),
-                count_value_offset: alloc_samples_offset.unwrap(),
+                sum_value_offset: alloc_size_offset,
+                count_value_offset: alloc_samples_offset,
                 sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
             };
-            let values_offset: Vec<usize> =
-                vec![alloc_size_offset.unwrap(), alloc_samples_offset.unwrap()];
+            let values_offset: Vec<usize> = vec![alloc_size_offset, alloc_samples_offset];
             match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
@@ -312,7 +319,7 @@ impl TimeCollector {
         let mut locations = vec![];
 
         let values = message.value.sample_values;
-        let labels = message
+        let labels: Vec<profile::api::Label> = message
             .value
             .labels
             .iter()
@@ -658,6 +665,64 @@ impl Profiler {
         }
     }
 
+    #[cfg(feature = "timeline")]
+    /// collect a stack frame for garbage collection.
+    /// as we do not know about the overhead currently, we only collect a fake frame.
+    pub unsafe fn collect_garbage_collection(
+        &self,
+        duration: i64,
+        reason: &'static str,
+        collected: i64,
+        #[cfg(php_gc_status)] runs: i64,
+        locals: &RequestLocals,
+    ) {
+        let mut labels = Profiler::message_labels();
+
+        lazy_static! {
+            static ref TIMELINE_GC_LABELS: Vec<Label> = vec![Label {
+                key: "event",
+                value: LabelValue::Str("gc".into()),
+            },];
+        }
+
+        labels.extend_from_slice(&TIMELINE_GC_LABELS);
+        labels.push(Label {
+            key: "gc reason",
+            value: LabelValue::Str(Cow::from(reason)),
+        });
+        #[cfg(php_gc_status)]
+        labels.push(Label {
+            key: "gc runs",
+            value: LabelValue::Num(runs, Some("count")),
+        });
+        labels.push(Label {
+            key: "gc collected",
+            value: LabelValue::Num(collected, Some("count")),
+        });
+        let n_labels = labels.len();
+
+        match self.send_sample(Profiler::prepare_sample_message(
+            vec![ZendFrame {
+                function: "[gc]".to_string(),
+                file: None,
+                line: 0,
+            }],
+            SampleValues {
+                timeline: duration,
+                ..Default::default()
+            },
+            labels,
+            locals,
+        )) {
+            Ok(_) => {
+                trace!("Sent event 'gc' with {n_labels} labels and reason {reason} to profiler.")
+            }
+            Err(err) => {
+                warn!("Failed to send event 'gc' with {n_labels} and reason {reason} labels to profiler: {err}")
+            }
+        }
+    }
+
     fn message_labels() -> Vec<Label> {
         let gpc = unsafe { datadog_php_profiling_get_profiling_context };
         if let Some(get_profiling_context) = gpc {
@@ -688,25 +753,27 @@ impl Profiler {
     fn prepare_sample_message(
         frames: Vec<ZendFrame>,
         samples: SampleValues,
-        labels: Vec<Label>,
+        mut labels: Vec<Label>,
         locals: &RequestLocals,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
-        static SAMPLE_TYPES: &[ValueType; 5] = &[
+        static SAMPLE_TYPES: &[ValueType; 6] = &[
             ValueType::new("sample", "count"),
             ValueType::new("wall-time", "nanoseconds"),
             ValueType::new("cpu-time", "nanoseconds"),
             ValueType::new("alloc-samples", "count"),
             ValueType::new("alloc-size", "bytes"),
+            ValueType::new("timeline", "nanoseconds"),
         ];
 
         // Allows us to slice the SampleValues as if they were an array.
-        let values: [i64; 5] = [
+        let values: [i64; 6] = [
             samples.interrupt_count,
             samples.wall_time,
             samples.cpu_time,
             samples.alloc_samples,
             samples.alloc_size,
+            samples.timeline,
         ];
 
         let mut sample_types = Vec::with_capacity(SAMPLE_TYPES.len());
@@ -721,6 +788,20 @@ impl Profiler {
             if locals.profiling_allocation_enabled {
                 sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
                 sample_values.extend_from_slice(&values[3..5]);
+            }
+
+            #[cfg(feature = "timeline")]
+            if locals.profiling_experimental_timeline_enabled {
+                sample_types.push(SAMPLE_TYPES[5]);
+                sample_values.push(values[5]);
+                if samples.timeline > 0 || samples.cpu_time > 0 {
+                    if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                        labels.push(Label {
+                            key: "end_timestamp_ns",
+                            value: LabelValue::Num(now.as_nanos() as i64, Some("nanoseconds")),
+                        });
+                    }
+                }
             }
         }
 
@@ -765,6 +846,7 @@ mod tests {
             profiling_endpoint_collection_enabled: true,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
+            profiling_experimental_timeline_enabled: false,
             profiling_log_level: LevelFilter::Off,
             service: None,
             tags: Arc::new(static_tags()),
@@ -781,6 +863,7 @@ mod tests {
             cpu_time: 30,
             alloc_samples: 40,
             alloc_size: 50,
+            timeline: 60,
         }
     }
 
@@ -900,5 +983,79 @@ mod tests {
             ]
         );
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 40, 50]);
+    }
+
+    #[test]
+    #[cfg(feature = "timeline")]
+    fn profiler_prepare_sample_message_works_with_allocations_and_cpu_time_and_timeline() {
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_allocation_enabled = true;
+        locals.profiling_experimental_cpu_time_enabled = true;
+        locals.profiling_experimental_timeline_enabled = true;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType::new("sample", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-time", "nanoseconds"),
+                ValueType::new("alloc-samples", "count"),
+                ValueType::new("alloc-size", "bytes"),
+                ValueType::new("timeline", "nanoseconds"),
+            ]
+        );
+        // for now, just check that this sample has the `end_timestamp_ns` label
+        let n_end_timestamp_ns_labels = message
+            .value
+            .labels
+            .into_iter()
+            .filter(|x| x.key == "end_timestamp_ns")
+            .count();
+        assert_eq!(n_end_timestamp_ns_labels, 1);
+        assert_eq!(message.value.sample_values, vec![10, 20, 30, 40, 50, 60]);
+    }
+
+    #[test]
+    #[cfg(feature = "timeline")]
+    // The `end_timestamp_ns` label shall only show up in CPU time and timeline sample types
+    fn profiler_prepare_sample_message_works_with_allocations_and_timeline_with_timestamp_labels() {
+        let frames = get_frames();
+        let mut samples = get_samples();
+        samples.cpu_time = 0;
+        samples.timeline = 0;
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_allocation_enabled = true;
+        locals.profiling_experimental_timeline_enabled = true;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType::new("sample", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("alloc-samples", "count"),
+                ValueType::new("alloc-size", "bytes"),
+                ValueType::new("timeline", "nanoseconds"),
+            ]
+        );
+        let n_end_timestamp_ns_labels = message
+            .value
+            .labels
+            .into_iter()
+            .filter(|x| x.key == "end_timestamp_ns")
+            .count();
+        assert_eq!(n_end_timestamp_ns_labels, 0);
+        assert_eq!(message.value.sample_values, vec![10, 20, 40, 50, 0]);
     }
 }
