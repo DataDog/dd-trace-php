@@ -13,7 +13,6 @@ composer.lock*
 .tmp/
 **.code-workspace
 /Makefile*
-Cargo.lock
 acinclude.m4
 aclocal.m4
 autom4te*
