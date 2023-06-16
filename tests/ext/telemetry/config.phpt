@@ -49,28 +49,28 @@ Array
 (
     [0] => Array
         (
-            [name] => datadog.trace.agent_url
+            [name] => trace.agent_url
             [value] => file:///%s/config-telemetry.out
             [origin] => EnvVar
         )
 
     [1] => Array
         (
-            [name] => datadog.trace.cli_enabled
+            [name] => trace.cli_enabled
             [value] => 1
             [origin] => EnvVar
         )
 
     [2] => Array
         (
-            [name] => datadog.trace.telemetry_enabled
+            [name] => trace.telemetry_enabled
             [value] => 1
             [origin] => EnvVar
         )
 
     [3] => Array
         (
-            [name] => datadog.trace.generate_root_span
+            [name] => trace.generate_root_span
             [value] => 0
             [origin] => EnvVar
         )
