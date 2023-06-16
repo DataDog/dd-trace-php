@@ -682,7 +682,14 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
             last_arg = (void *)~0;
         }
         if (i++ >= passed_args) {
-            ZVAL_COPY(arg, val);
+            if (Z_TYPE_P(val) == IS_ARRAY) {
+                zval garbage;
+                ZVAL_COPY_VALUE(&garbage, arg);
+                ZVAL_COPY(arg, val);
+                zval_ptr_dtor(&garbage);
+            } else {
+                ZVAL_COPY(arg, val);
+            }
         } else {
             zval garbage;
             ZVAL_COPY_VALUE(&garbage, arg);
