@@ -8,6 +8,7 @@ if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing s
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
+DD_TRACE_TELEMETRY_ENABLED=1
 --INI--
 datadog.trace.agent_url=file://{PWD}/integration-telemetry.out
 ddtrace.request_init_hook={PWD}/../sandbox/deferred_loading_helper.php

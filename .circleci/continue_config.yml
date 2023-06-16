@@ -100,6 +100,10 @@ aliases:
       name: Append build id to version number
       command: |
         githash="${CIRCLE_SHA1?}"
+        if [[ "x$CIRCLE_BRANCH" == "x" ]] ; then
+          echo "The environment variable CIRCLE_BRANCH was not set or was empty."
+          exit 1
+        fi
         if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
           echo "Release branch detected; not adding git sha1 to version number."
         else
@@ -446,6 +450,7 @@ commands:
                   -e DATADOG_HAVE_DEV_ENV=1 \
                   -e BASH_ENV=/home/circleci/bashenv/bash.sh \
                   -e CIRCLE_SHA1 \
+                  -e CIRCLE_BRANCH \
                   -v $(pwd):/home/circleci/datadog \
                   -v /tmp/bashenv:/home/circleci/bashenv \
                   -v /rust:/rust \
@@ -715,6 +720,51 @@ jobs:
             mkdir -p /tmp/artifacts/core_dumps
             find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             cp -a tmp/build_extension/tests/$(if [[ << parameters.make_target >> == *opcache* ]]; then echo opcache; else echo ext; fi) /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
+  test_multi_observer:
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+          extra: with_httpbin_and_request_replayer
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
+      - <<: *STEP_WAIT_TEST_AGENT
+      - run:
+          name: Run tests
+          command: |
+            set -euo pipefail
+            make test_c_observer RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      - <<: *STEP_STORE_TEST_RESULTS
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
@@ -3327,6 +3377,18 @@ workflows:
                 - test_c_disabled
                 - test_internal_api_randomized
                 - test_opcache
+
+      - test_multi_observer:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "8.0"
+                - "8.1"
+                - "8.2"
+              switch_php_version:
+                - debug-zts-asan
+
       - coverage:
           requires: [ 'Prepare Code' ]
           matrix:

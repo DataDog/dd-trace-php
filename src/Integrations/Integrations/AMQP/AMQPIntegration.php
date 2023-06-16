@@ -3,12 +3,17 @@
 namespace DDTrace\Integrations\AMQP;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Propagator;
 use DDTrace\SpanData;
+use DDTrace\SpanLink;
 use DDTrace\Tag;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
 
+use function DDTrace\active_span;
+use function DDTrace\close_span;
 use function DDTrace\hook_method;
+use function DDTrace\start_trace_span;
 use function DDTrace\trace_method;
 
 class AMQPIntegration extends Integration
@@ -23,6 +28,36 @@ class AMQPIntegration extends Integration
     public function getName()
     {
         return self::NAME;
+    }
+
+    // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
+    public static function largeBaseConvert($numString, $fromBase, $toBase)
+    {
+        $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+        $toString = substr($chars, 0, $toBase);
+
+        $length = strlen($numString);
+        $result = '';
+        for ($i = 0; $i < $length; $i++) {
+            $number[$i] = strpos($chars, $numString[$i]);
+        }
+        do {
+            $divide = 0;
+            $newLen = 0;
+            for ($i = 0; $i < $length; $i++) {
+                $divide = $divide * $fromBase + $number[$i];
+                if ($divide >= $toBase) {
+                    $number[$newLen++] = (int)($divide / $toBase);
+                    $divide = $divide % $toBase;
+                } elseif ($newLen > 0) {
+                    $number[$newLen++] = 0;
+                }
+            }
+            $length = $newLen;
+            $result = $toString[$divide] . $result;
+        } while ($newLen != 0);
+
+        return $result;
     }
 
     /**
@@ -44,31 +79,58 @@ class AMQPIntegration extends Integration
         trace_method(
             "PhpAmqpLib\Channel\AMQPChannel",
             "basic_deliver",
-            function (SpanData $span, $args) use ($integration) {
-                /** @var AMQPMessage $message */
-                $message = $args[1];
+            [
+                'prehook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
+                    /** @var AMQPMessage $message */
+                    $message = $args[1];
+                    if ($integration->hasDistributedHeaders($message)) {
+                        $newTrace = start_trace_span();
+                        $integration->extractContext($message);
+                        $span->links[] = $newTrace->getLink();
+                        $newTrace->links[] = $span->getLink();
+                    }
+                },
+                'posthook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
+                    /** @var AMQPMessage $message */
+                    $message = $args[1];
 
-                $exchangeDisplayName = $integration->formatExchangeName($message->getExchange());
-                $routingKeyDisplayName = $integration->formatRoutingKey($message->getRoutingKey());
+                    $exchangeDisplayName = $integration->formatExchangeName($message->getExchange());
+                    $routingKeyDisplayName = $integration->formatRoutingKey($message->getRoutingKey());
 
-                $integration->setGenericTags(
-                    $span,
-                    'basic.deliver',
-                    'consumer',
-                    "$exchangeDisplayName -> $routingKeyDisplayName"
-                );
-                $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
-                $span->meta[Tag::MQ_OPERATION] = 'receive';
-                $span->meta[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
+                    $integration->setGenericTags(
+                        $span,
+                        'basic.deliver',
+                        'consumer',
+                        "$exchangeDisplayName -> $routingKeyDisplayName"
+                    );
+                    $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
+                    $span->meta[Tag::MQ_OPERATION] = 'receive';
+                    $span->meta[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
+                    $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                    $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
 
-                $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
-                $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                    $integration->setOptionalMessageTags($span, $message);
 
-                $integration->setOptionalMessageTags($span, $message);
+                    $activeSpan = active_span();
+                    if ($activeSpan !== $span && $activeSpan == $newTrace) {
+                        $integration->setGenericTags(
+                            $newTrace,
+                            'basic.deliver',
+                            'consumer',
+                            "$exchangeDisplayName -> $routingKeyDisplayName"
+                        );
+                        $newTrace->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
+                        $newTrace->meta[Tag::MQ_OPERATION] = 'receive';
+                        $newTrace->meta[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
+                        $newTrace->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+                        $newTrace->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                        $integration->setOptionalMessageTags($newTrace, $message);
 
-                // Try to extract propagated context values from headers
-                $integration->extractContext($message);
-            }
+                        // Close the created root span in the prehook
+                        close_span();
+                    }
+                }
+            ]
         );
 
         trace_method(
@@ -318,8 +380,34 @@ class AMQPIntegration extends Integration
 
                     $integration->setOptionalMessageTags($span, $message);
 
-                    // Try to extract propagated context values from headers
-                    $integration->extractContext($message);
+                    // Create the span link to the emitting trace
+                    if ($message->has('application_headers')) {
+                        $headers = $message->get('application_headers')->getNativeData();
+                        $traceId = $headers[Propagator::DEFAULT_TRACE_ID_HEADER] ?? null;
+                        $parentId = $headers[Propagator::DEFAULT_PARENT_ID_HEADER] ?? null;
+
+                        if ($traceId && $parentId) {
+                            // Only convert to hex if it's not already in hex
+                            if (preg_match('/^[a-fA-F0-9]{32}$/', $traceId)) {
+                                $traceId = strtolower($traceId);
+                            } else {
+                                $traceId = AMQPIntegration::largeBaseConvert($traceId, 10, 16);
+                                $traceId = str_pad(strtolower($traceId), 32, '0', STR_PAD_LEFT);
+                            }
+
+                            if (preg_match('/^[a-fA-F0-9]{16}$/', $parentId)) {
+                                $parentId = strtolower($parentId);
+                            } else {
+                                $parentId = AMQPIntegration::largeBaseConvert($parentId, 10, 16);
+                                $parentId = str_pad(strtolower($parentId), 16, '0', STR_PAD_LEFT);
+                            }
+
+                            $spanLinkInstance = new SpanLink();
+                            $spanLinkInstance->traceId = $traceId;
+                            $spanLinkInstance->spanId = $parentId;
+                            $span->links[] = $spanLinkInstance;
+                        }
+                    }
                 }
             }
         );
@@ -411,5 +499,23 @@ class AMQPIntegration extends Integration
 
             \DDTrace\consume_distributed_tracing_headers($headers);
         }
+    }
+
+    public function hasDistributedHeaders(AMQPMessage $message)
+    {
+        if ($message->has('application_headers')) {
+            $headers = $message->get('application_headers');
+            $headers = $headers->getNativeData();
+
+            $distributedHeadersKeys = array_keys(\DDTrace\generate_distributed_tracing_headers());
+
+            foreach ($distributedHeadersKeys as $distributedHeaderKey) {
+                if (array_key_exists($distributedHeaderKey, $headers)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
