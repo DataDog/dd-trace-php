@@ -682,14 +682,11 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
             last_arg = (void *)~0;
         }
         if (i++ >= passed_args) {
-            if (Z_TYPE_P(val) == IS_ARRAY) {
-                zval garbage;
-                ZVAL_COPY_VALUE(&garbage, arg);
-                ZVAL_COPY(arg, val);
-                zval_ptr_dtor(&garbage);
-            } else {
-                ZVAL_COPY(arg, val);
+            // If arg already holds a value (default argument), we need to decrement the refcount
+            if (Z_TYPE_P(arg) != IS_UNDEF) {
+                zval_ptr_dtor(arg);
             }
+            ZVAL_COPY(arg, val);
         } else {
             zval garbage;
             ZVAL_COPY_VALUE(&garbage, arg);
