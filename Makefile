@@ -85,7 +85,7 @@ $(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym
 	$(Q) (cd $(BUILD_DIR); phpize && sed -i 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	$(Q) (cd $(BUILD_DIR); ./configure --enable-ddtrace-rust-debug=$(if $(RUST_DEBUG_SYMBOLS),yes,no) --enable-ddtrace-rust-symbols=$(if $(RUST_DEBUG_SYMBOLS),yes,no))
+	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_SYMBOLS),enable,disable)-ddtrace-rust-debug --$(if $(RUST_DEBUG_SYMBOLS),enable,disable)-ddtrace-rust-symbols)
 
 $(SO_FILE): $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)" LDFLAGS="$(LDFLAGS)$(if $(ASAN), -fsanitize=address)"
