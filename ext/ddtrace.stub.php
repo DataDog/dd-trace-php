@@ -458,9 +458,14 @@ namespace DDTrace {
     function trace_id(): string {}
 
     /**
-     * TODO: Add Description
+     * Formatted trace id to be used for logs correlation.
      *
-     * @return string
+     * This function handles 128-bit trace ids and 64-bit trace ids. More specifically, if
+     * DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED is set to true and the current trace id is 128-bit, then the trace id
+     * will be returned as a 32-character hexadecimal string. Otherwise, the trace id will be returned as the
+     * decimal representation of the 64-bit trace id.
+     *
+     * @return string The formatted id of the current trace
      */
     function logs_correlation_trace_id(): string {}
 

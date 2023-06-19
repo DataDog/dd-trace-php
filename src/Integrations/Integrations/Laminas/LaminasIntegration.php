@@ -69,7 +69,7 @@ class LaminasIntegration extends Integration
                         $event['timestamp'] = $event['timestamp']->format($this->getDateTimeFormat());
                     }
 
-                    // Doesn't use JSON_NUMERIC_CHECK because it would trace identifiers strings to numbers
+                    // Doesn't use JSON_NUMERIC_CHECK because it would convert trace identifiers strings to numbers
                     $json = @json_encode(
                         $event,
                         JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION
