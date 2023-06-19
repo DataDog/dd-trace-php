@@ -33,7 +33,7 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
     ) {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=0',
-            'APP_NAME=monolog_test',
+            'APP_NAME=logs_test',
             'DD_ENV=my-env',
             'DD_SERVICE=my-service',
             'DD_VERSION=4.2',
@@ -68,7 +68,7 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
     ) {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=0',
-            'APP_NAME=monolog_test',
+            'APP_NAME=logs_test',
             'DD_ENV=my-env',
             'DD_SERVICE=my-service',
             'DD_VERSION=4.2',
@@ -103,7 +103,7 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
     ) {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=1',
-            'APP_NAME=monolog_test',
+            'APP_NAME=logs_test',
             'DD_ENV=my-env',
             'DD_SERVICE=my-service',
             'DD_VERSION=4.2',
@@ -127,5 +127,21 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
         });
 
         $this->assertRegularExpression($expectedRegex, $this->getTestFileContents());
+    }
+
+    public function usingJson(
+        string $levelNameFn,
+        $jsonFormattedLogger,
+        string $expectedRegex,
+        bool $is128bit = false,
+        $logLevelName = null
+    ) { // Just for a matter of readability of the tests
+        $this->inContext(
+            $levelNameFn,
+            $jsonFormattedLogger,
+            $expectedRegex,
+            $is128bit,
+            $logLevelName
+        );
     }
 }

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Laminas;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Logs\LogsIntegration;
 use DDTrace\SpanData;
@@ -33,29 +34,51 @@ class LaminasIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        // Logs Correlation
-        $levelNames = [
-            'debug',
-            'info',
-            'notice',
-            'warn',
-            'err',
-            'crit',
-            'alert',
-            'emerg'
-        ];
+        if (self::shouldLoad(LogsIntegration::NAME)) {
+            // Logs Correlation
+            $levelNames = [
+                'debug',
+                'info',
+                'notice',
+                'warn',
+                'err',
+                'crit',
+                'alert',
+                'emerg'
+            ];
 
-        foreach ($levelNames as $levelName) {
+            foreach ($levelNames as $levelName) {
+                install_hook(
+                    "Laminas\Log\Logger::$levelName",
+                    LogsIntegration::getHookFn($levelName, 0, 1)
+                );
+            }
+
             install_hook(
-                "Laminas\Log\Logger::$levelName",
-                LogsIntegration::getHookFn($levelName, 0, 1)
+                "Laminas\Log\Logger::log",
+                LogsIntegration::getHookFn('log', 1, 2, 0)
+            );
+
+            install_hook(
+                "Laminas\Log\Formatter\Json::format",
+                null,
+                function (HookData $hook) {
+                    $event = $hook->args[0];
+
+                    if (isset($event['timestamp']) && $event['timestamp'] instanceof \DateTime) {
+                        $event['timestamp'] = $event['timestamp']->format($this->getDateTimeFormat());
+                    }
+
+                    // Doesn't use JSON_NUMERIC_CHECK because it would trace identifiers strings to numbers
+                    $json = @json_encode(
+                        $event,
+                        JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION
+                    );
+
+                    $hook->overrideReturnValue($json);
+                }
             );
         }
-
-        install_hook(
-            "Laminas\Log\Logger::log",
-            LogsIntegration::getHookFn('log', 1, 2, 0)
-        );
 
         // Web Integration
         $rootSpan = \DDTrace\root_span();

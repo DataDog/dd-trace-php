@@ -3,15 +3,22 @@
 namespace DDTrace\Tests\Integrations\Logs\MonologV1;
 
 use DDTrace\Tests\Integrations\Logs\BaseLogsTest;
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 
 class MonologV1Test extends BaseLogsTest
 {
-    protected function getLogger()
+    protected function getLogger($jsonFormatter = false)
     {
         $logger = new Logger('test');
-        $logger->pushHandler(new StreamHandler('/tmp/test.log'));
+        $streamHandler = new StreamHandler('/tmp/test.log');
+
+        if ($jsonFormatter) {
+            $streamHandler->setFormatter(new JsonFormatter());
+        }
+
+        $logger->pushHandler($streamHandler);
 
         return $logger;
     }
@@ -103,6 +110,24 @@ class MonologV1Test extends BaseLogsTest
             '/^\[.*\] test.NOTICE: A notice message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" level_name="notice"\] \[\] \[\]/',
             false,
             'notice'
+        );
+    }
+
+    public function testDebugJsonFormatting() {
+        $this->usingJson(
+            'debug',
+            $this->getLogger(true),
+            '/^{"message":"A debug message","context":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","level_name":"debug"},"level":100,"level_name":"DEBUG","channel":"test","datetime":".*","extra":{}}/'
+        );
+    }
+
+    public function testLogJsonFormatting() {
+        $this->usingJson(
+            'log',
+            $this->getLogger(true),
+            '/^{"message":"A critical message","context":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","level_name":"critical"},"level":500,"level_name":"CRITICAL","channel":"test","datetime":".*","extra":{}}/',
+            false,
+            'critical'
         );
     }
 }
