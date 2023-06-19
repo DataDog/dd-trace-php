@@ -681,13 +681,13 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
             arg = ZEND_CALL_VAR_NUM(hookData->execute_data, func->op_array.last_var + func->op_array.T);
             last_arg = (void *)~0;
         }
-        if (i++ >= passed_args) {
-            ZVAL_COPY(arg, val);
-        } else {
+        if (i++ < passed_args || Z_TYPE_P(arg) != IS_UNDEF) {
             zval garbage;
             ZVAL_COPY_VALUE(&garbage, arg);
             ZVAL_COPY(arg, val);
             zval_ptr_dtor(&garbage);
+        } else {
+            ZVAL_COPY(arg, val);
         }
 
         ++arg;

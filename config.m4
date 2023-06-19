@@ -268,7 +268,7 @@ if test "$PHP_DDTRACE" != "no"; then
   if test "$ext_shared" = "yes"; then
     all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
     all_object_files_newlines=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf '\\n$(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
-    php_binary=$(php-config --php-binary)
+    php_binary=$($PHP_CONFIG --php-binary)
     ddtrace_mock_sources='DD_SIDECAR_MOCK_SOURCES="$$(printf "'"$php_binary$all_object_files_newlines"'")"'
   else
     all_object_files=

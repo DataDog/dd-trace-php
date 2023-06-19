@@ -964,9 +964,6 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE
-      - persist_to_workspace:
-          root: .
-          paths: [tmp/build_extension]
       - <<: *STEP_STORE_TEST_RESULTS
 
   integration:
