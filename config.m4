@@ -7,8 +7,11 @@ PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
 PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
   [  --with-ddtrace-cargo Location to cargo binary for rust compilation], cargo, not found)
 
-PHP_ARG_ENABLE(ddtrace-rust-symbols, whether to compile rust in debug mode,
-  [  --enable-ddtrace-rust-symbols Build with debug symbols included in the rust archive], [[$(test "${CFLAGS#*-g}" != "${CFLAGS}" && test "${CFLAGS#*-g0}" == "${CFLAGS}" && echo yes || echo no)]], [no])
+PHP_ARG_ENABLE(ddtrace-rust-debug, whether to compile rust in debug mode,
+  [  --enable-ddtrace-rust-debug Build rust code in debug mode (significantly slower)], [[$(test "${CFLAGS#*-g}" != "${CFLAGS}" && test "${CFLAGS#*-g0}" == "${CFLAGS}" && echo yes || echo no)]], [no])
+
+PHP_ARG_ENABLE(ddtrace-rust-symbols, whether to keep rust debug symbols,
+  [  --disable-ddtrace-rust-symbols Strip debug symbols from the rust archive (significantly reduces artifact size)], [yes], [no])
 
 if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_SIZEOF([long])
@@ -260,7 +263,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
 
   dnl consider it debug if -g is specified (but not -g0)
-  ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_SYMBOLS" != "no" && echo debug || echo tracer-release)
+  ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)
 
   if test "$ext_shared" = "yes"; then
     all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
@@ -274,7 +277,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   cat <<EOT >> Makefile.fragments
 \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components-rs" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -exclude "target"; find "$ext_srcdir/libdatadog" -name "*.rs" -exclude "target"; echo "$all_object_files" ) | xargs )
-	(cd "$ext_srcdir/components-rs"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) && test "$ddtrace_cargo_profile" == debug || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
+	(cd "$ext_srcdir/components-rs"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) && test "$PHP_DDTRACE_RUST_SYMBOLS" == yes || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
 EOT
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then
