@@ -111,10 +111,12 @@ else
   pecl install redis$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -5.3.7; fi); echo "extension=redis.so" >> ${iniDir}/redis.ini;
   pecl install sqlsrv$SQLSRV_VERSION; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
   # Xdebug is disabled by default
-  for VERSION in "${XDEBUG_VERSIONS[@]}"; do
-    pecl install xdebug$VERSION;
-    cd $(php-config --extension-dir);
-    mv xdebug.so xdebug$VERSION.so;
-  done
+  if [[ $PHP_VERSION_ID -le 82 ]]; then
+      for VERSION in "${XDEBUG_VERSIONS[@]}"; do
+          pecl install xdebug$VERSION;
+          cd $(php-config --extension-dir);
+          mv xdebug.so xdebug$VERSION.so;
+      done
+  fi
   echo "zend_extension=opcache.so" >> ${iniDir}/../php-apache2handler.ini;
 fi
