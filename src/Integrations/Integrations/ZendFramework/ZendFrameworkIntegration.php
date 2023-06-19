@@ -74,7 +74,9 @@ class ZendFrameworkIntegration extends Integration
                     $rootSpan->meta['zf1.controller'] = $controller;
                     $rootSpan->meta['zf1.action'] = $action;
                     $rootSpan->meta['zf1.route_name'] = $route;
-                    $rootSpan->resource = $controller . '@' . $action . ' ' . $route;
+                    if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                        $rootSpan->resource = $controller . '@' . $action . ' ' . $route;
+                    }
                     $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                     $rootSpan->meta[Tag::COMPONENT] = ZendFrameworkIntegration::NAME;
