@@ -30,6 +30,7 @@ fn main() {
     build_zend_php_ffis(php_config_includes, preload);
 
     cfg_php_major_version(vernum);
+    cfg_php_feature_flags(vernum);
     cfg_zts();
 }
 
@@ -220,6 +221,15 @@ fn cfg_php_major_version(vernum: u64) {
     // was best way I could think of to address php 7 vs php 8 code paths
     // despite this misuse of the feature.
     println!("cargo:rustc-cfg=php{major_version}");
+}
+
+fn cfg_php_feature_flags(vernum: u64) {
+    if vernum >= 70300 {
+        println!("cargo:rustc-cfg=php_gc_status");
+    }
+    if vernum >= 80300 {
+        println!("cargo:rustc-cfg=php_gc_status_extended");
+    }
 }
 
 fn cfg_zts() {
