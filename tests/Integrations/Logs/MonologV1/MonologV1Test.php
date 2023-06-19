@@ -72,4 +72,37 @@ class MonologV1Test extends BaseLogsTest
             true
         );
     }
+
+    public function testLogWithPlaceholders64bit()
+    {
+        $this->withPlaceholders(
+            'log',
+            $this->getLogger(),
+            '/^\[.*\] test.WARNING: A warning message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" level_name="warning"\] \[\] \[\]/',
+            false,
+            'warning'
+        );
+    }
+
+    public function testLogInContext64bit()
+    {
+        $this->inContext(
+            'log',
+            $this->getLogger(),
+            '/^\[.*\] test.ERROR: A error message {"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","level_name":"error"} \[\]$/',
+            false,
+            'error'
+        );
+    }
+
+    public function testLogAppended64bit()
+    {
+        $this->appended(
+            'log',
+            $this->getLogger(),
+            '/^\[.*\] test.NOTICE: A notice message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" level_name="notice"\] \[\] \[\]/',
+            false,
+            'notice'
+        );
+    }
 }

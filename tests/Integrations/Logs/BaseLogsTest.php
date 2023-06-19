@@ -25,10 +25,11 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
     }
 
     protected function withPlaceholders(
-        string $levelName,
+        string $levelNameFn,
         $logger,
         string $expectedRegex,
-        bool $is128bit = false
+        bool $is128bit = false,
+        $logLevelName = null
     ) {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=0',
@@ -39,14 +40,18 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
             'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=' . ($is128bit ? '1' : '0')
         ]);
 
-        $this->isolateTracer(function () use ($levelName, $logger, $is128bit) {
+        $this->isolateTracer(function () use ($levelNameFn, $logger, $is128bit, $logLevelName) {
             $span = start_span();
 
             if ($is128bit) {
                 set_distributed_tracing_context("33475823097097752842117799874953798269", "42");
             }
 
-            $logger->{$levelName}("A $levelName message [%dd.trace_id% %dd.span_id% %dd.service% %dd.version% %dd.env% %level_name%]");
+            if ($logLevelName) {
+                $logger->{$levelNameFn}($logLevelName, "A $logLevelName message [%dd.trace_id% %dd.span_id% %dd.service% %dd.version% %dd.env% %level_name%]");
+            } else {
+                $logger->{$levelNameFn}("A $levelNameFn message [%dd.trace_id% %dd.span_id% %dd.service% %dd.version% %dd.env% %level_name%]");
+            }
 
             close_span();
         });
@@ -55,10 +60,11 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
     }
 
     protected function inContext(
-        string $levelName,
+        string $levelNameFn,
         $logger,
         string $expectedRegex,
-        bool $is128bit = false
+        bool $is128bit = false,
+        $logLevelName = null
     ) {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=0',
@@ -69,14 +75,18 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
             'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=' . ($is128bit ? '1' : '0')
         ]);
 
-        $this->isolateTracer(function () use ($levelName, $logger, $is128bit) {
+        $this->isolateTracer(function () use ($levelNameFn, $logger, $is128bit, $logLevelName) {
             $span = start_span();
 
             if ($is128bit) {
                 set_distributed_tracing_context("33475823097097752842117799874953798269", "42");
             }
 
-            $logger->{$levelName}("A $levelName message");
+            if ($logLevelName) {
+                $logger->{$levelNameFn}($logLevelName, "A $logLevelName message");
+            } else {
+                $logger->{$levelNameFn}("A $levelNameFn message");
+            }
 
             close_span();
         });
@@ -85,10 +95,11 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
     }
 
     protected function appended(
-        string $levelName,
+        string $levelNameFn,
         $logger,
         string $expectedRegex,
-        bool $is128bit = false
+        bool $is128bit = false,
+        $logLevelName = null
     ) {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=1',
@@ -99,14 +110,18 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
             'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=' . ($is128bit ? '1' : '0')
         ]);
 
-        $this->isolateTracer(function () use ($levelName, $logger, $is128bit) {
+        $this->isolateTracer(function () use ($levelNameFn, $logger, $is128bit, $logLevelName) {
             $span = start_span();
 
             if ($is128bit) {
                 set_distributed_tracing_context("33475823097097752842117799874953798269", "42");
             }
 
-            $logger->{$levelName}("A $levelName message");
+            if ($logLevelName) {
+                $logger->{$levelNameFn}($logLevelName, "A $logLevelName message");
+            } else {
+                $logger->{$levelNameFn}("A $levelNameFn message");
+            }
 
             close_span();
         });

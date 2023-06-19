@@ -54,7 +54,7 @@ class LaminasIntegration extends Integration
 
         install_hook(
             "Laminas\Log\Logger::log",
-            LogsIntegration::getHookFn('log', 1, 2)
+            LogsIntegration::getHookFn('log', 1, 2, 0)
         );
 
         // Web Integration

@@ -22,7 +22,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->withPlaceholders(
             'debug',
             $this->getLogger(),
-            '/^.* DEBUG \(7\): A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" level_name="log"\]/'
+            '/^.* DEBUG \(7\): A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" level_name="debug"\]/'
         );
     }
 
@@ -71,6 +71,39 @@ class LaminasLogV2Test extends BaseLogsTest
             $this->getLogger(),
             '/^.* DEBUG \(7\): A debug message \[dd.trace_id="192f3581c8461c79abf2684ee31ce27d" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" level_name="debug"\]/',
             true
+        );
+    }
+
+    public function testLogWithPlaceholders64bit()
+    {
+        $this->withPlaceholders(
+            'log',
+            $this->getLogger(),
+            '/^.* INFO \(6\): A 6 message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" level_name="info"\]/',
+            false,
+            Logger::INFO
+        );
+    }
+
+    public function testLogInContext64bit()
+    {
+        $this->inContext(
+            'log',
+            $this->getLogger(),
+            '/^.* WARN \(4\): A 4 message {"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","level_name":"warning"}/',
+            false,
+            Logger::WARN
+        );
+    }
+
+    public function testLogAppended64bit()
+    {
+        $this->appended(
+            'log',
+            $this->getLogger(),
+            '/^.* ERR \(3\): A 3 message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" level_name="error"\]/',
+            false,
+            Logger::ERR
         );
     }
 }
