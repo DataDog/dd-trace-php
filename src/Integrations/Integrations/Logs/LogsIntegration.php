@@ -104,9 +104,10 @@ class LogsIntegration extends Integration
         $placeholders = LogsIntegration::getPlaceholders($levelName, $traceIdSubstitute, $spanIdSubstitute);
 
         foreach ($placeholders as $placeholder => $value) {
-            if (str_contains($message, $placeholder)) {
+            $key = substr($placeholder, 1, -1); // Placeholder without leading and trailing '%'
+            if (str_contains($message, $placeholder)) { // Priority to placeholders in the message
                 $message = str_replace($placeholder, $value, $message);
-            } elseif ($value) {
+            } elseif (strpos($message, $key) === false && $value) { // Append only if not already present
                 $additional .= "$value ";
             }
         }
@@ -174,13 +175,6 @@ class LogsIntegration extends Integration
             $message = $hook->args[$messageIndex];
             /** @var array $context */
             $context = $hook->args[$contextIndex] ?? [];
-
-            if (str_contains($message, '"trace_id"') || str_contains($message, 'dd.trace_id=')) {
-                // Don't add the identifiers if they are seemingly already included in the message
-                // The logger interface's methods will be called multiple times across abstract classes, trait, etc.
-                // for a same message
-                return;
-            }
 
             if (!is_null($levelIndex)) { // So that the level name that is inserted is better than 'log'
                 if (is_string($hook->args[$levelIndex])) {
