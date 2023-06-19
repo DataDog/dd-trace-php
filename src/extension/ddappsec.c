@@ -260,6 +260,7 @@ static PHP_RINIT_FUNCTION(ddappsec)
     }
     DDAPPSEC_G(skip_rshutdown) = false;
 
+    dd_trace_rinit();
     dd_ip_extraction_rinit();
 
     if (UNEXPECTED(get_global_DD_APPSEC_TESTING())) {

@@ -24,12 +24,14 @@ static zend_string *_ddtrace_root_span_fname;
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
+static THREAD_LOCAL_ON_ZTS zval *_span_meta;
+static THREAD_LOCAL_ON_ZTS zval *_span_metrics;
 
 static zend_module_entry *_find_ddtrace_module(void);
 static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS);
 static void _register_testing_objects(void);
+static zval *nullable _root_span_get_prop(zend_string *propname);
 
-static bool (*nullable _ddtrace_root_span_add_tag)(zend_string *, zval *);
 static void (*nullable _ddtrace_close_all_spans_and_flush)();
 
 static void dd_trace_load_symbols(void)
@@ -42,13 +44,6 @@ static void dd_trace_load_symbols(void)
             mlog(dd_log_error, "Failed load process symbols: %s", dlerror());
         }
         return;
-    }
-
-    _ddtrace_root_span_add_tag = dlsym(handle, "ddtrace_root_span_add_tag");
-    if (_ddtrace_root_span_add_tag == NULL && !testing) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        mlog(dd_log_error, "Failed to load ddtrace_root_span_add_tag: %s",
-            dlerror());
     }
 
     _ddtrace_close_all_spans_and_flush =
@@ -92,6 +87,17 @@ void dd_trace_startup()
     }
 }
 
+void dd_trace_rinit()
+{
+    // DDTrace might not be loaded during tests
+    if (!_ddtrace_loaded) {
+        return;
+    }
+
+    _span_meta = _root_span_get_prop(_meta_propname);
+    _span_metrics = _root_span_get_prop(_metrics_propname);
+}
+
 static zend_module_entry *_find_ddtrace_module()
 {
     zend_string *ddtrace_name =
@@ -128,10 +134,11 @@ bool dd_trace_is_loaded() { return _ddtrace_loaded; }
 
 bool dd_trace_root_span_add_tag(zend_string *nonnull tag, zval *nonnull value)
 {
-    if (UNEXPECTED(_ddtrace_root_span_add_tag == NULL)) {
-        mlog_g(dd_log_debug,
-            "Skipping adding tag '%s'; ddtrace symbol unresolved",
-            ZSTR_VAL(tag));
+    zval *meta = dd_trace_root_span_get_meta();
+    if (!meta) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_warning, "Failed to retrieve root span meta");
+        }
         return false;
     }
 
@@ -142,12 +149,12 @@ bool dd_trace_root_span_add_tag(zend_string *nonnull tag, zval *nonnull value)
         mlog(dd_log_debug, "Adding to root span the tag '%s'", ZSTR_VAL(tag));
     }
 
-    bool res = (*_ddtrace_root_span_add_tag)(tag, value);
-    if (!res) {
+    if (zend_hash_add(Z_ARRVAL_P(meta), tag, value) == NULL) {
         zval_ptr_dtor(value);
+        return false;
     }
 
-    return res;
+    return true;
 }
 
 bool dd_trace_root_span_add_tag_str(const char *nonnull tag, size_t tag_len,
@@ -157,10 +164,12 @@ bool dd_trace_root_span_add_tag_str(const char *nonnull tag, size_t tag_len,
         mlog(dd_log_warning, "Value for tag is too large");
         return false;
     }
-    if (UNEXPECTED(_ddtrace_root_span_add_tag == NULL)) {
-        mlog_g(dd_log_debug,
-            "Skipping adding tag '%.*s'; ddtrace symbol unresolved",
-            (int)tag_len, tag);
+
+    zval *meta = dd_trace_root_span_get_meta();
+    if (!meta) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_warning, "Failed to retrieve root span meta");
+        }
         return false;
     }
 
@@ -172,7 +181,7 @@ bool dd_trace_root_span_add_tag_str(const char *nonnull tag, size_t tag_len,
     mlog(dd_log_debug, "Adding to root span the tag '%.*s' with value '%.*s'",
         (int)tag_len, tag, (int)value_len, value);
 
-    bool res = (*_ddtrace_root_span_add_tag)(ztag, &zvalue);
+    bool res = zend_hash_add(Z_ARRVAL_P(meta), ztag, &zvalue) != NULL;
     zend_string_release(ztag);
 
     if (!res) {
@@ -197,16 +206,23 @@ void dd_trace_close_all_spans_and_flush()
     (*_ddtrace_close_all_spans_and_flush)();
 }
 
-static zval *nullable _root_span_get_prop(zend_string *propname);
-
 zval *nullable dd_trace_root_span_get_meta()
 {
-    return _root_span_get_prop(_meta_propname);
+    if (_span_meta == NULL) {
+        // In case the span is not available in RINIT, let's keep trying
+        _span_meta = _root_span_get_prop(_meta_propname);
+    }
+    return _span_meta;
 }
 
 zval *nullable dd_trace_root_span_get_metrics()
 {
-    return _root_span_get_prop(_metrics_propname);
+    if (_span_metrics == NULL) {
+        // In case the span is not available in RINIT, let's keep trying
+        _span_metrics = _root_span_get_prop(_metrics_propname);
+    }
+
+    return _span_metrics;
 }
 
 static zval *nullable _root_span_get_prop(zend_string *propname)
