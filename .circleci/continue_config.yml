@@ -2859,17 +2859,6 @@ workflows:
           abi_no: "20220829"
           triplet: "aarch64-unknown-linux-gnu"
           resource_class: "arm.medium"
-      - "cargo build --release":
-          name: "Profiler PHP v8.3 - x86_64-unknown-linux-gnu"
-          docker_image: "datadog/dd-trace-ci:php-8.3_centos-7"
-          abi_no: "20220830"
-          triplet: "x86_64-unknown-linux-gnu"
-      - "cargo build --release":
-          name: "Profiler PHP v8.3 - aarch64-unknown-linux-gnu"
-          docker_image: "datadog/dd-trace-ci:php-8.3_centos-7"
-          abi_no: "20220830"
-          triplet: "aarch64-unknown-linux-gnu"
-          resource_class: "arm.medium"
 
       - compile_alpine:
           requires: [ 'Prepare Code' ]
