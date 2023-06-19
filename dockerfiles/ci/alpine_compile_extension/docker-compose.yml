@@ -115,3 +115,17 @@ services:
     command: build-dd-trace-php
     volumes:
       - ../../:/app
+
+  8.3-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.3
+    build:
+      context: .
+      x-bake: *bake
+      args:
+        php_version: 8.3.0
+        php_sha: "741a9da205a18a754902a39e3cd7c4e66ef2611975a0f94027be001b6a8ed020"
+        php_url: https://downloads.php.net/~jakub/php-8.3.0alpha1.tar.gz
+        php_api: 20220830
+    command: build-dd-trace-php
+    volumes:
+      - ../../:/app
