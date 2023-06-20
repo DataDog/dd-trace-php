@@ -1,10 +1,8 @@
 #!/bin/bash
 set -eux
 
-# The '=' is to avoid cases like:
-#     $_ENV['sharedBuild'] => 0
-# Which is an env-var we set ourselves.
-SHARED_BUILD=$(if php -i | grep -q =shared; then echo 1; else echo 0; fi)
+# We can't match for "shared" only, as zend_test is built shared. Match something explicitly.
+SHARED_BUILD=$(if php -i | grep -q enable-pcntl=shared; then echo 1; else echo 0; fi)
 PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
 XDEBUG_VERSIONS=(-3.1.2)

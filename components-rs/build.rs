@@ -1,10 +1,10 @@
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2021-Present Datadog, Inc.
 
-use std::{env, fs, process};
-use std::path::Path;
 pub use cc_utils::cc;
 pub use sidecar_mockgen::generate_mock_symbols;
+use std::path::Path;
+use std::{env, fs, process};
 
 fn main() {
     // DD_SIDECAR_MOCK_SOURCES is necessary to avoid the linker puking when the sidecar tries to load our ddtrace.so
@@ -44,5 +44,4 @@ fn main() {
         }
         Err(_) => {}
     }
-
 }

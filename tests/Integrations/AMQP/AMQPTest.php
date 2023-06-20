@@ -19,6 +19,38 @@ final class AMQPTest extends IntegrationTestCase
         return new AMQPStreamConnection('rabbitmq_integration', 5672, 'guest', 'guest');
     }
 
+    public function testConnectError()
+    {
+        $traces = $this->isolateTracer(function () {
+            try {
+                $connection = new AMQPStreamConnection('rabbitmq_integration', 5673, 'guest', 'guest'); // wrong port
+                $connection->close();
+            } catch (\Exception $e) {
+                // Ignore exception
+            }
+        });
+
+        $this->assertSpans($traces, [
+                SpanAssertion::build(
+                    'amqp.connect',
+                    'amqp',
+                    'queue',
+                    'connect'
+                )->setError(
+                    'PhpAmqpLib\Exception\AMQPIOException',
+                    'Connection refused',
+                    true
+                )->withExactTags([
+                    Tag::SPAN_KIND                  => 'client',
+                    Tag::COMPONENT                  => 'amqp',
+                    Tag::MQ_SYSTEM                  => 'rabbitmq',
+                    Tag::MQ_DESTINATION_KIND        => 'queue',
+                    Tag::MQ_PROTOCOL                => 'AMQP',
+                    Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                ])
+            ]);
+    }
+
     public function testHelloWorld()
     {
         $receivedMessage = false;
@@ -152,6 +184,27 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 12,
                 Tag::MQ_OPERATION               => 'send',
                 Tag::RABBITMQ_EXCHANGE          => '<default>',
+            ])->withChildren([
+                SpanAssertion::build(
+                    'amqp.basic.deliver',
+                    'amqp',
+                    'queue',
+                    'basic.deliver <default> -> hello'
+                )->withExactTags([
+                    Tag::SPAN_KIND                  => 'consumer',
+                    Tag::COMPONENT                  => 'amqp',
+                    Tag::MQ_SYSTEM                  => 'rabbitmq',
+                    Tag::RABBITMQ_ROUTING_KEY       => 'hello',
+                    Tag::MQ_DESTINATION_KIND        => 'queue',
+                    Tag::MQ_PROTOCOL                => 'AMQP',
+                    Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                    Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 12,
+                    Tag::MQ_OPERATION               => 'receive',
+                    Tag::RABBITMQ_EXCHANGE          => '<default>',
+                ])->withExistingTagsNames([
+                    Tag::MQ_CONSUMER_ID,
+                    '_dd.span_links'
+                ])
             ]),
             SpanAssertion::build(
                 'amqp.basic.deliver',
@@ -170,7 +223,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_OPERATION               => 'receive',
                 Tag::RABBITMQ_EXCHANGE          => '<default>',
             ])->withExistingTagsNames([
-                Tag::MQ_CONSUMER_ID
+                Tag::MQ_CONSUMER_ID,
+                '_dd.span_links'
             ])
         ]);
 
@@ -386,6 +440,27 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::RABBITMQ_ROUTING_KEY       => 'error',
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 29,
                 Tag::MQ_OPERATION               => 'send',
+            ])->withChildren([
+                SpanAssertion::build(
+                    'amqp.basic.deliver',
+                    'amqp',
+                    'queue',
+                    'basic.deliver direct_logs -> error'
+                )->withExactTags([
+                    Tag::SPAN_KIND                  => 'consumer',
+                    Tag::COMPONENT                  => 'amqp',
+                    Tag::MQ_SYSTEM                  => 'rabbitmq',
+                    Tag::MQ_DESTINATION_KIND        => 'queue',
+                    Tag::MQ_PROTOCOL                => 'AMQP',
+                    Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                    Tag::RABBITMQ_EXCHANGE          => 'direct_logs',
+                    Tag::RABBITMQ_ROUTING_KEY       => 'error',
+                    Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 29,
+                    Tag::MQ_OPERATION               => 'receive',
+                ])->withExistingTagsNames([
+                    Tag::MQ_CONSUMER_ID,
+                    '_dd.span_links'
+                ])
             ]),
             SpanAssertion::build(
                 'amqp.basic.deliver',
@@ -404,7 +479,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 29,
                 Tag::MQ_OPERATION               => 'receive',
             ])->withExistingTagsNames([
-                Tag::MQ_CONSUMER_ID
+                Tag::MQ_CONSUMER_ID,
+                '_dd.span_links'
             ])
         ]);
 
@@ -775,6 +851,8 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::RABBITMQ_ROUTING_KEY       => '<all>',
                 Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
                 Tag::RABBITMQ_DELIVERY_MODE     => '2'
+            ])->withExistingTagsNames([
+                '_dd.span_links'
             ]),
             SpanAssertion::build(
                 'amqp.basic.ack',

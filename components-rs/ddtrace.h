@@ -119,6 +119,10 @@ typedef ddog_Bytes ddog_Uuid;
 
 extern ddog_Uuid ddtrace_runtime_id;
 
+/**
+ * # Safety
+ * Must be called from a single-threaded context, such as MINIT.
+ */
 void ddtrace_generate_runtime_id(void);
 
 void ddtrace_format_runtime_id(uint8_t (*buf)[36]);
@@ -133,5 +137,22 @@ bool ddtrace_detect_composer_installed_json(ddog_TelemetryTransport **transport,
                                             ddog_CharSlice path);
 
 ddog_MaybeError ddog_sidecar_connect_php(ddog_TelemetryTransport **connection);
+
+struct ddog_TelemetryActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
+
+void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_TelemetryActionsBuffer *buffer,
+                                                  ddog_CharSlice integration_name,
+                                                  ddog_CharSlice integration_version,
+                                                  bool integration_enabled);
+
+void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_TelemetryActionsBuffer *buffer,
+                                                 ddog_CharSlice config_key,
+                                                 ddog_CharSlice config_value,
+                                                 enum ddog_ConfigurationOrigin origin);
+
+ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(ddog_TelemetryTransport **transport,
+                                                    const struct ddog_InstanceId *instance_id,
+                                                    const ddog_QueueId *queue_id,
+                                                    struct ddog_TelemetryActionsBuffer *buffer);
 
 #endif /* DDTRACE_PHP_H */

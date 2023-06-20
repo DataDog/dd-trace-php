@@ -1,0 +1,49 @@
+name: Bug report
+description: Create a report to help us improve
+title: "[Bug]: "
+labels: ["\U0001F41B bug"]
+body:
+  - type: textarea
+    attributes:
+      label: Bug report
+      description: Please add a clear and concise description of your problem here
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: PHP version
+      description: Output of the `php -v` command
+      placeholder: 8.2.7
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Tracer or profiler version
+      description: Output of the `php -r "echo phpversion('ddtrace').PHP_EOL;"` command
+      placeholder: 0.88.0
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Installed extensions
+      description: Output of the `php -m` command
+
+  - type: textarea
+    attributes:
+      label: Output of `phpinfo()`
+      description: |
+        1. Create a `phpinfo()` page: `<?php phpinfo(); ?>` and load the page from a web browser.
+        2. Scroll to the "ddtrace" section and:
+           1. Take a screenshot of the whole "ddtrace" section and drag the image into this text box to attach the screenshot.
+           2. OR copy the "DATADOG TRACER CONFIGURATION" JSON and the "Diagnostics" section and paste them here.
+        3. Scroll to the "datadog-profiling" section, take a screenshot of the whole section and drag the image into this text box to attach the screenshot.
+
+        If this issue is related to the CLI SAPI, copy the output of `php --ri=ddtrace; php --ri=datadog-profiling` and paste it here.
+
+  - type: textarea
+    attributes:
+      label: Upgrading from
+      description: If you are upgrading from a previous version of ddtrace and/or PHP, please provide the previously installed version number(s) here.
