@@ -1,6 +1,7 @@
 use log::trace;
 
 use crate::bindings as zend;
+use crate::zend::ddog_php_prof_zend_string_view;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
 use std::mem::MaybeUninit;
@@ -9,12 +10,66 @@ use std::time::Instant;
 /// The engine's original (or previous) `gc_collect_cycles()` function
 static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
 
+static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
+
 pub fn timeline_minit() {
     unsafe {
         // register our function in `gc_collect_cycles`
         PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
         zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);
+        PREV_ZEND_COMPILE_FILE = zend::zend_compile_file;
+        zend::zend_compile_file = Some(ddog_php_prof_compile_file);
     }
+}
+
+unsafe extern "C" fn ddog_php_prof_compile_file(
+    handle: *mut zend::zend_file_handle,
+    r#type: i32,
+) -> *mut zend::_zend_op_array {
+    if let Some(prev) = PREV_ZEND_COMPILE_FILE {
+        let start = Instant::now();
+        let op_array = prev(handle, r#type);
+        let duration = start.elapsed();
+
+        REQUEST_LOCALS.with(|cell| {
+            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+            let locals = cell.try_borrow();
+            if locals.is_err() {
+                return;
+            }
+            let locals = locals.unwrap();
+
+            if !locals.profiling_experimental_timeline_enabled {
+                return;
+            }
+
+            let include_type = match r#type as u32 {
+                zend::ZEND_INCLUDE => "include",
+                zend::ZEND_REQUIRE => "require",
+                _default => "",
+            };
+            let filename = Some(String::from_utf8_lossy(
+                ddog_php_prof_zend_string_view((*handle).filename.as_mut()).into_bytes(),
+            ))
+                .unwrap();
+            trace!(
+                "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
+                duration.as_nanos(),
+            );
+
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                profiler.collect_compile_file(
+                    duration.as_nanos() as i64,
+                    filename.to_string(),
+                    include_type,
+                    &locals,
+                );
+            }
+        });
+
+        return op_array;
+    }
+    panic!("should not happen");
 }
 
 /// Find out the reason for the current garbage collection cycle. If there is
