@@ -5,8 +5,7 @@ namespace datadog\appsec;
 class AppsecStatus {
 
     private static $instance = null;
-    const CONFIGURATION_ID = 123;
-    
+
     protected function __construct() {
     }
     
@@ -26,39 +25,19 @@ class AppsecStatus {
 
     public function init()
     {
-        $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_configuration (id int, enabled int)");
         $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000))");
     }
 
     public function destroy()
     {
-        $this->getDbPdo()->exec("DROP TABLE appsec_configuration");
         $this->getDbPdo()->exec("DROP TABLE appsec_events");
     }   
 
 
     public function setDefaults()
     {
-        $this->getDbPdo()->exec("DELETE FROM appsec_configuration");
         $this->getDbPdo()->exec("DELETE FROM appsec_events");
-        $this->getDbPdo()->exec(sprintf("INSERT INTO appsec_configuration VALUES (%s, 0)", AppsecStatus::CONFIGURATION_ID));
 
-    }
-
-    public function isEnabled()
-    {
-        $result = $this->getDbPdo()->query("SELECT enabled FROM appsec_configuration WHERE id=" . AppsecStatus::CONFIGURATION_ID)->fetch();
-        return $result['enabled'] ==  1;
-    }
-
-    public function setEnabled()
-    {
-        $this->getDbPdo()->exec(sprintf("UPDATE appsec_configuration SET enabled=1 WHERE id=" . AppsecStatus::CONFIGURATION_ID));
-    }
-
-    public function setDisabled()
-    {
-        $this->getDbPdo()->exec(sprintf("UPDATE appsec_configuration SET enabled=0 WHERE id=" . AppsecStatus::CONFIGURATION_ID));
     }
 
     public function addEvent(array $event, $eventName)
@@ -84,17 +63,11 @@ class AppsecStatus {
 /**
  * This function is exposed by appsec but here we are mocking it for tests
  */
-function is_enabled() {
-    return AppsecStatus::getInstance()->isEnabled();
-}
-
-/**
- * This function is exposed by appsec but here we are mocking it for tests
- */
-function track_user_login_success_event($userId, $metadata) {
+function track_user_login_success_event($userId, $metadata, $automated) {
     $event = [
         'userId' => $userId,
-        'metadata' => $metadata
+        'metadata' => $metadata,
+        'automated' => $automated
 
     ];
     AppsecStatus::getInstance()->addEvent($event, 'track_user_login_success_event');
@@ -103,11 +76,12 @@ function track_user_login_success_event($userId, $metadata) {
 /**
  * This function is exposed by appsec but here we are mocking it for tests
  */
-function track_user_login_failure_event($userId, $exists, $metadata) {
+function track_user_login_failure_event($userId, $exists, $metadata, $automated) {
     $event = [
         'userId' => $userId,
         'exists' => $exists,
-        'metadata' => $metadata
+        'metadata' => $metadata,
+        'automated' => $automated
 
     ];
     AppsecStatus::getInstance()->addEvent($event, 'track_user_login_failure_event');

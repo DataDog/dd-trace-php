@@ -297,16 +297,11 @@ class LaravelIntegration extends Integration
                     return;
                 }
 
-                if (!function_exists('\datadog\appsec\is_enabled') || !\datadog\appsec\is_enabled())
-                {
-                    return;
-                }
-
                 if (!function_exists('\datadog\appsec\track_user_login_failure_event'))
                 {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, []);
+                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
             }
         );
 
@@ -314,10 +309,6 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\SessionGuard',
             'setUser',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (!function_exists('\datadog\appsec\is_enabled') || !\datadog\appsec\is_enabled())
-                {
-                    return;
-                }
                 if (!function_exists('\datadog\appsec\track_user_login_success_event'))
                 {
                     return;
@@ -330,11 +321,16 @@ class LaravelIntegration extends Integration
                 if (!$user || !($user instanceof $authClass)) {
                     return;
                 }
-                $value = $user->getAuthIdentifier();
-                if (in_array($user->getAuthIdentifierName(), array('email', 'name'))) {
-                    $value = "";
+
+                $metadata = [];
+                if (isset($user['name'])) {
+                    $metadata['name'] = $user['name'];
                 }
-                \datadog\appsec\track_user_login_success_event($value, []);
+                if (isset($user['email'])) {
+                    $metadata['email'] = $user['email'];
+                }
+
+                \datadog\appsec\track_user_login_success_event($user->getAuthIdentifier(), $metadata, true);
             }
         );
 
