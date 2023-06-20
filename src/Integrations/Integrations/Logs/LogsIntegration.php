@@ -75,7 +75,7 @@ class LogsIntegration extends Integration
             $placeholders['%dd.env%'] = '';
         }
 
-        $placeholders['%level_name%'] = 'level_name="' . $levelName . '"';
+        $placeholders['%status%'] = 'status="' . $levelName . '"';
 
         return $placeholders;
     }
@@ -99,6 +99,11 @@ class LogsIntegration extends Integration
         string $traceIdSubstitute = null,
         string $spanIdSubstitute = null
     ): string {
+        if (strpos($message, 'dd.trace_id=') !== false) {
+            // Trace identifiers were already appended in the call stack
+            return $message;
+        }
+
         $additional = "";
 
         $placeholders = LogsIntegration::getPlaceholders($levelName, $traceIdSubstitute, $spanIdSubstitute);
@@ -157,8 +162,8 @@ class LogsIntegration extends Integration
             $context['dd.env'] = $currentContext['env'];
         }
 
-        if (!isset($context['level_name'])) {
-            $context['level_name'] = $levelName;
+        if (!isset($context['status'])) {
+            $context['status'] = $levelName;
         }
 
         return $context;
@@ -194,23 +199,23 @@ class LogsIntegration extends Integration
                 $spanIdSubstitute = isset($traceIdentifiers['span_id']) ? $traceIdentifiers['span_id'] : null;
             }
 
-            if (dd_trace_env_config("DD_TRACE_APPEND_TRACE_IDS_TO_LOGS")) {
-                // Always append the trace identifiers at the end of the message
-                $message = LogsIntegration::appendTraceIdentifiersToMessage(
-                    $message,
-                    $levelName,
-                    $traceIdSubstitute,
-                    $spanIdSubstitute
-                );
-            } elseif (LogsIntegration::messageContainsPlaceholders($message, $levelName)) {
-                // Replace the placeholders with the actual values
+            if (LogsIntegration::messageContainsPlaceholders($message, $levelName)) {
+                // Replace the placeholders, if any, with their actual values
                 $message = LogsIntegration::replacePlaceholders(
                     $message,
                     $levelName,
                     $traceIdSubstitute,
                     $spanIdSubstitute
                 );
-            } else {
+            } elseif (dd_trace_env_config("DD_TRACE_APPEND_TRACE_IDS_TO_LOGS")) {
+                // Append the trace identifiers at the END of the message, prioritizing placeholders, if any
+                $message = LogsIntegration::appendTraceIdentifiersToMessage(
+                    $message,
+                    $levelName,
+                    $traceIdSubstitute,
+                    $spanIdSubstitute
+                );
+            } elseif (strpos($message, 'dd.trace_id=') === false) {
                 // Add the trace identifiers to the context
                 // They may or may not be used by the formatter
                 $context = LogsIntegration::addTraceIdentifiersToContext(

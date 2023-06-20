@@ -48,9 +48,9 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
             }
 
             if ($logLevelName) {
-                $logger->{$levelNameFn}($logLevelName, "A $logLevelName message [%dd.trace_id% %dd.span_id% %dd.service% %dd.version% %dd.env% %level_name%]");
+                $logger->{$levelNameFn}($logLevelName, "A $logLevelName message [%dd.trace_id% %dd.span_id% %dd.service% %dd.version% %dd.env% %status%]");
             } else {
-                $logger->{$levelNameFn}("A $levelNameFn message [%dd.trace_id% %dd.span_id% %dd.service% %dd.version% %dd.env% %level_name%]");
+                $logger->{$levelNameFn}("A $levelNameFn message [%dd.trace_id% %dd.span_id% %dd.service% %dd.version% %dd.env% %status%]");
             }
 
             close_span();
