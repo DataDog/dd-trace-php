@@ -1,9 +1,9 @@
-mod bindings;
+pub mod bindings;
 pub mod capi;
 mod config;
 mod logging;
 mod pcntl;
-mod profiling;
+pub mod profiling;
 mod sapi;
 
 #[cfg(feature = "allocation_profiling")]
