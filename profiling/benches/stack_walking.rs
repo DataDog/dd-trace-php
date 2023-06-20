@@ -23,8 +23,8 @@ fn benchmark(c: &mut Criterion) {
 }
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-fn benchmark_instructions(c: &mut Criterion<Perf>) {
-    let mut group = c.benchmark_group("walk_stack_instructions");
+fn benchmark_cycles(c: &mut Criterion<Perf>) {
+    let mut group = c.benchmark_group("walk_stack_cycles");
     group.sampling_mode(SamplingMode::Flat);
     for depth in [1, 50, 99].iter() {
         let stack = unsafe { zend::ddog_php_test_create_fake_zend_execute_data(99) };
@@ -46,7 +46,7 @@ criterion_group!(
 criterion_group!(
     name = instructions_bench;
     config = Criterion::default().with_measurement(Perf::new(Builder::from_hardware_event(Hardware::Instructions)));
-    targets = benchmark_instructions
+    targets = benchmark_cycles
 );
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
