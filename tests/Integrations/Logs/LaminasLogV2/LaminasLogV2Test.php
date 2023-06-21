@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Logs\LaminasLogV2;
 
+use DDTrace\Integrations\Laminas\LaminasIntegration;
 use DDTrace\Tests\Integrations\Logs\BaseLogsTest;
 use Laminas\Log\Formatter\Json;
 use Laminas\Log\Logger;
@@ -9,6 +10,13 @@ use Laminas\Log\Writer\Stream;
 
 class LaminasLogV2Test extends BaseLogsTest
 {
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        $integration = new LaminasIntegration();
+        $integration->init();
+    }
+
     protected function getLogger($jsonFormatter = false)
     {
         $logger = new Logger();

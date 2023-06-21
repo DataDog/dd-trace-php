@@ -177,24 +177,6 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "__construct",
                                          "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Log\\LoggerInterface", "emerg",
-                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Log\\LoggerInterface", "alert",
-                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Log\\LoggerInterface", "crit",
-                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Log\\LoggerInterface", "err",
-                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Log\\LoggerInterface", "warn",
-                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Log\\LoggerInterface", "notice",
-                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Log\\LoggerInterface", "info",
-                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Log\\LoggerInterface", "debug",
-                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Log\\LoggerInterface", "log",
-                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LUMEN, "Laravel\\Lumen\\Application", "__construct",
                                          "DDTrace\\Integrations\\Lumen\\LumenIntegration");
