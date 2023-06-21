@@ -95,20 +95,19 @@ class LogsIntegration extends Integration
         string $traceIdSubstitute = null,
         string $spanIdSubstitute = null
     ): string {
+        $placeholders = LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute);
+        LogsIntegration::replacePlaceholders($message, $placeholders);
+
         if (strpos($message, 'dd.trace_id=') !== false) {
-            // Trace identifiers were already appended in the call stack
+            // Trace identifiers were already appended sometime in the call stack
             return $message;
         }
 
         $additional = "";
 
-        $placeholders = LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute);
-
         foreach ($placeholders as $placeholder => $value) {
             $key = substr($placeholder, 1, -1); // Placeholder without leading and trailing '%'
-            if (str_contains($message, $placeholder)) { // Priority to placeholders in the message
-                $message = str_replace($placeholder, $value, $message);
-            } elseif (strpos($message, $key) === false && $value) { // Append only if not already present
+            if (strpos($message, $key) === false && $value) { // Append only if not already present
                 $additional .= "$value ";
             }
         }
@@ -123,10 +122,14 @@ class LogsIntegration extends Integration
 
     public static function replacePlaceholders(
         string $message,
+        array $placeholders = null,
         string $traceIdSubstitute = null,
         string $spanIdSubstitute = null
     ): string {
-        return strtr($message, LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute));
+        return strtr(
+            $message,
+            $placeholders ? $placeholders : LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute)
+        );
     }
 
     public static function addTraceIdentifiersToContext(
@@ -189,21 +192,22 @@ class LogsIntegration extends Integration
                 $spanIdSubstitute = isset($traceIdentifiers['span_id']) ? $traceIdentifiers['span_id'] : null;
             }
 
-            if (LogsIntegration::messageContainsPlaceholders($message)) {
-                // Replace the placeholders, if any, with their actual values
-                $message = LogsIntegration::replacePlaceholders(
-                    $message,
-                    $traceIdSubstitute,
-                    $spanIdSubstitute
-                );
-            } elseif (dd_trace_env_config("DD_TRACE_APPEND_TRACE_IDS_TO_LOGS")) {
+             if (dd_trace_env_config("DD_TRACE_APPEND_TRACE_IDS_TO_LOGS")) {
                 // Append the trace identifiers at the END of the message, prioritizing placeholders, if any
                 $message = LogsIntegration::appendTraceIdentifiersToMessage(
                     $message,
                     $traceIdSubstitute,
                     $spanIdSubstitute
                 );
-            } elseif (strpos($message, 'dd.trace_id=') === false) {
+             } elseif (LogsIntegration::messageContainsPlaceholders($message)) {
+                 // Replace the placeholders, if any, with their actual values
+                 $message = LogsIntegration::replacePlaceholders(
+                     $message,
+                     null,
+                     $traceIdSubstitute,
+                     $spanIdSubstitute
+                 );
+             } elseif (strpos($message, 'dd.trace_id=') === false) {
                 // Add the trace identifiers to the context
                 // They may or may not be used by the formatter
                 $context = LogsIntegration::addTraceIdentifiersToContext(
