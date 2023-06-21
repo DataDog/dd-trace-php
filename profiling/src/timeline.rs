@@ -57,7 +57,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
                     ))
                     .unwrap();
                 } else {
-                    let filename = CStr::from_ptr((*handle).filename);
+                    let filename = CStr::from_ptr((*handle).filename).to_str().unwrap();
                 }
             }
 
