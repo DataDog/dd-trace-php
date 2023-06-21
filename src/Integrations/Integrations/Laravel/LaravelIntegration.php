@@ -288,6 +288,7 @@ class LaravelIntegration extends Integration
             }
         );
 
+        // Used by Laravel >= 5.0
         \DDTrace\hook_method(
             'Illuminate\Auth\SessionGuard',
             'attempt',
@@ -305,6 +306,7 @@ class LaravelIntegration extends Integration
             }
         );
 
+        // Used by Laravel >= 5.0
         \DDTrace\hook_method(
             'Illuminate\Auth\SessionGuard',
             'setUser',
@@ -331,6 +333,54 @@ class LaravelIntegration extends Integration
                 }
 
                 \datadog\appsec\track_user_login_success_event($user->getAuthIdentifier(), $metadata, true);
+            }
+        );
+
+        // Used by Laravel < 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Guard',
+            'setUser',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event'))
+                {
+                    return;
+                }
+                if (!isset($args[0])) {
+                    return;
+                }
+                $user = $args[0];
+                $authClass = 'Illuminate\Auth\UserInterface';
+                if (!$user || !($user instanceof $authClass)) {
+                    return;
+                }
+
+                $metadata = [];
+                if (isset($user['name'])) {
+                    $metadata['name'] = $user['name'];
+                }
+                if (isset($user['email'])) {
+                    $metadata['email'] = $user['email'];
+                }
+
+                \datadog\appsec\track_user_login_success_event($user->getAuthIdentifier(), $metadata, true);
+            }
+        );
+
+        // Used by Laravel >= 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Guard',
+            'attempt',
+            null,
+            function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
+                if ($loginSuccess) {
+                    return;
+                }
+
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event'))
+                {
+                    return;
+                }
+                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
             }
         );
 
