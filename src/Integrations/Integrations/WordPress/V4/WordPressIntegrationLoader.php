@@ -4,15 +4,18 @@ namespace DDTrace\Integrations\WordPress\V4;
 
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
+use function DDTrace\trace_function;
 
 class WordPressIntegrationLoader
 {
     public function load(WordPressIntegration $integration)
     {
+        Logger::get()->debug('Loading WordPress integration');
         $rootSpan = \DDTrace\root_span();
         if (!$rootSpan) {
             return Integration::NOT_LOADED;
@@ -239,6 +242,57 @@ class WordPressIntegrationLoader
             $span->service = $service;
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
+
+        $hookToPlugin = [];
+
+        $action = function (SpanData $span, $args) use (&$hookToPlugin) {
+            $span->name = 'action';
+            $hookName = isset($args[0]) ? $args[0] : '?';
+            $span->resource = "(hook_name: $hookName)";
+
+            // If we have a plugin name, add it to the meta
+            if (isset($hookToPlugin[$hookName]) && $hookToPlugin[$hookName]) {
+                Logger::get()->debug("Using plugin for hook $hookName: " . $hookToPlugin[$hookName]);
+                $span->meta['wp.plugin'] = $hookToPlugin[$hookName];
+            }
+
+            // Try to find the plugin associated to the hook
+            // 1. Retrieve the plugin dir (WP_PLUGIN_DIR, else WP_CONTENT_DIR . '/' plugins, else nothing)
+            $pluginDir = defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : (defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/plugins' : '');
+            Logger::get()->debug("Plugin dir: $pluginDir");
+            // 2. Get the path of the file that contains the hook
+            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+            $file = isset($backtrace[2]['file']) ? $backtrace[2]['file'] : '';
+            Logger::get()->debug("File: $file");
+            // 3. If the file can be prefixed by the plugin dir, we have a winner
+            if (strpos($file, $pluginDir) === 0) {
+                // The plugin name will be what follows the plugin dir
+                // Format: <plugin_dir>/<plugin_name>/... or <plugin_dir>/<plugin_name>.php
+                $pluginName = substr($file, strlen($pluginDir) + 1);
+                $pluginName = explode('/', $pluginName)[0];
+                $pluginName = explode('.', $pluginName)[0];
+                $span->meta['wp.plugin'] = $pluginName;
+                Logger::get()->debug("Found plugin $pluginName for hook $hookName");
+                $hookToPlugin[$hookName] = $pluginName;
+            }
+        };
+
+        foreach (['do_action', 'do_action_ref_array'] as $function) {
+            trace_function(
+                $function,
+                [
+                    'recurse' => true,
+                    'prehook' => function (SpanData $span, $args) use ($action, $service) {
+                        $span->type = Type::WEB_SERVLET;
+
+                        $action($span, $args);
+
+                        $span->service = $service;
+                        $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+                    }
+                ]
+            );
+        }
 
         return Integration::LOADED;
     }
