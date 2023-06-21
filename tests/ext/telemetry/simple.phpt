@@ -18,15 +18,24 @@ DDTrace\close_span();
 
 dd_trace_internal_fn("finalize_telemetry");
 
-usleep(300000);
-foreach (file(__DIR__ . '/simple-telemetry.out') as $l) {
-    if ($l) {
-        $json = json_decode($l, true);
-        $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-        foreach ($batch as $json) {
-            if ($json["request_type"] == "app-started" || $json["request_type"] == "app-closing") {
+for ($i = 0; $i < 100; ++$i) {
+    usleep(100000);
+    if (file_exists(__DIR__ . '/simple-telemetry.out')) {
+        $batches = [];
+        foreach (file(__DIR__ . '/simple-telemetry.out') as $l) {
+            if ($l) {
+                $json = json_decode($l, true);
+                array_push($batches, ...($json["request_type"] == "message-batch" ? $json["payload"] : [$json]));
+            }
+        }
+        $found = array_filter($batches, function ($json) {
+            return $json["request_type"] == "app-started" || $json["request_type"] == "app-closing";
+        });
+        if (count($found) == 2) {
+            foreach ($found as $json) {
                 var_dump($json["request_type"]);
             }
+            break;
         }
     }
 }
