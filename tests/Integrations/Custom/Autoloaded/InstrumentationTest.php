@@ -53,7 +53,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $payloads = $this->readTelemetryPayloads($response);
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertContains([
-            "name" => "datadog.agent_host",
+            "name" => "agent_host",
             "value" => "request-replayer",
             "origin" => "EnvVar",
         ], $payloads[0]["payload"]["configuration"]);

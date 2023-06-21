@@ -23,21 +23,26 @@ DDTrace\close_span();
 
 dd_trace_internal_fn("finalize_telemetry");
 
-usleep(300000);
-foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
-    if ($l) {
-        $json = json_decode($l, true);
-        if ($json["request_type"] == "app-started") {
-            $cfg = $json["payload"]["configuration"];
-            print_r(array_values(array_filter($cfg, function($c) {
-                return $c["origin"] == "EnvVar";
-            })));
-            var_dump(count(array_filter($cfg, function($c) {
-                return $c["origin"] == "Default";
-            })) > 100); // all the configs, no point in asserting them all here
-            var_dump(count(array_filter($cfg, function($c) {
-                return $c["origin"] != "Default" && $c["origin"] != "EnvVar";
-            }))); // all other configs
+for ($i = 0; $i < 100; ++$i) {
+    usleep(100000);
+    if (file_exists(__DIR__ . '/config-telemetry.out')) {
+        foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
+            if ($l) {
+                $json = json_decode($l, true);
+                if ($json["request_type"] == "app-started") {
+                    $cfg = $json["payload"]["configuration"];
+                    print_r(array_values(array_filter($cfg, function($c) {
+                        return $c["origin"] == "EnvVar" && $c["name"] != "trace.request_init_hook";
+                    })));
+                    var_dump(count(array_filter($cfg, function($c) {
+                        return $c["origin"] == "Default";
+                    })) > 100); // all the configs, no point in asserting them all here
+                    var_dump(count(array_filter($cfg, function($c) {
+                        return $c["origin"] != "Default" && $c["origin"] != "EnvVar";
+                    }))); // all other configs
+                    break 2;
+                }
+            }
         }
     }
 }

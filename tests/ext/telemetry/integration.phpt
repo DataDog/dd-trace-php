@@ -45,14 +45,19 @@ namespace
 
     dd_trace_internal_fn("finalize_telemetry");
 
-    usleep(300000);
-    foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
-        if ($l) {
-            $json = json_decode($l, true);
-            $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-            foreach ($batch as $json) {
-                if ($json["request_type"] == "app-integrations-change") {
-                    print_r($json["payload"]);
+    for ($i = 0; $i < 100; ++$i) {
+        usleep(100000);
+        if (file_exists(__DIR__ . '/integration-telemetry.out')) {
+            foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
+                if ($l) {
+                    $json = json_decode($l, true);
+                    $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
+                    foreach ($batch as $json) {
+                        if ($json["request_type"] == "app-integrations-change") {
+                            print_r($json["payload"]);
+                            break 3;
+                        }
+                    }
                 }
             }
         }
