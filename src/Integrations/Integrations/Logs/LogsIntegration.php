@@ -46,7 +46,6 @@ class LogsIntegration extends Integration
     }
 
     public static function getPlaceholders(
-        string $levelName,
         string $traceIdSubstitute = null,
         string $spanIdSubstitute = null
     ): array {
@@ -75,14 +74,12 @@ class LogsIntegration extends Integration
             $placeholders['%dd.env%'] = '';
         }
 
-        $placeholders['%status%'] = 'status="' . $levelName . '"';
-
         return $placeholders;
     }
 
-    public static function messageContainsPlaceholders(string $message, string $levelName): bool
+    public static function messageContainsPlaceholders(string $message): bool
     {
-        $placeholders = LogsIntegration::getPlaceholders($levelName);
+        $placeholders = LogsIntegration::getPlaceholders();
 
         foreach ($placeholders as $placeholder => $value) {
             if (str_contains($message, $placeholder)) {
@@ -95,7 +92,6 @@ class LogsIntegration extends Integration
 
     public static function appendTraceIdentifiersToMessage(
         string $message,
-        string $levelName,
         string $traceIdSubstitute = null,
         string $spanIdSubstitute = null
     ): string {
@@ -106,7 +102,7 @@ class LogsIntegration extends Integration
 
         $additional = "";
 
-        $placeholders = LogsIntegration::getPlaceholders($levelName, $traceIdSubstitute, $spanIdSubstitute);
+        $placeholders = LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute);
 
         foreach ($placeholders as $placeholder => $value) {
             $key = substr($placeholder, 1, -1); // Placeholder without leading and trailing '%'
@@ -127,16 +123,14 @@ class LogsIntegration extends Integration
 
     public static function replacePlaceholders(
         string $message,
-        string $levelName,
         string $traceIdSubstitute = null,
         string $spanIdSubstitute = null
     ): string {
-        return strtr($message, LogsIntegration::getPlaceholders($levelName, $traceIdSubstitute, $spanIdSubstitute));
+        return strtr($message, LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute));
     }
 
     public static function addTraceIdentifiersToContext(
         array $context,
-        string $levelName,
         string $traceIdSubstitute = null,
         string $spanIdSubstitute = null
     ): array {
@@ -160,10 +154,6 @@ class LogsIntegration extends Integration
 
         if ($currentContext['env'] && !isset($context['dd.env'])) {
             $context['dd.env'] = $currentContext['env'];
-        }
-
-        if (!isset($context['status'])) {
-            $context['status'] = $levelName;
         }
 
         return $context;
@@ -199,11 +189,10 @@ class LogsIntegration extends Integration
                 $spanIdSubstitute = isset($traceIdentifiers['span_id']) ? $traceIdentifiers['span_id'] : null;
             }
 
-            if (LogsIntegration::messageContainsPlaceholders($message, $levelName)) {
+            if (LogsIntegration::messageContainsPlaceholders($message)) {
                 // Replace the placeholders, if any, with their actual values
                 $message = LogsIntegration::replacePlaceholders(
                     $message,
-                    $levelName,
                     $traceIdSubstitute,
                     $spanIdSubstitute
                 );
@@ -211,7 +200,6 @@ class LogsIntegration extends Integration
                 // Append the trace identifiers at the END of the message, prioritizing placeholders, if any
                 $message = LogsIntegration::appendTraceIdentifiersToMessage(
                     $message,
-                    $levelName,
                     $traceIdSubstitute,
                     $spanIdSubstitute
                 );
@@ -220,7 +208,6 @@ class LogsIntegration extends Integration
                 // They may or may not be used by the formatter
                 $context = LogsIntegration::addTraceIdentifiersToContext(
                     $context,
-                    $levelName,
                     $traceIdSubstitute,
                     $spanIdSubstitute
                 );

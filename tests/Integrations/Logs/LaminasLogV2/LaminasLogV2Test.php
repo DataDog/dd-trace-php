@@ -36,7 +36,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->withPlaceholders(
             'debug',
             $this->getLogger(),
-            '/^.* DEBUG \(7\): A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="debug"\]/'
+            '/^.* DEBUG \(7\): A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\]/'
         );
     }
 
@@ -45,7 +45,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->inContext(
             'debug',
             $this->getLogger(),
-            '/^.* DEBUG \(7\): A debug message {"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","status":"debug"}/'
+            '/^.* DEBUG \(7\): A debug message {"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env"}/'
         );
     }
 
@@ -54,7 +54,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->appended(
             'debug',
             $this->getLogger(),
-            '/^.* DEBUG \(7\): A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="debug"\]/'
+            '/^.* DEBUG \(7\): A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\]/'
         );
     }
 
@@ -63,7 +63,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->withPlaceholders(
             'debug',
             $this->getLogger(),
-            '/^.* DEBUG \(7\): A debug message \[dd.trace_id="192f3581c8461c79abf2684ee31ce27d" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="debug"\]/',
+            '/^.* DEBUG \(7\): A debug message \[dd.trace_id="192f3581c8461c79abf2684ee31ce27d" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\]/',
             true
         );
     }
@@ -73,7 +73,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->inContext(
             'debug',
             $this->getLogger(),
-            '/^.* DEBUG \(7\): A debug message {"dd.trace_id":"192f3581c8461c79abf2684ee31ce27d","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","status":"debug"}/',
+            '/^.* DEBUG \(7\): A debug message {"dd.trace_id":"192f3581c8461c79abf2684ee31ce27d","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env"}/',
             true
         );
     }
@@ -83,7 +83,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->appended(
             'debug',
             $this->getLogger(),
-            '/^.* DEBUG \(7\): A debug message \[dd.trace_id="192f3581c8461c79abf2684ee31ce27d" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="debug"\]/',
+            '/^.* DEBUG \(7\): A debug message \[dd.trace_id="192f3581c8461c79abf2684ee31ce27d" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\]/',
             true
         );
     }
@@ -93,7 +93,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->withPlaceholders(
             'log',
             $this->getLogger(),
-            '/^.* INFO \(6\): A 6 message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="info"\]/',
+            '/^.* INFO \(6\): A 6 message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\]/',
             false,
             Logger::INFO
         );
@@ -104,7 +104,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->inContext(
             'log',
             $this->getLogger(),
-            '/^.* WARN \(4\): A 4 message {"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","status":"warning"}/',
+            '/^.* WARN \(4\): A 4 message {"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env"}/',
             false,
             Logger::WARN
         );
@@ -115,7 +115,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->appended(
             'log',
             $this->getLogger(),
-            '/^.* ERR \(3\): A 3 message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="error"\]/',
+            '/^.* ERR \(3\): A 3 message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\]/',
             false,
             Logger::ERR
         );
@@ -126,7 +126,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->usingJson(
             'debug',
             $this->getLogger(true),
-            '/^{"timestamp":".*","priority":7,"priorityName":"DEBUG","message":"A debug message","extra":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":4.2,"dd.env":"my-env","status":"debug"}}/'
+            '/^{"timestamp":".*","priority":7,"priorityName":"DEBUG","message":"A debug message","extra":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":4.2,"dd.env":"my-env"}}/'
         );
     }
 
@@ -135,7 +135,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->usingJson(
             'log',
             $this->getLogger(true),
-            '/^{"timestamp":".*","priority":4,"priorityName":"WARN","message":"A 4 message","extra":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":4.2,"dd.env":"my-env","status":"warning"}}/',
+            '/^{"timestamp":".*","priority":4,"priorityName":"WARN","message":"A 4 message","extra":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":4.2,"dd.env":"my-env"}}/',
             false,
             Logger::WARN
         );

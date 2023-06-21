@@ -28,7 +28,7 @@ class MonologV1Test extends BaseLogsTest
         $this->withPlaceholders(
             'debug',
             $this->getLogger(),
-            '/^\[.*\] test.DEBUG: A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="debug"\] \[\] \[\]/'
+            '/^\[.*\] test.DEBUG: A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\] \[\] \[\]/'
         );
     }
 
@@ -37,7 +37,7 @@ class MonologV1Test extends BaseLogsTest
         $this->inContext(
             'debug',
             $this->getLogger(),
-            '/^\[.*\] test.DEBUG: A debug message {"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","status":"debug"} \[\]$/'
+            '/^\[.*\] test.DEBUG: A debug message {"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env"} \[\]$/'
         );
     }
 
@@ -46,7 +46,7 @@ class MonologV1Test extends BaseLogsTest
         $this->appended(
             'debug',
             $this->getLogger(),
-            '/^\[.*\] test.DEBUG: A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="debug"\] \[\] \[\]/'
+            '/^\[.*\] test.DEBUG: A debug message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\] \[\] \[\]/'
         );
     }
 
@@ -55,7 +55,7 @@ class MonologV1Test extends BaseLogsTest
         $this->withPlaceholders(
             'debug',
             $this->getLogger(),
-            '/^\[.*\] test.DEBUG: A debug message \[dd.trace_id="192f3581c8461c79abf2684ee31ce27d" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="debug"\] \[\] \[\]/',
+            '/^\[.*\] test.DEBUG: A debug message \[dd.trace_id="192f3581c8461c79abf2684ee31ce27d" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\] \[\] \[\]/',
             true
         );
     }
@@ -65,7 +65,7 @@ class MonologV1Test extends BaseLogsTest
         $this->inContext(
             'debug',
             $this->getLogger(),
-            '/^\[.*\] test.DEBUG: A debug message {"dd.trace_id":"192f3581c8461c79abf2684ee31ce27d","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","status":"debug"} \[\]$/',
+            '/^\[.*\] test.DEBUG: A debug message {"dd.trace_id":"192f3581c8461c79abf2684ee31ce27d","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env"} \[\]$/',
             true
         );
     }
@@ -75,7 +75,7 @@ class MonologV1Test extends BaseLogsTest
         $this->appended(
             'debug',
             $this->getLogger(),
-            '/^\[.*\] test.DEBUG: A debug message \[dd.trace_id="192f3581c8461c79abf2684ee31ce27d" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="debug"\] \[\] \[\]/',
+            '/^\[.*\] test.DEBUG: A debug message \[dd.trace_id="192f3581c8461c79abf2684ee31ce27d" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\] \[\] \[\]/',
             true
         );
     }
@@ -85,7 +85,7 @@ class MonologV1Test extends BaseLogsTest
         $this->withPlaceholders(
             'log',
             $this->getLogger(),
-            '/^\[.*\] test.WARNING: A warning message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="warning"\] \[\] \[\]/',
+            '/^\[.*\] test.WARNING: A warning message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\] \[\] \[\]/',
             false,
             'warning'
         );
@@ -96,7 +96,7 @@ class MonologV1Test extends BaseLogsTest
         $this->inContext(
             'log',
             $this->getLogger(),
-            '/^\[.*\] test.ERROR: A error message {"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","status":"error"} \[\]$/',
+            '/^\[.*\] test.ERROR: A error message {"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env"} \[\]$/',
             false,
             'error'
         );
@@ -107,7 +107,7 @@ class MonologV1Test extends BaseLogsTest
         $this->appended(
             'log',
             $this->getLogger(),
-            '/^\[.*\] test.NOTICE: A notice message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env" status="notice"\] \[\] \[\]/',
+            '/^\[.*\] test.NOTICE: A notice message \[dd.trace_id="\d+" dd.span_id="\d+" dd.service="my-service" dd.version="4.2" dd.env="my-env"\] \[\] \[\]/',
             false,
             'notice'
         );
@@ -117,7 +117,7 @@ class MonologV1Test extends BaseLogsTest
         $this->usingJson(
             'debug',
             $this->getLogger(true),
-            '/^{"message":"A debug message","context":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","status":"debug"},"level":100,"level_name":"DEBUG","channel":"test","datetime":{"date":".*","timezone_type":\d,"timezone":".*"},"extra":\[\]}/'
+            '/^{"message":"A debug message","context":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env"},"level":100,"level_name":"DEBUG","channel":"test","datetime":{"date":".*","timezone_type":\d,"timezone":".*"},"extra":\[\]}/'
         );
     }
 
@@ -125,7 +125,7 @@ class MonologV1Test extends BaseLogsTest
         $this->usingJson(
             'log',
             $this->getLogger(true),
-            '/^{"message":"A critical message","context":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","status":"critical"},"level":500,"level_name":"CRITICAL","channel":"test","datetime":{"date":".*","timezone_type":\d,"timezone":".*"},"extra":\[\]}/',
+            '/^{"message":"A critical message","context":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env"},"level":500,"level_name":"CRITICAL","channel":"test","datetime":{"date":".*","timezone_type":\d,"timezone":".*"},"extra":\[\]}/',
             false,
             'critical'
         );
