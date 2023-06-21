@@ -283,7 +283,7 @@ class WordPressIntegrationLoader
         }
 
         // 3. Hook actions and filters loaded by each plugin.
-        $add_hook_begin = function (HookData $hook) use (&$plugins) {
+        $add_hook_begin = function (HookData $hook) use (&$plugins, $service) {
             // The action/filter is only interesting if a plugin installed it.
             if (!empty($plugins)) {
                 // Assign the hook to the plugin at the top of the stack.
@@ -296,12 +296,18 @@ class WordPressIntegrationLoader
                     // 4. Measure the execution time of $callback.
                     \DDTrace\install_hook(
                         $callback,
-                        function (HookData $hook) {
+                        function (HookData $hook) use ($plugin, $service) {
                             $hook->data = \hrtime(true);
+                            $span = $hook->span();
+                            $span->name = 'wordpress.plugin.hook';
+                            $span->resource = "(plugin:$plugin)";
+                            $span->service = $service;
                         },
                         function (HookData $hook) use ($plugin) {
                             $elapsed = \hrtime(true) - $hook->data;
-                            \error_log("wordpress.plugin.hook{elapsed:$elapsed,plugin:$plugin}");
+                            if (($span = $hook->span())) {
+                                $span->metrics['elapsed_ns'] = $elapsed;
+                            }
                         }
                     );
                 }
