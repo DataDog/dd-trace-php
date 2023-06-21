@@ -126,7 +126,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->usingJson(
             'debug',
             $this->getLogger(true),
-            '/^{"timestamp":".*","priority":7,"priorityName":"DEBUG","message":"A debug message","extra":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","status":"debug"}}/'
+            '/^{"timestamp":".*","priority":7,"priorityName":"DEBUG","message":"A debug message","extra":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":4.2,"dd.env":"my-env","status":"debug"}}/'
         );
     }
 
@@ -135,7 +135,7 @@ class LaminasLogV2Test extends BaseLogsTest
         $this->usingJson(
             'log',
             $this->getLogger(true),
-            '/^{"timestamp":".*","priority":4,"priorityName":"WARN","message":"A 4 message","extra":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":"4.2","dd.env":"my-env","status":"warning"}}/',
+            '/^{"timestamp":".*","priority":4,"priorityName":"WARN","message":"A 4 message","extra":{"dd.trace_id":"\d+","dd.span_id":"\d+","dd.service":"my-service","dd.version":4.2,"dd.env":"my-env","status":"warning"}}/',
             false,
             Logger::WARN
         );

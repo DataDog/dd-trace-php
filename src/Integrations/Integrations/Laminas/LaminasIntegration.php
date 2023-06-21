@@ -17,6 +17,7 @@ use Laminas\View\Model\ModelInterface;
 
 use function DDTrace\hook_method;
 use function DDTrace\install_hook;
+use function DDTrace\logs_correlation_trace_id;
 use function DDTrace\trace_method;
 
 class LaminasIntegration extends Integration
@@ -36,24 +37,6 @@ class LaminasIntegration extends Integration
 
         if (self::shouldLoad(LogsIntegration::NAME)) {
             // Logs Correlation
-            $levelNames = [
-                'debug',
-                'info',
-                'notice',
-                'warn',
-                'err',
-                'crit',
-                'alert',
-                'emerg'
-            ];
-
-            foreach ($levelNames as $levelName) {
-                install_hook(
-                    "Laminas\Log\Logger::$levelName",
-                    LogsIntegration::getHookFn($levelName, 0, 1)
-                );
-            }
-
             install_hook(
                 "Laminas\Log\Logger::log",
                 LogsIntegration::getHookFn('log', 1, 2, 0)
@@ -63,19 +46,32 @@ class LaminasIntegration extends Integration
                 "Laminas\Log\Formatter\Json::format",
                 null,
                 function (HookData $hook) {
-                    $event = $hook->args[0];
+                    $logArray = json_decode($hook->returned, true);
 
-                    if (isset($event['timestamp']) && $event['timestamp'] instanceof \DateTime) {
-                        $event['timestamp'] = $event['timestamp']->format($this->getDateTimeFormat());
+                    $traceId = logs_correlation_trace_id();
+                    $spanId = dd_trace_peek_span_id();
+
+                    $modified = false;
+
+                    if (isset($logArray['extra']['dd.trace_id'])) {
+                        $logArray['extra']['dd.trace_id'] = $traceId;
+                        $modified = true;
                     }
 
-                    // Doesn't use JSON_NUMERIC_CHECK because it would convert trace identifiers strings to numbers
-                    $json = @json_encode(
-                        $event,
-                        JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION
-                    );
+                    if (isset($logArray['extra']['dd.span_id'])) {
+                        $logArray['extra']['dd.span_id'] = $spanId;
+                        $modified = true;
+                    }
 
-                    $hook->overrideReturnValue($json);
+                    if ($modified) {
+                        // Doesn't use JSON_NUMERIC_CHECK because it would convert trace identifiers strings to numbers
+                        $fixedJson = @json_encode(
+                            $logArray,
+                            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION
+                        );
+
+                        $hook->overrideReturnValue($fixedJson);
+                    }
                 }
             );
         }
