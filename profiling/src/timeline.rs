@@ -4,6 +4,7 @@ use crate::bindings as zend;
 use crate::zend::ddog_php_prof_zend_string_view;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
+use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::time::Instant;
 
@@ -48,10 +49,18 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
                 zend::ZEND_REQUIRE => "require",
                 _default => "",
             };
-            let filename = Some(String::from_utf8_lossy(
-                ddog_php_prof_zend_string_view((*handle).filename.as_mut()).into_bytes(),
-            ))
-                .unwrap();
+
+            cfg_if::cfg_if! {
+                if #[cfg(php_zend_stream_api_uses_zend_string)] {
+                    let filename = Some(String::from_utf8_lossy(
+                        ddog_php_prof_zend_string_view((*handle).filename.as_mut()).into_bytes(),
+                    ))
+                    .unwrap();
+                } else {
+                    let filename = CStr::from_ptr((*handle).filename);
+                }
+            }
+
             trace!(
                 "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
                 duration.as_nanos(),

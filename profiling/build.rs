@@ -230,6 +230,9 @@ fn cfg_php_feature_flags(vernum: u64) {
     if vernum >= 80300 {
         println!("cargo:rustc-cfg=php_gc_status_extended");
     }
+    if vernum >= 80100 {
+        println!("cargo:rustc-cfg=php_zend_stream_api_uses_zend_string");
+    }
 }
 
 fn cfg_zts() {
