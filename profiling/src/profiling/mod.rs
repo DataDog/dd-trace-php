@@ -1,5 +1,5 @@
 mod interrupts;
-mod stalk_walking;
+pub mod stalk_walking;
 mod thread_utils;
 mod uploader;
 
