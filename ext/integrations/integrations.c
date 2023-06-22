@@ -22,7 +22,7 @@
     dd_set_up_deferred_loading_by_method(name, ZAI_STRING_EMPTY, ZAI_STRL_VIEW(fname), \
                                          ZAI_STRL_VIEW(integration), false)
 
-#define INTEGRATION(id, lcname)                                        \
+#define INTEGRATION(id, lcname, ...)                                    \
     {                                                                  \
         .name = DDTRACE_INTEGRATION_##id,                              \
         .name_ucase = #id,                                             \

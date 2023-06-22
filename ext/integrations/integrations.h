@@ -18,7 +18,7 @@
     INTEGRATION(LAMINAS, "laminas")             \
     INTEGRATION(LARAVEL, "laravel")             \
     INTEGRATION(LARAVELQUEUE, "laravelqueue")   \
-    INTEGRATION(LOGS, "logs")                   \
+    INTEGRATION(LOGS, "logs", DD_LOGS_INJECTION) \
     INTEGRATION(LUMEN, "lumen")                 \
     INTEGRATION(MEMCACHE, "memcache")           \
     INTEGRATION(MEMCACHED, "memcached")         \
