@@ -703,7 +703,7 @@ impl Profiler {
             locals,
         )) {
             Ok(_) => {
-                trace!("Sent event 'compile file' with {n_labels} and labels to profiler.")
+                trace!("Sent event 'compile file' with {n_labels} labels to profiler.")
             }
             Err(err) => {
                 warn!(
