@@ -176,6 +176,7 @@ typedef ZEND_RESULT_CODE zend_result;
 #if PHP_VERSION_ID < 70300
 #define GC_ADDREF(x) (++GC_REFCOUNT(x))
 #define GC_DELREF(x) (--GC_REFCOUNT(x))
+#define GC_SET_REFCOUNT(x, rc) (GC_REFCOUNT(x) = rc)
 
 #define GC_IMMUTABLE (1 << 5)
 #define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
