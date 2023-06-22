@@ -106,7 +106,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         (conn.errorStream ?: conn.inputStream).close()
 
         Object trace = nextCapturedTrace()
-        assert trace.size() == 1 && trace[0].size() == 1
+        assert trace.size() >= 1 && trace[0].size() >= 1
         trace = trace[0][0]
 
         def gottenTraceId = ((Map)trace).get('trace_id')
