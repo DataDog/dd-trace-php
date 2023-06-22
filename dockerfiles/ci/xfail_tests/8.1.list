@@ -16,6 +16,7 @@ Zend/tests/bug75921.phpt
 Zend/tests/bug78182.phpt
 Zend/tests/bug81104.phpt
 Zend/tests/each_002.phpt
+Zend/tests/fibers/gh10496-001.phpt
 Zend/tests/gc_031.phpt
 Zend/tests/gc_037.phpt
 Zend/tests/gc_045.phpt
@@ -124,6 +125,7 @@ ext/standard/tests/array/array_key_exists_object2.phpt
 ext/standard/tests/array/array_map_variation4.phpt
 ext/standard/tests/array/array_reverse_variation4.phpt
 ext/standard/tests/array/array_unique_variation3.phpt
+ext/standard/tests/file/bug52820.phpt
 ext/standard/tests/file/disk_free_space_basic.phpt
 ext/standard/tests/file/lstat_stat_variation10.phpt
 ext/standard/tests/filters/bug54350.phpt
@@ -143,6 +145,7 @@ ext/standard/tests/math/base_convert_variation1.phpt
 ext/standard/tests/math/bindec_variation1_64bit.phpt
 ext/standard/tests/math/hexdec_variation1_64bit.phpt
 ext/standard/tests/math/octdec_variation1.phpt
+ext/standard/tests/network/bug80067.phpt
 ext/standard/tests/serialize/005.phpt
 ext/standard/tests/streams/bug78902.phpt
 ext/standard/tests/streams/proc_open_bug69900.phpt
@@ -151,6 +154,7 @@ ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/sprintf_variation54.phpt
 ext/tokenizer/tests/PhpToken_getAll.phpt
 ext/zip/tests/bug38943.phpt
+ext/zend_test/tests/
 sapi/cli/tests/upload_2G.phpt
 sapi/fpm/tests/log-bm-in-shutdown-fn.phpt
 sapi/fpm/tests/log-bm-limit-1024-msg-80.phpt

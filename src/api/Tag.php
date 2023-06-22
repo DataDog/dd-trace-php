@@ -45,8 +45,19 @@ class Tag
     const ELASTICSEARCH_URL = 'elasticsearch.url';
 
     // Database
+    const DB_INSTANCE = 'db.instance';
     const DB_SYSTEM = 'db.system';
     const DB_ROW_COUNT = 'db.row_count';
+    const DB_STMT = 'db.statement';
+    const DB_USER = 'db.user';
+
+    // Laravel Queue
+    const LARAVELQ_ATTEMPTS = 'messaging.laravel.attempts';
+    const LARAVELQ_BATCH_ID = 'messaging.laravel.batch_id';
+    const LARAVELQ_CONNECTION = 'messaging.laravel.connection';
+    const LARAVELQ_MAX_TRIES = 'messaging.laravel.max_tries';
+    const LARAVELQ_NAME = 'messaging.laravel.name';
+    const LARAVELQ_TIMEOUT = 'messaging.laravel.timeout';
 
     // MongoDB
     const MONGODB_BSON_ID = 'mongodb.bson.id';

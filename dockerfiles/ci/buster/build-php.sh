@@ -39,6 +39,7 @@ ${PHP_SRC_DIR}/configure \
         --enable-ftp \
         --enable-mbstring \
         --enable-opcache \
+        $(if [[ ${PHP_VERSION_ID} -ge 80 ]]; then echo --enable-zend-test=shared; fi) \
         --enable-pcntl \
         --enable-sockets \
         $(if [[ ${PHP_VERSION_ID} -le 73 ]]; then echo --enable-zip; fi) \

@@ -8,7 +8,9 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(1) {
+array(2) {
+  ["runtime-id"]=>
+  string(36) "%s"
   ["usr.id"]=>
   string(5) "admin"
 }

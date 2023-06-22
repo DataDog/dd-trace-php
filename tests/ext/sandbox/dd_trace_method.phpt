@@ -119,7 +119,9 @@ array(3) {
     ["type"]=>
     string(7) "FooType"
     ["meta"]=>
-    array(5) {
+    array(6) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["retval.thoughts"]=>
@@ -194,7 +196,9 @@ array(3) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-1"
     }

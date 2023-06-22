@@ -2,6 +2,7 @@ FROM debian:buster AS base
 
 ENV LANG=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
+ENV ACCEPT_EULA=Y
 
 ENV DEVLIBS \
     libclang-13-dev \
@@ -18,7 +19,10 @@ ENV DEVLIBS \
     libxml2-dev \
     libzip-dev \
     zlib1g-dev \
-    libasan5
+    libasan5 \
+    gnupg \
+    unixodbc-dev \
+    unixodbc
 
 ENV RUNTIME_DEPS \
     apache2 \
@@ -81,6 +85,7 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         gcc-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
+        g++-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
         libc6-dev-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo arm64; else echo amd64; fi)-cross \
         $DEVLIBS \
         $PHPIZE_DEPS \
@@ -104,14 +109,14 @@ RUN set -eux; \
 # Allow nginx to be run as non-root for tests
     chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/;
 
-ENV CMAKE_VERSION="3.21.4"
+ENV CMAKE_VERSION="3.24.4"
 
 # Install CMake
 RUN set -eux; \
     if [ "$(uname -m)" = "aarch64" ]; then \
-        CMAKE_SHA256="abe24e2e6ae8a706e771a612603ec93457dc6b71bdb09e35d2a26f051e2fa818"; \
+        CMAKE_SHA256="86f823f2636bf715af89da10e04daa476755a799d451baee66247846e95d7bee"; \
     else \
-        CMAKE_SHA256="eddba9da5b60e0b5ec5cbb1a65e504d776e247573204df14f6d004da9bc611f9"; \
+        CMAKE_SHA256="cac77d28fb8668c179ac02c283b058aeb846fe2133a57d40b503711281ed9f19"; \
     fi; \
     cd /tmp && curl -L --output cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-Linux-$(uname -m).tar.gz; \
     (echo "${CMAKE_SHA256} cmake.tar.gz" | sha256sum -c -); \
@@ -123,10 +128,10 @@ RUN set -eux; \
 
 # Install Catch2
 RUN set -eux; \
-    CATCH2_VERSION="2.13.7"; \
-    CATCH2_SHA256=""3cdb4138a072e4c0290034fe22d9f0a80d3bcfb8d7a8a5c49ad75d3a5da24fae; \
+    CATCH2_VERSION="2.13.10"; \
+    CATCH2_SHA256="d54a712b7b1d7708bc7a819a8e6e47b2fde9536f487b89ccbca295072a7d9943"; \
     cd /tmp && curl -OL https://github.com/catchorg/Catch2/archive/v${CATCH2_VERSION}.tar.gz; \
-    (echo "${CATCH2_SHA256} v${CATCH2_VERSION}.tar.gz" | sha256sum -c -); \
+    (echo "${CATCH2_SHA256}  v${CATCH2_VERSION}.tar.gz" | sha256sum -c -); \
     mkdir catch2 && cd catch2; \
     tar -xf ../v${CATCH2_VERSION}.tar.gz --strip 1; \
     /opt/cmake/${CMAKE_VERSION}/bin/cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
@@ -144,6 +149,17 @@ RUN set -eux; \
     make install; \
     lcov --version; \
     rm -rfv /tmp/*
+
+# Install SqlServer PHP Driver
+# https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
+RUN set -eux; \
+    curl -s https://packages.microsoft.com/keys/microsoft.asc | apt-key add -; \
+    curl -s https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list; \
+    apt-get update; \
+    apt-get install -y \
+      msodbcsql18 \
+      mssql-tools18 \
+      $(if [ "$TARGETPLATFORM" = "linux/amd64" ]; then echo msodbcsql17 mssql-tools; fi);
 
 # Apache config
 ENV APACHE_CONFDIR /etc/apache2
@@ -219,31 +235,6 @@ RUN set -eux; \
 # Setup php install directory
     mkdir -p $PHP_INSTALL_DIR; \
     chown -R circleci:circleci /opt;
-
-# libuv
-ARG LIBUV_VERSION="1.42.0"
-ARG LIBUV_SHA256="371e5419708f6aaeb8656671f89400b92a9bba6443369af1bb70bcd6e4b3c764"
-
-RUN set -eux; \
-    cd /usr/local/src; \
-    curl -OL https://github.com/libuv/libuv/archive/refs/tags/v${LIBUV_VERSION}.tar.gz; \
-    (echo "${LIBUV_SHA256} v${LIBUV_VERSION}.tar.gz" | sha256sum -c -); \
-    mv "v${LIBUV_VERSION}.tar.gz" "libuv-${LIBUV_VERSION}.tar.gz";
-
-RUN set -eux; \
-    cd /usr/local/src; \
-    tar -xvf "libuv-${LIBUV_VERSION}.tar.gz"; \
-    cd "libuv-${LIBUV_VERSION}"; \
-    ./autogen.sh; \
-    ./configure --prefix=/opt/libuv \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        --disable-dependency-tracking \
-    ; \
-    make -j 4 all install; \
-    cd -; \
-    rm -fr "libuv-${LIBUV_VERSION}";
 
 # rust sha256sum generated locally after verifying it with sha256
 ARG RUST_VERSION="1.64.0"

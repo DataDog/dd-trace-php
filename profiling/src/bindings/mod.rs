@@ -10,6 +10,9 @@ use std::sync::atomic::AtomicBool;
 
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
+#[cfg(feature = "timeline")]
+pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;
+
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(u64) -> *mut libc::c_void;
 #[cfg(feature = "allocation_profiling")]
@@ -291,6 +294,15 @@ extern "C" {
 pub use zend_module_dep as ModuleDep;
 
 impl ModuleDep {
+    pub const fn required(name: &CStr) -> Self {
+        Self {
+            name: name.as_ptr(),
+            rel: std::ptr::null(),
+            version: std::ptr::null(),
+            type_: MODULE_DEP_REQUIRED as c_uchar,
+        }
+    }
+
     pub const fn optional(name: &CStr) -> Self {
         Self {
             name: name.as_ptr(),

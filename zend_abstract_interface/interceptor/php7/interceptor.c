@@ -392,7 +392,9 @@ static int zai_interceptor_fast_ret_handler(zend_execute_data *execute_data) {
                     zval retval;
                     ZVAL_NULL(&retval);
                     EG(exception) = Z_OBJ_P(fast_call);
+                    const zend_op *opline = EX(opline); // due to us lying about an exception existing, the sandbox will modify the opline
                     zai_hook_finish(execute_data, &retval, &frame_memory->hook_data);
+                    EX(opline) = opline; // restore it
                     EG(exception) = NULL;
                 }
                 zai_hook_memory_table_del(execute_data);
@@ -403,11 +405,11 @@ static int zai_interceptor_fast_ret_handler(zend_execute_data *execute_data) {
     return prev_fast_ret_handler ? prev_fast_ret_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
-void zai_interceptor_check_for_opline_before_exception(void);
+void zai_interceptor_check_for_opline_before_exception(zend_execute_data *execute_data);
 static user_opcode_handler_t prev_handle_exception_handler;
 static int zai_interceptor_handle_exception_handler(zend_execute_data *execute_data) {
     // not everything goes through zend_throw_exception_hook, in particular when zend_rethrow_exception alone is used (e.g. during zend_call_function)
-    zai_interceptor_check_for_opline_before_exception();
+    zai_interceptor_check_for_opline_before_exception(execute_data);
 
     zai_interceptor_frame_memory *frame_memory;
     if (ZEND_HANDLE_EXCEPTION == EX(opline)->opcode && zai_hook_memory_table_find(execute_data, &frame_memory)) {
@@ -1170,7 +1172,10 @@ static void zai_hook_memory_dtor(zval *zv) {
     efree(Z_PTR_P(zv));
 }
 
+void zai_interceptor_reset_resolver(void);
 void zai_interceptor_activate() {
+    zai_interceptor_reset_resolver();
+
     zend_hash_init(&zai_hook_memory, 8, nothing, zai_hook_memory_dtor, 0);
 }
 

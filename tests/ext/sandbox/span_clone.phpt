@@ -22,7 +22,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanData)#%d (10) {
+object(DDTrace\SpanData)#%d (11) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -32,7 +32,9 @@ object(DDTrace\SpanData)#%d (10) {
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(0) {
+  array(1) {
+    ["runtime-id"]=>
+    string(36) "%s"
   }
   ["metrics"]=>
   array(1) {
@@ -43,6 +45,9 @@ object(DDTrace\SpanData)#%d (10) {
   NULL
   ["id"]=>
   string(%d) "%d"
+  ["links"]=>
+  array(0) {
+  }
   ["parent"]=>
   NULL
   ["stack"]=>
@@ -58,7 +63,7 @@ object(DDTrace\SpanData)#%d (10) {
     *RECURSION*
   }
 }
-object(DDTrace\SpanData)#%d (10) {
+object(DDTrace\SpanData)#%d (11) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -68,7 +73,9 @@ object(DDTrace\SpanData)#%d (10) {
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(0) {
+  array(1) {
+    ["runtime-id"]=>
+    string(36) "%s"
   }
   ["metrics"]=>
   array(1) {
@@ -79,6 +86,9 @@ object(DDTrace\SpanData)#%d (10) {
   NULL
   ["id"]=>
   string(%d) "%d"
+  ["links"]=>
+  array(0) {
+  }
   ["parent"]=>
   NULL
   ["stack"]=>
@@ -91,7 +101,7 @@ object(DDTrace\SpanData)#%d (10) {
       NULL
     }
     ["active"]=>
-    object(DDTrace\SpanData)#%d (10) {
+    object(DDTrace\SpanData)#%d (11) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -101,7 +111,9 @@ object(DDTrace\SpanData)#%d (10) {
       ["type"]=>
       string(3) "cli"
       ["meta"]=>
-      array(0) {
+      array(1) {
+        ["runtime-id"]=>
+        string(36) "%s"
       }
       ["metrics"]=>
       array(1) {
@@ -112,6 +124,9 @@ object(DDTrace\SpanData)#%d (10) {
       NULL
       ["id"]=>
       string(%d) "%d"
+      ["links"]=>
+      array(0) {
+      }
       ["parent"]=>
       NULL
       ["stack"]=>
@@ -139,7 +154,9 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-1"
     }

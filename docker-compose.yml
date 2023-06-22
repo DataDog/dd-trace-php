@@ -17,11 +17,13 @@ x-aliases:
         - agent
         - ddagent_integration
         - request-replayer
+        - test-agent
         #- elasticsearch2_integration
         - rabbitmq_integration
         - elasticsearch7_integration
         - httpbin_integration
         - redis_integration
+        - sqlsrv_integration
         - mongodb_integration
         - mysql_integration
         - memcached_integration
@@ -86,6 +88,15 @@ services:
       - MYSQL_PASSWORD=test
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
+
+  sqlsrv_integration:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Password12!
+      - MSSQL_PID=Developer
 
   elasticsearch2_integration:
     image: "elasticsearch:2"
@@ -156,6 +167,23 @@ services:
     working_dir: /app
     volumes:
       - .:/app
+
+  test-agent:
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+    ports:
+      - "127.0.0.1:9126:8126"
+    volumes:
+      - ./tests/snapshots:/snapshots
+    environment:
+      - LOG_LEVEL=DEBUG
+      - TRACE_LANGUAGE=php
+      - DISABLED_CHECKS=trace_content_length
+      - DD_TRACE_AGENT_URL=http://request-replayer:80
+      - PORT=9126
+      - DD_SUPPRESS_TRACE_PARSE_ERRORS=true
+      - SNAPSHOTS_DIR=/snapshots
+      - SNAPSHOT_CI=0
+      - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.process_id
 
 volumes:
   agent-socket:
