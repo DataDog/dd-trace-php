@@ -224,6 +224,9 @@ static bool has_invalid_run_time_cache(zend_function const *func) {
 #endif
 
 uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
+#if CFG_STACK_WALKING_TESTS
+    return NULL;
+#endif
 #if CFG_RUN_TIME_CACHE
     if (UNEXPECTED(has_invalid_run_time_cache(func))) return NULL;
 
