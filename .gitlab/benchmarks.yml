@@ -1,5 +1,7 @@
 variables:
   BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
+  # The Dockerfile to this image is located at:
+  # https://github.com/DataDog/benchmarking-platform/tree/dd-trace-php
 
 benchmarks:
   stage: benchmarks
