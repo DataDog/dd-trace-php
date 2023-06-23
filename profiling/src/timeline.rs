@@ -1,4 +1,5 @@
 use log::trace;
+use log::warn;
 
 use crate::bindings as zend;
 use crate::zend::ddog_php_prof_zend_string_view;
@@ -7,6 +8,7 @@ use crate::REQUEST_LOCALS;
 #[cfg(not(php_zend_stream_api_uses_zend_string))]
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
+use std::ptr;
 use std::time::Instant;
 
 /// The engine's original (or previous) `gc_collect_cycles()` function
@@ -75,7 +77,8 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
 
         return op_array;
     }
-    panic!("should not happen");
+    warn!("No previous `zend_compile_file` handler found, this is a huge problem as your include()/require() won't work and PHP will higly likely crash.");
+    return ptr::null_mut();
 }
 
 /// Find out the reason for the current garbage collection cycle. If there is
