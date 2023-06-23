@@ -37,6 +37,8 @@ class Tag
     const ORIGIN = '_dd.origin';
     const VERSION = 'version';
     const SERVICE_VERSION = 'service.version'; // OpenTelemetry compatible tag
+    const PEER_SERVICE = 'peer.service';
+    const PEER_SERVICE_SOURCE = 'dd.peer.service.source';
 
     // Elasticsearch
     const ELASTICSEARCH_BODY = 'elasticsearch.body';

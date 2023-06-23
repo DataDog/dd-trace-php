@@ -77,6 +77,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_PRIORITY_SAMPLING, "true")                                                                 \
     CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                \
     CONFIG(MAP, DD_SERVICE_MAPPING, "")                                                                        \
+    CONFIG(MAP, DD_TRACE_PEER_SERVICE_MAPPING, "")                                                             \
     CALIAS(MAP, DD_TAGS, "", CALIASES("DD_TRACE_GLOBAL_TAGS"))                                                 \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(BOOL, DD_TRACE_ANALYTICS_ENABLED, "false")                                                          \
@@ -153,6 +154,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(INT, DD_TRACE_AGENT_STACK_BACKLOG, "12", .ini_change = zai_config_system_ini_change)                \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_USER_ID_DEFAULT, "false")                                                  \
     CONFIG(CUSTOM(INT), DD_DBM_PROPAGATION_MODE, "disabled", .parser = dd_parse_dbm_mode)                      \
+    CONFIG(BOOL, DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "false")                                              \
     DD_INTEGRATIONS
 
 #define CALIAS CONFIG
