@@ -44,7 +44,8 @@ class LaravelIntegration extends Integration
 
         return !empty($artisanCommand)
             && (strpos($artisanCommand, 'horizon:work') !== false
-                || strpos($artisanCommand, 'queue:work') !== false);
+                || strpos($artisanCommand, 'queue:work') !== false
+                || $artisanCommand === 'horizon');
     }
 
     /**
