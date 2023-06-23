@@ -1,5 +1,6 @@
 use log::error;
 use log::trace;
+use log::warn;
 
 use crate::bindings as zend;
 use crate::zend::ddog_php_prof_zend_string_view;
