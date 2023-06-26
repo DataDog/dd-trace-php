@@ -116,7 +116,7 @@ namespace DDTrace {
         public readonly SpanStack $stack;
 
         /**
-         * @return int Get the current span duration
+         * @return int Get the current span duration, in nanoseconds
          */
         public function getDuration(): int {}
 

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\WordPress\V4;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
 use DDTrace\Log\Logger;
@@ -9,10 +10,77 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
+use function DDTrace\hook_function;
+use function DDTrace\install_hook;
 use function DDTrace\trace_function;
+use function DDTrace\trace_method;
 
 class WordPressIntegrationLoader
 {
+    public static function tryExtractThemeNameFromPath(string $hookName, array &$actionHookToTheme) {
+        if (array_key_exists($hookName, $actionHookToTheme)) {
+            return $actionHookToTheme[$hookName];
+        }
+
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 4);
+        $file = isset($backtrace[3]['file']) ? $backtrace[3]['file'] : '';
+
+        if (!function_exists('get_theme_root')) {
+            return null;
+        }
+
+        $themeRoot = get_theme_root();
+
+        $themePos = strpos($file, $themeRoot);
+
+        if ($themePos === false) {
+            return null;
+        }
+
+        // Remove everything before this position
+        $file = substr($file, $themePos + strlen($themeRoot));
+
+        // The theme name is the first directory
+        $themeName = explode('/', $file)[1];
+
+        // Capitalize the first letter
+        $themeName = ucfirst($themeName);
+
+        $actionHookToTheme[$hookName] = $themeName;
+
+        return $themeName;
+    }
+
+    public static function tryExtractPluginNameFromPath(string $hookName, array &$actionHookToPlugin) {
+        if (array_key_exists($hookName, $actionHookToPlugin)) {
+            return $actionHookToPlugin[$hookName];
+        }
+
+        // Try to find the plugin associated to the hook
+        // 1. Retrieve the plugin dir (WP_PLUGIN_DIR, else WP_CONTENT_DIR . '/' plugins, else nothing)
+        $pluginDir = defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : (defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/plugins' : '');
+        if (empty($pluginDir)) {
+            return null;
+        }
+
+        // 2. Get the path of the file that contains the hook
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 4);
+        $file = isset($backtrace[3]['file']) ? $backtrace[3]['file'] : '';
+        // 3. If the file can be prefixed by the plugin dir, we have a winner
+        if (strpos($file, $pluginDir) === 0) {
+            // The plugin name will be what follows the plugin dir
+            // Format: <plugin_dir>/<plugin_name>/... or <plugin_dir>/<plugin_name>.php
+            $pluginName = substr($file, strlen($pluginDir) + 1);
+            $pluginName = explode('/', $pluginName)[0];
+            $pluginName = explode('.', $pluginName)[0];
+            $actionHookToPlugin[$hookName] = $pluginName;
+        } else {
+            $actionHookToPlugin[$hookName] = null; // We set it to null to avoid doing the same thing again
+        }
+
+        return $actionHookToPlugin[$hookName];
+    }
+
     public function load(WordPressIntegration $integration)
     {
         Logger::get()->debug('Loading WordPress integration');
@@ -151,28 +219,6 @@ class WordPressIntegrationLoader
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
-        // Database
-        \DDTrace\trace_method('wpdb', '__construct', function (SpanData $span, array $args) use ($service) {
-            $span->name = $span->resource = 'wpdb.__construct';
-            $span->type = Type::SQL;
-            $span->service = $service;
-            $span->meta = [
-                'db.user' => $args[0],
-                'db.name' => $args[2],
-                'db.host' => $args[3],
-            ];
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-            $span->meta[Tag::DB_SYSTEM] = "mysql";
-        });
-
-        \DDTrace\trace_method('wpdb', 'query', function (SpanData $span, array $args) use ($service) {
-            $span->name = 'wpdb.query';
-            $span->resource = $args[0];
-            $span->type = Type::SQL;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        });
-
         // Views
         \DDTrace\trace_function('get_header', function (SpanData $span, array $args) use ($service) {
             $span->name = 'get_header';
@@ -205,7 +251,19 @@ class WordPressIntegrationLoader
 
         \DDTrace\trace_function('load_template', function (SpanData $span, array $args) use ($service) {
             $span->name = 'load_template';
-            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
+
+            $span->meta['wp.theme.name'] = wp_get_theme()->get('Name');
+
+            $template = wp_basename($args[0]);
+            // Remove the trailing .php extension, if any
+            if (substr($template, -4) === '.php') {
+                $template = substr($template, 0, -4);
+                $span->meta['wp.theme.template'] = $template;
+                $span->resource = "(template: $template)";
+            } else {
+                $span->resource = !empty($args[0]) ? $args[0] : $span->name;
+            }
+
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
@@ -243,40 +301,50 @@ class WordPressIntegrationLoader
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
-        $hookToPlugin = [];
-
-        $action = function (SpanData $span, $args) use (&$hookToPlugin) {
+        $actionHookToPlugin = [];
+        $actionHookToTheme = [];
+        $action = function (SpanData $span, $args) use (&$actionHookToPlugin, &$actionHookToTheme) {
             $span->name = 'action';
             $hookName = isset($args[0]) ? $args[0] : '?';
             $span->resource = "(hook_name: $hookName)";
 
-            // If we have a plugin name, add it to the meta
-            if (isset($hookToPlugin[$hookName]) && $hookToPlugin[$hookName]) {
-                Logger::get()->debug("Using plugin for hook $hookName: " . $hookToPlugin[$hookName]);
-                $span->meta['wp.plugin'] = $hookToPlugin[$hookName];
+            if ($hookName === '?') {
+                return;
             }
 
-            // Try to find the plugin associated to the hook
-            // 1. Retrieve the plugin dir (WP_PLUGIN_DIR, else WP_CONTENT_DIR . '/' plugins, else nothing)
-            $pluginDir = defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : (defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/plugins' : '');
-            Logger::get()->debug("Plugin dir: $pluginDir");
-            // 2. Get the path of the file that contains the hook
-            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
-            $file = isset($backtrace[2]['file']) ? $backtrace[2]['file'] : '';
-            Logger::get()->debug("File: $file");
-            // 3. If the file can be prefixed by the plugin dir, we have a winner
-            if (strpos($file, $pluginDir) === 0) {
-                // The plugin name will be what follows the plugin dir
-                // Format: <plugin_dir>/<plugin_name>/... or <plugin_dir>/<plugin_name>.php
-                $pluginName = substr($file, strlen($pluginDir) + 1);
-                $pluginName = explode('/', $pluginName)[0];
-                $pluginName = explode('.', $pluginName)[0];
+            // If we have a plugin name, add it to the meta
+            if (isset($actionHookToPlugin[$hookName])) {
+                if ($actionHookToPlugin[$hookName]) {
+                    $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
+                }
+            } elseif ($pluginName = WordPressIntegrationLoader::tryExtractPluginNameFromPath($hookName, $actionHookToPlugin)) {
                 $span->meta['wp.plugin'] = $pluginName;
-                Logger::get()->debug("Found plugin $pluginName for hook $hookName");
-                $hookToPlugin[$hookName] = $pluginName;
+            } elseif ($themeName = WordPressIntegrationLoader::tryExtractThemeNameFromPath($hookName, $actionHookToTheme)) {
+                $span->meta['wp.theme.name'] = $themeName;
             }
         };
 
+        // TODO: REFACTOR THIS O M G
+        $filter = function (SpanData $span, $args) use (&$actionHookToPlugin, &$actionHookToTheme) {
+            $span->name = 'filter';
+            $hookName = isset($args[0]) ? $args[0] : '?';
+            $span->resource = "(hook_name: $hookName)";
+
+            if ($hookName === '?') {
+                return;
+            }
+
+            // If we have a plugin name, add it to the meta
+            if (isset($actionHookToPlugin[$hookName])) {
+                if ($actionHookToPlugin[$hookName]) {
+                    $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
+                }
+            } elseif ($pluginName = WordPressIntegrationLoader::tryExtractPluginNameFromPath($hookName, $actionHookToPlugin)) {
+                $span->meta['wp.plugin'] = $pluginName;
+            }
+        };
+
+        // Actions
         foreach (['do_action', 'do_action_ref_array'] as $function) {
             trace_function(
                 $function,
@@ -289,10 +357,163 @@ class WordPressIntegrationLoader
 
                         $span->service = $service;
                         $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+                    },
+                    'posthook' => function (SpanData $span, $args, $response) {
+                        $duration = $span->getDuration(); // nanoseconds
+                        // If the duration is less than 10ms, drop the span (return false)
+                        //return $duration > 10000;
                     }
                 ]
             );
         }
+
+        // Filters
+        /*
+        foreach (['apply_filters', 'apply_filters_ref_array'] as $function) {
+            trace_function(
+                $function,
+                [
+                    'recurse' => true,
+                    'prehook' => function (SpanData $span, $args) use ($filter, $service) {
+                        $span->type = Type::WEB_SERVLET;
+
+                        $filter($span, $args);
+
+                        $span->service = $service;
+                        $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+                    },
+                    'posthook' => function (SpanData $span, $args, $response) {
+                        $duration = $span->getDuration(); // nanoseconds
+                        // If the duration is less than 1ms, drop the span (return false)
+                        return $duration > 10000;
+                    }
+                ]
+            );
+        }
+        */
+
+        // Blocks
+        trace_function(
+            'render_block',
+            function (SpanData $span, $args) use ($service) {
+                $span->name = 'block';
+                $blockName = isset($args[0]['blockName']) ? $args[0]['blockName'] : '?';
+                $span->resource = "(block_name: $blockName)";
+
+                if (isset($args[0]['attrs'])) {
+                    $attrs = $args[0]['attrs'];
+                    foreach (['slug', 'theme', 'area', 'tagName'] as $attr) {
+                        if (isset($attrs[$attr])) {
+                            $span->meta["wp.template_part.$attr"] = $attrs[$attr];
+                        }
+                    }
+                }
+
+                $span->service = $service;
+                $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+            }
+        );
+
+        trace_function('get_query_template', function (SpanData $span, $args) use ($service) {
+            $span->type = Type::WEB_SERVLET;
+            $span->name = 'template';
+
+            $type = isset($args[0]) ? $args[0] : '?';
+            $span->resource = "(type: $type)";
+
+            $span->meta['wp.template.type'] = $type;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
+        // Cookies
+        trace_function('setcookie', function (SpanData $span, $args) use ($service) {
+            $span->type = Type::WEB_SERVLET;
+            $span->name = 'setcookie';
+
+            $name = isset($args[0]) ? $args[0] : '?';
+            $span->resource = "(name: $name)";
+
+            $span->meta['wp.cookie.name'] = $name;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
+        trace_function('wp_get_active_and_valid_plugins', function (SpanData $span) use ($service) {
+            $span->type = Type::WEB_SERVLET;
+            $span->name = 'plugins';
+
+            $span->resource = '(active_and_valid)';
+
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
+        trace_function('wp_get_active_and_valid_themes', function (SpanData $span) use ($service) {
+            $span->type = Type::WEB_SERVLET;
+            $span->name = 'themes';
+
+            $span->resource = '(active_and_valid)';
+
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
+        \DDTrace\trace_method('WP_Dependencies', 'do_items', function (SpanData $span) use ($service) {
+            $span->type = Type::WEB_SERVLET;
+            $span->name = 'do_items';
+
+            $span->resource = '(do_items)';
+
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
+        \DDTrace\trace_method('WP_Styles', 'do_footer_items', function (SpanData $span) use ($service) {
+            $span->type = Type::WEB_SERVLET;
+            $span->name = 'do_footer_items';
+
+            $span->resource = '(do_footer_items)';
+
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
+        hook_function('add_action', function ($args) use ($service) {
+            $action = $args[0];
+            $callback = $args[1];
+
+            if ($action === 'init') {
+                if (is_array($callback)) {
+                    list($class, $method) = $callback;
+                    if (is_object($class)) {
+
+                        //Logger::get()->debug("Adding class $class::$method");
+                        trace_method($class, $method, function (SpanData $span) use ($service, $class, $method) {
+                            $span->type = Type::WEB_SERVLET;
+                            $span->name = "$class::$method";
+
+                            $span->service = $service;
+                            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+                        });
+                    }
+                } elseif (is_string($callback)) {
+                    //Logger::get()->debug("Adding fn $function");
+                    $function = explode('/', $callback);
+                    $function = end($function);
+                    trace_function($function, function (SpanData $span) use ($service, $function) {
+                        $span->type = Type::WEB_SERVLET;
+                        $function = explode('\\', $function);
+                        $function = end($function);
+                        $span->name = $function;
+
+                        $span->service = $service;
+                        $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+                    });
+                }
+
+            }
+        });
 
         return Integration::LOADED;
     }
