@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Logs;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Util\ObjectKVStore;
 
@@ -98,14 +97,10 @@ class LogsIntegration extends Integration
     ): string {
         $placeholders = LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute);
         LogsIntegration::replacePlaceholders($message, $placeholders);
-        $additional = "";
 
+        $additional = "";
         foreach ($placeholders as $placeholder => $value) {
             $key = substr($placeholder, 1, -1); // Placeholder without leading and trailing '%'
-            if (strpos($message, "$key=") !== false) {
-                continue;
-            }
-
             if (strpos($message, $key) === false && $value) { // Append only if not already present
                 $additional .= "$value ";
             }
@@ -168,7 +163,6 @@ class LogsIntegration extends Integration
         $levelIndex = null
     ): callable {
         return function (HookData $hook) use ($levelName, $messageIndex, $contextIndex, $levelIndex) {
-            Logger::get()->debug('->' . get_class($this) . '::' . $levelName);
             /** @var string $message */
             $message = $hook->args[$messageIndex];
             /** @var array $context */
