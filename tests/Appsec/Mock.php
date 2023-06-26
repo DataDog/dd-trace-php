@@ -87,3 +87,15 @@ function track_user_login_failure_event($userId, $exists, $metadata, $automated)
     AppsecStatus::getInstance()->addEvent($event, 'track_user_login_failure_event');
 }
 
+/**
+ * This function is exposed by appsec but here we are mocking it for tests
+ */
+function track_user_signup_event($userId, $metadata, $automated) {
+    $event = [
+        'userId' => $userId,
+        'metadata' => $metadata,
+        'automated' => $automated
+
+    ];
+    AppsecStatus::getInstance()->addEvent($event, 'track_user_signup_event');
+}

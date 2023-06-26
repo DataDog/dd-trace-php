@@ -74,4 +74,30 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         $this->assertTrue($events[0]['automated']);
         $this->assertEquals('track_user_login_failure_event', $events[0]['eventName']);
     }
+
+    public function testUserSignUp()
+    {
+        $email = 'test-user-new@email.com';
+        $name = 'somename';
+        $password = 'somepassword';
+
+       $this->call(
+           GetSpec::create('Signup', sprintf('/login/signup?email=%s&name=%s&password=%s',$email, $email, $password))
+       );
+
+       $users = $this->connection()->query("SELECT * FROM users where email='".$email."'")->fetchAll();
+
+        $this->assertEquals(1, count($users));
+
+        $signUpEvent = null;
+        foreach(AppsecStatus::getInstance()->getEvents() as $event)
+        {
+            if ($event['eventName'] == 'track_user_signup_event') {
+                $signUpEvent = $event;
+            }
+        }
+
+        $this->assertTrue($signUpEvent['automated']);
+        $this->assertEquals($users[0]['id'], $signUpEvent['userId']);
+    }
 }

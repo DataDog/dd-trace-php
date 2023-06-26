@@ -163,6 +163,29 @@ class LaravelIntegration extends Integration
                     $span->service = $integration->getServiceName();
                     $span->resource = $args[0];
                     $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+
+                    //New user created, assume sign up
+                    if ($span->resource == 'eloquent.created: User') {
+                        if (!function_exists('\datadog\appsec\track_user_signup_event'))
+                        {
+                            return;
+                        }
+                        if (!isset($args[1])) {
+                            return;
+                        }
+                        $user = $args[1];
+                        $authClass = 'User';
+                        if (!$user || !($user instanceof $authClass)) {
+                            return;
+                        }
+                        $metadata = [];
+                        $id = null;
+                        if (isset($user['id'])) {
+                          $id = $user['id'];
+                        }
+                        \datadog\appsec\track_user_signup_event($id, $metadata, true);
+                    }
+
                 },
                 'recurse' => true,
             ]
@@ -381,6 +404,29 @@ class LaravelIntegration extends Integration
                     return;
                 }
                 \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Events\Registered',
+            '__construct',
+            null,
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (!function_exists('\datadog\appsec\track_user_signup_event'))
+                {
+                    return;
+                }
+                if (!isset($args[0])) {
+                    return;
+                }
+                $user = $args[0];
+                $authClass = '\Illuminate\Contracts\Auth\Authenticatable';
+                if (!$user || !($user instanceof $authClass)) {
+                    return;
+                }
+
+                $metadata = [];
+                \datadog\appsec\track_user_signup_event($user->getAuthIdentifier(), $metadata, true);
             }
         );
 

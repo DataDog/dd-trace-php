@@ -17,4 +17,17 @@ class LoginTestController extends BaseController
 
         return "error";
     }
+
+    public function register()
+    {
+        $user = new User;
+
+        $user->email = Input::get('email');
+        $user->name = Input::get('name');
+        $user->password = Input::get('password');
+
+        $user->save();
+
+        return "registered";
+    }
 }
