@@ -11,16 +11,18 @@ use std::mem::MaybeUninit;
 use std::ptr;
 use std::time::Instant;
 
-/// The engine's original (or previous) `gc_collect_cycles()` function
+/// The engine's original (or neighbouring extensions) `gc_collect_cycles()` function
 static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
 
+/// The engine's original (or neighbouring extensions) `zend_compile_file()` function
 static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
 
 pub fn timeline_minit() {
     unsafe {
-        // register our function in `gc_collect_cycles`
+        // register our function in the `gc_collect_cycles` pointer
         PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
         zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);
+        // register our function in the `zend_compile_file` pointer
         PREV_ZEND_COMPILE_FILE = zend::zend_compile_file;
         zend::zend_compile_file = Some(ddog_php_prof_compile_file);
     }
@@ -41,6 +43,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             if locals.is_err() {
                 return;
             }
+            // Safety: got checked above
             let locals = locals.unwrap();
 
             if !locals.profiling_experimental_timeline_enabled {
@@ -53,6 +56,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
                 _default => "",
             };
 
+            // since PHP 8.1 the `filename` is a ZendString, while it was a char* before
             #[cfg(php_zend_stream_api_uses_zend_string)]
             let filename = Some(String::from_utf8_lossy(
                 ddog_php_prof_zend_string_view((*handle).filename.as_mut()).into_bytes(),
@@ -74,7 +78,6 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
                 );
             }
         });
-
         return op_array;
     }
     error!("No previous `zend_compile_file` handler found! This is a huge problem as your include()/require() won't work and PHP will higly likely crash. I am sorry, but the die is cast.");
