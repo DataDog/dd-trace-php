@@ -1,7 +1,7 @@
 use super::Reason;
 use crate::dogstatsd;
 use ddcommon::tag::Tag;
-use log::debug;
+use log::{debug, trace};
 use std::borrow::Cow;
 use std::time::Duration;
 
@@ -28,6 +28,8 @@ impl OverheadMetrics {
                 Reason::Alloc => "alloc",
                 Reason::Wall => "wall",
             };
+
+            trace!("Emitting stack walking metric with reason \"{}\" and a duration of \"{}\" nanoseconds", reason, _duration.as_nanos());
 
             if let Err(err) = self.log_overhead_helper(reason, _duration) {
                 debug!("failed emitting metric: {err:#}");
