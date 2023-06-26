@@ -37,7 +37,9 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["after"]=>
       string(9) "root_span"
       ["_dd.p.dm"]=>

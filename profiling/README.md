@@ -1,5 +1,7 @@
 # PHP Profiler
 
+<img align="right" style="margin-left:10px" src="profiling_bits_211220.png" alt="profiling bits php" width="200px"/>
+
 The profiler is implemented in Rust. To see the currently required Rust
 version, refer to the [rust-toolchain](rust-toolchain) file. The profiler
 requires PHP 7.1+, and does not support debug nor ZTS builds. There are bits of
@@ -57,6 +59,30 @@ Be aware that the PHPT tests will fail with the debug version of the profiler,
 if you haven't already, build the release version with `cargo build --release`.
 Also the `run-tests.php` version has to match the PHP version used to run the
 tests.
+
+## Benchmarks
+
+Benchmarks are implemented using
+[criterion](https://github.com/bheisler/criterion.rs). In order to execute them
+you need to change the `crate-type` in the `Cargo.toml` from `cdylib` to `rlib`
+(or add it):
+
+```diff
+ [lib]
+-crate-type = ["cdylib"]
++crate-type = ["rlib"]
+ bench = false # disables cargo build in libtest bench
+```
+
+After this change you can execute the benchmarks using:
+
+```sh
+cargo bench --features stack_walking_tests
+```
+
+Note: the `--features stack_walking_tests` is necessary as some code in the
+`php_ffi.c` is only compiled for tests and benchmarks and compilation is guarded
+behind a feature flag.
 
 ## Troubleshooting
 

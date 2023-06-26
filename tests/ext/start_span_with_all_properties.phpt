@@ -73,7 +73,9 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-1"
     }
@@ -108,7 +110,9 @@ array(2) {
     ["type"]=>
     string(6) "runner"
     ["meta"]=>
-    array(2) {
+    array(3) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["aa"]=>
       string(2) "bb"
       ["_dd.p.dm"]=>

@@ -125,6 +125,7 @@ void ddtrace_set_coredumpfilter(void) {
     // reading from that file returns a hex number, but to write it, it needs to be prefixed 0x, otherwise it's interpreted as octal
     char buf[10];
     if (fread(buf + 2, 8, 1, fp) != 8) {
+        fclose(fp);
         return;
     }
 
@@ -139,4 +140,5 @@ void ddtrace_set_coredumpfilter(void) {
 
     fseek(fp, 0, SEEK_SET);
     fwrite(buf, 10, 1, fp);
+    fclose(fp);
 }

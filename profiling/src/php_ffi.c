@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 
 #if CFG_STACK_WALKING_TESTS
@@ -10,6 +11,12 @@
 
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
+
+uint8_t *ddtrace_runtime_id = NULL;
+
+static void locate_ddtrace_runtime_id(const zend_extension *extension) {
+    ddtrace_runtime_id = DL_FETCH_SYMBOL(extension->handle, "ddtrace_runtime_id");
+}
 
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
     ddtrace_profiling_context (*get_profiling)(void) =
@@ -70,6 +77,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
             locate_ddtrace_get_profiling_context(maybe_ddtrace);
+            locate_ddtrace_runtime_id(maybe_ddtrace);
             break;
         }
     }
@@ -225,3 +233,52 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
     free(execute_data);
 }
 #endif
+
+void *opcache_handle = NULL;
+
+// OPcache NULLs its handle, so this function will only get the handle during
+// MINIT phase. You as the caller has to make sure to only call this function
+// during MINIT and not later.
+void ddog_php_opcache_init_handle() {
+    const zend_llist *list = &zend_extensions;
+    zend_extension *maybe_opcache = NULL;
+    for (const zend_llist_element *item = list->head; item; item = item->next) {
+        maybe_opcache = (zend_extension *)item->data;
+        if (maybe_opcache->name && strcmp(maybe_opcache->name, "Zend OPcache") == 0) {
+            opcache_handle = maybe_opcache->handle;
+            break;
+        }
+    }
+}
+
+// This checks if the JIT actually has a buffer, if so, JIT is active, otherwise
+// JIT is inactive. This will only work after OPcache was initialized (after it
+// assigned its PHP.INI settings), so make sure to call this in RINIT.a
+//
+// Attention: this will check for the `opcache.jit_buffer_size` setting as this
+// one is a PHP_INI_SYSTEM (can not be changed on a per directory basis). This
+// means that the `opcache.jit` setting could be `off` and this function would
+// still consider JIT to be enabled, as it could be enabled at anytime (runtime
+// and per directory settings).
+bool ddog_php_jit_enabled() {
+    bool jit = false;
+
+    if (opcache_handle) {
+        void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(opcache_handle, "zend_jit_status");
+        if (zend_jit_status == NULL) {
+            zend_jit_status = DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_status");
+        }
+        if (zend_jit_status) {
+            zval jit_stats_arr;
+            array_init(&jit_stats_arr);
+            zend_jit_status(&jit_stats_arr);
+
+            zval *jit_stats = zend_hash_str_find(Z_ARR(jit_stats_arr), ZEND_STRL("jit"));
+            zval *jit_buffer = zend_hash_str_find(Z_ARR_P(jit_stats), ZEND_STRL("buffer_size"));
+            jit = Z_LVAL_P(jit_buffer) > 0; // JIT is active!
+
+            zval_ptr_dtor(&jit_stats_arr);
+        }
+    }
+    return jit;
+}

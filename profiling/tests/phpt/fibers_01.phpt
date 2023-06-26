@@ -6,14 +6,14 @@ make sure to not crash when fibers are in use
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))
-    echo "skip: test requires {$extension}\n";
+    echo "skip: test requires Datadog Continuous Profiler\n";
 if (PHP_VERSION_ID < 80100)
     echo "skip: php 8.1 or above is required for fibers.\n";
 ?>
 --INI--
 datadog.profiling.enabled=yes
 datadog.profiling.log_level=debug
-datadog.profiling.experimental_allocation_enabled=no
+datadog.profiling.allocation_enabled=no
 datadog.profiling.experimental_cpu_time_enabled=no
 --FILE--
 <?php

@@ -22,7 +22,7 @@ if (!extension_loaded('datadog-profiling'))
 --INI--
 datadog.profiling.enabled=yes
 datadog.profiling.log_level=debug
-datadog.profiling.experimental_allocation_enabled=no
+datadog.profiling.allocation_enabled=no
 datadog.profiling.experimental_cpu_time_enabled=no
 zend_extension=opcache
 opcache.enable_cli=1

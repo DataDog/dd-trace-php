@@ -121,7 +121,7 @@ pub(super) unsafe fn collect_timed_stack_sample(
     result
 }
 
-unsafe fn collect_stack_sample(
+pub(super) unsafe fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     let max_depth = 512;

@@ -39,6 +39,14 @@ class PredisIntegration extends Integration
         $integration = $this;
 
         \DDTrace\trace_method('Predis\Client', '__construct', function (SpanData $span, $args) {
+            if (
+                dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                && \DDTrace\trace_id() == $span->id
+            ) {
+                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+            }
+
             $span->name = 'Predis.Client.__construct';
             $span->type = Type::REDIS;
             $span->resource = 'Predis.Client.__construct';
@@ -54,6 +62,14 @@ class PredisIntegration extends Integration
         });
 
         \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) use ($integration) {
+            if (
+                dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                && \DDTrace\trace_id() == $span->id
+            ) {
+                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+            }
+
             $span->name = 'Predis.Client.executeCommand';
             $span->type = Type::REDIS;
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
@@ -100,6 +116,14 @@ class PredisIntegration extends Integration
         // tasks are dequeued.
         if (Versions::phpVersionMatches('5')) {
             \DDTrace\trace_method('Predis\Pipeline\Pipeline', 'executePipeline', function (SpanData $span, $args) {
+                if (
+                    dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                    && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                    && \DDTrace\trace_id() == $span->id
+                ) {
+                    \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+                }
+
                 $span->name = 'Predis.Pipeline.executePipeline';
                 $span->resource = $span->name;
                 $span->type = Type::REDIS;
@@ -111,6 +135,14 @@ class PredisIntegration extends Integration
                 'executePipeline',
                 [
                     'prehook' => function (SpanData $span, $args) {
+                        if (
+                            dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                            && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                            && \DDTrace\trace_id() == $span->id
+                        ) {
+                            \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+                        }
+
                         $span->name = 'Predis.Pipeline.executePipeline';
                         $span->resource = $span->name;
                         $span->type = Type::REDIS;

@@ -176,6 +176,7 @@ typedef ZEND_RESULT_CODE zend_result;
 #if PHP_VERSION_ID < 70300
 #define GC_ADDREF(x) (++GC_REFCOUNT(x))
 #define GC_DELREF(x) (--GC_REFCOUNT(x))
+#define GC_SET_REFCOUNT(x, rc) (GC_REFCOUNT(x) = rc)
 
 #define GC_IMMUTABLE (1 << 5)
 #define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
@@ -268,6 +269,11 @@ static inline void smart_str_append_printf(smart_str *dest, const char *format, 
 #endif
 
 #if PHP_VERSION_ID < 80200
+static zend_always_inline bool zend_string_equals_cstr(const zend_string *s1, const char *s2, size_t s2_length)
+{
+    return ZSTR_LEN(s1) == s2_length && !memcmp(ZSTR_VAL(s1), s2, s2_length);
+}
+
 static inline zend_string *ddtrace_vstrpprintf(size_t max_len, const char *format, va_list ap)
 {
     zend_string *str = zend_vstrpprintf(max_len, format, ap);

@@ -39,6 +39,7 @@ function dd_dump_spans($skipMeta = false)
                 unset($span['meta']['_dd.p.dm']);
             }
             echo PHP_EOL;
+            unset($span["meta"]["runtime-id"]);
             foreach ($span['meta'] as $k => $v) {
                 echo str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . PHP_EOL;
             }

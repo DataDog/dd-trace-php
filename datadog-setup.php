@@ -436,14 +436,10 @@ function install($options)
 
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
-    if (is_alpine()) {
-        if (is_truthy($options[OPT_ENABLE_PROFILING])) {
-            check_library_prerequisite_or_exit('libgcc_s');
-        }
-    } else {
+    check_library_prerequisite_or_exit('libgcc_s');
+    if (!is_alpine()) {
         if (is_truthy($options[OPT_ENABLE_PROFILING])) {
             check_library_prerequisite_or_exit('libdl.so');
-            check_library_prerequisite_or_exit('libgcc_s');
             check_library_prerequisite_or_exit('libpthread');
             check_library_prerequisite_or_exit('librt');
         }
@@ -1745,6 +1741,12 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'default' => '1',
             'commented' => true,
             'description' => 'Enable the CPU profile type.',
+        ],
+        [
+            'name' => 'datadog.profiling.allocation_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enable the allocation profile type.',
         ],
         [
             'name' => 'datadog.profiling.experimental_allocation_enabled',

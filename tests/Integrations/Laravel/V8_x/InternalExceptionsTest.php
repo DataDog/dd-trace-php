@@ -55,11 +55,6 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         '_sampling_priority_v1' => 1,
                         'process_id' => getmypid(),
                     ])
-                    ->setError(
-                        'Symfony\Component\HttpKernel\Exception\HttpException',
-                        'Not Implemented',
-                        true
-                    )
                     ->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'not-implemented')
                             ->withExactTags([
