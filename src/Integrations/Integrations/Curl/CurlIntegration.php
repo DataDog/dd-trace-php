@@ -7,6 +7,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\SpanTagger;
 
 /**
  * @param \DDTrace\SpanData $span
@@ -106,6 +107,8 @@ final class CurlIntegration extends Integration
                         $span->meta["curl.{$key}"] = $val;
                     }
                 }
+
+                SpanTagger::instance()->setPeerService($span, ['http.url']);
             },
         ]);
 

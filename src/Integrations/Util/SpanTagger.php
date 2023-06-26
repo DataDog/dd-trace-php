@@ -3,6 +3,7 @@
 namespace DDTrace\Util;
 
 use DDTrace\Data\Span;
+use DDTrace\SpanData;
 use DDTrace\Tag;
 
 /**
@@ -46,26 +47,58 @@ final class SpanTagger
      * @param string[] $orderedPrecursorsNames A sorted list of precursors, the first one that is found will be used.
      * @return void
      */
-    public function setPeerService(Span $span, array $orderedPrecursorsNames)
+    public function setPeerService(SpanData $span, array $orderedPrecursorsNames)
     {
+        $value = null;
+        $source = null;
+        $isRemapped = false;
+
         if ($this->isPeerServiceTaggingEnabled) {
             foreach ($orderedPrecursorsNames as $precursor) {
-                $value = $span->getTag($precursor);
-                if (!empty($value)) {
-                    if (isset($this->peerServiceMapping[$value])) {
-                        // Remapping
-                        $remapped = $this->peerServiceMapping[$value];
-                        if (!empty($remapped)) {
-                            $value = $remapped;
-                        }
-                    }
-                    $span->setTag(Tag::PEER_SERVICE, $value);
-                    $span->setTag(TAG::PEER_SERVICE_SOURCE, $precursor);
-                    break;
+                //error_log('Span: ' . var_export($span, true));
+                if (empty($span->meta[$precursor])) {
+                    continue;
                 }
+
+                $value = $span->meta[$precursor];
+
+                if (empty($value)) {
+                    continue;
+                }
+
+                $source = $precursor;
+
+                if (isset($this->peerServiceMapping[$value])) {
+                    // Remapping
+                    $remapped = $this->peerServiceMapping[$value];
+                    if (!empty($remapped)) {
+                        $value = $remapped;
+                        $remapped = true;
+                    }
+                }
+                break;
             }
         }
 
-        // If peer.service tagging is not enabled, nothing to do
+
+        // Remapping is applied regardless of peer.service default values are enabled or not
+        if (isset($span->meta[Tag::PEER_SERVICE])) {
+            if (isset($this->peerServiceMapping[$value])) {
+                    // Remapping
+                    $remapped = $this->peerServiceMapping[$value];
+                    if (!empty($remapped)) {
+                        $value = $remapped;
+                    }
+                }
+        }
+
+        if ($value === null) {
+            return;
+        }
+
+
+
+        $span->meta[Tag::PEER_SERVICE] = $value;
+        $span->meta[TAG::PEER_SERVICE_SOURCE] = $precursor;
     }
 }
