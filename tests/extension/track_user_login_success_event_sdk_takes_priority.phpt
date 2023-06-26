@@ -1,5 +1,5 @@
 --TEST--
-Track a user login success event and verify the tags in the root span
+When values are set with automated event and with sdk, SDK takes priority
 --INI--
 extension=ddtrace.so
 --ENV--
@@ -12,12 +12,8 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_success_event("Admin",
-[
-    "value" => "something",
-    "metadata" => "some other metadata",
-    "email" => "noneofyour@business.com"
-]);
+track_user_login_success_event("Admin", ["value" => "something-from-sdk"]); //Sdk
+track_user_login_success_event("1234", ["value" => "something-from-automated"], true); //Automated
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
@@ -29,7 +25,6 @@ Array
     [usr.id] => Admin
     [_dd.appsec.events.users.login.success.sdk] => true
     [appsec.events.users.login.success.track] => true
-    [appsec.events.users.login.success.value] => something
-    [appsec.events.users.login.success.metadata] => some other metadata
-    [appsec.events.users.login.success.email] => noneofyour@business.com
+    [appsec.events.users.login.success.value] => something-from-sdk
+    [_dd.appsec.events.users.login.success.auto.mode] => safe
 )

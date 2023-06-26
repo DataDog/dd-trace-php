@@ -31,33 +31,34 @@ extern bool runtime_config_first_init;
 
 // clang-format off
 #define DD_CONFIGURATION \
-    SYSCFG(BOOL, DD_APPSEC_ENABLED, "false")                                                                    \
-    SYSCFG(STRING, DD_APPSEC_RULES, "")                                                                         \
-    SYSCFG(CUSTOM(uint64_t), DD_APPSEC_WAF_TIMEOUT, "10000", .parser = _parse_uint64)                           \
-    SYSCFG(CUSTOM(uint32_t), DD_APPSEC_TRACE_RATE_LIMIT, "100", .parser = _parse_uint32)                        \
-    SYSCFG(SET_LOWERCASE, DD_APPSEC_EXTRA_HEADERS, "")                                                          \
-    SYSCFG(STRING, DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, DEFAULT_OBFUSCATOR_KEY_REGEX)                    \
-    SYSCFG(STRING, DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, DEFAULT_OBFUSCATOR_VALUE_REGEX)                \
-    SYSCFG(BOOL, DD_APPSEC_TESTING, "false")                                                                    \
-    SYSCFG(BOOL, DD_APPSEC_TESTING_ABORT_RINIT, "false")                                                        \
-    SYSCFG(BOOL, DD_APPSEC_TESTING_RAW_BODY, "false")                                                           \
-    CONFIG(CUSTOM(INT), DD_APPSEC_LOG_LEVEL, "warn", .parser = dd_parse_log_level)                              \
-    SYSCFG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting")                                                   \
-    SYSCFG(BOOL, DD_APPSEC_HELPER_LAUNCH, "true")                                                               \
-    CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/ddappsec-helper"))                                       \
-    CONFIG(STRING, DD_APPSEC_HELPER_RUNTIME_PATH, "/tmp", .ini_change = dd_on_runtime_path_update)              \
-    SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                      \
-    CONFIG(STRING, DD_APPSEC_HELPER_EXTRA_ARGS, "")                                                             \
-    CONFIG(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                 \
-    CONFIG(STRING, DD_ENV, "")                                                                                  \
-    CONFIG(STRING, DD_VERSION, "")                                                                              \
-    CONFIG(CUSTOM(STRING), DD_TRACE_CLIENT_IP_HEADER, "", .parser = dd_parse_client_ip_header_config)           \
-    CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true")                                                              \
-    CONFIG(CUSTOM(uint32_t), DD_REMOTE_CONFIG_POLL_INTERVAL, "1000", .parser = _parse_uint32)                   \
-    CONFIG(STRING, DD_AGENT_HOST, "")                                                                           \
-    CONFIG(INT, DD_TRACE_AGENT_PORT, "0")                                                                       \
-    CONFIG(STRING, DD_TRACE_AGENT_URL, "")                                                                      \
-    CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                    \
+    SYSCFG(BOOL, DD_APPSEC_ENABLED, "false")                                                                                          \
+    SYSCFG(STRING, DD_APPSEC_RULES, "")                                                                                               \
+    SYSCFG(CUSTOM(uint64_t), DD_APPSEC_WAF_TIMEOUT, "10000", .parser = _parse_uint64)                                                 \
+    SYSCFG(CUSTOM(uint32_t), DD_APPSEC_TRACE_RATE_LIMIT, "100", .parser = _parse_uint32)                                              \
+    SYSCFG(SET_LOWERCASE, DD_APPSEC_EXTRA_HEADERS, "")                                                                                \
+    SYSCFG(STRING, DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, DEFAULT_OBFUSCATOR_KEY_REGEX)                                          \
+    SYSCFG(STRING, DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP, DEFAULT_OBFUSCATOR_VALUE_REGEX)                                      \
+    SYSCFG(BOOL, DD_APPSEC_TESTING, "false")                                                                                          \
+    SYSCFG(BOOL, DD_APPSEC_TESTING_ABORT_RINIT, "false")                                                                              \
+    SYSCFG(BOOL, DD_APPSEC_TESTING_RAW_BODY, "false")                                                                                 \
+    CONFIG(CUSTOM(INT), DD_APPSEC_LOG_LEVEL, "warn", .parser = dd_parse_log_level)                                                    \
+    SYSCFG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting")                                                                         \
+    SYSCFG(BOOL, DD_APPSEC_HELPER_LAUNCH, "true")                                                                                     \
+    CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/ddappsec-helper"))                                                             \
+    CONFIG(STRING, DD_APPSEC_HELPER_RUNTIME_PATH, "/tmp", .ini_change = dd_on_runtime_path_update)                                    \
+    SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                                            \
+    CONFIG(STRING, DD_APPSEC_HELPER_EXTRA_ARGS, "")                                                                                   \
+    CONFIG(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                                       \
+    CONFIG(STRING, DD_ENV, "")                                                                                                        \
+    CONFIG(STRING, DD_VERSION, "")                                                                                                    \
+    CONFIG(CUSTOM(STRING), DD_TRACE_CLIENT_IP_HEADER, "", .parser = dd_parse_client_ip_header_config)                                 \
+    CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true")                                                                                    \
+    CONFIG(CUSTOM(uint32_t), DD_REMOTE_CONFIG_POLL_INTERVAL, "1000", .parser = _parse_uint32)                                         \
+    CONFIG(STRING, DD_AGENT_HOST, "")                                                                                                 \
+    CONFIG(INT, DD_TRACE_AGENT_PORT, "0")                                                                                             \
+    CONFIG(STRING, DD_TRACE_AGENT_URL, "")                                                                                            \
+    CONFIG(CUSTOM(STRING), DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING, "safe", .parser = dd_parse_automated_user_events_tracking)       \
+    CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                                          \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")
 // clang-format on
 

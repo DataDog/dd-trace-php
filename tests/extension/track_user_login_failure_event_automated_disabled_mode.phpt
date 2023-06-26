@@ -1,11 +1,10 @@
 --TEST--
-Track a user login failure event with an empty user id and verify the logs
+Track automated user login failure with disabled mode and verify there is no tags
 --INI--
 extension=ddtrace.so
-datadog.appsec.log_file=/tmp/php_appsec_test.log
-datadog.appsec.log_level=debug
 --ENV--
 DD_APPSEC_ENABLED=1
+DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=disabled
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
@@ -14,15 +13,18 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_failure_event("", true,
+track_user_login_failure_event("Admin", true,
 [
     "value" => "something",
     "metadata" => "some other metadata",
     "email" => "noneofyour@business.com"
-]);
+], true);
 
-require __DIR__ . '/inc/logging.php';
-match_log("/Unexpected empty user id/");
+echo "root_span_get_meta():\n";
+print_r(root_span_get_meta());
 ?>
 --EXPECTF--
-found message in log matching /Unexpected empty user id/
+root_span_get_meta():
+Array
+(
+)

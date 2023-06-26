@@ -1,9 +1,10 @@
 --TEST--
-Track a user login success event and verify the tags in the root span
+Track automated user login success event with disabled mode and verify there is no tags
 --INI--
 extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
+DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=disabled
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
@@ -17,7 +18,8 @@ track_user_login_success_event("Admin",
     "value" => "something",
     "metadata" => "some other metadata",
     "email" => "noneofyour@business.com"
-]);
+],
+true);
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
@@ -26,10 +28,4 @@ print_r(root_span_get_meta());
 root_span_get_meta():
 Array
 (
-    [usr.id] => Admin
-    [_dd.appsec.events.users.login.success.sdk] => true
-    [appsec.events.users.login.success.track] => true
-    [appsec.events.users.login.success.value] => something
-    [appsec.events.users.login.success.metadata] => some other metadata
-    [appsec.events.users.login.success.email] => noneofyour@business.com
 )
