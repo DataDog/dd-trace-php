@@ -13,6 +13,7 @@ use Illuminate\Queue\Jobs\JobName;
 
 use function DDTrace\active_span;
 use function DDTrace\close_span;
+use function DDTrace\logs_correlation_trace_id;
 use function DDTrace\remove_hook;
 use function DDTrace\set_distributed_tracing_context;
 use function DDTrace\start_trace_span;
@@ -77,7 +78,7 @@ class LaravelQueueIntegration extends Integration
                             $exception,
                             'exception_trace_identifiers',
                             [
-                                'trace_id' => trace_id(),
+                                'trace_id' => logs_correlation_trace_id(),
                                 'span_id' => dd_trace_peek_span_id()
                             ]
                         );
