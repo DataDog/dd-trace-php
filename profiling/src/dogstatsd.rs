@@ -158,7 +158,7 @@ mod test {
             .unwrap();
 
         let metric = String::from_utf8(buffer).unwrap();
-        let expect = "datadog.profiling.stack_walk_ns:2400|h|#env:dev,service:libdatadog-dogstatsd-test,reason:alloc";
+        let expect = "datadog.profiling.stack_walk_ns:2400|c|#env:dev,service:libdatadog-dogstatsd-test,reason:alloc";
         assert_eq!(expect, metric)
     }
 
