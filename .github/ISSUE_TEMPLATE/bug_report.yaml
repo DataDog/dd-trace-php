@@ -43,6 +43,8 @@ body:
 
         If this issue is related to the CLI SAPI, copy the output of `php --ri=ddtrace; php --ri=datadog-profiling` and paste it here.
 
+        **Note:** Please redact any sensitive information!
+
   - type: textarea
     attributes:
       label: Upgrading from
