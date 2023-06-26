@@ -368,7 +368,6 @@ class WordPressIntegrationLoader
         }
 
         // Filters
-        /*
         foreach (['apply_filters', 'apply_filters_ref_array'] as $function) {
             trace_function(
                 $function,
@@ -385,12 +384,12 @@ class WordPressIntegrationLoader
                     'posthook' => function (SpanData $span, $args, $response) {
                         $duration = $span->getDuration(); // nanoseconds
                         // If the duration is less than 1ms, drop the span (return false)
-                        return $duration > 10000;
+                        //return $duration > 10000;
                     }
                 ]
             );
         }
-        */
+
 
         // Blocks
         trace_function(
@@ -479,6 +478,7 @@ class WordPressIntegrationLoader
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
+        /*
         hook_function('add_action', function ($args) use ($service) {
             $action = $args[0];
             $callback = $args[1];
@@ -514,6 +514,7 @@ class WordPressIntegrationLoader
 
             }
         });
+        */
 
         return Integration::LOADED;
     }
