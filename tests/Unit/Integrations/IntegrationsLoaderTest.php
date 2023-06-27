@@ -168,7 +168,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'eloquent';
             $excluded[] = 'guzzle';
             $excluded[] = 'laminas';
-            $excluded[] = 'laravel';
             $excluded[] = 'laravelqueue';
             $excluded[] = 'lumen';
             $excluded[] = 'memcache';

@@ -62,6 +62,9 @@ class IntegrationsLoader
     {
         $this->integrations = $integrations;
 
+        $this->integrations[LaravelIntegration::NAME] =
+            '\DDTrace\Integrations\Laravel\LaravelIntegration';
+
         // For PHP 7.0+ use C level deferred integration loader
         if (\PHP_MAJOR_VERSION < 7) {
             $this->integrations[CakePHPIntegration::NAME] =
@@ -76,8 +79,6 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Eloquent\EloquentIntegration';
             $this->integrations[GuzzleIntegration::NAME] =
                 '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
-            $this->integrations[LaravelIntegration::NAME] =
-                '\DDTrace\Integrations\Laravel\LaravelIntegration';
             $this->integrations[LumenIntegration::NAME] =
                 '\DDTrace\Integrations\Lumen\LumenIntegration';
             $this->integrations[MemcachedIntegration::NAME] =
