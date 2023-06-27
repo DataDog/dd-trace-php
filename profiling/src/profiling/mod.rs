@@ -295,7 +295,8 @@ impl TimeCollector {
         let local_root_span_id = message.local_root_span_id;
         for (_, profile) in profiles.iter_mut() {
             let endpoint = Cow::Borrowed(message.resource.as_str());
-            profile.add_endpoint(local_root_span_id, endpoint)
+            profile.add_endpoint(local_root_span_id, endpoint.clone());
+            profile.add_endpoint_count(endpoint, 1);
         }
     }
 
