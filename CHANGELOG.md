@@ -1,5 +1,19 @@
 # Datadog AppSec for PHP Release
 
+### v0.10.0
+
+#### Additions
+- ([#272](https://github.com/DataDog/dd-appsec-php/pull/272)) Add automated user login events
+- ([#275](https://github.com/DataDog/dd-appsec-php/pull/275)) Add sign up event
+
+#### Fixes
+- ([#273](https://github.com/DataDog/dd-appsec-php/pull/273)) Persist top-most root span from RINIT
+
+#### Miscellaneous Changes
+- ([#271](https://github.com/DataDog/dd-appsec-php/pull/271)) Rename system-test scenario
+- ([#274](https://github.com/DataDog/dd-appsec-php/pull/274)) Support multiple traces and spans but provide only the root span on integration tests
+- ([#276](https://github.com/DataDog/dd-appsec-php/pull/276)) Set libddwaf as git `safe.directory` on `build package` step
+
 ### v0.9.0
 #### Fixes
 - ([#265](https://github.com/DataDog/dd-appsec-php/pull/265)) Use ``/proc/self/fd`` to avoid rlimit iteration starvation
