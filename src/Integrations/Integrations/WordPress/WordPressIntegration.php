@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\WordPress;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\Wordpress\OTel\OTelIntegrationLoader;
 use DDTrace\Integrations\WordPress\V4\WordPressIntegrationLoader;
 use DDTrace\Integrations\WordPress\V6\WordPressComponent;
 
@@ -44,16 +43,15 @@ class WordPressIntegration extends Integration
                 return false;
             }
             $majorVersion = substr($GLOBALS['wp_version'], 0, 1);
-            if ($majorVersion >= 4) {
+            if ($majorVersion >= 6) {
                 $loader = new WordPressIntegrationLoader();
-
-                //$loader = new OTelIntegrationLoader();
-
-                //$service = \ddtrace_config_app_name(self::NAME);
-                //$loader = new WordPressComponent($service);
-
+                $loader->load($integration);
+            } elseif ($majorVersion >= 4) {
+                $loader = new WordPressIntegrationLoader();
                 $loader->load($integration);
             }
+
+            return true;
         });
 
         return self::LOADED;
