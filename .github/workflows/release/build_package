@@ -69,6 +69,7 @@ function tarballs {
   )
 }
 
+git config --global --add safe.directory /project/third_party/libddwaf
 
 for v in "$@"; do
   build_ext $v
