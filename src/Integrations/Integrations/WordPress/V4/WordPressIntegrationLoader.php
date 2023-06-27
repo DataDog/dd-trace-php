@@ -12,12 +12,14 @@ use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 use function DDTrace\hook_function;
 use function DDTrace\install_hook;
+use function DDTrace\remove_hook;
 use function DDTrace\trace_function;
 use function DDTrace\trace_method;
 
 class WordPressIntegrationLoader
 {
-    public static function tryExtractThemeNameFromPath(string $hookName, array &$actionHookToTheme) {
+    public static function tryExtractThemeNameFromPath(string $hookName, array &$actionHookToTheme)
+    {
         if (array_key_exists($hookName, $actionHookToTheme)) {
             return $actionHookToTheme[$hookName];
         }
@@ -51,7 +53,8 @@ class WordPressIntegrationLoader
         return $themeName;
     }
 
-    public static function tryExtractPluginNameFromPath(string $hookName, array &$actionHookToPlugin) {
+    public static function tryExtractPluginNameFromPath(string $hookName, array &$actionHookToPlugin)
+    {
         if (array_key_exists($hookName, $actionHookToPlugin)) {
             return $actionHookToPlugin[$hookName];
         }
@@ -88,6 +91,10 @@ class WordPressIntegrationLoader
         if (!$rootSpan) {
             return Integration::NOT_LOADED;
         }
+
+        $actionHookToPlugin = [];
+        $actionHookToTheme = [];
+
         // Overwrite the default web integration
         $integration->addTraceAnalyticsIfEnabled($rootSpan);
         $rootSpan->name = 'wordpress.request';
@@ -175,12 +182,6 @@ class WordPressIntegrationLoader
             $span->service = $service;
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
-        \DDTrace\trace_function('wp_print_footer_scripts', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'wp_print_footer_scripts';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        });
 
         // These not called in PHP 5 due to call_user_func_array() bug
         \DDTrace\trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($service) {
@@ -205,13 +206,6 @@ class WordPressIntegrationLoader
         });
 
         // Widgets
-        \DDTrace\trace_method('WP_Widget_Factory', '_register_widgets', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP_Widget_Factory._register_widgets';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        });
-
         \DDTrace\trace_method('WP_Widget', 'display_callback', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'WP_Widget.display_callback';
             $span->type = Type::WEB_SERVLET;
@@ -223,13 +217,6 @@ class WordPressIntegrationLoader
         \DDTrace\trace_function('get_header', function (SpanData $span, array $args) use ($service) {
             $span->name = 'get_header';
             $span->resource = !empty($args[0]) ? $args[0] : $span->name;
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        });
-
-        \DDTrace\trace_function('wp_head', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'wp_head';
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
@@ -301,8 +288,6 @@ class WordPressIntegrationLoader
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
-        $actionHookToPlugin = [];
-        $actionHookToTheme = [];
         $action = function (SpanData $span, $args) use (&$actionHookToPlugin, &$actionHookToTheme) {
             $span->name = 'action';
             $hookName = isset($args[0]) ? $args[0] : '?';
@@ -361,18 +346,19 @@ class WordPressIntegrationLoader
                     'posthook' => function (SpanData $span, $args, $response) {
                         $duration = $span->getDuration(); // nanoseconds
                         // If the duration is less than 10ms, drop the span (return false)
-                        //return $duration > 10000;
+                        return $duration > 10000000;
                     }
                 ]
             );
         }
 
         // Filters
+        /*
         foreach (['apply_filters', 'apply_filters_ref_array'] as $function) {
             trace_function(
                 $function,
                 [
-                    'recurse' => true,
+                    'recurse' => false,
                     'prehook' => function (SpanData $span, $args) use ($filter, $service) {
                         $span->type = Type::WEB_SERVLET;
 
@@ -389,6 +375,7 @@ class WordPressIntegrationLoader
                 ]
             );
         }
+        */
 
 
         // Blocks
@@ -438,36 +425,6 @@ class WordPressIntegrationLoader
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
-        trace_function('wp_get_active_and_valid_plugins', function (SpanData $span) use ($service) {
-            $span->type = Type::WEB_SERVLET;
-            $span->name = 'plugins';
-
-            $span->resource = '(active_and_valid)';
-
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        });
-
-        trace_function('wp_get_active_and_valid_themes', function (SpanData $span) use ($service) {
-            $span->type = Type::WEB_SERVLET;
-            $span->name = 'themes';
-
-            $span->resource = '(active_and_valid)';
-
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        });
-
-        \DDTrace\trace_method('WP_Dependencies', 'do_items', function (SpanData $span) use ($service) {
-            $span->type = Type::WEB_SERVLET;
-            $span->name = 'do_items';
-
-            $span->resource = '(do_items)';
-
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        });
-
         \DDTrace\trace_method('WP_Styles', 'do_footer_items', function (SpanData $span) use ($service) {
             $span->type = Type::WEB_SERVLET;
             $span->name = 'do_footer_items';
@@ -478,43 +435,165 @@ class WordPressIntegrationLoader
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
-        /*
-        hook_function('add_action', function ($args) use ($service) {
+        hook_function('add_action', function ($args) use ($service, &$actionHookToPlugin) {
             $action = $args[0];
             $callback = $args[1];
 
-            if ($action === 'init') {
-                if (is_array($callback)) {
-                    list($class, $method) = $callback;
-                    if (is_object($class)) {
-
-                        //Logger::get()->debug("Adding class $class::$method");
-                        trace_method($class, $method, function (SpanData $span) use ($service, $class, $method) {
-                            $span->type = Type::WEB_SERVLET;
-                            $span->name = "$class::$method";
-
-                            $span->service = $service;
-                            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-                        });
-                    }
-                } elseif (is_string($callback)) {
-                    //Logger::get()->debug("Adding fn $function");
-                    $function = explode('/', $callback);
-                    $function = end($function);
-                    trace_function($function, function (SpanData $span) use ($service, $function) {
+            if (in_array($action, ['plugins_loaded', 'init', 'wp_loaded', 'setup_theme', 'after_setup_theme', 'shutdown', 'wp', 'wp_head', 'wp_footer'])) {
+                install_hook(
+                    (is_array($callback) && $callback[0] === 'WP_Block_Supports' ? "{$callback[0]}::{$callback[1]}" : $callback),
+                    function (HookData $hook) use ($service, $callback, $action, &$actionHookToPlugin) {
+                        $span = $hook->span();
+                        $span->name = 'callback';
                         $span->type = Type::WEB_SERVLET;
-                        $function = explode('\\', $function);
-                        $function = end($function);
-                        $span->name = $function;
+
+                        if (is_array($callback)) {
+                            list($class, $method) = $callback;
+                            if (is_object($class)) {
+                                $class = explode('\\', get_class($class));
+                            } else {
+                                $class = explode('\\', $class);
+                            }
+                            $class = end($class);
+                            $span->resource = "(callback: $class::$method)";
+                        } elseif (is_string($callback)) {
+                            $function = explode('\\', $callback);
+                            $function = end($function);
+                            $span->resource = "(callback: $function)";
+                        } else {
+                            $span->resource = '(callback: {closure})';
+                        }
 
                         $span->service = $service;
                         $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-                    });
-                }
 
+                        $pluginDir = defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : (defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/plugins' : '');
+                        if ($pluginDir) {
+                            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+                            $file = isset($backtrace[0]['file']) ? $backtrace[0]['file'] : '';
+                            if (strpos($file, $pluginDir) === 0) {
+                                $plugin = substr($file, strlen($pluginDir) + 1);
+                                $plugin = explode('/', $plugin);
+                                $plugin = $plugin[0];
+                                $span->meta['wp.plugin'] = $plugin;
+                            }
+                        }
+
+                        remove_hook($hook->id);
+                    }
+                );
+                /*
+                if (is_array($callback)) {
+                    list($class, $method) = $callback;
+                    if (is_object($class)) {
+                        $class = get_class($class);
+                        Logger::get()->debug("Adding class $class::$method");
+                        install_hook(
+                            "$class::$method",
+                            function (HookData $hook) use ($service, $class, $method) {
+                                $span = $hook->span();
+
+                                $span->type = Type::WEB_SERVLET;
+                                $class = explode('\\', $class);
+                                $class = end($class);
+                                $span->name = "callback";
+                                $span->resource = "(callback: $class::$method)";
+
+                                $span->service = $service;
+                                $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+
+                                remove_hook($hook->id);
+                            }
+                        );
+                    }
+                } elseif (is_string($callback)) {
+                    $function = explode('/', $callback);
+                    $function = end($function);
+                    //Logger::get()->debug("Adding fn $function");
+
+                    install_hook(
+                        $function,
+                        function (HookData $hook) use ($service, $function) {
+                            $span = $hook->span();
+
+                            $span->type = Type::WEB_SERVLET;
+                            $function = explode('\\', $function);
+                            $function = end($function);
+                            $span->name = "callback";
+                            $span->resource = "(callback: $function)";
+
+                            $span->service = $service;
+                            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+
+                            remove_hook($hook->id);
+                        }
+                    );
+                } else {
+                    install_hook(
+                        $callback,
+                        function (HookData $hook) use ($service) {
+                            $span = $hook->span();
+
+                            $span->type = Type::WEB_SERVLET;
+                            $span->name = 'callback';
+                            $span->resource = "(callback)";
+
+                            $span->service = $service;
+                            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+
+                            remove_hook($hook->id);
+                        }
+                    );
+                } elseif (is_callable($callback)) {
+                    // Retrieve the class + method from the closure, if any
+                    $reflection = new \ReflectionFunction($callback);
+                    $class = $reflection->getClosureScopeClass();
+                    if ($class) {
+                        $class = $class->getName();
+                        $method = $reflection->getShortName();
+
+                        Logger::get()->debug("(Reflection $action) Adding closure $class::$method");
+                        install_hook(
+                            $callback,
+                            function (HookData $hook) use ($service, $class, $method) {
+                                $span = $hook->span();
+
+                                $span->type = Type::WEB_SERVLET;
+                                $class = explode('\\', $class);
+                                $class = end($class);
+                                $span->name = "callback";
+                                $span->resource = "(callback: $class::$method)";
+
+                                $span->service = $service;
+                                $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+
+                                remove_hook($hook->id);
+                            }
+                        );
+                    } else {
+                        Logger::get()->debug("(Reflection $action) Adding fn");
+                        $reflection = new \ReflectionFunction($callback);
+                        $name = $reflection->getClosure();
+                        install_hook(
+                            $callback,
+                            function (HookData $hook) use ($service) {
+                                $span = $hook->span();
+
+                                $span->type = Type::WEB_SERVLET;
+                                $span->name = "callback";
+                                $span->resource = "(callback)";
+
+                                $span->service = $service;
+                                $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+
+                                remove_hook($hook->id);
+                            }
+                        );
+                    }
+                }
+                */
             }
         });
-        */
 
         return Integration::LOADED;
     }
