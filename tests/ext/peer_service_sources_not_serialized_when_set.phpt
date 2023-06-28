@@ -21,7 +21,7 @@ var_dump(dd_trace_serialize_closed_spans());
 HOOK METHOD arg
 array(1) {
   [0]=>
-  array(10) {
+  array(9) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -40,10 +40,5 @@ array(1) {
     string(48) "peer_service_sources_not_serialized_when_set.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.p.tid"]=>
-      string(3) "307"
-    }
   }
 }
