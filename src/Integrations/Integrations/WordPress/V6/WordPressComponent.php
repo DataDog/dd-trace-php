@@ -257,13 +257,26 @@ class WordPressComponent
         \DDTrace\trace_function('load_template', function (SpanData $span, array $args) use ($service) {
             $span->name = 'load_template';
 
-            $span->meta['wp.theme.name'] = wp_get_theme()->get('Name');
+            // TODO: Duplicated code
+            $pluginDir = defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : (defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/plugins' : '');
+            if ($pluginDir) {
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+                $file = isset($backtrace[1]['file']) ? $backtrace[1]['file'] : '';
+                if (strpos($file, $pluginDir) === 0) {
+                    $plugin = substr($file, strlen($pluginDir) + 1);
+                    $plugin = explode('/', $plugin);
+                    $plugin = $plugin[0];
+                    $span->meta['wp.plugin'] = $plugin;
+                }
+            } else {
+                $span->meta['wp.theme'] = wp_get_theme()->get('Name');
+            }
 
             $template = wp_basename($args[0]);
             // Remove the trailing .php extension, if any
             if (substr($template, -4) === '.php') {
                 $template = substr($template, 0, -4);
-                $span->meta['wp.theme.template'] = $template;
+                $span->meta['wp.template'] = $template;
                 $span->resource = "(template: $template)";
             } else {
                 $span->resource = !empty($args[0]) ? $args[0] : $span->name;
@@ -324,7 +337,7 @@ class WordPressComponent
             } elseif ($pluginName = WordPressComponent::tryExtractPluginNameFromPath($hookName, $actionHookToPlugin)) {
                 $span->meta['wp.plugin'] = $pluginName;
             } elseif ($themeName = WordPressComponent::tryExtractThemeNameFromPath($hookName, $actionHookToTheme)) {
-                $span->meta['wp.theme.name'] = $themeName;
+                $span->meta['wp.theme'] = $themeName;
             }
         };
 
@@ -356,8 +369,9 @@ class WordPressComponent
         // Blocks
         trace_function(
             'render_block',
-            function (SpanData $span, $args) use ($service) {
+            function (SpanData $span, $args, $retval) use ($service) {
                 $span->name = 'block';
+                // Some blocks are literally empty. We could even consider dropping the span in this case.
                 $blockName = isset($args[0]['blockName']) ? $args[0]['blockName'] : '?';
                 $span->resource = "(block_name: $blockName)";
 
@@ -419,10 +433,11 @@ class WordPressComponent
                         'wp_loaded',
                         'setup_theme',
                         'after_setup_theme',
-                        'shutdown',
+                        'template_redirect',
                         'wp',
                         'wp_head',
-                        'wp_footer'
+                        'wp_footer',
+                        'shutdown'
                     ]
                 )
             ) {
