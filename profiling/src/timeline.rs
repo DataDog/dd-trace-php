@@ -1,3 +1,4 @@
+use log::debug;
 use log::error;
 use log::trace;
 
@@ -5,8 +6,6 @@ use crate::bindings as zend;
 use crate::zend::ddog_php_prof_zend_string_view;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
-#[cfg(not(php_zend_stream_api_uses_zend_string))]
-use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::ptr;
 use std::time::Instant;
@@ -37,6 +36,13 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         let op_array = prev(handle, r#type);
         let duration = start.elapsed();
 
+        // include/require failed, could be invalid PHP or file not found, ...
+        // TODO we might collect this event anyway and label it accordingly in a later stage of
+        // this feature
+        if op_array.is_null() || (*op_array).filename.is_null() {
+            return op_array;
+        }
+
         REQUEST_LOCALS.with(|cell| {
             // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
             let locals = cell.try_borrow();
@@ -56,13 +62,15 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
                 _default => "",
             };
 
-            // since PHP 8.1 the `filename` is a ZendString, while it was a char* before
-            #[cfg(php_zend_stream_api_uses_zend_string)]
+            // extract the filename from the returned op_array
+            // we could also extract from the handle, but those filenames might be different from
+            // the one in the `op_array`: In the handle we get what `include()` was called with,
+            // for example "/var/www/html/../vendor/foo/bar.php" while during stack walking we get
+            // "/var/html/vendor/foo/bar.php". This makes sure it is the exact same string we'd
+            // collect in stack walking and therefore we are fully utilizing the pprof string table
             let filename = Some(String::from_utf8_lossy(
-                ddog_php_prof_zend_string_view((*handle).filename.as_mut()).into_bytes(),
+                ddog_php_prof_zend_string_view((*op_array).filename.as_mut()).into_bytes(),
             )).unwrap();
-            #[cfg(not(php_zend_stream_api_uses_zend_string))]
-            let filename = CStr::from_ptr((*handle).filename).to_str().unwrap();
 
             trace!(
                 "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",

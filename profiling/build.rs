@@ -234,11 +234,6 @@ fn cfg_php_feature_flags(vernum: u64) {
     if vernum >= 80300 {
         println!("cargo:rustc-cfg=php_gc_status_extended");
     }
-    // Zend Stream API started using zend_string instead of char in PHP 8.1
-    // with https://github.com/php/php-src/commit/c732ab400af92c54eee47c487a56009f1d79dd5d
-    if vernum >= 80100 {
-        println!("cargo:rustc-cfg=php_zend_stream_api_uses_zend_string");
-    }
 }
 
 fn cfg_zts() {
