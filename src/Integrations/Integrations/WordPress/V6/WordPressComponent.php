@@ -238,6 +238,14 @@ class WordPressComponent
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
+        \DDTrace\trace_function('get_footer', function (SpanData $span, array $args) use ($service) {
+            $span->name = 'get_footer';
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
         \DDTrace\trace_function('the_custom_header_markup', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'the_custom_header_markup';
             $span->type = Type::WEB_SERVLET;
@@ -268,7 +276,7 @@ class WordPressComponent
             if (substr($template, -4) === '.php') {
                 $template = substr($template, 0, -4);
                 $span->meta['wp.template'] = $template;
-                $span->resource = "(template: $template)";
+                $span->resource = "template: $template";
             } else {
                 $span->resource = !empty($template) ? $template : $span->name;
             }
@@ -276,6 +284,38 @@ class WordPressComponent
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
+        \DDTrace\trace_function('the_content', function (SpanData $span) use ($service) {
+            $span->name = 'the_content';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
+        \DDTrace\trace_function('the_post', function (SpanData $span) use ($service) {
+            $span->name = 'the_post';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
+        \DDTrace\trace_function('get_avatar', function (SpanData $span) use ($service) {
+            $span->name = 'get_avatar';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        });
+
+        \DDTrace\trace_function('the_post_thumbnail', function (SpanData $span, array $args) use ($service) {
+            $span->name = 'the_post_thumbnail';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+
+            if (isset($args[0]) && is_string($args[0])) {
+                $span->meta['wp.post_thumbnail.size'] = $args[0];
+            }
         });
 
         \DDTrace\trace_function('comments_template', function (SpanData $span, array $args) use ($service) {
@@ -286,6 +326,7 @@ class WordPressComponent
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
+        // Sidebar
         \DDTrace\trace_function('get_sidebar', function (SpanData $span, array $args) use ($service) {
             $span->name = 'get_sidebar';
             $span->resource = !empty($args[0]) ? $args[0] : $span->name;
@@ -294,26 +335,20 @@ class WordPressComponent
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
+
         \DDTrace\trace_function('dynamic_sidebar', function (SpanData $span, array $args) use ($service) {
             $span->name = 'dynamic_sidebar';
-            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
+            $span->resource = isset($args[0]) ? $args[0] : $span->name;
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
-        \DDTrace\trace_function('get_footer', function (SpanData $span, array $args) use ($service) {
-            $span->name = 'get_footer';
-            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        });
-
+        // Actions
         $action = function (SpanData $span, $args) use (&$actionHookToPlugin, &$actionHookToTheme) {
             $span->name = 'action';
             $hookName = isset($args[0]) ? $args[0] : '?';
-            $span->resource = "(hook_name: $hookName)";
+            $span->resource = "hook_name: $hookName";
 
             if ($hookName === '?') {
                 return;
@@ -333,7 +368,6 @@ class WordPressComponent
             // TODO: Search for more relevant tags
         };
 
-        // Actions
         foreach (['do_action', 'do_action_ref_array'] as $function) {
             trace_function(
                 $function,
@@ -355,62 +389,6 @@ class WordPressComponent
                 ]
             );
         }
-
-        // Filters - Too verbose
-
-        // Blocks
-        trace_function(
-            'render_block',
-            function (SpanData $span, $args, $retval) use ($service) {
-                $span->name = 'block';
-                // Some blocks are literally empty. We could even consider dropping the span in this case.
-                $blockName = isset($args[0]['blockName']) ? $args[0]['blockName'] : '?';
-                $span->resource = "(block_name: $blockName)";
-
-                if (isset($args[0]['attrs'])) {
-                    $attrs = $args[0]['attrs'];
-                    foreach (['slug', 'theme', 'area', 'tagName'] as $attr) {
-                        if (isset($attrs[$attr])) {
-                            $span->meta["wp.template_part.$attr"] = $attrs[$attr];
-                        }
-                    }
-                }
-
-                $span->service = $service;
-                $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-            }
-        );
-
-        trace_function('block_template_part', function (SpanData $span, $args) {
-            $span->name = 'block_template_part';
-            $part = isset($args[0]) && is_string($args[0]) ? $args[0] : '?';
-            $span->resource = "(part: $part)";
-        });
-
-        trace_function('get_query_template', function (SpanData $span, $args) use ($service) {
-            $span->type = Type::WEB_SERVLET;
-            $span->name = 'template';
-
-            $type = isset($args[0]) ? $args[0] : '?';
-            $span->resource = "(type: $type)";
-
-            $span->meta['wp.template.type'] = $type; // TODO: Redundant with resource? Search for more relevant tags
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        });
-
-        // Cookies
-        trace_function('setcookie', function (SpanData $span, $args) use ($service) {
-            $span->type = Type::WEB_SERVLET;
-            $span->name = 'setcookie';
-
-            $name = isset($args[0]) ? $args[0] : '?';
-            $span->resource = "(name: $name)";
-
-            $span->meta['wp.cookie.name'] = $name;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        });
 
         hook_function('add_action', function ($args) use ($service, &$actionHookToPlugin) {
             $action = $args[0];
@@ -449,14 +427,14 @@ class WordPressComponent
                             list($class, $method) = $callback;
                             $class = explode('\\', is_object($class) ? get_class($class) : $class);
                             $class = end($class);
-                            $span->resource = "(callback: $class::$method)";
+                            $span->resource = "callback: $class::$method";
                         } elseif (is_string($callback)) {
                             $function = explode('\\', $callback);
                             $function = end($function);
-                            $span->resource = "(callback: $function)";
+                            $span->resource = "callback: $function";
                         } else {
                             // TODO: Check if all types of callbacks are covered
-                            $span->resource = '(callback: {closure})';
+                            $span->resource = 'callback: {closure}';
                         }
 
                         $span->service = $service;
@@ -473,6 +451,49 @@ class WordPressComponent
                     }
                 );
             }
+        });
+
+        // Filters - Too verbose
+
+        // Blocks
+        trace_function(
+            'render_block',
+            function (SpanData $span, $args, $retval) use ($service) {
+                $span->name = 'block';
+                // Some blocks are literally empty. We could even consider dropping the span in this case.
+                $blockName = isset($args[0]['blockName']) ? $args[0]['blockName'] : '?';
+                $span->resource = "block_name: $blockName";
+
+                if (isset($args[0]['attrs'])) {
+                    $attrs = $args[0]['attrs'];
+                    foreach (['slug', 'theme', 'area', 'tagName'] as $attr) {
+                        if (isset($attrs[$attr])) {
+                            $span->meta["wp.template_part.$attr"] = $attrs[$attr];
+                        }
+                    }
+                }
+
+                $span->service = $service;
+                $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+            }
+        );
+
+        trace_function('block_template_part', function (SpanData $span, $args) {
+            $span->name = 'block_template_part';
+            $part = isset($args[0]) && is_string($args[0]) ? $args[0] : '?';
+            $span->resource = "part: $part";
+        });
+
+        trace_function('get_query_template', function (SpanData $span, $args) use ($service) {
+            $span->type = Type::WEB_SERVLET;
+            $span->name = 'template';
+
+            $type = isset($args[0]) ? $args[0] : '?';
+            $span->resource = "type: $type";
+
+            $span->meta['wp.template.type'] = $type; // TODO: Redundant with resource? Search for more relevant tags
+            $span->service = $service;
+            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
         return Integration::LOADED;
