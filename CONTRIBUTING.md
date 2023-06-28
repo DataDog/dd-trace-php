@@ -2,6 +2,15 @@
 
 As an open-source project we welcome contributions of many forms, but due to the experimental pre-beta nature of this repository, you should [reach out to us](https://github.com/DataDog/dd-trace-php/issues) before starting work on any major code changes. This will ensure we avoid duplicating work, or that your code can't be merged due to a rapidly changing base.
 
+## Project initialization
+
+The project uses git submodules to include the [datadog shared library](https://github.com/DataDog/libdatadog). From the project root:
+
+```
+git submodule init
+git submodule update
+```
+
 ## Getting set up with Docker
 
 The easiest way to get the development environment set up is to install [Docker](https://www.docker.com/) and
