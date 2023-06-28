@@ -432,6 +432,12 @@ class WordPressComponent
                             $function = explode('\\', $callback);
                             $function = end($function);
                             $span->resource = "callback: $function";
+                        } elseif (is_object($callback) && !($callback instanceof \Closure) && method_exists($callback, '__invoke')) {
+                            // Example: add_action( 'hookName', new ClassDefiningTheInvokeMethod()) );
+                            // Note: The two first conditions should already be enough, the third one is just to be sure
+                            $class = explode('\\', get_class($callback));
+                            $class = end($class);
+                            $span->resource = "callback: $class::_invoke";
                         } else {
                             // TODO: Check if all types of callbacks are covered
                             $span->resource = 'callback: {closure}';
