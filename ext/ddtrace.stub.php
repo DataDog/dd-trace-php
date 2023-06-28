@@ -123,11 +123,6 @@ namespace DDTrace {
         public readonly SpanStack $stack;
 
         /**
-         * @var string[] $peerServiceSources A sorted list of tag names used to set peer.service tag
-         */
-        public array $peerServiceSources = [];
-
-        /**
          * @return int Get the current span duration
          */
         public function getDuration(): int {}
