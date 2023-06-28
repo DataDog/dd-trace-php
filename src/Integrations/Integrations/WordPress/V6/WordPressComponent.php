@@ -14,6 +14,7 @@ use DDTrace\Util\Normalizer;
 use function DDTrace\hook_function;
 use function DDTrace\install_hook;
 use function DDTrace\remove_hook;
+use function DDTrace\set_user;
 use function DDTrace\trace_function;
 use function DDTrace\trace_method;
 
@@ -126,6 +127,22 @@ class WordPressComponent
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+
+            $user = wp_get_current_user();
+            if ($user) {
+                $meta = [];
+                if ($user->user_login) {
+                    $meta['username'] = $user->user_login;
+                }
+                if ($user->user_email) {
+                    $meta['email'] = $user->user_email;
+                }
+                if ($user->display_name) {
+                    $meta['name'] = $user->display_name;
+                }
+
+                set_user($user->ID, $meta);
+            }
         });
 
         \DDTrace\trace_method('WP', 'parse_request', function (SpanData $span) use ($service) {
@@ -311,27 +328,6 @@ class WordPressComponent
             }
         };
 
-        // TODO: REFACTOR THIS ... it's a copy paste of the above
-        $filter = function (SpanData $span, $args) use (&$actionHookToPlugin, &$actionHookToTheme) {
-            $span->name = 'filter';
-            $hookName = isset($args[0]) ? $args[0] : '?';
-            $span->resource = "(hook_name: $hookName)";
-
-            if ($hookName === '?') {
-                return;
-            }
-            // TODO: Search for more relevant tags
-
-            // If we have a plugin name, add it to the meta
-            if (isset($actionHookToPlugin[$hookName])) {
-                if ($actionHookToPlugin[$hookName]) {
-                    $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
-                }
-            } elseif ($pluginName = WordPressComponent::tryExtractPluginNameFromPath($hookName, $actionHookToPlugin)) {
-                $span->meta['wp.plugin'] = $pluginName;
-            }
-        };
-
         // Actions
         foreach (['do_action', 'do_action_ref_array'] as $function) {
             trace_function(
@@ -356,30 +352,6 @@ class WordPressComponent
         }
 
         // Filters - Too verbose
-        /*
-        foreach (['apply_filters', 'apply_filters_ref_array'] as $function) {
-            trace_function(
-                $function,
-                [
-                    'recurse' => false,
-                    'prehook' => function (SpanData $span, $args) use ($filter, $service) {
-                        $span->type = Type::WEB_SERVLET;
-
-                        $filter($span, $args);
-
-                        $span->service = $service;
-                        $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-                    },
-                    'posthook' => function (SpanData $span, $args, $response) {
-                        $duration = $span->getDuration(); // nanoseconds
-                        // If the duration is less than 1ms, drop the span (return false)
-                        //return $duration > 10000;
-                    }
-                ]
-            );
-        }
-        */
-
 
         // Blocks
         trace_function(
@@ -456,7 +428,7 @@ class WordPressComponent
             ) {
                 install_hook(
                     (
-                    is_array($callback) && $callback[0] === 'WP_Block_Supports'
+                    is_array($callback) && $callback[0] === 'WP_Block_Supports' // TODO: Need to see why there is a pb with WP_Block_Supports
                         ? "{$callback[0]}::{$callback[1]}"
                         : $callback
                     ),
@@ -467,11 +439,7 @@ class WordPressComponent
 
                         if (is_array($callback)) {
                             list($class, $method) = $callback;
-                            if (is_object($class)) {
-                                $class = explode('\\', get_class($class));
-                            } else {
-                                $class = explode('\\', $class);
-                            }
+                            $class = explode('\\', is_object($class) ? get_class($class) : $class);
                             $class = end($class);
                             $span->resource = "(callback: $class::$method)";
                         } elseif (is_string($callback)) {
