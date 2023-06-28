@@ -428,6 +428,7 @@ class WordPressComponent
                         'template_redirect',
                         'wp', // part of wp->main();
                         'wp_head',
+                        'rest_api_init',
                         'wp_footer',
                         'shutdown'
                     ]
