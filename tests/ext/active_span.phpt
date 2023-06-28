@@ -26,7 +26,7 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\SpanData)#%d (11) {
+object(DDTrace\SpanData)#%d (12) {
   ["name"]=>
   string(15) "active_span.php"
   ["resource"]=>
@@ -50,6 +50,9 @@ object(DDTrace\SpanData)#%d (11) {
   ["id"]=>
   string(%d) "%d"
   ["links"]=>
+  array(0) {
+  }
+  ["peerServiceSources"]=>
   array(0) {
   }
   ["parent"]=>

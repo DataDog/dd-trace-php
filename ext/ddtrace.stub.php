@@ -106,6 +106,11 @@ namespace DDTrace {
         public array $links = [];
 
         /**
+         * @var string[] $peerServiceSources A sorted list of tag names used to set peer.service tag
+         */
+        public array $peerServiceSources = [];
+
+        /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
         public readonly SpanData|null $parent = null;
@@ -114,11 +119,6 @@ namespace DDTrace {
          * @var SpanStack The span's stack trace
          */
         public readonly SpanStack $stack;
-
-        /**
-         * @var string[] $peerServiceSources A sorted list of tag names used to set peer.service tag
-         */
-        public array $peerServiceSources = [];
 
         /**
          * @return int Get the current span duration
