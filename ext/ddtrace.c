@@ -364,6 +364,7 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     array_init(ddtrace_spandata_property_meta_zval(span));
     array_init(ddtrace_spandata_property_metrics_zval(span));
     array_init(ddtrace_spandata_property_links_zval(span));
+    array_init(ddtrace_spandata_property_peerServiceSources_zval(span));
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
