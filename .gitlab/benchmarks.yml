@@ -5,9 +5,8 @@ variables:
 
 benchmarks:
   stage: benchmarks
-  when: on_success
-  only:
-    changes:
+  rules:
+    - changes:
       - profiling/**/*
       - .gitlab/benchmarks.yml
   tags: ["runner:apm-k8s-tweaked-metal"]
