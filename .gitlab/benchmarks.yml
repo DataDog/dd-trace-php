@@ -5,8 +5,8 @@ variables:
 
 benchmarks:
   stage: benchmarks
-  only:
-    changes:
+  rules:
+    - changes:
       - profiling/**/*
   tags: ["runner:apm-k8s-tweaked-metal"]
   needs: []
