@@ -55,6 +55,9 @@
         ],
         "post-update-cmd": [
             "@auto-scripts"
+        ],
+        "post-autoload-dump": [
+            "@php bin/console doctrine:migrations:migrate -n"
         ]
     },
     "conflict": {

@@ -106,7 +106,7 @@ class SymfonyIntegration extends Integration
                     return;
                 }
                 $token = $args[1];
-                $authClass = 'Symfony\Component\Security\Core\Authentication\Token\TokenInterface';
+                $authClass = '\Symfony\Component\Security\Core\Authentication\Token\TokenInterface';
                 if (!$token || !($token instanceof $authClass)) {
                     return;
                 }
