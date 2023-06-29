@@ -166,24 +166,20 @@ class LaravelIntegration extends Integration
 
                     //New user created, assume sign up
                     if ($span->resource == 'eloquent.created: User') {
-                        if (!function_exists('\datadog\appsec\track_user_signup_event'))
-                        {
+                        $authClass = '\User';
+                        if (
+                            !function_exists('\datadog\appsec\track_user_signup_event') ||
+                            !isset($args[1]) ||
+                            !$args[1] ||
+                            !($args[1] instanceof $authClass)
+                        ) {
                             return;
                         }
-                        if (!isset($args[1])) {
-                            return;
-                        }
-                        $user = $args[1];
-                        $authClass = 'User';
-                        if (!$user || !($user instanceof $authClass)) {
-                            return;
-                        }
-                        $metadata = [];
                         $id = null;
-                        if (isset($user['id'])) {
-                          $id = $user['id'];
+                        if (isset($args[1]['id'])) {
+                          $id = $args[1]['id'];
                         }
-                        \datadog\appsec\track_user_signup_event($id, $metadata, true);
+                        \datadog\appsec\track_user_signup_event($id, [], true);
                     }
 
                 },
@@ -317,11 +313,7 @@ class LaravelIntegration extends Integration
             'attempt',
             null,
             function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
-                if ($loginSuccess) {
-                    return;
-                }
-
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event'))
+                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event'))
                 {
                     return;
                 }
@@ -334,28 +326,23 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\SessionGuard',
             'setUser',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event'))
-                {
-                    return;
-                }
-                if (!isset($args[0])) {
-                    return;
-                }
-                $user = $args[0];
-                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
-                if (!$user || !($user instanceof $authClass)) {
-                    return;
-                }
-
-                $metadata = [];
-                if (isset($user['name'])) {
-                    $metadata['name'] = $user['name'];
-                }
-                if (isset($user['email'])) {
-                    $metadata['email'] = $user['email'];
-                }
-
-                \datadog\appsec\track_user_login_success_event($user->getAuthIdentifier(), $metadata, true);
+                $authClass = '\Illuminate\Contracts\Auth\Authenticatable';
+                if (
+                   !function_exists('\datadog\appsec\track_user_login_success_event') ||
+                   !isset($args[0]) ||
+                   !$args[0] ||
+                   !($args[0] instanceof $authClass)
+               ) {
+                   return;
+               }
+               $metadata = [];
+               if (isset($args[0]['name'])) {
+                   $metadata['name'] = $args[0]['name'];
+               }
+               if (isset($args[0]['email'])) {
+                   $metadata['email'] = $args[0]['email'];
+               }
+               \datadog\appsec\track_user_login_success_event($args[0]->getAuthIdentifier(), $metadata, true);
             }
         );
 
@@ -364,28 +351,25 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\Guard',
             'setUser',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event'))
-                {
-                    return;
-                }
-                if (!isset($args[0])) {
-                    return;
-                }
-                $user = $args[0];
-                $authClass = 'Illuminate\Auth\UserInterface';
-                if (!$user || !($user instanceof $authClass)) {
+                $authClass = '\Illuminate\Auth\UserInterface';
+                if (
+                    !function_exists('\datadog\appsec\track_user_login_success_event') ||
+                    !isset($args[0]) ||
+                    !$args[0] ||
+                    !($args[0] instanceof $authClass)
+                ) {
                     return;
                 }
 
                 $metadata = [];
-                if (isset($user['name'])) {
-                    $metadata['name'] = $user['name'];
+                if (isset($args[0]['name'])) {
+                    $metadata['name'] = $args[0]['name'];
                 }
-                if (isset($user['email'])) {
-                    $metadata['email'] = $user['email'];
+                if (isset($args[0]['email'])) {
+                    $metadata['email'] = $args[0]['email'];
                 }
 
-                \datadog\appsec\track_user_login_success_event($user->getAuthIdentifier(), $metadata, true);
+                \datadog\appsec\track_user_login_success_event($args[0]->getAuthIdentifier(), $metadata, true);
             }
         );
 
@@ -395,11 +379,7 @@ class LaravelIntegration extends Integration
             'attempt',
             null,
             function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
-                if ($loginSuccess) {
-                    return;
-                }
-
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event'))
+                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event'))
                 {
                     return;
                 }
@@ -412,21 +392,16 @@ class LaravelIntegration extends Integration
             '__construct',
             null,
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (!function_exists('\datadog\appsec\track_user_signup_event'))
-                {
-                    return;
-                }
-                if (!isset($args[0])) {
-                    return;
-                }
-                $user = $args[0];
                 $authClass = '\Illuminate\Contracts\Auth\Authenticatable';
-                if (!$user || !($user instanceof $authClass)) {
+                if (
+                    !function_exists('\datadog\appsec\track_user_signup_event') ||
+                    !isset($args[0]) ||
+                    !$args[0] ||
+                    !($args[0] instanceof $authClass)
+                ) {
                     return;
                 }
-
-                $metadata = [];
-                \datadog\appsec\track_user_signup_event($user->getAuthIdentifier(), $metadata, true);
+                \datadog\appsec\track_user_signup_event($args[0]->getAuthIdentifier(), [], true);
             }
         );
 
