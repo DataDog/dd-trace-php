@@ -166,7 +166,7 @@ class LaravelIntegration extends Integration
 
                     //New user created, assume sign up
                     if ($span->resource == 'eloquent.created: User') {
-                        $authClass = '\User';
+                        $authClass = 'User';
                         if (
                             !function_exists('\datadog\appsec\track_user_signup_event') ||
                             !isset($args[1]) ||
@@ -326,7 +326,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\SessionGuard',
             'setUser',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                $authClass = '\Illuminate\Contracts\Auth\Authenticatable';
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
                    !function_exists('\datadog\appsec\track_user_login_success_event') ||
                    !isset($args[0]) ||
@@ -351,7 +351,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\Guard',
             'setUser',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                $authClass = '\Illuminate\Auth\UserInterface';
+                $authClass = 'Illuminate\Auth\UserInterface';
                 if (
                     !function_exists('\datadog\appsec\track_user_login_success_event') ||
                     !isset($args[0]) ||
@@ -392,7 +392,7 @@ class LaravelIntegration extends Integration
             '__construct',
             null,
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                $authClass = '\Illuminate\Contracts\Auth\Authenticatable';
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
                     !function_exists('\datadog\appsec\track_user_signup_event') ||
                     !isset($args[0]) ||
