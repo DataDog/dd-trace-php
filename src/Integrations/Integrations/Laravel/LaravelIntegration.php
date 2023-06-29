@@ -167,6 +167,25 @@ class LaravelIntegration extends Integration
                     $span->service = $integration->getServiceName();
                     $span->resource = $args[0];
                     $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+
+                    //New user created, assume sign up
+                    if ($span->resource == 'eloquent.created: User') {
+                        $authClass = 'User';
+                        if (
+                            !function_exists('\datadog\appsec\track_user_signup_event') ||
+                            !isset($args[1]) ||
+                            !$args[1] ||
+                            !($args[1] instanceof $authClass)
+                        ) {
+                            return;
+                        }
+                        $id = null;
+                        if (isset($args[1]['id'])) {
+                          $id = $args[1]['id'];
+                        }
+                        \datadog\appsec\track_user_signup_event($id, [], true);
+                    }
+
                 },
                 'recurse' => true,
             ]
@@ -289,6 +308,104 @@ class LaravelIntegration extends Integration
                 } elseif ($args[0] && !$exceptionHandler->shouldReport($args[0])) {
                     $rootSpan->meta['error.ignored'] = 1;
                 }
+            }
+        );
+
+        // Used by Laravel >= 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\SessionGuard',
+            'attempt',
+            null,
+            function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
+                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event'))
+                {
+                    return;
+                }
+                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+            }
+        );
+
+        // Used by Laravel >= 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\SessionGuard',
+            'setUser',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
+                if (
+                   !function_exists('\datadog\appsec\track_user_login_success_event') ||
+                   !isset($args[0]) ||
+                   !$args[0] ||
+                   !($args[0] instanceof $authClass)
+               ) {
+                   return;
+               }
+               $metadata = [];
+               if (isset($args[0]['name'])) {
+                   $metadata['name'] = $args[0]['name'];
+               }
+               if (isset($args[0]['email'])) {
+                   $metadata['email'] = $args[0]['email'];
+               }
+               \datadog\appsec\track_user_login_success_event($args[0]->getAuthIdentifier(), $metadata, true);
+            }
+        );
+
+        // Used by Laravel < 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Guard',
+            'setUser',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $authClass = 'Illuminate\Auth\UserInterface';
+                if (
+                    !function_exists('\datadog\appsec\track_user_login_success_event') ||
+                    !isset($args[0]) ||
+                    !$args[0] ||
+                    !($args[0] instanceof $authClass)
+                ) {
+                    return;
+                }
+
+                $metadata = [];
+                if (isset($args[0]['name'])) {
+                    $metadata['name'] = $args[0]['name'];
+                }
+                if (isset($args[0]['email'])) {
+                    $metadata['email'] = $args[0]['email'];
+                }
+
+                \datadog\appsec\track_user_login_success_event($args[0]->getAuthIdentifier(), $metadata, true);
+            }
+        );
+
+        // Used by Laravel < 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Guard',
+            'attempt',
+            null,
+            function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
+                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event'))
+                {
+                    return;
+                }
+                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Events\Registered',
+            '__construct',
+            null,
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
+                if (
+                    !function_exists('\datadog\appsec\track_user_signup_event') ||
+                    !isset($args[0]) ||
+                    !$args[0] ||
+                    !($args[0] instanceof $authClass)
+                ) {
+                    return;
+                }
+                \datadog\appsec\track_user_signup_event($args[0]->getAuthIdentifier(), [], true);
             }
         );
 

@@ -27,6 +27,9 @@
             "App\\": "app/"
         }
     },
+    "autoload-dev": {
+        "files": ["../../../Appsec/Mock.php"]
+    },
     "extra": {
         "laravel": {
             "dont-discover": [
