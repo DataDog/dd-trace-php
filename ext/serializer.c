@@ -862,14 +862,14 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
             // Use the first tag that is found in the span, if any
             zval *value = zend_hash_find(Z_ARRVAL_P(meta), Z_STR_P(tag));
             if (value) {
-                add_assoc_str(meta, "_dd.peer.service.source", Z_STR_P(tag));
+                add_assoc_str(meta, "_dd.peer.service.source", zend_string_copy(Z_STR_P(tag)));
 
                 zend_string *substitute_value = dd_get_mapped_peer_service(Z_STR_P(value));
                 if (substitute_value) {
                     add_assoc_str(meta, "peer.service", substitute_value);
-                    add_assoc_str(meta, "peer.service.remapped_from", Z_STR_P(value));
+                    add_assoc_str(meta, "peer.service.remapped_from", zend_string_copy(Z_STR_P(value)));
                 } else {
-                    add_assoc_str(meta, "peer.service", Z_STR_P(value));
+                    add_assoc_str(meta, "peer.service", zend_string_copy(Z_STR_P(value)));
                 }
 
                 break;
