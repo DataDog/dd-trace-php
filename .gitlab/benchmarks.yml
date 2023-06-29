@@ -8,6 +8,7 @@ benchmarks:
   rules:
     - changes:
       - profiling/**/*
+      - .gitlab/benchmarks.yml
   tags: ["runner:apm-k8s-tweaked-metal"]
   needs: []
   image:
