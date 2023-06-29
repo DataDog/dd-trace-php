@@ -868,7 +868,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
                 if (substitute_value) {
                     add_assoc_str(meta, "peer.service", substitute_value);
                     add_assoc_str(meta, "peer.service.remapped_from", Z_STR_P(value));
-                    zend_string_release(substitute_value);
                 } else {
                     add_assoc_str(meta, "peer.service", Z_STR_P(value));
                 }
