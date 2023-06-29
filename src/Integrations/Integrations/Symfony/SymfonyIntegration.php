@@ -82,6 +82,41 @@ class SymfonyIntegration extends Integration
             ]
         );
 
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
+            'onFailure',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event'))
+                {
+                    return;
+                }
+                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
+            'onSuccess',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event'))
+                {
+                    return;
+                }
+                if (!isset($args[1])) {
+                    return;
+                }
+                $token = $args[1];
+                $authClass = 'Symfony\Component\Security\Core\Authentication\Token\TokenInterface';
+                if (!$token || !($token instanceof $authClass)) {
+                    return;
+                }
+
+                $metadata = [];
+
+                \datadog\appsec\track_user_login_success_event($token->getUsername(), $metadata, true);
+            }
+        );
+
         $symfonyCommandsIntegrated = [];
         \DDTrace\hook_method(
             'Symfony\Component\Console\Command\Command',
