@@ -63,5 +63,5 @@ const ENVS = [
     'DD_TRACE_YII_ENABLED' => ['false'],
     'DD_TRACE_ZENDFRAMEWORK_ENABLED' => ['false'],
     'DD_PROFILING_ENABLED' => ['true'],
-    'DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED' => ['true'],
+    'DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED' => ['true'],
 ];
