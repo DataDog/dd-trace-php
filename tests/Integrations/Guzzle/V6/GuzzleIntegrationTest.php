@@ -60,6 +60,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -91,6 +92,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ])
@@ -100,6 +102,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                         ->withExactTags([
                             'http.method' => 'PUT',
                             'http.url' => 'http://example.com',
+                            'network.destination.name' => 'example.com',
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle'
@@ -120,6 +123,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -139,6 +143,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -288,6 +293,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -339,6 +345,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -359,6 +366,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -388,6 +396,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.method' => 'GET',
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
+                            'network.destination.name' => 'httpbin_integration',
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle'
                         ])
