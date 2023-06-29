@@ -859,20 +859,22 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     } else if (zend_hash_num_elements(peer_service_sources_zv) > 0) {
         zval *tag;
         ZEND_HASH_FOREACH_VAL(peer_service_sources_zv, tag) {
-            // Use the first tag that is found in the span, if any
-            zval *value = zend_hash_find(Z_ARRVAL_P(meta), Z_STR_P(tag));
-            if (value) {
-                add_assoc_str(meta, "_dd.peer.service.source", zend_string_copy(Z_STR_P(tag)));
+            if (Z_TYPE_P(tag) == IS_STRING) {
+                // Use the first tag that is found in the span, if any
+                zval * value = zend_hash_find(Z_ARRVAL_P(meta), Z_STR_P(tag));
+                if (value) {
+                    add_assoc_str(meta, "_dd.peer.service.source", zend_string_copy(Z_STR_P(tag)));
 
-                zend_string *substitute_value = dd_get_mapped_peer_service(Z_STR_P(value));
-                if (substitute_value) {
-                    add_assoc_str(meta, "peer.service", substitute_value);
-                    add_assoc_str(meta, "peer.service.remapped_from", zend_string_copy(Z_STR_P(value)));
-                } else {
-                    add_assoc_str(meta, "peer.service", zend_string_copy(Z_STR_P(value)));
+                    zend_string * substitute_value = dd_get_mapped_peer_service(Z_STR_P(value));
+                    if (substitute_value) {
+                        add_assoc_str(meta, "peer.service", substitute_value);
+                        add_assoc_str(meta, "peer.service.remapped_from", zend_string_copy(Z_STR_P(value)));
+                    } else {
+                        add_assoc_str(meta, "peer.service", zend_string_copy(Z_STR_P(value)));
+                    }
+
+                    break;
                 }
-
-                break;
             }
         }
         ZEND_HASH_FOREACH_END();
