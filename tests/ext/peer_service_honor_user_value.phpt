@@ -51,7 +51,7 @@ array(2) {
       string(3) "db1"
       ["peer.service"]=>
       string(3) "xyz"
-      ["dd.peer.service.source"]=>
+      ["_dd.peer.service.source"]=>
       string(12) "peer.service"
     }
   }
@@ -81,7 +81,7 @@ array(2) {
       string(3) "db1"
       ["peer.service"]=>
       string(3) "xyz"
-      ["dd.peer.service.source"]=>
+      ["_dd.peer.service.source"]=>
       string(12) "peer.service"
     }
   }

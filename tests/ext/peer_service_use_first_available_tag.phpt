@@ -56,10 +56,10 @@ array(3) {
     array(3) {
       ["net.peer.name"]=>
       string(15) "db1.example.com"
+      ["_dd.peer.service.source"]=>
+      string(13) "net.peer.name"
       ["peer.service"]=>
       string(15) "db1.example.com"
-      ["dd.peer.service.source"]=>
-      string(13) "net.peer.name"
     }
   }
   [1]=>
@@ -88,10 +88,10 @@ array(3) {
       string(3) "db1"
       ["net.peer.name"]=>
       string(15) "db1.example.com"
+      ["_dd.peer.service.source"]=>
+      string(11) "db.instance"
       ["peer.service"]=>
       string(3) "db1"
-      ["dd.peer.service.source"]=>
-      string(11) "db.instance"
     }
   }
   [2]=>
@@ -118,10 +118,10 @@ array(3) {
     array(3) {
       ["db.instance"]=>
       string(3) "db1"
+      ["_dd.peer.service.source"]=>
+      string(11) "db.instance"
       ["peer.service"]=>
       string(3) "db1"
-      ["dd.peer.service.source"]=>
-      string(11) "db.instance"
     }
   }
 }

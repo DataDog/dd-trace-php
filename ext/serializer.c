@@ -607,6 +607,28 @@ static zend_string *dd_get_user_agent() {
     return ZSTR_EMPTY_ALLOC();
 }
 
+static zend_string *dd_get_mapped_peer_service(zend_string *peer_service) {
+    zend_array *peer_service_mapping = get_DD_TRACE_PEER_SERVICE_MAPPING();
+    if (zend_hash_num_elements(peer_service_mapping) == 0) {
+        return NULL;
+    }
+
+    // The values of peer_service_mapping are strings in the format <peer_service>:<mapped_service>
+    zend_string *mapped_service = NULL;
+    zend_string *key;
+    ZEND_HASH_FOREACH_STR_KEY(peer_service_mapping, key) {
+        if (key && zend_string_starts_with(key, peer_service)) {
+            // Isolate the part after "<peer_service>:" to get the mapped service
+            mapped_service = zend_string_init(ZSTR_VAL(key) + ZSTR_LEN(peer_service) + 1,
+                                              ZSTR_LEN(key) - ZSTR_LEN(peer_service) - 1, 0);
+            break;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    return mapped_service;
+}
+
 void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
 
@@ -832,9 +854,8 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     }
 
     zend_array *peer_service_sources_zv = ddtrace_spandata_property_peer_service_sources(span);
-    // Check if
     if (peer_service_set) { // peer.service is already set by the user, honor it
-        add_assoc_str(meta, "dd.peer.service.source", zend_string_init(ZEND_STRL("peer.service"), 0));
+        add_assoc_str(meta, "_dd.peer.service.source", zend_string_init(ZEND_STRL("peer.service"), 0));
     } else {
         if (zend_hash_num_elements(peer_service_sources_zv) > 0) {
             zval *tag;
@@ -843,8 +864,16 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
                     // Use the first tag that is found in the span, if any
                     zval *value = zend_hash_find(Z_ARRVAL_P(meta), Z_STR_P(tag));
                     if (value) {
-                        add_assoc_str(meta, "peer.service", Z_STR_P(value));
-                        add_assoc_str(meta, "dd.peer.service.source", Z_STR_P(tag));
+                        add_assoc_str(meta, "_dd.peer.service.source", Z_STR_P(tag));
+
+                        zend_string *substitute_value = dd_get_mapped_peer_service(Z_STR_P(value));
+                        if (substitute_value) {
+                            add_assoc_str(meta, "peer.service", substitute_value);
+                            add_assoc_str(meta, "peer.service.remapped_from", Z_STR_P(value));
+                            zend_string_release(substitute_value);
+                        } else {
+                            add_assoc_str(meta, "peer.service", Z_STR_P(value));
+                        }
                         break;
                     }
                 }
