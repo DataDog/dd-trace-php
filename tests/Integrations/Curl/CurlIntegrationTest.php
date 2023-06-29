@@ -87,6 +87,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    'span.kind' => 'client',
+                    'network.destination.name' => 'httpbin_integration',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -109,6 +111,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    'span.kind' => 'client',
+                    'network.destination.name' => 'httpbin_integration',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -133,6 +137,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    'span.kind' => 'client',
+                    'network.destination.name' => 'httpbin_integration',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -157,6 +163,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://?:?@httpbin_integration/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
+                    'span.kind' => 'client',
+                    'network.destination.name' => 'httpbin_integration',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -182,6 +190,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
+                    'span.kind' => 'client',
+                    'network.destination.name' => 'httpbin_integration',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -211,6 +221,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                         ->withExactTags([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
+                            'span.kind' => 'client',
+                            'network.destination.name' => 'httpbin_integration',
                             Tag::COMPONENT => 'curl',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -233,6 +245,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    'span.kind' => 'client',
+                    'network.destination.name' => 'httpbin_integration',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -256,6 +270,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/404',
                     'http.status_code' => '404',
+                    'span.kind' => 'client',
+                    'network.destination.name' => 'httpbin_integration',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -279,6 +295,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
+                    'span.kind' => 'client',
+                    'network.destination.name' => '10.255.255.1',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames([Tag::ERROR_MSG])
@@ -305,6 +323,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
+                    'span.kind' => 'client',
+                    'network.destination.name' => '10.255.255.1',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames([Tag::ERROR_MSG])
@@ -331,6 +351,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://__i_am_not_real__.invalid/',
                     'http.status_code' => '0',
+                    'span.kind' => 'client',
+                    'network.destination.name' => '__i_am_not_real__.invalid',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -468,6 +490,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
+                    'span.kind' => 'client',
+                    'network.destination.name' => 'httpbin_integration',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -498,6 +522,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://?:?@httpbin_integration/status/200',
                     'http.status_code' => '200',
+                    'span.kind' => 'client',
+                    'network.destination.name' => 'httpbin_integration',
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -554,6 +580,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                         ->withExactTags([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
+                            'span.kind' => 'client',
+                            'network.destination.name' => 'httpbin_integration',
                             Tag::COMPONENT => 'curl',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())

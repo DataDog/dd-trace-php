@@ -52,6 +52,7 @@ final class CurlIntegration extends Integration
                 $span->service = 'curl';
                 $integration->addTraceAnalyticsIfEnabled($span);
                 $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
+                $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
 
                 if (!isset($args[0])) {
                     return;
@@ -69,7 +70,12 @@ final class CurlIntegration extends Integration
                 $info = \curl_getinfo($ch);
                 $sanitizedUrl = \DDTrace\Util\Normalizer::urlSanitize($info['url']);
                 $normalizedPath = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($info['url']);
+                $host = Urls::hostname($sanitizedUrl);
                 unset($info['url']);
+
+                if ($host) {
+                    $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
+                }
 
                 if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.http_client_split_by_domain")) {
                     $span->service = Urls::hostnameForTag($sanitizedUrl);
