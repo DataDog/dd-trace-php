@@ -38,9 +38,9 @@ class WordPressComponent
             return $actionHookToTheme[$hookName];
         }
 
-        // TODO: For legacy, explain why this is the fourth index
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 4);
-        $file = isset($backtrace[3]['file']) ? $backtrace[3]['file'] : '';
+        // Order: 0: this function, 1: do_action function definition, 2: do_action call
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+        $file = isset($backtrace[2]['file']) ? $backtrace[2]['file'] : '';
 
         if (!function_exists('get_theme_root')) {
             return null;
@@ -72,9 +72,9 @@ class WordPressComponent
         }
 
         // Get the path of the file that contains the hook
-        // TODO: For legacy, explain why this is the fourth index
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 4);
-        $file = isset($backtrace[3]['file']) ? $backtrace[3]['file'] : '';
+        // Order: 0: this function, 1: do_action function definition, 2: do_action call
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+        $file = isset($backtrace[2]['file']) ? $backtrace[2]['file'] : '';
 
         // Try to find the plugin associated to the hook
         $plugin = WordPressComponent::extractPluginNameFromFile($file);
@@ -383,30 +383,26 @@ class WordPressComponent
                     ),
                     function (HookData $hook) use ($integration, $callback, $action, &$actionHookToPlugin) {
                         $span = $hook->span();
-                        WordPressComponent::setCommonTags($integration, $span, 'callback');
 
-                        if (is_array($callback)) {
-                            list($class, $method) = $callback;
-                            $class = explode('\\', is_object($class) ? get_class($class) : $class);
+                        // Order: 1. function definition, 2. call_user_func/call_user_func_array call (class-wp-hook.php)
+                        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+                        $class = isset($backtrace[1]['class']) ? $backtrace[1]['class'] : null;
+                        $function = isset($backtrace[1]['function']) ? $backtrace[1]['function'] : null;
+                        // Remove the namespace from the class name
+                        if ($class) {
+                            $class = explode('\\', $class);
                             $class = end($class);
-                            $span->resource = "callback: $class::$method";
-                        } elseif (is_string($callback)) {
-                            $function = explode('\\', $callback);
+                        }
+                        // Remove the namespace from the function name
+                        if ($function) {
+                            $function = explode('\\', $function);
                             $function = end($function);
-                            $span->resource = "callback: $function";
-                        } elseif (is_object($callback) && !($callback instanceof \Closure) && method_exists($callback, '__invoke')) {
-                            // Example: add_action( 'hookName', new ClassDefiningTheInvokeMethod()) );
-                            // Note: The two first conditions should already be enough, the third one is just to be sure
-                            $class = explode('\\', get_class($callback));
-                            $class = end($class);
-                            $span->resource = "callback: $class::_invoke";
-                        } else {
-                            // TODO: Check if all types of callbacks are covered
-                            $span->resource = 'callback: {closure}';
                         }
 
-                        // TODO: For legacy, explain why this is the first index
-                        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+                        $resource = $class ? "callback: $class::$function" : "callback: $function";
+
+                        WordPressComponent::setCommonTags($integration, $span, 'callback', $resource);
+
                         $file = isset($backtrace[0]['file']) ? $backtrace[0]['file'] : '';
                         $plugin = WordPressComponent::extractPluginNameFromFile($file);
                         if ($plugin) {
