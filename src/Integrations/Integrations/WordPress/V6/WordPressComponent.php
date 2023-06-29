@@ -15,6 +15,7 @@ use function DDTrace\install_hook;
 use function DDTrace\remove_hook;
 use function DDTrace\set_user;
 use function DDTrace\trace_function;
+use function DDTrace\trace_method;
 
 class WordPressComponent
 {
@@ -37,6 +38,7 @@ class WordPressComponent
             return $actionHookToTheme[$hookName];
         }
 
+        // TODO: For legacy, explain why this is the fourth index
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 4);
         $file = isset($backtrace[3]['file']) ? $backtrace[3]['file'] : '';
 
@@ -70,6 +72,7 @@ class WordPressComponent
         }
 
         // Get the path of the file that contains the hook
+        // TODO: For legacy, explain why this is the fourth index
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 4);
         $file = isset($backtrace[3]['file']) ? $backtrace[3]['file'] : '';
 
@@ -85,6 +88,14 @@ class WordPressComponent
         return $actionHookToPlugin[$hookName];
     }
 
+    public static function setCommonTags(WordPressIntegration $integration, SpanData $span, string $name, string $resource = null) {
+        $span->name = $name;
+        $span->resource = $resource ?: $name;
+        $span->type = Type::WEB_SERVLET;
+        $span->service = $integration->getServiceName();
+        $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+    }
+
     public function load(WordPressIntegration $integration)
     {
         $rootSpan = \DDTrace\root_span();
@@ -94,6 +105,19 @@ class WordPressComponent
 
         $actionHookToPlugin = [];
         $actionHookToTheme = [];
+        $interestingActions = [
+            'plugins_loaded' => true,
+            'setup_theme' => true,
+            'after_setup_theme' => true,
+            'init' => true,
+            'wp_loaded' => true,
+            'template_redirect' => true,
+            'wp' => true, // part of wp->main();
+            'wp_head' => true,
+            'rest_api_init' => true,
+            'wp_footer' => true,
+            'shutdown' => true
+        ];
 
         // Overwrite the default web integration
         $integration->addTraceAnalyticsIfEnabled($rootSpan);
@@ -105,7 +129,7 @@ class WordPressComponent
         if ('cli' !== PHP_SAPI) {
             $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
             $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath; // TODO: Change resource name
-            \DDTrace\hook_function('wp_plugin_directory_constants', function () use ($rootSpan) {
+            hook_function('wp_plugin_directory_constants', function () use ($rootSpan) {
                 if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                     $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
                 }
@@ -113,18 +137,12 @@ class WordPressComponent
         }
 
         // Core
-        \DDTrace\trace_method('WP', 'main', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP.main';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_method('WP', 'main', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP.main');
         });
 
-        \DDTrace\trace_method('WP', 'init', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP.init';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_method('WP', 'init', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP.init');
 
             $user = wp_get_current_user();
             if ($user) {
@@ -143,126 +161,108 @@ class WordPressComponent
             }
         });
 
-        \DDTrace\trace_method('WP', 'parse_request', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP.parse_request';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_method('WP', 'parse_request', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP.parse_request');
         });
 
-        \DDTrace\trace_method('WP', 'send_headers', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP.send_headers';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_method('WP', 'send_headers', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP.send_headers');
         });
 
-        \DDTrace\trace_method('WP', 'query_posts', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP.query_posts';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_method('WP', 'query_posts', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP.query_posts');
         });
 
-        \DDTrace\trace_method('WP', 'handle_404', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP.handle_404';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_method('WP', 'handle_404', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP.handle_404');
         });
 
-        \DDTrace\trace_method('WP', 'register_globals', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP.register_globals';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_method('WP', 'register_globals', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP.register_globals');
         });
 
-        \DDTrace\trace_function('create_initial_post_types', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'create_initial_post_types';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('create_initial_post_types', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'create_initial_post_types');
         });
 
-        \DDTrace\trace_function('create_initial_taxonomies', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'create_initial_taxonomies';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('create_initial_taxonomies', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'create_initial_taxonomies');
         });
 
-        \DDTrace\trace_function('wp_print_head_scripts', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'wp_print_head_scripts';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('wp_print_head_scripts', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'wp_print_head_scripts');
         });
 
         // These not called in PHP 5 due to call_user_func_array() bug
-        \DDTrace\trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'wp_maybe_load_widgets';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'wp_maybe_load_widgets');
         });
 
-        \DDTrace\trace_function('wp_maybe_load_embeds', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'wp_maybe_load_embeds';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('wp_maybe_load_embeds', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'wp_maybe_load_embeds');
         });
 
-        \DDTrace\trace_function('_wp_customize_include', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = '_wp_customize_include';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('_wp_customize_include', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, '_wp_customize_include');
         });
 
         // Widgets
-        \DDTrace\trace_method('WP_Widget', 'display_callback', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'WP_Widget.display_callback';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('wp_widgets_init', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'wp_widgets_init');
+        });
+
+        /* When a widget is registered, trace its `widget` method. The base
+         * method, WP_Widget::widget, is not called, so we cannot intercept it
+         * generically.
+         *
+         * Widgets have largely been replaced by blocks in WordPress 6.
+         */
+        hook_function('register_widget', function ($args) use ($integration) {
+            if (!isset($args[0])) {
+                return;
+            }
+
+            // register_widget( string|WP_Widget $widget ): void
+            $widget = $args[0];
+            if (is_string($widget)) {
+                $className = $widget;
+            } elseif (is_object($widget)) {
+                $className = get_class($widget);
+            } else {
+                return;
+            }
+
+            trace_method($className, 'widget', function (SpanData $span) use ($integration) {
+                WordPressComponent::setCommonTags(
+                    $integration,
+                    $span,
+                    'widget',
+                    isset($this->name) ? "name: {$this->name}" : 'name: ?'
+                );
+            });
         });
 
         // Views
-        \DDTrace\trace_function('get_header', function (SpanData $span, array $args) use ($service) {
-            $span->name = 'get_header';
-            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        // May be removed - covered by load_template
+        trace_function('get_header', function (SpanData $span, array $args) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'get_header', !empty($args[0]) ? $args[0] : 'get_header');
         });
 
-        \DDTrace\trace_function('get_footer', function (SpanData $span, array $args) use ($service) {
-            $span->name = 'get_footer';
-            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        // May be removed - covered by load_template
+        trace_function('get_footer', function (SpanData $span, array $args) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'get_footer', !empty($args[0]) ? $args[0] : 'get_footer');
         });
 
-        \DDTrace\trace_function('the_custom_header_markup', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'the_custom_header_markup';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('the_custom_header_markup', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'the_custom_header_markup');
         });
 
-        \DDTrace\trace_function('body_class', function (SpanData $span) use ($service) {
-            $span->name = $span->resource = 'body_class';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('body_class', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'body_class');
         });
 
-        \DDTrace\trace_function('load_template', function (SpanData $span, array $args) use ($service) {
-            $span->name = 'load_template';
-
+        trace_function('load_template', function (SpanData $span, array $args) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'load_template');
 
             $template = isset($args[0]) ? wp_basename($args[0]) : '';
             $plugin = WordPressComponent::extractPluginNameFromFile($template);
@@ -280,148 +280,110 @@ class WordPressComponent
             } else {
                 $span->resource = !empty($template) ? $template : $span->name;
             }
-
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
-        \DDTrace\trace_function('the_content', function (SpanData $span) use ($service) {
-            $span->name = 'the_content';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        // May be removed - covered by load_template
+        trace_function('the_content', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'the_content');
         });
 
-        \DDTrace\trace_function('the_post', function (SpanData $span) use ($service) {
-            $span->name = 'the_post';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('the_post', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'the_post');
         });
 
-        \DDTrace\trace_function('get_avatar', function (SpanData $span) use ($service) {
-            $span->name = 'get_avatar';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('get_avatar', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'get_avatar');
         });
 
-        \DDTrace\trace_function('the_post_thumbnail', function (SpanData $span, array $args) use ($service) {
-            $span->name = 'the_post_thumbnail';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('the_post_thumbnail', function (SpanData $span, array $args) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'the_post_thumbnail');
 
             if (isset($args[0]) && is_string($args[0])) {
                 $span->meta['wp.post_thumbnail.size'] = $args[0];
             }
         });
 
-        \DDTrace\trace_function('comments_template', function (SpanData $span, array $args) use ($service) {
-            $span->name = 'comments_template';
-            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('comments_template', function (SpanData $span, array $args) use ($integration) {
+            WordPressComponent::setCommonTags(
+                $integration,
+                $span,
+                'comments_template',
+                !empty($args[0]) ? $args[0] : 'comments_template'
+            );
         });
 
         // Sidebar
-        \DDTrace\trace_function('get_sidebar', function (SpanData $span, array $args) use ($service) {
-            $span->name = 'get_sidebar';
-            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('get_sidebar', function (SpanData $span, array $args) use ($integration) {
+            WordPressComponent::setCommonTags(
+                $integration,
+                $span,
+                'get_sidebar',
+                !empty($args[0]) ? $args[0] : 'get_sidebar'
+            );
         });
 
 
-        \DDTrace\trace_function('dynamic_sidebar', function (SpanData $span, array $args) use ($service) {
-            $span->name = 'dynamic_sidebar';
-            $span->resource = isset($args[0]) ? $args[0] : $span->name;
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('dynamic_sidebar', function (SpanData $span, array $args) use ($integration) {
+            WordPressComponent::setCommonTags(
+                $integration,
+                $span,
+                'dynamic_sidebar',
+                isset($args[0]) ? $args[0] : 'dynamic_sidebar'
+            );
         });
-
-        // Actions
-        $action = function (SpanData $span, $args) use (&$actionHookToPlugin, &$actionHookToTheme) {
-            $span->name = 'action';
-            $hookName = isset($args[0]) ? $args[0] : '?';
-            $span->resource = "hook_name: $hookName";
-
-            if ($hookName === '?') {
-                return;
-            }
-
-            // If we have a plugin name, add it to the meta
-            if (isset($actionHookToPlugin[$hookName])) {
-                if ($actionHookToPlugin[$hookName]) {
-                    $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
-                }
-            } elseif ($plugin = WordPressComponent::extractAndSavePluginNameFromFile($hookName, $actionHookToPlugin)) {
-                $span->meta['wp.plugin'] = $plugin;
-            } elseif ($theme = WordPressComponent::tryExtractThemeNameFromPath($hookName, $actionHookToTheme)) {
-                $span->meta['wp.theme'] = $theme;
-            }
-
-            // TODO: Search for more relevant tags
-        };
 
         foreach (['do_action', 'do_action_ref_array'] as $function) {
             trace_function(
                 $function,
                 [
                     'recurse' => true,
-                    'prehook' => function (SpanData $span, $args) use ($action, $service) {
-                        $span->type = Type::WEB_SERVLET;
+                    'prehook' => function (SpanData $span, $args) use ($integration, &$actionHookToPlugin, &$actionHookToTheme) {
+                        WordPressComponent::setCommonTags($integration, $span, 'action');
 
-                        $action($span, $args);
+                        $hookName = isset($args[0]) ? $args[0] : '?';
+                        $span->resource = "hook_name: $hookName";
 
-                        $span->service = $service;
-                        $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+                        if ($hookName === '?') {
+                            return;
+                        }
+
+                        // If we have a plugin name, add it to the meta
+                        if (isset($actionHookToPlugin[$hookName])) {
+                            if ($actionHookToPlugin[$hookName]) {
+                                $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
+                            }
+                        } elseif ($plugin = WordPressComponent::extractAndSavePluginNameFromFile($hookName, $actionHookToPlugin)) {
+                            $span->meta['wp.plugin'] = $plugin;
+                        } elseif ($theme = WordPressComponent::tryExtractThemeNameFromPath($hookName, $actionHookToTheme)) {
+                            $span->meta['wp.theme'] = $theme;
+                        }
+
+                        // TODO: Search for even more relevant tags
                     },
                     'posthook' => function (SpanData $span, $args, $response) {
                         $duration = $span->getDuration(); // nanoseconds
                         // If the duration is less than 10ms, drop the span (return false)
+                        // On an app with approx. 15 plugins, reduced the number of spans by 50% (1500 -> 750)
                         return $duration > 10000000;
                     }
                 ]
             );
         }
 
-        hook_function('add_action', function ($args) use ($service, &$actionHookToPlugin) {
+        hook_function('add_action', function ($args) use ($integration, &$actionHookToPlugin, $interestingActions) {
             $action = $args[0];
             $callback = $args[1];
 
-            if (
-                in_array(
-                    $action,
-                    [
-                        'plugins_loaded',
-                        'setup_theme',
-                        'after_setup_theme',
-                        'init',
-                        'wp_loaded',
-                        'template_redirect',
-                        'wp', // part of wp->main();
-                        'wp_head',
-                        'rest_api_init',
-                        'wp_footer',
-                        'shutdown'
-                    ]
-                )
-            ) {
+            if (isset($interestingActions[$action])) {
                 install_hook(
                     (
                     is_array($callback) && is_string($callback[0])
                         ? "{$callback[0]}::{$callback[1]}"
                         : $callback
                     ),
-                    function (HookData $hook) use ($service, $callback, $action, &$actionHookToPlugin) {
+                    function (HookData $hook) use ($integration, $callback, $action, &$actionHookToPlugin) {
                         $span = $hook->span();
-                        $span->name = 'callback';
-                        $span->type = Type::WEB_SERVLET;
+                        WordPressComponent::setCommonTags($integration, $span, 'callback');
 
                         if (is_array($callback)) {
                             list($class, $method) = $callback;
@@ -443,9 +405,7 @@ class WordPressComponent
                             $span->resource = 'callback: {closure}';
                         }
 
-                        $span->service = $service;
-                        $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-
+                        // TODO: For legacy, explain why this is the first index
                         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
                         $file = isset($backtrace[0]['file']) ? $backtrace[0]['file'] : '';
                         $plugin = WordPressComponent::extractPluginNameFromFile($file);
@@ -464,11 +424,14 @@ class WordPressComponent
         // Blocks
         trace_function(
             'render_block',
-            function (SpanData $span, $args, $retval) use ($service) {
-                $span->name = 'block';
+            function (SpanData $span, $args, $retval) use ($integration) {
                 // Some blocks are literally empty. We could even consider dropping the span in this case.
-                $blockName = isset($args[0]['blockName']) ? $args[0]['blockName'] : '?';
-                $span->resource = "block_name: $blockName";
+                WordPressComponent::setCommonTags(
+                    $integration,
+                    $span,
+                    'block',
+                    isset($args[0]['blockName']) ? "block_name: {$args[0]['blockName']}" : 'block_name: ?'
+                );
 
                 if (isset($args[0]['attrs'])) {
                     $attrs = $args[0]['attrs'];
@@ -478,28 +441,25 @@ class WordPressComponent
                         }
                     }
                 }
-
-                $span->service = $service;
-                $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
             }
         );
 
-        trace_function('block_template_part', function (SpanData $span, $args) {
-            $span->name = 'block_template_part';
-            $part = isset($args[0]) && is_string($args[0]) ? $args[0] : '?';
-            $span->resource = "part: $part";
+        trace_function('block_template_part', function (SpanData $span, $args) use ($integration) {
+            WordPressComponent::setCommonTags(
+                $integration,
+                $span,
+                'block_template_part',
+                isset($args[0]) && is_string($args[0]) ? "part: {$args[0]}" : 'part: ?'
+            );
         });
 
-        trace_function('get_query_template', function (SpanData $span, $args) use ($service) {
-            $span->type = Type::WEB_SERVLET;
-            $span->name = 'template';
-
-            $type = isset($args[0]) ? $args[0] : '?';
-            $span->resource = "type: $type";
-
-            $span->meta['wp.template.type'] = $type; // TODO: Redundant with resource? Search for more relevant tags
-            $span->service = $service;
-            $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        trace_function('get_query_template', function (SpanData $span, $args) use ($integration) {
+            WordPressComponent::setCommonTags(
+                $integration,
+                $span,
+                'template',
+                isset($args[0]) ? "type: {$args[0]}" : 'type: ?'
+            );
         });
 
         return Integration::LOADED;
