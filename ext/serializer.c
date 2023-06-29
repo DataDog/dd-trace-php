@@ -617,7 +617,7 @@ static zend_string *dd_get_mapped_peer_service(zend_string *peer_service) {
     zend_string *mapped_service = NULL;
     zend_string *mapping;
     ZEND_HASH_FOREACH_STR_KEY(peer_service_mapping, mapping) {
-        if (mapping && zend_string_starts_with(mapping, peer_service)) {
+        if (mapping && memcmp(ZSTR_VAL(mapping), ZSTR_VAL(peer_service), ZSTR_LEN(peer_service)) == 0) {
             // Isolate the part after "<peer_service>:" to get the mapped service
             mapped_service = zend_string_init(ZSTR_VAL(mapping) + ZSTR_LEN(peer_service) + 1,
                                               ZSTR_LEN(mapping) - ZSTR_LEN(peer_service) - 1, 0);
