@@ -101,7 +101,7 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
     None
 }
 
-pub(super) unsafe fn collect_timed_stack_sample(
+pub unsafe fn collect_timed_stack_sample(
     top_execute_data: *mut zend_execute_data,
     _locals: &mut RequestLocals,
     _reason: Reason,
@@ -121,7 +121,7 @@ pub(super) unsafe fn collect_timed_stack_sample(
     result
 }
 
-pub(super) unsafe fn collect_stack_sample(
+pub unsafe fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     let max_depth = 512;
