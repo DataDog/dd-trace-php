@@ -619,8 +619,8 @@ static zend_string *dd_get_mapped_peer_service(zend_string *peer_service) {
     ZEND_HASH_FOREACH_STR_KEY(peer_service_mapping, mapping) {
         // Check if the mapping starts by "<peer_service>:"
         if (mapping && ZSTR_LEN(mapping) > ZSTR_LEN(peer_service) + 1
-            && memcmp(ZSTR_VAL(mapping), ZSTR_VAL(peer_service), ZSTR_LEN(peer_service)) == 0
-            && ZSTR_VAL(mapping)[ZSTR_LEN(peer_service)] == ':') {
+            && ZSTR_VAL(mapping)[ZSTR_LEN(peer_service)] == ':'
+            && memcmp(ZSTR_VAL(mapping), ZSTR_VAL(peer_service), ZSTR_LEN(peer_service)) == 0) {
             // Isolate the part after "<peer_service>:" to get the mapped service
             mapped_service = zend_string_init(ZSTR_VAL(mapping) + ZSTR_LEN(peer_service) + 1,
                                               ZSTR_LEN(mapping) - ZSTR_LEN(peer_service) - 1, 0);
