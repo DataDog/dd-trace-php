@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\WordPress\V6;
 use DDTrace\HookData;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -96,8 +97,18 @@ class WordPressComponent
         $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
     }
 
+    public static function allowQueryParamsInResourceName() {
+        $envVar = array_keys(dd_trace_env_config("DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED"));
+
+        if (!in_array('*', $envVar)) {
+            ini_set('datadog.trace.resource_uri_query_param_allowed', "*");
+        }
+    }
+
     public function load(WordPressIntegration $integration)
     {
+        WordPressComponent::allowQueryParamsInResourceName();
+
         $rootSpan = \DDTrace\root_span();
         if (!$rootSpan) {
             return Integration::NOT_LOADED;
@@ -141,8 +152,13 @@ class WordPressComponent
             WordPressComponent::setCommonTags($integration, $span, 'WP.main');
         });
 
-        trace_method('WP', 'init', function (SpanData $span) use ($integration) {
+        trace_method('WP', 'init', function (SpanData $span) use ($integration, $rootSpan) {
             WordPressComponent::setCommonTags($integration, $span, 'WP.init');
+
+            $canonicalURL = wp_get_canonical_url();
+            if ($canonicalURL) {
+                $rootSpan->resource = $canonicalURL;
+            }
 
             $user = wp_get_current_user();
             if ($user) {
@@ -193,11 +209,6 @@ class WordPressComponent
             WordPressComponent::setCommonTags($integration, $span, 'wp_print_head_scripts');
         });
 
-        // These not called in PHP 5 due to call_user_func_array() bug
-        trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($integration) {
-            WordPressComponent::setCommonTags($integration, $span, 'wp_maybe_load_widgets');
-        });
-
         trace_function('wp_maybe_load_embeds', function (SpanData $span) use ($integration) {
             WordPressComponent::setCommonTags($integration, $span, 'wp_maybe_load_embeds');
         });
@@ -209,6 +220,11 @@ class WordPressComponent
         // Widgets
         trace_function('wp_widgets_init', function (SpanData $span) use ($integration) {
             WordPressComponent::setCommonTags($integration, $span, 'wp_widgets_init');
+        });
+
+        // These not called in PHP 5 due to call_user_func_array() bug
+        trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'wp_maybe_load_widgets');
         });
 
         /* When a widget is registered, trace its `widget` method. The base
@@ -285,6 +301,11 @@ class WordPressComponent
         // May be removed - covered by load_template
         trace_function('the_content', function (SpanData $span) use ($integration) {
             WordPressComponent::setCommonTags($integration, $span, 'the_content');
+
+            $postID = get_the_ID();
+            if ($postID) {
+                $span->meta['wp.post.id'] = $postID;
+            }
         });
 
         trace_function('the_post', function (SpanData $span) use ($integration) {
@@ -299,7 +320,7 @@ class WordPressComponent
             WordPressComponent::setCommonTags($integration, $span, 'the_post_thumbnail');
 
             if (isset($args[0]) && is_string($args[0])) {
-                $span->meta['wp.post_thumbnail.size'] = $args[0];
+                $span->meta['wp.post.thumbnail_size'] = $args[0];
             }
         });
 
