@@ -98,6 +98,12 @@ class WordPressComponent
     }
 
     public static function allowQueryParamsInResourceName() {
+        // Check if the WordPress app is using plain permalinks
+        $structure = get_option('permalink_structure');
+        if ($structure !== '') {
+            return;
+        }
+
         $envVar = array_keys(dd_trace_env_config("DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED"));
 
         if (!in_array('*', $envVar)) {
@@ -107,57 +113,33 @@ class WordPressComponent
 
     public function load(WordPressIntegration $integration)
     {
-        WordPressComponent::allowQueryParamsInResourceName();
-
-        $rootSpan = \DDTrace\root_span();
-        if (!$rootSpan) {
+        if (!Integration::shouldLoad(WordPressIntegration::NAME)) {
             return Integration::NOT_LOADED;
         }
 
-        $actionHookToPlugin = [];
-        $actionHookToTheme = [];
-        $interestingActions = [
-            'plugins_loaded' => true,
-            'setup_theme' => true,
-            'after_setup_theme' => true,
-            'init' => true,
-            'wp_loaded' => true,
-            'template_redirect' => true,
-            'wp' => true, // part of wp->main();
-            'wp_head' => true,
-            'rest_api_init' => true,
-            'wp_footer' => true,
-            'shutdown' => true
-        ];
+        hook_function('wp', function () use ($integration) {
+            WordPressComponent::allowQueryParamsInResourceName();
 
-        // Overwrite the default web integration
-        $integration->addTraceAnalyticsIfEnabled($rootSpan);
-        $rootSpan->name = 'wordpress.request';
-        $service = \ddtrace_config_app_name(WordPressIntegration::NAME);
-        $rootSpan->service = $service;
-        $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-        if ('cli' !== PHP_SAPI) {
-            $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
-            $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath; // TODO: Change resource name
-            hook_function('wp_plugin_directory_constants', function () use ($rootSpan) {
-                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                    $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
-                }
-            });
-        }
+            $rootSpan = \DDTrace\root_span();
+            if (!$rootSpan) {
+                return;
+            }
 
-        // Core
-        trace_method('WP', 'main', function (SpanData $span) use ($integration) {
-            WordPressComponent::setCommonTags($integration, $span, 'WP.main');
-        });
-
-        trace_method('WP', 'init', function (SpanData $span) use ($integration, $rootSpan) {
-            WordPressComponent::setCommonTags($integration, $span, 'WP.init');
-
-            $canonicalURL = wp_get_canonical_url();
-            if ($canonicalURL) {
-                $rootSpan->resource = $canonicalURL;
+            // Overwrite the default web integration
+            $integration->addTraceAnalyticsIfEnabled($rootSpan);
+            $rootSpan->name = 'wordpress.request';
+            $service = \ddtrace_config_app_name(WordPressIntegration::NAME);
+            $rootSpan->service = $service;
+            $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+            $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+            if ('cli' !== PHP_SAPI) {
+                $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
+                $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
+                hook_function('wp_plugin_directory_constants', function () use ($rootSpan) {
+                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                        $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+                    }
+                });
             }
 
             $user = wp_get_current_user();
@@ -175,6 +157,31 @@ class WordPressComponent
 
                 set_user($user->ID, $meta);
             }
+        });
+
+        $actionHookToPlugin = [];
+        $actionHookToTheme = [];
+        $interestingActions = [
+            'plugins_loaded' => true,
+            'setup_theme' => true,
+            'after_setup_theme' => true,
+            'init' => true,
+            'wp_loaded' => true,
+            'template_redirect' => true,
+            'wp' => true, // part of wp->main();
+            'wp_head' => true,
+            'rest_api_init' => true,
+            'wp_footer' => true,
+            'shutdown' => true
+        ];
+
+        // Core
+        trace_method('WP', 'main', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP.main');
+        });
+
+        trace_method('WP', 'init', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP.init');
         });
 
         trace_method('WP', 'parse_request', function (SpanData $span) use ($integration) {
