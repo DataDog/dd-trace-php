@@ -1,20 +1,95 @@
+use log::debug;
+use log::error;
 use log::trace;
 
 use crate::bindings as zend;
+use crate::zend::ddog_php_prof_zend_string_view;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
 use std::mem::MaybeUninit;
+use std::ptr;
 use std::time::Instant;
 
-/// The engine's original (or previous) `gc_collect_cycles()` function
+/// The engine's original (or neighbouring extensions) `gc_collect_cycles()` function
 static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
+
+/// The engine's original (or neighbouring extensions) `zend_compile_file()` function
+static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
 
 pub fn timeline_minit() {
     unsafe {
-        // register our function in `gc_collect_cycles`
+        // register our function in the `gc_collect_cycles` pointer
         PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
         zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);
+        // register our function in the `zend_compile_file` pointer
+        PREV_ZEND_COMPILE_FILE = zend::zend_compile_file;
+        zend::zend_compile_file = Some(ddog_php_prof_compile_file);
     }
+}
+
+unsafe extern "C" fn ddog_php_prof_compile_file(
+    handle: *mut zend::zend_file_handle,
+    r#type: i32,
+) -> *mut zend::_zend_op_array {
+    if let Some(prev) = PREV_ZEND_COMPILE_FILE {
+        let start = Instant::now();
+        let op_array = prev(handle, r#type);
+        let duration = start.elapsed();
+
+        // include/require failed, could be invalid PHP or file not found, ...
+        // TODO we might collect this event anyway and label it accordingly in a later stage of
+        // this feature
+        if op_array.is_null() || (*op_array).filename.is_null() {
+            return op_array;
+        }
+
+        REQUEST_LOCALS.with(|cell| {
+            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
+            let locals = cell.try_borrow();
+            if locals.is_err() {
+                return;
+            }
+            // Safety: got checked above
+            let locals = locals.unwrap();
+
+            if !locals.profiling_experimental_timeline_enabled {
+                return;
+            }
+
+            let include_type = match r#type as u32 {
+                zend::ZEND_INCLUDE => "include", // `include_once()` and `include_once()`
+                zend::ZEND_REQUIRE => "require", // `require()` and `require_once()`
+                _default => "",
+            };
+
+            // extract the filename from the returned op_array
+            // we could also extract from the handle, but those filenames might be different from
+            // the one in the `op_array`: In the handle we get what `include()` was called with,
+            // for example "/var/www/html/../vendor/foo/bar.php" while during stack walking we get
+            // "/var/html/vendor/foo/bar.php". This makes sure it is the exact same string we'd
+            // collect in stack walking and therefore we are fully utilizing the pprof string table
+            let filename = Some(String::from_utf8_lossy(
+                ddog_php_prof_zend_string_view((*op_array).filename.as_mut()).into_bytes(),
+            )).unwrap();
+
+            trace!(
+                "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
+                duration.as_nanos(),
+            );
+
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                profiler.collect_compile_file(
+                    duration.as_nanos() as i64,
+                    filename.to_string(),
+                    include_type,
+                    &locals,
+                );
+            }
+        });
+        return op_array;
+    }
+    error!("No previous `zend_compile_file` handler found! This is a huge problem as your include()/require() won't work and PHP will higly likely crash. I am sorry, but the die is cast.");
+    ptr::null_mut()
 }
 
 /// Find out the reason for the current garbage collection cycle. If there is

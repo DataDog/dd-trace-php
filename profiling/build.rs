@@ -189,7 +189,6 @@ fn generate_bindings(php_config_includes: &str) {
         .parse_callbacks(Box::new(ignored_macros))
         .clang_args(php_config_includes.split(' '))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .rustfmt_bindings(true)
         .layout_tests(false)
         // this prevents bindgen from copying C comments to Rust, as otherwise
         // rustdoc would look for tests and currently fail as it assumes

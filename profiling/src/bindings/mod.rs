@@ -12,13 +12,16 @@ pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_da
 
 #[cfg(feature = "timeline")]
 pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;
+#[cfg(feature = "timeline")]
+pub type VmZendCompileFile =
+    unsafe extern "C" fn(*mut zend_file_handle, i32) -> *mut _zend_op_array;
 
 #[cfg(feature = "allocation_profiling")]
-pub type VmMmCustomAllocFn = unsafe extern "C" fn(u64) -> *mut libc::c_void;
+pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
 #[cfg(feature = "allocation_profiling")]
-pub type VmMmCustomReallocFn = unsafe extern "C" fn(*mut libc::c_void, u64) -> *mut libc::c_void;
+pub type VmMmCustomReallocFn = unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void;
 #[cfg(feature = "allocation_profiling")]
-pub type VmMmCustomFreeFn = unsafe extern "C" fn(*mut libc::c_void);
+pub type VmMmCustomFreeFn = unsafe extern "C" fn(*mut c_void);
 
 // todo: this a lie on some PHP versions; is it a problem even though zend_bool
 //       was always supposed to be 0 or 1 anyway?

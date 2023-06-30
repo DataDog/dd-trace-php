@@ -295,7 +295,8 @@ impl TimeCollector {
         let local_root_span_id = message.local_root_span_id;
         for (_, profile) in profiles.iter_mut() {
             let endpoint = Cow::Borrowed(message.resource.as_str());
-            profile.add_endpoint(local_root_span_id, endpoint)
+            profile.add_endpoint(local_root_span_id, endpoint.clone());
+            profile.add_endpoint_count(endpoint, 1);
         }
     }
 
@@ -661,6 +662,54 @@ impl Profiler {
             }
             Err(err) => {
                 warn!("Failed to collect stack sample: {err}")
+            }
+        }
+    }
+
+    #[cfg(feature = "timeline")]
+    pub unsafe fn collect_compile_file(
+        &self,
+        duration: i64,
+        filename: String,
+        include_type: &str,
+        locals: &RequestLocals,
+    ) {
+        let mut labels = Profiler::message_labels();
+
+        lazy_static! {
+            static ref TIMELINE_COMPILE_FILE_LABELS: Vec<Label> = vec![Label {
+                key: "event",
+                value: LabelValue::Str("compilation".into()),
+            },];
+        }
+
+        labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
+        labels.push(Label {
+            key: "filename",
+            value: LabelValue::Str(Cow::from(filename)),
+        });
+        let n_labels = labels.len();
+
+        match self.send_sample(Profiler::prepare_sample_message(
+            vec![ZendFrame {
+                function: format!("[{include_type}]"),
+                file: None,
+                line: 0,
+            }],
+            SampleValues {
+                timeline: duration,
+                ..Default::default()
+            },
+            labels,
+            locals,
+        )) {
+            Ok(_) => {
+                trace!("Sent event 'compile file' with {n_labels} labels to profiler.")
+            }
+            Err(err) => {
+                warn!(
+                    "Failed to send event 'compile file' with {n_labels} labels to profiler: {err}"
+                )
             }
         }
     }
