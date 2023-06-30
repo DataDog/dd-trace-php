@@ -73,6 +73,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(STRING, DD_ENV, "")                                                                                 \
     CONFIG(BOOL, DD_AUTOFINISH_SPANS, "false")                                                                 \
     CONFIG(BOOL, DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED, "true")                                               \
+    CONFIG(BOOL, DD_HTTP_SERVER_ROUTE_BASED_NAMING, "true")                                                    \
     CONFIG(SET, DD_INTEGRATIONS_DISABLED, "default")                                                           \
     CONFIG(BOOL, DD_PRIORITY_SAMPLING, "true")                                                                 \
     CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                \
