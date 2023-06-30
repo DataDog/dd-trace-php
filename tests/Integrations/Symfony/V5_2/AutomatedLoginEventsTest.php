@@ -42,7 +42,7 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         $email = 'test-user@email.com';
         $password = 'test';
         //Password is password
-        $this->connection()->exec('insert into user (roles, email, password) VALUES ("{}", "'.$email.'", "$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i")');
+        $this->connection()->exec('insert into user (roles, email, password) VALUES ("", "'.$email.'", "$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i")');
 
          $spec = PostSpec::create('request', '/login', [
                         'Content-Type: application/x-www-form-urlencoded'
