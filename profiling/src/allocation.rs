@@ -297,7 +297,6 @@ unsafe fn allocation_profiling_prev_alloc(len: size_t) -> *mut c_void {
 }
 
 unsafe fn allocation_profiling_orig_alloc(len: size_t) -> *mut c_void {
-    
     let heap = zend::zend_mm_get_heap();
     let custom_heap = prepare_zend_heap(heap);
     let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
@@ -351,7 +350,6 @@ unsafe fn allocation_profiling_prev_realloc(prev_ptr: *mut c_void, len: size_t) 
 }
 
 unsafe fn allocation_profiling_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    
     let heap = zend::zend_mm_get_heap();
     let custom_heap = prepare_zend_heap(heap);
     let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
