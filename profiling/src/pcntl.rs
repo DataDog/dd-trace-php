@@ -101,6 +101,8 @@ fn stop_and_forget_profiling(maybe_profiler: &mut Option<Profiler>) {
         let mut locals = cell.borrow_mut();
         locals.profiling_enabled = false;
         locals.wall_samples.store(0, Ordering::SeqCst);
+        // forget `time_interrupter` by taking the cell
+        locals.time_interrupter.take();
     });
 }
 
