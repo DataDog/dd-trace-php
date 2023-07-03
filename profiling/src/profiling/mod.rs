@@ -899,7 +899,7 @@ mod tests {
             profiling_log_level: LevelFilter::Off,
             service: None,
             tags: Arc::new(static_tags()),
-            uri: Box::new(AgentEndpoint::default()),
+            uri: Box::<AgentEndpoint>::default(),
             version: None,
             vm_interrupt_addr: std::ptr::null_mut(),
         }

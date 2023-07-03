@@ -591,7 +591,7 @@ mod tests {
                 // Check that .len matches.
                 assert_eq!(
                     expected_ini_name.len(),
-                    ini.len as usize,
+                    { ini.len },
                     "Env: {}, expected ini: {}",
                     std::str::from_utf8(env_name).unwrap(),
                     expected_ini_name
@@ -606,7 +606,7 @@ mod tests {
                 assert_eq!(0, cmp);
 
                 // Check that it is null terminated.
-                assert_eq!(ini.ptr[ini.len as usize] as u8, b'\0');
+                assert_eq!(ini.ptr[ini.len] as u8, b'\0');
             }
         }
     }

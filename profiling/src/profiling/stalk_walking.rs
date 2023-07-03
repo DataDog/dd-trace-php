@@ -126,8 +126,8 @@ pub unsafe fn collect_stack_sample(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::bindings as zend;
+    
+    
 
     #[test]
     #[cfg(feature = "stack_walking_tests")]
