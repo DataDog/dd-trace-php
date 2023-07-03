@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\WordPress\V6;
 use DDTrace\HookData;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -106,9 +105,28 @@ class WordPressComponent
 
         $envVar = array_keys(dd_trace_env_config("DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED"));
 
-        if (!in_array('*', $envVar)) {
-            ini_set('datadog.trace.resource_uri_query_param_allowed', "*");
+        if (!empty($envVar)) {
+            foreach (['p', 'page_id'] as $param) {
+                if (!in_array($param, $envVar)) {
+                    $envVar[] = $param;
+                }
+            }
+        } else {
+            $envVar = ['p', 'page_id'];
         }
+
+        $envVar = implode(',', $envVar);
+        ini_set('datadog.trace.resource_uri_query_param_allowed', $envVar);
+    }
+
+    public static function setSpansLimit() {
+        // Assumes an avg. of 100 spans / plugin
+        $pluginCount = count(wp_get_active_and_valid_plugins());
+        $spansLimit = 1000 + ($pluginCount * 100);
+
+        $currentLimit = ini_get('datadog.trace.spans_limit');
+        $spansLimit = max($spansLimit, $currentLimit);
+        ini_set('datadog.trace.spans_limit', $spansLimit);
     }
 
     public function load(WordPressIntegration $integration)
@@ -117,9 +135,73 @@ class WordPressComponent
             return Integration::NOT_LOADED;
         }
 
-        hook_function('wp', function () use ($integration) {
+        hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
             WordPressComponent::allowQueryParamsInResourceName();
+            WordPressComponent::setSpansLimit();
 
+            foreach (wp_get_active_and_valid_plugins() as $plugin) {
+                if (file_exists($plugin)) {
+                    install_hook(
+                        $plugin,
+                        function (HookData $hook) use ($integration, $plugin) {
+                            $span = $hook->span();
+                            $pluginName = WordPressComponent::extractPluginNameFromFile($plugin) ?: '?';
+                            WordPressComponent::setCommonTags($integration, $span, 'load-plugin', "plugin: $pluginName");
+                            $span->meta['wp.plugin'] = $pluginName;
+                            $span->meta['wp.plugin_file'] = $plugin;
+                        }
+                    );
+                }
+            }
+
+            if (is_multisite()) {
+                foreach (wp_get_active_network_plugins() as $networkPlugin) {
+                    if (file_exists($networkPlugin)) {
+                        install_hook(
+                            $networkPlugin,
+                            function (HookData $hook) use ($integration, $networkPlugin) {
+                                $span = $hook->span();
+                                $pluginName = WordPressComponent::extractPluginNameFromFile($networkPlugin) ?: '?';
+                                WordPressComponent::setCommonTags($integration, $span, 'load-network-plugin', "network-plugin: $pluginName");
+                                $span->meta['wp.plugin'] = $pluginName;
+                                $span->meta['wp.plugin_file'] = $networkPlugin;
+                            }
+                        );
+                    }
+                }
+            }
+
+            if (defined('ABSPATH') && defined('WPINC')) {
+                $templateLoader = ABSPATH . WPINC . '/template-loader.php';
+                install_hook(
+                    $templateLoader,
+                    function (HookData $hook) use ($integration) {
+                        $span = $hook->span();
+                        WordPressComponent::setCommonTags($integration, $span, 'template-loader');
+                    }
+                );
+            }
+        });
+
+        hook_function('wp_templating_constants', null, function () use ($integration) {
+            foreach (wp_get_active_and_valid_themes() as $theme) {
+                if (file_exists($theme . '/functions.php')) {
+                    install_hook(
+                        $theme . '/functions.php',
+                        function (HookData $hook) use ($integration, $theme) {
+                            $span = $hook->span();
+                            $themeName = explode('/', $theme);
+                            $themeName = ucfirst(end($themeName));
+                            WordPressComponent::setCommonTags($integration, $span, 'load-theme', "theme: $themeName");
+                            $span->meta['wp.theme'] = $themeName;
+                        }
+                    );
+                }
+            }
+        });
+
+
+        hook_function('wp', function () use ($integration) {
             $rootSpan = \DDTrace\root_span();
             if (!$rootSpan) {
                 return;
@@ -392,7 +474,7 @@ class WordPressComponent
                         $duration = $span->getDuration(); // nanoseconds
                         // If the duration is less than 10ms, drop the span (return false)
                         // On an app with approx. 15 plugins, reduced the number of spans by 50% (1500 -> 750)
-                        return $duration > 10000000;
+                        //return $duration > 10000000;
                     }
                 ]
             );
