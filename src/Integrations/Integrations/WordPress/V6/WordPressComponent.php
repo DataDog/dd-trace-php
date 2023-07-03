@@ -56,11 +56,7 @@ class WordPressComponent
         $themeName = explode('/', $file)[1]; // The theme name is the first directory
         $themeName = ucfirst($themeName); // Capitalize the first letter
 
-        if ($themeName) {
-            $actionHookToTheme[$hookName] = $themeName;
-        } else {
-            $actionHookToTheme[$hookName] = null;
-        }
+        $actionHookToTheme[$hookName] = $themeName ?: null;
 
         return $actionHookToTheme[$hookName];
     }
@@ -79,11 +75,7 @@ class WordPressComponent
         // Try to find the plugin associated to the hook
         $plugin = WordPressComponent::extractPluginNameFromFile($file);
 
-        if ($plugin) { // Save the plugin name for future calls
-            $actionHookToPlugin[$hookName] = $plugin;
-        } else { // Try to save time on future calls
-            $actionHookToPlugin[$hookName] = null;
-        }
+        $actionHookToPlugin[$hookName] = $plugin ?: null;
 
         return $actionHookToPlugin[$hookName];
     }
@@ -135,6 +127,7 @@ class WordPressComponent
             return Integration::NOT_LOADED;
         }
 
+        // File loading
         hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
             WordPressComponent::allowQueryParamsInResourceName();
             WordPressComponent::setSpansLimit();
@@ -171,7 +164,7 @@ class WordPressComponent
                 }
             }
 
-            if (defined('ABSPATH') && defined('WPINC')) {
+            if (defined('ABSPATH') && defined('WPINC')) { // Just for a matter of safety :)
                 $templateLoader = ABSPATH . WPINC . '/template-loader.php';
                 install_hook(
                     $templateLoader,
@@ -200,7 +193,7 @@ class WordPressComponent
             }
         });
 
-
+        // Root span
         hook_function('wp', function () use ($integration) {
             $rootSpan = \DDTrace\root_span();
             if (!$rootSpan) {
@@ -248,7 +241,7 @@ class WordPressComponent
             'setup_theme' => true,
             'after_setup_theme' => true,
             'init' => true,
-            'widgets_init' => true,
+            'widgets_init' => true, // part of 'init'
             'wp_loaded' => true,
             'template_redirect' => true,
             'wp' => true, // part of wp->main();
@@ -420,6 +413,47 @@ class WordPressComponent
             );
         });
 
+        // Blocks
+        trace_function(
+            'render_block',
+            function (SpanData $span, $args, $retval) use ($integration) {
+                // Some blocks are literally empty. We could even consider dropping the span in this case.
+                WordPressComponent::setCommonTags(
+                    $integration,
+                    $span,
+                    'block',
+                    isset($args[0]['blockName']) ? "block_name: {$args[0]['blockName']}" : 'block_name: ?'
+                );
+
+                if (isset($args[0]['attrs'])) {
+                    $attrs = $args[0]['attrs'];
+                    foreach (['slug', 'theme', 'area', 'tagName'] as $attr) {
+                        if (isset($attrs[$attr])) {
+                            $span->meta["wp.template_part.$attr"] = $attrs[$attr];
+                        }
+                    }
+                }
+            }
+        );
+
+        trace_function('block_template_part', function (SpanData $span, $args) use ($integration) {
+            WordPressComponent::setCommonTags(
+                $integration,
+                $span,
+                'block_template_part',
+                isset($args[0]) && is_string($args[0]) ? "part: {$args[0]}" : 'part: ?'
+            );
+        });
+
+        trace_function('get_query_template', function (SpanData $span, $args) use ($integration) {
+            WordPressComponent::setCommonTags(
+                $integration,
+                $span,
+                'template',
+                isset($args[0]) ? "type: {$args[0]}" : 'type: ?'
+            );
+        });
+
         // Sidebar
         trace_function('get_sidebar', function (SpanData $span, array $args) use ($integration) {
             WordPressComponent::setCommonTags(
@@ -430,7 +464,6 @@ class WordPressComponent
             );
         });
 
-
         trace_function('dynamic_sidebar', function (SpanData $span, array $args) use ($integration) {
             WordPressComponent::setCommonTags(
                 $integration,
@@ -440,6 +473,7 @@ class WordPressComponent
             );
         });
 
+        // Actions
         foreach (['do_action', 'do_action_ref_array'] as $function) {
             trace_function(
                 $function,
@@ -456,7 +490,7 @@ class WordPressComponent
                         }
 
                         // If we have a plugin name, add it to the meta
-                        if (isset($actionHookToPlugin[$hookName])) {
+                        if (isset($actionHookToPlugin[$hookName])) { // Don't waste time if it gave null before
                             if ($actionHookToPlugin[$hookName]) {
                                 $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
                             }
@@ -465,8 +499,6 @@ class WordPressComponent
                         } elseif ($theme = WordPressComponent::tryExtractThemeNameFromPath($hookName, $actionHookToTheme)) {
                             $span->meta['wp.theme'] = $theme;
                         }
-
-                        // TODO: Search for even more relevant tags
                     },
                     'posthook' => function (SpanData $span, $args, $response) {
                         $duration = $span->getDuration(); // nanoseconds
@@ -524,47 +556,6 @@ class WordPressComponent
         });
 
         // Filters - Too verbose
-
-        // Blocks
-        trace_function(
-            'render_block',
-            function (SpanData $span, $args, $retval) use ($integration) {
-                // Some blocks are literally empty. We could even consider dropping the span in this case.
-                WordPressComponent::setCommonTags(
-                    $integration,
-                    $span,
-                    'block',
-                    isset($args[0]['blockName']) ? "block_name: {$args[0]['blockName']}" : 'block_name: ?'
-                );
-
-                if (isset($args[0]['attrs'])) {
-                    $attrs = $args[0]['attrs'];
-                    foreach (['slug', 'theme', 'area', 'tagName'] as $attr) {
-                        if (isset($attrs[$attr])) {
-                            $span->meta["wp.template_part.$attr"] = $attrs[$attr];
-                        }
-                    }
-                }
-            }
-        );
-
-        trace_function('block_template_part', function (SpanData $span, $args) use ($integration) {
-            WordPressComponent::setCommonTags(
-                $integration,
-                $span,
-                'block_template_part',
-                isset($args[0]) && is_string($args[0]) ? "part: {$args[0]}" : 'part: ?'
-            );
-        });
-
-        trace_function('get_query_template', function (SpanData $span, $args) use ($integration) {
-            WordPressComponent::setCommonTags(
-                $integration,
-                $span,
-                'template',
-                isset($args[0]) ? "type: {$args[0]}" : 'type: ?'
-            );
-        });
 
         return Integration::LOADED;
     }
