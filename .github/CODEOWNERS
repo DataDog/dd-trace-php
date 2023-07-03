@@ -1,5 +1,6 @@
 # Default owners
 * @DataDog/apm-php
+Cargo.lock @DataDog/apm-php @DataDog/profiling-php
 
 # Profiling team
 /profiling/ @DataDog/profiling-php

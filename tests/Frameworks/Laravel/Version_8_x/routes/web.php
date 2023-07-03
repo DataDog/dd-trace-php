@@ -5,6 +5,7 @@ use App\Http\Controllers\EloquentTestController;
 use App\Http\Controllers\InternalErrorController;
 use App\Http\Controllers\QueueTestController;
 use App\Http\Controllers\RouteCachingController;
+use App\Http\Controllers\LoginTestController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -34,6 +35,8 @@ Route::get('queue/batchDefault', [QueueTestController::class, 'batchDefault']);
 Route::get('queue/create', [QueueTestController::class, 'create']);
 Route::get('queue/jobFailure', [QueueTestController::class, 'jobFailure']);
 Route::get('queue/workOn', [QueueTestController::class, 'workOn']);
+Route::get('login/auth', [LoginTestController::class, 'auth']);
+Route::get('login/signup', [LoginTestController::class, 'register']);
 
 // This route has to remain unnamed so we test both route cached and not cached.
 Route::get('/unnamed-route', [RouteCachingController::class, 'unnamed']);

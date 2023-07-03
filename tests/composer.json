@@ -4,7 +4,8 @@
     "autoload-dev": {
         "psr-4": {
             "DDTrace\\Tests\\": "./"
-        }
+        },
+        "files": ["Appsec/Mock.php"]
     },
     "require-dev": {
         "mockery/mockery": "*",

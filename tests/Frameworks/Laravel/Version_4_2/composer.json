@@ -19,6 +19,9 @@
 			"App\\": "app/"
 		}
 	},
+	"autoload-dev": {
+		"files": ["../../../Appsec/Mock.php"]
+	},
 	"scripts": {
 		"post-install-cmd": [
 			"php artisan clear-compiled",
