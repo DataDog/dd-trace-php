@@ -253,7 +253,7 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
         copyright: b"Copyright Datadog\0".as_ptr(),
         startup: Some(startup),
         shutdown: Some(shutdown),
-        activate: Some(activate),
+        activate: Some(ddog_php_prof_activate),
         ..Default::default()
     };
 
@@ -352,7 +352,8 @@ fn runtime_id() -> &'static Uuid {
         .get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
 }
 
-extern "C" fn activate() {
+#[no_mangle]
+extern "C" fn ddog_php_prof_activate() {
     // Safety: calling in activate as required.
     unsafe { profiling::activate_run_time_cache() };
 }
