@@ -237,7 +237,10 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
     uintptr_t *cache_addr = RUN_TIME_CACHE(&func->common);
 #endif
 
-    // todo: how sure can I be, here? Can I be so confident as to omit it?
+    /* The above checks, including has_invalid_run_time_cache, protect this.
+     * It's better to fail now on the null, than to wait for the returned addr
+     * to get used, in the event future code changes screw this up.
+     */
     ZEND_ASSERT(cache_addr);
 
     return cache_addr + ddog_php_prof_run_time_cache_handle;
