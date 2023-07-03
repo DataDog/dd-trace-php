@@ -120,9 +120,9 @@ class WordPressComponent
     }
 
     public static function setSpansLimit() {
-        // Assumes an avg. of 100 spans / plugin
+        // Assumes an avg. of 25 spans / plugin (load + actions + callbacks > 10ms)
         $pluginCount = count(wp_get_active_and_valid_plugins());
-        $spansLimit = 1000 + ($pluginCount * 100);
+        $spansLimit = 1000 + ($pluginCount * 25);
 
         $currentLimit = ini_get('datadog.trace.spans_limit');
         $spansLimit = max($spansLimit, $currentLimit);
@@ -248,6 +248,7 @@ class WordPressComponent
             'setup_theme' => true,
             'after_setup_theme' => true,
             'init' => true,
+            'widgets_init' => true,
             'wp_loaded' => true,
             'template_redirect' => true,
             'wp' => true, // part of wp->main();
@@ -348,12 +349,10 @@ class WordPressComponent
         });
 
         // Views
-        // May be removed - covered by load_template
         trace_function('get_header', function (SpanData $span, array $args) use ($integration) {
             WordPressComponent::setCommonTags($integration, $span, 'get_header', !empty($args[0]) ? $args[0] : 'get_header');
         });
 
-        // May be removed - covered by load_template
         trace_function('get_footer', function (SpanData $span, array $args) use ($integration) {
             WordPressComponent::setCommonTags($integration, $span, 'get_footer', !empty($args[0]) ? $args[0] : 'get_footer');
         });
@@ -387,7 +386,6 @@ class WordPressComponent
             }
         });
 
-        // May be removed - covered by load_template
         trace_function('the_content', function (SpanData $span) use ($integration) {
             WordPressComponent::setCommonTags($integration, $span, 'the_content');
 
@@ -474,7 +472,7 @@ class WordPressComponent
                         $duration = $span->getDuration(); // nanoseconds
                         // If the duration is less than 10ms, drop the span (return false)
                         // On an app with approx. 15 plugins, reduced the number of spans by 50% (1500 -> 750)
-                        //return $duration > 10000000;
+                        return $duration > 10000000;
                     }
                 ]
             );
