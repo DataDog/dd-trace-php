@@ -330,7 +330,7 @@ impl datadog_php_zif_handler {
         let name = name.to_bytes();
         Self {
             name: name.as_ptr() as *const c_char,
-            name_len: name.len().try_into().expect("usize to fit"),
+            name_len: name.len(),
             old_handler,
             new_handler,
         }

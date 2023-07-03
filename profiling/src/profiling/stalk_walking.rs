@@ -94,15 +94,15 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
     None
 }
 
-pub unsafe fn collect_stack_sample(
+pub fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     let max_depth = 512;
     let mut samples = Vec::with_capacity(max_depth >> 3);
     let mut execute_data_ptr = top_execute_data;
 
-    while let Some(execute_data) = execute_data_ptr.as_ref() {
-        if let Some(frame) = collect_call_frame(execute_data) {
+    while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+        if let Some(frame) = unsafe { collect_call_frame(execute_data) } {
             samples.push(frame);
 
             /* -1 to reserve room for the [truncated] message. In case the
@@ -126,8 +126,8 @@ pub unsafe fn collect_stack_sample(
 
 #[cfg(test)]
 mod tests {
-    
-    
+    use super::*;
+    use crate::bindings as zend;
 
     #[test]
     #[cfg(feature = "stack_walking_tests")]

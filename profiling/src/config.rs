@@ -120,7 +120,7 @@ unsafe extern "C" fn env_to_ini_name(env_name: ZaiStringView, ini_name: *mut zai
     dest_suffix[src_suffix.len()] = transmute(b'\0');
 
     // Store the length without the null.
-    ini_name.len = (dest_prefix.len() + src_suffix.len()).try_into().unwrap();
+    ini_name.len = dest_prefix.len() + src_suffix.len();
 }
 
 /// # Safety
@@ -529,7 +529,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
 
         let tmp = zai_config_minit(
             ENTRIES.as_mut_ptr(),
-            ENTRIES.len().try_into().unwrap(),
+            ENTRIES.len(),
             Some(env_to_ini_name),
             module_number,
         );
