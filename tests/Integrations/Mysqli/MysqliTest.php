@@ -54,7 +54,7 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
                 ->setError()
-                ->withExactTags(self::baseTags())
+                ->withExactTags(self::baseTags(false))
                 ->withExistingTagsNames([
                     Tag::ERROR_MSG,
                     'error.type',
@@ -76,7 +76,7 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
                 ->setError()
-                ->withExactTags(self::baseTags())
+                ->withExactTags(self::baseTags(false))
                 ->withExistingTagsNames([
                     Tag::ERROR_MSG,
                     'error.type',
@@ -110,7 +110,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
+                ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
@@ -133,7 +133,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_execute_query', 'mysqli', 'sql', 'SELECT * from tests WHERE 1 = ?')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags(true, true)),
         ]);
     }
 
@@ -152,7 +152,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
+                ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
@@ -171,7 +171,7 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
+                ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
@@ -194,7 +194,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags())
+                ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
@@ -330,9 +330,9 @@ class MysqliTest extends IntegrationTestCase
         ]);
     }
 
-    private function baseTags()
+    private function baseTags($expectDbName = true, $expectPeerService = false)
     {
-        return [
+        $tags = [
             'out.host' => self::$host,
             'out.port' => self::$port,
             'db.type' => 'mysql',
@@ -340,6 +340,17 @@ class MysqliTest extends IntegrationTestCase
             Tag::COMPONENT => 'mysqli',
             Tag::DB_SYSTEM => 'mysql',
         ];
+
+        if ($expectDbName) {
+            $tags['db.name'] = 'test';
+        }
+
+        if ($expectPeerService) {
+            $tags['peer.service'] = 'test';
+            $tags['_dd.peer.service.source'] = 'db.name';
+        }
+
+        return $tags;
     }
 
     private function setUpDatabase()
