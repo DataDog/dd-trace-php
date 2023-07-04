@@ -36,7 +36,20 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
         if (\class_exists('DDTrace\Log\Logger')) {
             Logger::reset();
         }
+        foreach ($this->envsToCleanUpAtTearDown() as $env) {
+            self::putEnv($env . '=');
+        }
         \dd_trace_internal_fn('ddtrace_reload_config');
+    }
+
+    /**
+     * Extend this method in test classes to have those envs automatically cleaned
+     *
+     * @return string[]
+     */
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [];
     }
 
     protected function matchesPhpVersion($version)

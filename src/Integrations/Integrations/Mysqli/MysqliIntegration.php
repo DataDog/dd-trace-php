@@ -311,6 +311,7 @@ class MysqliIntegration extends Integration
                 $span,
                 ObjectKVStore::get($statement, MysqliIntegration::KEY_MYSQLI_INSTANCE)
             );
+            $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
         });
 
         \DDTrace\trace_function('mysqli_stmt_get_result', function (SpanData $span, $args, $result) {
@@ -337,6 +338,7 @@ class MysqliIntegration extends Integration
             $integration->setDefaultAttributes($span, 'mysqli_stmt.execute', $resource);
             $integration->addTraceAnalyticsIfEnabled($span);
             $integration->setConnectionInfo($span, ObjectKVStore::get($this, MysqliIntegration::KEY_MYSQLI_INSTANCE));
+            $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
         });
 
         \DDTrace\trace_method('mysqli_stmt', 'get_result', function (SpanData $span, $a, $result) use ($integration) {
