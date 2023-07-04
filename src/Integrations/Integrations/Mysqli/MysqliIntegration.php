@@ -18,7 +18,8 @@ class MysqliIntegration extends Integration
     // https://www.php.net/manual/en/mysqli.construct.php
     const DEFAULT_MYSQLI_HOST = 'localhost';
 
-    const DATABASE_NAME_KEY = 'database_name';
+    const KEY_DATABASE_NAME = 'database_name';
+    const KEY_MYSQLI_INSTANCE = 'mysqli_instance';
 
     /**
      * @return string The integration name.
@@ -55,7 +56,7 @@ class MysqliIntegration extends Integration
             if ($result === false) {
                 $integration->trackPotentialError($span);
             } else {
-                ObjectKVStore::put($result, MysqliIntegration::DATABASE_NAME_KEY, $dbName);
+                ObjectKVStore::put($result, MysqliIntegration::KEY_DATABASE_NAME, $dbName);
             }
         });
 
@@ -65,7 +66,7 @@ class MysqliIntegration extends Integration
             $mysqli_constructor,
             function (SpanData $span, $args) use ($integration) {
                 list(,,, $dbName) = $args;
-                ObjectKVStore::put($this, MysqliIntegration::DATABASE_NAME_KEY, $dbName);
+                ObjectKVStore::put($this, MysqliIntegration::KEY_DATABASE_NAME, $dbName);
                 $integration->setDefaultAttributes($span, 'mysqli.__construct', 'mysqli.__construct');
                 $integration->trackPotentialError($span);
 
@@ -82,7 +83,7 @@ class MysqliIntegration extends Integration
 
         \DDTrace\trace_function('mysqli_real_connect', function (SpanData $span, $args) use ($integration) {
             list($mysqli, $host,,, $dbName) = $args;
-            ObjectKVStore::put($mysqli, MysqliIntegration::DATABASE_NAME_KEY, $dbName);
+            ObjectKVStore::put($mysqli, MysqliIntegration::KEY_DATABASE_NAME, $dbName);
             $integration->setDefaultAttributes($span, 'mysqli_real_connect', 'mysqli_real_connect');
             $integration->mergeMeta($span, MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST));
             $integration->trackPotentialError($span);
@@ -94,7 +95,7 @@ class MysqliIntegration extends Integration
 
         \DDTrace\trace_method('mysqli', 'real_connect', function (SpanData $span, $args) use ($integration) {
             list(,,, $dbName) = $args;
-            ObjectKVStore::put($this, MysqliIntegration::DATABASE_NAME_KEY, $dbName);
+            ObjectKVStore::put($this, MysqliIntegration::KEY_DATABASE_NAME, $dbName);
             $integration->setDefaultAttributes($span, 'mysqli.real_connect', 'mysqli.real_connect');
             $integration->trackPotentialError($span);
             $integration->setConnectionInfo($span, $this);
@@ -140,6 +141,7 @@ class MysqliIntegration extends Integration
                 $host_info = MysqliCommon::extractHostInfo($mysqli);
                 MysqliCommon::storeQuery($hook->returned, $query);
                 ObjectKVStore::put($hook->returned, 'host_info', $host_info);
+                ObjectKVStore::put($hook->returned, MysqliIntegration::KEY_MYSQLI_INSTANCE, $mysqli);
 
                 if (is_object($hook->returned) && property_exists($hook->returned, 'num_rows')) {
                     $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
@@ -186,6 +188,7 @@ class MysqliIntegration extends Integration
                 $host_info = MysqliCommon::extractHostInfo($this);
                 MysqliCommon::storeQuery($hook->returned, $query);
                 ObjectKVStore::put($hook->returned, 'host_info', $host_info);
+                ObjectKVStore::put($hook->returned, MysqliIntegration::KEY_MYSQLI_INSTANCE, $this);
 
                 if (is_object($hook->returned) && property_exists($hook->returned, 'num_rows')) {
                     $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
@@ -262,6 +265,7 @@ class MysqliIntegration extends Integration
                 $host_info = MysqliCommon::extractHostInfo($mysqli);
                 MysqliCommon::storeQuery($retval, $query);
                 ObjectKVStore::put($retval, 'host_info', $host_info);
+                ObjectKVStore::put($retval, MysqliIntegration::KEY_MYSQLI_INSTANCE, $mysqli);
             });
 
             \DDTrace\trace_method('mysqli', 'query', function (SpanData $span, $args, $result) use ($integration) {
@@ -283,6 +287,7 @@ class MysqliIntegration extends Integration
                 $integration->setConnectionInfo($span, $this);
                 $host_info = MysqliCommon::extractHostInfo($this);
                 ObjectKVStore::put($retval, 'host_info', $host_info);
+                ObjectKVStore::put($retval, MysqliIntegration::KEY_MYSQLI_INSTANCE, $this);
                 MysqliCommon::storeQuery($retval, $query);
             });
         }
@@ -302,6 +307,10 @@ class MysqliIntegration extends Integration
             list($statement) = $args;
             $resource = MysqliCommon::retrieveQuery($statement, 'mysqli_stmt_execute');
             $integration->setDefaultAttributes($span, 'mysqli_stmt_execute', $resource);
+            $integration->setConnectionInfo(
+                $span,
+                ObjectKVStore::get($statement, MysqliIntegration::KEY_MYSQLI_INSTANCE)
+            );
         });
 
         \DDTrace\trace_function('mysqli_stmt_get_result', function (SpanData $span, $args, $result) {
@@ -327,6 +336,7 @@ class MysqliIntegration extends Integration
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.execute');
             $integration->setDefaultAttributes($span, 'mysqli_stmt.execute', $resource);
             $integration->addTraceAnalyticsIfEnabled($span);
+            $integration->setConnectionInfo($span, ObjectKVStore::get($this, MysqliIntegration::KEY_MYSQLI_INSTANCE));
         });
 
         \DDTrace\trace_method('mysqli_stmt', 'get_result', function (SpanData $span, $a, $result) use ($integration) {
@@ -371,11 +381,15 @@ class MysqliIntegration extends Integration
      */
     public function setConnectionInfo(SpanData $span, $mysqli)
     {
+        if (empty($mysqli)) {
+            return;
+        }
+
         $hostInfo = MysqliCommon::extractHostInfo($mysqli);
         foreach ($hostInfo as $tagName => $value) {
             $span->meta[$tagName] = $value;
         }
-        $dbName = ObjectKVStore::get($mysqli, MysqliIntegration::DATABASE_NAME_KEY);
+        $dbName = ObjectKVStore::get($mysqli, MysqliIntegration::KEY_DATABASE_NAME);
         if ($dbName) {
             $span->meta[Tag::DB_NAME] = $dbName;
         }

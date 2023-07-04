@@ -211,7 +211,7 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::exists('mysqli_query', $query),
@@ -232,13 +232,13 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli', Tag::DB_SYSTEM => 'mysql',])
+                ->withExactTags(self::baseTags())
                 ->setTraceAnalyticsCandidate(),
         ]);
     }
@@ -263,7 +263,7 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
         $this->assertEmpty($traces);
     }
 
@@ -279,7 +279,7 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
         $this->assertEmpty($traces);
     }
 
@@ -296,13 +296,13 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
+        $this->assertOneRowInDatabase('tests', ['id' => 100]);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags([Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'mysqli', Tag::DB_SYSTEM => 'mysql',]),
+                ->withExactTags(self::baseTags()),
         ]);
     }
 
