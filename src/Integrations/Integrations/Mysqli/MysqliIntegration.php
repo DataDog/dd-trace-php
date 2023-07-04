@@ -18,6 +18,8 @@ class MysqliIntegration extends Integration
     // https://www.php.net/manual/en/mysqli.construct.php
     const DEFAULT_MYSQLI_HOST = 'localhost';
 
+    const DATABASE_NAME_KEY = 'database_name';
+
     /**
      * @return string The integration name.
      */
@@ -40,12 +42,20 @@ class MysqliIntegration extends Integration
         $integration = $this;
 
         \DDTrace\trace_function('mysqli_connect', function (SpanData $span, $args, $result) use ($integration) {
-            list($host) = $args;
+            list($host,,, $dbName) = $args;
+            if (!empty($dbName)) {
+                // In case of a procedural connect, we set the database name here so it works also in case of connection
+                // error ($misqli == false). However, we also add it to the returned instance (in case of success) to
+                // propagate it to the queries.
+                $span->meta[Tag::DB_NAME] = $dbName;
+            }
             $integration->setDefaultAttributes($span, 'mysqli_connect', 'mysqli_connect');
             $integration->mergeMeta($span, MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST));
 
             if ($result === false) {
                 $integration->trackPotentialError($span);
+            } else {
+                ObjectKVStore::put($result, MysqliIntegration::DATABASE_NAME_KEY, $dbName);
             }
         });
 
@@ -53,7 +63,9 @@ class MysqliIntegration extends Integration
         \DDTrace\trace_method(
             'mysqli',
             $mysqli_constructor,
-            function (SpanData $span) use ($integration) {
+            function (SpanData $span, $args) use ($integration) {
+                list(,,, $dbName) = $args;
+                ObjectKVStore::put($this, MysqliIntegration::DATABASE_NAME_KEY, $dbName);
                 $integration->setDefaultAttributes($span, 'mysqli.__construct', 'mysqli.__construct');
                 $integration->trackPotentialError($span);
 
@@ -69,7 +81,10 @@ class MysqliIntegration extends Integration
         );
 
         \DDTrace\trace_function('mysqli_real_connect', function (SpanData $span, $args) use ($integration) {
+            list($mysqli, $host,,, $dbName) = $args;
+            ObjectKVStore::put($mysqli, MysqliIntegration::DATABASE_NAME_KEY, $dbName);
             $integration->setDefaultAttributes($span, 'mysqli_real_connect', 'mysqli_real_connect');
+            $integration->mergeMeta($span, MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST));
             $integration->trackPotentialError($span);
 
             if (count($args) > 0) {
@@ -77,7 +92,9 @@ class MysqliIntegration extends Integration
             }
         });
 
-        \DDTrace\trace_method('mysqli', 'real_connect', function (SpanData $span) use ($integration) {
+        \DDTrace\trace_method('mysqli', 'real_connect', function (SpanData $span, $args) use ($integration) {
+            list(,,, $dbName) = $args;
+            ObjectKVStore::put($this, MysqliIntegration::DATABASE_NAME_KEY, $dbName);
             $integration->setDefaultAttributes($span, 'mysqli.real_connect', 'mysqli.real_connect');
             $integration->trackPotentialError($span);
             $integration->setConnectionInfo($span, $this);
@@ -85,11 +102,13 @@ class MysqliIntegration extends Integration
 
         if (PHP_MAJOR_VERSION > 5) {
             \DDTrace\install_hook('mysqli_query', function (HookData $hook) use ($integration) {
-                list(, $query) = $hook->args;
+                list($mysqli, $query) = $hook->args;
 
                 $span = $hook->span();
+                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
                 $integration->setDefaultAttributes($span, 'mysqli_query', $query);
                 $integration->addTraceAnalyticsIfEnabled($span);
+                $integration->setConnectionInfo($span, $mysqli);
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             }, function (HookData $hook) use ($integration) {
@@ -131,8 +150,10 @@ class MysqliIntegration extends Integration
                 list($query) = $hook->args;
 
                 $span = $hook->span();
+                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
                 $integration->setDefaultAttributes($span, 'mysqli.query', $query);
                 $integration->addTraceAnalyticsIfEnabled($span);
+                $integration->setConnectionInfo($span, $this);
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
             }, function (HookData $hook) use ($integration) {
@@ -176,6 +197,7 @@ class MysqliIntegration extends Integration
                     list(, $query) = $hook->args;
 
                     $span = $hook->span();
+                    $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
                     $integration->setDefaultAttributes($span, 'mysqli_execute_query', $query);
                     $integration->addTraceAnalyticsIfEnabled($span);
 
@@ -199,6 +221,7 @@ class MysqliIntegration extends Integration
                     list($query) = $hook->args;
 
                     $span = $hook->span();
+                    $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
                     $integration->setDefaultAttributes($span, 'mysqli.execute_query', $query);
                     $integration->addTraceAnalyticsIfEnabled($span);
 
@@ -224,6 +247,7 @@ class MysqliIntegration extends Integration
                 $integration->setDefaultAttributes($span, 'mysqli_query', $query, $result);
                 $integration->addTraceAnalyticsIfEnabled($span);
                 $integration->setConnectionInfo($span, $mysqli);
+                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
 
                 MysqliCommon::storeQuery($mysqli, $query);
                 MysqliCommon::storeQuery($result, $query);
@@ -245,6 +269,7 @@ class MysqliIntegration extends Integration
                 $integration->setDefaultAttributes($span, 'mysqli.query', $query, $result);
                 $integration->addTraceAnalyticsIfEnabled($span);
                 $integration->setConnectionInfo($span, $this);
+                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
                 MysqliCommon::storeQuery($this, $query);
                 ObjectKVStore::put($result, 'query', $query);
                 $host_info = MysqliCommon::extractHostInfo($this);
@@ -349,6 +374,10 @@ class MysqliIntegration extends Integration
         $hostInfo = MysqliCommon::extractHostInfo($mysqli);
         foreach ($hostInfo as $tagName => $value) {
             $span->meta[$tagName] = $value;
+        }
+        $dbName = ObjectKVStore::get($mysqli, MysqliIntegration::DATABASE_NAME_KEY);
+        if ($dbName) {
+            $span->meta[Tag::DB_NAME] = $dbName;
         }
     }
 

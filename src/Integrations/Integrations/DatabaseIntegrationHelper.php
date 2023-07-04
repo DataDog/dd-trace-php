@@ -6,6 +6,11 @@ use DDTrace\HookData;
 
 class DatabaseIntegrationHelper
 {
+    public static $PEER_SERVICE_SOURCES = [
+        'db.name',
+        'out.host',
+    ];
+
     public static function injectDatabaseIntegrationData(HookData $hook, $backend, $argNum = 0)
     {
         $allowedBackends = [

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Mysqli;
 
+use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
 
 class MysqliCommon
@@ -37,9 +38,9 @@ class MysqliCommon
         $host = $parts[0];
         $port = isset($parts[1]) ? $parts[1] : '3306';
         return [
-            'db.type' => 'mysql',
-            'out.host' => $host,
-            'out.port' => $port,
+            Tag::DB_TYPE => 'mysql',
+            Tag::TARGET_HOST => $host,
+            Tag::TARGET_PORT => $port,
         ];
     }
 
