@@ -7,7 +7,8 @@ pub use interrupts::*;
 use stalk_walking::*;
 use uploader::*;
 
-use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
+use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data, ddog_php_prof_get_active_fiber};
+use crate::zend::ddog_php_prof_zend_string_view;
 use crate::{AgentEndpoint, RequestLocals};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
@@ -837,6 +838,35 @@ impl Profiler {
             if locals.profiling_allocation_enabled {
                 sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
                 sample_values.extend_from_slice(&values[3..5]);
+            }
+
+            let fiber = unsafe { ddog_php_prof_get_active_fiber() };
+            if !fiber.is_null() {
+                unsafe {
+                    let functionname = Some(String::from_utf8_lossy(
+                        ddog_php_prof_zend_string_view(
+                            (*(*fiber).fci_cache.function_handler).op_array.function_name
+                                .as_mut()).into_bytes(),
+                    )).unwrap();
+
+                    if !(*fiber).fci_cache.object.is_null() {
+                        let classname = Some(String::from_utf8_lossy(
+                            ddog_php_prof_zend_string_view(
+                                (*(*(*fiber).fci_cache.object).ce).name
+                                    .as_mut()).into_bytes(),
+                        )).unwrap();
+                        let name = format!("{}::{}", classname, functionname);
+                        labels.push(Label {
+                            key: "thread name",
+                            value: LabelValue::Str(name.into()),
+                        });
+                    } else {
+                        labels.push(Label {
+                            key: "thread name",
+                            value: LabelValue::Str(functionname.into()),
+                        });
+                    }
+                }
             }
 
             #[cfg(feature = "timeline")]

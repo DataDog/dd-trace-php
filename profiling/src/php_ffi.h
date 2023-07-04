@@ -1,6 +1,7 @@
 #include <SAPI.h>
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_types.h>
+#include <Zend/zend_fibers.h>
 #include <Zend/zend_globals_macros.h>
 #include <Zend/zend_modules.h>
 #include <Zend/zend_alloc.h>
@@ -120,6 +121,8 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
                                                void* (*_realloc)(void*, size_t));
 
 zend_execute_data* ddog_php_prof_get_current_execute_data();
+
+zend_fiber* ddog_php_prof_get_active_fiber();
 
 /**
  * The following two functions exist for the sole purpose of creating fake stack

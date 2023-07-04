@@ -159,6 +159,11 @@ zend_execute_data* ddog_php_prof_get_current_execute_data()
     return EG(current_execute_data);
 }
 
+zend_fiber* ddog_php_prof_get_active_fiber()
+{
+    return EG(active_fiber);
+}
+
 #if CFG_STACK_WALKING_TESTS
 static int (*og_snprintf)(char *, size_t, const char *, ...);
 
