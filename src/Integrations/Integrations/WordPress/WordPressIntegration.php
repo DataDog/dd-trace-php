@@ -15,7 +15,8 @@ class WordPressIntegration extends Integration
      */
     private $serviceName;
 
-    public function getServiceName() {
+    public function getServiceName()
+    {
         if (!empty($this->serviceName)) {
             return $this->serviceName;
         }

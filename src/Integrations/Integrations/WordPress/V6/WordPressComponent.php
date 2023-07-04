@@ -19,8 +19,14 @@ use function DDTrace\trace_method;
 
 class WordPressComponent
 {
-    public static function extractPluginNameFromFile(string $file): string {
-        $pluginDir = defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : (defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/plugins' : '');
+    public static function extractPluginNameFromFile(string $file, bool $muPlugins = false): string
+    {
+        if ($muPlugins) {
+            $pluginDir = defined('WPMU_PLUGIN_DIR') ? WPMU_PLUGIN_DIR : (defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/mu-plugins' : '');
+        } else {
+            $pluginDir = defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : (defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/plugins' : '');
+        }
+
         if ($pluginDir && strpos($file, $pluginDir) === 0) {
             // The plugin name will be what follows the plugin dir
             // Format: <plugin_dir>/<plugin_name>/... or <plugin_dir>/<plugin_name>.php
@@ -30,6 +36,25 @@ class WordPressComponent
         } else {
             return '';
         }
+    }
+
+    public static function extractThemeNameFromFile(string $file): string
+    {
+        if (!function_exists('get_theme_root')) {
+            return '';
+        }
+
+        $themeRoot = get_theme_root();
+        $themePos = strpos($file, $themeRoot);
+        if ($themePos === false) {
+            return '';
+        }
+
+        $file = substr($file, $themePos + strlen($themeRoot)); // Remove everything before this position
+        $themeName = explode('/', $file)[1]; // The theme name is the first directory
+        $themeName = ucfirst($themeName); // Capitalize the first letter
+
+        return $themeName ?: '';
     }
 
     public static function tryExtractThemeNameFromPath(string $hookName, array &$actionHookToTheme)
@@ -42,20 +67,7 @@ class WordPressComponent
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
         $file = isset($backtrace[2]['file']) ? $backtrace[2]['file'] : '';
 
-        if (!function_exists('get_theme_root')) {
-            return null;
-        }
-
-        $themeRoot = get_theme_root();
-        $themePos = strpos($file, $themeRoot);
-        if ($themePos === false) {
-            return null;
-        }
-
-        $file = substr($file, $themePos + strlen($themeRoot)); // Remove everything before this position
-        $themeName = explode('/', $file)[1]; // The theme name is the first directory
-        $themeName = ucfirst($themeName); // Capitalize the first letter
-
+        $themeName = WordPressComponent::extractThemeNameFromFile($file);
         $actionHookToTheme[$hookName] = $themeName ?: null;
 
         return $actionHookToTheme[$hookName];
@@ -74,13 +86,13 @@ class WordPressComponent
 
         // Try to find the plugin associated to the hook
         $plugin = WordPressComponent::extractPluginNameFromFile($file);
-
         $actionHookToPlugin[$hookName] = $plugin ?: null;
 
         return $actionHookToPlugin[$hookName];
     }
 
-    public static function setCommonTags(WordPressIntegration $integration, SpanData $span, string $name, string $resource = null) {
+    public static function setCommonTags(WordPressIntegration $integration, SpanData $span, string $name, string $resource = null)
+    {
         $span->name = $name;
         $span->resource = $resource ?: $name;
         $span->type = Type::WEB_SERVLET;
@@ -88,7 +100,8 @@ class WordPressComponent
         $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
     }
 
-    public static function allowQueryParamsInResourceName() {
+    public static function allowQueryParamsInResourceName()
+    {
         // Check if the WordPress app is using plain permalinks
         $structure = get_option('permalink_structure');
         if ($structure !== '') {
@@ -111,8 +124,9 @@ class WordPressComponent
         ini_set('datadog.trace.resource_uri_query_param_allowed', $envVar);
     }
 
-    public static function setSpansLimit() {
-        // Assumes an avg. of 25 spans / plugin (load + actions + callbacks > 10ms)
+    public static function setSpansLimit()
+    {
+        // Assumes an avg. of 25 spans / plugin (arbitrary)
         $pluginCount = count(wp_get_active_and_valid_plugins());
         $spansLimit = 1000 + ($pluginCount * 25);
 
@@ -129,23 +143,32 @@ class WordPressComponent
 
         // File loading
         hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
+            // wp_plugin_directory_constants is called before the plugins are loaded and defines the necessary constants
+            // for wp_get_X_plugins functions to work.
             WordPressComponent::allowQueryParamsInResourceName();
             WordPressComponent::setSpansLimit();
 
-            foreach (wp_get_active_and_valid_plugins() as $plugin) {
-                if (file_exists($plugin)) {
+            foreach (wp_get_mu_plugins() as $muPlugin) {
+                if (file_exists($muPlugin)) {
+                    // May or may not be loaded... Possibly some Memcached optimization?
                     install_hook(
-                        $plugin,
-                        function (HookData $hook) use ($integration, $plugin) {
+                        $muPlugin,
+                        function (HookData $hook) use ($integration, $muPlugin) {
                             $span = $hook->span();
-                            $pluginName = WordPressComponent::extractPluginNameFromFile($plugin) ?: '?';
-                            WordPressComponent::setCommonTags($integration, $span, 'load-plugin', "plugin: $pluginName");
+                            $pluginName = WordPressComponent::extractPluginNameFromFile($muPlugin, true) ?: '?';
+                            WordPressComponent::setCommonTags($integration, $span, 'load_mu_plugin', "mu_plugin: $pluginName");
                             $span->meta['wp.plugin'] = $pluginName;
-                            $span->meta['wp.plugin_file'] = $plugin;
+                            $span->meta['wp.plugin_file'] = $muPlugin;
                         }
                     );
                 }
             }
+
+
+            trace_function('wp_get_mu_plugins', function (SpanData $span) use ($integration) {
+                $span->meta['wp.plugin_count'] = count(wp_get_mu_plugins());
+                WordPressComponent::setCommonTags($integration, $span, 'load_mu_plugins');
+            });
 
             if (is_multisite()) {
                 foreach (wp_get_active_network_plugins() as $networkPlugin) {
@@ -155,12 +178,27 @@ class WordPressComponent
                             function (HookData $hook) use ($integration, $networkPlugin) {
                                 $span = $hook->span();
                                 $pluginName = WordPressComponent::extractPluginNameFromFile($networkPlugin) ?: '?';
-                                WordPressComponent::setCommonTags($integration, $span, 'load-network-plugin', "network-plugin: $pluginName");
+                                WordPressComponent::setCommonTags($integration, $span, 'load_network_plugin', "network_plugin: $pluginName");
                                 $span->meta['wp.plugin'] = $pluginName;
                                 $span->meta['wp.plugin_file'] = $networkPlugin;
                             }
                         );
                     }
+                }
+            }
+
+            foreach (wp_get_active_and_valid_plugins() as $plugin) {
+                if (file_exists($plugin)) {
+                    install_hook(
+                        $plugin,
+                        function (HookData $hook) use ($integration, $plugin) {
+                            $span = $hook->span();
+                            $pluginName = WordPressComponent::extractPluginNameFromFile($plugin) ?: '?';
+                            WordPressComponent::setCommonTags($integration, $span, 'load_plugin', "plugin: $pluginName");
+                            $span->meta['wp.plugin'] = $pluginName;
+                            $span->meta['wp.plugin_file'] = $plugin;
+                        }
+                    );
                 }
             }
 
@@ -170,7 +208,7 @@ class WordPressComponent
                     $templateLoader,
                     function (HookData $hook) use ($integration) {
                         $span = $hook->span();
-                        WordPressComponent::setCommonTags($integration, $span, 'template-loader');
+                        WordPressComponent::setCommonTags($integration, $span, 'template_loader');
                     }
                 );
             }
@@ -185,7 +223,7 @@ class WordPressComponent
                             $span = $hook->span();
                             $themeName = explode('/', $theme);
                             $themeName = ucfirst(end($themeName));
-                            WordPressComponent::setCommonTags($integration, $span, 'load-theme', "theme: $themeName");
+                            WordPressComponent::setCommonTags($integration, $span, 'load_theme', "theme: $themeName");
                             $span->meta['wp.theme'] = $themeName;
                         }
                     );
@@ -193,8 +231,9 @@ class WordPressComponent
             }
         });
 
-        // Root span
         hook_function('wp', function () use ($integration) {
+            // Runs after wp-settings.php is loaded - i.e., after the entire core of WordPress functions is
+            // loaded and the current user is populated
             $rootSpan = \DDTrace\root_span();
             if (!$rootSpan) {
                 return;
@@ -207,14 +246,8 @@ class WordPressComponent
             $rootSpan->service = $service;
             $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
             $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-            if ('cli' !== PHP_SAPI) {
-                $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
-                $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
-                hook_function('wp_plugin_directory_constants', function () use ($rootSpan) {
-                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                        $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
-                    }
-                });
+            if ('cli' !== PHP_SAPI && !array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
             }
 
             $user = wp_get_current_user();
@@ -365,8 +398,16 @@ class WordPressComponent
             $plugin = WordPressComponent::extractPluginNameFromFile($template);
             if ($plugin) {
                 $span->meta['wp.plugin'] = $plugin;
-            } elseif (($theme = wp_get_theme()->get('Name'))) {
-                $span->meta['wp.theme'] = $theme;
+            } else {
+                // Order: this function, load_template
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+                $file = isset($backtrace[1]['file']) ? $backtrace[1]['file'] : '';
+                $plugin = WordPressComponent::extractPluginNameFromFile($file);
+                if ($plugin) {
+                    $span->meta['wp.plugin'] = $plugin;
+                } elseif (($theme = wp_get_theme()->get('Name'))) {
+                    $span->meta['wp.theme'] = $theme;
+                }
             }
 
             // Remove the trailing .php extension, if any
@@ -427,6 +468,7 @@ class WordPressComponent
 
                 if (isset($args[0]['attrs'])) {
                     $attrs = $args[0]['attrs'];
+                    // See https://developer.wordpress.org/themes/block-themes/templates-and-template-parts/#block-c5fa39a2-a27d-4bd2-98d0-dc6249a0801a
                     foreach (['slug', 'theme', 'area', 'tagName'] as $attr) {
                         if (isset($attrs[$attr])) {
                             $span->meta["wp.template_part.$attr"] = $attrs[$attr];
@@ -445,13 +487,18 @@ class WordPressComponent
             );
         });
 
-        trace_function('get_query_template', function (SpanData $span, $args) use ($integration) {
+        trace_function('get_query_template', function (SpanData $span, $args, $path) use ($integration) {
             WordPressComponent::setCommonTags(
                 $integration,
                 $span,
                 'template',
                 isset($args[0]) ? "type: {$args[0]}" : 'type: ?'
             );
+
+            $themeName = WordPressComponent::extractThemeNameFromFile($path);
+            if ($themeName) {
+                $span->meta['wp.theme'] = $themeName;
+            }
         });
 
         // Sidebar
@@ -501,10 +548,7 @@ class WordPressComponent
                         }
                     },
                     'posthook' => function (SpanData $span, $args, $response) {
-                        $duration = $span->getDuration(); // nanoseconds
-                        // If the duration is less than 10ms, drop the span (return false)
-                        // On an app with approx. 15 plugins, reduced the number of spans by 50% (1500 -> 750)
-                        return $duration > 10000000;
+                        return $span->getDuration() >= 5000000; // 5ms
                     }
                 ]
             );
@@ -544,9 +588,10 @@ class WordPressComponent
                         WordPressComponent::setCommonTags($integration, $span, 'callback', $resource);
 
                         $file = isset($backtrace[0]['file']) ? $backtrace[0]['file'] : '';
-                        $plugin = WordPressComponent::extractPluginNameFromFile($file);
-                        if ($plugin) {
-                            $span->meta['wp.plugin'] = $plugin;
+                        if (($pluginName = WordPressComponent::extractPluginNameFromFile($file))) {
+                            $span->meta['wp.plugin'] = $pluginName;
+                        } elseif (($themeName = WordPressComponent::extractThemeNameFromFile($file))) {
+                            $span->meta['wp.theme'] = $themeName;
                         }
 
                         remove_hook($hook->id);
