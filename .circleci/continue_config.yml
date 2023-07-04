@@ -3341,14 +3341,12 @@ workflows:
           requires: [ 'package extension' ]
           name: "Parametric tests"
           build: |
-            cd system-tests/parametric
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
             sudo apt-get install -y python-is-python3
-            pip install wheel && pip install -r requirements.txt
+            ./build.sh -i runner 
           run: |
-            cd system-tests/parametric
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
-            CLIENTS_ENABLED=php ./run.sh
+            TEST_LIBRARY=php ./run.sh PARAMETRIC
 
   build:
     when: << pipeline.parameters.build >>
