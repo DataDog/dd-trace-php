@@ -508,6 +508,7 @@ TEST_WEB_70 := \
 	test_web_yii_2 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
+	test_web_wordpress_61 \
 	test_web_zend_1 \
 	test_web_custom
 
@@ -557,6 +558,7 @@ TEST_WEB_71 := \
 	test_web_yii_2 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
+	test_web_wordpress_61 \
 	test_web_zend_1 \
 	test_web_custom
 
@@ -610,6 +612,7 @@ TEST_WEB_72 := \
 	test_web_symfony_52 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
+	test_web_wordpress_61 \
 	test_web_yii_2 \
 	test_web_zend_1 \
 	test_web_custom
@@ -662,6 +665,7 @@ TEST_WEB_73 := \
 	test_web_symfony_52 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
+	test_web_wordpress_61 \
 	test_web_yii_2 \
 	test_web_zend_1 \
 	test_web_custom
@@ -716,6 +720,7 @@ TEST_WEB_74 := \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_wordpress_59 \
+	test_web_wordpress_61 \
 	test_web_yii_2 \
 	test_web_zend_1 \
 	test_web_custom
@@ -760,6 +765,7 @@ TEST_WEB_80 := \
 	test_web_symfony_51 \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
+	test_web_wordpress_61 \
 	test_web_yii_2 \
 	test_web_zend_1_21 \
 	test_web_custom
@@ -794,6 +800,7 @@ TEST_WEB_81 := \
 	test_web_slim_4 \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
+	test_web_wordpress_61 \
 	test_web_custom \
 	test_web_zend_1_21
 #	test_web_yii_2 \
@@ -832,6 +839,7 @@ TEST_WEB_82 := \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_wordpress_59 \
+	test_web_wordpress_61 \
 	test_web_custom \
 	test_web_zend_1_21
 #	test_web_yii_2 \
@@ -1088,6 +1096,8 @@ test_web_wordpress_55: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/WordPress/V5_5)
 test_web_wordpress_59: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/WordPress/V5_9)
+test_web_wordpress_61: global_test_run_dependencies
+	$(call run_tests,tests/Integrations/WordPress/V6_1)
 test_web_yii_2: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0 update
 	$(call run_tests,tests/Integrations/Yii/V2_0)

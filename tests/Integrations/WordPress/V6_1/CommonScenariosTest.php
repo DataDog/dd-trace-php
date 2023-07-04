@@ -1,9 +1,7 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laminas\V2_0;
+namespace DDTrace\Tests\Integrations\WordPress\V6_1;
 
-use DDTrace\Tag;
-use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
@@ -11,12 +9,21 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laminas/Version_2_0/public/index.php';
+        return __DIR__ . '/../../../Frameworks/WordPress/Version_6_1/index.php';
+    }
+
+    public function ddSetUp()
+    {
+        parent::ddSetUp();
+        $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        $pdo->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_6_1/scripts/wp_initdb.sql'));
     }
 
     protected static function getEnvs()
     {
-        return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas_20']);
+        return array_merge(parent::getEnvs(), [
+            'DD_SERVICE' => 'wordpress_61_test_app'
+        ]);
     }
 
     public function testScenarioGetReturnString()
@@ -50,7 +57,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 GetSpec::create(
                     'A GET request with an exception',
                     '/error?key=value&pwd=should_redact'
-                )->expectStatusCode(500)
+                )->expectStatusCode(200)
             );
         });
     }

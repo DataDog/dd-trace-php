@@ -150,7 +150,7 @@ class WordPressComponent
 
             foreach (wp_get_mu_plugins() as $muPlugin) {
                 if (file_exists($muPlugin)) {
-                    // May or may not be loaded... Possibly some Memcached optimization?
+                    // May not be loaded... Possibly some Memcached optimization going on there?
                     install_hook(
                         $muPlugin,
                         function (HookData $hook) use ($integration, $muPlugin) {
@@ -163,12 +163,6 @@ class WordPressComponent
                     );
                 }
             }
-
-
-            trace_function('wp_get_mu_plugins', function (SpanData $span) use ($integration) {
-                $span->meta['wp.plugin_count'] = count(wp_get_mu_plugins());
-                WordPressComponent::setCommonTags($integration, $span, 'load_mu_plugins');
-            });
 
             if (is_multisite()) {
                 foreach (wp_get_active_network_plugins() as $networkPlugin) {
