@@ -610,7 +610,7 @@ static zend_string *dd_get_user_agent() {
 static bool dd_set_mapped_peer_service(zval *meta, zend_string *peer_service) {
     zend_array *peer_service_mapping = get_DD_TRACE_PEER_SERVICE_MAPPING();
     if (zend_hash_num_elements(peer_service_mapping) == 0 || !meta || !peer_service) {
-        return NULL;
+        return false;
     }
 
     zval* mapped_service_zv = zend_hash_find(peer_service_mapping, peer_service);
