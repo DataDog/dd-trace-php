@@ -106,6 +106,13 @@ namespace DDTrace {
         public array $links = [];
 
         /**
+         * @var string[] $peerServiceSources A sorted list of tag names used to set the `peer.service` tag. If a tag
+         * name is added to this field and the tag exists on the span at serialization time, then the value of the tag
+         * will be used to set the value of the `peer.service` tag.
+         */
+        public array $peerServiceSources = [];
+
+        /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
         public readonly SpanData|null $parent = null;

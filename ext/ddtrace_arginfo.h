@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5f6b67ed109fbedcbdf1d13e6a082da85515a08c */
+ * Stub hash: d9b45636209b6edf0794da55759b839dda543487 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -517,6 +517,12 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_string *property_links_name = zend_string_init("links", sizeof("links") - 1, 1);
 	zend_declare_typed_property(class_entry, property_links_name, &property_links_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_links_name);
+
+	zval property_peerServiceSources_default_value;
+	ZVAL_EMPTY_ARRAY(&property_peerServiceSources_default_value);
+	zend_string *property_peerServiceSources_name = zend_string_init("peerServiceSources", sizeof("peerServiceSources") - 1, 1);
+	zend_declare_typed_property(class_entry, property_peerServiceSources_name, &property_peerServiceSources_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_peerServiceSources_name);
 
 	zend_string *property_parent_class_DDTrace_SpanData = zend_string_init("DDTrace\\SpanData", sizeof("DDTrace\\SpanData")-1, 1);
 	zval property_parent_default_value;
