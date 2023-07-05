@@ -3341,10 +3341,12 @@ workflows:
           requires: [ 'package extension' ]
           name: "Parametric tests"
           build: |
+            cd system-tests
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
             sudo apt-get install -y python-is-python3
             ./build.sh -i runner 
           run: |
+            cd system-tests
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
             TEST_LIBRARY=php ./run.sh PARAMETRIC
 
