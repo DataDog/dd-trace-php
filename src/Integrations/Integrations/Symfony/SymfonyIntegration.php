@@ -83,6 +83,42 @@ class SymfonyIntegration extends Integration
         );
 
         \DDTrace\hook_method(
+            'Doctrine\ORM\UnitOfWork',
+            'executeInserts',
+            function ($This, $scope, $args) {
+                  $metadataClass = 'Doctrine\ORM\Mapping\ClassMetadata';
+                  if (
+                       !$args ||
+                       !isset($args[0]) ||
+                       !$args[0] ||
+                       !($args[0] instanceof $metadataClass)
+                  ) {
+                       return;
+                  }
+
+                  $entities = $This->getScheduledEntityInsertions();
+                  $userInterface = 'Symfony\Component\Security\Core\User\UserInterface';
+                  $found = 0;
+                  $userEntity = null;
+                  foreach ($entities as $entity) {
+                    if (! ($entity instanceof $userInterface)) {
+                        continue;
+                    }
+                    $found++;
+                    $userEntity = $entity;
+                  }
+
+                  if ($found != 1) {
+                    return;
+                  }
+
+                  \datadog\appsec\track_user_signup_event($userEntity->getUsername(), [], true);
+
+            }
+        );
+
+
+        \DDTrace\hook_method(
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onFailure',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
