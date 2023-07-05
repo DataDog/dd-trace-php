@@ -847,9 +847,10 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         add_assoc_str(meta, "_dd.span_links", buf.s);
     }
 
-    if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) {
+    if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) { // opt-in
         zend_array *peer_service_sources = ddtrace_spandata_property_peer_service_sources(span);
-        if (zend_hash_str_exists(Z_ARRVAL_P(meta), ZEND_STRL("peer.service"))) { // peer.service is already set by the user, honor it
+        if (zend_hash_str_exists(Z_ARRVAL_P(meta), ZEND_STRL("peer.service"))) {
+            // peer.service is already set by the user, honor it
             add_assoc_str(meta, "_dd.peer.service.source", zend_string_init(ZEND_STRL("peer.service"), 0));
 
             zval *peer_service = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("peer.service"));
