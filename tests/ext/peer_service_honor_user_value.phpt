@@ -1,5 +1,7 @@
 --TEST--
 If peer.service is already set by the user, honor it
+--ENV--
+DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true
 --FILE--
 <?php
 

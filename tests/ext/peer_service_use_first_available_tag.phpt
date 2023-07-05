@@ -1,5 +1,7 @@
 --TEST--
 Use the first available tag from peerServiceSources to set peer.service
+--ENV--
+DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true
 --FILE--
 <?php
 

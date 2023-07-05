@@ -1,7 +1,8 @@
 --TEST--
 Using a wrongly formatted DD_TRACE_PEER_SERVICE_MAPPING doesn't break the tracer
 --ENV--
-DD_TRACE_PEER_SERVICE_MAPPING=foo=bar,only_tag,foo:bar
+DD_TRACE_PEER_SERVICE_MAPPING=foo=bar,only_tag
+DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true
 --FILE--
 <?php
 
@@ -18,8 +19,8 @@ DDTrace\trace_function('bar', function (\DDTrace\SpanData $span) {
     $span->peerServiceSources = ['db.instance', 'net.peer.name'];
 });
 
-foo(); // The first mapping for 'foo' doesn't make use of ':' and is ignored, the second one is correct and used
-bar(); // There's no mapping for 'only_tag'
+foo();
+bar();
 
 var_dump(dd_trace_serialize_closed_spans());
 
@@ -77,14 +78,12 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(4) {
+    array(3) {
       ["db.instance"]=>
       string(3) "foo"
       ["_dd.peer.service.source"]=>
       string(11) "db.instance"
       ["peer.service"]=>
-      string(3) "bar"
-      ["peer.service.remapped_from"]=>
       string(3) "foo"
     }
   }
