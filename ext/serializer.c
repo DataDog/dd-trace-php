@@ -615,12 +615,10 @@ static bool dd_set_mapped_peer_service(zval *meta, zend_string *peer_service) {
 
     zval* mapped_service_zv = zend_hash_find(peer_service_mapping, peer_service);
     if (mapped_service_zv) {
-        zend_string *mapped_service = Z_STR_P(mapped_service_zv);
-        if (mapped_service) {
-            add_assoc_str(meta, "peer.service.remapped_from", zend_string_copy(peer_service));
-            add_assoc_str(meta, "peer.service", mapped_service);
-            return true;
-        }
+        zend_string *mapped_service = zval_get_string(mapped_service_zv);
+        add_assoc_str(meta, "peer.service.remapped_from", zend_string_copy(peer_service));
+        add_assoc_str(meta, "peer.service", mapped_service);
+        return true;
     }
 
     return false;
