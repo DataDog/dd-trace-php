@@ -387,6 +387,64 @@ class MysqliTest extends IntegrationTestCase
         ]);
     }
 
+    public function testProceduralSelectDbPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            \mysqli_select_db($mysqli, 'information_schema');
+            \mysqli_query($mysqli, 'SELECT * from columns limit 1');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from columns limit 1')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(
+                    self::baseTags(true, true),
+                    [
+                        'db.name' => 'information_schema',
+                        '_dd.peer.service.source' => 'db.name',
+                        'peer.service' => 'information_schema',
+                    ]
+                ))
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
+        ]);
+    }
+
+    public function testConstructorSelectDbPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->select_db('information_schema');
+            $mysqli->query('SELECT * from columns limit 1');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
+            SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from columns limit 1')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(
+                    self::baseTags(true, true),
+                    [
+                        'db.name' => 'information_schema',
+                        '_dd.peer.service.source' => 'db.name',
+                        'peer.service' => 'information_schema',
+                    ]
+                ))
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
+                ]),
+        ]);
+    }
+
     public function testLimitedTracerConstructorQuery()
     {
         $traces = $this->isolateLimitedTracer(function () {
