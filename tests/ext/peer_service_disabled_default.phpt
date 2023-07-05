@@ -8,10 +8,10 @@ DD_TRACE_PEER_SERVICE_MAPPING=foo:bar
 function foo() { }
 
 DDTrace\trace_function('foo', function (\DDTrace\SpanData $span) {
+    $span->peerServiceSources = ['db.instance', 'net.peer.name'];
     $span->meta['db.instance'] = 'db1';
     $span->meta['net.peer.name'] = 'xyz';
     $span->meta['foo'] = 'bar';
-    $span->peerServiceSources = ['db.instance', 'net.peer.name'];
 });
 
 foo();
