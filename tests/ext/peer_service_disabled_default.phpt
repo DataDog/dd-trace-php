@@ -51,3 +51,4 @@ array(1) {
       string(3) "bar"
     }
   }
+}
