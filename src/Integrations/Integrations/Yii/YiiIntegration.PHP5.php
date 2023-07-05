@@ -140,7 +140,6 @@ class YiiIntegration extends Integration
                     $routePath = \DDTrace\Util\Normalizer::urlSanitize(\urldecode(Url::toRoute($namedParams)));
                     $rootSpan->meta['app.route.path'] = $routePath;
 
-                    error_log('Url to route: ' . var_export(\urldecode(Url::toRoute($placeholders)), true));
                     $resourceName = \str_replace(
                         $placeholder,
                         '?',

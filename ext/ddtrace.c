@@ -214,6 +214,7 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) 
 
 static void dd_activate_once(void) {
     ddtrace_config_first_rinit();
+    ddtrace_generate_runtime_id();
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!DDTRACE_G(disable) && get_global_DD_TRACE_TELEMETRY_ENABLED()) {
@@ -656,7 +657,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_set_coredumpfilter();
-    ddtrace_generate_runtime_id();
 
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
