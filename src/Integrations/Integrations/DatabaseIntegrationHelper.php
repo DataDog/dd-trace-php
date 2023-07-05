@@ -8,7 +8,8 @@ use DDTrace\Tag;
 class DatabaseIntegrationHelper
 {
     const PEER_SERVICE_SOURCES = [
-        Tag::DB_NAME,
+        Tag::DB_INSTANCE,
+        Tag::DB_NAME,  // Deprecated, it should be db.instance
         Tag::TARGET_HOST,
     ];
 
