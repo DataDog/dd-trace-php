@@ -857,12 +857,12 @@ impl Profiler {
                         )).unwrap();
                         let name = format!("{}::{}", classname, functionname);
                         labels.push(Label {
-                            key: "thread name",
+                            key: "fiber",
                             value: LabelValue::Str(name.into()),
                         });
                     } else {
                         labels.push(Label {
-                            key: "thread name",
+                            key: "fiber",
                             value: LabelValue::Str(functionname.into()),
                         });
                     }
