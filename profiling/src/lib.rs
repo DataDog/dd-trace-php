@@ -702,7 +702,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                 zend::php_info_print_table_row(
                     2,
                     b"Allocation Profiling Enabled\0".as_ptr(),
-                    b"Not available. The profiler was build without allocation profiling.\0"
+                    b"Not available. The profiler was built without allocation profiling.\0"
                 );
             }
         }
