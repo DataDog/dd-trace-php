@@ -847,8 +847,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) { // opt-in
         zend_array *peer_service_sources = ddtrace_spandata_property_peer_service_sources(span);
-        if (zend_hash_str_exists(Z_ARRVAL_P(meta), ZEND_STRL("peer.service"))) {
-            // peer.service is already set by the user, honor it
+        if (zend_hash_str_exists(Z_ARRVAL_P(meta), ZEND_STRL("peer.service"))) { // peer.service is already set by the user, honor it
             add_assoc_str(meta, "_dd.peer.service.source", zend_string_init(ZEND_STRL("peer.service"), 0));
 
             zval *peer_service = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("peer.service"));
@@ -859,8 +858,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
             zval *tag;
             ZEND_HASH_FOREACH_VAL(peer_service_sources, tag)
             {
-                if (Z_TYPE_P(tag) == IS_STRING) {
-                    // Use the first tag that is found in the span, if any
+                if (Z_TYPE_P(tag) == IS_STRING) { // Use the first tag that is found in the span, if any
                     zval *peer_service = zend_hash_find(Z_ARRVAL_P(meta), Z_STR_P(tag));
                     if (peer_service && Z_TYPE_P(peer_service) == IS_STRING) {
                         add_assoc_str(meta, "_dd.peer.service.source", zend_string_copy(Z_STR_P(tag)));
