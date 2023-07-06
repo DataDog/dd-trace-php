@@ -626,8 +626,8 @@ impl Profiler {
         }
     }
 
-    /// Collect a stack sample with memory allocations
     #[cfg(feature = "allocation_profiling")]
+    /// Collect a stack sample with memory allocations
     pub unsafe fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
@@ -667,7 +667,7 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
-    pub unsafe fn collect_compile_file(
+    pub fn collect_compile_file(
         &self,
         duration: i64,
         filename: String,
@@ -717,7 +717,7 @@ impl Profiler {
     #[cfg(feature = "timeline")]
     /// collect a stack frame for garbage collection.
     /// as we do not know about the overhead currently, we only collect a fake frame.
-    pub unsafe fn collect_garbage_collection(
+    pub fn collect_garbage_collection(
         &self,
         duration: i64,
         reason: &'static str,
@@ -901,7 +901,7 @@ mod tests {
             #[cfg(feature = "profiling_metrics")]
             stack_walk_overhead: OverheadMetrics::new().unwrap(),
             tags: static_tags(),
-            uri: Box::new(AgentEndpoint::default()),
+            uri: Box::<AgentEndpoint>::default(),
             version: None,
             vm_interrupt_addr: std::ptr::null_mut(),
         }

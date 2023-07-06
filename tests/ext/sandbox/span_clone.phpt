@@ -22,7 +22,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanData)#%d (11) {
+object(DDTrace\SpanData)#%d (12) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -48,6 +48,9 @@ object(DDTrace\SpanData)#%d (11) {
   ["links"]=>
   array(0) {
   }
+  ["peerServiceSources"]=>
+  array(0) {
+  }
   ["parent"]=>
   NULL
   ["stack"]=>
@@ -63,7 +66,7 @@ object(DDTrace\SpanData)#%d (11) {
     *RECURSION*
   }
 }
-object(DDTrace\SpanData)#%d (11) {
+object(DDTrace\SpanData)#%d (12) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -89,6 +92,9 @@ object(DDTrace\SpanData)#%d (11) {
   ["links"]=>
   array(0) {
   }
+  ["peerServiceSources"]=>
+  array(0) {
+  }
   ["parent"]=>
   NULL
   ["stack"]=>
@@ -101,7 +107,7 @@ object(DDTrace\SpanData)#%d (11) {
       NULL
     }
     ["active"]=>
-    object(DDTrace\SpanData)#%d (11) {
+    object(DDTrace\SpanData)#%d (12) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -125,6 +131,9 @@ object(DDTrace\SpanData)#%d (11) {
       ["id"]=>
       string(%d) "%d"
       ["links"]=>
+      array(0) {
+      }
+      ["peerServiceSources"]=>
       array(0) {
       }
       ["parent"]=>

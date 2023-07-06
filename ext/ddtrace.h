@@ -68,6 +68,9 @@ static inline zval *ddtrace_spandata_property_links_zval(ddtrace_span_data *span
 static inline zend_array *ddtrace_spandata_property_links(ddtrace_span_data *span) {
     return ddtrace_spandata_property_force_array(ddtrace_spandata_property_links_zval(span));
 }
+static inline zval *ddtrace_spandata_property_peerServiceSources_zval(ddtrace_span_data *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 9);
+}
 #pragma GCC diagnostic pop
 
 bool ddtrace_tracer_is_limited(void);
