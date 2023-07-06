@@ -161,6 +161,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/priority_sampling/priority_sampling.c \
     ext/profiling.c \
     ext/random.c \
+    ext/remote_config.c \
     ext/request_hooks.c \
     ext/serializer.c \
     ext/sidecar.c \

@@ -2,6 +2,7 @@
 #![feature(local_key_cell_methods)]
 
 pub mod log;
+pub mod remote_config;
 pub mod telemetry;
 pub mod sidecar;
 

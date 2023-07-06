@@ -65,6 +65,7 @@
 #include "limiter/limiter.h"
 #include "priority_sampling/priority_sampling.h"
 #include "random.h"
+#include "remote_config.h"
 #include "request_hooks.h"
 #include "serializer.h"
 #include "sidecar.h"
@@ -575,8 +576,11 @@ static void dd_clean_main_thread_locals() {
 #endif
 
 static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
-    if (ddtrace_globals->remote_config_reader) {
-        ddog_agent_remote_config_reader_drop(ddtrace_globals->remote_config_reader);
+    if (ddtrace_globals->agent_config_reader) {
+        ddog_agent_remote_config_reader_drop(ddtrace_globals->agent_config_reader);
+    }
+    if (ddtrace_globals->remote_config_state) {
+        ddog_shutdown_remote_config(ddtrace_globals->remote_config_state);
     }
     zai_hook_gshutdown();
 
@@ -1128,6 +1132,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     dd_ip_extraction_startup();
     ddtrace_serializer_startup();
 
+    ddtrace_minit_remote_config();
+
     return SUCCESS;
 }
 
@@ -1219,17 +1225,23 @@ static void dd_initialize_request(void) {
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
-    if (!DDTRACE_G(remote_config_reader)) {
+    if (!DDTRACE_G(agent_config_reader)) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             if (ddtrace_endpoint) {
-                DDTRACE_G(remote_config_reader) = ddog_agent_remote_config_reader_for_endpoint(ddtrace_endpoint);
+                DDTRACE_G(agent_config_reader) = ddog_agent_remote_config_reader_for_endpoint(ddtrace_endpoint);
             }
 #ifndef _WIN32
         } else if (ddtrace_coms_agent_config_handle) {
-            ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(remote_config_reader));
+            ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(agent_config_reader));
 #endif
         }
     }
+
+    if (!DDTRACE_G(remote_config_state)) {
+        DDTRACE_G(remote_config_state) = ddog_init_remote_config(DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION), ddtrace_endpoint);
+    }
+
+    ddtrace_rinit_remote_config();
 
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
         dd_request_init_hook_rinit();
@@ -1263,6 +1275,7 @@ static void dd_initialize_request(void) {
 
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();
+        ddtrace_sidecar_submit_root_span_data();
     }
 }
 
@@ -1394,6 +1407,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         dd_force_shutdown_tracing();
     } else if (!ddtrace_disable) {
         dd_shutdown_hooks_and_observer();
+    }
+
+    if (DDTRACE_G(remote_config_state)) {
+        ddtrace_rshutdown_remote_config();
     }
 
     if (!ddtrace_disable) {

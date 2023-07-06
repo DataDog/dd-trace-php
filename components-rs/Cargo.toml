@@ -12,6 +12,9 @@ ddcommon = { path = "../libdatadog/ddcommon" }
 ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi", default-features = false }
 ddtelemetry = { path = "../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
+datadog-live-debugger = { path = "../libdatadog/live-debugger" }
+datadog-live-debugger-ffi = { path = "../libdatadog/live-debugger-ffi" }
+datadog-remote-config = { path = "../libdatadog/remote-config" }
 datadog-sidecar = { path = "../libdatadog/sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/sidecar-ffi" }
 spawn_worker = { path = "../libdatadog/spawn_worker" }

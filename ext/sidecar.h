@@ -9,9 +9,14 @@ void ddtrace_sidecar_setup(void);
 void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_shutdown(void);
 void ddtrace_reset_sidecar_globals(void);
+void ddtrace_sidecar_submit_root_span_data(void);
 
 static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
     return (ddog_CharSlice){ .len = str->len, .ptr = str->val };
+}
+
+static inline zend_string *dd_CharSlice_to_zend_string(ddog_CharSlice slice) {
+    return zend_string_init(slice.ptr, slice.len, 0);
 }
 
 static inline bool ddtrace_ffi_try(const char *msg, ddog_Option_VecU8 maybe_error) {
