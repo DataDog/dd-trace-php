@@ -3,12 +3,13 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\HookData;
+use DDTrace\Tag;
 
 class DatabaseIntegrationHelper
 {
     public static $PEER_SERVICE_SOURCES = [
-        'db.name',
-        'out.host',
+        Tag::DB_NAME,
+        Tag::TARGET_HOST,
     ];
 
     public static function injectDatabaseIntegrationData(HookData $hook, $backend, $argNum = 0)
