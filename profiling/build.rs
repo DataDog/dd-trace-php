@@ -30,6 +30,7 @@ fn main() {
     build_zend_php_ffis(php_config_includes, preload);
 
     cfg_php_major_version(vernum);
+    cfg_php_feature_flags(vernum);
     cfg_zts();
 }
 
@@ -98,9 +99,16 @@ fn build_zend_php_ffis(php_config_includes: &str, preload: bool) {
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
     let preload = if preload { "1" } else { "0" };
 
+    #[cfg(any(feature = "stack_walking_tests"))]
+    let stack_walking_tests = "1";
+
+    #[cfg(not(feature = "stack_walking_tests"))]
+    let stack_walking_tests = "0";
+
     cc::Build::new()
         .files(files.into_iter().chain(zai_c_files.into_iter()))
         .define("CFG_PRELOAD", preload)
+        .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .includes([Path::new("../ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
@@ -181,8 +189,11 @@ fn generate_bindings(php_config_includes: &str) {
         .parse_callbacks(Box::new(ignored_macros))
         .clang_args(php_config_includes.split(' '))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .rustfmt_bindings(true)
         .layout_tests(false)
+        // this prevents bindgen from copying C comments to Rust, as otherwise
+        // rustdoc would look for tests and currently fail as it assumes
+        // codeblocks are Rust code
+        .generate_comments(false)
         .generate()
         .expect("bindgen to succeed");
 
@@ -213,6 +224,15 @@ fn cfg_php_major_version(vernum: u64) {
     // was best way I could think of to address php 7 vs php 8 code paths
     // despite this misuse of the feature.
     println!("cargo:rustc-cfg=php{major_version}");
+}
+
+fn cfg_php_feature_flags(vernum: u64) {
+    if vernum >= 70300 {
+        println!("cargo:rustc-cfg=php_gc_status");
+    }
+    if vernum >= 80300 {
+        println!("cargo:rustc-cfg=php_gc_status_extended");
+    }
 }
 
 fn cfg_zts() {

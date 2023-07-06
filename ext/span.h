@@ -30,7 +30,7 @@ enum ddtrace_span_dataype {
 // Open spans as well as flushed spans keep a reference to the span stack
 struct ddtrace_span_data {
     zend_object std;
-    zval properties_table_placeholder[7];
+    zval properties_table_placeholder[9];
     union {
         struct ddtrace_span_data *parent;
         zval property_parent;
@@ -69,12 +69,31 @@ struct ddtrace_span_stack {
     struct ddtrace_span_stack *root_stack;
     union {
         struct ddtrace_span_stack *next; // closed chunk chain
-        zend_function *fiber_entry_function;
+        struct {
+            zend_function *fiber_entry_function;
+#if PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80200
+            zend_execute_data *fiber_initial_execute_data;
+#endif
+        };
     };
     struct ddtrace_span_stack *top_closed_stack;
     // closed ring: linked list where the last element links to the first. The last inserted element is always reachable via closed_ring->next.
     struct ddtrace_span_data *closed_ring;
     struct ddtrace_span_data *closed_ring_flush;
+};
+
+struct ddtrace_span_link {
+    union {
+        zend_object std;
+        struct {
+            char object_placeholder[sizeof(zend_object) - sizeof(zval)];
+            zval property_trace_id;
+            zval property_span_id;
+            zval property_trace_state;
+            zval property_attributes;
+            zval property_dropped_attributes_count;
+        };
+    };
 };
 
 void ddtrace_init_span_stacks(void);
@@ -106,8 +125,11 @@ void ddtrace_close_all_open_spans(bool force_close_root_span);
 void ddtrace_drop_span(ddtrace_span_data *span);
 void ddtrace_mark_all_span_stacks_flushable(void);
 void ddtrace_serialize_closed_spans(zval *serialized);
+void ddtrace_serialize_closed_spans_with_cycle(zval *serialized);
 zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id);
+zend_string *ddtrace_span_id_as_hex_string(uint64_t id);
+zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id);
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value);
 

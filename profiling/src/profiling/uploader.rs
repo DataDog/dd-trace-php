@@ -49,6 +49,7 @@ impl Uploader {
         )?;
 
         let serialized = profile.serialize(Some(message.end_time), message.duration)?;
+        let endpoint_counts = Some(&serialized.endpoints_stats);
         let start = serialized.start.into();
         let end = serialized.end.into();
         let files = &[File {
@@ -56,7 +57,7 @@ impl Uploader {
             bytes: serialized.buffer.as_slice(),
         }];
         let timeout = Duration::from_secs(10);
-        let request = exporter.build(start, end, files, None, None, timeout)?;
+        let request = exporter.build(start, end, files, None, endpoint_counts, timeout)?;
         debug!("Sending profile to: {}", index.endpoint);
         let result = exporter.send(request, None)?;
         Ok(result.status().as_u16())

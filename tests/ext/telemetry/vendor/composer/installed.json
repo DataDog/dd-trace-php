@@ -1,0 +1,143 @@
+{
+  "packages": [
+    {
+      "name": "datadog/dd-trace",
+      "version": "dev-master",
+      "version_normalized": "dev-master",
+      "dist": {
+        "type": "path",
+        "url": "/tmp/datadog/dd-trace",
+        "reference": "1ccc29d3df4549de3f8856b1ca0324b77ec81c53"
+      },
+      "require": {
+        "ext-curl": "*",
+        "ext-json": "*",
+        "php": "^5.4 || ^7.0 || ^8.0.0"
+      },
+      "require-dev": {
+        "ext-posix": "*",
+        "g1a/composer-test-scenarios": "~3.0",
+        "mockery/mockery": "*",
+        "phpunit/phpunit": "*",
+        "squizlabs/php_codesniffer": "^3.3.0",
+        "symfony/process": "<5"
+      },
+      "type": "library",
+      "extra": {
+        "scenarios": {
+          "opentracing_beta5": {
+            "require": {
+              "opentracing/opentracing": "1.0.0-beta5"
+            },
+            "scenario-options": {
+              "create-lockfile": false
+            }
+          },
+          "opentracing_beta6": {
+            "require": {
+              "opentracing/opentracing": "1.0.0-beta6"
+            },
+            "scenario-options": {
+              "create-lockfile": false
+            }
+          },
+          "opentracing10": {
+            "require": {
+              "opentracing/opentracing": "^1.0"
+            },
+            "scenario-options": {
+              "create-lockfile": false
+            }
+          }
+        },
+        "scenario-options": {
+          "dependency-licenses": false
+        }
+      },
+      "installation-source": "dist",
+      "autoload": {
+        "psr-4": {
+          "DDTrace\\": "./src/api/"
+        },
+        "files": [
+          "./src/api/bootstrap.composer.php"
+        ]
+      },
+      "autoload-dev": {
+        "psr-4": {
+          "DDTrace\\Tests\\Api\\": "./tests_api/",
+          "DDTrace\\Tests\\": "./tests/"
+        }
+      },
+      "scripts": {
+        "compile": [
+          "classpreloader.php compile --config=./bridge/_files.php --output=./bridge/_generated.php --strip_comments=1",
+          "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g\" ./bridge/_generated.php"
+        ],
+        "compile-verify": [
+          "php ./bridge/autoload.php"
+        ],
+        "fix-lint": [
+          "phpcbf"
+        ],
+        "lint": [
+          "phpcs -s --ignore=src/Integrations/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/,tests/xdebug/"
+        ],
+        "lint-5.4": [
+          "phpcs -s --runtime-set testVersion 5.4-7.3 --ignore=src/Integrations/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/"
+        ],
+        "static-analyze": [
+          "@static-analyze-clear-cache",
+          "@static-analyze-api",
+          "@static-analyze-ddtrace"
+        ],
+        "static-analyze-api": [
+          "phpstan analyse --configuration=./phpstan.api.neon --level=2 src/api"
+        ],
+        "static-analyze-clear-cache": [
+          "phpstan clear-result-cache --configuration=./phpstan.api.neon",
+          "phpstan clear-result-cache --configuration=./phpstan.ddtrace.neon"
+        ],
+        "static-analyze-ddtrace": [
+          "phpstan analyse --configuration=./phpstan.ddtrace.neon --level=2 src/DDTrace"
+        ],
+        "run-agent": [
+          "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
+          "while ! echo exit | nc localhost 8126; do sleep 1; done"
+        ],
+        "install-ext": [
+          "make sudo install install_ini $*"
+        ],
+        "test-ext": [
+          "make test_c TESTS=tests/ext"
+        ]
+      },
+      "license": [
+        "BSD-3-Clause"
+      ],
+      "authors": [
+        {
+          "name": "José Carlos Chávez",
+          "email": "jcchavezs@gmail.com"
+        },
+        {
+          "name": "DataDog",
+          "email": "dev@datadoghq.com",
+          "role": "Developer"
+        }
+      ],
+      "description": "PHP APM Client",
+      "keywords": [
+        "datadog",
+        "php",
+        "tracing"
+      ],
+      "transport-options": {
+        "relative": false
+      },
+      "install-path": "../datadog/dd-trace"
+    }
+  ],
+  "dev": true,
+  "dev-package-names": []
+}

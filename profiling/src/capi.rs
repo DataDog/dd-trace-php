@@ -33,7 +33,7 @@ impl<'a> From<&'a [u8]> for StringView<'a> {
 impl<'a> StringView<'a> {
     pub fn as_slice(&self) -> &'a [u8] {
         // Safety: StringView's are required to uphold these invariants.
-        unsafe { core::slice::from_raw_parts(self.ptr as *const u8, self.len as usize) }
+        unsafe { core::slice::from_raw_parts(self.ptr as *const u8, self.len) }
     }
 
     pub fn to_string_lossy(&self) -> Cow<'a, str> {
@@ -65,9 +65,9 @@ pub extern "C" fn datadog_profiling_notify_trace_finished(
 #[repr(C, align(16))]
 pub struct Uuid(uuid::Uuid);
 
-impl From<uuid::Uuid> for Uuid {
-    fn from(uuid: uuid::Uuid) -> Self {
-        Self(uuid)
+impl From<&uuid::Uuid> for Uuid {
+    fn from(uuid: &uuid::Uuid) -> Self {
+        Self(*uuid)
     }
 }
 
@@ -75,7 +75,7 @@ impl From<uuid::Uuid> for Uuid {
 /// Only call this from a PHP thread.
 #[no_mangle]
 pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
-    runtime_id().into()
+    Uuid::from(runtime_id())
 }
 
 /// Gathers a time sample if the configured period has elapsed. Used by the

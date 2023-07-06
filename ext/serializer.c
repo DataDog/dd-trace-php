@@ -11,9 +11,11 @@
 #include <string.h>
 
 #include <ext/standard/php_string.h>
+#include <components-rs/ddtrace.h>
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
 #include <exceptions/exceptions.h>
+#include <json/json.h>
 #include <stdatomic.h>
 #include <zai_string/string.h>
 #include <sandbox/sandbox.h>
@@ -27,7 +29,6 @@
 #include "logging.h"
 #include "mpack/mpack.h"
 #include "priority_sampling/priority_sampling.h"
-#include "runtime.h"
 #include "span.h"
 #include "uri_normalization.h"
 
@@ -606,27 +607,39 @@ static zend_string *dd_get_user_agent() {
     return ZSTR_EMPTY_ALLOC();
 }
 
+static bool dd_set_mapped_peer_service(zval *meta, zend_string *peer_service) {
+    zend_array *peer_service_mapping = get_DD_TRACE_PEER_SERVICE_MAPPING();
+    if (zend_hash_num_elements(peer_service_mapping) == 0 || !meta || !peer_service) {
+        return false;
+    }
+
+    zval* mapped_service_zv = zend_hash_find(peer_service_mapping, peer_service);
+    if (mapped_service_zv) {
+        zend_string *mapped_service = zval_get_string(mapped_service_zv);
+        add_assoc_str(meta, "peer.service.remapped_from", peer_service);
+        add_assoc_str(meta, "peer.service", mapped_service);
+        return true;
+    }
+
+    return false;
+}
+
 void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     zend_array *meta = ddtrace_spandata_property_meta(span);
 
     zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
 
-    datadog_php_uuid runtime_id = ddtrace_profiling_runtime_id();
-    if (!datadog_php_uuid_is_nil(runtime_id)) {
-        zend_string *encoded_id = zend_string_alloc(36, false);
+    /* Compilers rightfully complain about array bounds due to the struct
+     * hack if we write straight to the char storage. Saving the char* to a
+     * temporary avoids the warning without a performance penalty.
+     */
+    zend_string *encoded_id = zend_string_alloc(36, false);
+    ddtrace_format_runtime_id((uint8_t(*)[36])&ZSTR_VAL(encoded_id));
+    ZSTR_VAL(encoded_id)[36] = '\0';
 
-        /* Compilers rightfully complain about array bounds due to the struct
-         * hack if we write straight to the char storage. Saving the char* to a
-         * temporary avoids the warning without a performance penalty.
-         */
-        char *tmp = ZSTR_VAL(encoded_id);
-        datadog_php_uuid_encode36(runtime_id, tmp);
-        ZSTR_VAL(encoded_id)[36] = '\0';
-
-        zval zv;
-        ZVAL_STR(&zv, encoded_id);
-        zend_hash_str_add_new(meta, ZEND_STRL("runtime-id"), &zv);
-    }
+    zval zv;
+    ZVAL_STR(&zv, encoded_id);
+    zend_hash_str_add_new(meta, ZEND_STRL("runtime-id"), &zv);
 
     zval http_url;
     ZVAL_STR(&http_url, dd_build_req_url());
@@ -782,10 +795,18 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
     zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
 }
 
+static void _dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
+    zval zv;
+    ZVAL_ARR(&zv, arr);
+    zai_json_encode(buf, &zv, options);
+    smart_str_0(buf);
+}
+
 static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     bool is_top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     bool is_local_root_span = span->parent_id == 0 || is_top_level_span;
     zval meta_zv, *meta = ddtrace_spandata_property_meta_zval(span);
+    bool ignore_error = false;
 
     array_init(&meta_zv);
     ZVAL_DEREF(meta);
@@ -794,6 +815,11 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         zval *orig_val, val_as_string;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(meta), str_key, orig_val) {
             if (str_key) {
+                if (zend_string_equals_literal_ci(str_key, "error.ignored")) {
+                    ignore_error = zend_is_true(orig_val);
+                    continue;
+                }
+
                 ddtrace_convert_to_string(&val_as_string, orig_val);
                 add_assoc_zval(&meta_zv, ZSTR_VAL(str_key), &val_as_string);
             }
@@ -804,6 +830,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     zval *exception_zv = ddtrace_spandata_property_exception(span);
     if (Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
+        ignore_error = false;
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
         if (is_local_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
@@ -811,10 +838,48 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array, exception_type);
     }
 
+    zend_array *span_links = ddtrace_spandata_property_links(span);
+    if (zend_hash_num_elements(span_links) > 0) {
+        smart_str buf = {0};
+        _dd_serialize_json(span_links, &buf, 0);
+        add_assoc_str(meta, "_dd.span_links", buf.s);
+    }
+
+    if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) { // opt-in
+        zend_array *peer_service_sources = ddtrace_spandata_property_peer_service_sources(span);
+        if (zend_hash_str_exists(Z_ARRVAL_P(meta), ZEND_STRL("peer.service"))) { // peer.service is already set by the user, honor it
+            add_assoc_str(meta, "_dd.peer.service.source", zend_string_init(ZEND_STRL("peer.service"), 0));
+
+            zval *peer_service = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("peer.service"));
+            if (peer_service && Z_TYPE_P(peer_service) == IS_STRING) {
+                dd_set_mapped_peer_service(meta, Z_STR_P(peer_service));
+            }
+        } else if (zend_hash_num_elements(peer_service_sources) > 0) {
+            zval *tag;
+            ZEND_HASH_FOREACH_VAL(peer_service_sources, tag)
+            {
+                if (Z_TYPE_P(tag) == IS_STRING) { // Use the first tag that is found in the span, if any
+                    zval *peer_service = zend_hash_find(Z_ARRVAL_P(meta), Z_STR_P(tag));
+                    if (peer_service && Z_TYPE_P(peer_service) == IS_STRING) {
+                        add_assoc_str(meta, "_dd.peer.service.source", zend_string_copy(Z_STR_P(tag)));
+
+                        zend_string *peer = zval_get_string(peer_service);
+                        if (!dd_set_mapped_peer_service(meta, peer)) {
+                            add_assoc_str(meta, "peer.service", peer);
+                        }
+
+                        break;
+                    }
+                }
+            }
+            ZEND_HASH_FOREACH_END();
+        }
+    }
+
     if (is_top_level_span) {
         if (SG(sapi_headers).http_response_code) {
             add_assoc_str(meta, "http.status_code", zend_long_to_str(SG(sapi_headers).http_response_code));
-            if (SG(sapi_headers).http_response_code >= 500) {
+            if (SG(sapi_headers).http_response_code >= 500 && !ignore_error) {
                 zval zv = {0}, *value;
                 if ((value = zend_hash_str_add(Z_ARR_P(meta), ZEND_STRL("error.type"), &zv))) {
                     ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
@@ -866,7 +931,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.message")) ||
                       ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
-    if (error) {
+    if (error && !ignore_error) {
         add_assoc_long(el, "error", 1);
     }
 
@@ -1025,6 +1090,13 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         if (new_name) {
             zend_string_release(Z_STR(prop_service_as_string));
             ZVAL_COPY(&prop_service_as_string, new_name);
+        }
+
+        if (!span->parent) {
+            if (DDTRACE_G(last_flushed_root_service_name)) {
+                zend_string_release(DDTRACE_G(last_flushed_root_service_name));
+            }
+            DDTRACE_G(last_flushed_root_service_name) = zend_string_copy(Z_STR(prop_service_as_string));
         }
 
         add_assoc_zval(el, "service", &prop_service_as_string);

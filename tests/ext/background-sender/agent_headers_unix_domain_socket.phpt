@@ -8,6 +8,7 @@ DD_TRACE_AGENT_URL=unix:///tmp/ddtrace-agent-test.socket
 DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS=1
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_TELEMETRY_ENABLED=0
 --FILE--
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';

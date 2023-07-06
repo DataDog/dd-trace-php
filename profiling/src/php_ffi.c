@@ -2,10 +2,21 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
+
+#if CFG_STACK_WALKING_TESTS
+#include <dlfcn.h> // for dlsym
+#endif
 
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
+
+uint8_t *ddtrace_runtime_id = NULL;
+
+static void locate_ddtrace_runtime_id(const zend_extension *extension) {
+    ddtrace_runtime_id = DL_FETCH_SYMBOL(extension->handle, "ddtrace_runtime_id");
+}
 
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
     ddtrace_profiling_context (*get_profiling)(void) =
@@ -66,6 +77,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
             locate_ddtrace_get_profiling_context(maybe_ddtrace);
+            locate_ddtrace_runtime_id(maybe_ddtrace);
             break;
         }
     }
@@ -145,4 +157,128 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
 zend_execute_data* ddog_php_prof_get_current_execute_data()
 {
     return EG(current_execute_data);
+}
+
+#if CFG_STACK_WALKING_TESTS
+static int (*og_snprintf)(char *, size_t, const char *, ...);
+
+// "weak" let's us polyfill, needed by zend_string_init(..., persistent: 1).
+void *__attribute__((weak)) __zend_malloc(size_t len) {
+    void *tmp = malloc(len);
+    if (EXPECTED(tmp || !len)) {
+        return tmp;
+    }
+    fprintf(stderr, "Out of memory\n");
+    exit(1);
+}
+
+static zend_execute_data *create_fake_frame(int depth) {
+    zend_execute_data *execute_data = calloc(1, sizeof(zend_execute_data));
+    zend_op_array *op_array = calloc(1, sizeof(zend_function));
+    op_array->type = ZEND_USER_FUNCTION;
+    execute_data->func = (zend_function *)op_array;
+
+    char buffer[64] = {0};
+    int len = og_snprintf(buffer, sizeof buffer, "function name %03d", depth) + 1;
+    ZEND_ASSERT(len >= 0 && sizeof buffer > (size_t)len);
+    op_array->function_name = zend_string_init(buffer, len - 1, true);
+
+    len = og_snprintf(buffer, sizeof buffer, "filename-%03d.php", depth) + 1;
+    ZEND_ASSERT(len >= 0 && sizeof buffer > (size_t)len);
+    op_array->filename = zend_string_init(buffer, len - 1, true);
+
+    return execute_data;
+}
+
+static zend_execute_data *create_fake_zend_execute_data(int depth) {
+    if (depth <= 0) return NULL;
+    zend_execute_data *execute_data = create_fake_frame(depth);
+    execute_data->prev_execute_data = create_fake_zend_execute_data(depth - 1);
+    return execute_data;
+}
+
+zend_execute_data *ddog_php_test_create_fake_zend_execute_data(int depth) {
+    if (!og_snprintf) {
+        og_snprintf = dlsym(RTLD_NEXT, "snprintf");
+        if (!og_snprintf) {
+            fprintf(stderr, "Failed to locate symbol: %s", dlerror());
+            exit(1);
+        }
+    }
+
+    return create_fake_zend_execute_data(depth);
+}
+
+void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) {
+    if (!execute_data) return;
+
+    ddog_php_test_free_fake_zend_execute_data(execute_data->prev_execute_data);
+
+    if (execute_data->func) {
+        // free function name
+        if (execute_data->func->common.function_name) {
+            free(execute_data->func->common.function_name);
+            execute_data->func->common.function_name = NULL;
+        }
+        // free filename
+        if (execute_data->func->op_array.filename) {
+            free(execute_data->func->op_array.filename);
+            execute_data->func->op_array.filename = NULL;
+        }
+        // free zend_op_array
+        free(execute_data->func);
+        execute_data->func = NULL;
+    }
+
+    free(execute_data);
+}
+#endif
+
+void *opcache_handle = NULL;
+
+// OPcache NULLs its handle, so this function will only get the handle during
+// MINIT phase. You as the caller has to make sure to only call this function
+// during MINIT and not later.
+void ddog_php_opcache_init_handle() {
+    const zend_llist *list = &zend_extensions;
+    zend_extension *maybe_opcache = NULL;
+    for (const zend_llist_element *item = list->head; item; item = item->next) {
+        maybe_opcache = (zend_extension *)item->data;
+        if (maybe_opcache->name && strcmp(maybe_opcache->name, "Zend OPcache") == 0) {
+            opcache_handle = maybe_opcache->handle;
+            break;
+        }
+    }
+}
+
+// This checks if the JIT actually has a buffer, if so, JIT is active, otherwise
+// JIT is inactive. This will only work after OPcache was initialized (after it
+// assigned its PHP.INI settings), so make sure to call this in RINIT.a
+//
+// Attention: this will check for the `opcache.jit_buffer_size` setting as this
+// one is a PHP_INI_SYSTEM (can not be changed on a per directory basis). This
+// means that the `opcache.jit` setting could be `off` and this function would
+// still consider JIT to be enabled, as it could be enabled at anytime (runtime
+// and per directory settings).
+bool ddog_php_jit_enabled() {
+    bool jit = false;
+
+    if (opcache_handle) {
+        void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(opcache_handle, "zend_jit_status");
+        if (zend_jit_status == NULL) {
+            zend_jit_status = DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_status");
+        }
+        if (zend_jit_status) {
+            zval jit_stats_arr;
+            array_init(&jit_stats_arr);
+            zend_jit_status(&jit_stats_arr);
+
+            zval *jit_stats = zend_hash_str_find(Z_ARR(jit_stats_arr), ZEND_STRL("jit"));
+            zval *jit_buffer = zend_hash_str_find(Z_ARR_P(jit_stats), ZEND_STRL("buffer_size"));
+            jit = Z_LVAL_P(jit_buffer) > 0; // JIT is active!
+
+            zval_ptr_dtor(&jit_stats_arr);
+        }
+    }
+    return jit;
 }

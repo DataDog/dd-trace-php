@@ -38,6 +38,19 @@ class LaravelIntegration extends Integration
         return false;
     }
 
+    public function isArtisanQueueCommand()
+    {
+        $artisanCommand = isset($_SERVER['argv'][1]) ? $_SERVER['argv'][1] : '';
+
+        return !empty($artisanCommand)
+            && in_array($artisanCommand, [
+                'horizon:work',
+                'queue:work',
+                'horizon',
+                'horizon:supervisor',
+            ]);
+    }
+
     /**
      * @return int
      */
@@ -54,6 +67,12 @@ class LaravelIntegration extends Integration
         }
 
         $integration = $this;
+
+        if (dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE") && $this->isArtisanQueueCommand()) {
+            ini_set("datadog.trace.auto_flush", 1);
+            ini_set("datadog.trace.generate_root_span", 0);
+        }
+
 
         \DDTrace\trace_method(
             'Illuminate\Foundation\Application',
@@ -93,7 +112,9 @@ class LaravelIntegration extends Integration
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
                 $routeName = LaravelIntegration::normalizeRouteName($route->getName());
 
-                $rootSpan->resource = $route->getActionName() . ' ' . $routeName;
+                if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                    $rootSpan->resource = $route->getActionName() . ' ' . $routeName;
+                }
 
                 $rootSpan->meta['laravel.route.name'] = $routeName;
                 $rootSpan->meta['laravel.route.action'] = $route->getActionName();
@@ -122,7 +143,8 @@ class LaravelIntegration extends Integration
             'Illuminate\Http\Response',
             'send',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (isset($This->exception) && $This->getStatusCode() >= 500) {
+                $ignoreError = isset($rootSpan->meta['error.ignored']) && $rootSpan->meta['error.ignored'];
+                if (isset($This->exception) && $This->getStatusCode() >= 500 && !$ignoreError) {
                     $integration->setError($rootSpan, $This->exception);
                 }
             }
@@ -134,11 +156,38 @@ class LaravelIntegration extends Integration
             'fire',
             [
                 'prehook' => function (SpanData $span, $args) use ($integration) {
+                    if (
+                        dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                        && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                        && \DDTrace\trace_id() == $span->id
+                    ) {
+                        \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+                    }
+
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $integration->getServiceName();
                     $span->resource = $args[0];
                     $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+
+                    //New user created, assume sign up
+                    if ($span->resource == 'eloquent.created: User') {
+                        $authClass = 'User';
+                        if (
+                            !function_exists('\datadog\appsec\track_user_signup_event') ||
+                            !isset($args[1]) ||
+                            !$args[1] ||
+                            !($args[1] instanceof $authClass)
+                        ) {
+                            return;
+                        }
+                        $id = null;
+                        if (isset($args[1]['id'])) {
+                          $id = $args[1]['id'];
+                        }
+                        \datadog\appsec\track_user_signup_event($id, [], true);
+                    }
+
                 },
                 'recurse' => true,
             ]
@@ -151,6 +200,14 @@ class LaravelIntegration extends Integration
             'dispatch',
             [
                 'prehook' => function (SpanData $span, $args) use ($integration) {
+                    if (
+                        dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                        && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                        && \DDTrace\trace_id() == $span->id
+                    ) {
+                        \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+                    }
+
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $integration->getServiceName();
@@ -191,6 +248,14 @@ class LaravelIntegration extends Integration
             'Illuminate\Foundation\ProviderRepository',
             'load',
             function (SpanData $span) use ($rootSpan, $integration) {
+                if (
+                    dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                    && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                    && \DDTrace\trace_id() == $span->id
+                ) {
+                    \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+                }
+
                 $serviceName = $integration->getServiceName();
                 $span->name = 'laravel.provider.load';
                 $span->type = Type::WEB_SERVLET;
@@ -231,6 +296,118 @@ class LaravelIntegration extends Integration
             'renderThrowable',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
                 $integration->setError($rootSpan, $args[0]);
+            }
+        );
+
+        // Used by Laravel >= 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Contracts\Debug\ExceptionHandler',
+            'report',
+            function ($exceptionHandler, $scope, $args) use ($rootSpan, $integration) {
+                if ($args[0] && $exceptionHandler->shouldReport($args[0])) {
+                    $integration->setError($rootSpan, $args[0]);
+                    $rootSpan->meta['error.ignored'] = 0;
+                } elseif ($args[0] && !$exceptionHandler->shouldReport($args[0])) {
+                    $rootSpan->meta['error.ignored'] = 1;
+                }
+            }
+        );
+
+        // Used by Laravel >= 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\SessionGuard',
+            'attempt',
+            null,
+            function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
+                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event'))
+                {
+                    return;
+                }
+                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+            }
+        );
+
+        // Used by Laravel >= 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\SessionGuard',
+            'setUser',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
+                if (
+                   !function_exists('\datadog\appsec\track_user_login_success_event') ||
+                   !isset($args[0]) ||
+                   !$args[0] ||
+                   !($args[0] instanceof $authClass)
+               ) {
+                   return;
+               }
+               $metadata = [];
+               if (isset($args[0]['name'])) {
+                   $metadata['name'] = $args[0]['name'];
+               }
+               if (isset($args[0]['email'])) {
+                   $metadata['email'] = $args[0]['email'];
+               }
+               \datadog\appsec\track_user_login_success_event($args[0]->getAuthIdentifier(), $metadata, true);
+            }
+        );
+
+        // Used by Laravel < 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Guard',
+            'setUser',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $authClass = 'Illuminate\Auth\UserInterface';
+                if (
+                    !function_exists('\datadog\appsec\track_user_login_success_event') ||
+                    !isset($args[0]) ||
+                    !$args[0] ||
+                    !($args[0] instanceof $authClass)
+                ) {
+                    return;
+                }
+
+                $metadata = [];
+                if (isset($args[0]['name'])) {
+                    $metadata['name'] = $args[0]['name'];
+                }
+                if (isset($args[0]['email'])) {
+                    $metadata['email'] = $args[0]['email'];
+                }
+
+                \datadog\appsec\track_user_login_success_event($args[0]->getAuthIdentifier(), $metadata, true);
+            }
+        );
+
+        // Used by Laravel < 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Guard',
+            'attempt',
+            null,
+            function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
+                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event'))
+                {
+                    return;
+                }
+                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Events\Registered',
+            '__construct',
+            null,
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
+                if (
+                    !function_exists('\datadog\appsec\track_user_signup_event') ||
+                    !isset($args[0]) ||
+                    !$args[0] ||
+                    !($args[0] instanceof $authClass)
+                ) {
+                    return;
+                }
+                \datadog\appsec\track_user_signup_event($args[0]->getAuthIdentifier(), [], true);
             }
         );
 

@@ -10,8 +10,6 @@ use DDTrace\Tests\Common\IntegrationTestCase;
  */
 abstract class CLITestCase extends IntegrationTestCase
 {
-    use AgentReplayerTrait;
-
     /**
      * The location of the script to execute
      *
@@ -28,10 +26,10 @@ abstract class CLITestCase extends IntegrationTestCase
     {
         $envs = [
             'DD_TRACE_CLI_ENABLED' => 'true',
-            'DD_AGENT_HOST' => 'request-replayer',
-            'DD_TRACE_AGENT_PORT' => '80',
+            'DD_AGENT_HOST' => 'test-agent',
+            'DD_TRACE_AGENT_PORT' => '9126',
             // Uncomment to see debug-level messages
-            //'DD_TRACE_DEBUG' => 'true',
+            'DD_TRACE_DEBUG' => 'true',
             'DD_TEST_INTEGRATION' => 'true',
         ];
         return $envs;
@@ -78,7 +76,7 @@ abstract class CLITestCase extends IntegrationTestCase
         $arguments = escapeshellarg($arguments);
         $commandToExecute = "$envs php $inis $script $arguments";
         `$commandToExecute`;
-        return $this->getLastAgentRequest();
+        return $this->retrieveDumpedTraceData()[0] ?? [];
     }
 
     /**

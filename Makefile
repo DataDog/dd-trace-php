@@ -17,23 +17,28 @@ LDFLAGS ?=
 PHP_EXTENSION_DIR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 ARCHITECTURE = $(shell uname -m)
+QUIET_TESTS := ${CIRCLE_SHA1}
+RUST_DEBUG_SYMBOLS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
 PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.2/datadog-profiling.tar.gz
-APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.7.2/dd-appsec-php-0.7.2-amd64.tar.gz
+APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.10.0/dd-appsec-php-0.10.0-amd64.tar.gz
 
 INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
-RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), -j$(shell nproc))
+RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), -j$(shell nproc))
 
-C_FILES = $(shell find components ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{ddcommon,ddcommon-ffi,ddtelemetry,ddtelemetry-ffi,ipc,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(BUILD_DIR)/config.m4
+
+all: $(BUILD_DIR)/configure $(SO_FILE)
 
 # The following differentiation exists so we can build only (but always) the relevant files while executing tests
 #  - when a `.phpt` changes, we only copy the file to the build dir and we DO NOT rebuild
@@ -54,6 +59,18 @@ $(BUILD_DIR)/%.c: %.c
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $*.c $@
 
+$(BUILD_DIR)/%Cargo.toml: %Cargo.toml
+	$(Q) echo Copying $*Cargo.toml to $@
+	$(Q) mkdir -p $(dir $@)
+	$(Q) cp -a $*Cargo.toml $@
+	sed -i -E 's/"\.\.\/([^"]*)"/"..\/..\/..\/\1"/' $@
+
+$(BUILD_DIR)/Cargo.toml: Cargo.toml
+	$(Q) echo Copying Cargo.toml to $@
+	$(Q) mkdir -p $(dir $@)
+	$(Q) cp -a Cargo.toml $@
+	sed -i -E 's/, "profiling",?//' $@
+
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to $@
 	$(Q) mkdir -p $(dir $@)
@@ -68,9 +85,9 @@ $(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym
 	$(Q) (cd $(BUILD_DIR); phpize && sed -i 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	$(Q) (cd $(BUILD_DIR); ./configure)
+	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_SYMBOLS),enable,disable)-ddtrace-rust-debug --$(if $(RUST_DEBUG_SYMBOLS),enable,disable)-ddtrace-rust-symbols)
 
-$(SO_FILE): $(C_FILES) $(BUILD_DIR)/Makefile
+$(SO_FILE): $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)" LDFLAGS="$(LDFLAGS)$(if $(ASAN), -fsanitize=address)"
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
@@ -97,8 +114,11 @@ test_c_coverage: dist_clean
 test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
 	DD_TRACE_CLI_ENABLED=0 DD_TRACE_DEBUG=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS) || true; \
-	! grep -E 'Successfully triggered flush with trace of size|=== Total [0-9]+ memory leaks detected ===|Segmentation fault' $$(find $(BUILD_DIR)/$(TESTS) -name "*.out" | grep -v segfault_backtrace_enabled.out); \
+	! grep -E 'Successfully triggered flush with trace of size|=== Total [0-9]+ memory leaks detected ===|Segmentation fault|Assertion ' $$(find $(BUILD_DIR)/$(TESTS) -name "*.out" | grep -v segfault_backtrace_enabled.out); \
 	)
+
+test_c_observer: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
 
 test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES)
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
@@ -242,6 +262,7 @@ test_coverage_collect:
 		--exclude "/usr/include/*/*/*" \
 		--exclude "/opt/php/*/include/php/Zend/*" \
 		--exclude "$(BUILD_DIR)/components/*/*" \
+		--exclude "$(BUILD_DIR)/components-rs/*" \
 		--exclude "$(BUILD_DIR)/zend_abstract_interface/*/*" \
 		--exclude "$(BUILD_DIR)/ext/vendor/*/*" \
 		--exclude "$(BUILD_DIR)/src/dogstatsd/*" \
@@ -311,6 +332,58 @@ clang_format_check:
 clang_format_fix:
 	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
+cbindgen: remove_cbindgen generate_cbindgen
+
+remove_cbindgen:
+	for h in components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h; do if [ -f "$$h" ]; then rm "$$h"; fi; done
+
+generate_cbindgen: components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h
+	( \
+		cd libdatadog; \
+		if test -d $(PROJECT_ROOT)/tmp; then \
+			mkdir -pv "$(BUILD_DIR)"; \
+			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
+		fi; \
+		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h  \
+	)
+
+components-rs/common.h:
+	( \
+		if command -v cbindgen &> /dev/null; then \
+			cd libdatadog; \
+			$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
+				--config ddcommon-ffi/cbindgen.toml \
+				--output $(PROJECT_ROOT)/$@; \
+		fi \
+	)
+
+components-rs/telemetry.h:
+	( \
+		if command -v cbindgen &> /dev/null; then \
+			cd libdatadog; \
+			$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
+				--config ddtelemetry-ffi/cbindgen.toml \
+				--output $(PROJECT_ROOT)/$@; \
+		fi \
+	)
+
+components-rs/sidecar.h:
+	( \
+		if command -v cbindgen &> /dev/null; then \
+			cd libdatadog; \
+			$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
+				--config sidecar-ffi/cbindgen.toml \
+				--output $(PROJECT_ROOT)/$@; \
+		fi \
+	)
+
+components-rs/ddtrace.h:
+	if command -v cbindgen &> /dev/null; then \
+		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
+			--config cbindgen.toml \
+			--output $(PROJECT_ROOT)/$@; \
+	fi
+
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
 FPM_INFO_OPTS=-a $(ARCHITECTURE) -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
@@ -336,7 +409,7 @@ $(PACKAGES_BUILD_DIR):
 	fpm -p $(PACKAGES_BUILD_DIR) -t rpm $(FPM_OPTS) $(FPM_FILES)
 .apk.%: ARCHITECTURE=$(*)
 .apk.%: $(PACKAGES_BUILD_DIR)
-	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(FPM_OPTS) --depends=bash --depends=curl $(FPM_FILES)
+	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(FPM_OPTS) --depends=bash --depends=curl --depends=libgcc $(FPM_FILES)
 
 # Example .tar.gz.aarch64, .tar.gz.x86_64
 .tar.gz.%: ARCHITECTURE=$(*)
@@ -358,7 +431,7 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \
-	FILES="$(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
+	FILES="$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
 packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz
@@ -416,6 +489,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_beta5
 
 TEST_WEB_70 := \
@@ -455,6 +529,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_beta5 \
 	test_opentracing_beta6 \
 	test_opentracing_10
@@ -504,6 +579,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_beta5 \
 	test_opentracing_beta6 \
 	test_opentracing_10
@@ -557,6 +633,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_beta5 \
 	test_opentracing_beta6 \
 	test_opentracing_10
@@ -610,6 +687,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
+	test_integrations_sqlsrv \
 	test_opentracing_beta5 \
 	test_opentracing_beta6 \
 	test_opentracing_10
@@ -663,6 +741,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_10
 
 TEST_WEB_80 := \
@@ -699,6 +778,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_predis1 \
+	test_integrations_sqlsrv \
 	test_opentracing_10
 
 TEST_WEB_81 := \
@@ -734,6 +814,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_elasticsearch8 \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
+	test_integrations_sqlsrv \
 	test_opentracing_10
 
 TEST_WEB_82 := \
@@ -901,6 +982,9 @@ test_integrations_predis1: global_test_run_dependencies
 test_integrations_roadrunner: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Roadrunner/Version_2 update
 	$(call run_tests,tests/Integrations/Roadrunner/V2)
+test_integrations_sqlsrv: global_test_run_dependencies
+	$(MAKE) test_scenario_default
+	$(call run_tests,tests/Integrations/SQLSRV)
 test_web_cakephp_28: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/CakePHP/Version_2_8 update
 	$(call run_tests,--testsuite=cakephp-28-test)
@@ -1038,4 +1122,4 @@ composer.lock: composer.json
 	$(Q) $(COMPOSER) update
 
 .PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
-	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
+	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all cbindgen

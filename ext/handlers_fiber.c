@@ -55,6 +55,7 @@ static ZEND_FUNCTION(dd_wrap_fiber_entry_call) {
     zend_try {
         zend_fiber *fiber = zend_fiber_from_context(EG(current_fiber_context));
         ddtrace_span_stack *stack = fiber->context.reserved[dd_resource_handle];
+        fiber->context.reserved[dd_resource_handle] = stack->fiber_initial_execute_data;
         fiber->fci_cache.function_handler = stack->fiber_entry_function;
         stack->fiber_entry_function = NULL;
 
@@ -98,21 +99,37 @@ ZEND_TLS zend_execute_data *dd_main_execute_data;
 #endif
 
 static void dd_observe_fiber_switch(zend_fiber_context *from, zend_fiber_context *to) {
-    from->reserved[dd_resource_handle] = DDTRACE_G(active_stack);
-    DDTRACE_G(active_stack) = to->reserved[dd_resource_handle];
+    ddtrace_span_stack *to_stack = to->reserved[dd_resource_handle];
 
 #if PHP_VERSION_ID < 80200
+    // fiber->execute_data will not necessarily be truthful for fibers continuing another fiber, only for fully suspended fibers
+
     if (to->kind == zend_ce_fiber) {
         zend_fiber *fiber = zend_fiber_from_context(to);
-        dd_set_observed_frame(fiber->execute_data);
-    } else if (to == EG(main_fiber_context)) {
-        dd_set_observed_frame(dd_main_execute_data);
+        if (fiber == EG(active_fiber)) { // when we resume a fiber EG(active_fiber) is set before the switch, when we suspend, afterwards
+            dd_set_observed_frame(fiber->execute_data);
+        } else {
+            dd_set_observed_frame(from->reserved[dd_resource_handle]);
+        }
+        if (to->status == ZEND_FIBER_STATUS_INIT) {
+            to_stack->fiber_initial_execute_data = EG(current_execute_data);
+        } else {
+            to->reserved[dd_resource_handle] = EG(current_execute_data);
+        }
+    } else {
+        if (to == EG(main_fiber_context)) {
+            dd_set_observed_frame(dd_main_execute_data);
+        }
+        to->reserved[dd_resource_handle] = EG(current_execute_data);
     }
 
     if (from == EG(main_fiber_context)) {
         dd_main_execute_data = EG(current_execute_data);
     }
 #endif
+
+    from->reserved[dd_resource_handle] = DDTRACE_G(active_stack);
+    DDTRACE_G(active_stack) = to_stack;
 }
 
 static void dd_observe_fiber_init(zend_fiber_context *context) {

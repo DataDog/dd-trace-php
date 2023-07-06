@@ -98,6 +98,7 @@ class LumenIntegration extends Integration
                     if (
                         null !== $resourceName
                         && !\DDTrace\Util\Runtime::getBoolIni("datadog.trace.url_as_resource_names_enabled")
+                        && (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING"))
                     ) {
                         $rootSpan->resource = $rootSpan->meta[Tag::HTTP_METHOD] . ' ' . $resourceName;
                     }

@@ -1,10 +1,8 @@
 #!/bin/bash
 set -eux
 
-# The '=' is to avoid cases like:
-#     $_ENV['sharedBuild'] => 0
-# Which is an env-var we set ourselves.
-SHARED_BUILD=$(if php -i | grep -q =shared; then echo 1; else echo 0; fi)
+# We can't match for "shared" only, as zend_test is built shared. Match something explicitly.
+SHARED_BUILD=$(if php -i | grep -q enable-pcntl=shared; then echo 1; else echo 0; fi)
 PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
 XDEBUG_VERSIONS=(-3.1.2)
@@ -37,10 +35,20 @@ if [[ $PHP_VERSION_ID -le 74 ]]; then
   MEMCACHE_VERSION=-4.0.5.2
 fi
 
+SQLSRV_VERSION=
+if [[ $PHP_VERSION_ID -le 70 ]]; then
+  SQLSRV_VERSION=-5.3.0
+elif [[ $PHP_VERSION_ID -le 71 ]]; then
+  SQLSRV_VERSION=-5.6.1
+elif [[ $PHP_VERSION_ID -le 74 ]]; then
+  SQLSRV_VERSION=-5.8.0
+fi
+
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
 
 export PKG_CONFIG=/usr/bin/$HOST_ARCH-linux-gnu-pkg-config
 export CC=$HOST_ARCH-linux-gnu-gcc
+export CXX=$HOST_ARCH-linux-gnu-g++
 
 iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}');
 
@@ -68,7 +76,7 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
   make
   mv ./modules/*.so $(php-config --extension-dir)
   make clean
-  
+
   for curlVer in ${CURL_VERSIONS}; do
     PKG_CONFIG_PATH=/opt/curl/${curlVer}/lib/pkgconfig/
     ./configure
@@ -100,6 +108,7 @@ else
   yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
   pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
   pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini;
+  pecl install sqlsrv$SQLSRV_VERSION; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do
     pecl install xdebug$VERSION;

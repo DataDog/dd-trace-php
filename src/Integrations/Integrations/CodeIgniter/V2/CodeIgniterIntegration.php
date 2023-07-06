@@ -55,11 +55,6 @@ class CodeIgniterIntegration extends Integration
         $rootSpan->meta[Tag::SPAN_KIND] = 'server';
         $rootSpan->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
 
-        if ('cli' !== PHP_SAPI) {
-            $normalizedPath = \DDTrace\Util\Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
-            $rootSpan->resource = "{$_SERVER['REQUEST_METHOD']} $normalizedPath";
-        }
-
         $controller = $router->fetch_class();
         $method = $router->fetch_method();
 

@@ -94,15 +94,15 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
     None
 }
 
-pub(super) unsafe fn collect_stack_sample(
+pub fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     let max_depth = 512;
     let mut samples = Vec::with_capacity(max_depth >> 3);
     let mut execute_data_ptr = top_execute_data;
 
-    while let Some(execute_data) = execute_data_ptr.as_ref() {
-        if let Some(frame) = collect_call_frame(execute_data) {
+    while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+        if let Some(frame) = unsafe { collect_call_frame(execute_data) } {
             samples.push(frame);
 
             /* -1 to reserve room for the [truncated] message. In case the
@@ -122,4 +122,37 @@ pub(super) unsafe fn collect_stack_sample(
         execute_data_ptr = execute_data.prev_execute_data;
     }
     Ok(samples)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bindings as zend;
+
+    #[test]
+    #[cfg(feature = "stack_walking_tests")]
+    fn test_collect_stack_sample() {
+        unsafe {
+            let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
+
+            let stack = collect_stack_sample(fake_execute_data).unwrap();
+
+            assert_eq!(stack.len(), 3);
+
+            assert_eq!(stack[0].function, "function name 003");
+            assert_eq!(stack[0].file, Some("filename-003.php".to_string()));
+            assert_eq!(stack[0].line, 0);
+
+            assert_eq!(stack[1].function, "function name 002");
+            assert_eq!(stack[1].file, Some("filename-002.php".to_string()));
+            assert_eq!(stack[1].line, 0);
+
+            assert_eq!(stack[2].function, "function name 001");
+            assert_eq!(stack[2].file, Some("filename-001.php".to_string()));
+            assert_eq!(stack[2].line, 0);
+
+            // Free the allocated memory
+            zend::ddog_php_test_free_fake_zend_execute_data(fake_execute_data);
+        }
+    }
 }

@@ -73,6 +73,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(STRING, DD_ENV, "")                                                                                 \
     CONFIG(BOOL, DD_AUTOFINISH_SPANS, "false")                                                                 \
     CONFIG(BOOL, DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED, "true")                                               \
+    CONFIG(BOOL, DD_HTTP_SERVER_ROUTE_BASED_NAMING, "true")                                                    \
     CONFIG(SET, DD_INTEGRATIONS_DISABLED, "default")                                                           \
     CONFIG(BOOL, DD_PRIORITY_SAMPLING, "true")                                                                 \
     CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                \
@@ -85,6 +86,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                                        \
     CONFIG(BOOL, DD_TRACE_DEBUG, "false")                                                                      \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true", .ini_change = ddtrace_alter_dd_trace_disabled_config)               \
+    CONFIG(BOOL, DD_TRACE_TELEMETRY_ENABLED, "false", .ini_change = zai_config_system_ini_change)              \
     CONFIG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false", .ini_change = zai_config_system_ini_change)         \
     CONFIG(DOUBLE, DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE, "0.001")                                     \
     CONFIG(BOOL, DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE, "false")                                                \
@@ -92,12 +94,15 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST, "false")                                                 \
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                  \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                            \
+    CONFIG(BOOL, DD_TRACE_FLUSH_COLLECT_CYCLES, "false")                                                       \
+    CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE, "true")                                              \
+    CONFIG(BOOL, DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS, "false")                                         \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                      \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                    \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING, "")                                                    \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED, "")                                                 \
     CONFIG(SET, DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED, "*")                                                    \
-    CONFIG(SET, DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED, "")                                                    \
+    CONFIG(SET, DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED, "")                                                     \
     CONFIG(INT, DD_TRACE_RATE_LIMIT, "0", .ini_change = zai_config_system_ini_change)                          \
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                    \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                                \
@@ -105,6 +110,8 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(STRING, DD_SPAN_SAMPLING_RULES_FILE, "", .ini_change = ddtrace_alter_sampling_rules_file_config)    \
     CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                            \
     CONFIG(INT, DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "512")                                                     \
+    CONFIG(MAP, DD_TRACE_PEER_SERVICE_MAPPING, "")                                                             \
+    CONFIG(BOOL, DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "false")                                              \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_SERVICE, "false")                                                          \
     CALIAS(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_EXTRACT, "tracecontext,Datadog,B3,B3 single header",      \
            CALIASES("DD_PROPAGATION_STYLE_EXTRACT"))                                                           \

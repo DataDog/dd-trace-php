@@ -37,6 +37,7 @@ modules/*
 php_test_results*
 results.bin
 run-tests.php
+/target
 tests/ext/*.php
 tests/ext/*.out
 tests/ext/*.diff
@@ -49,3 +50,4 @@ tmp/opcache*
 *.orig
 docker-compose.override.yml
 tests/Sapi/Roadrunner/rr-*
+github-actions-helpers/_build.csproj.DotSettings

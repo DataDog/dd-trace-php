@@ -27,6 +27,9 @@
             "App\\": "app/"
         }
     },
+    "autoload-dev": {
+        "files": ["../../../Appsec/Mock.php"]
+    },
     "extra": {
         "laravel": {
             "dont-discover": [
@@ -42,7 +45,8 @@
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover"
+            "@php artisan package:discover",
+            "@php artisan migrate:fresh --force"
         ],
         "test": "phpunit --colors=always"
     },
