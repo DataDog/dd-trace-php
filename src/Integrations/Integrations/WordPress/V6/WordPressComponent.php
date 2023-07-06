@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\WordPress\V6;
 use DDTrace\HookData;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -135,20 +136,24 @@ class WordPressComponent
             return;
         }
 
-        $envVar = array_keys(dd_trace_env_config("DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED"));
+        $envVar = dd_trace_env_config("DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED"); // <param> => null
+        Logger::get()->debug(print_r($envVar, true));
 
         if (!empty($envVar)) {
             foreach (['p', 'page_id'] as $param) {
-                if (!in_array($param, $envVar)) {
-                    $envVar[] = $param;
+                if (!array_key_exists($param, $envVar)) {
+                    $envVar[$param] = null;
                 }
             }
         } else {
-            $envVar = ['p', 'page_id'];
+            $envVar = [
+                'p' => null,
+                'page_id' => null
+            ];
         }
 
-        $envVar = implode(',', $envVar);
-        ini_set('datadog.trace.resource_uri_query_param_allowed', $envVar);
+        $newEnvVar = implode(',', array_filter($envVar));
+        ini_set('datadog.trace.resource_uri_query_param_allowed', $newEnvVar);
     }
 
     public function load(WordPressIntegration $integration)
