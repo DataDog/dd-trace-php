@@ -44,7 +44,7 @@ foreach ($lines as $line) {
 
 // Check exact values for this set
 $sections = [
-    ["Allocation Profiling Enabled", "Not available"],
+    ["Allocation Profiling Enabled", "Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information."],
 ];
 
 foreach ($sections as [$key, $expected]) {
