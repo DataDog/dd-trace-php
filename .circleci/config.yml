@@ -7,7 +7,7 @@ orbs:
 workflows:
   version: 2
 
-  setup-workflows:
+  setup:
     jobs:
       - path-filtering/filter:
           base-revision: master
