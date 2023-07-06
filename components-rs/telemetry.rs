@@ -74,8 +74,12 @@ fn run_sidecar(cfg: config::Config) -> io::Result<SidecarTransport> {
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_sidecar_connect_php(connection: &mut *mut SidecarTransport) -> MaybeError {
-    let cfg = config::FromEnv::config();
+pub extern "C" fn ddog_sidecar_connect_php(
+    connection: &mut *mut SidecarTransport,
+    enable_telemetry: bool,
+) -> MaybeError {
+    let mut cfg = config::FromEnv::config();
+    cfg.self_telemetry = enable_telemetry;
     let stream = Box::new(try_c!(run_sidecar(cfg)));
     *connection = Box::into_raw(stream);
 

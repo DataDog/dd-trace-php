@@ -26,8 +26,8 @@ function logRequest($message, $data = '')
     );
 }
 
-set_error_handler(function ($number, $message) {
-    logRequest('Triggered error ' . $number . ' ' . $message);
+set_error_handler(function ($number, $message, $errfile, $errline) {
+    logRequest("Triggered error $number $message in $errfile on line $errline");
     trigger_error($message, $number);
 });
 
@@ -59,13 +59,14 @@ switch ($_SERVER['REQUEST_URI']) {
         break;
     default:
         $headers = getallheaders();
-        if (isset($headers['X-Datadog-Diagnostic-Check'])) {
+        if (isset($headers['X-Datadog-Diagnostic-Check']) || isset($headers['x-datadog-diagnostic-check'])) {
             logRequest('Received diagnostic check; ignoring');
             break;
         }
 
         $raw = file_get_contents('php://input');
-        if (isset($headers['Content-Type']) && $headers['Content-Type'] === 'application/msgpack') {
+        if ((isset($headers['Content-Type']) && $headers['Content-Type'] === 'application/msgpack')
+            || (isset($headers['content-type']) && $headers['content-type'] === 'application/msgpack')) {
             // We unpack in two phases:
             //  1) using UnpackOptions::BIGINT_AS_GMP and only asserting that trace_id, span_id and parent_id are either
             //     integers (when <= PHP_INT_MAX) or GMP (when > PHP_INT_MAX);
@@ -74,8 +75,8 @@ switch ($_SERVER['REQUEST_URI']) {
             // PHP_INT_MAX would be serialized to PHP_INT_MAX
             $gmpUnpacker = new BufferUnpacker($raw, UnpackOptions::BIGINT_AS_GMP);
             $gmpTraces = $gmpUnpacker->unpack();
-            foreach ($gmpTraces as $trace) {
-                foreach ($trace as $span) {
+            foreach (isset($gmpTraces["chunks"]) ? $gmpTraces["chunks"] : $gmpTraces as $trace) {
+                foreach (isset($trace["spans"]) ? $trace["spans"] : $trace as $span) {
                     foreach (['trace_id', 'span_id', 'parent_id'] as $field) {
                         if (!isset($span[$field])) {
                             continue;
@@ -92,8 +93,10 @@ switch ($_SERVER['REQUEST_URI']) {
 
             $strUnpacker = new BufferUnpacker($raw, UnpackOptions::BIGINT_AS_STR);
             $strTraces = $strUnpacker->unpack();
-            foreach ($strTraces as &$trace) {
-                foreach ($trace as &$span) {
+            $traces = isset($strTraces["chunks"]) ? [&$strTraces["chunks"]] : [&$strTraces];
+            foreach ($traces[0] as &$trace) {
+                $spans = isset($trace["spans"]) ? [&$trace["spans"]] : [&$trace];
+                foreach ($spans[0] as &$span) {
                     foreach (['trace_id', 'span_id', 'parent_id'] as $field) {
                         if (!isset($span[$field])) {
                             continue;

@@ -244,7 +244,7 @@ static void dd_activate_once(void) {
     ddtrace_generate_runtime_id();
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
-    if (!DDTRACE_G(disable) && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+    if (!DDTRACE_G(disable) && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
         bool modules_activated = PG(modules_activated);
         PG(modules_activated) = false;
         ddtrace_sidecar_setup();
@@ -271,7 +271,7 @@ static void ddtrace_activate(void) {
     pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
 
-    if (!DDTRACE_G(disable) && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+    if (!DDTRACE_G(disable) && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
         ddtrace_sidecar_ensure_active();
     }
 
@@ -341,9 +341,6 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
     zai_hook_ginit();
-    if (ddtrace_coms_agent_config_handle) {
-        ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &ddtrace_globals->remote_config_reader);
-    }
 }
 
 static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
@@ -712,10 +709,11 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_engine_hooks_minit();
 
-    ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
-                       get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
-                       get_global_DD_TRACE_AGENT_STACK_BACKLOG());
-    ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(remote_config_reader));
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
+                           get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
+                           get_global_DD_TRACE_AGENT_STACK_BACKLOG());
+    }
 
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();
@@ -740,11 +738,13 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_signals_mshutdown();
 
-    ddtrace_coms_mshutdown();
-    if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
-        ddtrace_coms_curl_shutdown();
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        ddtrace_coms_mshutdown();
+        if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
+            ddtrace_coms_curl_shutdown();
 
-        ddtrace_bgs_log_mshutdown();
+            ddtrace_bgs_log_mshutdown();
+        }
     }
 
     ddtrace_engine_hooks_mshutdown();
@@ -767,7 +767,9 @@ static void dd_rinit_once(void) {
 
     // Uses config, cannot run earlier
     ddtrace_signals_first_rinit();
-    ddtrace_coms_init_and_start_writer();
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        ddtrace_coms_init_and_start_writer();
+    }
 }
 
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
@@ -783,18 +785,31 @@ static void dd_initialize_request(void) {
     // Things that should only run on the first RINIT
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
+    if (!DDTRACE_G(remote_config_reader)) {
+        if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+            DDTRACE_G(remote_config_reader) = ddog_agent_remote_config_reader_for_endpoint(ddtrace_endpoint);
+        } else if (ddtrace_coms_agent_config_handle) {
+            ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(remote_config_reader));
+        }
+    }
+
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
         dd_request_init_hook_rinit();
     }
 
     ddtrace_internal_handlers_rinit();
-    ddtrace_bgs_log_rinit(PG(error_log));
+
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        ddtrace_bgs_log_rinit(PG(error_log));
+    }
 
     ddtrace_dogstatsd_client_rinit();
 
     ddtrace_seed_prng();
     ddtrace_init_span_stacks();
-    ddtrace_coms_on_pid_change();
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        ddtrace_coms_on_pid_change();
+    }
 
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset();
@@ -850,7 +865,9 @@ static void dd_clean_globals(void) {
     ddtrace_dogstatsd_client_rshutdown();
 
     ddtrace_free_span_stacks(false);
-    ddtrace_coms_rshutdown();
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        ddtrace_coms_rshutdown();
+    }
 
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
         dd_request_init_hook_rshutdown();
@@ -1507,7 +1524,7 @@ PHP_FUNCTION(dd_trace_send_traces_via_thread) {
 }
 
 PHP_FUNCTION(dd_trace_buffer_span) {
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         RETURN_BOOL(0);
     }
     zval *trace_array = NULL;
@@ -1530,6 +1547,10 @@ PHP_FUNCTION(dd_trace_buffer_span) {
 }
 
 PHP_FUNCTION(dd_trace_coms_trigger_writer_flush) {
+    if (!get_DD_TRACE_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        RETURN_LONG(0);
+    }
+
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
         LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_coms_trigger_writer_flush");
     }
