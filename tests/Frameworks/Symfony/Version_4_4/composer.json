@@ -91,6 +91,8 @@
         "post-autoload-dump": [
             "rm -rf var/cache/dev/*",
             "rm -rf var/cache/prod/*",
+            "@php bin/console doctrine:database:drop --force",
+            "@php bin/console doctrine:database:create",
             "@php bin/console doctrine:migrations:migrate -n"
         ]
     },
