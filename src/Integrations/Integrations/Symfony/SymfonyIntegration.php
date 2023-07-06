@@ -127,7 +127,43 @@ class SymfonyIntegration extends Integration
             }
         );
 
+        //Symfony < 5
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
+            'onAuthenticationSuccess',
+            function ($This, $scope, $args) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event'))
+                {
+                    return;
+                }
+                if (!isset($args[1])) {
+                    return;
+                }
+                $token = $args[1];
+                $authClass = '\Symfony\Component\Security\Core\Authentication\Token\TokenInterface';
+                if (!$token || !($token instanceof $authClass)) {
+                    return;
+                }
+                $metadata = [];
 
+                \datadog\appsec\track_user_login_success_event($token->getUsername(), $metadata, true);
+            }
+        );
+
+        //Symfony < 5
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
+            'onAuthenticationFailure',
+            function ($This, $scope, $args) {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event'))
+                {
+                    return;
+                }
+                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+            }
+        );
+
+        //Symfony >= 5
         \DDTrace\hook_method(
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onFailure',
@@ -140,6 +176,7 @@ class SymfonyIntegration extends Integration
             }
         );
 
+        //Symfony >= 5
         \DDTrace\hook_method(
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onSuccess',
