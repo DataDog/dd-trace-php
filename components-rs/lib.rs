@@ -3,6 +3,7 @@
 #![feature(linkage)]
 
 pub mod log;
+pub mod remote_config;
 pub mod sidecar;
 pub mod telemetry;
 

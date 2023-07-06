@@ -196,7 +196,7 @@ static bool dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
     return Z_TYPE(rv) != IS_FALSE;
 }
 
-static bool dd_uhook_match_filepath(zend_string *file, zend_string *source) {
+bool ddtrace_uhook_match_filepath(zend_string *file, zend_string *source) {
     if (ZSTR_LEN(source) == 0) {
         return true; // empty path is wildcard
     }
@@ -255,7 +255,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
-    if (def->file && (!execute_data->func->op_array.filename || !dd_uhook_match_filepath(execute_data->func->op_array.filename, def->file))) {
+    if (def->file && (!execute_data->func->op_array.filename || !ddtrace_uhook_match_filepath(execute_data->func->op_array.filename, def->file))) {
         dyn->hook_data = NULL;
         return true;
     }

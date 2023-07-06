@@ -18,7 +18,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void ddtrace_try_read_agent_rate(void) {
     ddog_CharSlice data;
-    if (DDTRACE_G(remote_config_reader) && ddog_agent_remote_config_read(DDTRACE_G(remote_config_reader), &data)) {
+    if (DDTRACE_G(agent_config_reader) && ddog_agent_remote_config_read(DDTRACE_G(agent_config_reader), &data)) {
         zval json;
         if ((int)data.len > 0 && zai_json_decode_assoc_safe(&json, data.ptr, (int)data.len, 3, true) == SUCCESS) {
             if (Z_TYPE(json) == IS_ARRAY) {
