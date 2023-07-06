@@ -100,6 +100,33 @@ class WordPressComponent
         $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
     }
 
+    public static function getInterestingActions()
+    {
+        $defaults = [
+            'plugins_loaded' => true,
+            'setup_theme' => true,
+            'after_setup_theme' => true,
+            'init' => true,
+            'widgets_init' => true, // part of 'init'
+            'wp_loaded' => true,
+            'template_redirect' => true,
+            'wp' => true, // part of wp->main();
+            'wp_head' => true,
+            'rest_api_init' => true,
+            'wp_footer' => true,
+            'shutdown' => true
+        ];
+
+        $additionalActionHookNames = dd_trace_env_config("DD_TRACE_WP_ADDITIONAL_ACTIONS");
+        if (!empty($additionalActionHookNames)) {
+            foreach ($additionalActionHookNames as $hookName) {
+                $defaults[$hookName] = true;
+            }
+        }
+
+        return $defaults;
+    }
+
     public static function allowQueryParamsInResourceName()
     {
         // Check if the WordPress app is using plain permalinks
@@ -124,17 +151,6 @@ class WordPressComponent
         ini_set('datadog.trace.resource_uri_query_param_allowed', $envVar);
     }
 
-    public static function setSpansLimit()
-    {
-        // Assumes an avg. of 25 spans / plugin (arbitrary)
-        $pluginCount = count(wp_get_active_and_valid_plugins());
-        $spansLimit = 1000 + ($pluginCount * 25);
-
-        $currentLimit = ini_get('datadog.trace.spans_limit');
-        $spansLimit = max($spansLimit, $currentLimit);
-        ini_set('datadog.trace.spans_limit', $spansLimit);
-    }
-
     public function load(WordPressIntegration $integration)
     {
         if (!Integration::shouldLoad(WordPressIntegration::NAME)) {
@@ -146,7 +162,6 @@ class WordPressComponent
             // wp_plugin_directory_constants is called before the plugins are loaded and defines the necessary constants
             // for wp_get_X_plugins functions to work.
             WordPressComponent::allowQueryParamsInResourceName();
-            WordPressComponent::setSpansLimit();
 
             foreach (wp_get_mu_plugins() as $muPlugin) {
                 if (file_exists($muPlugin)) {
@@ -263,20 +278,7 @@ class WordPressComponent
 
         $actionHookToPlugin = [];
         $actionHookToTheme = [];
-        $interestingActions = [
-            'plugins_loaded' => true,
-            'setup_theme' => true,
-            'after_setup_theme' => true,
-            'init' => true,
-            'widgets_init' => true, // part of 'init'
-            'wp_loaded' => true,
-            'template_redirect' => true,
-            'wp' => true, // part of wp->main();
-            'wp_head' => true,
-            'rest_api_init' => true,
-            'wp_footer' => true,
-            'shutdown' => true
-        ];
+        $interestingActions = WordPressComponent::getInterestingActions();
 
         // Core
         trace_method('WP', 'main', function (SpanData $span) use ($integration) {
@@ -520,29 +522,32 @@ class WordPressComponent
                 $function,
                 [
                     'recurse' => true,
-                    'prehook' => function (SpanData $span, $args) use ($integration, &$actionHookToPlugin, &$actionHookToTheme) {
-                        WordPressComponent::setCommonTags($integration, $span, 'action');
+                    'prehook' => function (SpanData $span, $args) use ($integration, &$actionHookToPlugin, &$actionHookToTheme, $interestingActions) {
+                        if (isset($args[0]) && isset($interestingActions[$args[0]])) {
+                            WordPressComponent::setCommonTags($integration, $span, 'action');
 
-                        $hookName = isset($args[0]) ? $args[0] : '?';
-                        $span->resource = "hook_name: $hookName";
+                            $hookName = isset($args[0]) ? $args[0] : '?';
+                            $span->resource = "hook_name: $hookName";
 
-                        if ($hookName === '?') {
-                            return;
-                        }
-
-                        // If we have a plugin name, add it to the meta
-                        if (isset($actionHookToPlugin[$hookName])) { // Don't waste time if it gave null before
-                            if ($actionHookToPlugin[$hookName]) {
-                                $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
+                            if ($hookName === '?') {
+                                return;
                             }
-                        } elseif ($plugin = WordPressComponent::extractAndSavePluginNameFromFile($hookName, $actionHookToPlugin)) {
-                            $span->meta['wp.plugin'] = $plugin;
-                        } elseif ($theme = WordPressComponent::tryExtractThemeNameFromPath($hookName, $actionHookToTheme)) {
-                            $span->meta['wp.theme'] = $theme;
+
+                            // If we have a plugin name, add it to the meta
+                            if (isset($actionHookToPlugin[$hookName])) { // Don't waste time if it gave null before
+                                if ($actionHookToPlugin[$hookName]) {
+                                    $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
+                                }
+                            } elseif ($plugin = WordPressComponent::extractAndSavePluginNameFromFile($hookName, $actionHookToPlugin)) {
+                                $span->meta['wp.plugin'] = $plugin;
+                            } elseif ($theme = WordPressComponent::tryExtractThemeNameFromPath($hookName, $actionHookToTheme)) {
+                                $span->meta['wp.theme'] = $theme;
+                            }
+
+                            return true;
+                        } else {
+                            return false;
                         }
-                    },
-                    'posthook' => function (SpanData $span, $args, $response) {
-                        return $span->getDuration() >= 5000000; // 5ms
                     }
                 ]
             );
