@@ -160,7 +160,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         $options = [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_FOLLOWLOCATION => true,
         ];
 
         foreach ($changedOptions as $key => $value) {
