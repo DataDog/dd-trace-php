@@ -436,8 +436,10 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
         zend_ulong index;
         zend_string *key;
         zval *val;
+        ddtrace_log_debugf("Number of elements in postval: %d", zend_hash_num_elements(Z_ARRVAL_P(postval)));
 
         ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(postval), index, key, val) {
+            ddtrace_log_debugf("postval key: %s", key ? ZSTR_VAL(key) : "NULL");
             if (key) {
                 zend_string *copy_key = zend_string_dup(key, 0);
                 normalize_with_underscores(copy_key);
@@ -461,6 +463,7 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
             }
         }
         ZEND_HASH_FOREACH_END();
+        ddtrace_log_debugf("Finished adding array to meta: %s", ZSTR_VAL(postkey));
     } else {
         ddtrace_log_debugf("postval is not an array");
         if (is_prefixed) { // The postkey is in the whitelist or is prefixed by a key in the whitelist
