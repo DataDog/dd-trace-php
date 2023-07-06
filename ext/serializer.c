@@ -430,7 +430,9 @@ static void dd_add_post_fields_to_meta(zend_array *meta, const char *type, zend_
 static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *type, zend_string *postkey,
                                                  zval *postval, zend_array* post_whitelist,
                                                  bool is_prefixed) {
+    ddtrace_log_debugf("Adding array to meta: %s", ZSTR_VAL(postkey));
     if (Z_TYPE_P(postval) == IS_ARRAY) {
+        ddtrace_log_debugf("postval is an array");
         zend_ulong index;
         zend_string *key;
         zval *val;
@@ -460,9 +462,12 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
         }
         ZEND_HASH_FOREACH_END();
     } else {
+        ddtrace_log_debugf("postval is not an array");
         if (is_prefixed) { // The postkey is in the whitelist or is prefixed by a key in the whitelist
+            ddtrace_log_debugf("postkey is in the whitelist or is prefixed by a key in the whitelist");
             // we want to add it to the meta as is
             zend_string *ztr_postval = zval_get_string(postval);
+            ddtrace_log_debugf("Adding post field to meta: %s", ZSTR_VAL(ztr_postval)
             dd_add_post_fields_to_meta(meta, type, postkey, ztr_postval);
             zend_string_release(ztr_postval);
         } else if (post_whitelist) {
@@ -470,6 +475,7 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
             zend_ulong numkey;
             zend_hash_get_current_key(post_whitelist, &str, &numkey);
             if (str && zend_string_equals_literal(str, "*")) { // '*' is a wildcard for the whitelist
+                ddtrace_log_debugf('Wildcard found in whitelist');
                 // Here, both the postkey and postval are strings, so we can concatenate them into "<postkey>=<postval>"
                 zend_string *postvalstr = zval_get_string(postval);
                 zend_string *postvalconcat = zend_strpprintf(0, "%s=%s", ZSTR_VAL(postkey), ZSTR_VAL(postvalstr));
@@ -477,20 +483,24 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
 
                 // Match it with the regex to redact if needed
                 if (zai_match_regex(get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP(), postvalconcat)) {
+                    ddtrace_log_debugf('Matched regex, redacting');
                     zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
                     dd_add_post_fields_to_meta(meta, type, postkey, replacement);
                     zend_string_release(replacement);
                 } else {
+                    ddtrace_log_debugf("Adding post field to meta: %s", ZSTR_VAL(postvalstr));
                     dd_add_post_fields_to_meta(meta, type, postkey, postvalstr);
                 }
                 zend_string_release(postvalconcat);
             } else { // No wildcard and the postkey isn't in the whitelist
+                ddtrace_log_debugf('No wildcard found in whitelist');
                 // Always use "<redacted>" as the value
                 zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
                 dd_add_post_fields_to_meta(meta, type, postkey, replacement);
                 zend_string_release(replacement);
             }
         } else { // No whitelist, so we always use "<redacted>" as the value
+            ddtrace_log_debugf('No whitelist found');
             zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
             dd_add_post_fields_to_meta(meta, type, postkey, replacement);
             zend_string_release(replacement);
@@ -723,11 +733,17 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
 
     if (zend_hash_num_elements(get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED())
         && (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST")))) {
+        ddtrace_log_debugf("Adding POST data to meta");
         zval *post = &PG(http_globals)[TRACK_VARS_POST];
         zend_string *empty = ZSTR_EMPTY_ALLOC();
         dd_add_post_fields_to_meta_recursive(meta, "request", empty, post,
                                              get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED(),false);
         zend_string_release(empty);
+    } else {
+        ddtrace_log_debugf("Not adding POST data to meta");
+        ddtrace_log_debugf("Allowed post data params: %d", zend_hash_num_elements(get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED()));
+        ddtrace_log_debugf("Post data: %d", Z_TYPE(PG(http_globals)[TRACK_VARS_POST]));
+        ddtrace_log_debugf("Auto global: %d", zend_is_auto_global_str(ZEND_STRL("_POST")));
     }
 
     if (get_DD_TRACE_REPORT_HOSTNAME()) {
