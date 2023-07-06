@@ -1,5 +1,7 @@
 --TEST--
 Value of internal span's peerServiceSource is not added to the serialized version of the span when set
+--ENV--
+DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true
 --FILE--
 <?php
 
