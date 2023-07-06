@@ -8,6 +8,7 @@ class DatabaseIntegrationHelper
 {
     public static $PEER_SERVICE_SOURCES = [
         'db.name',
+        'mongodb.db',
         'out.host',
     ];
 
