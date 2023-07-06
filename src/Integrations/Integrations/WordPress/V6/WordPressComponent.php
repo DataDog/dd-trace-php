@@ -179,6 +179,8 @@ class WordPressComponent
                             WordPressComponent::setCommonTags($integration, $span, 'load_mu_plugin', "mu_plugin: $pluginName");
                             $span->meta['wp.plugin'] = $pluginName;
                             $span->meta['wp.plugin_file'] = $muPlugin;
+
+                            remove_hook($hook->id);
                         }
                     );
                 }
@@ -195,6 +197,8 @@ class WordPressComponent
                                 WordPressComponent::setCommonTags($integration, $span, 'load_network_plugin', "network_plugin: $pluginName");
                                 $span->meta['wp.plugin'] = $pluginName;
                                 $span->meta['wp.plugin_file'] = $networkPlugin;
+
+                                remove_hook($hook->id);
                             }
                         );
                     }
@@ -211,6 +215,8 @@ class WordPressComponent
                             WordPressComponent::setCommonTags($integration, $span, 'load_plugin', "plugin: $pluginName");
                             $span->meta['wp.plugin'] = $pluginName;
                             $span->meta['wp.plugin_file'] = $plugin;
+
+                            remove_hook($hook->id);
                         }
                     );
                 }
@@ -223,6 +229,8 @@ class WordPressComponent
                     function (HookData $hook) use ($integration) {
                         $span = $hook->span();
                         WordPressComponent::setCommonTags($integration, $span, 'template_loader');
+
+                        remove_hook($hook->id);
                     }
                 );
             }
@@ -239,6 +247,8 @@ class WordPressComponent
                             $themeName = ucfirst(end($themeName));
                             WordPressComponent::setCommonTags($integration, $span, 'load_theme', "theme: $themeName");
                             $span->meta['wp.theme'] = $themeName;
+
+                            remove_hook($hook->id);
                         }
                     );
                 }
