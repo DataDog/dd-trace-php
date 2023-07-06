@@ -102,7 +102,7 @@ class WordPressComponent
 
     public static function getInterestingActions()
     {
-        $defaults = [
+        $interestingActions = [
             'plugins_loaded' => true,
             'setup_theme' => true,
             'after_setup_theme' => true,
@@ -120,11 +120,11 @@ class WordPressComponent
         $additionalActionHookNames = dd_trace_env_config("DD_TRACE_WP_ADDITIONAL_ACTIONS");
         if (!empty($additionalActionHookNames)) {
             foreach ($additionalActionHookNames as $hookName) {
-                $defaults[$hookName] = true;
+                $interestingActions[$hookName] = true;
             }
         }
 
-        return $defaults;
+        return $interestingActions;
     }
 
     public static function allowQueryParamsInResourceName()
