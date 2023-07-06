@@ -170,7 +170,7 @@ class WordPressComponent
 
             foreach (wp_get_mu_plugins() as $muPlugin) {
                 if (file_exists($muPlugin)) {
-                    // May not be loaded... Possibly some Memcached optimization going on there?
+                    // TODO: This hook doesn't work if using symbolic links
                     install_hook(
                         $muPlugin,
                         function (HookData $hook) use ($integration, $muPlugin) {
