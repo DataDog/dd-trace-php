@@ -155,6 +155,19 @@ void ddog_reset_logger(void);
 
 uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
+struct ddog_RemoteConfigState *ddog_init_remote_config(ddog_CharSlice tracer_version,
+                                                       const struct ddog_Endpoint *endpoint);
+
+void ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
+
+void ddog_init_live_debugger(const struct ddog_LiveDebuggerSetup *setup);
+
+void ddog_rinit_remote_config(struct ddog_RemoteConfigState *remote_config);
+
+void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
+
+void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
+
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,

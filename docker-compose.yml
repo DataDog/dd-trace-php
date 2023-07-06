@@ -16,6 +16,7 @@ x-aliases:
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec', '/home/circleci/app/tests/vendor:uid=3434,gid=3434,exec' ]
       depends_on:
         - agent
+        - staging_agent
         - ddagent_integration
         - request-replayer
         - test-agent
@@ -197,6 +198,7 @@ services:
       - DD_APM_ENABLED=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
       - DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket
+      - DD_REMOTE_CONFIGURATION_ENABLED=true
     ports:
       - "8126:8126"
 
