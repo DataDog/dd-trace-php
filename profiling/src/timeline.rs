@@ -32,11 +32,15 @@ pub fn timeline_minit() {
 unsafe extern "C" fn ddog_php_prof_compile_string(
     source_string: *mut zend::ZendString,
     filename: *const i8,
+    #[cfg(php_zend_compile_string_has_position)]
     position: zend::zend_compile_position,
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_STRING {
         let start = Instant::now();
+        #[cfg(php_zend_compile_string_has_position)]
         let op_array = prev(source_string, filename, position);
+        #[cfg(not(php_zend_compile_string_has_position))]
+        let op_array = prev(source_string, filename);
         let duration = start.elapsed();
 
         // eval() failed, could be invalid PHP or file not found, ...
