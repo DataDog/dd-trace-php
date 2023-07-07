@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5f6b67ed109fbedcbdf1d13e6a082da85515a08c */
+ * Stub hash: 5e9b7eb7a4d433c882c5b5211d1a355a371380a6 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -517,6 +517,12 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_string *property_links_name = zend_string_init("links", sizeof("links") - 1, 1);
 	zend_declare_typed_property(class_entry, property_links_name, &property_links_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_links_name);
+
+	zval property_sourceFile_default_value;
+	ZVAL_EMPTY_STRING(&property_sourceFile_default_value);
+	zend_string *property_sourceFile_name = zend_string_init("sourceFile", sizeof("sourceFile") - 1, 1);
+	zend_declare_typed_property(class_entry, property_sourceFile_name, &property_sourceFile_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
+	zend_string_release(property_sourceFile_name);
 
 	zend_string *property_parent_class_DDTrace_SpanData = zend_string_init("DDTrace\\SpanData", sizeof("DDTrace\\SpanData")-1, 1);
 	zval property_parent_default_value;

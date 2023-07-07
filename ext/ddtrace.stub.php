@@ -106,6 +106,14 @@ namespace DDTrace {
         public array $links = [];
 
         /**
+         * The name of the file where the instrumented function/method was defined.
+         * TODO: Alternatively, this may be set in the ddtrace_span_data structure + ddtrace_span_data_get_source_file()
+         *
+         * @var string
+         */
+        public readonly string $sourceFile = "";
+
+        /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
         public readonly SpanData|null $parent = null;
