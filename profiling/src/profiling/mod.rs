@@ -667,6 +667,50 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
+    pub fn collect_compile_string(
+        &self,
+        duration: i64,
+        filename: String,
+        line: u32,
+        locals: &RequestLocals,
+    ) {
+        let mut labels = Profiler::message_labels();
+
+        lazy_static! {
+            static ref TIMELINE_COMPILE_FILE_LABELS: Vec<Label> = vec![Label {
+                key: "event",
+                value: LabelValue::Str("compilation".into()),
+            },];
+        }
+
+        labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
+        let n_labels = labels.len();
+
+        match self.send_sample(Profiler::prepare_sample_message(
+            vec![ZendFrame {
+                function: "[eval]".into(),
+                file: Some(filename),
+                line: line,
+            }],
+            SampleValues {
+                timeline: duration,
+                ..Default::default()
+            },
+            labels,
+            locals,
+        )) {
+            Ok(_) => {
+                trace!("Sent event 'compile eval' with {n_labels} labels to profiler.")
+            }
+            Err(err) => {
+                warn!(
+                    "Failed to send event 'compile eval' with {n_labels} labels to profiler: {err}"
+                )
+            }
+        }
+    }
+
+    #[cfg(feature = "timeline")]
     pub fn collect_compile_file(
         &self,
         duration: i64,

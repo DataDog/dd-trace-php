@@ -15,6 +15,9 @@ pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;
 #[cfg(feature = "timeline")]
 pub type VmZendCompileFile =
     unsafe extern "C" fn(*mut zend_file_handle, i32) -> *mut _zend_op_array;
+#[cfg(feature = "timeline")]
+pub type VmZendCompileString =
+    unsafe extern "C" fn(*mut zend_string, *const i8, zend_compile_position) -> *mut _zend_op_array;
 
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
