@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\PHPRedis;
 
+use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -21,6 +22,8 @@ class PHPRedisIntegration extends Integration
 
     const DEFAULT_HOST = '127.0.0.1';
     const DEFAULT_PORT = 6379;
+
+    const KEY_HOST = 'host';
 
     /**
      * @return string The integration name.
@@ -54,6 +57,7 @@ class PHPRedisIntegration extends Integration
             //     during callbacks, meaning that we would have to use two different ways to extract the name: args or
             //     Redis::getHost() depending on when we are interested in such information.
             ObjectKVStore::put($this, 'service', $serviceName);
+            ObjectKVStore::put($this, PHPRedisIntegration::KEY_HOST, $hostOrUDS);
 
             PHPRedisIntegration::enrichSpan($span, $this, 'Redis');
         };
@@ -116,6 +120,12 @@ class PHPRedisIntegration extends Integration
             PHPRedisIntegration::enrichSpan($span, $this, 'Redis');
             if (isset($args[0]) && \is_numeric($args[0])) {
                 $span->meta['db.index'] = $args[0];
+            }
+
+            $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
+            $span->meta[Tag::TARGET_HOST] = $host;
+            if (\PHP_MAJOR_VERSION > 5) {
+                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
             }
         });
 
@@ -332,6 +342,12 @@ class PHPRedisIntegration extends Integration
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisIntegration::enrichSpan($span, $this, 'Redis', $method);
+
+            $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
+            $span->meta[Tag::TARGET_HOST] = $host;
+            if (\PHP_MAJOR_VERSION > 5) {
+                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+            }
         });
         \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster', $method);
@@ -346,6 +362,12 @@ class PHPRedisIntegration extends Integration
             // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
             $span->meta[Tag::REDIS_RAW_COMMAND]
                 = empty($normalizedArgs) ? $method : ($method . ' ' . $normalizedArgs);
+
+            $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
+            $span->meta[Tag::TARGET_HOST] = $host;
+            if (\PHP_MAJOR_VERSION > 5) {
+                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+            }
         });
         \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster', $method);
