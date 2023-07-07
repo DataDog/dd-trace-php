@@ -18,9 +18,12 @@ pub type VmZendCompileFile =
 #[cfg(all(feature = "timeline", php_zend_compile_string_has_position))]
 pub type VmZendCompileString =
     unsafe extern "C" fn(*mut zend_string, *const i8, zend_compile_position) -> *mut _zend_op_array;
-#[cfg(all(feature = "timeline", not(php_zend_compile_string_has_position)))]
+#[cfg(all(feature = "timeline", not(php_zend_compile_string_has_position), php8))]
 pub type VmZendCompileString =
     unsafe extern "C" fn(*mut zend_string, *const i8) -> *mut _zend_op_array;
+#[cfg(all(feature = "timeline", not(php_zend_compile_string_has_position), php7))]
+pub type VmZendCompileString =
+    unsafe extern "C" fn(*mut _zval_struct, *mut u8) -> *mut _zend_op_array;
 
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;

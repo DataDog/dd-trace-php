@@ -30,7 +30,13 @@ pub fn timeline_minit() {
 }
 
 unsafe extern "C" fn ddog_php_prof_compile_string(
+    #[cfg(php7)]
+    source_string: *mut zend::_zval_struct,
+    #[cfg(php8)]
     source_string: *mut zend::ZendString,
+    #[cfg(php7)]
+    filename: *mut u8,
+    #[cfg(php8)]
     filename: *const i8,
     #[cfg(php_zend_compile_string_has_position)]
     position: zend::zend_compile_position,
