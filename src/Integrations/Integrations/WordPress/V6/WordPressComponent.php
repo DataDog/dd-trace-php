@@ -163,6 +163,7 @@ class WordPressComponent
         }
 
         // File loading
+        /*
         hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
             // wp_plugin_directory_constants is called before the plugins are loaded and defines the necessary constants
             // for wp_get_X_plugins functions to work.
@@ -236,6 +237,7 @@ class WordPressComponent
             }
         });
 
+
         hook_function('wp_templating_constants', null, function () use ($integration) {
             foreach (wp_get_active_and_valid_themes() as $theme) {
                 if (file_exists($theme . '/functions.php')) {
@@ -254,6 +256,7 @@ class WordPressComponent
                 }
             }
         });
+        */
 
         hook_function('wp', function () use ($integration) {
             // Runs after wp-settings.php is loaded - i.e., after the entire core of WordPress functions is
@@ -572,6 +575,7 @@ class WordPressComponent
             $action = $args[0];
             $callback = $args[1];
 
+            /*
             if (isset($interestingActions[$action])) {
                 install_hook(
                     (
@@ -612,9 +616,84 @@ class WordPressComponent
                     }
                 );
             }
+            */
         });
 
-        // Filters - Too verbose
+        $service = $integration->getServiceName();
+        static $plugin_loading_funcs = [
+            'wp_get_active_and_valid_plugins',
+            'wp_get_active_network_plugins',
+            'wp_get_mu_plugins',
+        ];
+        $plugins = [];
+        foreach ($plugin_loading_funcs as $plugin_loading_func) {
+            \DDTrace\install_hook(
+                $plugin_loading_func,
+                null,
+                function (HookData $hook) use (&$plugins, $plugin_loading_func) {
+                    foreach ($hook->returned as $plugin) {
+                        // Use the plugin's basename instead of absolute path. For example,
+                        // instead of:
+                        //   /var/www/html/wp-content/plugins/hello.php
+                        // Just use `hello.php`.
+                        $basename = \plugin_basename($plugin);
+
+                        // 2. Track when each plugin is loaded, so in the add_filter callbacks we
+                        // know which plugin installs the hook.
+                        \DDTrace\install_hook($plugin,
+                            function ($hook) use (&$plugins, $basename) {
+                                $plugins[] = $hook->data = $basename;
+                            },
+                            function ($hook) use (&$plugins) {
+                                $top = \array_pop($plugins);
+                                // Integrity check; should be stackful.
+                                assert($top === $hook->data);
+                            }
+                        );
+
+                        // todo: emit instrumentation telemetry?
+                    }
+                });
+        }
+
+
+
+        // 3. Hook actions and filters loaded by each plugin.
+        $add_hook_begin = function (HookData $hook) use (&$plugins, $service) {
+            // The action/filter is only interesting if a plugin installed it.
+            if (!empty($plugins)) {
+                // Assign the hook to the plugin at the top of the stack.
+                $plugin = \end($plugins);
+
+                // Signature: add_filter(string $hook_name, callable $callback, ...)
+                if (isset($hook->args[1])) {
+                    $callback = $hook->args[1];
+
+                    // 4. Measure the execution time of $callback.
+                    \DDTrace\install_hook(
+                        is_array($callback) && is_string($callback[0])
+                            ? "{$callback[0]}::{$callback[1]}"
+                            : $callback,
+                        function (HookData $hook) use ($plugin, $service) {
+                            $hook->data = \hrtime(true);
+                            $span = $hook->span();
+                            $span->name = 'wordpress.plugin.hook';
+                            $span->resource = "(plugin:$plugin)";
+                            $span->service = $service;
+                        },
+                        function (HookData $hook) use ($plugin) {
+                            $elapsed = \hrtime(true) - $hook->data;
+                            if (($span = $hook->span())) {
+                                $span->metrics['elapsed_ns'] = $elapsed;
+                            }
+                        }
+                    );
+                }
+            }
+        };
+
+        // Note: add_action delegates to add_filter.
+        \DDTrace\install_hook('add_filter', $add_hook_begin, null);
 
         return Integration::LOADED;
     }
