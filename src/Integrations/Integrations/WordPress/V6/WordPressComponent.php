@@ -11,6 +11,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 
+use function DDTrace\active_span;
 use function DDTrace\hook_function;
 use function DDTrace\install_hook;
 use function DDTrace\remove_hook;
@@ -108,7 +109,6 @@ class WordPressComponent
             'setup_theme' => true,
             'after_setup_theme' => true,
             'init' => true,
-            'widgets_init' => true, // part of 'init'
             'wp_loaded' => true,
             'template_redirect' => true,
             'wp' => true, // part of wp->main();
@@ -137,10 +137,9 @@ class WordPressComponent
         }
 
         $envVar = dd_trace_env_config("DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED"); // <param> => null
-        Logger::get()->debug(print_r($envVar, true));
 
         if (!empty($envVar)) {
-            foreach (['p', 'page_id'] as $param) {
+            foreach (['p', 'page_id', 'post_type'] as $param) {
                 if (!array_key_exists($param, $envVar)) {
                     $envVar[$param] = null;
                 }
@@ -148,11 +147,12 @@ class WordPressComponent
         } else {
             $envVar = [
                 'p' => null,
-                'page_id' => null
+                'page_id' => null,
+                'post_type' => null
             ];
         }
 
-        $newEnvVar = implode(',', array_filter($envVar));
+        $newEnvVar = implode(',', array_keys($envVar));
         ini_set('datadog.trace.resource_uri_query_param_allowed', $newEnvVar);
     }
 
@@ -163,65 +163,10 @@ class WordPressComponent
         }
 
         // File loading
-        /*
         hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
             // wp_plugin_directory_constants is called before the plugins are loaded and defines the necessary constants
             // for wp_get_X_plugins functions to work.
             WordPressComponent::allowQueryParamsInResourceName();
-
-            foreach (wp_get_mu_plugins() as $muPlugin) {
-                if (file_exists($muPlugin)) {
-                    // TODO: This hook doesn't work if using symbolic links
-                    install_hook(
-                        $muPlugin,
-                        function (HookData $hook) use ($integration, $muPlugin) {
-                            $span = $hook->span();
-                            $pluginName = WordPressComponent::extractPluginNameFromFile($muPlugin, true) ?: '?';
-                            WordPressComponent::setCommonTags($integration, $span, 'load_mu_plugin', "mu_plugin: $pluginName");
-                            $span->meta['wp.plugin'] = $pluginName;
-                            $span->meta['wp.plugin_file'] = $muPlugin;
-
-                            remove_hook($hook->id);
-                        }
-                    );
-                }
-            }
-
-            if (is_multisite()) {
-                foreach (wp_get_active_network_plugins() as $networkPlugin) {
-                    if (file_exists($networkPlugin)) {
-                        install_hook(
-                            $networkPlugin,
-                            function (HookData $hook) use ($integration, $networkPlugin) {
-                                $span = $hook->span();
-                                $pluginName = WordPressComponent::extractPluginNameFromFile($networkPlugin) ?: '?';
-                                WordPressComponent::setCommonTags($integration, $span, 'load_network_plugin', "network_plugin: $pluginName");
-                                $span->meta['wp.plugin'] = $pluginName;
-                                $span->meta['wp.plugin_file'] = $networkPlugin;
-
-                                remove_hook($hook->id);
-                            }
-                        );
-                    }
-                }
-            }
-
-            foreach (wp_get_active_and_valid_plugins() as $plugin) {
-                if (file_exists($plugin)) {
-                    install_hook(
-                        $plugin,
-                        function (HookData $hook) use ($integration, $plugin) {
-                            $span = $hook->span();
-                            $pluginName = WordPressComponent::extractPluginNameFromFile($plugin) ?: '?';
-                            WordPressComponent::setCommonTags($integration, $span, 'load_plugin', "plugin: $pluginName");
-                            $span->meta['wp.plugin'] = $pluginName;
-                            $span->meta['wp.plugin_file'] = $plugin;
-
-                            remove_hook($hook->id);
-                        }
-                    );
-                }
-            }
 
             if (defined('ABSPATH') && defined('WPINC')) { // Just for a matter of safety :)
                 $templateLoader = ABSPATH . WPINC . '/template-loader.php';
@@ -229,7 +174,7 @@ class WordPressComponent
                     $templateLoader,
                     function (HookData $hook) use ($integration) {
                         $span = $hook->span();
-                        WordPressComponent::setCommonTags($integration, $span, 'template_loader');
+                        WordPressComponent::setCommonTags($integration, $span, 'load_file', 'file: template-loader.php');
 
                         remove_hook($hook->id);
                     }
@@ -256,7 +201,6 @@ class WordPressComponent
                 }
             }
         });
-        */
 
         hook_function('wp', function () use ($integration) {
             // Runs after wp-settings.php is loaded - i.e., after the entire core of WordPress functions is
@@ -552,6 +496,7 @@ class WordPressComponent
                             }
 
                             // If we have a plugin name, add it to the meta
+                            // TODO: Replace backtrace usage either with &$plugins, or $span->sourceFile
                             if (isset($actionHookToPlugin[$hookName])) { // Don't waste time if it gave null before
                                 if ($actionHookToPlugin[$hookName]) {
                                     $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
@@ -571,54 +516,6 @@ class WordPressComponent
             );
         }
 
-        hook_function('add_action', function ($args) use ($integration, &$actionHookToPlugin, $interestingActions) {
-            $action = $args[0];
-            $callback = $args[1];
-
-            /*
-            if (isset($interestingActions[$action])) {
-                install_hook(
-                    (
-                    is_array($callback) && is_string($callback[0])
-                        ? "{$callback[0]}::{$callback[1]}"
-                        : $callback
-                    ),
-                    function (HookData $hook) use ($integration, $callback, $action, &$actionHookToPlugin) {
-                        $span = $hook->span();
-
-                        // Order: 1. function definition, 2. call_user_func/call_user_func_array call (class-wp-hook.php)
-                        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
-                        $class = isset($backtrace[1]['class']) ? $backtrace[1]['class'] : null;
-                        $function = isset($backtrace[1]['function']) ? $backtrace[1]['function'] : null;
-                        // Remove the namespace from the class name
-                        if ($class) {
-                            $class = explode('\\', $class);
-                            $class = end($class);
-                        }
-                        // Remove the namespace from the function name
-                        if ($function) {
-                            $function = explode('\\', $function);
-                            $function = end($function);
-                        }
-
-                        $resource = $class ? "callback: $class::$function" : "callback: $function";
-
-                        WordPressComponent::setCommonTags($integration, $span, 'callback', $resource);
-
-                        $file = isset($backtrace[0]['file']) ? $backtrace[0]['file'] : '';
-                        if (($pluginName = WordPressComponent::extractPluginNameFromFile($file))) {
-                            $span->meta['wp.plugin'] = $pluginName;
-                        } elseif (($themeName = WordPressComponent::extractThemeNameFromFile($file))) {
-                            $span->meta['wp.theme'] = $themeName;
-                        }
-
-                        remove_hook($hook->id);
-                    }
-                );
-            }
-            */
-        });
-
         $service = $integration->getServiceName();
         static $plugin_loading_funcs = [
             'wp_get_active_and_valid_plugins',
@@ -630,7 +527,7 @@ class WordPressComponent
             \DDTrace\install_hook(
                 $plugin_loading_func,
                 null,
-                function (HookData $hook) use (&$plugins, $plugin_loading_func) {
+                function (HookData $hook) use (&$plugins, $plugin_loading_func, $integration) {
                     foreach ($hook->returned as $plugin) {
                         // Use the plugin's basename instead of absolute path. For example,
                         // instead of:
@@ -640,9 +537,18 @@ class WordPressComponent
 
                         // 2. Track when each plugin is loaded, so in the add_filter callbacks we
                         // know which plugin installs the hook.
-                        \DDTrace\install_hook($plugin,
-                            function ($hook) use (&$plugins, $basename) {
+                        if (is_link($plugin)) {
+                            $plugin = \readlink($plugin);
+                        }
+                        \DDTrace\install_hook(
+                            $plugin,
+                            function (HookData $hook) use (&$plugins, $basename, $plugin, $integration) {
                                 $plugins[] = $hook->data = $basename;
+
+                                $span = $hook->span();
+                                WordPressComponent::setCommonTags($integration, $span, 'load_plugin', "plugin: $basename");
+                                $span->meta['wp.plugin'] = $basename; // TODO: See whether it is better to use the basename, or the first part (before the first /, if any)
+                                $span->meta['wp.plugin_file'] = $plugin;
                             },
                             function ($hook) use (&$plugins) {
                                 $top = \array_pop($plugins);
@@ -659,7 +565,7 @@ class WordPressComponent
 
 
         // 3. Hook actions and filters loaded by each plugin.
-        $add_hook_begin = function (HookData $hook) use (&$plugins, $service) {
+        $add_hook_begin = function (HookData $hook) use (&$plugins, $service, $interestingActions) {
             // The action/filter is only interesting if a plugin installed it.
             if (!empty($plugins)) {
                 // Assign the hook to the plugin at the top of the stack.
@@ -670,16 +576,44 @@ class WordPressComponent
                     $callback = $hook->args[1];
 
                     // 4. Measure the execution time of $callback.
+
                     \DDTrace\install_hook(
                         is_array($callback) && is_string($callback[0])
                             ? "{$callback[0]}::{$callback[1]}"
                             : $callback,
-                        function (HookData $hook) use ($plugin, $service) {
+                        function (HookData $hook) use ($plugin, $service, $callback) {
                             $hook->data = \hrtime(true);
                             $span = $hook->span();
                             $span->name = 'wordpress.plugin.hook';
-                            $span->resource = "(plugin:$plugin)";
+                            //$span->resource = "(plugin:$plugin)";
                             $span->service = $service;
+
+                            if (is_array($callback)) {
+                                if (is_object($callback[0])) {
+                                    $class = get_class($callback[0]);
+                                    $class = explode('\\', $class);
+                                    $class = end($class);
+                                    $resource = "callback: {$class}::{$callback[1]}";
+                                } else {
+                                    $class = explode('\\', $callback[0]);
+                                    $class = end($class);
+                                    $resource = "callback: {$callback[0]}::{$callback[1]}";
+                                }
+                            } elseif (is_string($callback)) {
+                                $function = explode('\\', $callback);
+                                $function = end($function);
+                                $resource = "callback: {$function}";
+                            } elseif (is_object($callback)) {
+                                // A Closure will end up here
+                                // The Closure will also have the closure.declaration tag, set by the extension
+                                $resource = "callback: " . get_class($callback);
+                            } else {
+                                // Shouldn't happen :)
+                                $resource = 'callback: unknown';
+                            }
+
+                            $span->resource = $resource;
+                            $span->meta['wp.plugin'] = $plugin;
                         },
                         function (HookData $hook) use ($plugin) {
                             $elapsed = \hrtime(true) - $hook->data;
@@ -688,12 +622,75 @@ class WordPressComponent
                             }
                         }
                     );
+
                 }
             }
         };
 
+        hook_function('add_action', function ($args) use ($integration, &$actionHookToPlugin, $interestingActions, &$plugins) {
+            $action = $args[0];
+            $callback = $args[1];
+            $pluginName = end($plugins);
+
+            if (isset($interestingActions[$action])) {
+                install_hook(
+                    (
+                    is_array($callback) && is_string($callback[0])
+                        ? "{$callback[0]}::{$callback[1]}"
+                        : $callback
+                    ),
+                    function (HookData $hook) use ($integration, $callback, $action, &$actionHookToPlugin, $pluginName) {
+                        $span = $hook->span();
+
+                        if (is_array($callback)) {
+                            if (is_object($callback[0])) {
+                                $class = get_class($callback[0]);
+                                $class = explode('\\', $class);
+                                $class = end($class);
+                                $resource = "callback: {$class}::{$callback[1]}";
+                            } else {
+                                $class = explode('\\', $callback[0]);
+                                $class = end($class);
+                                $resource = "callback: {$callback[0]}::{$callback[1]}";
+                            }
+                        } elseif (is_string($callback)) {
+                            $function = explode('\\', $callback);
+                            $function = end($function);
+                            $resource = "callback: {$function}";
+                        } elseif (is_object($callback)) {
+                            // A Closure will end up here
+                            // The Closure will also have the closure.declaration tag, set by the extension
+                            $class = get_class($callback);
+                            $class = explode('\\', $class);
+                            $class = end($class);
+                            $resource = "callback: $class";
+                        } else {
+                            // Shouldn't happen :)
+                            $resource = 'callback: unknown';
+                        }
+
+                        WordPressComponent::setCommonTags($integration, $span, 'callback', $resource);
+
+                        $pluginRoot = defined('WP_PLUGIN_DIR') ? WP_PLUGIN_DIR : (defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR . '/plugins' : '');
+                        $themeRoot = get_theme_root();
+                        if (strpos($span->sourceFile, $pluginRoot) !== false) {
+                            $plugin = substr($span->sourceFile, strlen($pluginRoot) + 1);
+                            $plugin = explode('/', $plugin);
+                            $span->meta['wp.plugin'] = $plugin[0];
+                        } elseif (strpos($span->sourceFile, $themeRoot) !== false) {
+                            $span->meta['wp.theme'] = wp_get_theme()->get('Name');
+                        } elseif ($pluginName) {
+                            $span->meta['wp.plugin'] = $pluginName;
+                        }
+
+                        remove_hook($hook->id);
+                    }
+                );
+            }
+        });
+
         // Note: add_action delegates to add_filter.
-        \DDTrace\install_hook('add_filter', $add_hook_begin, null);
+        //\DDTrace\install_hook('add_action', $add_hook_begin, null);
 
         return Integration::LOADED;
     }
