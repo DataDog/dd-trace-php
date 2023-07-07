@@ -4,7 +4,7 @@ use crate::PROFILER;
 use crate::PROFILER_NAME;
 use crate::REQUEST_LOCALS;
 use libc::{c_char, c_int, c_void, size_t};
-use log::{debug, error, info};
+use log::{trace, debug, error, info};
 use once_cell::sync::OnceCell;
 use std::cell::RefCell;
 use std::ffi::CStr;
@@ -202,6 +202,7 @@ pub fn allocation_profiling_rshutdown() {
                                 PREV_CUSTOM_MM_REALLOC,
                             );
                         }
+                        trace!("Memory allocation profiling shutdown gracefully.");
                     }
                 }
             }
