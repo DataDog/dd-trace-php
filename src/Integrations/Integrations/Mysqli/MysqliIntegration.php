@@ -117,7 +117,7 @@ class MysqliIntegration extends Integration
                 list($mysqli, $query) = $hook->args;
 
                 $span = $hook->span();
-                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 $integration->setDefaultAttributes($span, 'mysqli_query', $query);
                 $integration->addTraceAnalyticsIfEnabled($span);
                 $integration->setConnectionInfo($span, $mysqli);
@@ -163,7 +163,7 @@ class MysqliIntegration extends Integration
                 list($query) = $hook->args;
 
                 $span = $hook->span();
-                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 $integration->setDefaultAttributes($span, 'mysqli.query', $query);
                 $integration->addTraceAnalyticsIfEnabled($span);
                 $integration->setConnectionInfo($span, $this);
@@ -221,7 +221,7 @@ class MysqliIntegration extends Integration
                     list(, $query) = $hook->args;
 
                     $span = $hook->span();
-                    $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                     $integration->setDefaultAttributes($span, 'mysqli_execute_query', $query);
                     $integration->addTraceAnalyticsIfEnabled($span);
 
@@ -245,7 +245,7 @@ class MysqliIntegration extends Integration
                     list($query) = $hook->args;
 
                     $span = $hook->span();
-                    $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                     $integration->setDefaultAttributes($span, 'mysqli.execute_query', $query);
                     $integration->addTraceAnalyticsIfEnabled($span);
 
@@ -341,7 +341,7 @@ class MysqliIntegration extends Integration
                 ObjectKVStore::get($statement, MysqliIntegration::KEY_MYSQLI_INSTANCE)
             );
             if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             }
         });
 
@@ -370,7 +370,7 @@ class MysqliIntegration extends Integration
             $integration->addTraceAnalyticsIfEnabled($span);
             $integration->setConnectionInfo($span, ObjectKVStore::get($this, MysqliIntegration::KEY_MYSQLI_INSTANCE));
             if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             }
         });
 
