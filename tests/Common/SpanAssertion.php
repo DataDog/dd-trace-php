@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Common;
 
 use DDTrace\Tag;
 use DDTrace\Util\Versions;
+use Exception;
 
 final class SpanAssertion
 {
@@ -145,16 +146,23 @@ final class SpanAssertion
     }
 
     /**
-     * @param array|string $tags
+     * Set all provided tags as expected
+     * @param array|string[]... $tags
      * @return $this
      */
-    public function withExactTags($tags)
+    public function withExactTags(...$tags)
     {
-        if (is_array($this->exactTags) && is_array($tags)) {
-            $this->exactTags = array_merge($this->exactTags, $tags);
-        } else {
-            $this->exactTags = $tags;
+        foreach ($tags as $tag) {
+            if (!is_array($tag)) {
+                throw new Exception('Arguments provided to ::withExtactTags MUST be arrays: ' . \var_export($tag, true));
+            }
         }
+
+        $this->exactTags = array_merge(
+            \is_array($this->exactTags) ? $this->exactTags : [],
+            ...$tags
+        );
+
         return $this;
     }
 
