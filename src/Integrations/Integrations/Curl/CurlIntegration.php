@@ -71,11 +71,8 @@ final class CurlIntegration extends Integration
                 $sanitizedUrl = \DDTrace\Util\Normalizer::urlSanitize($info['url']);
                 $normalizedPath = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($info['url']);
                 $host = Urls::hostname($sanitizedUrl);
+                $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
                 unset($info['url']);
-
-                if ($host) {
-                    $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
-                }
 
                 if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.http_client_split_by_domain")) {
                     $span->service = Urls::hostnameForTag($sanitizedUrl);
