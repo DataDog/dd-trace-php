@@ -75,44 +75,51 @@ class PHPRedisIntegration extends Integration
 
         $traceNewCluster = function (SpanData $span, $args) {
             if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
-                $hostOrUDS = $args[1][0];
+                $firstHostOrUDS = $args[1][0];
             } else {
                 $seeds = \ini_get('redis.clusters.seeds');
                 if (!empty($seeds)) {
                     $clusters = [];
                     parse_str($seeds, $clusters);
                     if (array_key_exists($args[0], $clusters) && !empty($clusters[$args[0]])) {
-                        $hostOrUDS = $clusters[$args[0]][0];
+                        $firstHostOrUDS = $clusters[$args[0]][0];
                     }
                 }
             }
-            if (empty($hostOrUDS)) {
-                $hostOrUDS = PHPRedisIntegration::DEFAULT_HOST;
+            if (empty($firstHostOrUDS)) {
+                $firstHostOrUDS = PHPRedisIntegration::DEFAULT_HOST;
             }
 
             $configuredClusterName = isset($args[0]) && \is_string($args[0]) ? $args[0] : null;
             ObjectKVStore::put($this, PHPRedisIntegration::KEY_CLUSTER_NAME, $configuredClusterName);
 
-            $url = parse_url($hostOrUDS);
-            $span->meta[Tag::TARGET_HOST] = is_array($url) && isset($url["host"]) ?
+            $url = parse_url($firstHostOrUDS);
+            $firstConfiguredHost = is_array($url) && isset($url["host"]) ?
                 $url["host"] :
                 PHPRedisIntegration::DEFAULT_HOST;
+            $span->meta[Tag::TARGET_HOST] = $firstConfiguredHost;
             $span->meta[Tag::TARGET_PORT] = is_array($url) && isset($url["port"]) ?
                 $url["port"] :
                 PHPRedisIntegration::DEFAULT_PORT;
 
             // Service name
-            if (
-                empty($configuredClusterName)
-                || !\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")
-            ) {
-                $serviceName = 'phpredis';
+            if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
+                $serviceNamePrefix = 'redis-';
+                if (!empty($configuredClusterName)) {
+                    $serviceName =
+                        $serviceNamePrefix . \DDTrace\Util\Normalizer::normalizeAsService($configuredClusterName);
+                } elseif (!empty($firstHostOrUDS)) {
+                    $serviceName =
+                        $serviceNamePrefix . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($firstHostOrUDS);
+                } else {
+                    $serviceName = PHPRedisIntegration::NAME;
+                }
             } else {
-                $serviceName = 'redis-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($hostOrUDS);
+                $serviceName = PHPRedisIntegration::NAME;
             }
 
             ObjectKVStore::put($this, 'service', $serviceName);
-            ObjectKVStore::put($this, PHPRedisIntegration::KEY_FIRST_HOST, $hostOrUDS);
+            ObjectKVStore::put($this, PHPRedisIntegration::KEY_FIRST_HOST, $firstConfiguredHost);
 
             PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster');
         };
