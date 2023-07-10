@@ -37,7 +37,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
             Logger::reset();
         }
         foreach ($this->envsToCleanUpAtTearDown() as $env) {
-            self::putEnv($env . '=');
+            self::putEnv($env);
         }
         \dd_trace_internal_fn('ddtrace_reload_config');
     }

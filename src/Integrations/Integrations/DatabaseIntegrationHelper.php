@@ -7,7 +7,7 @@ use DDTrace\Tag;
 
 class DatabaseIntegrationHelper
 {
-    public static $PEER_SERVICE_SOURCES = [
+    public const PEER_SERVICE_SOURCES = [
         Tag::DB_NAME,
         Tag::TARGET_HOST,
     ];
