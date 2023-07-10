@@ -98,9 +98,8 @@ class GuzzleIntegration extends Integration
             /** @var \Psr\Http\Message\RequestInterface $request */
             $url = $request->getUri();
             $host = Urls::hostname($url);
-            if ($host) {
-                $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
-            }
+            $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
+
             if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.http_client_split_by_domain")) {
                 $span->service = Urls::hostnameForTag($url);
             }
