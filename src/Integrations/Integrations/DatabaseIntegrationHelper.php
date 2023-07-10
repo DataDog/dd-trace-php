@@ -9,6 +9,7 @@ class DatabaseIntegrationHelper
 {
     public static $PEER_SERVICE_SOURCES = [
         Tag::DB_NAME,
+        '_dd.first.configured.host',    // For cases like RedisCluster when the cluster name is not defined.
         Tag::TARGET_HOST,
     ];
 
