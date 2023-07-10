@@ -57,6 +57,13 @@ class PHPRedisClusterTest extends IntegrationTestCase
         parent::ddTearDown();
     }
 
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+        ];
+    }
+
     public function testClose()
     {
         $redis = $this->redis;
@@ -1796,6 +1803,83 @@ class PHPRedisClusterTest extends IntegrationTestCase
         $redis->close();
     }
 
+    public function testSplitByDomainWithClusterNamePeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $redis = null;
+        $traces = $this->isolateTracer(function () use (&$redis) {
+            $redis = new \RedisCluster('cluster_name', [
+                \implode(':', $this->connection1),
+                \implode(':', $this->connection2),
+                \implode(':', $this->connection3),
+            ]);
+            $redis->set('key', 'value');
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.__construct",
+                'phpredis',
+                'redis',
+                "RedisCluster.__construct"
+            )->withExactTags(array_merge(
+                $this->baseTags(null, false, false),
+                ['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1]]
+            )),
+            SpanAssertion::build(
+                "RedisCluster.set",
+                'phpredis',
+                'redis',
+                "RedisCluster.set"
+            )->withExactTags(array_merge(
+                $this->baseTags('set key value', true, false),
+                [
+                    '_dd.cluster.name' => 'cluster_name',
+                ]
+            ))
+        ]);
+
+        $redis->close();
+    }
+
+    public function testSplitByDomainWithNoClusterNamePeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $redis = null;
+        $traces = $this->isolateTracer(function () use (&$redis) {
+            $redis = new \RedisCluster(null, [
+                \implode(':', $this->connection1),
+                \implode(':', $this->connection2),
+                \implode(':', $this->connection3),
+            ]);
+            $redis->set('key', 'value');
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "RedisCluster.__construct",
+                'phpredis',
+                'redis',
+                "RedisCluster.__construct"
+            )->withExactTags(array_merge(
+                $this->baseTags(null, false, false),
+                ['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1]]
+            )),
+            SpanAssertion::build(
+                "RedisCluster.set",
+                'phpredis',
+                'redis',
+                "RedisCluster.set"
+            )->withExactTags(array_merge(
+                $this->baseTags('set key value', true, true)
+            ))
+        ]);
+
+        $redis->close();
+    }
+
     public function testSplitByDomainWithClusterNameAndSeeds()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
@@ -1920,8 +2004,13 @@ class PHPRedisClusterTest extends IntegrationTestCase
         }
 
         if ($expectPeerService) {
-            $tags['peer.service'] = $this->clusterIp;
-            $tags['_dd.peer.service.source'] = '_dd.first.configured.host';
+            if ($hasFirstConfiguredHost) {
+                $tags['peer.service'] = $this->clusterIp;
+                $tags['_dd.peer.service.source'] = '_dd.first.configured.host';
+            } else {
+                $tags['peer.service'] = 'cluster_name';
+                $tags['_dd.peer.service.source'] = '_dd.cluster.name';
+            }
         }
 
         return $tags;

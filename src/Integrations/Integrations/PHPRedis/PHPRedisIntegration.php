@@ -146,7 +146,7 @@ class PHPRedisIntegration extends Integration
             $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
             $span->meta[Tag::TARGET_HOST] = $host;
             if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             }
         });
 
@@ -367,7 +367,7 @@ class PHPRedisIntegration extends Integration
             $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
             $span->meta[Tag::TARGET_HOST] = $host;
             if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             }
         });
         \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
@@ -378,7 +378,7 @@ class PHPRedisIntegration extends Integration
                 } elseif ($firstHost = ObjectKVStore::get($this, PHPRedisIntegration::KEY_FIRST_HOST)) {
                     $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_FIRST_HOST] = $firstHost;
                 }
-                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             }
         });
     }
@@ -395,7 +395,7 @@ class PHPRedisIntegration extends Integration
             $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
             $span->meta[Tag::TARGET_HOST] = $host;
             if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             }
         });
         \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
@@ -410,7 +410,7 @@ class PHPRedisIntegration extends Integration
                 } elseif ($firstHost = ObjectKVStore::get($this, PHPRedisIntegration::KEY_FIRST_HOST)) {
                     $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_FIRST_HOST] = $firstHost;
                 }
-                $span->peerServiceSources = DatabaseIntegrationHelper::$PEER_SERVICE_SOURCES;
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             }
         });
     }
