@@ -34,6 +34,7 @@
     INTEGRATION(SQLSRV, "sqlsrv")               \
     INTEGRATION(SLIM, "slim")                   \
     INTEGRATION(SYMFONY, "symfony")             \
+    INTEGRATION(TYPO3, "typo3")                 \
     INTEGRATION(WEB, "web")                     \
     INTEGRATION(WORDPRESS, "wordpress")         \
     INTEGRATION(YII, "yii")                     \

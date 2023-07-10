@@ -1,0 +1,62 @@
+{
+	"repositories": [
+		{
+			"type": "path",
+			"url": "../packages/*",
+			"options": {
+				"symlink": true
+			}
+		}
+	],
+	"name": "typo3/cms-base-distribution",
+	"description" : "TYPO3 CMS Base Distribution",
+	"license": "GPL-2.0-or-later",
+	"config": {
+		"allow-plugins": {
+			"typo3/class-alias-loader": true,
+			"typo3/cms-composer-installers": true
+		},
+		"platform": {
+			"php": "7.2"
+		},
+		"sort-packages": true
+	},
+	"require": {
+		"datadog/exception": "@dev",
+		"helhum/typo3-console": "^6.0.0",
+		"typo3/cms-about": "^10.4.0",
+		"typo3/cms-backend": "^10.4.0",
+		"typo3/cms-belog": "^10.4.0",
+		"typo3/cms-beuser": "^10.4.0",
+		"typo3/cms-core": "^10.4.0",
+		"typo3/cms-dashboard": "^10.4.0",
+		"typo3/cms-extbase": "^10.4.0",
+		"typo3/cms-extensionmanager": "^10.4.0",
+		"typo3/cms-felogin": "^10.4.0",
+		"typo3/cms-filelist": "^10.4.0",
+		"typo3/cms-fluid": "^10.4.0",
+		"typo3/cms-fluid-styled-content": "^10.4.0",
+		"typo3/cms-form": "^10.4.0",
+		"typo3/cms-frontend": "^10.4.0",
+		"typo3/cms-impexp": "^10.4.0",
+		"typo3/cms-info": "^10.4.0",
+		"typo3/cms-install": "^10.4.0",
+		"typo3/cms-recordlist": "^10.4.0",
+		"typo3/cms-rte-ckeditor": "^10.4.0",
+		"typo3/cms-seo": "^10.4.0",
+		"typo3/cms-setup": "^10.4.0",
+		"typo3/cms-sys-note": "^10.4.0",
+		"typo3/cms-t3editor": "^10.4.0",
+		"typo3/cms-tstemplate": "^10.4.0",
+		"typo3/cms-viewpage": "^10.4.0"
+	},
+	"scripts":{
+		"typo3-cms-scripts": [
+			"typo3cms install:generatepackagestates",
+			"typo3cms install:fixfolderstructure"
+		],
+		"post-autoload-dump": [
+			"@typo3-cms-scripts"
+		]
+	}
+}

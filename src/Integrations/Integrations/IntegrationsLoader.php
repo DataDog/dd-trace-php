@@ -20,6 +20,7 @@ use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Psr18\Psr18Integration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
+use DDTrace\Integrations\TYPO3\TYPO3Integration;
 use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Yii\YiiIntegration;
@@ -65,6 +66,8 @@ class IntegrationsLoader
         if (\PHP_MAJOR_VERSION >= 7) {
             $this->integrations[PcntlIntegration::NAME] =
                 '\DDTrace\Integrations\Pcntl\PcntlIntegration';
+            $this->integrations[TYPO3Integration::NAME] =
+                '\DDTrace\Integrations\TYPO3\TYPO3Integration';
         }
 
         $this->integrations[CurlIntegration::NAME] =
