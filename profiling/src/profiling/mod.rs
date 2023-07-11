@@ -802,7 +802,7 @@ impl Profiler {
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
         static SAMPLE_TYPES: &[ValueType; 6] = &[
-            ValueType::new("sample", "count"),
+            ValueType::new("wall-samples", "count"),
             ValueType::new("wall-time", "nanoseconds"),
             ValueType::new("cpu-time", "nanoseconds"),
             ValueType::new("alloc-samples", "count"),
@@ -1050,7 +1050,7 @@ mod tests {
         assert_eq!(
             message.key.sample_types,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("cpu-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
@@ -1089,7 +1089,7 @@ mod tests {
         assert_eq!(
             message.key.sample_types,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
                 ValueType::new("alloc-size", "bytes"),
