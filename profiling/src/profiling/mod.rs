@@ -18,7 +18,7 @@ use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::str;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Barrier};
+use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -152,7 +152,6 @@ pub enum ProfilerMessage {
 }
 
 pub struct Profiler {
-    fork_barrier: Arc<Barrier>,
     fork_senders: [Sender<()>; 2],
     message_sender: Sender<ProfilerMessage>,
     time_collector_handle: JoinHandle<()>,
@@ -161,7 +160,6 @@ pub struct Profiler {
 }
 
 struct ProfileCollector {
-    fork_barrier: Arc<Barrier>,
     fork_receiver: Receiver<()>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
@@ -372,10 +370,7 @@ impl ProfileCollector {
 
                 recv(self.fork_receiver) -> message => {
                     if message.is_ok() {
-                        // First, wait for every thread to finish what they are currently doing.
-                        self.fork_barrier.wait();
-                        // Then, wait for the fork to be completed.
-                        self.fork_barrier.wait();
+                        std::thread::park();
                     }
                 }
 
@@ -403,28 +398,20 @@ struct ProfileTypesInfo {
 
 impl Profiler {
     pub fn new(output_pprof: Option<Cow<'static, str>>) -> Self {
-        let fork_barrier = Arc::new(Barrier::new(3));
-        let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
+        let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(0);
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
-        let (fork_sender1, fork_receiver1) = crossbeam_channel::bounded(1);
+        let (fork_sender1, fork_receiver1) = crossbeam_channel::bounded(0);
         let time_collector = ProfileCollector {
-            fork_barrier: fork_barrier.clone(),
             fork_receiver: fork_receiver0,
             message_receiver,
             upload_sender,
             upload_period: UPLOAD_PERIOD,
         };
 
-        let uploader = Uploader::new(
-            fork_barrier.clone(),
-            fork_receiver1,
-            upload_receiver,
-            output_pprof,
-        );
+        let uploader = Uploader::new(fork_receiver1, upload_receiver, output_pprof);
 
         Profiler {
-            fork_barrier,
             fork_senders: [fork_sender0, fork_sender1],
             message_sender,
             time_collector_handle: thread_utils::spawn("ddprof_collect", move || {
@@ -445,8 +432,8 @@ impl Profiler {
             let mut locals = cell.borrow_mut();
             let drop = match locals.time_interrupter.get() {
                 Some(interrupter) => {
-                    if let Err(err) = interrupter.pause() {
-                        error!("Time samples will likely be missing from now on because of an error when preparing to fork: {err:#?}");
+                    if let Err(err) = interrupter.try_pause() {
+                        error!("Time samples will likely be missing from now on because of an error when preparing to fork: {err:#}");
                         true
                     } else {
                         false
@@ -459,12 +446,12 @@ impl Profiler {
                 _ = locals.time_interrupter.take();
             }
         });
-        self.fork_barrier.wait();
     }
 
     /// Call after a fork, but only on the thread of the parent process that forked.
     pub fn post_fork_parent(&self) {
-        self.fork_barrier.wait();
+        self.time_collector_handle.thread().unpark();
+        self.uploader_handle.thread().unpark();
         REQUEST_LOCALS.with(|cell| {
             let locals = cell.borrow();
             if let Some(interrupter) = locals.time_interrupter.get() {

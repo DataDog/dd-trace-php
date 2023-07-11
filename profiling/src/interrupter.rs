@@ -21,7 +21,8 @@ pub use crossbeam::Interrupter;
 mod crossbeam {
     use super::*;
     use crate::thread_utils::{join_timeout, spawn};
-    use crossbeam_channel::{bounded, select, tick, Sender};
+    use crossbeam_channel::{bounded, select, tick, Sender, TrySendError};
+    use libc::sched_yield;
     use log::{trace, warn};
     use std::thread::JoinHandle;
     use std::time::Duration;
@@ -159,7 +160,7 @@ mod crossbeam {
                     }
                 }
 
-                trace!("thread {thread_name} shut down");
+                trace!("thread {thread_name} shut down cleanly");
             });
 
             Self {
@@ -188,13 +189,30 @@ mod crossbeam {
                 .map_err(|err| Self::err(err, format!("failed to stop {}", Self::THREAD_NAME)))
         }
 
-        pub fn pause(&self) -> anyhow::Result<()> {
-            self.sender
-                .send(Message::Pause)
-                .map_err(|err| Self::err(err, format!("failed to pause {}", Self::THREAD_NAME)))
+        /// Try to pause the interrupter, which can be un-paused by calling
+        /// [Interrupter::unpause].
+        /// Note that this will not block, though it may yield the CPU core.
+        pub fn try_pause(&self) -> anyhow::Result<()> {
+            match self.sender.try_send(Message::Pause) {
+                Err(e) if matches!(e, TrySendError::Disconnected(_)) => {
+                    // If the channel is disconnected, time samples have already stopped.
+                    Err(Self::err(
+                        e,
+                        format!("failed to pause {}: ", Self::THREAD_NAME),
+                    ))
+                }
+                Err(_) => {
+                    // It's not disconnected, so let's retry (but just once).
+                    unsafe { sched_yield() };
+                    self.sender.try_send(Message::Pause).map_err(|err| {
+                        Self::err(err, format!("failed to pause {}", Self::THREAD_NAME))
+                    })
+                }
+                Ok(_) => Ok(()),
+            }
         }
 
-        // Unpauses a previously paused interrupter.
+        /// Unpauses a previously paused interrupter.
         pub fn unpause(&self) {
             if let Some(join_handle) = &self.join_handle {
                 join_handle.thread().unpark();

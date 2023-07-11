@@ -5,37 +5,38 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 /// Spawns a thread and masks off the signals that the Zend Engine uses.
-pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
+pub fn spawn<F>(name: &str, f: F) -> JoinHandle<()>
 where
-    F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
+    F: FnOnce() -> () + Send + 'static + std::panic::UnwindSafe,
 {
     let result = std::thread::Builder::new()
         .name(name.to_string())
         .spawn(move || {
-            /* Thread must not handle signals intended for PHP threads.
-             * See Zend/zend_signal.c for which signals it registers.
-             */
-            unsafe {
-                let mut sigset_mem = MaybeUninit::uninit();
-                let sigset = sigset_mem.as_mut_ptr();
-                libc::sigemptyset(sigset);
+            _ = std::panic::catch_unwind(|| {
+                /* Thread must not handle signals intended for PHP threads.
+                 * See Zend/zend_signal.c for which signals it registers.
+                 */
+                unsafe {
+                    let mut sigset_mem = MaybeUninit::uninit();
+                    let sigset = sigset_mem.as_mut_ptr();
+                    libc::sigemptyset(sigset);
 
-                const SIGNALS: [libc::c_int; 6] = [
-                    libc::SIGPROF, // todo: SIGALRM on __CYGWIN__/__PHASE__
-                    libc::SIGHUP,
-                    libc::SIGINT,
-                    libc::SIGTERM,
-                    libc::SIGUSR1,
-                    libc::SIGUSR2,
-                ];
+                    const SIGNALS: [libc::c_int; 6] = [
+                        libc::SIGPROF, // todo: SIGALRM on __CYGWIN__/__PHASE__
+                        libc::SIGHUP,
+                        libc::SIGINT,
+                        libc::SIGTERM,
+                        libc::SIGUSR1,
+                        libc::SIGUSR2,
+                    ];
 
-                for signal in SIGNALS {
-                    libc::sigaddset(sigset, signal);
+                    for signal in SIGNALS {
+                        libc::sigaddset(sigset, signal);
+                    }
+                    libc::pthread_sigmask(libc::SIG_BLOCK, sigset, std::ptr::null_mut());
                 }
-                libc::pthread_sigmask(libc::SIG_BLOCK, sigset, std::ptr::null_mut());
-            }
-            f()
+                f()
+            })
         });
 
     match result {
