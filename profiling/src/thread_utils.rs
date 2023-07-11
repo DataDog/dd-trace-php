@@ -12,31 +12,29 @@ where
     let result = std::thread::Builder::new()
         .name(name.to_string())
         .spawn(move || {
-            _ = std::panic::catch_unwind(|| {
-                /* Thread must not handle signals intended for PHP threads.
-                 * See Zend/zend_signal.c for which signals it registers.
-                 */
-                unsafe {
-                    let mut sigset_mem = MaybeUninit::uninit();
-                    let sigset = sigset_mem.as_mut_ptr();
-                    libc::sigemptyset(sigset);
+            /* Thread must not handle signals intended for PHP threads.
+             * See Zend/zend_signal.c for which signals it registers.
+             */
+            unsafe {
+                let mut sigset_mem = MaybeUninit::uninit();
+                let sigset = sigset_mem.as_mut_ptr();
+                libc::sigemptyset(sigset);
 
-                    const SIGNALS: [libc::c_int; 6] = [
-                        libc::SIGPROF, // todo: SIGALRM on __CYGWIN__/__PHASE__
-                        libc::SIGHUP,
-                        libc::SIGINT,
-                        libc::SIGTERM,
-                        libc::SIGUSR1,
-                        libc::SIGUSR2,
-                    ];
+                const SIGNALS: [libc::c_int; 6] = [
+                    libc::SIGPROF, // todo: SIGALRM on __CYGWIN__/__PHASE__
+                    libc::SIGHUP,
+                    libc::SIGINT,
+                    libc::SIGTERM,
+                    libc::SIGUSR1,
+                    libc::SIGUSR2,
+                ];
 
-                    for signal in SIGNALS {
-                        libc::sigaddset(sigset, signal);
-                    }
-                    libc::pthread_sigmask(libc::SIG_BLOCK, sigset, std::ptr::null_mut());
+                for signal in SIGNALS {
+                    libc::sigaddset(sigset, signal);
                 }
-                f()
-            })
+                libc::pthread_sigmask(libc::SIG_BLOCK, sigset, std::ptr::null_mut());
+            }
+            f()
         });
 
     match result {
