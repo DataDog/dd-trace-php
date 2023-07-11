@@ -146,7 +146,9 @@ final class SpanAssertion
     }
 
     /**
-     * Set all provided tags as expected
+     * Mark all provided tags as mandatory. If multiple arrays are provided, they will be merged with the right-most
+     * ones taking precedence over the lest-most ones.
+     *
      * @param array|string[]... $tags
      * @return $this
      */
@@ -154,7 +156,9 @@ final class SpanAssertion
     {
         foreach ($tags as $tag) {
             if (!is_array($tag)) {
-                throw new Exception('Arguments provided to ::withExtactTags MUST be arrays: ' . \var_export($tag, true));
+                throw new Exception(
+                    'All arguments provided to ::withExactTags MUST be arrays: ' . \var_export($tag, true)
+                );
             }
         }
 
