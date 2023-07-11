@@ -161,11 +161,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.close"
-            )->withExactTags([
-                Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'phpredis',
-                Tag::DB_SYSTEM => 'redis',
-            ]),
+            )->withExactTags($this->baseTags()),
         ]);
     }
 
@@ -1081,7 +1077,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand, Tag::SPAN_KIND => 'client', Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis',]),
+            )->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         if ($expectedResult === self::A_STRING) {
@@ -2071,14 +2067,14 @@ class PHPRedisTest extends IntegrationTestCase
                 'redis',
                 "Redis.set"
             )->withExactTags($this->baseTags())
-            ->withExistingTagsNames(['redis.raw_command']),
+                ->withExistingTagsNames(['redis.raw_command']),
             SpanAssertion::build(
                 "Redis.get",
                 'phpredis',
                 'redis',
                 "Redis.get"
             )->withExactTags($this->baseTags())
-            ->withExistingTagsNames(['redis.raw_command']),
+                ->withExistingTagsNames(['redis.raw_command']),
         ]);
     }
 
@@ -2124,14 +2120,14 @@ class PHPRedisTest extends IntegrationTestCase
                 'redis',
                 "Redis.connect"
             )
-            ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags(), [Tag::TARGET_PORT => '6379']),
             SpanAssertion::build(
                 "Redis.set",
                 'redis-redis_integration',
                 'redis',
                 "Redis.set"
             )
-            ->withExactTags($this->baseTags('set key value')),
+                ->withExactTags($this->baseTags('set key value')),
         ]);
     }
 
@@ -2149,14 +2145,14 @@ class PHPRedisTest extends IntegrationTestCase
                 'redis',
                 "Redis.set"
             )->withExactTags($this->baseTags())
-            ->withExistingTagsNames(['redis.raw_command']),
+                ->withExistingTagsNames(['redis.raw_command']),
             SpanAssertion::build(
                 "Redis.get",
                 'phpredis',
                 'redis',
                 "Redis.get"
             )->withExactTags($this->baseTags())
-            ->withExistingTagsNames(['redis.raw_command']),
+                ->withExistingTagsNames(['redis.raw_command']),
         ]);
     }
 
@@ -2172,14 +2168,14 @@ class PHPRedisTest extends IntegrationTestCase
     public function dataProviderTestNormalizeArgs()
     {
         return [
-            'no args' => [ [], '' ],
-            'one args' => [ ['k1'], 'k1' ],
-            'two args' => [ ['k1', 'v1'], 'k1 v1' ],
-            'int args' => [ ['k1', 1, 'v1'], 'k1 1 v1' ],
-            'indexed array args' => [ [ ['k1', 'k2'] ], 'k1 k2' ],
-            'associative array args' => [ [ [ 'k1' => 'v1', 'k2' => 'v2' ] ], 'k1 v1 k2 v2' ],
-            'associative numeric array args' => [ [ [ '123' => 'v1', '456' => 'v2' ] ], '123 v1 456 v2' ],
-            'mixed array and scalar args' => [ [ ['k1', 'k2'], 1, ['v1', 'v2']], 'k1 k2 1 v1 v2' ],
+            'no args' => [[], ''],
+            'one args' => [['k1'], 'k1'],
+            'two args' => [['k1', 'v1'], 'k1 v1'],
+            'int args' => [['k1', 1, 'v1'], 'k1 1 v1'],
+            'indexed array args' => [[['k1', 'k2']], 'k1 k2'],
+            'associative array args' => [[['k1' => 'v1', 'k2' => 'v2']], 'k1 v1 k2 v2'],
+            'associative numeric array args' => [[['123' => 'v1', '456' => 'v2']], '123 v1 456 v2'],
+            'mixed array and scalar args' => [[['k1', 'k2'], 1, ['v1', 'v2']], 'k1 k2 1 v1 v2'],
         ];
     }
 
