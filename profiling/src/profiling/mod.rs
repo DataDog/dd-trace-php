@@ -6,12 +6,12 @@ use stalk_walking::*;
 use uploader::*;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
-use crate::{thread_utils, AgentEndpoint, RequestLocals};
+use crate::{thread_utils, AgentEndpoint, RequestLocals, REQUEST_LOCALS};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
 use datadog_profiling::profile::api::{Function, Line, Location, Sample};
-use log::{debug, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -441,12 +441,36 @@ impl Profiler {
             // Hmm, what to do with errors?
             let _ = sender.send(());
         }
+        REQUEST_LOCALS.with(|cell| {
+            let mut locals = cell.borrow_mut();
+            let drop = match locals.time_interrupter.get() {
+                Some(interrupter) => {
+                    if let Err(err) = interrupter.pause() {
+                        error!("Time samples will likely be missing from now on because of an error when preparing to fork: {err:#?}");
+                        true
+                    } else {
+                        false
+                    }
+                }
+                None => false,
+            };
+
+            if drop {
+                _ = locals.time_interrupter.take();
+            }
+        });
         self.fork_barrier.wait();
     }
 
     /// Call after a fork, but only on the thread of the parent process that forked.
     pub fn post_fork_parent(&self) {
         self.fork_barrier.wait();
+        REQUEST_LOCALS.with(|cell| {
+            let locals = cell.borrow();
+            if let Some(interrupter) = locals.time_interrupter.get() {
+                interrupter.unpause();
+            }
+        });
     }
 
     pub fn send_sample(&self, message: SampleMessage) -> Result<(), TrySendError<ProfilerMessage>> {

@@ -21,7 +21,7 @@ pub use crossbeam::Interrupter;
 mod crossbeam {
     use super::*;
     use crate::thread_utils::{join_timeout, spawn};
-    use crossbeam_channel::{bounded, select, tick, SendError, Sender};
+    use crossbeam_channel::{bounded, select, tick, Sender};
     use log::{trace, warn};
     use std::thread::JoinHandle;
     use std::time::Duration;
@@ -30,6 +30,7 @@ mod crossbeam {
     enum Message {
         Start,
         Stop,
+        Pause,
         Shutdown,
     }
 
@@ -118,6 +119,9 @@ mod crossbeam {
                                 Ok(Message::Stop) => {
                                     active = false;
                                 }
+                                Ok(Message::Pause) => {
+                                    std::thread::park();
+                                }
                                 _ => {
                                     break;
                                 }
@@ -144,6 +148,9 @@ mod crossbeam {
                                 Ok(Message::Stop) => {
                                     active = false;
                                 }
+                                Ok(Message::Pause) => {
+                                    std::thread::park();
+                                }
                                 _ => {
                                     break;
                                 }
@@ -162,7 +169,10 @@ mod crossbeam {
         }
 
         #[cold]
-        fn err(err: SendError<Message>, context: String) -> anyhow::Error {
+        fn err<E>(err: E, context: String) -> anyhow::Error
+        where
+            E: std::error::Error + Send + Sync + 'static,
+        {
             anyhow::Error::from(err).context(context)
         }
 
@@ -178,10 +188,26 @@ mod crossbeam {
                 .map_err(|err| Self::err(err, format!("failed to stop {}", Self::THREAD_NAME)))
         }
 
+        pub fn pause(&self) -> anyhow::Result<()> {
+            self.sender
+                .send(Message::Pause)
+                .map_err(|err| Self::err(err, format!("failed to pause {}", Self::THREAD_NAME)))
+        }
+
+        // Unpauses a previously paused interrupter.
+        pub fn unpause(&self) {
+            if let Some(join_handle) = &self.join_handle {
+                join_handle.thread().unpark();
+            }
+        }
+
         pub fn shutdown(&mut self) -> anyhow::Result<()> {
-            self.sender.send(Message::Shutdown).map_err(|err| {
-                Self::err(err, format!("failed to shutdown {}", Self::THREAD_NAME))
-            })?;
+            let timeout = Duration::from_secs(2);
+            self.sender
+                .send_timeout(Message::Shutdown, timeout)
+                .map_err(|err| {
+                    Self::err(err, format!("failed to shutdown {}", Self::THREAD_NAME))
+                })?;
             // todo: write impact
             let impact = "";
 
