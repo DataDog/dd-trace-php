@@ -154,6 +154,11 @@ final class SpanAssertion
      */
     public function withExactTags(...$tags)
     {
+        if ($tags[0] === self::NOT_TESTED) {
+            $this->exactTags = self::NOT_TESTED;
+            return $this;
+        }
+
         foreach ($tags as $tag) {
             if (!is_array($tag)) {
                 throw new Exception(
