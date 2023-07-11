@@ -558,7 +558,11 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 })
                 .start()
             {
-                warn!("{err:#}")
+                error!(
+                    "time samples will not be taken for the current request due to error: {err:#}"
+                );
+                // clear the time interrupter so on the next request it is recreated
+                _ = locals.time_interrupter.take();
             }
         });
     }
@@ -652,7 +656,9 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
         if locals.profiling_enabled {
             if let Some(interrupter) = locals.time_interrupter.get() {
                 if let Err(err) = interrupter.stop() {
-                    warn!("{err:#}")
+                    warn!("{err:#}");
+                    // clear the time interrupter so on the next request it is recreated
+                    _ = locals.time_interrupter.take();
                 }
             }
             locals.tags = Arc::new(static_tags());

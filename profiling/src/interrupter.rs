@@ -174,6 +174,7 @@ mod crossbeam {
         where
             E: std::error::Error + Send + Sync + 'static,
         {
+            // todo: emit metric about the failure
             anyhow::Error::from(err).context(context)
         }
 
