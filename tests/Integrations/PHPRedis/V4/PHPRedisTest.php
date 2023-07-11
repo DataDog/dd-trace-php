@@ -2099,7 +2099,7 @@ class PHPRedisTest extends IntegrationTestCase
             )
             ->setError()
             ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack'])
-            ->withExactTags($this->baseTags()),
+            ->withExactTags($this->baseTags(), ['out.host' => 'non-existing-host', 'out.port' => '6379']),
         ]);
     }
 
