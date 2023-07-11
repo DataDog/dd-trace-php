@@ -230,11 +230,11 @@ class PDOIntegration extends Integration
             list($key, $value) = explode('=', $valString);
             switch (strtolower($key)) {
                 case 'charset':
-                    $tags['db.charset'] = $value;
+                    $tags[Tag::DB_CHARSET] = $value;
                     break;
                 case 'database':
                 case 'dbname':
-                    $tags['db.name'] = $value;
+                    $tags[Tag::DB_NAME] = $value;
                     break;
                 case 'server':
                 case 'unix_socket':
