@@ -21,7 +21,7 @@ pub use crossbeam::Interrupter;
 mod crossbeam {
     use super::*;
     use crate::thread_utils::{join_timeout, spawn};
-    use crossbeam_channel::{bounded, select, tick, Sender};
+    use crossbeam_channel::{bounded, select, tick, SendError, Sender};
     use log::{trace, warn};
     use std::thread::JoinHandle;
     use std::time::Duration;
@@ -161,29 +161,31 @@ mod crossbeam {
             }
         }
 
+        #[cold]
+        fn err(err: SendError<Message>, context: String) -> anyhow::Error {
+            anyhow::Error::from(err).context(context)
+        }
+
         pub fn start(&self) -> anyhow::Result<()> {
-            self.sender.send(Message::Start).map_err(|err| {
-                anyhow::Error::from(err).context(format!("failed to start {}", Self::THREAD_NAME))
-            })
+            self.sender
+                .send(Message::Start)
+                .map_err(|err| Self::err(err, format!("failed to start {}", Self::THREAD_NAME)))
         }
 
         pub fn stop(&self) -> anyhow::Result<()> {
-            self.sender.send(Message::Stop).map_err(|err| {
-                anyhow::Error::from(err).context(format!("failed to stop {}", Self::THREAD_NAME))
-            })
+            self.sender
+                .send(Message::Stop)
+                .map_err(|err| Self::err(err, format!("failed to stop {}", Self::THREAD_NAME)))
         }
 
         pub fn shutdown(&mut self) -> anyhow::Result<()> {
-            if let Err(err) = self.sender.send(Message::Shutdown) {
-                return Err(anyhow::Error::from(err)
-                    .context(format!("failed to shutdown {}", Self::THREAD_NAME)));
-            }
+            self.sender.send(Message::Shutdown).map_err(|err| {
+                Self::err(err, format!("failed to shutdown {}", Self::THREAD_NAME))
+            })?;
             // todo: write impact
             let impact = "";
 
-            let mut handle = None;
-            std::mem::swap(&mut handle, &mut self.join_handle);
-            if let Some(handle) = handle {
+            if let Some(handle) = self.join_handle.take() {
                 join_timeout(handle, Duration::from_secs(2), impact);
             }
             Ok(())
