@@ -112,7 +112,11 @@ class SymfonyIntegration extends Integration
                     return;
                   }
 
-                  \datadog\appsec\track_user_signup_event($userEntity->getUsername(), [], true);
+                  \datadog\appsec\track_user_signup_event(
+                    \method_exists($userEntity, 'getUsername') ? $userEntity->getUsername() : '',
+                    [],
+                    true
+                  );
 
             }
         );
@@ -149,7 +153,11 @@ class SymfonyIntegration extends Integration
 
                 $metadata = [];
 
-                \datadog\appsec\track_user_login_success_event($token->getUsername(), $metadata, true);
+                \datadog\appsec\track_user_login_success_event(
+                    \method_exists($token, 'getUsername') ? $token->getUsername(): '',
+                    $metadata,
+                    true
+                );
             }
         );
 
