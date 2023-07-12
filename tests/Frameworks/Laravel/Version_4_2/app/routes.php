@@ -20,3 +20,5 @@ Route::get('/eloquent/update', 'EloquentTestController@update');
 Route::get('/eloquent/delete', 'EloquentTestController@delete');
 Route::get('/eloquent/destroy', 'EloquentTestController@destroy');
 Route::get('/eloquent/refresh', 'EloquentTestController@refresh');
+Route::get('/login/auth', 'LoginTestController@auth');
+Route::get('/login/signup', 'LoginTestController@register');

@@ -24,3 +24,5 @@ Route::get('queue/batchDefault', 'QueueTestController@batchDefault');
 Route::get('queue/create', 'QueueTestController@create');
 Route::get('queue/jobFailure', 'QueueTestController@jobFailure');
 Route::get('queue/workOn', 'QueueTestController@workOn');
+Route::get('login/auth', 'LoginTestController@auth');
+Route::get('login/signup', 'LoginTestController@register');

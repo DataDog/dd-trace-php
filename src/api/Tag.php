@@ -51,7 +51,10 @@ class Tag
     const ELASTICSEARCH_URL = 'elasticsearch.url';
 
     // Database
+    const DB_NAME = 'db.name';
+    const DB_CHARSET = 'db.charset';
     const DB_INSTANCE = 'db.instance';
+    const DB_TYPE = 'db.type';
     const DB_SYSTEM = 'db.system';
     const DB_ROW_COUNT = 'db.row_count';
     const DB_STMT = 'db.statement';

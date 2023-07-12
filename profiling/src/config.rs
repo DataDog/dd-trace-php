@@ -120,7 +120,7 @@ unsafe extern "C" fn env_to_ini_name(env_name: ZaiStringView, ini_name: *mut zai
     dest_suffix[src_suffix.len()] = transmute(b'\0');
 
     // Store the length without the null.
-    ini_name.len = (dest_prefix.len() + src_suffix.len()).try_into().unwrap();
+    ini_name.len = dest_prefix.len() + src_suffix.len();
 }
 
 /// # Safety
@@ -529,7 +529,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
 
         let tmp = zai_config_minit(
             ENTRIES.as_mut_ptr(),
-            ENTRIES.len().try_into().unwrap(),
+            ENTRIES.len(),
             Some(env_to_ini_name),
             module_number,
         );
@@ -591,7 +591,7 @@ mod tests {
                 // Check that .len matches.
                 assert_eq!(
                     expected_ini_name.len(),
-                    ini.len as usize,
+                    { ini.len },
                     "Env: {}, expected ini: {}",
                     std::str::from_utf8(env_name).unwrap(),
                     expected_ini_name
@@ -606,7 +606,7 @@ mod tests {
                 assert_eq!(0, cmp);
 
                 // Check that it is null terminated.
-                assert_eq!(ini.ptr[ini.len as usize] as u8, b'\0');
+                assert_eq!(ini.ptr[ini.len] as u8, b'\0');
             }
         }
     }

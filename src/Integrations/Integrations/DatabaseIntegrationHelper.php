@@ -3,9 +3,15 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\HookData;
+use DDTrace\Tag;
 
 class DatabaseIntegrationHelper
 {
+    const PEER_SERVICE_SOURCES = [
+        Tag::DB_NAME,
+        Tag::TARGET_HOST,
+    ];
+
     public static function injectDatabaseIntegrationData(HookData $hook, $backend, $argNum = 0)
     {
         $allowedBackends = [
