@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Curl;
 
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -49,7 +50,7 @@ final class CurlIntegration extends Integration
             'posthook' => function (SpanData $span, $args, $retval) use ($integration) {
                 $span->name = $span->resource = 'curl_exec';
                 $span->type = Type::HTTP_CLIENT;
-                $span->service = 'curl';
+                SpanTaxonomy::instance()->handleServiceName($span, CurlIntegration::NAME);
                 $integration->addTraceAnalyticsIfEnabled($span);
                 $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
 

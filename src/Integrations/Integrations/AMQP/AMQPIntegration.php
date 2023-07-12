@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\AMQP;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Propagator;
 use DDTrace\SpanData;
 use DDTrace\SpanLink;
@@ -445,7 +446,7 @@ class AMQPIntegration extends Integration
         $span->resource = "$name" . ($resourceDetail === null ? "" : " $resourceDetail");
         $span->meta[Tag::SPAN_KIND] = $spanKind;
         $span->type = 'queue';
-        $span->service = 'amqp';
+        $span->service = SpanTaxonomy::instance()->handleServiceName($span, AMQPIntegration::NAME);
         $span->meta[Tag::COMPONENT] = AMQPIntegration::NAME;
 
         $span->meta[Tag::MQ_SYSTEM] = AMQPIntegration::SYSTEM;

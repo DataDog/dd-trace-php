@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Eloquent;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -104,13 +105,14 @@ class EloquentIntegration extends Integration
     public function setCommonValues(SpanData $span)
     {
         $span->type = Type::SQL;
-        $span->service = $this->getAppName();
+        SpanTaxonomy::instance()->handleServiceName($span, $this->getFallbackAppName());
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = EloquentIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = 'other_sql';
     }
 
     /**
+     * @deprecated This function should not be used, the SpanTaxonomy::handleServiceName should be used instead.
      * @return string
      */
     public function getAppName()
@@ -126,5 +128,14 @@ class EloquentIntegration extends Integration
 
         $this->appName = $name ?: 'laravel';
         return $this->appName;
+    }
+
+    /**
+     * @return string
+     */
+    private function getFallbackAppName()
+    {
+        $name = is_callable('config') ? config('app.name') : null;
+        return $name ?: 'laravel';
     }
 }

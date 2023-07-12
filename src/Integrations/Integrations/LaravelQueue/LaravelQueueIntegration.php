@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\LaravelQueue;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -121,7 +122,7 @@ class LaravelQueueIntegration extends Integration
                             $span = $hook->span();
                             $span->name = 'laravel.queue.action';
                             $span->type = 'queue';
-                            $span->service = $integration->getName();
+                            SpanTaxonomy::instance()->handleServiceName($span, LaravelQueueIntegration::NAME);
                             $span->resource = $class . '@' . $method;
                             $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
 
@@ -248,7 +249,7 @@ class LaravelQueueIntegration extends Integration
         $resourceSubstitute = null
     ) {
         $span->name = $name;
-        $span->service = $this->getAppName();
+        SpanTaxonomy::instance()->handleServiceName($span, LaravelQueueIntegration::NAME);
         $span->type = 'queue';
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
@@ -348,6 +349,10 @@ class LaravelQueueIntegration extends Integration
         }
     }
 
+    /**
+     * @deprecated This function should not be used, the SpanTaxonomy::handleServiceName should be used instead.
+     * @return string|null|bool
+     */
     public function getAppName()
     {
         if (null !== $this->appName) {

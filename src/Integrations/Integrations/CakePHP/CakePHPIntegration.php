@@ -3,7 +3,9 @@
 namespace DDTrace\Integrations\CakePHP;
 
 use CakeRequest;
+use DDTrace\Integrations\CakePHP\CakePHPIntegration as CakePHPCakePHPIntegration;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -14,7 +16,6 @@ class CakePHPIntegration extends Integration
 {
     const NAME = 'cakephp';
 
-    public $appName;
     public $rootSpan;
 
     /**
@@ -44,10 +45,9 @@ class CakePHPIntegration extends Integration
             return self::NOT_LOADED;
         }
 
-        $integration->appName = \ddtrace_config_app_name(CakePHPIntegration::NAME);
         $integration->rootSpan = $rootSpan;
         $integration->addTraceAnalyticsIfEnabled($integration->rootSpan);
-        $integration->rootSpan->service = $integration->appName;
+        SpanTaxonomy::instance()->handleServiceName($integration->rootSpan, CakePHPCakePHPIntegration::NAME);
         if ('cli' === PHP_SAPI) {
             $integration->rootSpan->name = 'cakephp.console';
             $integration->rootSpan->resource =
@@ -64,7 +64,7 @@ class CakePHPIntegration extends Integration
             function (SpanData $span, array $args) use ($integration) {
                 $span->name = $span->resource = 'Controller.invokeAction';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->appName;
+                SpanTaxonomy::instance()->handleServiceName($span, CakePHPCakePHPIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
 
                 $request = $args[0];
@@ -121,7 +121,7 @@ class CakePHPIntegration extends Integration
             $file = $this->viewPath . '/' . $this->view . $this->ext;
             $span->resource = $file;
             $span->meta = ['cakephp.view' => $file];
-            $span->service = $integration->appName;
+            SpanTaxonomy::instance()->handleServiceName($span, CakePHPCakePHPIntegration::NAME);
             $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
         });
 

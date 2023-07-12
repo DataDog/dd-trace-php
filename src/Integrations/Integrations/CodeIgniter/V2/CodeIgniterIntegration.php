@@ -2,7 +2,9 @@
 
 namespace DDTrace\Integrations\CodeIgniter\V2;
 
+use DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration as V2CodeIgniterIntegration;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -30,7 +32,6 @@ class CodeIgniterIntegration extends Integration
         if (null === $rootSpan) {
             return Integration::NOT_LOADED;
         }
-        $service = \ddtrace_config_app_name(self::NAME);
 
         if (!\defined('CI_VERSION') || !isset($router)) {
             return Integration::NOT_LOADED;
@@ -40,17 +41,17 @@ class CodeIgniterIntegration extends Integration
             /* After _set_routing has been called the class and method
              * are known, so now we can set up tracing on CodeIgniter.
              */
-            $integration->registerIntegration($router, $rootSpan, $service);
+            $integration->registerIntegration($router, $rootSpan);
         }
 
         return parent::LOADED;
     }
 
-    public function registerIntegration(\CI_Router $router, SpanData $rootSpan, $service)
+    public function registerIntegration(\CI_Router $router, SpanData $rootSpan)
     {
         $this->addTraceAnalyticsIfEnabled($rootSpan);
         $rootSpan->name = 'codeigniter.request';
-        $rootSpan->service = $service;
+        SpanTaxonomy::instance()->handleServiceName($rootSpan, V2CodeIgniterIntegration::NAME);
         $rootSpan->type = Type::WEB_SERVLET;
         $rootSpan->meta[Tag::SPAN_KIND] = 'server';
         $rootSpan->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
@@ -61,10 +62,10 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             $controller,
             $method,
-            function (SpanData $span) use ($rootSpan, $method, $service) {
+            function (SpanData $span) use ($rootSpan, $method) {
                 $class = \get_class($this);
                 $span->name = $span->resource = "{$class}.{$method}";
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, V2CodeIgniterIntegration::NAME);
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
 
@@ -92,12 +93,12 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             $controller,
             '_remap',
-            function (SpanData $span, $args, $retval, $ex) use ($rootSpan, $service) {
+            function (SpanData $span, $args, $retval, $ex) use ($rootSpan) {
                 $class = \get_class($this);
 
                 $span->name = "{$class}._remap";
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, V2CodeIgniterIntegration::NAME);
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
 
@@ -116,9 +117,9 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             'CI_Loader',
             'view',
-            function (SpanData $span, $args, $retval, $ex) use ($service) {
+            function (SpanData $span, $args, $retval, $ex) {
                 $span->name = 'CI_Loader.view';
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, V2CodeIgniterIntegration::NAME);
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
@@ -132,10 +133,10 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             'CI_DB_driver',
             'query',
-            function (SpanData $span, $args, $retval, $ex) use ($service) {
+            function (SpanData $span, $args, $retval, $ex) {
                 $class = \get_class($this);
                 $span->name = "{$class}.query";
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, V2CodeIgniterIntegration::NAME);
                 $span->type = Type::SQL;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
@@ -153,11 +154,11 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             'CI_Cache',
             '__get',
-            function (SpanData $span, $args, $retval, $ex) use ($service, &$registered_cache_adapters) {
+            function (SpanData $span, $args, $retval, $ex) use (&$registered_cache_adapters) {
                 if (!$ex && \is_object($retval)) {
                     $class = \get_class($retval);
                     if (!isset($registered_cache_adapters[$class])) {
-                        CodeIgniterIntegration::registerCacheAdapter($class, $service);
+                        CodeIgniterIntegration::registerCacheAdapter($class);
                         $registered_cache_adapters[$class] = true;
                     }
                 }
@@ -171,15 +172,15 @@ class CodeIgniterIntegration extends Integration
      * @param string $adapter
      * @param string $service
      */
-    public static function registerCacheAdapter($adapter, $service)
+    public static function registerCacheAdapter($adapter)
     {
         \DDTrace\trace_method(
             $adapter,
             'get',
-            function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
+            function (SpanData $span, $args, $retval, $ex) {
                 $class = \get_class($this);
                 $span->name = "{$class}.get";
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, V2CodeIgniterIntegration::NAME);
                 $span->type = Type::CACHE;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
@@ -189,10 +190,10 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             $adapter,
             'save',
-            function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
+            function (SpanData $span, $args, $retval, $ex) {
                 $class = \get_class($this);
                 $span->name = "{$class}.save";
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, V2CodeIgniterIntegration::NAME);
                 $span->type = Type::CACHE;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
@@ -202,10 +203,10 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             $adapter,
             'delete',
-            function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
+            function (SpanData $span, $args, $retval, $ex) {
                 $class = \get_class($this);
                 $span->name = "{$class}.delete";
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, V2CodeIgniterIntegration::NAME);
                 $span->type = Type::CACHE;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
@@ -215,10 +216,10 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             $adapter,
             'clean',
-            function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
+            function (SpanData $span, $args, $retval, $ex) {
                 $class = \get_class($this);
                 $span->name = "{$class}.clean";
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, V2CodeIgniterIntegration::NAME);
                 $span->type = Type::CACHE;
                 $span->resource = $span->name;
                 $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;

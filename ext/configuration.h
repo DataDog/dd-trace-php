@@ -112,6 +112,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(INT, DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "512")                                                     \
     CONFIG(MAP, DD_TRACE_PEER_SERVICE_MAPPING, "")                                                             \
     CONFIG(BOOL, DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "false")                                              \
+    CONFIG(BOOL, DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, "false")                                   \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_SERVICE, "false")                                                          \
     CALIAS(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_EXTRACT, "tracecontext,Datadog,B3,B3 single header",      \
            CALIASES("DD_PROPAGATION_STYLE_EXTRACT"))                                                           \

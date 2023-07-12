@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Laravel;
 use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 use DDTrace\Type;
 
@@ -18,6 +19,7 @@ class LaravelIntegration extends Integration
     const UNNAMED_ROUTE = 'unnamed_route';
 
     /**
+     * @deprecated This function should not be used, the SpanTaxonomy::handleServiceName should be used instead.
      * @var string
      */
     private $serviceName;
@@ -84,13 +86,13 @@ class LaravelIntegration extends Integration
                 if (\method_exists($response, 'getStatusCode')) {
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
-                $rootSpan->service = $integration->getServiceName();
+                SpanTaxonomy::instance()->handleServiceName($rootSpan, $integration->getFallbackAppName());
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
                 $span->name = 'laravel.application.handle';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->getServiceName();
+                SpanTaxonomy::instance()->handleServiceName($span, $integration->getFallbackAppName());
                 $span->resource = 'Illuminate\Foundation\Application@handle';
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
@@ -133,7 +135,7 @@ class LaravelIntegration extends Integration
             function (SpanData $span) use ($integration) {
                 $span->name = 'laravel.action';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->getServiceName();
+                SpanTaxonomy::instance()->handleServiceName($span, $integration->getFallbackAppName());
                 $span->resource = $this->uri;
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
@@ -166,7 +168,7 @@ class LaravelIntegration extends Integration
 
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = $integration->getServiceName();
+                    SpanTaxonomy::instance()->handleServiceName($span, $integration->getFallbackAppName());
                     $span->resource = $args[0];
                     $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
@@ -210,7 +212,7 @@ class LaravelIntegration extends Integration
 
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = $integration->getServiceName();
+                    SpanTaxonomy::instance()->handleServiceName($span, $integration->getFallbackAppName());
                     $span->resource = is_object($args[0]) ? get_class($args[0]) : $args[0];
                     $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
                 },
@@ -221,7 +223,7 @@ class LaravelIntegration extends Integration
         \DDTrace\trace_method('Illuminate\View\View', 'render', function (SpanData $span) use ($integration) {
             $span->name = 'laravel.view.render';
             $span->type = Type::WEB_SERVLET;
-            $span->service = $integration->getServiceName();
+            SpanTaxonomy::instance()->handleServiceName($span, $integration->getFallbackAppName());
             $span->resource = $this->view;
             $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
         });
@@ -237,7 +239,7 @@ class LaravelIntegration extends Integration
                         ? LaravelIntegration::NAME
                         : LumenIntegration::NAME;
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->getServiceName();
+                SpanTaxonomy::instance()->handleServiceName($span, $integration->getFallbackAppName());
                 if (isset($args[0]) && \is_string($args[0])) {
                     $span->resource = $args[0];
                 }
@@ -259,10 +261,10 @@ class LaravelIntegration extends Integration
                 $serviceName = $integration->getServiceName();
                 $span->name = 'laravel.provider.load';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $serviceName;
+                SpanTaxonomy::instance()->handleServiceName($span, $integration->getFallbackAppName());
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
                 $rootSpan->name = 'laravel.request';
-                $rootSpan->service = $serviceName;
+                SpanTaxonomy::instance()->handleServiceName($rootSpan, $integration->getFallbackAppName());
                 $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
@@ -414,6 +416,10 @@ class LaravelIntegration extends Integration
         return Integration::LOADED;
     }
 
+    /**
+     * @deprecated This function should not be used, the SpanTaxonomy::handleServiceName should be used instead.
+     * @return string|null|bool
+     */
     public function getServiceName()
     {
         if (!empty($this->serviceName)) {
@@ -424,6 +430,15 @@ class LaravelIntegration extends Integration
             $this->serviceName = config('app.name');
         }
         return $this->serviceName ?: 'laravel';
+    }
+
+    /**
+     * @return string
+     */
+    private function getFallbackAppName()
+    {
+        $name = is_callable('config') ? config('app.name') : null;
+        return $name ?: LaravelIntegration::NAME;
     }
 
     /**
