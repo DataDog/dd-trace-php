@@ -127,11 +127,11 @@ pub fn collect_stack_sample(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bindings as zend;
 
     #[test]
     #[cfg(feature = "stack_walking_tests")]
     fn test_collect_stack_sample() {
+        use crate::bindings as zend;
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
 
