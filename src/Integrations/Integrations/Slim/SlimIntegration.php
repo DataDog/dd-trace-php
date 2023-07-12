@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Slim;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -32,13 +33,12 @@ class SlimIntegration extends Integration
         }
 
         $integration = $this;
-        $appName = \ddtrace_config_app_name(self::NAME);
 
         \DDTrace\hook_method(
             'Slim\App',
             '__construct',
             null,
-            function ($app) use ($integration, $appName) {
+            function ($app) use ($integration) {
                 $majorVersion = substr($app::VERSION, 0, 1);
                 if ('3' !== $majorVersion && '4' !== $majorVersion) {
                     return;
@@ -47,7 +47,7 @@ class SlimIntegration extends Integration
                 // Overwrite root span info
                 $rootSpan = \DDTrace\root_span();
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
-                $rootSpan->service = $appName;
+                SpanTaxonomy::instance()->handleServiceName($rootSpan, SlimIntegration::NAME);
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = SlimIntegration::NAME;
 
@@ -59,7 +59,7 @@ class SlimIntegration extends Integration
                                 $span->name = 'slim.middleware';
                                 $span->resource = \get_class($this);
                                 $span->type = Type::WEB_SERVLET;
-                                $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
+                                SpanTaxonomy::instance()->handleServiceName($span, SlimIntegration::NAME);
                                 $span->meta[Tag::COMPONENT] = SlimIntegration::NAME;
                             };
                             \DDTrace\trace_method($name, 'process', $closure);
@@ -102,14 +102,14 @@ class SlimIntegration extends Integration
                 }
 
                 // Providing info about the controller
-                $traceControllers = function (SpanData $span, $args) use ($rootSpan, $appName, $majorVersion) {
+                $traceControllers = function (SpanData $span, $args) use ($rootSpan, $majorVersion) {
                     $callable = $args[0];
                     $callableName = '{unknown callable}';
                     \is_callable($callable, false, $callableName);
 
                     $span->resource = $callableName ?: 'controller';
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = $appName;
+                    SpanTaxonomy::instance()->handleServiceName($span, SlimIntegration::NAME);
                     $span->meta[Tag::COMPONENT] = SlimIntegration::NAME;
 
                     /** @var ServerRequestInterface $request */
@@ -148,9 +148,9 @@ class SlimIntegration extends Integration
                 ]);
 
                 // Handling Twig views
-                \DDTrace\trace_method('Slim\Views\Twig', 'render', function (SpanData $span, $args) use ($appName) {
+                \DDTrace\trace_method('Slim\Views\Twig', 'render', function (SpanData $span, $args) {
                     $span->name = 'slim.view';
-                    $span->service = $appName;
+                    SpanTaxonomy::instance()->handleServiceName($span, SlimIntegration::NAME);
                     $span->type = Type::WEB_SERVLET;
                     $template = $args[1];
                     $span->resource = $template;

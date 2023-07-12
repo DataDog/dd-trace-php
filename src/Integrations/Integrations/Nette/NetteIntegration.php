@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Nette;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -60,16 +61,16 @@ class NetteIntegration extends Integration
         $service = \ddtrace_config_app_name(NetteIntegration::NAME);
 
         $this->addTraceAnalyticsIfEnabled($rootSpan);
-        $rootSpan->service = $service;
+        SpanTaxonomy::instance()->handleServiceName($rootSpan, NetteIntegration::NAME);
         $rootSpan->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
         \DDTrace\trace_method(
             'Nette\Configurator',
             'createRobotLoader',
-            function (SpanData $span) use ($service) {
+            function (SpanData $span) {
                 $span->name = 'nette.configurator.createRobotLoader';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, NetteIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
             }
         );
@@ -77,10 +78,10 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Nette\Application\Application',
             'run',
-            function (SpanData $span) use ($rootSpan, $service) {
+            function (SpanData $span) use ($rootSpan) {
                 $span->name = 'nette.application.run';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, NetteIntegration::NAME);
                 $rootSpan->meta[Tag::HTTP_STATUS_CODE] = http_response_code();
                 $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
             }
@@ -89,11 +90,11 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Nette\Application\UI\Presenter',
             'run',
-            function (SpanData $span, $args) use ($rootSpan, $service) {
+            function (SpanData $span, $args) use ($rootSpan) {
 
                 $span->name = 'nette.presenter.run';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, NetteIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
                 if (count($args) < 1 || !\is_a($args[0], '\Nette\Application\Request')) {
@@ -114,10 +115,10 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Latte\Engine',
             'createTemplate',
-            function (SpanData $span, $args) use ($service) {
+            function (SpanData $span, $args) {
                 $span->name = 'nette.latte.createTemplate';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, NetteIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
                 if (count($args) >= 1) {
@@ -129,10 +130,10 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Latte\Engine',
             'render',
-            function (SpanData $span, $args) use ($service) {
+            function (SpanData $span, $args) {
                 $span->name = 'nette.latte.render';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, NetteIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
                 if (count($args) >= 1) {
@@ -144,10 +145,10 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Latte\Engine',
             'renderToString',
-            function (SpanData $span, $args) use ($service) {
+            function (SpanData $span, $args) {
                 $span->name = 'nette.latte.render';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
+                SpanTaxonomy::instance()->handleServiceName($span, NetteIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
                 if (count($args) >= 1) {

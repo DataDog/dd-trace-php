@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Roadrunner;
 
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 
@@ -58,7 +59,7 @@ class RoadrunnerIntegration extends Integration
 
                 /** @var ?\Spiral\RoadRunner\Http\Request $retval */
                 $activeSpan = \DDTrace\start_trace_span();
-                $activeSpan->service = \ddtrace_config_app_name('roadrunner');
+                SpanTaxonomy::instance()->handleServiceName($activeSpan, RoadrunnerIntegration::NAME);
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
                 $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;

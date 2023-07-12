@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Yii;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -49,13 +50,15 @@ class YiiIntegration extends Integration
         $this->addTraceAnalyticsIfEnabled($rootSpan);
         $service = \ddtrace_config_app_name(YiiIntegration::NAME);
 
+        $spanTaxonomy = SpanTaxonomy::instance();
+
         \DDTrace\trace_method(
             'yii\web\Application',
             'run',
-            function (SpanData $span) use ($service) {
+            function (SpanData $span) use ($spanTaxonomy) {
                 $span->name = $span->resource = \get_class($this) . '.run';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
+                $spanTaxonomy->handleServiceName($span, YiiIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
             }
         );
@@ -80,10 +83,10 @@ class YiiIntegration extends Integration
         \DDTrace\trace_method(
             'yii\base\Module',
             'runAction',
-            function (SpanData $span, $args) use ($service) {
+            function (SpanData $span, $args) use ($spanTaxonomy) {
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
+                $spanTaxonomy->handleServiceName($span, YiiIntegration::NAME);
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
                 $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
             }
@@ -92,10 +95,10 @@ class YiiIntegration extends Integration
         \DDTrace\trace_method(
             'yii\base\Controller',
             'runAction',
-            function (SpanData $span, $args) use (&$firstController, $service, $rootSpan) {
+            function (SpanData $span, $args) use (&$firstController, $spanTaxonomy, $rootSpan) {
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
+                $spanTaxonomy->handleServiceName($span, YiiIntegration::NAME);
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
                 $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
 
@@ -175,10 +178,10 @@ class YiiIntegration extends Integration
         \DDTrace\trace_method(
             'yii\base\View',
             'renderFile',
-            function (SpanData $span, $args) use ($service) {
+            function (SpanData $span, $args) use ($spanTaxonomy) {
                 $span->name = \get_class($this) . '.renderFile';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $service;
+                $spanTaxonomy->handleServiceName($span, YiiIntegration::NAME);
                 $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
                 $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
             }

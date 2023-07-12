@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Lumen;
 
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 
 /**
@@ -48,15 +49,14 @@ class LumenIntegration extends Integration
         $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
         $integration = $this;
-        $appName = \ddtrace_config_app_name(self::NAME);
 
         \DDTrace\trace_method(
             'Laravel\Lumen\Application',
             'prepareRequest',
-            function (SpanData $span, $args) use ($rootSpan, $integration, $appName) {
+            function (SpanData $span, $args) use ($rootSpan, $integration) {
                 $request = $args[0];
                 $rootSpan->name = 'lumen.request';
-                $rootSpan->service = $appName;
+                SpanTaxonomy::instance()->handleServiceName($rootSpan, LumenIntegration::NAME);
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
                 $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
 
@@ -75,8 +75,8 @@ class LumenIntegration extends Integration
             'Laravel\Lumen\Application',
             'handleFoundRoute',
             [
-                $hook => function (SpanData $span, $args) use ($rootSpan, $appName) {
-                    $span->service = $appName;
+                $hook => function (SpanData $span, $args) use ($rootSpan) {
+                    SpanTaxonomy::instance()->handleServiceName($span, LumenIntegration::NAME);
                     $span->type = 'web';
                     if (count($args) < 1 || !\is_array($args[0])) {
                         return;
@@ -106,8 +106,8 @@ class LumenIntegration extends Integration
             ]
         );
 
-        $exceptionRender = function (SpanData $span, $args) use ($rootSpan, $appName, $integration) {
-            $span->service = $appName;
+        $exceptionRender = function (SpanData $span, $args) use ($rootSpan, $integration) {
+            SpanTaxonomy::instance()->handleServiceName($span, LumenIntegration::NAME);
             $span->type = 'web';
             if (count($args) < 1 || !\is_a($args[0], 'Throwable')) {
                 return;

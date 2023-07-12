@@ -131,6 +131,7 @@ class EloquentIntegration extends Integration
     }
 
     /**
+     * @internal
      * @return string
      */
     private function getFallbackAppName()

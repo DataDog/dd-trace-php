@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\MongoDB;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -608,7 +609,7 @@ class MongoDBIntegration extends Integration
     /**
      * Sets all relevant metadata in a consistent way
      *
-     * @param DDTrace\SpanData $span
+     * @param SpanData $span
      * @param string $name
      * @param string $method
      * @param string|null $database If null the corresponding metadata will  not be set.
@@ -631,7 +632,7 @@ class MongoDBIntegration extends Integration
         $rawQuery
     ) {
         $span->name = $name;
-        $span->service = 'mongodb';
+        SpanTaxonomy::instance()->handleServiceName($span, MongoDBIntegration::NAME);
         $span->type = Type::MONGO;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $serializedQuery = $rawQuery ? MongoDBIntegration::serializeQuery($rawQuery) : null;

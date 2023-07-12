@@ -3,6 +3,7 @@
 require __DIR__ . '/../../../autoload.php';
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Integrations\ZendFramework\V1\TraceRequest;
 
 class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
@@ -19,7 +20,7 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
 
         $span = \DDTrace\root_span();
         $span->name = self::getOperationName();
-        $span->service = \ddtrace_config_app_name(self::NAME);
+        SpanTaxonomy::instance()->handleServiceName($span, DDTrace_Ddtrace::NAME);
     }
 
     /**

@@ -122,7 +122,7 @@ class LaravelQueueIntegration extends Integration
                             $span = $hook->span();
                             $span->name = 'laravel.queue.action';
                             $span->type = 'queue';
-                            SpanTaxonomy::instance()->handleServiceName($span, LaravelQueueIntegration::NAME);
+                            SpanTaxonomy::instance()->handleServiceName($span, $integration->getFallbackAppName());
                             $span->resource = $class . '@' . $method;
                             $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
 
@@ -249,7 +249,7 @@ class LaravelQueueIntegration extends Integration
         $resourceSubstitute = null
     ) {
         $span->name = $name;
-        SpanTaxonomy::instance()->handleServiceName($span, LaravelQueueIntegration::NAME);
+        SpanTaxonomy::instance()->handleServiceName($span, $integration->getFallbackAppName());
         $span->type = 'queue';
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
@@ -366,5 +366,15 @@ class LaravelQueueIntegration extends Integration
 
         $this->appName = $name ?: 'laravel';
         return $this->appName;
+    }
+
+    /**
+     * @internal
+     * @return string
+     */
+    public function getFallbackAppName()
+    {
+        $name = is_callable('config') ? config('app.name') : null;
+        return $name ?: 'laravel';
     }
 }

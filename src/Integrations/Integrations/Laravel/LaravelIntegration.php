@@ -433,6 +433,7 @@ class LaravelIntegration extends Integration
     }
 
     /**
+     * @internal
      * @return string
      */
     private function getFallbackAppName()

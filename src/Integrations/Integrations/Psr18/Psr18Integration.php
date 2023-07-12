@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Psr18;
 
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -36,7 +37,7 @@ class Psr18Integration extends Integration
             function (SpanData $span, $args, $retval) use ($integration) {
                 $span->resource = 'sendRequest';
                 $span->name = 'Psr\Http\Client\ClientInterface.sendRequest';
-                $span->service = 'psr18';
+                SpanTaxonomy::instance()->handleServiceName($span, Psr18Integration::NAME);
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = 'client';
                 $span->meta[Tag::COMPONENT] = Psr18Integration::NAME;

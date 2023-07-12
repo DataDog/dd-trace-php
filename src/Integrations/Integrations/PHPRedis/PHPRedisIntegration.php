@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\PHPRedis;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -316,7 +317,8 @@ class PHPRedisIntegration extends Integration
 
     public static function enrichSpan(SpanData $span, $instance, $class, $method = null)
     {
-        $span->service = ObjectKVStore::get($instance, 'service', 'phpredis');
+        // TODO: handle split by instance
+        SpanTaxonomy::instance()->handleServiceName($span, PHPRedisIntegration::NAME);
         $span->type = Type::REDIS;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PHPRedisIntegration::NAME;
