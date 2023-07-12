@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Curl;
 
 use DDTrace\Http\Urls;
+use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -85,6 +86,10 @@ final class CurlIntegration extends Integration
                  */
                 if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
                     $span->meta[Tag::HTTP_URL] = $sanitizedUrl;
+                }
+
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
                 }
 
                 addSpanDataTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
