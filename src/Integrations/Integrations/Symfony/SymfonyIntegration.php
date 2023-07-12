@@ -96,7 +96,9 @@ class SymfonyIntegration extends Integration
                        return;
                   }
 
-                  $entities = $This->getScheduledEntityInsertions();
+                  $entities = \method_exists($This, 'getScheduledEntityInsertions') ?
+                    $This->getScheduledEntityInsertions():
+                    [];
                   $userInterface = 'Symfony\Component\Security\Core\User\UserInterface';
                   $found = 0;
                   $userEntity = null;
