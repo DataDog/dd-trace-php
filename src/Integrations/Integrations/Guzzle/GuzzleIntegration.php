@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Guzzle;
 
 use DDTrace\Http\Urls;
+use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -38,8 +39,18 @@ class GuzzleIntegration extends Integration
                 $span->name = 'GuzzleHttp\Client.send';
                 $span->service = 'guzzle';
                 $span->type = Type::HTTP_CLIENT;
-                $span->meta[Tag::SPAN_KIND] = 'client';
+                $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
                 $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
+
+                if (
+                    \PHP_MAJOR_VERSION > 5
+                    && \defined('GuzzleHttp\ClientInterface::VERSION')
+                    && substr(\GuzzleHttp\ClientInterface::VERSION, 0, 2) === '5.'
+                ) {
+                    // On Guzzle 6+, we do not need to generate peer.service for the send span,
+                    // as the terminal span is 'transfer'
+                    $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
 
                 if (isset($args[0])) {
                     $integration->addRequestInfo($span, $args[0]);
@@ -71,8 +82,12 @@ class GuzzleIntegration extends Integration
                 $span->name = 'GuzzleHttp\Client.transfer';
                 $span->service = 'guzzle';
                 $span->type = Type::HTTP_CLIENT;
-                $span->meta[Tag::SPAN_KIND] = 'client';
+                $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
                 $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
+
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
 
                 if (isset($args[0])) {
                     $integration->addRequestInfo($span, $args[0]);
@@ -97,6 +112,9 @@ class GuzzleIntegration extends Integration
         if (\is_a($request, 'Psr\Http\Message\RequestInterface')) {
             /** @var \Psr\Http\Message\RequestInterface $request */
             $url = $request->getUri();
+            $host = Urls::hostname($url);
+            $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
+
             if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.http_client_split_by_domain")) {
                 $span->service = Urls::hostnameForTag($url);
             }
@@ -108,6 +126,10 @@ class GuzzleIntegration extends Integration
         } elseif (\is_a($request, 'GuzzleHttp\Message\RequestInterface')) {
             /** @var \GuzzleHttp\Message\RequestInterface $request */
             $url = $request->getUrl();
+            $host = Urls::hostname($url);
+            if ($host) {
+                $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
+            }
             if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.http_client_split_by_domain")) {
                 $span->service = Urls::hostnameForTag($url);
             }

@@ -5,6 +5,7 @@ return [
     __DIR__ . '/configuration.php',
     __DIR__ . '/../src/Integrations/Integrations/AbstractIntegrationConfiguration.php',
     __DIR__ . '/../src/Integrations/Integrations/DatabaseIntegrationHelper.php',
+    __DIR__ . '/../src/Integrations/Integrations/HttpClientIntegrationHelper.php',
     __DIR__ . '/../src/Integrations/Integrations/DefaultIntegrationConfiguration.php',
     __DIR__ . '/../src/Integrations/Integrations/Integration.php',
     __DIR__ . '/../src/Integrations/Integrations/AMQP/AMQPIntegration.php',
