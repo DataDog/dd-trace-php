@@ -86,6 +86,10 @@ class SymfonyIntegration extends Integration
             'Doctrine\ORM\UnitOfWork',
             'executeInserts',
             function ($This, $scope, $args) {
+                  if (!function_exists('\datadog\appsec\track_user_signup_event'))
+                  {
+                    return;
+                  }
                   $metadataClass = 'Doctrine\ORM\Mapping\ClassMetadata';
                   if (
                        !$args ||
