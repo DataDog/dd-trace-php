@@ -151,7 +151,11 @@ class SymfonyIntegration extends Integration
                 }
                 $metadata = [];
 
-                \datadog\appsec\track_user_login_success_event($token->getUsername(), $metadata, true);
+                \datadog\appsec\track_user_login_success_event(
+                    \method_exists($token, 'getUsername') ? $token->getUsername(): '',
+                    $metadata,
+                    true
+                );
             }
         );
 
@@ -241,12 +245,16 @@ class SymfonyIntegration extends Integration
                 }
                 $metadata = [];
 
-                $user = $token->getUser();
+                $user = \method_exists($token, 'getUser') ? $token->getUser(): null;
                 $userClass = '\Symfony\Component\Security\Core\User\UserInterface';
                 if (!$user || !($user instanceof $userClass)) {
                     return;
                 }
-                \datadog\appsec\track_user_login_success_event($user->getUserIdentifier(), $metadata, true);
+                \datadog\appsec\track_user_login_success_event(
+                    \method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier(): '',
+                    $metadata,
+                    true
+                );
             }
         );
 
