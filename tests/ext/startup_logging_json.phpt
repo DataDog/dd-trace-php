@@ -24,7 +24,7 @@ enabled: true
 service: null
 enabled_cli: %s
 agent_url: "%s"
-debug: false
+debug: "Error"
 analytics_enabled: false
 sample_rate: 1
 sampling_rules: []

@@ -90,7 +90,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false")                                                         \
     CONFIG(BOOL, DD_TRACE_CLI_ENABLED, "false")                                                                \
     CONFIG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                                        \
-    CONFIG(BOOL, DD_TRACE_DEBUG, "false")                                                                      \
+    CONFIG(SET, DD_TRACE_DEBUG, "Error", .ini_change = ddtrace_alter_dd_trace_debug)                           \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true", .ini_change = ddtrace_alter_dd_trace_disabled_config)               \
     CONFIG(BOOL, DD_INSTRUMENTATION_TELEMETRY_ENABLED, "true", .ini_change = zai_config_system_ini_change)               \
     CONFIG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false", .ini_change = zai_config_system_ini_change)         \
@@ -217,5 +217,9 @@ DD_CONFIGURATION
 
 #undef CUSTOM
 #undef CALIAS
+
+static inline int ddtrace_quiet_zpp(void) {
+    return PHP_DEBUG ? 0 : ZEND_PARSE_PARAMS_QUIET;
+}
 
 #endif  // DD_CONFIGURATION_H

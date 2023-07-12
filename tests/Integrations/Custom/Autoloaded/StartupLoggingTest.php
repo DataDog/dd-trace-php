@@ -58,7 +58,7 @@ final class StartupLoggingTest extends WebFrameworkTestCase
 
         $config = self::getStartupLogsArray();
 
-        self::assertTrue($config['debug']);
+        self::assertSame("true", $config['debug']);
         self::assertSame('my-env', $config['env']);
         self::assertSame('my-service', $config['service']);
         self::assertSame(0.42, $config['sample_rate']);

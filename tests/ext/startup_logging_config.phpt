@@ -65,7 +65,7 @@ dd_dump_startup_logs($logs, [
 env: "my-env"
 service: "my-service"
 enabled_cli: false
-debug: true
+debug: "1"
 sample_rate: 0.4200
 sampling_rules: [{"service":"a.*","name":"b","sample_rate":0.1},{"sample_rate":0.2}]
 tags: {"key1":"value1","key2":"value2"}

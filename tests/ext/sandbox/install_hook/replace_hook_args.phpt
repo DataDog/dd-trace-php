@@ -47,19 +47,19 @@ Array
     [2] => 7
     [3] => 8
 )
-Cannot set more args than provided: got too many arguments for hook in %s:%d
+Cannot set more args than provided: got too many arguments for hook in %s on line %d; This message is only displayed once. Append 'Once' DD_TRACE_DEBUG= to show all messages (e.g. DD_TRACE_DEBUG=Error,Once).
 Array
 (
     [0] => 1
     [1] => 2
 )
-Not enough args provided for hook in %s:%d
+Not enough args provided for hook in %s on line %d; This message is only displayed once. Append 'Once' DD_TRACE_DEBUG= to show all messages (e.g. DD_TRACE_DEBUG=Error,Once).
 Array
 (
     [0] => 1
     [1] => 2
 )
-Can't pass less args to an untyped function than originally passed (minus extra args) in %s:%d
+Can't pass less args to an untyped function than originally passed (minus extra args) in %s on line %d; This message is only displayed once. Append 'Once' DD_TRACE_DEBUG= to show all messages (e.g. DD_TRACE_DEBUG=Error,Once).
 Array
 (
     [0] => 1

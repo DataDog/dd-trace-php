@@ -22,7 +22,7 @@ echo include "testinclude.inc", "\n";
 
 ?>
 --EXPECTF--
-Could not add hook to file path ../testinclude.inc, could not resolve path This message is only displayed once. Use DD_TRACE_DEBUG=1 to show all messages.
+Could not add hook to file path ../testinclude.inc, could not resolve path in %s on line %d; This message is only displayed once. Append 'Once' DD_TRACE_DEBUG= to show all messages (e.g. DD_TRACE_DEBUG=Error,Once).
 %s/install_hook/testinclude.inc: %s/install_hook/testinclude.inc, ret: test
 ./testinclude.inc: %s/install_hook/testinclude.inc, ret: test
 testinclude.inc: %s/install_hook/testinclude.inc, ret: test
