@@ -3,13 +3,14 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\HookData;
+use DDTrace\Tag;
 
 class DatabaseIntegrationHelper
 {
-    public static $PEER_SERVICE_SOURCES = [
-        'db.name',
-        'mongodb.db',
-        'out.host',
+    const PEER_SERVICE_SOURCES = [
+        Tag::DB_NAME,
+        Tag::MONGODB_DATABASE,
+        Tag::TARGET_HOST,
     ];
 
     public static function injectDatabaseIntegrationData(HookData $hook, $backend, $argNum = 0)
