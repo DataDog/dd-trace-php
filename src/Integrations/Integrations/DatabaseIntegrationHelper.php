@@ -8,7 +8,8 @@ use DDTrace\Tag;
 class DatabaseIntegrationHelper
 {
     const PEER_SERVICE_SOURCES = [
-        Tag::DB_NAME,
+        Tag::DB_INSTANCE,
+        Tag::DB_NAME, // Deprecated, used by legacy integrations only
         Tag::MONGODB_DATABASE,
 
         // For cases like RedisCluster when the cluster name is not defined, we use the first configured host as an
