@@ -14,10 +14,11 @@ bitflags! {
         const Once = 1 << 0;
         const Error = 1 << 1;
         const Warn = 1 << 2;
-        const Deprecated = (1 << 3) | 1 /* Once */;
-        const SpanTracing = 1 << 4;
-        const Sampling = 1 << 5;
-        const Startup = 1 << 6;
+        const Info = 1 << 3;
+        const Deprecated = (1 << 4) | 1 /* Once */;
+        const SpanTracing = 1 << 5;
+        const Sampling = 1 << 6;
+        const Startup = 1 << 7;
     }
 }
 
@@ -66,7 +67,7 @@ pub unsafe extern "C" fn ddog_parse_log_level(levels: *const CharSlice, num: usi
     if levels.len() == 1 {
         let first_level = levels[0].to_utf8_lossy();
         if first_level == "1" || first_level == "true" || first_level == "On" {
-            total_level = Log::Error | Log::Warn | Log::Deprecated;
+            total_level = Log::Error | Log::Warn | Log::Info | Log::Deprecated;
             if startup_logs_by_default {
                 total_level |= Log::Startup;
             }
@@ -81,6 +82,10 @@ pub unsafe extern "C" fn ddog_parse_log_level(levels: *const CharSlice, num: usi
         }
     }
 
+    // Info always implies warn
+    if total_level.contains(Log::Info) {
+        total_level |= Log::Warn;
+    }
     // Warn always implies error
     if total_level.contains(Log::Warn) {
         total_level |= Log::Error;

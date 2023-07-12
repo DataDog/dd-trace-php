@@ -12,10 +12,11 @@
 #define ddog_Log_Once (ddog_Log){ .bits = (uint32_t)(1 << 0) }
 #define ddog_Log_Error (ddog_Log){ .bits = (uint32_t)(1 << 1) }
 #define ddog_Log_Warn (ddog_Log){ .bits = (uint32_t)(1 << 2) }
-#define ddog_Log_Deprecated (ddog_Log){ .bits = (uint32_t)((1 << 3) | 1) }
-#define ddog_Log_SpanTracing (ddog_Log){ .bits = (uint32_t)(1 << 4) }
-#define ddog_Log_Sampling (ddog_Log){ .bits = (uint32_t)(1 << 5) }
-#define ddog_Log_Startup (ddog_Log){ .bits = (uint32_t)(1 << 6) }
+#define ddog_Log_Info (ddog_Log){ .bits = (uint32_t)(1 << 3) }
+#define ddog_Log_Deprecated (ddog_Log){ .bits = (uint32_t)((1 << 4) | 1) }
+#define ddog_Log_SpanTracing (ddog_Log){ .bits = (uint32_t)(1 << 5) }
+#define ddog_Log_Sampling (ddog_Log){ .bits = (uint32_t)(1 << 6) }
+#define ddog_Log_Startup (ddog_Log){ .bits = (uint32_t)(1 << 7) }
 
 typedef uint64_t ddog_QueueId;
 

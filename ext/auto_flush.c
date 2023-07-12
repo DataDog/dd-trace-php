@@ -29,7 +29,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
 
     if (zend_hash_num_elements(Z_ARR(trace)) == 0) {
         zend_array_destroy(Z_ARR(trace));
-        LOG(Warn, "No finished traces to be sent to the agent");
+        LOG(Info, "No finished traces to be sent to the agent");
         return SUCCESS;
     }
 
@@ -47,7 +47,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
             success = ddtrace_send_traces_via_thread(1, payload, size);
             if (success) {
                 char *url = ddtrace_agent_url();
-                LOG(Warn, "Flushing trace of size %d to send-queue for %s",
+                LOG(Info, "Flushing trace of size %d to send-queue for %s",
                                    zend_hash_num_elements(Z_ARR(trace)), url);
                 free(url);
             }
