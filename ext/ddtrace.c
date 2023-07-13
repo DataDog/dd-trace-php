@@ -212,6 +212,31 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
+static inline bool dd_alter_meta_var(const char *tag, zval *old_value, zval *new_value) {
+    UNUSED(old_value);
+
+    ddtrace_span_data *span = ddtrace_active_span();
+    while (span) {
+        zend_array *meta = ddtrace_spandata_property_meta(span);
+        if (Z_STRLEN_P(new_value) == 0) {
+            zend_hash_str_del(meta, tag, strlen(tag));
+        } else {
+            Z_TRY_ADDREF_P(new_value);
+            zend_hash_str_update(meta, tag, strlen(tag), new_value);
+        }
+        span = span->parent;
+    }
+
+    return true;
+}
+
+bool ddtrace_alter_dd_env(zval *old_value, zval *new_value) {
+    return dd_alter_meta_var("env", old_value, new_value);
+}
+bool ddtrace_alter_dd_version(zval *old_value, zval *new_value) {
+    return dd_alter_meta_var("version", old_value, new_value);
+}
+
 static void dd_activate_once(void) {
     ddtrace_config_first_rinit();
     ddtrace_generate_runtime_id();
