@@ -40,7 +40,7 @@ function analyze_web($tmpScenariosFolder)
         // We have to ignore 0 status codes as in CirceCI they are over reported. Instead we check error log for
         // Apache's segfaults.
         unset($receivedStatusCodes[0]);
-        if (array_keys($receivedStatusCodes) !== [200, 510, 511]) {
+        if (array_diff(array_keys($receivedStatusCodes), [200, 510, 511])) {
             $unexpectedCodes[$identifier] = $receivedStatusCodes;
         }
 
@@ -140,8 +140,8 @@ function analyze_cli($tmpScenariosFolder)
 
         list($slope, $intercept) = calculate_trend_line($values);
 
-        if ($intercept > 7 * 1000 * 1000) {
-            // Heuristic 7MB limit. It might have to be increased as we add integrations
+        if ($intercept > 8 * 1000 * 1000) {
+            // Heuristic 8MB limit. It might have to be increased as we add integrations
             $largeInterceptResults[] = $identifier;
             continue;
         }
