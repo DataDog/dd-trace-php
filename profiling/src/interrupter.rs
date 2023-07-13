@@ -24,19 +24,25 @@ mod crossbeam {
     use crossbeam_channel::{bounded, select, tick, Sender, TrySendError};
     use libc::sched_yield;
     use log::{trace, warn};
+    use std::sync::Arc;
     use std::thread::JoinHandle;
     use std::time::Duration;
 
     #[derive(Debug)]
-    enum Message {
+    enum AsyncMessage {
         Start,
-        Stop,
+    }
+
+    #[derive(Debug)]
+    enum SyncMessage {
         Pause,
         Shutdown,
     }
 
     pub struct Interrupter {
-        sender: Sender<Message>,
+        active: Arc<AtomicBool>,
+        async_sender: Sender<AsyncMessage>,
+        sync_sender: Sender<SyncMessage>,
         join_handle: Option<JoinHandle<()>>,
     }
 
@@ -84,11 +90,20 @@ mod crossbeam {
         const THREAD_NAME: &'static str = "ddprof_time";
 
         pub fn new(signal_pointers: SignalPointers, wall_time_period_nanoseconds: u64) -> Self {
+            let active = Arc::new(AtomicBool::new(false));
+
+            // A clone is needed for the other thread.
+            let php_thread_active = active.clone();
+
             // > A special case is zero-capacity channel, which cannot hold
             // > any messages. Instead, send and receive operations must
             // > appear at the same time in order to pair up and pass the
             // > message over.
-            let (sender, receiver) = bounded(0);
+            let (sync_sender, sync_receiver) = bounded(0);
+
+            // The number 7 here is arbitrary.
+            let (async_sender, async_receiver) = bounded(7);
+
             let signal_pointers = SendableSignalPointers::from(signal_pointers);
             let join_handle = spawn(Self::THREAD_NAME, move || {
                 let thread = std::thread::current();
@@ -96,40 +111,51 @@ mod crossbeam {
 
                 let wall_interval = Duration::from_nanos(wall_time_period_nanoseconds);
                 let ticker = tick(wall_interval);
-                let mut active = false;
 
                 // The goal is to wait on ticker if the associated PHP thread
-                // is serving a request. A tick or two after it ends may occur,
-                // but if the PHP thread is idle, like if it's being kept open
-                // with Connection: Keep-Alive, then we really need to limit
-                // how much we wake up.
+                // is serving a request. A tick may occur after it ends, but
+                // not more than once. If the PHP thread is idle, like if it's
+                // being kept open with Connection: Keep-Alive, then it needs
+                // to limit on how much it wakes up when a request isn't being
+                // made.
 
-                // The code below has two select!s, where one of the recv's is
-                // the same -- the code to handle receiving messages. The
-                // difference is we only recv on the ticker if we're in an
-                // `active` state.
                 loop {
-                    if active {
+                    // The if/else branches should be the same, except that
+                    // the code path which recv's ticker messages should not
+                    // be present on the branch that handles the case when PHP
+                    // isn't serving a request.
+                    if php_thread_active.load(Ordering::SeqCst) {
                         select! {
                             // Remember to duplicate any changes to the else
                             // branch below.
-                            recv(receiver) -> message => match message {
-                                Ok(Message::Start) => {
-                                    active = true;
-                                }
-                                Ok(Message::Stop) => {
-                                    active = false;
-                                }
-                                Ok(Message::Pause) => {
-                                    std::thread::park();
-                                }
-                                _ => {
+                            recv(async_receiver) -> message => match message {
+                                // This message is just to wake the thread up.
+                                Ok(AsyncMessage::Start) => {},
+                                Err(err) => {
+                                    warn!("{err:#}");
                                     break;
-                                }
+                                },
                             },
 
+                            recv(sync_receiver) -> message => match message {
+                                Ok(SyncMessage::Pause) => {
+                                    std::thread::park();
+                                },
+
+                                Ok(SyncMessage::Shutdown) => break,
+                                Err(err) => {
+                                    warn!("{err:#}");
+                                    break;
+                                },
+                            },
+
+                            // Except don't duplicate this recv.
                             recv(ticker) -> message => match message {
-                                Ok(_) => signal_pointers.notify(),
+                                Ok(_) => {
+                                    if php_thread_active.load(Ordering::SeqCst) {
+                                        signal_pointers.notify();
+                                    }
+                                },
 
                                 // How does a timer fail?
                                 Err(err) => {
@@ -142,19 +168,25 @@ mod crossbeam {
                         // It's not great that we duplicate this code, but it
                         // was the only way I could get it to compile.
                         select! {
-                            recv(receiver) -> message => match message {
-                                Ok(Message::Start) => {
-                                    active = true;
-                                }
-                                Ok(Message::Stop) => {
-                                    active = false;
-                                }
-                                Ok(Message::Pause) => {
-                                    std::thread::park();
-                                }
-                                _ => {
+                            recv(async_receiver) -> message => match message {
+                                // This message is just to wake the thread up.
+                                Ok(AsyncMessage::Start) => {},
+                                Err(err) => {
+                                    warn!("{err:#}");
                                     break;
-                                }
+                                },
+                            },
+
+                            recv(sync_receiver) -> message => match message {
+                                Ok(SyncMessage::Pause) => {
+                                    std::thread::park();
+                                },
+
+                                Ok(SyncMessage::Shutdown) => break,
+                                Err(err) => {
+                                    warn!("{err:#}");
+                                    break;
+                                },
                             },
                         }
                     }
@@ -164,7 +196,9 @@ mod crossbeam {
             });
 
             Self {
-                sender,
+                active,
+                async_sender,
+                sync_sender,
                 join_handle: Some(join_handle),
             }
         }
@@ -179,22 +213,22 @@ mod crossbeam {
         }
 
         pub fn start(&self) -> anyhow::Result<()> {
-            self.sender
-                .send(Message::Start)
+            self.active.store(true, Ordering::SeqCst);
+            self.async_sender
+                .send(AsyncMessage::Start)
                 .map_err(|err| Self::err(err, format!("failed to start {}", Self::THREAD_NAME)))
         }
 
         pub fn stop(&self) -> anyhow::Result<()> {
-            self.sender
-                .send(Message::Stop)
-                .map_err(|err| Self::err(err, format!("failed to stop {}", Self::THREAD_NAME)))
+            self.active.store(false, Ordering::SeqCst);
+            Ok(())
         }
 
         /// Try to pause the interrupter, which can be un-paused by calling
         /// [Interrupter::unpause].
         /// Note that this will not block, though it may yield the CPU core.
         pub fn try_pause(&self) -> anyhow::Result<()> {
-            match self.sender.try_send(Message::Pause) {
+            match self.sync_sender.try_send(SyncMessage::Pause) {
                 Err(e) if matches!(e, TrySendError::Disconnected(_)) => {
                     // If the channel is disconnected, time samples have already stopped.
                     Err(Self::err(
@@ -205,9 +239,11 @@ mod crossbeam {
                 Err(_) => {
                     // It's not disconnected, so let's retry (but just once).
                     unsafe { sched_yield() };
-                    self.sender.try_send(Message::Pause).map_err(|err| {
-                        Self::err(err, format!("failed to pause {}", Self::THREAD_NAME))
-                    })
+                    self.sync_sender
+                        .try_send(SyncMessage::Pause)
+                        .map_err(|err| {
+                            Self::err(err, format!("failed to pause {}", Self::THREAD_NAME))
+                        })
                 }
                 Ok(_) => Ok(()),
             }
@@ -222,8 +258,8 @@ mod crossbeam {
 
         pub fn shutdown(&mut self) -> anyhow::Result<()> {
             let timeout = Duration::from_secs(2);
-            self.sender
-                .send_timeout(Message::Shutdown, timeout)
+            self.sync_sender
+                .send_timeout(SyncMessage::Shutdown, timeout)
                 .map_err(|err| {
                     Self::err(err, format!("failed to shutdown {}", Self::THREAD_NAME))
                 })?;
