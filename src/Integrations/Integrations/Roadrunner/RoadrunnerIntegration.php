@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Roadrunner;
 
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 
@@ -44,6 +45,9 @@ class RoadrunnerIntegration extends Integration
         ini_set("datadog.trace.auto_flush_enabled", 1);
         ini_set("datadog.trace.generate_root_span", 0);
 
+        $service = \ddtrace_config_app_name('roadrunner');
+        SpanTaxonomy::registerCurrentRootService($service);
+
         \DDTrace\hook_method('Spiral\RoadRunner\Http\HttpWorker', 'waitRequest', [
             'prehook' => function () use (&$activeSpan) {
                 if ($activeSpan) {
@@ -51,14 +55,14 @@ class RoadrunnerIntegration extends Integration
                     \DDTrace\close_span();
                 }
             },
-            'posthook' => function ($worker, $scope, $args, $retval, $exception) use (&$activeSpan, $integration) {
+            'posthook' => function ($worker, $scope, $args, $retval, $exception) use (&$activeSpan, $integration, $service) {
                 if (!$retval && !$exception) {
                     return; // shutdown
                 }
 
                 /** @var ?\Spiral\RoadRunner\Http\Request $retval */
                 $activeSpan = \DDTrace\start_trace_span();
-                $activeSpan->service = \ddtrace_config_app_name('roadrunner');
+                $activeSpan->service = $service;
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
                 $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;

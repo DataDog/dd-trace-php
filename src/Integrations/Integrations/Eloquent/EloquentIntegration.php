@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Eloquent;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -104,7 +105,7 @@ class EloquentIntegration extends Integration
     public function setCommonValues(SpanData $span)
     {
         $span->type = Type::SQL;
-        $span->service = $this->getAppName();
+        SpanTaxonomy::handleInternalSpanServiceName($span, $this->getAppName());
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = EloquentIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = 'other_sql';

@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Laminas;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -161,6 +162,7 @@ class LaminasIntegration extends Integration
             [
                 'prehook' => function (SpanData $span) use ($rootSpan) {
                     $service = \ddtrace_config_app_name('laminas');
+                    SpanTaxonomy::registerCurrentRootService($service);
                     $rootSpan->name = 'laminas.request';
                     $rootSpan->service = $service;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';

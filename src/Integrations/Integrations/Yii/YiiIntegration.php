@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Yii;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -48,6 +49,7 @@ class YiiIntegration extends Integration
 
         $this->addTraceAnalyticsIfEnabled($rootSpan);
         $service = \ddtrace_config_app_name(YiiIntegration::NAME);
+        SpanTaxonomy::registerCurrentRootService($service);
 
         \DDTrace\trace_method(
             'yii\web\Application',

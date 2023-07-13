@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Symfony;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -49,6 +50,7 @@ class SymfonyIntegration extends Integration
                     }
 
                     $service = \ddtrace_config_app_name('symfony');
+                    SpanTaxonomy::registerCurrentRootService($service);
                     $rootSpan->name = 'symfony.request';
                     $rootSpan->service = $service;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
@@ -86,44 +88,42 @@ class SymfonyIntegration extends Integration
             'Doctrine\ORM\UnitOfWork',
             'executeInserts',
             function ($This, $scope, $args) {
-                  if (!function_exists('\datadog\appsec\track_user_signup_event'))
-                  {
+                if (!function_exists('\datadog\appsec\track_user_signup_event')) {
                     return;
-                  }
+                }
                   $metadataClass = 'Doctrine\ORM\Mapping\ClassMetadata';
-                  if (
+                if (
                        !$args ||
                        !isset($args[0]) ||
                        !$args[0] ||
                        !($args[0] instanceof $metadataClass)
-                  ) {
-                       return;
-                  }
+                ) {
+                     return;
+                }
 
                   $entities = \method_exists($This, 'getScheduledEntityInsertions') ?
-                    $This->getScheduledEntityInsertions():
+                    $This->getScheduledEntityInsertions() :
                     [];
                   $userInterface = 'Symfony\Component\Security\Core\User\UserInterface';
                   $found = 0;
                   $userEntity = null;
-                  foreach ($entities as $entity) {
+                foreach ($entities as $entity) {
                     if (! ($entity instanceof $userInterface)) {
                         continue;
                     }
                     $found++;
                     $userEntity = $entity;
-                  }
+                }
 
-                  if ($found != 1) {
+                if ($found != 1) {
                     return;
-                  }
+                }
 
                   \datadog\appsec\track_user_signup_event(
-                    \method_exists($userEntity, 'getUsername') ? $userEntity->getUsername() : '',
-                    [],
-                    true
+                      \method_exists($userEntity, 'getUsername') ? $userEntity->getUsername() : '',
+                      [],
+                      true
                   );
-
             }
         );
 
@@ -132,8 +132,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onFailure',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event'))
-                {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event')) {
                     return;
                 }
                 \datadog\appsec\track_user_login_failure_event(null, false, [], true);
@@ -144,8 +143,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onSuccess',
             function ($This, $scope, $args) use ($rootSpan, $integration) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event'))
-                {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -160,7 +158,7 @@ class SymfonyIntegration extends Integration
                 $metadata = [];
 
                 \datadog\appsec\track_user_login_success_event(
-                    \method_exists($token, 'getUsername') ? $token->getUsername(): '',
+                    \method_exists($token, 'getUsername') ? $token->getUsername() : '',
                     $metadata,
                     true
                 );

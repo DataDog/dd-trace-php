@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\WordPress\V4;
 
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -21,6 +22,7 @@ class WordPressIntegrationLoader
         $integration->addTraceAnalyticsIfEnabled($rootSpan);
         $rootSpan->name = 'wordpress.request';
         $service = \ddtrace_config_app_name(WordPressIntegration::NAME);
+        SpanTaxonomy::registerCurrentRootService($service);
         $rootSpan->service = $service;
         $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         $rootSpan->meta[Tag::SPAN_KIND] = 'server';

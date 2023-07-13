@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Lumen;
 
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 
 /**
@@ -49,6 +50,7 @@ class LumenIntegration extends Integration
 
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
+        SpanTaxonomy::registerCurrentRootService($appName);
 
         \DDTrace\trace_method(
             'Laravel\Lumen\Application',
