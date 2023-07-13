@@ -7,7 +7,9 @@ pub use interrupts::*;
 use stalk_walking::*;
 use uploader::*;
 
-use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data, ddog_php_prof_get_active_fiber};
+use crate::bindings::{
+    datadog_php_profiling_get_profiling_context, ddog_php_prof_get_active_fiber, zend_execute_data,
+};
 use crate::zend::ddog_php_prof_zend_string_view;
 use crate::{AgentEndpoint, RequestLocals};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
@@ -845,16 +847,23 @@ impl Profiler {
                 unsafe {
                     let functionname = Some(String::from_utf8_lossy(
                         ddog_php_prof_zend_string_view(
-                            (*(*fiber).fci_cache.function_handler).op_array.function_name
-                                .as_mut()).into_bytes(),
-                    )).unwrap();
+                            (*(*fiber).fci_cache.function_handler)
+                                .op_array
+                                .function_name
+                                .as_mut(),
+                        )
+                        .into_bytes(),
+                    ))
+                    .unwrap();
 
                     if !(*fiber).fci_cache.object.is_null() {
                         let classname = Some(String::from_utf8_lossy(
                             ddog_php_prof_zend_string_view(
-                                (*(*(*fiber).fci_cache.object).ce).name
-                                    .as_mut()).into_bytes(),
-                        )).unwrap();
+                                (*(*(*fiber).fci_cache.object).ce).name.as_mut(),
+                            )
+                            .into_bytes(),
+                        ))
+                        .unwrap();
                         let name = format!("{}::{}", classname, functionname);
                         labels.push(Label {
                             key: "fiber",
