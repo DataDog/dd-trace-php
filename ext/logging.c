@@ -94,19 +94,19 @@ void ddtrace_log_init(void) {
 bool ddtrace_alter_dd_trace_debug(zval *old_value, zval *new_value) {
     UNUSED(old_value);
 
-    /* Multiple log levels, maybe do it some day?
+    /* Multiple log categories, maybe do it some day?
     ALLOCA_FLAG(use_heap);
-    size_t num_levels = zend_hash_num_elements(Z_ARR_P(new_value));
-    ddog_CharSlice *levels = do_alloca(num_levels * sizeof(ddog_CharSlice), use_heap);
+    size_t num_categories = zend_hash_num_elements(Z_ARR_P(new_value));
+    ddog_CharSlice *categories = do_alloca(num_categories * sizeof(ddog_CharSlice), use_heap);
 
-    zend_string *log_level;
+    zend_string *log_category;
     int i = 0;
-    ZEND_HASH_FOREACH_STR_KEY(Z_ARR_P(new_value), log_level) {
-        levels[i++] = dd_zend_string_to_CharSlice(log_level);
+    ZEND_HASH_FOREACH_STR_KEY(Z_ARR_P(new_value), log_category) {
+        categories[i++] = dd_zend_string_to_CharSlice(log_category);
     } ZEND_HASH_FOREACH_END();
 
-    ddog_parse_log_level(levels, num_levels, strcmp("cli", sapi_module.name) != 0 && get_global_DD_TRACE_STARTUP_LOGS());
-    free_alloca(levels, use_heap);
+    ddog_parse_log_categories(categories, num_categories, strcmp("cli", sapi_module.name) != 0 && get_global_DD_TRACE_STARTUP_LOGS());
+    free_alloca(categories, use_heap);
     */
 
     ddog_Log log = ddog_Log_Error;
@@ -119,7 +119,7 @@ bool ddtrace_alter_dd_trace_debug(zval *old_value, zval *new_value) {
     if (!(runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS())) {
         log.bits |= ddog_Log_Once.bits;
     }
-    ddog_set_log_level(log);
+    ddog_set_log_category(log);
 
     return true;
 }

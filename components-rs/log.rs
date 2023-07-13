@@ -38,14 +38,14 @@ macro_rules! thread_local {
 pub static mut ddog_log_callback: Option<extern "C" fn(Log, CharSlice)> = None;
 
 // Avoid RefCell for performance
-thread_local! { static mut LOG_LEVEL: Log = Log::Once.union(Log::Error); }
+thread_local! { static mut LOG_CATEGORY: Log = Log::Once.union(Log::Error); }
 std::thread_local! {
     static LOGGED_MSGS: RefCell<BTreeSet<String>> = RefCell::default();
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_shall_log(level: Log) -> bool {
-    unsafe { LOG_LEVEL }.contains(level & !Log::Once)
+    unsafe { LOG_CATEGORY }.contains(level & !Log::Once)
 }
 
 pub fn log<S>(level: Log, msg: S) where S: AsRef<str> {
@@ -53,61 +53,61 @@ pub fn log<S>(level: Log, msg: S) where S: AsRef<str> {
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_set_log_level(level: Log) {
-    unsafe { LOG_LEVEL = level; }
+pub extern "C" fn ddog_set_log_category(level: Log) {
+    unsafe { LOG_CATEGORY = level; }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_parse_log_level(levels: *const CharSlice, num: usize, startup_logs_by_default: bool) {
-    let mut total_level = Log::None;
-    let levels = slice::from_raw_parts(levels, num);
+pub unsafe extern "C" fn ddog_parse_log_category(category_names: *const CharSlice, num: usize, startup_logs_by_default: bool) {
+    let mut categories = Log::None;
+    let category_names = slice::from_raw_parts(category_names, num);
 
-    if levels.len() == 1 {
-        let first_level = levels[0].to_utf8_lossy();
+    if category_names.len() == 1 {
+        let first_level = category_names[0].to_utf8_lossy();
         if first_level == "1" || first_level == "true" || first_level == "On" {
-            total_level = Log::Error | Log::Warn | Log::Info | Log::Deprecated;
+            categories = Log::Error | Log::Warn | Log::Info | Log::Deprecated;
             if startup_logs_by_default {
-                total_level |= Log::Startup;
+                categories |= Log::Startup;
             }
         }
     }
 
-    for level_name in levels {
-        for (name, level) in Log::all().iter_names() {
-            if name.eq_ignore_ascii_case(&level_name.to_utf8_lossy()) {
-                total_level |= level;
+    for category_name in category_names {
+        for (name, category) in Log::all().iter_names() {
+            if name.eq_ignore_ascii_case(&category_name.to_utf8_lossy()) {
+                categories |= category;
             }
         }
     }
 
     // Info always implies warn
-    if total_level.contains(Log::Info) {
-        total_level |= Log::Warn;
+    if categories.contains(Log::Info) {
+        categories |= Log::Warn;
     }
     // Warn always implies error
-    if total_level.contains(Log::Warn) {
-        total_level |= Log::Error;
+    if categories.contains(Log::Warn) {
+        categories |= Log::Error;
     }
 
-    ddog_set_log_level(total_level);
+    ddog_set_log_category(categories);
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_log(level: Log, msg: CharSlice) {
+pub extern "C" fn ddog_log(category: Log, msg: CharSlice) {
     if let Some(cb) = unsafe { ddog_log_callback } {
-        if level.contains(Log::Once) && !unsafe { LOG_LEVEL }.contains(Log::Once) {
+        if category.contains(Log::Once) && !unsafe { LOG_CATEGORY }.contains(Log::Once) {
             LOGGED_MSGS.with(|logged| {
                 let mut logged = logged.borrow_mut();
                 let msgstr = unsafe { msg.to_utf8_lossy() };
                 if !logged.contains(msgstr.as_ref()) {
                     let msg = msgstr.to_string();
                     let once_msg = format!("{}; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.\0", msg);
-                    cb(level, unsafe { CharSlice::new(once_msg.as_ptr() as *const c_char, once_msg.len() - 1) });
+                    cb(category, unsafe { CharSlice::new(once_msg.as_ptr() as *const c_char, once_msg.len() - 1) });
                     logged.insert(msg);
                 }
             });
         } else {
-            cb(level, msg);
+            cb(category, msg);
         }
     }
 }

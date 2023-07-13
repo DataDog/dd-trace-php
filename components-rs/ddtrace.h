@@ -143,13 +143,13 @@ void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
 
 bool ddog_shall_log(struct ddog_Log level);
 
-void ddog_set_log_level(struct ddog_Log level);
+void ddog_set_log_category(struct ddog_Log level);
 
-void ddog_parse_log_level(const ddog_CharSlice *levels,
-                          uintptr_t num,
-                          bool startup_logs_by_default);
+void ddog_parse_log_category(const ddog_CharSlice *category_names,
+                             uintptr_t num,
+                             bool startup_logs_by_default);
 
-void ddog_log(struct ddog_Log level, ddog_CharSlice msg);
+void ddog_log(struct ddog_Log category, ddog_CharSlice msg);
 
 void ddog_reset_log_once(void);
 
