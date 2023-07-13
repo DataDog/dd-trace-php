@@ -93,6 +93,35 @@ class WordPressIntegration extends Integration
             }
         );
 
+
+         \DDTrace\hook_function(
+            'register_new_user',
+            null,
+            function ($args, $retval) {
+                 if (!function_exists('\datadog\appsec\track_user_signup_event'))
+                  {
+                    return;
+                  }
+                  $errorClass = '\WP_Error';
+                  if ($retval instanceof $errorClass) {
+                    return;
+                  }
+                  $metadata = [];
+                  if (isset($args[0])) {
+                    $metadata['username'] = $args[0];
+                  }
+                  if (isset($args[1])) {
+                     $metadata['email'] = $args[1];
+                  }
+                 \datadog\appsec\track_user_signup_event(
+                    $retval,
+                    $metadata,
+                    true
+                  );
+            }
+        );
+
+
         return self::LOADED;
     }
 }
