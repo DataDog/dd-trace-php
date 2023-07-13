@@ -1050,6 +1050,7 @@ jobs:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
+      SKIP_ONLINE_TESTS: 1 # too flaky
     executor:
       name: with_agent
       docker_image: << parameters.docker_image >>

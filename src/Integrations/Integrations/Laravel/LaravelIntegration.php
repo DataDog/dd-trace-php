@@ -350,7 +350,11 @@ class LaravelIntegration extends Integration
                if (isset($args[0]['email'])) {
                    $metadata['email'] = $args[0]['email'];
                }
-               \datadog\appsec\track_user_login_success_event($args[0]->getAuthIdentifier(), $metadata, true);
+               \datadog\appsec\track_user_login_success_event(
+                    \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier(): '',
+                    $metadata,
+                    true
+               );
             }
         );
 
@@ -377,7 +381,11 @@ class LaravelIntegration extends Integration
                     $metadata['email'] = $args[0]['email'];
                 }
 
-                \datadog\appsec\track_user_login_success_event($args[0]->getAuthIdentifier(), $metadata, true);
+                \datadog\appsec\track_user_login_success_event(
+                    \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier(): '',
+                    $metadata,
+                    true
+                );
             }
         );
 
@@ -409,7 +417,11 @@ class LaravelIntegration extends Integration
                 ) {
                     return;
                 }
-                \datadog\appsec\track_user_signup_event($args[0]->getAuthIdentifier(), [], true);
+                \datadog\appsec\track_user_signup_event(
+                    \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier(): '',
+                    [],
+                    true
+                );
             }
         );
 

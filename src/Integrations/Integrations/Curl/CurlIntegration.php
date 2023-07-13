@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Curl;
 
 use DDTrace\Http\Urls;
+use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
@@ -53,6 +54,7 @@ final class CurlIntegration extends Integration
                 SpanTaxonomy::instance()->handleServiceName($span, CurlIntegration::NAME);
                 $integration->addTraceAnalyticsIfEnabled($span);
                 $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
+                $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
 
                 if (!isset($args[0])) {
                     return;
@@ -70,6 +72,8 @@ final class CurlIntegration extends Integration
                 $info = \curl_getinfo($ch);
                 $sanitizedUrl = \DDTrace\Util\Normalizer::urlSanitize($info['url']);
                 $normalizedPath = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($info['url']);
+                $host = Urls::hostname($sanitizedUrl);
+                $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
                 unset($info['url']);
 
                 if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.http_client_split_by_domain")) {
@@ -83,6 +87,10 @@ final class CurlIntegration extends Integration
                  */
                 if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
                     $span->meta[Tag::HTTP_URL] = $sanitizedUrl;
+                }
+
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
                 }
 
                 addSpanDataTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
