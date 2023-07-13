@@ -129,7 +129,7 @@ class LaminasIntegration extends Integration
             'bootstrap',
             function (SpanData $span) {
                 $span->name = 'laminas.application.bootstrap';
-                $span->resource = 'laminas.application.bootstrap';->
+                $span->resource = 'laminas.application.bootstrap';
                 $span->type = Type::WEB_SERVLET;
                 SpanTaxonomy::instance()->handleServiceName($span, LaminasIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = 'laminas';
