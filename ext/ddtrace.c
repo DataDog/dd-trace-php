@@ -119,6 +119,8 @@ STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, On
                   zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 
+const char *ddtrace_disable_reason = NULL;
+
 #if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
 static void ddtrace_sort_modules(void *base, size_t count, size_t siz, compare_func_t compare, swap_func_t swp) {
     UNUSED(siz);
@@ -235,6 +237,7 @@ static void ddtrace_activate(void) {
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
 
     if (ddtrace_has_excluded_module == true) {
+        ddtrace_disable_reason = "Encountered incompatible module";
         DDTRACE_G(disable) = 2;
     }
 
@@ -248,6 +251,7 @@ static void ddtrace_activate(void) {
     }
 
     if (strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
+        ddtrace_disable_reason = "CLI execution is not enabled (datadog.trace.cli_enabled INI)";
         DDTRACE_G(disable) = 2;
     }
 
@@ -595,6 +599,7 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     if (UNEXPECTED(!dd_is_compatible_sapi(module_name))) {
         ddtrace_log_debugf("Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
         DDTRACE_G(disable) = 1;
+        ddtrace_disable_reason = "Encountered incompatible SAPI";
     }
 }
 
@@ -653,6 +658,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     /* }}} */
 
     if (DDTRACE_G(disable)) {
+        ddtrace_disable_reason = "ddtrace.disable INI is true";
         return SUCCESS;
     }
 

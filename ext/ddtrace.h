@@ -85,6 +85,8 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value);
 bool ddtrace_alter_default_propagation_style(zval *old_value, zval *new_value);
 void dd_force_shutdown_tracing(void);
 
+extern const char *ddtrace_disable_reason;
+
 typedef struct {
     int type;
     zend_string *message;
