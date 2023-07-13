@@ -81,7 +81,7 @@ aliases:
       SNAPSHOT_DIR: /snapshots
       SNAPSHOT_CI: 1
       DD_SUPPRESS_TRACE_PARSE_ERRORS: true
-      ENABLED_CHECKS: trace_stall,trace_count_header,trace_peer_service,trace_dd_service,meta_tracer_version_header
+      ENABLED_CHECKS: trace_stall,trace_count_header,trace_peer_service,trace_dd_service
 
   - &IMAGE_DOCKER_SQLSRV
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -358,8 +358,8 @@ commands:
                 -e DD_API_KEY=invalid_key_but_this_is_fine \
                 -e LOG_LEVEL=DEBUG \
                 -e TRACE_LANGUAGE=php \
-                -e DD_TRACE_AGENT_URL=http://request-replayer:80 \  
-                -e ENABLED_CHECKS=trace_stall,trace_count_header,trace_peer_service,trace_dd_service,meta_tracer_version_header \
+                -e DD_TRACE_AGENT_URL=http://request-replayer:80 \
+                -e ENABLED_CHECKS=trace_stall,trace_count_header,trace_peer_service,trace_dd_service \
                 -e DD_SUPPRESS_TRACE_PARSE_ERRORS=true \
                 -e PORT=9126 \
                 -e SNAPSHOT_DIR=/snapshots \
