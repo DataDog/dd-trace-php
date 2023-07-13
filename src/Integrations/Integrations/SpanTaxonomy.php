@@ -9,11 +9,8 @@ final class SpanTaxonomy
     private static $instance = null;
 
     /** @var string|null */
-    private $currentRootService = null;
+    private static $currentRootService = null;
 
-    /**
-     * @return void
-     */
     private function __construct()
     {
     }
@@ -41,16 +38,16 @@ final class SpanTaxonomy
                 && \dd_trace_env_config('DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED');
 
         if ($flatServiceNames) {
-            $span->service = empty($this->currentRootService)
+            $span->service = empty(self::$currentRootService)
                 ? \ddtrace_config_app_name($fallbackName)
-                : $this->currentRootService;
+                : self::$currentRootService;
         } else {
             $span->service = empty($fallbackName) ? \ddtrace_config_app_name() : $fallbackName;
         }
     }
 
-    public function registerCurrentRootService($serviceName)
+    public static function registerCurrentRootService($serviceName)
     {
-        $this->currentRootService = $serviceName;
+        self::$currentRootService = $serviceName;
     }
 }
