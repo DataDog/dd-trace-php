@@ -16,9 +16,7 @@ bitflags! {
         const Warn = 1 << 2;
         const Info = 1 << 3;
         const Deprecated = (1 << 4) | 1 /* Once */;
-        const SpanTracing = 1 << 5;
-        const Sampling = 1 << 6;
-        const Startup = 1 << 7;
+        const Startup = 1 << 5;
     }
 }
 
@@ -103,7 +101,7 @@ pub extern "C" fn ddog_log(level: Log, msg: CharSlice) {
                 let msgstr = unsafe { msg.to_utf8_lossy() };
                 if !logged.contains(msgstr.as_ref()) {
                     let msg = msgstr.to_string();
-                    let once_msg = format!("{}; This message is only displayed once. Append 'Once' DD_TRACE_DEBUG= to show all messages (e.g. DD_TRACE_DEBUG=Error,Once).\0", msg);
+                    let once_msg = format!("{}; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.\0", msg);
                     cb(level, unsafe { CharSlice::new(once_msg.as_ptr() as *const c_char, once_msg.len() - 1) });
                     logged.insert(msg);
                 }

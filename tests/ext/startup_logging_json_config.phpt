@@ -62,7 +62,7 @@ Sanity check
 env: "my-env"
 service: "my-service"
 enabled_cli: true
-debug: "1"
+debug: true
 sample_rate: 0.4200
 sampling_rules: [{"service":"a.*","name":"b","sample_rate":0.1},{"sample_rate":0.2}]
 tags: {"key1":"value1","key2":"value2"}
