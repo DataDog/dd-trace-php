@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\PDO;
 use DDTrace\HookData;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -177,7 +178,7 @@ class PDOIntegration extends Integration
             'execute',
             function (SpanData $span, array $args, $retval) use ($integration) {
                 $span->name = 'PDOStatement.execute';
-                $span->service = 'pdo';
+                SpanTaxonomy::instance()->handleInternalSpanServiceName($span, PDOIntegration::NAME);
                 $span->type = Type::SQL;
                 $span->resource = $this->queryString;
                 if (\PHP_MAJOR_VERSION > 5) {
@@ -291,7 +292,7 @@ class PDOIntegration extends Integration
         }
 
         $span->type = Type::SQL;
-        $span->service = 'pdo';
+        SpanTaxonomy::instance()->handleInternalSpanServiceName($span, PDOIntegration::NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PDOIntegration::NAME;
         if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.db_client_split_by_instance")) {

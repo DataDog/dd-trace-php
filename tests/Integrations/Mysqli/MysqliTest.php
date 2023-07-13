@@ -32,6 +32,8 @@ class MysqliTest extends IntegrationTestCase
     {
         return [
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
         ];
     }
 
@@ -553,6 +555,30 @@ class MysqliTest extends IntegrationTestCase
                     Tag::SPAN_KIND,
                     Tag::COMPONENT,
                     Tag::DB_SYSTEM,
+                ]),
+        ]);
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->query('SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
+            SpanAssertion::build('mysqli.query', 'configured_service', 'sql', 'SELECT * from tests')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1,
                 ]),
         ]);
     }

@@ -43,6 +43,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_DISTRIBUTED_TRACING',
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
         ];
     }
 
@@ -445,6 +447,31 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             '_dd.peer.service.source' => 'network.destination.name',
                         ]),
                 ])
+        ]);
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            $this->getMockedClient()->get('http://example.com');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'configured_service', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
+                    TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle'
+                ]),
         ]);
     }
 }

@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Guzzle;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -37,7 +38,7 @@ class GuzzleIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($integration) {
                 $span->resource = 'send';
                 $span->name = 'GuzzleHttp\Client.send';
-                $span->service = 'guzzle';
+                SpanTaxonomy::instance()->handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
                 $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
@@ -80,7 +81,7 @@ class GuzzleIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($integration) {
                 $span->resource = 'transfer';
                 $span->name = 'GuzzleHttp\Client.transfer';
-                $span->service = 'guzzle';
+                SpanTaxonomy::instance()->handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
                 $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;

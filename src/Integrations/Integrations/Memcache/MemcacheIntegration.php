@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Memcache;
 
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Obfuscation;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -144,7 +145,7 @@ class MemcacheIntegration extends Integration
     {
         $span->name = "Memcache.$command";
         $span->type = Type::MEMCACHED;
-        $span->service = 'memcache';
+        SpanTaxonomy::instance()->handleInternalSpanServiceName($span, MemcacheIntegration::NAME);
         $span->resource = $command;
         $span->meta['memcache.command'] = $command;
         $span->meta[Tag::SPAN_KIND] = 'client';
