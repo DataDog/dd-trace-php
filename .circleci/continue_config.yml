@@ -199,7 +199,7 @@ aliases:
           exit 0
         fi
         
-        RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://localhost:8126/test/trace_check/failures)
+        RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://test-agent:9126/test/trace_check/failures)
         RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
             
         if [[ $RESPONSE_CODE -eq 200 ]]; then
