@@ -2,18 +2,9 @@
 
 namespace DDTrace\Tests\Integrations\Guzzle\V7;
 
-use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Sampling\PrioritySampling;
-use DDTrace\Tracer;
 use DDTrace\Tag;
-use GuzzleHttp\Client;
-use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Psr7\Request;
-use GuzzleHttp\Psr7\Response;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\IntegrationTestCase;
-use DDTrace\GlobalTracer;
-use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\GuzzleIntegrationTest
 {
@@ -29,6 +20,7 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'psr18'
                 ])
@@ -39,6 +31,7 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
                             'http.method' => 'PUT',
                             'http.url' => 'http://example.com',
                             'http.status_code' => '200',
+                            'network.destination.name' => 'example.com',
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle'
                         ]),
