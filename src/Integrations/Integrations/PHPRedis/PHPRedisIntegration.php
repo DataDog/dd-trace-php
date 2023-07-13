@@ -326,7 +326,7 @@ class PHPRedisIntegration extends Integration
     {
         if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
             // For PHP 5 compatibility, keep the results of ObjectKVStore::get() extracted as variables
-            $clusterName = PHPRedisIntegration::KEY_CLUSTER_NAME);
+            $clusterName = ObjectKVStore::get($instance, PHPRedisIntegration::KEY_CLUSTER_NAME);
             $firstHostOrUDS = ObjectKVStore::get($instance, PHPRedisIntegration::KEY_FIRST_HOST_OR_UDS);
             $host = ObjectKVStore::get($instance, PHPRedisIntegration::KEY_HOST);
 
