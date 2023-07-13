@@ -683,7 +683,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig([
             'DD_SERVICE=configured_service',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
-            'DD_SERVICE',
         ]);
 
         $traces = $this->isolateTracer(function () {
