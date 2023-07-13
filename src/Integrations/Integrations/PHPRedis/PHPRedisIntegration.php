@@ -342,10 +342,10 @@ class PHPRedisIntegration extends Integration
                 );
                 $span->service = $serviceNamePrefix . $normalizedHost;
             } else {
-                SpanTaxonomy::instance()->handleInternalSpanServiceName($span, PHPRedisIntegration::NAME);
+                SpanTaxonomy::handleInternalSpanServiceName($span, PHPRedisIntegration::NAME);
             }
         } else {
-            SpanTaxonomy::instance()->handleInternalSpanServiceName($span, PHPRedisIntegration::NAME);
+            SpanTaxonomy::handleInternalSpanServiceName($span, PHPRedisIntegration::NAME);
         }
 
         $span->type = Type::REDIS;

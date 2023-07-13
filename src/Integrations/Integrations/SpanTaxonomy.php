@@ -6,32 +6,14 @@ use DDTrace\SpanData;
 
 final class SpanTaxonomy
 {
-    private static $instance = null;
-
     /** @var string|null */
     private static $currentRootService = null;
-
-    private function __construct()
-    {
-    }
-
-    /**
-     * @return SpanTaxonomy
-     */
-    public static function instance()
-    {
-        if (!self::$instance) {
-            self::$instance = new SpanTaxonomy();
-        }
-
-        return self::$instance;
-    }
 
     /**
      * @param SpanData $span
      * @param string $fallbackName
      */
-    public function handleInternalSpanServiceName(SpanData $span, $fallbackName = null)
+    public static function handleInternalSpanServiceName(SpanData $span, $fallbackName = null)
     {
         $flatServiceNames =
             \PHP_MAJOR_VERSION > 5

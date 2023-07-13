@@ -38,7 +38,7 @@ class GuzzleIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($integration) {
                 $span->resource = 'send';
                 $span->name = 'GuzzleHttp\Client.send';
-                SpanTaxonomy::instance()->handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
+                SpanTaxonomy::handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
                 $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
@@ -81,7 +81,7 @@ class GuzzleIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($integration) {
                 $span->resource = 'transfer';
                 $span->name = 'GuzzleHttp\Client.transfer';
-                SpanTaxonomy::instance()->handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
+                SpanTaxonomy::handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
                 $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;

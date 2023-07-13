@@ -145,7 +145,7 @@ class MemcacheIntegration extends Integration
     {
         $span->name = "Memcache.$command";
         $span->type = Type::MEMCACHED;
-        SpanTaxonomy::instance()->handleInternalSpanServiceName($span, MemcacheIntegration::NAME);
+        SpanTaxonomy::handleInternalSpanServiceName($span, MemcacheIntegration::NAME);
         $span->resource = $command;
         $span->meta['memcache.command'] = $command;
         $span->meta[Tag::SPAN_KIND] = 'client';
