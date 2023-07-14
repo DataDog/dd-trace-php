@@ -118,16 +118,61 @@ class SymfonyIntegration extends Integration
                     return;
                   }
 
-                  \datadog\appsec\track_user_signup_event(
-                    \method_exists($userEntity, 'getUsername') ? $userEntity->getUsername() : '',
-                    [],
-                    true
-                  );
+                  $user = NULL;
+                  if (\method_exists($userEntity, 'getUsername'))
+                  {
+                    $user = $userEntity->getUsername();
+                  } else if (\method_exists($userEntity, 'getUserIdentifier'))
+                  {
+                    $user = $userEntity->getUserIdentifier();
+                  }
+
+                  \datadog\appsec\track_user_signup_event($user, [], true);
 
             }
         );
 
+        //Symfony < 5
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
+            'onAuthenticationSuccess',
+            function ($This, $scope, $args) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event'))
+                {
+                    return;
+                }
+                if (!isset($args[1])) {
+                    return;
+                }
+                $token = $args[1];
+                $authClass = '\Symfony\Component\Security\Core\Authentication\Token\TokenInterface';
+                if (!$token || !($token instanceof $authClass)) {
+                    return;
+                }
+                $metadata = [];
 
+                \datadog\appsec\track_user_login_success_event(
+                    \method_exists($token, 'getUsername') ? $token->getUsername(): '',
+                    $metadata,
+                    true
+                );
+            }
+        );
+
+        //Symfony < 5
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
+            'onAuthenticationFailure',
+            function ($This, $scope, $args) {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event'))
+                {
+                    return;
+                }
+                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+            }
+        );
+
+        //Symfony >= 5
         \DDTrace\hook_method(
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onFailure',
@@ -140,6 +185,7 @@ class SymfonyIntegration extends Integration
             }
         );
 
+        //Symfony >= 5 and < 6
         \DDTrace\hook_method(
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onSuccess',
@@ -161,6 +207,51 @@ class SymfonyIntegration extends Integration
 
                 \datadog\appsec\track_user_login_success_event(
                     \method_exists($token, 'getUsername') ? $token->getUsername(): '',
+                    $metadata,
+                    true
+                );
+            }
+        );
+
+        //Symfony >= 6
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator',
+            'onAuthenticationFailure',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                 if (!function_exists('\datadog\appsec\track_user_login_failure_event'))
+                {
+                    return;
+                }
+                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+            }
+        );
+
+        //Symfony >= 6
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator',
+            'onAuthenticationSuccess',
+            function ($This, $scope, $args) use ($rootSpan, $integration) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event'))
+                {
+                    return;
+                }
+                if (!isset($args[1])) {
+                    return;
+                }
+                $token = $args[1];
+                $authClass = '\Symfony\Component\Security\Core\Authentication\Token\TokenInterface';
+                if (!$token || !($token instanceof $authClass)) {
+                    return;
+                }
+                $metadata = [];
+
+                $user = \method_exists($token, 'getUser') ? $token->getUser(): null;
+                $userClass = '\Symfony\Component\Security\Core\User\UserInterface';
+                if (!$user || !($user instanceof $userClass)) {
+                    return;
+                }
+                \datadog\appsec\track_user_login_success_event(
+                    \method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier(): '',
                     $metadata,
                     true
                 );
