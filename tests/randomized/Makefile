@@ -11,19 +11,19 @@ VERSIONS := *
 PLATFORMS := *
 ARCHITECTURE := $(shell uname -m)
 
-publish: publish.centos7 publish.buster
+publish: publish.centos publish.buster
 
-pull: pull.centos7 pull.buster
+pull: pull.centos pull.buster
 
-publish.centos7: \
-	publish.centos7.7.0 \
-	publish.centos7.7.1 \
-	publish.centos7.7.2 \
-	publish.centos7.7.3 \
-	publish.centos7.7.4 \
-	publish.centos7.8.0 \
-	publish.centos7.8.1 \
-	publish.centos7.8.2
+publish.centos: \
+	publish.centos.7.0 \
+	publish.centos.7.1 \
+	publish.centos.7.2 \
+	publish.centos.7.3 \
+	publish.centos.7.4 \
+	publish.centos.8.0 \
+	publish.centos.8.1 \
+	publish.centos.8.2
 
 publish.buster: \
 	publish.buster.7.4 \
@@ -31,18 +31,21 @@ publish.buster: \
 	publish.buster.8.1 \
 	publish.buster.8.2
 
-publish.centos7.%: build.centos7.%
-	docker buildx bake --push php-$(*)
+publish.centos.%:
+	docker buildx bake --push centos-$(*)
 
-pull.centos7: \
-	pull.centos7.7.0 \
-	pull.centos7.7.1 \
-	pull.centos7.7.2 \
-	pull.centos7.7.3 \
-	pull.centos7.7.4 \
-	pull.centos7.8.0 \
-	pull.centos7.8.1 \
-	pull.centos7.8.2
+publish.buster.%:
+	docker buildx bake --push buster-$(*)
+
+pull.centos: \
+	pull.centos.7.0 \
+	pull.centos.7.1 \
+	pull.centos.7.2 \
+	pull.centos.7.3 \
+	pull.centos.7.4 \
+	pull.centos.8.0 \
+	pull.centos.8.1 \
+	pull.centos.8.2
 
 pull.buster: \
 	pull.buster.7.4 \
@@ -50,8 +53,8 @@ pull.buster: \
 	pull.buster.8.1 \
 	pull.buster.8.2
 
-pull.centos7.%:
-	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-$(*)-$(DOCKER_IMAGE_VERSION)
+pull.centos.%:
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos-$(*)-$(DOCKER_IMAGE_VERSION)
 
 pull.buster.%:
 	@docker pull $(DOCKER_IMAGE_PREFIX)buster-$(*)-$(DOCKER_IMAGE_VERSION)
@@ -102,4 +105,4 @@ clean:
 clean_results:
 	@rm -rf $(TMP_RESULTS_FOLDER)
 
-.PHONY: build.centos7 publish.centos7 pull.centos7
+.PHONY: publish.centos pull.centos publish.buster pull.buster
