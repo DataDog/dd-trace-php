@@ -104,7 +104,7 @@ class EloquentIntegration extends Integration
     public function setCommonValues(SpanData $span)
     {
         $span->type = Type::SQL;
-        $span->service = $this->getAppName();
+        Integration::handleInternalSpanServiceName($span, $this->getAppName());
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = EloquentIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = 'other_sql';

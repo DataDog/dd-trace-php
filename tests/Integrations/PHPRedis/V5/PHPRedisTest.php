@@ -50,6 +50,8 @@ class PHPRedisTest extends IntegrationTestCase
     {
         return [
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
         ];
     }
 
@@ -2427,5 +2429,28 @@ class PHPRedisTest extends IntegrationTestCase
             $binarySafeString .= pack('H*', dechex(bindec($binary)));
         }
         return $binarySafeString;
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $redis = $this->redis;
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->save();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.save",
+                'configured_service',
+                'redis',
+                "Redis.save"
+            )->withExactTags([Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis', Tag::TARGET_HOST => $this->host]),
+        ]);
     }
 }

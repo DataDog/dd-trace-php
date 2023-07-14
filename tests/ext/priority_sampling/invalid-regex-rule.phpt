@@ -1,0 +1,26 @@
+--TEST--
+Invalid regex: default sampling rate applies
+--ENV--
+DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.3, "service": "*"}]
+DD_TRACE_GENERATE_ROOT_SPAN=1
+--SKIPIF--
+<?php
+if (getenv("USE_ZEND_ALLOC") === "0") {
+    die("skip: test will show memory errors under valgrind where PCRE is built without valgrind support");
+}
+?>
+--FILE--
+<?php
+
+\DDTrace\get_priority_sampling();
+
+$root = \DDTrace\root_span();
+if ($root->metrics["_dd.rule_psr"] != 0.3) {
+    echo "Rule OK\n";
+} else {
+    var_dump($root->metrics);
+}
+
+?>
+--EXPECT--
+Rule OK

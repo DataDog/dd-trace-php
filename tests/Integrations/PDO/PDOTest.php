@@ -41,14 +41,16 @@ final class PDOTest extends IntegrationTestCase
     protected function ddTearDown()
     {
         $this->clearDatabase();
-        self::putenv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE');
         parent::ddTearDown();
     }
 
     protected function envsToCleanUpAtTearDown()
     {
         return [
+            'DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE',
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
         ];
     }
 
@@ -598,6 +600,31 @@ final class PDOTest extends IntegrationTestCase
         });
 
         $this->assertEmpty($traces);
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = $this->pdoInstance();
+            $pdo->beginTransaction();
+            $pdo->exec($query);
+            $pdo->commit();
+            $pdo = null;
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build('PDO.exec', 'configured_service', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+            SpanAssertion::exists('PDO.commit'),
+        ]);
     }
 
     private function pdoInstance($opts = null)
