@@ -19,8 +19,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.2"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.2.6.tar.gz
-        phpSha256Hash: "1b8463df1f180ed39475cfcded1ff106242ccb823f99c9fc1a407c0b76afa2c8"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.2.8.tar.gz
+        phpSha256Hash: "6419b74e9b675c8d5a1afd2788c4d7996a19bbe2be409716ccb2067897af9df1"
 
   php-8.1:
     image: datadog/dd-trace-ci:php-8.1_buster
@@ -30,8 +30,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.1"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.1.19.tar.gz
-        phpSha256Hash: "0ebb6b0ecf5d8e355c2f1362807f9b73c6e803d496c5ad3e4fb00be989988372"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.1.21.tar.gz
+        phpSha256Hash: "a95f8d35924aa5705ad07a70dc994bf41b5d45126ecdec7aaad6edfbe5e1c37f"
 
   php-8.0:
     image: datadog/dd-trace-ci:php-8.0_buster

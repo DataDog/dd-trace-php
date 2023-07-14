@@ -32,6 +32,8 @@ services:
         DURATION: ${DURATION}
         INSTALL_MODE: {{installation_method}}
         TEST_SCENARIO: {{identifier}}
+        USE_ZEND_ALLOC: {{USE_ZEND_ALLOC}}
+        USE_TRACKED_ALLOC: {{USE_TRACKED_ALLOC}}
     networks:
       - default
       - randomized_tests

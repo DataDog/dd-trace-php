@@ -2,6 +2,7 @@ FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Better-support-for-cross-compilation.patch /home/circleci
+COPY 0001-Fix-GH-10611-fpm_env_init_main-leaks-environ.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
@@ -9,6 +10,7 @@ RUN set -eux; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
     git apply /home/circleci/0001-Better-support-for-cross-compilation.patch; \
+    patch -p1 /home/circleci/0001-Fix-GH-10611-fpm_env_init_main-leaks-environ.patch; \
     ./buildconf --force
 
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build

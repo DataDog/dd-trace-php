@@ -21,8 +21,10 @@ Zend/tests/gc_037.phpt
 Zend/tests/gc_045.phpt
 Zend/tests/get_defined_functions_basic.phpt
 Zend/tests/get_required_files.phpt
-Zend/tests/gh10346.phpt
 Zend/tests/gh7958.phpt
+Zend/tests/gh10346.phpt
+Zend/tests/gh11189.phpt
+Zend/tests/gh11189_1.phpt
 Zend/tests/list_keyed_conversions.phpt
 Zend/tests/multibyte/multibyte_encoding_004.phpt
 Zend/tests/object_gc_in_shutdown.phpt
@@ -39,6 +41,7 @@ ext/curl/tests/bug77535.phpt
 ext/curl/tests/bug79033.phpt
 ext/curl/tests/curl_int_cast.phpt
 ext/curl/tests/curl_postfields_array.phpt
+ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt
 ext/date/tests/bug52113.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
 ext/mbstring/tests/zend_multibyte-01.phpt
