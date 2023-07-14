@@ -276,7 +276,7 @@ if test "$PHP_DDTRACE" != "no"; then
   fi
 
   cat <<EOT >> Makefile.fragments
-\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components-rs" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -exclude "target"; find "$ext_srcdir/libdatadog" -name "*.rs" -exclude "target"; echo "$all_object_files" ) | xargs )
+\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components-rs" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*"; echo "$all_object_files" ) 2>/dev/null | xargs )
 	(cd "$ext_srcdir/components-rs"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) && test "$PHP_DDTRACE_RUST_SYMBOLS" == yes || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
 EOT
 
