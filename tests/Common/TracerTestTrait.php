@@ -557,8 +557,9 @@ function getHeaderWithEnvironment()
             return "$key=$value";
         }, array_keys($ddEnvVars), $ddEnvVars));
     }
-    $peer_service_enabled = $env['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED'];
-    if (isset($peer_service_enabled) && $peer_service_enabled === 'true') {
+    $peer_service_enabled = isset($env['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED'])
+        ? $env['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED'] : 'false';
+    if ($peer_service_enabled === 'true') {
         if (!isset($env['DD_TRACE_SPAN_ATTRIBUTE_SCHEMA'])) {
             $ddEnvVarsString .= ',DD_TRACE_SPAN_ATTRIBUTE_SCHEMA=v0.5';
         }
