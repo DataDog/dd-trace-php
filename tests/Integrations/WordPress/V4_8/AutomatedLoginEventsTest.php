@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\WordPress\V5_8;
+namespace DDTrace\Tests\Integrations\WordPress\V4_8;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
@@ -10,7 +10,7 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/WordPress/Version_5_9/index.php';
+        return __DIR__ . '/../../../Frameworks/WordPress/Version_4_8/index.php';
     }
 
     protected function connection()
@@ -21,7 +21,7 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        $this->connection()->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_5_5/wp_2020-10-21.sql'));
+        $this->connection()->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_4_8/wp_2019-10-01.sql'));
         $this->connection()->exec("DELETE from users where email LIKE 'test-user%'");
         AppsecStatus::getInstance()->setDefaults();
     }
@@ -46,7 +46,7 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         $name = 'some name';
         //Password is test
         $this->connection()->exec(
-            'INSERT INTO wp55_users VALUES ('.$id.',"test","$P$BDzpK1XXL9P2cYWggPMUbN87GQSiI80","test","'.$email.'","","2020-10-22 16:31:15","",0,"'.$name.'")'
+            'INSERT INTO wp_users VALUES ('.$id.',"test","$P$BDzpK1XXL9P2cYWggPMUbN87GQSiI80","test","'.$email.'","","2020-10-22 16:31:15","",0,"'.$name.'")'
         );
 
         $spec = PostSpec::create('request', '/wp-login.php', [
@@ -91,7 +91,7 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         $name = 'some name';
         //Password is test
         $this->connection()->exec(
-            'INSERT INTO wp55_users VALUES ('.$id.',"test","$P$BDzpK1XXL9P2cYWggPMUbN87GQSiI80","test","'.$email.'","","2020-10-22 16:31:15","",0,"'.$name.'")'
+            'INSERT INTO wp_users VALUES ('.$id.',"test","$P$BDzpK1XXL9P2cYWggPMUbN87GQSiI80","test","'.$email.'","","2020-10-22 16:31:15","",0,"'.$name.'")'
         );
 
         $spec = PostSpec::create('request', '/wp-login.php', [
@@ -120,7 +120,7 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
            ], "user_login=$username&user_email=$email&wp-submit=Register&redirect_to=")
        );
 
-       $users = $this->connection()->query("SELECT * FROM wp55_users where user_email='".$email."'")->fetchAll();
+       $users = $this->connection()->query("SELECT * FROM wp_users where user_email='".$email."'")->fetchAll();
 
        $this->assertEquals(1, count($users));
 
