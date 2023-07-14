@@ -1,8 +1,8 @@
 use crate::bindings as zend;
 use crate::zend::ddog_php_prof_zend_string_view;
 use crate::{PROFILER, REQUEST_LOCALS};
-use log::{error, trace};
 use libc::c_char;
+use log::{error, trace};
 use std::mem::MaybeUninit;
 use std::ptr;
 use std::time::Instant;
@@ -31,16 +31,11 @@ pub fn timeline_minit() {
 }
 
 unsafe extern "C" fn ddog_php_prof_compile_string(
-    #[cfg(php7)]
-    source_string: *mut zend::_zval_struct,
-    #[cfg(php8)]
-    source_string: *mut zend::ZendString,
-    #[cfg(php7)]
-    filename: *mut c_char,
-    #[cfg(php8)]
-    filename: *const c_char,
-    #[cfg(php_zend_compile_string_has_position)]
-    position: zend::zend_compile_position,
+    #[cfg(php7)] source_string: *mut zend::_zval_struct,
+    #[cfg(php8)] source_string: *mut zend::ZendString,
+    #[cfg(php7)] filename: *mut c_char,
+    #[cfg(php8)] filename: *const c_char,
+    #[cfg(php_zend_compile_string_has_position)] position: zend::zend_compile_position,
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_STRING {
         let start = Instant::now();
