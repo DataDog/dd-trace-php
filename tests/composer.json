@@ -4,7 +4,10 @@
     "autoload-dev": {
         "psr-4": {
             "DDTrace\\Tests\\": "./"
-        }
+        },
+        "files": [
+            "Appsec/Mock.php"
+        ]
     },
     "require-dev": {
         "mockery/mockery": "*",
@@ -178,12 +181,12 @@
                 }
             },
             "amqp2": {
-              "require": {
-                "php-amqplib/php-amqplib": "^v2.6.2"
-              },
-              "scenario-options": {
-                "create-lockfile": false
-              }
+                "require": {
+                    "php-amqplib/php-amqplib": "^v2.6.2"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
             },
             "amqp35": {
                 "require": {

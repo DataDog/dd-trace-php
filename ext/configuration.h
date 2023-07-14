@@ -78,6 +78,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(STRING, DD_ENV, "")                                                                                 \
     CONFIG(BOOL, DD_AUTOFINISH_SPANS, "false")                                                                 \
     CONFIG(BOOL, DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED, "true")                                               \
+    CONFIG(BOOL, DD_HTTP_SERVER_ROUTE_BASED_NAMING, "true")                                                    \
     CONFIG(SET, DD_INTEGRATIONS_DISABLED, "default")                                                           \
     CONFIG(BOOL, DD_PRIORITY_SAMPLING, "true")                                                                 \
     CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                \
@@ -115,6 +116,8 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(STRING, DD_SPAN_SAMPLING_RULES_FILE, "", .ini_change = ddtrace_alter_sampling_rules_file_config)    \
     CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                            \
     CONFIG(INT, DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "512")                                                     \
+    CONFIG(MAP, DD_TRACE_PEER_SERVICE_MAPPING, "")                                                             \
+    CONFIG(BOOL, DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "false")                                              \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_SERVICE, "false")                                                          \
     CALIAS(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_EXTRACT, "tracecontext,Datadog,B3,B3 single header",      \
            CALIASES("DD_PROPAGATION_STYLE_EXTRACT"))                                                           \

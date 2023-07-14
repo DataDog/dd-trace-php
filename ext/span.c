@@ -40,6 +40,8 @@ static void dd_drop_span(ddtrace_span_data *span, bool silent) {
     OBJ_RELEASE(&span->std);
 }
 
+#define DD_RC_CLOSED_MARKER 0x80000000
+
 static void dd_free_span_ring(ddtrace_span_data *span) {
     if (span != NULL) {
         ddtrace_span_data *cur = span;
@@ -48,7 +50,7 @@ static void dd_free_span_ring(ddtrace_span_data *span) {
             cur = cur->next;
 #if PHP_VERSION_ID < 70400
             // remove the artificially increased RC while closing again
-            GC_DELREF(&tmp->std);
+            GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) + DD_RC_CLOSED_MARKER);
 #endif
             OBJ_RELEASE(&tmp->std);
         } while (cur != span);
@@ -550,7 +552,7 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
 #if PHP_VERSION_ID < 70400
     // On PHP 7.3 and prior PHP will just destroy all unchanged references in cycle collection, in particular given that it does not appear in get_gc
     // Artificially increase refcount here thus.
-    GC_ADDREF(&span->std);
+    GC_SET_REFCOUNT(&span->std, GC_REFCOUNT(&span->std) + DD_RC_CLOSED_MARKER);
 #endif
 
     ++DDTRACE_G(closed_spans_count);
@@ -690,7 +692,7 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                     ddtrace_serialize_span_to_array(tmp, serialized);
 #if PHP_VERSION_ID < 70400
                     // remove the artificially increased RC while closing again
-                    GC_DELREF(&tmp->std);
+                    GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) - DD_RC_CLOSED_MARKER);
 #endif
                     OBJ_RELEASE(&tmp->std);
                 } while (span != end);

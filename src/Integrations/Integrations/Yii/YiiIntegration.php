@@ -160,12 +160,14 @@ class YiiIntegration extends Integration
 
                     $rootSpan->meta['app.route.path'] = $routePath;
 
-                    $resourceName = \str_replace(
-                        $placeholder,
-                        '?',
-                        \DDTrace\Util\Normalizer::urlSanitize(\urldecode(Url::toRoute($placeholders)), false, true)
-                    );
-                    $rootSpan->resource = "{$_SERVER['REQUEST_METHOD']} {$resourceName}";
+                    if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                        $resourceName = \str_replace(
+                            $placeholder,
+                            '?',
+                            \DDTrace\Util\Normalizer::urlSanitize(\urldecode(Url::toRoute($placeholders)), false, true)
+                        );
+                        $rootSpan->resource = "{$_SERVER['REQUEST_METHOD']} {$resourceName}";
+                    }
                 }
             }
         );

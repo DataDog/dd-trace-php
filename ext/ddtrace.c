@@ -214,6 +214,7 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) 
 
 static void dd_activate_once(void) {
     ddtrace_config_first_rinit();
+    ddtrace_generate_runtime_id();
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!DDTRACE_G(disable) && get_global_DD_TRACE_TELEMETRY_ENABLED()) {
@@ -364,6 +365,7 @@ static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     array_init(ddtrace_spandata_property_meta_zval(span));
     array_init(ddtrace_spandata_property_metrics_zval(span));
     array_init(ddtrace_spandata_property_links_zval(span));
+    array_init(ddtrace_spandata_property_peerServiceSources_zval(span));
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
@@ -655,7 +657,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_set_coredumpfilter();
-    ddtrace_generate_runtime_id();
 
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();

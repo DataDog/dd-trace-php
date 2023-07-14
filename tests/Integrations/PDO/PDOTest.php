@@ -45,6 +45,13 @@ final class PDOTest extends IntegrationTestCase
         parent::ddTearDown();
     }
 
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+        ];
+    }
+
     public function testCustomPDOPrepareWithStringableStatement()
     {
         $query = "SELECT * FROM tests WHERE id = ?";
@@ -253,6 +260,25 @@ final class PDOTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPDOQueryPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "SELECT * FROM tests WHERE id=1";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = $this->pdoInstance();
+            $pdo->query($query);
+            $pdo = null;
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags($this->baseTags(true))
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+        ]);
+    }
+
     public function testPDOQueryError()
     {
         $query = "WRONG QUERY";
@@ -291,6 +317,30 @@ final class PDOTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_QUERY, true)
                 ->withExactTags($this->baseTags()),
+        ]);
+    }
+
+
+    public function testPDOQueryExceptionPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "WRONG QUERY";
+        $traces = $this->isolateTracer(function () use ($query) {
+            try {
+                $pdo = $this->pdoInstance();
+                $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+                $pdo->query($query);
+                $pdo = null;
+            } catch (\PDOException $ex) {
+            }
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
+                ->setError('PDOException', static::ERROR_QUERY, true)
+                ->withExactTags($this->baseTags(true)),
         ]);
     }
 
@@ -341,6 +391,41 @@ final class PDOTest extends IntegrationTestCase
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags($this->baseTags())
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+        ]);
+    }
+
+    public function testPDOStatementOkPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = $this->pdoInstance();
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([1]);
+            $results = $stmt->fetchAll();
+            $this->assertEquals('Tom', $results[0]['name']);
+            $stmt->closeCursor();
+            $stmt = null;
+            $pdo = null;
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build(
+                'PDO.prepare',
+                'pdo',
+                'sql',
+                "SELECT * FROM tests WHERE id = ?"
+            )->withExactTags($this->baseTags()),
+            SpanAssertion::build(
+                'PDOStatement.execute',
+                'pdo',
+                'sql',
+                "SELECT * FROM tests WHERE id = ?"
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags($this->baseTags(true))
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
@@ -469,6 +554,35 @@ final class PDOTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPDOStatementExceptionPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "WRONG QUERY";
+        $traces = $this->isolateTracer(function () use ($query) {
+            try {
+                $pdo = $this->pdoInstance();
+                $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+                $stmt = $pdo->prepare($query);
+                $stmt->execute();
+                $stmt->fetchAll();
+                $stmt->closeCursor();
+                $stmt = null;
+                $pdo = null;
+            } catch (\PDOException $ex) {
+            }
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build('PDO.prepare', 'pdo', 'sql', "WRONG QUERY")
+                ->withExactTags($this->baseTags()),
+            SpanAssertion::build('PDOStatement.execute', 'pdo', 'sql', "WRONG QUERY")
+                ->setTraceAnalyticsCandidate()
+                ->setError('PDOException', static::ERROR_STATEMENT, true)
+                ->withExactTags($this->baseTags(true)),
+        ]);
+    }
+
     public function testLimitedTracerPDO()
     {
         $query = "SELECT * FROM tests WHERE id = ?";
@@ -559,9 +673,9 @@ final class PDOTest extends IntegrationTestCase
         return "mysql:host=" . self::MYSQL_HOST . ";dbname=" . self::MYSQL_DATABASE;
     }
 
-    protected function baseTags()
+    protected function baseTags($expectPeerService = false)
     {
-        return [
+        $tags = [
             'db.engine' => 'mysql',
             'out.host' => self::MYSQL_HOST,
             'db.name' => self::MYSQL_DATABASE,
@@ -570,5 +684,12 @@ final class PDOTest extends IntegrationTestCase
             Tag::COMPONENT => 'pdo',
             Tag::DB_SYSTEM => 'mysql',
         ];
+
+        if ($expectPeerService) {
+            $tags['peer.service'] = self::MYSQL_DATABASE;
+            $tags['_dd.peer.service.source'] = 'db.name';
+        }
+
+        return $tags;
     }
 }
