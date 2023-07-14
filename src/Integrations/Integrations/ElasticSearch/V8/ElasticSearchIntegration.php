@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\ElasticSearch\V8;
 
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchCommon;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -63,7 +62,7 @@ class ElasticSearchIntegration extends Integration
                 }
 
                 $span->name = "Elasticsearch.Client.__construct";
-                SpanTaxonomy::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
+                Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
                 $span->type = Type::ELASTICSEARCH;
                 $span->resource = "__construct";
                 $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
@@ -86,7 +85,7 @@ class ElasticSearchIntegration extends Integration
         $hook = function ($span, $args) use ($integration) {
             $span->name = "Elasticsearch.Endpoint.performRequest";
             $span->resource = 'performRequest';
-            SpanTaxonomy::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
             $span->type = Type::ELASTICSEARCH;
             $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
 
@@ -144,7 +143,7 @@ class ElasticSearchIntegration extends Integration
                     }
 
                     $span->meta[Tag::SPAN_KIND] = 'client';
-                    SpanTaxonomy::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
+                    Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
                     $span->type = Type::ELASTICSEARCH;
                     $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);
                     $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
@@ -166,7 +165,7 @@ class ElasticSearchIntegration extends Integration
             $operationName = str_replace('\\', '.', "$class.$name");
             $span->name = $operationName;
             $span->resource = $operationName;
-            SpanTaxonomy::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
             $span->type = Type::ELASTICSEARCH;
             $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
         });
@@ -188,7 +187,7 @@ class ElasticSearchIntegration extends Integration
 
             $span->name = "Elasticsearch.$namespace.$name";
             $span->resource = ElasticSearchCommon::buildResourceName($name, $params);
-            SpanTaxonomy::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
             $span->type = Type::ELASTICSEARCH;
             $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
         });

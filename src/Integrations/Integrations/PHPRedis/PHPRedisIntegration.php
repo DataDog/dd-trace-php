@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\PHPRedis;
 
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -341,10 +340,10 @@ class PHPRedisIntegration extends Integration
                 $normalizedHost = \DDTrace\Util\Normalizer::normalizeHostUdsAsService($host);
                 $span->service = $serviceNamePrefix . $normalizedHost;
             } else {
-                SpanTaxonomy::handleInternalSpanServiceName($span, PHPRedisIntegration::NAME);
+                Integration::handleInternalSpanServiceName($span, PHPRedisIntegration::NAME);
             }
         } else {
-            SpanTaxonomy::handleInternalSpanServiceName($span, PHPRedisIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, PHPRedisIntegration::NAME);
         }
 
         $span->type = Type::REDIS;

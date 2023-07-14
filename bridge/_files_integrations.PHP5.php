@@ -4,7 +4,6 @@ return [
     // config does not really belong here, but given it declares functions, we must always hard-load these
     __DIR__ . '/configuration.php',
     __DIR__ . '/../src/Integrations/Integrations/AbstractIntegrationConfiguration.php',
-    __DIR__ . '/../src/Integrations/Integrations/SpanTaxonomy.php',
     __DIR__ . '/../src/Integrations/Integrations/DefaultIntegrationConfiguration.php',
     __DIR__ . '/../src/Integrations/Integrations/Integration.php',
     __DIR__ . '/../src/Integrations/Integrations/CakePHP/CakePHPIntegration.PHP5.php',

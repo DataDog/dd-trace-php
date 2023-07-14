@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\Mysqli;
 use DDTrace\HookData;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -400,7 +399,7 @@ class MysqliIntegration extends Integration
         $span->name = $name;
         $span->resource = $resource;
         $span->type = Type::SQL;
-        SpanTaxonomy::handleInternalSpanServiceName($span, MysqliIntegration::NAME);
+        Integration::handleInternalSpanServiceName($span, MysqliIntegration::NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = MysqliIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = MysqliIntegration::SYSTEM;

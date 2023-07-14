@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\MongoDB;
 
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -654,7 +653,7 @@ class MongoDBIntegration extends Integration
     ) {
         $span->name = $name;
         $span->service = 'mongodb';
-        SpanTaxonomy::handleInternalSpanServiceName($span, MongoDBIntegration::NAME);
+        Integration::handleInternalSpanServiceName($span, MongoDBIntegration::NAME);
         $span->type = Type::MONGO;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $serializedQuery = $rawQuery ? MongoDBIntegration::serializeQuery($rawQuery) : null;
