@@ -75,7 +75,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(STRING, DD_DOGSTATSD_URL, "")                                                                       \
     CONFIG(BOOL, DD_DISTRIBUTED_TRACING, "true")                                                               \
     CONFIG(STRING, DD_DOGSTATSD_PORT, "8125")                                                                  \
-    CONFIG(STRING, DD_ENV, "")                                                                                 \
+    CONFIG(STRING, DD_ENV, "", .ini_change = ddtrace_alter_dd_env)                                             \
     CONFIG(BOOL, DD_AUTOFINISH_SPANS, "false")                                                                 \
     CONFIG(BOOL, DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED, "true")                                               \
     CONFIG(BOOL, DD_HTTP_SERVER_ROUTE_BASED_NAMING, "true")                                                    \
@@ -153,7 +153,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(INT, DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT, "80", .ini_change = zai_config_system_ini_change)  \
     CONFIG(BOOL, DD_TRACE_WARN_LEGACY_DD_TRACE, "true")                                                        \
     CONFIG(BOOL, DD_TRACE_RETAIN_THREAD_CAPABILITIES, "false", .ini_change = zai_config_system_ini_change)     \
-    CONFIG(STRING, DD_VERSION, "")                                                                             \
+    CONFIG(STRING, DD_VERSION, "", .ini_change = ddtrace_alter_dd_version)                                     \
     CONFIG(STRING, DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP, DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP_DEFAULT) \
     CONFIG(BOOL, DD_TRACE_CLIENT_IP_ENABLED, "false")                                                          \
     CONFIG(STRING, DD_TRACE_CLIENT_IP_HEADER, "")                                                              \
