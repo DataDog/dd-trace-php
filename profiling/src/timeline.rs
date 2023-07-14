@@ -8,6 +8,8 @@ use crate::REQUEST_LOCALS;
 use std::mem::MaybeUninit;
 use std::ptr;
 use std::time::Instant;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 /// The engine's original (or neighbouring extensions) `gc_collect_cycles()` function
 static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
@@ -34,13 +36,17 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         let start = Instant::now();
         let op_array = prev(handle, r#type);
         let duration = start.elapsed();
+        let now = SystemTime::now().duration_since(UNIX_EPOCH);
 
         // include/require failed, could be invalid PHP or file not found, ...
+        // or time went backwards
         // TODO we might collect this event anyway and label it accordingly in a later stage of
         // this feature
-        if op_array.is_null() || (*op_array).filename.is_null() {
+        if op_array.is_null() || (*op_array).filename.is_null() || now.is_err() {
             return op_array;
         }
+
+        // Safety: check for `is_err()` in the if above
 
         REQUEST_LOCALS.with(|cell| {
             // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
@@ -78,6 +84,8 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 profiler.collect_compile_file(
+                    // Safety: checked for `is_err()` above
+                    now.unwrap().as_nanos() as i64,
                     duration.as_nanos() as i64,
                     filename.to_string(),
                     include_type,
@@ -118,6 +126,12 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         let start = Instant::now();
         let collected = prev();
         let duration = start.elapsed();
+        let now = SystemTime::now().duration_since(UNIX_EPOCH);
+        if now.is_err() {
+            // time went backwards
+            return collected;
+        }
+
         let reason = gc_reason();
 
         #[cfg(php_gc_status)]
@@ -146,6 +160,8 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
                 cfg_if::cfg_if! {
                     if #[cfg(php_gc_status)] {
                         profiler.collect_garbage_collection(
+                            // Safety: checked for `is_err()` above
+                            now.unwrap().as_nanos() as i64,
                             duration.as_nanos() as i64,
                             reason,
                             collected as i64,
@@ -154,6 +170,8 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
                         );
                     } else {
                         profiler.collect_garbage_collection(
+                            // Safety: checked for `is_err()` above
+                            now.unwrap().as_nanos() as i64,
                             duration.as_nanos() as i64,
                             reason,
                             collected as i64,
