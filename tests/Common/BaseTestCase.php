@@ -127,6 +127,15 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
         }
     }
 
+    protected function assertRegularExpression($pattern, $string, $message = '')
+    {
+        if (PHPUNIT_MAJOR >= 9) {
+            parent::assertMatchesRegularExpression($pattern, $string, $message);
+        } else {
+            parent::assertRegExp($pattern, $string, $message);
+        }
+    }
+
     /**
      * Tells whether or not an array is associative.
      *
