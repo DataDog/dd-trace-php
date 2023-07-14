@@ -68,7 +68,7 @@ Array
 
     [2] => Array
         (
-            [name] => trace.telemetry_enabled
+            [name] => instrumentation_telemetry_enabled
             [value] => 1
             [origin] => EnvVar
         )
