@@ -37,12 +37,13 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         return new Client();
     }
 
-    protected function ddTearDown()
+    protected function envsToCleanUpAtTearDown()
     {
-        parent::ddTearDown();
-        self::putenv('DD_DISTRIBUTED_TRACING');
-        self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
-        self::putenv('DD_DISTRIBUTED_TRACING');
+        return [
+            'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_DISTRIBUTED_TRACING',
+            'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
+        ];
     }
 
     /**
@@ -60,6 +61,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -91,6 +93,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ])
@@ -100,6 +103,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                         ->withExactTags([
                             'http.method' => 'PUT',
                             'http.url' => 'http://example.com',
+                            'network.destination.name' => 'example.com',
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle'
@@ -120,6 +124,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -139,6 +144,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -288,6 +294,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -339,6 +346,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -359,6 +367,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
@@ -388,6 +397,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.method' => 'GET',
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
+                            'network.destination.name' => 'httpbin_integration',
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle'
                         ])
@@ -398,6 +408,43 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                                 ]),
                         ]),
                 ]),
+        ]);
+    }
+
+    public function testPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $request = new Request('put', 'http://example.com');
+            $this->getMockedClient()->send($request);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+                ->withExactTags([
+                    'http.method' => 'PUT',
+                    'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
+                    'network.destination.name' => 'example.com',
+                    TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle',
+                ])
+                ->withChildren([
+                    SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                        ->setTraceAnalyticsCandidate()
+                        ->withExactTags([
+                            'http.method' => 'PUT',
+                            'http.url' => 'http://example.com',
+                            'network.destination.name' => 'example.com',
+                            'http.status_code' => '200',
+                            TAG::SPAN_KIND => 'client',
+                            Tag::COMPONENT => 'guzzle',
+                            'peer.service' => 'example.com',
+                            'peer.service' => 'example.com',
+                            '_dd.peer.service.source' => 'network.destination.name',
+                        ]),
+                ])
         ]);
     }
 }

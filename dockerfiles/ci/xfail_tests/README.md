@@ -160,3 +160,13 @@ ddtrace affects the order of destructor execution due to creating span stacks et
 ## `ext/zend_test/tests/`, `Zend/tests/gh10346.phpt`
 
 Observer tests trace all functions, including dd setup. Exclude these from being observed.
+
+## SKIP\_ONLINE\_TESTS
+
+The env var `SKIP_ONLINE_TESTS` is set so that in newer PHP versions, we skip
+any test which checks this env var. Online tests are too flaky for CI.
+
+The exact PHP version that a given test checks this env var varies, but these
+are some tests which are skipped for older versions which don't check it:
+
+ - `ext/sockets/tests/socket_shutdown.phpt`

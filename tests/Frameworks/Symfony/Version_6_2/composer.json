@@ -8,11 +8,18 @@
         "ext-ctype": "*",
         "ext-iconv": "*",
         "doctrine/annotations": "^1.12",
+        "doctrine/doctrine-bundle": "^2.10",
+        "doctrine/doctrine-migrations-bundle": "^3.2",
+        "doctrine/orm": "^2.15",
         "symfony/console": "6.2.*",
         "symfony/dotenv": "6.2.*",
         "symfony/flex": "^1.17.1",
+        "symfony/form": "6.2.*",
         "symfony/framework-bundle": "6.2.*",
+        "symfony/monolog-bundle": "^3.8",
+        "symfony/security-bundle": "6.2.*",
         "symfony/twig-bundle": "6.2.*",
+        "symfony/validator": "6.2.*",
         "symfony/yaml": "6.2.*"
     },
     "config": {
@@ -29,7 +36,8 @@
     "autoload": {
         "psr-4": {
             "App\\": "src/"
-        }
+        },
+        "files": ["../../../Appsec/Mock.php"]
     },
     "autoload-dev": {
         "psr-4": {
@@ -55,6 +63,13 @@
         ],
         "post-update-cmd": [
             "@auto-scripts"
+        ],
+        "post-autoload-dump": [
+            "rm -rf var/cache/dev/*",
+            "rm -rf var/cache/prod/*",
+            "@php bin/console doctrine:database:drop --force",
+            "@php bin/console doctrine:database:create",
+            "@php bin/console doctrine:migrations:migrate -n"
         ]
     },
     "conflict": {
@@ -65,5 +80,8 @@
             "allow-contrib": false,
             "require": "6.2.*"
         }
+    },
+    "require-dev": {
+        "symfony/maker-bundle": "^1.49"
     }
 }
