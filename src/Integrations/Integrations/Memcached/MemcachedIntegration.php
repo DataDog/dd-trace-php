@@ -228,6 +228,7 @@ class MemcachedIntegration extends Integration
         $span->name = "Memcached.$command";
         $span->type = Type::MEMCACHED;
         $span->service = 'memcached';
+        Integration::handleInternalSpanServiceName($span, MemcachedIntegration::NAME);
         $span->resource = $command;
         $span->meta['memcached.command'] = $command;
         $span->meta[Tag::SPAN_KIND] = 'client';

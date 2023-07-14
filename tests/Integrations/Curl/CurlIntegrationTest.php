@@ -48,6 +48,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
             'DD_TRACE_MEMORY_LIMIT',
             'DD_TRACE_SPANS_LIMIT',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
         ];
     }
 
@@ -671,6 +672,36 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     'peer.service' => 'httpbin_integration',
                     '_dd.peer.service.source' => 'network.destination.name',
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
+        ]);
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            $ch = curl_init(self::URL . '/status/200');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            $this->assertSame('', $response);
+            curl_close($ch);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('curl_exec', 'configured_service', 'http', 'http://httpbin_integration/status/?')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.url' => self::URL . '/status/200',
+                    'http.status_code' => '200',
+                    'span.kind' => 'client',
+                    'network.destination.name' => 'httpbin_integration',
+                    Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Memcached;
 
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 use DDTrace\Obfuscation;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -33,6 +34,8 @@ final class MemcachedTest extends IntegrationTestCase
     {
         return [
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
         ];
     }
 
@@ -978,5 +981,27 @@ final class MemcachedTest extends IntegrationTestCase
         }
 
         return $tags;
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key', 'value');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcached.add', 'configured_service', 'memcached', 'add')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(), [
+                    'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
+                    'memcached.command' => 'add',
+                    Tag::SPAN_KIND => 'client',
+                ]))
+        ]);
     }
 }
