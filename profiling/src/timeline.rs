@@ -135,9 +135,8 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             // for example "/var/www/html/../vendor/foo/bar.php" while during stack walking we get
             // "/var/html/vendor/foo/bar.php". This makes sure it is the exact same string we'd
             // collect in stack walking and therefore we are fully utilizing the pprof string table
-            let filename = Some(String::from_utf8_lossy(
-                ddog_php_prof_zend_string_view((*op_array).filename.as_mut()).into_bytes(),
-            )).unwrap().to_string();
+            let filename = ddog_php_prof_zend_string_view((*op_array).filename.as_mut());
+            let filename = String::from_utf8_lossy(filename.into_bytes()).to_string();
 
             trace!(
                 "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
