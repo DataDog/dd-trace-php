@@ -80,7 +80,7 @@ trait TracerTestTrait
         // add environment variables to headers
         $dd_header_with_env = getHeaderWithEnvironment();
         if ($dd_header_with_env) {
-            $headers["X-Datadog-Trace-Env-Variables"] = $dd_header_with_env;
+            $headers[] = "X-Datadog-Trace-Env-Variables: " . $dd_header_with_env;
         }
 
         // Initialize a cURL session
@@ -547,7 +547,8 @@ trait TracerTestTrait
 
 function getHeaderWithEnvironment()
 {
-    $ddEnvVars = array_filter($_ENV, function ($key) {
+    $env = getenv();
+    $ddEnvVars = array_filter($env, function ($key) {
         return strpos($key, 'DD_') === 0;
     }, ARRAY_FILTER_USE_KEY);
 
@@ -555,6 +556,12 @@ function getHeaderWithEnvironment()
         $ddEnvVarsString = implode(',', array_map(function ($key, $value) {
             return "$key=$value";
         }, array_keys($ddEnvVars), $ddEnvVars));
+    }
+    $peer_service_enabled = $env['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED'];
+    if (isset($peer_service_enabled) && $peer_service_enabled === 'true') {
+        if (!isset($env['DD_TRACE_SPAN_ATTRIBUTE_SCHEMA'])) {
+            $ddEnvVarsString .= ',DD_TRACE_SPAN_ATTRIBUTE_SCHEMA=v0.5';
+        }
     }
     return $ddEnvVarsString;
 }
