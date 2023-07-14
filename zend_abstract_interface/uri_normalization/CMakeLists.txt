@@ -6,7 +6,7 @@ target_include_directories(zai_uri_normalization PUBLIC
 
 target_compile_features(zai_uri_normalization PUBLIC c_std_99)
 
-target_link_libraries(zai_uri_normalization PUBLIC "${PHP_LIB}")
+target_link_libraries(zai_uri_normalization PUBLIC "${PHP_LIB}" Zai::Sandbox)
 
 set_target_properties(zai_uri_normalization PROPERTIES
                                      EXPORT_NAME uri_normalization
