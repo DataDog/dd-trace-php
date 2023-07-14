@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\MongoDB;
 
+use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -367,6 +368,10 @@ class MongoDBIntegration extends Integration
                     null,
                     empty($args[0]) ? null : $args[0]
                 );
+
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
             }
         );
     }
@@ -395,6 +400,10 @@ class MongoDBIntegration extends Integration
                     null,
                     null
                 );
+
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
             }
         );
     }
@@ -423,6 +432,10 @@ class MongoDBIntegration extends Integration
                 null,
                 ObjectKVStore::get($args[1], 'filter', null)
             );
+
+            if (\PHP_MAJOR_VERSION > 5) {
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            }
         });
     }
 
@@ -450,6 +463,10 @@ class MongoDBIntegration extends Integration
                 null,
                 null
             );
+
+            if (\PHP_MAJOR_VERSION > 5) {
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            }
 
             if (isset($args[1])) {
                 $deletes = ObjectKVStore::get($args[1], 'deletes', []);
@@ -516,6 +533,10 @@ class MongoDBIntegration extends Integration
                 $commandName,
                 null
             );
+
+            if (\PHP_MAJOR_VERSION > 5) {
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            }
         });
     }
 

@@ -7,14 +7,17 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\ObjectKVStore;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Jobs\JobName;
 
 use function DDTrace\active_span;
 use function DDTrace\close_span;
+use function DDTrace\logs_correlation_trace_id;
 use function DDTrace\remove_hook;
 use function DDTrace\set_distributed_tracing_context;
 use function DDTrace\start_trace_span;
+use function DDTrace\trace_id;
 use function DDTrace\trace_method;
 use function DDTrace\install_hook;
 use function DDTrace\hook_method;
@@ -68,6 +71,18 @@ class LaravelQueueIntegration extends Integration
                 'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration, &$newTrace) {
                     /** @var Job $job */
                     $job = $args[1];
+
+                    if ($exception) {
+                        // Used by Logs Correlation to track the origin of an exception
+                        ObjectKVStore::put(
+                            $exception,
+                            'exception_trace_identifiers',
+                            [
+                                'trace_id' => logs_correlation_trace_id(),
+                                'span_id' => dd_trace_peek_span_id()
+                            ]
+                        );
+                    }
 
                     $activeSpan = active_span(); // This is the span created in the prehook, if any
                     if ($activeSpan !== $span && $activeSpan == $newTrace) {
