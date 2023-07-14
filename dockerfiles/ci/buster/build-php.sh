@@ -74,7 +74,7 @@ ${PHP_SRC_DIR}/configure \
     --with-config-file-path=${INSTALL_DIR} \
     --with-config-file-scan-dir=${INSTALL_DIR}/conf.d
 
-make -j "$((`nproc`+1))"
+make -j "$((`nproc`+1))" || true
 
 if ! [[ -f ext/phar/phar.phar ]] && [[ ${INSTALL_VERSION} == *asan* ]]; then
   # Cross-compilation with asan and qemu will fail with a segfault instead. Handle this.
