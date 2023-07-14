@@ -547,7 +547,11 @@ trait TracerTestTrait
 
 function getHeaderWithEnvironment()
 {
-    $env = getenv();
+    try {
+        $env = getenv();
+    } catch (Exception $e) {
+        $env = $_ENV;
+    }
     $ddEnvVars = array_filter($env, function ($key) {
         return strpos($key, 'DD_') === 0;
     }, ARRAY_FILTER_USE_KEY);
