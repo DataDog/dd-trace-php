@@ -18,6 +18,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/PHPRedis/PHPRedisIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Predis/PredisIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Eloquent/EloquentIntegration.php',
+    __DIR__ . '/../src/Integrations/Integrations/Logs/LogsIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Memcache/MemcacheIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Memcached/MemcachedIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Curl/CurlIntegration.php',

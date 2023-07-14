@@ -51,6 +51,7 @@ final class CurlIntegration extends Integration
                 $span->name = $span->resource = 'curl_exec';
                 $span->type = Type::HTTP_CLIENT;
                 $span->service = 'curl';
+                Integration::handleInternalSpanServiceName($span, CurlIntegration::NAME);
                 $integration->addTraceAnalyticsIfEnabled($span);
                 $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
                 $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;

@@ -58,6 +58,8 @@ class SQLSRVTest extends IntegrationTestCase
     {
         return [
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
         ];
     }
 
@@ -391,6 +393,32 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
                 ->withExactTags(self::baseTags($query)),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags($query))
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
+        ]);
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $query = 'SELECT * FROM tests WHERE id=1';
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_query($conn, $query, [], ['Scrollable' => 'static']);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_query', 'configured_service', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
                 ->withExactMetrics([

@@ -75,9 +75,41 @@
                     "create-lockfile": false
                 }
             },
+            "laminaslog2": {
+                "require": {
+                    "laminas/laminas-log": "~2.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "mongodb1": {
                 "require": {
                     "mongodb/mongodb": "1.*"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "monolog1": {
+                "require": {
+                    "monolog/monolog": "~1.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "monolog2": {
+                "require": {
+                    "monolog/monolog": "~2.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "monolog3": {
+                "require": {
+                    "monolog/monolog": "~3.0"
                 },
                 "scenario-options": {
                     "create-lockfile": false
