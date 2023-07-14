@@ -242,7 +242,7 @@ static void dd_activate_once(void) {
     ddtrace_generate_runtime_id();
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
-    if (!DDTRACE_G(disable) && get_global_DD_TRACE_TELEMETRY_ENABLED()) {
+    if (!DDTRACE_G(disable) && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         bool modules_activated = PG(modules_activated);
         PG(modules_activated) = false;
         ddtrace_telemetry_setup();
