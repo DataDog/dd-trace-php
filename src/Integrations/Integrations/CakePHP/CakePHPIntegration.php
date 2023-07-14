@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\CakePHP;
 
 use CakeRequest;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -46,7 +45,6 @@ class CakePHPIntegration extends Integration
         }
 
         $integration->appName = \ddtrace_config_app_name(CakePHPIntegration::NAME);
-        SpanTaxonomy::registerCurrentRootService($integration->appName);
         $integration->rootSpan = $rootSpan;
         $integration->addTraceAnalyticsIfEnabled($integration->rootSpan);
         $integration->rootSpan->service = $integration->appName;

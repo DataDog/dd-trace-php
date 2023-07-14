@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\CodeIgniter\V2;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -32,7 +31,6 @@ class CodeIgniterIntegration extends Integration
             return Integration::NOT_LOADED;
         }
         $service = \ddtrace_config_app_name(self::NAME);
-        SpanTaxonomy::registerCurrentRootService($service);
 
         if (!\defined('CI_VERSION') || !isset($router)) {
             return Integration::NOT_LOADED;

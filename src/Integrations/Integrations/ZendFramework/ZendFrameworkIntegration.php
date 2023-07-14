@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\ZendFramework;
 
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Util\Runtime;
 use Zend_Controller_Front;
@@ -53,7 +52,6 @@ class ZendFrameworkIntegration extends Integration
         // For backward compatibility with the legacy API we are not using the integration
         // name 'zendframework', we are instead using the 'zf1' prefix.
         $appName = \ddtrace_config_app_name('zf1');
-        SpanTaxonomy::registerCurrentRootService($appName);
 
         \DDTrace\hook_method(
             'Zend_Controller_Plugin_Broker',

@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Nette;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -59,7 +58,6 @@ class NetteIntegration extends Integration
         $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
         $service = \ddtrace_config_app_name(NetteIntegration::NAME);
-        SpanTaxonomy::registerCurrentRootService($service);
 
         $this->addTraceAnalyticsIfEnabled($rootSpan);
         $rootSpan->service = $service;

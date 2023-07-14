@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Symfony;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -50,7 +49,6 @@ class SymfonyIntegration extends Integration
                     }
 
                     $service = \ddtrace_config_app_name('symfony');
-                    SpanTaxonomy::registerCurrentRootService($service);
                     $rootSpan->name = 'symfony.request';
                     $rootSpan->service = $service;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';

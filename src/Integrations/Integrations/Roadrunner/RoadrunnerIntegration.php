@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Roadrunner;
 
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 
@@ -46,7 +45,6 @@ class RoadrunnerIntegration extends Integration
         ini_set("datadog.trace.generate_root_span", 0);
 
         $service = \ddtrace_config_app_name('roadrunner');
-        SpanTaxonomy::registerCurrentRootService($service);
 
         \DDTrace\hook_method('Spiral\RoadRunner\Http\HttpWorker', 'waitRequest', [
             'prehook' => function () use (&$activeSpan) {

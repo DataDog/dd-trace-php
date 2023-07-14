@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Slim;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -34,7 +33,6 @@ class SlimIntegration extends Integration
 
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
-        SpanTaxonomy::registerCurrentRootService($appName);
 
         \DDTrace\hook_method(
             'Slim\App',

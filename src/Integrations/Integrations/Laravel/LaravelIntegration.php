@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\Laravel;
 use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 use DDTrace\Type;
 
@@ -86,7 +85,6 @@ class LaravelIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
                 $rootSpan->service = $integration->getServiceName();
-                SpanTaxonomy::registerCurrentRootService($rootSpan->service);
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
