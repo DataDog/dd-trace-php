@@ -8,6 +8,11 @@ class Tag
     const ENV = 'env';
     const SPAN_TYPE = 'span.type';
     const SPAN_KIND = 'span.kind';
+    const SPAN_KIND_VALUE_SERVER = 'server';
+    const SPAN_KIND_VALUE_CLIENT = 'client';
+    const SPAN_KIND_VALUE_PRODUCER = 'producer';
+    const SPAN_KIND_VALUE_CONSUMER = 'consumer';
+    const SPAN_KIND_VALUE_INTERNAL = 'internal';
     const COMPONENT = 'component';
     const SERVICE_NAME = 'service.name';
     const MANUAL_KEEP = 'manual.keep';
@@ -29,6 +34,7 @@ class Tag
     const LOG_ERROR_OBJECT = 'error.object';
     const LOG_MESSAGE = 'message';
     const LOG_STACK = 'stack';
+    const NETWORK_DESTINATION_NAME = 'network.destination.name';
     const TARGET_HOST = 'out.host';
     const TARGET_PORT = 'out.port';
     const BYTES_OUT = 'net.out.bytes';
@@ -45,7 +51,10 @@ class Tag
     const ELASTICSEARCH_URL = 'elasticsearch.url';
 
     // Database
+    const DB_NAME = 'db.name';
+    const DB_CHARSET = 'db.charset';
     const DB_INSTANCE = 'db.instance';
+    const DB_TYPE = 'db.type';
     const DB_SYSTEM = 'db.system';
     const DB_ROW_COUNT = 'db.row_count';
     const DB_STMT = 'db.statement';

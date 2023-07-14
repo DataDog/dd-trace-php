@@ -1,3 +1,4 @@
+use crate::allocation::allocation_profiling_rshutdown;
 use crate::bindings::{
     datadog_php_install_handler, datadog_php_zif_handler, zend_execute_data, zend_long, zval,
     InternalFunctionHandler,
@@ -93,6 +94,8 @@ fn stop_and_forget_profiling(maybe_profiler: &mut Option<Profiler>) {
     let mut old_profiler = None;
     swap(&mut *maybe_profiler, &mut old_profiler);
     forget(old_profiler);
+
+    allocation_profiling_rshutdown();
 
     /* Reset some global state to prevent further profiling and to not handle
      * any pending interrupts.

@@ -69,6 +69,9 @@ class PDOIntegration extends Integration
                 $span = $hook->span();
                 $span->name = 'PDO.exec';
                 $span->resource = Integration::toString($query);
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
                 PDOIntegration::setCommonSpanInfo($this, $span);
                 $integration->addTraceAnalyticsIfEnabled($span);
 
@@ -93,6 +96,9 @@ class PDOIntegration extends Integration
                 $span = $hook->span();
                 $span->name = 'PDO.query';
                 $span->resource = Integration::toString($query);
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
                 PDOIntegration::setCommonSpanInfo($this, $span);
                 $integration->addTraceAnalyticsIfEnabled($span);
 
@@ -125,6 +131,9 @@ class PDOIntegration extends Integration
             \DDTrace\trace_method('PDO', 'exec', function (SpanData $span, array $args, $retval) use ($integration) {
                 $span->name = 'PDO.exec';
                 $span->resource = Integration::toString($args[0]);
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
                 if (is_numeric($retval)) {
                     $span->metrics[Tag::DB_ROW_COUNT] = $retval;
                 }
@@ -136,6 +145,9 @@ class PDOIntegration extends Integration
             \DDTrace\trace_method('PDO', 'query', function (SpanData $span, array $args, $retval) use ($integration) {
                 $span->name = 'PDO.query';
                 $span->resource = Integration::toString($args[0]);
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
                 if ($retval instanceof \PDOStatement) {
                     $span->metrics[Tag::DB_ROW_COUNT] = $retval->rowCount();
                     ObjectKVStore::propagate($this, $retval, PDOIntegration::CONNECTION_TAGS_KEY);
@@ -168,6 +180,9 @@ class PDOIntegration extends Integration
                 $span->service = 'pdo';
                 $span->type = Type::SQL;
                 $span->resource = $this->queryString;
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
                 if ($retval === true) {
                     $span->metrics[Tag::DB_ROW_COUNT] = $this->rowCount();
                 }
@@ -230,11 +245,11 @@ class PDOIntegration extends Integration
             list($key, $value) = explode('=', $valString);
             switch (strtolower($key)) {
                 case 'charset':
-                    $tags['db.charset'] = $value;
+                    $tags[Tag::DB_CHARSET] = $value;
                     break;
                 case 'database':
                 case 'dbname':
-                    $tags['db.name'] = $value;
+                    $tags[Tag::DB_NAME] = $value;
                     break;
                 case 'server':
                 case 'unix_socket':

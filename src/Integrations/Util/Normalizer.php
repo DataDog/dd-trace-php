@@ -316,7 +316,23 @@ class Normalizer
         // Note, we do not use PHP's `parse_url()` because it would require tricks to be compatible with UDS file names.
         $parts = \explode("://", $hostOrUDS);
         $noSchema = count($parts) > 1 ? $parts[count($parts) - 1] : $hostOrUDS;
-        $noSpaces = \str_replace(' ', '', $noSchema);
+
+        return self::normalizeAsService($noSchema);
+    }
+
+    /**
+     * Transform an input string into a service name-friendly string.
+     *
+     * @param string $original
+     * @return string
+     */
+    public static function normalizeAsService($original)
+    {
+        if (null === $original) {
+            return '';
+        }
+
+        $noSpaces = \str_replace(' ', '', $original);
 
         return \trim(preg_replace('/[^a-zA-Z0-9.\_]+/', '-', $noSpaces), '- ');
     }
