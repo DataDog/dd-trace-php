@@ -68,7 +68,14 @@ static void dd_decide_on_sampling(ddtrace_span_data *span) {
 
             zval *rule_pattern;
             if ((rule_pattern = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("service")))) {
-                rule_matches &= dd_rule_matches(rule_pattern, ddtrace_spandata_property_service(span));
+                zval *service = ddtrace_spandata_property_service(span);
+                if (Z_TYPE_P(service) == IS_STRING) {
+                    zval *mapped_service = zend_hash_find(get_DD_SERVICE_MAPPING(), Z_STR_P(service));
+                    if (!mapped_service) {
+                        mapped_service = service;
+                    }
+                    rule_matches &= dd_rule_matches(rule_pattern, mapped_service);
+                }
             }
             if ((rule_pattern = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("name")))) {
                 rule_matches &= dd_rule_matches(rule_pattern, ddtrace_spandata_property_name(span));
