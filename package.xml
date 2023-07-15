@@ -62,50 +62,48 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This release adds timeline support to the profiler. This is off by default. Enable it with the environment variable DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED=1 or INI setting datadog.profiling.experimental_timeline_enabled=1.
+This release adds logs correlation and telemetry support:
+- Used configurations, libraries and integrations will be collected. This may be disabled with `DD_INSTRUMENTATION_TELEMETRY_ENABLED=0`.
+- Logs written by common logging libraries will be attached metadata about the trace and span the log line was generated in. This may be disabled with `DD_LOGS_INJECTION=0`.
 
 ### Added
-- Add horizon as artisan queue command #2124 Thanks, @markwalet.
+- Add Logs Correlation #2118
 - Add network destination name to http client spans #2134
-- Add automated Laravel user tracking events #2100
-- Add DD_HTTP_SERVER_ROUTE_BASED_NAMING config to enforce <method> <path> resources #2138
+- Add peer.service to Mysqli instrumentation #2142
+- Add peer.service to PHPRedis instrumentation #2152
+- Add peer.service to PDO instrumentation #2148
+- Add peer.service to SQLSRV instrumentation #2155
+- Add peer.service to Mongodb instrumentation #2147
+- Add peer.service to Memcached clients instrumentation #2145
+- Add peer.service to http client instrumentations #2134
+- Add automated login events to Symfony #2132 #2146
+- Opt-in to flat service names #2163
+
+### Changed
+- Move all integrations to deferred loading #2153
+- Reflect changes to datadog.version and datadog.env in existing spans #2165
+- Evaluate the service name after the service mapping for a sampling decision #2166
 
 ### Fixed
-- Fix a memory leak when overriding default arguments in install_hook (PHP7.2-) #2107
-- Generate runtime-id on first request #2137
-- Better GC workaround on PHP 7.3 and below for cycle collected span stacks #2123
-- Use proper variable for php-config #2114
-- Generate runtime-id on first request #2137
+- Add invalid regex handling for sampling rules #2160
 
 ### Internal Changes
-- Add note about cargo in README, make debug symbols included by default for manual compilation #2110
-
+- Add SpanData::peerServiceSources #2130
+- Handle peer.service-related post-process in the extension #2135
+- Enable instrumentation telemetry by default #2153
 
 ## Profiling
+
 ### Added
-- Add timeline support #1997, #2108
-- Add endpoint counts #2111
-- Add file compilation times to timeline #2119
+- doc(profiling): make phpinfo() output more helpful #2144
+- timeline: add eval() timings #2150
+
+### Fixed
+- Explicit shutdown allocation profiling on fork() #2149
+- Optimize event timestamp for timeline #2157
 
 ### Internal changes
-- ci: add stack walking benchmark #2041, #2133, #2136
-- ​​build: bump indexmap to v2.0.0 #2127
-- build: bump bindgen to 0.66.1 #2128
-
-
-## Application Security Management (0.10.0)
-
-#### Added
-- Add automated user login events DataDog/dd-appsec-php#272
-- Add sign up event DataDog/dd-appsec-php#275
-
-#### Fixed
-- Persist top-most root span from RINIT DataDog/dd-appsec-php#273
-
-#### Internal Changes
-- Rename system-test scenario DataDog/dd-appsec-php#271
-- Support multiple traces and spans but provide only the root span on integration tests DataDog/dd-appsec-php#274
-- Set libddwaf as git `safe.directory` on `build package` step DataDog/dd-appsec-php#276
+- refactor(profiling): apply clippy suggestions #2141
 ]]></notes>
     <contents>
         <dir name="/">
