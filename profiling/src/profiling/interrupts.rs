@@ -55,6 +55,8 @@ impl InterruptManager {
         // The 7 is arbitrary.
         let (async_sender, async_receiver) = crossbeam_channel::bounded(7);
 
+        // Capacity 1 because we expect there to be 1 thread in NTS mode, and
+        // if it happens to be ZTS this is just an initial capacity anyway.
         let vm_interrupts = Arc::new(Mutex::new(HashSet::with_capacity(1)));
         Self {
             vm_interrupts: vm_interrupts.clone(),
@@ -150,11 +152,17 @@ impl InterruptManager {
         }
     }
 
+    /// Remove the interrupt from the manager's set and attempt to wake its
+    /// helper thread so it can synchronize the state of active PHP requests.
     pub(super) fn add_interrupt(&self, interrupt: VmInterrupt) {
+        // First, add the interrupt to the set.
         {
             let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
             vm_interrupts.insert(interrupt);
         }
+
+        // Second, make a best-effort attempt to wake the helper thread so
+        // that it is aware another PHP request is in flight.
         if self.async_sender.try_send(AsyncMessage::Wake).is_err() {
             // If  it's full, just stop trying. This likely means the thread is
             // behind or crashed. Either way, no sense trying to wake it.
@@ -163,26 +171,39 @@ impl InterruptManager {
         }
     }
 
+    /// Remove the interrupt from the manager's set.
     pub(super) fn remove_interrupt(&self, interrupt: VmInterrupt) {
+        // First, remove the interrupt from the set.
         let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
         vm_interrupts.remove(&interrupt);
+
+        // Second, do not try to wake the helper thread. In NTS mode, the next
+        // request may come before the timer expires anyway, and if not, at
+        // worst we had 1 wake-up outside of a request, which is the same as
+        // if we wake it now.
+        // In ZTS mode, this would just be unnecessary wake-ups, as there are
+        // likely to be other threads serving requests.
     }
 
     /// Pause the interrupter so the main thread can fork.
     pub(super) fn pause(&self) -> anyhow::Result<()> {
-        // todo: add anyhow context.
-        Ok(self.sync_sender.send(SyncMessage::Pause)?)
+        self.sync_sender.send(SyncMessage::Pause).map_err(|err| {
+            anyhow::Error::from(err).context(format!("failed to pause {}", Self::THREAD_NAME))
+        })
     }
 
     /// Shut down the interrupter.
     pub(super) fn shutdown(self) -> anyhow::Result<()> {
-        // todo: timeout?
         match self
             .sync_sender
             .send_timeout(SyncMessage::Shutdown, Duration::from_secs(2))
         {
+            // If the channel operation was a success, or if it's already
+            // disconnected, then join on the thread.
             Ok(_) => {}
             Err(SendTimeoutError::Disconnected(_message)) => {}
+
+            // However, if it timed out, we cannot safely join the thread.
             Err(SendTimeoutError::Timeout(_message)) => {
                 anyhow::bail!(
                     "timeout reached when trying to send shutdown message to {}",
