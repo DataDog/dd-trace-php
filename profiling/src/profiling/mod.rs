@@ -20,7 +20,7 @@ use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::str;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -177,7 +177,7 @@ impl Default for Globals {
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
     fork_senders: [Sender<()>; 2],
-    interrupt_manager: Arc<InterruptManager>,
+    interrupt_manager: InterruptManager,
     message_sender: Sender<ProfilerMessage>,
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
@@ -187,10 +187,8 @@ pub struct Profiler {
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
     fork_receiver: Receiver<()>,
-    interrupt_manager: Arc<InterruptManager>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
-    wall_time_period: Duration,
     upload_period: Duration,
 }
 
@@ -367,7 +365,6 @@ impl TimeCollector {
             UPLOAD_PERIOD.as_secs(),
             WALL_TIME_PERIOD.as_millis());
 
-        let wall_time_tick = crossbeam_channel::tick(self.wall_time_period);
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let mut running = true;
 
@@ -395,12 +392,6 @@ impl TimeCollector {
                              */
                             break;
                         }
-                    }
-                },
-
-                recv(wall_time_tick) -> message => {
-                    if message.is_ok() {
-                        self.interrupt_manager.trigger_interrupts()
                     }
                 },
 
@@ -433,19 +424,17 @@ pub struct UploadMessage {
 
 impl Profiler {
     pub fn new(output_pprof: Option<Cow<'static, str>>) -> Self {
-        let fork_barrier = Arc::new(Barrier::new(3));
+        let fork_barrier = Arc::new(Barrier::new(4));
         let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
-        let interrupt_manager = Arc::new(InterruptManager::new(Mutex::new(Vec::with_capacity(1))));
+        let interrupt_manager = InterruptManager::new(fork_barrier.clone());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let (fork_sender1, fork_receiver1) = crossbeam_channel::bounded(1);
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
             fork_receiver: fork_receiver0,
-            interrupt_manager: interrupt_manager.clone(),
             message_receiver,
             upload_sender,
-            wall_time_period: WALL_TIME_PERIOD,
             upload_period: UPLOAD_PERIOD,
         };
 
@@ -467,19 +456,20 @@ impl Profiler {
         }
     }
 
-    pub fn add_interrupt(&self, interrupt: VmInterrupt) -> Result<(), (usize, VmInterrupt)> {
+    pub fn add_interrupt(&self, interrupt: VmInterrupt) {
         self.interrupt_manager.add_interrupt(interrupt)
     }
 
-    pub fn remove_interrupt(&self, interrupt: VmInterrupt) -> Result<(), VmInterrupt> {
+    pub fn remove_interrupt(&self, interrupt: VmInterrupt) {
         self.interrupt_manager.remove_interrupt(interrupt)
     }
 
     /// Call before a fork, on the thread of the parent process that will fork.
     pub fn fork_prepare(&self) {
+        _ = self.interrupt_manager.pause();
         for sender in self.fork_senders.iter() {
             // Hmm, what to do with errors?
-            let _ = sender.send(());
+            _ = sender.send(());
         }
         self.fork_barrier.wait();
     }
@@ -508,6 +498,7 @@ impl Profiler {
     /// can do something while the other threads finish up.
     pub fn stop(&self, timeout: Duration) {
         debug!("Stopping profiler.");
+
         let sent = match self
             .message_sender
             .send_timeout(ProfilerMessage::Cancel, timeout)
@@ -528,6 +519,10 @@ impl Profiler {
     /// before calling [Profiler::shutdown].
     /// Note the timeout is per thread, and there may be multiple threads.
     pub fn shutdown(self, timeout: Duration) {
+        if let Err(err) = self.interrupt_manager.shutdown() {
+            warn!("{err}");
+        }
+
         if self.should_join.load(Ordering::SeqCst) {
             thread_utils::join_timeout(
                 self.time_collector_handle,
@@ -571,7 +566,7 @@ impl Profiler {
         &self,
         execute_data: *mut zend_execute_data,
         interrupt_count: u32,
-        mut locals: &mut RequestLocals,
+        locals: &mut RequestLocals,
     ) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
@@ -700,7 +695,7 @@ impl Profiler {
             vec![ZendFrame {
                 function: "[eval]".into(),
                 file: Some(filename),
-                line: line,
+                line,
             }],
             SampleValues {
                 timeline: duration,

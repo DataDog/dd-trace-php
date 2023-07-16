@@ -541,9 +541,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                     interrupt_count_ptr: &locals.interrupt_count as *const AtomicU32,
                     engine_ptr: locals.vm_interrupt_addr,
                 };
-                if let Err((index, interrupt)) = profiler.add_interrupt(interrupt) {
-                    warn!("VM interrupt {interrupt} already exists at offset {index}");
-                }
+                profiler.add_interrupt(interrupt);
             }
         });
     }
@@ -640,9 +638,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                     interrupt_count_ptr: &locals.interrupt_count,
                     engine_ptr: locals.vm_interrupt_addr,
                 };
-                if let Err(err) = profiler.remove_interrupt(interrupt) {
-                    warn!("Unable to find interrupt {err}.");
-                }
+                profiler.remove_interrupt(interrupt);
             }
             locals.tags = Arc::new(static_tags());
         }
