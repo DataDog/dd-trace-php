@@ -7,8 +7,10 @@ pub use interrupts::*;
 use stalk_walking::*;
 use uploader::*;
 
-#[cfg(php_has_fibers)]
+#[cfg(all(php_has_fibers, not(test)))]
 use crate::bindings::ddog_php_prof_get_active_fiber;
+#[cfg(all(php_has_fibers, test))]
+use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 #[cfg(php_has_fibers)]
 use crate::zend::ddog_php_prof_zend_string_view;
 

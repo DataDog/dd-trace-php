@@ -164,6 +164,11 @@ zend_fiber* ddog_php_prof_get_active_fiber()
 {
     return EG(active_fiber);
 }
+
+zend_fiber* ddog_php_prof_get_active_fiber_test()
+{
+    return NULL;
+}
 #endif
 
 #if CFG_STACK_WALKING_TESTS
