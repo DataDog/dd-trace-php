@@ -185,7 +185,7 @@ services:
       - SNAPSHOTS_DIR=/snapshots
       - SNAPSHOT_CI=0
       - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.process_id
-      - ENABLED_CHECKS=trace_stall,trace_count_header,trace_peer_service,trace_dd_service
+      - ENABLED_CHECKS=trace_stall,trace_peer_service,trace_dd_service
 
 volumes:
   agent-socket:
