@@ -64,90 +64,65 @@ impl InterruptManager {
             sync_sender,
             join_handle: super::thread_utils::spawn(Self::THREAD_NAME, move || {
                 let wall_timer = crossbeam_channel::tick(super::WALL_TIME_PERIOD);
-
+                let never = crossbeam_channel::never();
                 loop {
-                    // The if/else branches should be the same, except that
-                    // the code path which recv's ticker messages should not
-                    // be present on the branch that handles the case when PHP
-                    // isn't serving a request.
-                    let active_interrupts = !vm_interrupts.lock().unwrap().is_empty();
-                    if active_interrupts {
-                        crossbeam_channel::select! {
-                            recv(async_receiver) -> message => match message {
-                                // This message is just to wake the thread up
-                                // so it can sync `active_interrupts`.
-                                Ok(AsyncMessage::Wake) => {},
-                                Err(err) => {
-                                    log::warn!("{err}");
-                                    break;
-                                },
-                            },
-
-                            recv(sync_receiver) -> message => match message {
-                                Ok(SyncMessage::Pause) => {
-                                    // First, wait for every thread to finish what
-                                    // they are currently doing.
-                                    barrier.wait();
-                                    // Then, wait for the fork to be completed.
-                                    barrier.wait();
-                                },
-
-                                Ok(SyncMessage::Shutdown) => break,
-                                Err(err) => {
-                                    log::warn!("{err}");
-                                    break;
-                                },
-                            },
-
-                            recv(wall_timer) -> message => match message {
-                                Ok(_) => {
-                                    let vm_interrupts = vm_interrupts.lock().unwrap();
-                                    vm_interrupts.iter().for_each(|obj| unsafe {
-                                        (*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
-                                        (*obj.engine_ptr).store(true, Ordering::SeqCst);
-                                    });
-                                },
-
-                                Err(err) => {
-                                    log::warn!("{err}");
-                                    break;
-                                },
-                            }
-                        }
+                    // The crossbeam_channel::select! doesn't have the ability
+                    // to optionally recv something. Instead, if the tick
+                    // channel shouldn't be selected on, then pass the never
+                    // channel. Since the never channel will never be ready,
+                    // this effectively makes that branch optional for that
+                    // loop iteration.
+                    let timer = if !vm_interrupts.lock().unwrap().is_empty() {
+                        &wall_timer
                     } else {
-                        // It's not great that we duplicate this code, but it
-                        // was the only way I could get it to compile.
-                        crossbeam_channel::select! {
-                            recv(async_receiver) -> message => match message {
-                                // This message is just to wake the thread up
-                                // so it can sync `active_interrupts`.
-                                Ok(AsyncMessage::Wake) => {},
-                                Err(err) => {
-                                    log::warn!("{err}");
-                                    break;
-                                },
+                        &never
+                    };
+
+                    crossbeam_channel::select! {
+                        recv(async_receiver) -> message => match message {
+                            // This message is just to wake the thread up
+                            // so it can sync `active_interrupts`.
+                            Ok(AsyncMessage::Wake) => {},
+                            Err(err) => {
+                                log::warn!("{err}");
+                                break;
+                            },
+                        },
+
+                        recv(sync_receiver) -> message => match message {
+                            Ok(SyncMessage::Pause) => {
+                                // First, wait for every thread to finish what
+                                // they are currently doing.
+                                barrier.wait();
+                                // Then, wait for the fork to be completed.
+                                barrier.wait();
                             },
 
-                            recv(sync_receiver) -> message => match message {
-                                Ok(SyncMessage::Pause) => {
-                                    // First, wait for every thread to finish what
-                                    // they are currently doing.
-                                    barrier.wait();
-                                    // Then, wait for the fork to be completed.
-                                    barrier.wait();
-                                },
+                            Ok(SyncMessage::Shutdown) => break,
+                            Err(err) => {
+                                log::warn!("{err}");
+                                break;
+                            },
+                        },
 
-                                Ok(SyncMessage::Shutdown) => break,
-                                Err(err) => {
-                                    log::warn!("{err}");
-                                    break;
-                                },
+                        recv(timer) -> message => match message {
+                            Ok(_) => {
+                                let vm_interrupts = vm_interrupts.lock().unwrap();
+                                vm_interrupts.iter().for_each(|obj| unsafe {
+                                    (*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
+                                    (*obj.engine_ptr).store(true, Ordering::SeqCst);
+                                });
+                            },
+
+                            Err(err) => {
+                                log::warn!("{err}");
+                                break;
                             },
                         }
                     }
-
-                    log::trace!("thread {} shut down", Self::THREAD_NAME);
                 }
+
+                log::trace!("thread {} shut down", Self::THREAD_NAME);
             }),
         }
     }
