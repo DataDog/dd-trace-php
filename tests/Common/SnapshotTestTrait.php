@@ -58,7 +58,7 @@ trait SnapshotTestTrait
      * @param string $token The token to associate with the snapshotting session
      * @return void
      */
-    private function startSnapshotSession(string $token): void
+    private function startSnapshotSession(string $token)
     {
 
         $url = self::$testAgentUrl . '/test/session/start?test_session_token=' . $token;
@@ -79,7 +79,7 @@ trait SnapshotTestTrait
      * @param int $numExpectedTraces The number of traces to wait for. Defaults to 0 (won't check for traces)
      * @return void
      */
-    private function waitForTraces(string $token, int $numExpectedTraces = 0): void
+    private function waitForTraces(string $token, int $numExpectedTraces = 0)
     {
         if ($numExpectedTraces === 0) {
             return;
@@ -117,7 +117,7 @@ trait SnapshotTestTrait
         string $token,
         array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack'],
         int $numExpectedTraces = 1
-    ): void {
+    ) {
         $this->waitForTraces($token, $numExpectedTraces);
 
         $url = self::$testAgentUrl . '/test/session/snapshot?ignores=' . implode(',', $fieldsToIgnore) .
@@ -139,7 +139,7 @@ trait SnapshotTestTrait
         $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack'],
         $numExpectedTraces = 1,
         $tracer = null
-    ): void {
+    ) {
         if ($tracer === null) {
             $this->resetTracerState();
         }

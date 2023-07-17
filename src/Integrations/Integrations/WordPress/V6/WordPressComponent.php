@@ -658,8 +658,7 @@ class WordPressComponent
             $action = $args[0];
             $callback = $args[1];
             $pluginName = end($plugins);
-
-            if (isset($interestingActions[$action])) {
+            if (isset($interestingActions[$action]) && dd_trace_env_config('DD_TRACE_WP_CALLBACKS')) {
                 install_hook(
                     (
                     is_array($callback) && is_string($callback[0])
