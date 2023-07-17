@@ -49,7 +49,7 @@ object(DDTrace\SpanData)#%d (12) {
   array(0) {
   }
   ["sourceFile"]=>
-  string(71) "/home/circleci/app/tmp/build_extension/tests/ext/sandbox/span_clone.php"
+  string(71) "%s/tests/ext/sandbox/span_clone.php"
   ["parent"]=>
   NULL
   ["stack"]=>
@@ -92,7 +92,7 @@ object(DDTrace\SpanData)#%d (12) {
   array(0) {
   }
   ["sourceFile"]=>
-  string(71) "/home/circleci/app/tmp/build_extension/tests/ext/sandbox/span_clone.php"
+  string(71) "%s/tests/ext/sandbox/span_clone.php"
   ["parent"]=>
   NULL
   ["stack"]=>
@@ -132,7 +132,7 @@ object(DDTrace\SpanData)#%d (12) {
       array(0) {
       }
       ["sourceFile"]=>
-      string(71) "/home/circleci/app/tmp/build_extension/tests/ext/sandbox/span_clone.php"
+      string(71) "%s/tests/ext/sandbox/span_clone.php"
       ["parent"]=>
       NULL
       ["stack"]=>
