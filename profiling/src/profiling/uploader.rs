@@ -1,4 +1,4 @@
-use crate::profiling::UploadMessage;
+use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use crossbeam_channel::{select, Receiver};
 use datadog_profiling::exporter::{Endpoint, File};
@@ -10,27 +10,24 @@ use std::time::Duration;
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
-    fork_receiver: Receiver<()>,
-    upload_receiver: Receiver<UploadMessage>,
+    receiver: Receiver<UploadMessage>,
     output_pprof: Option<Cow<'static, str>>,
 }
 
 impl Uploader {
     pub fn new(
         fork_barrier: Arc<Barrier>,
-        fork_receiver: Receiver<()>,
-        upload_receiver: Receiver<UploadMessage>,
+        receiver: Receiver<UploadMessage>,
         output_pprof: Option<Cow<'static, str>>,
     ) -> Self {
         Self {
             fork_barrier,
-            fork_receiver,
-            upload_receiver,
+            receiver,
             output_pprof,
         }
     }
 
-    fn upload(message: UploadMessage) -> anyhow::Result<u16> {
+    fn upload(message: UploadRequest) -> anyhow::Result<u16> {
         let index = message.index;
         let profile = message.profile;
 
@@ -77,28 +74,22 @@ impl Uploader {
              * todo: fix fork message priority.
              */
             select! {
-                recv(self.fork_receiver) -> message => match message {
-                    Ok(_) => {
+                recv(self.receiver) -> message => match message {
+                    Ok(UploadMessage::Pause) => {
                         // First, wait for every thread to finish what they are currently doing.
                         self.fork_barrier.wait();
                         // Then, wait for the fork to be completed.
                         self.fork_barrier.wait();
-                    }
-                    _ => {
-                        trace!("Fork channel closed; joining upload thread.");
-                        break;
-                    }
-                },
+                    },
 
-                recv(self.upload_receiver) -> message => match message {
-                    Ok(upload_message) => {
+                    Ok(UploadMessage::Upload(request)) => {
                         match pprof_filename {
                             Some(filename) => {
-                                let r = upload_message.profile.serialize(None, None).unwrap();
+                                let r = request.profile.serialize(None, None).unwrap();
                                 i += 1;
                                 std::fs::write(format!("{filename}.{i}"), r.buffer).expect("write to succeed")
                             },
-                            None => match Self::upload(upload_message) {
+                            None => match Self::upload(request) {
                                 Ok(status) => {
                                     if status >= 400 {
                                         warn!("Unexpected HTTP status when sending profile (HTTP {status}).")
@@ -112,7 +103,8 @@ impl Uploader {
                             },
                         }
                     },
-                    _ => {
+
+                    Err(_) => {
                         trace!("No more upload messages to handle; joining thread.");
                         break;
                     }
