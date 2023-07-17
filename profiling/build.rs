@@ -25,9 +25,10 @@ fn main() {
 
     let vernum = php_config_vernum();
     let preload = cfg_preload(vernum);
+    let fibers = cfg_fibers(vernum);
 
-    generate_bindings(php_config_includes);
-    build_zend_php_ffis(php_config_includes, preload);
+    generate_bindings(php_config_includes, fibers);
+    build_zend_php_ffis(php_config_includes, preload, fibers);
 
     cfg_php_major_version(vernum);
     cfg_php_feature_flags(vernum);
@@ -68,7 +69,7 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/json/json.h",
 ];
 
-fn build_zend_php_ffis(php_config_includes: &str, preload: bool) {
+fn build_zend_php_ffis(php_config_includes: &str, preload: bool, fibers: bool) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=src/php_ffi.c");
     println!("cargo:rerun-if-changed=../ext/handlers_api.c");
@@ -98,6 +99,7 @@ fn build_zend_php_ffis(php_config_includes: &str, preload: bool) {
 
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
     let preload = if preload { "1" } else { "0" };
+    let fibers = if fibers { "1" } else { "0" };
 
     #[cfg(any(feature = "stack_walking_tests"))]
     let stack_walking_tests = "1";
@@ -108,6 +110,7 @@ fn build_zend_php_ffis(php_config_includes: &str, preload: bool) {
     cc::Build::new()
         .files(files.into_iter().chain(zai_c_files.into_iter()))
         .define("CFG_PRELOAD", preload)
+        .define("CFG_FIBERS", fibers)
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .includes([Path::new("../ext")])
         .includes(
@@ -135,7 +138,7 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
     }
 }
 
-fn generate_bindings(php_config_includes: &str) {
+fn generate_bindings(php_config_includes: &str, fibers: bool) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=../ext/handlers_api.h");
     let ignored_macros = IgnoreMacros(
@@ -151,8 +154,15 @@ fn generate_bindings(php_config_includes: &str) {
         .collect(),
     );
 
+    let clang_args = if fibers {
+        vec!["-D", "CFG_FIBERS=1"]
+    } else {
+        vec!["-D", "CFG_FIBERS=0"]
+    };
+
     let bindings = bindgen::Builder::default()
         .ctypes_prefix("libc")
+        .clang_args(clang_args)
         .raw_line("extern crate libc;")
         .header("src/php_ffi.h")
         .header("../ext/handlers_api.h")
@@ -226,15 +236,24 @@ fn cfg_php_major_version(vernum: u64) {
     println!("cargo:rustc-cfg=php{major_version}");
 }
 
+fn cfg_fibers(vernum: u64) -> bool {
+    if vernum >= 80100 {
+        println!("cargo:rustc-cfg=php_has_fibers");
+        true
+    } else {
+        false
+    }
+}
+
 fn cfg_php_feature_flags(vernum: u64) {
     if vernum >= 70300 {
         println!("cargo:rustc-cfg=php_gc_status");
     }
-    if vernum >= 80300 {
-        println!("cargo:rustc-cfg=php_gc_status_extended");
-    }
     if vernum >= 80200 {
         println!("cargo:rustc-cfg=php_zend_compile_string_has_position");
+    }
+    if vernum >= 80300 {
+        println!("cargo:rustc-cfg=php_gc_status_extended");
     }
 }
 

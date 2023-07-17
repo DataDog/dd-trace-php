@@ -296,6 +296,13 @@ extern "C" {
     pub fn ddog_php_prof_is_post_startup() -> bool;
 }
 
+#[cfg(php_has_fibers)]
+extern "C" {
+    /// Returns true if the PHP version the profiler is compiled on has support for fibers. This
+    /// was added in PHP 8.1
+    pub fn ddog_php_prof_get_active_fiber() -> *mut zend_fiber;
+}
+
 pub use zend_module_dep as ModuleDep;
 
 impl ModuleDep {

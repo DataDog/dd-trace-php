@@ -7,10 +7,12 @@ pub use interrupts::*;
 use stalk_walking::*;
 use uploader::*;
 
-use crate::bindings::{
-    datadog_php_profiling_get_profiling_context, ddog_php_prof_get_active_fiber, zend_execute_data,
-};
+#[cfg(php_has_fibers)]
+use crate::bindings::ddog_php_prof_get_active_fiber;
+#[cfg(php_has_fibers)]
 use crate::zend::ddog_php_prof_zend_string_view;
+
+use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::{AgentEndpoint, RequestLocals};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
@@ -871,7 +873,8 @@ impl Profiler {
     fn prepare_sample_message(
         frames: Vec<ZendFrame>,
         samples: SampleValues,
-        mut labels: Vec<Label>,
+        #[cfg(php_has_fibers)] mut labels: Vec<Label>,
+        #[cfg(not(php_has_fibers))] labels: Vec<Label>,
         locals: &RequestLocals,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
@@ -908,7 +911,9 @@ impl Profiler {
                 sample_values.extend_from_slice(&values[3..5]);
             }
 
+            #[cfg(php_has_fibers)]
             let fiber = unsafe { ddog_php_prof_get_active_fiber() };
+            #[cfg(php_has_fibers)]
             if !fiber.is_null() {
                 unsafe {
                     let functionname = Some(String::from_utf8_lossy(
