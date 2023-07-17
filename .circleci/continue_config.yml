@@ -46,6 +46,8 @@ aliases:
 
   - &IMAGE_DOCKER_MYSQL
     image: datadog/dd-trace-ci:php-mysql-dev-5.6
+    command:
+      --sql_mode=NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
     name: mysql_integration
     environment:
       - MYSQL_ROOT_PASSWORD=test
