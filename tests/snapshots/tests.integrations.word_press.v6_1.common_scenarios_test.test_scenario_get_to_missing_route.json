@@ -78,7 +78,7 @@
      {
        "name": "mysqli_query",
        "service": "mysqli",
-       "resource": "SET SESSION sql_mode='NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'",
+       "resource": "SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION'",
        "trace_id": 0,
        "span_id": 5,
        "parent_id": 1,

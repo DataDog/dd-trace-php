@@ -80,7 +80,7 @@ services:
 
   mysql_integration:
     image: mysql/mysql-server:8.0
-    command: --default-authentication-plugin=mysql_native_password
+    command: --default-authentication-plugin=mysql_native_password --sql-mode="NO_ENGINE_SUBSTITUTION"
     ports:
       - "3306:3306"
     environment:
