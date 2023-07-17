@@ -5,7 +5,7 @@
     "resource": "GET /simple",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 12518080372556214978,
+    "parent_id": 12823336412326458788,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple?key=value&<redacted>",
-      "runtime-id": "dda10798-532c-4027-bb2c-4ab5ac1374e0",
+      "runtime-id": "74b46124-3000-45ff-a5e9-c1f29bb00ad0",
       "span.kind": "server",
       "usr.id": "0"
     },
@@ -102,6 +102,7 @@
        "type": "sql",
        "meta": {
          "component": "mysqli",
+         "db.name": "test",
          "db.system": "mysql",
          "db.type": "mysql",
          "out.host": "mysql_integration",
@@ -147,7 +148,7 @@
        "meta": {
          "component": "wordpress",
          "wp.plugin": "datadog",
-         "wp.plugin_file": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php"
+         "wp.plugin_file": "/home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php"
        }
      },
      {
@@ -292,6 +293,7 @@
        "type": "sql",
        "meta": {
          "component": "mysqli",
+         "db.name": "test",
          "db.system": "mysql",
          "db.type": "mysql",
          "out.host": "mysql_integration",
@@ -408,6 +410,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1280,6 +1283,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1300,6 +1304,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1320,6 +1325,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1340,6 +1346,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1360,6 +1367,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1452,6 +1460,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1507,7 +1516,7 @@
           "parent_id": 16,
           "type": "web",
           "meta": {
-            "closure.declaration": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/script-loader.php:3398",
+            "closure.declaration": "/home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/script-loader.php:3398",
             "component": "wordpress"
           }
         },
@@ -1521,6 +1530,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",

@@ -5,19 +5,19 @@
     "resource": "GET /error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 18431067958707702267,
+    "parent_id": 10467467947578892909,
     "type": "web",
     "error": 1,
     "meta": {
       "_dd.p.dm": "-1",
       "component": "wordpress",
-      "error.message": "Uncaught Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php:25",
-      "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(308): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(332): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/plugin.php(565): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(399): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(780): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/functions.php(1332): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/index.php(18): require()\n#8 {main}",
+      "error.message": "Uncaught Exception: Oops! in /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php:25",
+      "error.stack": "#0 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(308): datadog_parse_request()\n#1 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(332): WP_Hook->apply_filters()\n#2 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/plugin.php(565): WP_Hook->do_action()\n#3 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(399): do_action_ref_array()\n#4 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(780): WP->parse_request()\n#5 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/functions.php(1332): WP->main()\n#6 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-blog-header.php(16): wp()\n#7 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/index.php(17): require()\n#8 {main}",
       "error.type": "Exception",
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
-      "runtime-id": "b17368f7-4055-4299-8a22-9ed5d83f9ef8",
+      "runtime-id": "3ce47240-af5d-4424-a4ad-164a9ac94b22",
       "span.kind": "server",
       "usr.id": "0"
     },
@@ -106,6 +106,7 @@
        "type": "sql",
        "meta": {
          "component": "mysqli",
+         "db.name": "test",
          "db.system": "mysql",
          "db.type": "mysql",
          "out.host": "mysql_integration",
@@ -151,7 +152,7 @@
        "meta": {
          "component": "wordpress",
          "wp.plugin": "datadog",
-         "wp.plugin_file": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php"
+         "wp.plugin_file": "/home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php"
        }
      },
      {
@@ -296,6 +297,7 @@
        "type": "sql",
        "meta": {
          "component": "mysqli",
+         "db.name": "test",
          "db.system": "mysql",
          "db.type": "mysql",
          "out.host": "mysql_integration",
@@ -412,6 +414,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1284,6 +1287,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1304,6 +1308,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1324,6 +1329,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1344,6 +1350,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1364,6 +1371,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1456,6 +1464,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1511,7 +1520,7 @@
           "parent_id": 16,
           "type": "web",
           "meta": {
-            "closure.declaration": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/script-loader.php:3398",
+            "closure.declaration": "/home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/script-loader.php:3398",
             "component": "wordpress"
           }
         },
@@ -1525,6 +1534,7 @@
              "type": "sql",
              "meta": {
                "component": "mysqli",
+               "db.name": "test",
                "db.system": "mysql",
                "db.type": "mysql",
                "out.host": "mysql_integration",
@@ -1558,8 +1568,8 @@
        "error": 1,
        "meta": {
          "component": "wordpress",
-         "error.message": "Thrown Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php:25",
-         "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(308): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(332): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/plugin.php(565): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(399): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(780): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/functions.php(1332): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/index.php(18): require()\n#8 {main}",
+         "error.message": "Thrown Exception: Oops! in /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php:25",
+         "error.stack": "#0 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(308): datadog_parse_request()\n#1 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(332): WP_Hook->apply_filters()\n#2 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/plugin.php(565): WP_Hook->do_action()\n#3 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(399): do_action_ref_array()\n#4 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(780): WP->parse_request()\n#5 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/functions.php(1332): WP->main()\n#6 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-blog-header.php(16): wp()\n#7 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/index.php(17): require()\n#8 {main}",
          "error.type": "Exception"
        }
      },
@@ -1586,8 +1596,8 @@
           "error": 1,
           "meta": {
             "component": "wordpress",
-            "error.message": "Thrown Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php:25",
-            "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(308): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(332): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/plugin.php(565): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(399): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(780): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/functions.php(1332): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/index.php(18): require()\n#8 {main}",
+            "error.message": "Thrown Exception: Oops! in /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php:25",
+            "error.stack": "#0 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(308): datadog_parse_request()\n#1 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp-hook.php(332): WP_Hook->apply_filters()\n#2 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/plugin.php(565): WP_Hook->do_action()\n#3 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(399): do_action_ref_array()\n#4 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/class-wp.php(780): WP->parse_request()\n#5 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/functions.php(1332): WP->main()\n#6 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-blog-header.php(16): wp()\n#7 /home/circleci/app/tests/Frameworks/WordPress/Version_6_1/index.php(17): require()\n#8 {main}",
             "error.type": "Exception"
           }
         },
