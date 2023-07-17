@@ -653,6 +653,7 @@ class MongoDBIntegration extends Integration
     ) {
         $span->name = $name;
         $span->service = 'mongodb';
+        Integration::handleInternalSpanServiceName($span, MongoDBIntegration::NAME);
         $span->type = Type::MONGO;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $serializedQuery = $rawQuery ? MongoDBIntegration::serializeQuery($rawQuery) : null;

@@ -212,12 +212,37 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
+static inline bool dd_alter_meta_var(const char *tag, zval *old_value, zval *new_value) {
+    UNUSED(old_value);
+
+    ddtrace_span_data *span = ddtrace_active_span();
+    while (span) {
+        zend_array *meta = ddtrace_spandata_property_meta(span);
+        if (Z_STRLEN_P(new_value) == 0) {
+            zend_hash_str_del(meta, tag, strlen(tag));
+        } else {
+            Z_TRY_ADDREF_P(new_value);
+            zend_hash_str_update(meta, tag, strlen(tag), new_value);
+        }
+        span = span->parent;
+    }
+
+    return true;
+}
+
+bool ddtrace_alter_dd_env(zval *old_value, zval *new_value) {
+    return dd_alter_meta_var("env", old_value, new_value);
+}
+bool ddtrace_alter_dd_version(zval *old_value, zval *new_value) {
+    return dd_alter_meta_var("version", old_value, new_value);
+}
+
 static void dd_activate_once(void) {
     ddtrace_config_first_rinit();
     ddtrace_generate_runtime_id();
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
-    if (!DDTRACE_G(disable) && get_global_DD_TRACE_TELEMETRY_ENABLED()) {
+    if (!DDTRACE_G(disable) && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         bool modules_activated = PG(modules_activated);
         PG(modules_activated) = false;
         ddtrace_telemetry_setup();
@@ -1817,6 +1842,30 @@ PHP_FUNCTION(DDTrace_trace_id) {
     }
 
     RETURN_STR(ddtrace_trace_id_as_string(ddtrace_peek_trace_id()));
+}
+
+/* {{{ proto string \DDTrace\logs_correlation_trace_id() */
+PHP_FUNCTION(DDTrace_logs_correlation_trace_id) {
+    if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
+        ddtrace_log_onceerrf("Unexpected parameters to DDTrace\\logs_correlation_trace_id");
+    }
+
+    ddtrace_trace_id trace_id = ddtrace_peek_trace_id();
+
+    if (get_DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED()) {
+        // The format of the injected trace id is conditional based on the higher-order 64 bits of the trace id
+        uint64_t high = trace_id.high;
+        if (high == 0) {
+            // If zero, the injected trace id will be its decimal string encoding (preserving the current behavior of 64-bit TraceIds)
+            RETURN_STR(ddtrace_trace_id_as_string(trace_id));
+        } else {
+            // The injected trace id will be encoded as 32 lower-case hexadecimal characters with zero-padding as necessary
+            RETURN_STR(ddtrace_trace_id_as_hex_string(trace_id));
+        }
+    } else {
+        // The injected trace id is the decimal encoding of the lower-order 64-bits of the trace id
+        RETURN_STR(ddtrace_span_id_as_string(trace_id.low));
+    }
 }
 
 /* {{{ proto array \DDTrace\current_context() */

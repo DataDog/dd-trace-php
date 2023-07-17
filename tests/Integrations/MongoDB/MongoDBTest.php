@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Mongo;
 
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -58,6 +59,8 @@ class MongoDBTest extends IntegrationTestCase
     {
         return [
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
         ];
     }
 
@@ -938,6 +941,37 @@ class MongoDBTest extends IntegrationTestCase
             }
         );
         $this->assertFlameGraph($traces, $expected);
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        // As array
+        $traces = $this->isolateTracer(function () {
+            $this->client()->test_db->cars->find(['brand' => new \MongoDB\BSON\Regex('^ford$', 'i')]);
+        });
+
+        $this->assertFlameGraph(
+            $traces,
+            [SpanAssertion::build('mongodb.cmd', 'configured_service', 'mongodb', 'find test_db cars {"brand":"?"}')
+                ->withExactTags([
+                    'mongodb.db' => self::DATABASE,
+                    'mongodb.collection' => 'cars',
+                    'mongodb.query' => '{"brand":"?"}',
+                    'span.kind' => 'client',
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
+                    Tag::COMPONENT => 'mongodb',
+                    Tag::DB_SYSTEM => 'mongodb',
+                ])->withChildren([
+                    SpanAssertion::exists('mongodb.driver.cmd')
+                ]),
+            ]
+        );
     }
 
     private function client()

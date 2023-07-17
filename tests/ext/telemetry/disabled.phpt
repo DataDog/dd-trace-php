@@ -6,7 +6,7 @@ if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not supp
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_TELEMETRY_ENABLED=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 --INI--
 datadog.trace.agent_url=file://{PWD}/disabled-telemetry.out
 --FILE--

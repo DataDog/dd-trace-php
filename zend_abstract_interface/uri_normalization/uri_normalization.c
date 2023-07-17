@@ -1,4 +1,5 @@
 #include "uri_normalization.h"
+#include "../sandbox/sandbox.h"
 
 #include <Zend/zend_smart_str.h>
 #include <stdbool.h>
@@ -203,7 +204,22 @@ bool zai_match_regex(zend_string *pattern, zend_string *subject) {
     }
 
     zend_string *regex = zend_strpprintf(0, "(%s)", ZSTR_VAL(pattern));
+
+    zai_error_state error_state;
+    zai_sandbox_error_state_backup(&error_state);
+    zend_replace_error_handling(EH_NORMAL, NULL, NULL);
+
     pcre_cache_entry *pce = pcre_get_compiled_regex_cache(regex);
+
+    // TODO: error loggins
+
+    zai_sandbox_error_state_restore(&error_state);
+
+    if (!pce) {
+        zend_string_release(regex);
+        return false;
+    }
+
     zval ret;
 #if PHP_VERSION_ID < 70400
     php_pcre_match_impl(pce, ZSTR_VAL(subject), ZSTR_LEN(subject), &ret, NULL, 0, 0, 0, 0);

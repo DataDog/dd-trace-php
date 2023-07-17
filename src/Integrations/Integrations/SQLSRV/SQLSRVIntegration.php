@@ -206,7 +206,7 @@ class SQLSRVIntegration extends Integration
         $span->name = $name;
         $span->resource = $query ?? $name;
         $span->type = Type::SQL;
-        $span->service = 'sqlsrv';
+        Integration::handleInternalSpanServiceName($span, SQLSRVIntegration::NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = SQLSRVIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = SQLSRVIntegration::SYSTEM;

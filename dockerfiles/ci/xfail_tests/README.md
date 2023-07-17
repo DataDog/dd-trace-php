@@ -57,7 +57,7 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 
 # Specific tests
 
-## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`
+## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`, `Zend/tests/gh11189(_1).phpt`
 
 Tests memory limits, which we exceed due to tracer being loaded.
 
@@ -69,7 +69,7 @@ By _chance_ the internal comparison happens against another GC protected array w
 
 Test does http request to shut down server.
 
-## `ext/curl/tests/curl_postfields_array.phpt`
+## `ext/curl/tests/curl_postfields_array.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt`
 
 Distributed tracing headers are injected
 

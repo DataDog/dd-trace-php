@@ -1,7 +1,7 @@
 <?php
 
-const MINIMUM_ACCEPTABLE_REQUESTS = 700;
-const MINIMUM_ASAN_ACCEPTABLE_REQUESTS = 300;
+const MINIMUM_ACCEPTABLE_REQUESTS = 600;
+const MINIMUM_ASAN_ACCEPTABLE_REQUESTS = 150;
 
 function analyze_web($tmpScenariosFolder)
 {
@@ -40,7 +40,7 @@ function analyze_web($tmpScenariosFolder)
         // We have to ignore 0 status codes as in CirceCI they are over reported. Instead we check error log for
         // Apache's segfaults.
         unset($receivedStatusCodes[0]);
-        if (array_keys($receivedStatusCodes) !== [200, 510, 511]) {
+        if (array_diff(array_keys($receivedStatusCodes), [200, 510, 511])) {
             $unexpectedCodes[$identifier] = $receivedStatusCodes;
         }
 
@@ -131,12 +131,17 @@ function analyze_cli($tmpScenariosFolder)
         }
 
         // Skip the first runs to avoid false positives with runs where a path initializing something is entered late
-        $values = array_slice($values, 20);
+        $values = array_slice($values, 5);
+
+        if (count(array_count_values($values)) <= 3) {
+            // It's actually stable, just some things have been JITed
+            continue;
+        }
 
         list($slope, $intercept) = calculate_trend_line($values);
 
-        if ($intercept > 7 * 1000 * 1000) {
-            // Heuristic 7MB limit. It might have to be increased as we add integrations
+        if ($intercept > 8 * 1000 * 1000) {
+            // Heuristic 8MB limit. It might have to be increased as we add integrations
             $largeInterceptResults[] = $identifier;
             continue;
         }

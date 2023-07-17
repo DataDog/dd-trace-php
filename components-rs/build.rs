@@ -21,9 +21,15 @@ fn main() {
             let object_paths: Vec<_> = split_vec.iter().skip(1).map(Path::new).collect();
             match generate_mock_symbols(binary_path, object_paths.as_slice()) {
                 Ok(mock_symbols) => {
-                    if let Err(err) = fs::write("mock_php.c", mock_symbols) {
-                        eprintln!("Failed generating mock_php.c: {}", err);
-                        process::exit(1);
+                    if fs::read("mock_php.c")
+                        .ok()
+                        .map(|contents| contents == mock_symbols.as_str().as_bytes())
+                        != Some(true)
+                    {
+                        if let Err(err) = fs::write("mock_php.c", mock_symbols) {
+                            eprintln!("Failed generating mock_php.c: {}", err);
+                            process::exit(1);
+                        }
                     }
                 }
                 Err(err) => {
