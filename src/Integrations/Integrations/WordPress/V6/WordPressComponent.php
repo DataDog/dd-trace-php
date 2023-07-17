@@ -30,10 +30,10 @@ class WordPressComponent
 
         if ($pluginDir && strpos($file, $pluginDir) === 0) {
             // The plugin name will be what follows the plugin dir
-            // Format: <plugin_dir>/<plugin_name>/... or <plugin_dir>/<plugin_name>.php
+            // Format: <plugin_dir>/<plugin_name>/... or <plugin_dir>/<plugin_name.php>
             $plugin = substr($file, strlen($pluginDir) + 1);
             $plugin = explode('/', $plugin);
-            return $plugin[0];
+            return $plugin[0]; // Keeps the .php extension if it's a single file plugin (e.g., hello.php for Hello Dolly)
         } else {
             return '';
         }
@@ -95,15 +95,13 @@ class WordPressComponent
     public static function getPrettyCallbackName($callback): string
     {
         if (is_array($callback)) {
-            if (is_object($callback[0])) {
-                $class = get_class($callback[0]);
+            $class = is_object($callback[0])
+                ? get_class($callback[0])
+                : (is_string($callback[0]) ? $callback[0] : null);
+            if ($class) {
                 $class = explode('\\', $class);
                 $class = end($class);
                 return "$class::{$callback[1]}";
-            } elseif (is_string($callback[0])) {
-                $class = explode('\\', $callback[0]);
-                $class = end($class);
-                return "{$callback[0]}::{$callback[1]}";
             }
         } elseif (is_string($callback)) {
             $function = explode('\\', $callback);
@@ -182,6 +180,17 @@ class WordPressComponent
         ini_set('datadog.trace.resource_uri_query_param_allowed', $newEnvVar);
     }
 
+    public static function setSpansLimit()
+    {
+        // Safety measure - Adds 10 spans / plugin (arbitrary)
+        $pluginCount = count(wp_get_active_and_valid_plugins());
+        $spansLimit = 1000 + ($pluginCount * 10);
+
+        $currentLimit = ini_get('datadog.trace.spans_limit');
+        $spansLimit = max($spansLimit, $currentLimit);
+        ini_set('datadog.trace.spans_limit', $spansLimit);
+    }
+
     public function load(WordPressIntegration $integration)
     {
         if (!Integration::shouldLoad(WordPressIntegration::NAME)) {
@@ -227,6 +236,8 @@ class WordPressComponent
         });
 
         hook_function('wp', function () use ($integration) {
+            WordPressComponent::setSpansLimit();
+
             // Runs after wp-settings.php is loaded - i.e., after the entire core of WordPress functions is
             // loaded and the current user is populated
             $rootSpan = \DDTrace\root_span();
@@ -241,8 +252,12 @@ class WordPressComponent
             $rootSpan->service = $service;
             $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
             $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-            if ('cli' !== PHP_SAPI && !array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+            if ('cli' !== PHP_SAPI) {
+                $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
+                $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
+                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                    $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+                }
             }
 
             $user = wp_get_current_user();
@@ -504,7 +519,7 @@ class WordPressComponent
                             WordPressComponent::setCommonTags($integration, $span, 'action');
 
                             $hookName = isset($args[0]) ? $args[0] : '?';
-                            $span->resource = "hook_name: $hookName";
+                            $span->resource = "hook: $hookName";
 
                             if ($hookName === '?') {
                                 return;
@@ -542,20 +557,13 @@ class WordPressComponent
                 null,
                 function (HookData $hook) use (&$plugins, $plugin_loading_func, $integration) {
                     foreach ($hook->returned as $plugin) {
-                        // Use the plugin's basename instead of absolute path. For example,
-                        // instead of:
-                        //   /var/www/html/wp-content/plugins/hello.php
-                        // Just use `hello.php`.
-                        $basename = \plugin_basename($plugin);
-
-                        // 2. Track when each plugin is loaded, so in the add_filter callbacks we
-                        // know which plugin installs the hook.
                         if (is_link($plugin)) {
                             $plugin = \readlink($plugin);
                         }
 
                         $getPrettyPluginNameFn = function ($file) use ($plugin_loading_func) {
-                            return WordPressComponent::extractPluginNameFromFile($file, strpos($plugin_loading_func, 'mu'));
+                            $pluginName = WordPressComponent::extractPluginNameFromFile($file, strpos($plugin_loading_func, 'mu') !== false);
+                            return $pluginName ?: basename($file);
                         };
 
                         \DDTrace\install_hook(
