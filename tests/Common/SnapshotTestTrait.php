@@ -16,7 +16,7 @@ trait SnapshotTestTrait
         return ltrim(strtolower(preg_replace('/[A-Z]([A-Z](?![a-z]))*/', '_$0', $string)), '_');
     }
 
-    private function resetTracerState($tracer = null, $config = []): void
+    private function resetTracerState($tracer = null, $config = [])
     {
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
