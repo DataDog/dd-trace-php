@@ -92,7 +92,7 @@ trait SnapshotTestTrait
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 $response = curl_exec($ch);
                 $traces = json_decode($response, true);
-                if (count($traces) === $numExpectedTraces) {
+                if ($traces && count($traces) === $numExpectedTraces) {
                     return;
                 }
                 usleep(100000); // 100ms
@@ -101,7 +101,7 @@ trait SnapshotTestTrait
             }
         }
 
-        TestCase::fail('Expected ' . $numExpectedTraces . ' traces, got ' . count($traces));
+        TestCase::fail('Expected ' . $numExpectedTraces . ' traces, got ' . count($traces ?: []));
     }
 
     /**
