@@ -12,6 +12,21 @@ pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_da
 
 #[cfg(feature = "timeline")]
 pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;
+#[cfg(feature = "timeline")]
+pub type VmZendCompileFile =
+    unsafe extern "C" fn(*mut zend_file_handle, i32) -> *mut _zend_op_array;
+#[cfg(all(feature = "timeline", php_zend_compile_string_has_position))]
+pub type VmZendCompileString = unsafe extern "C" fn(
+    *mut zend_string,
+    *const c_char,
+    zend_compile_position,
+) -> *mut _zend_op_array;
+#[cfg(all(feature = "timeline", not(php_zend_compile_string_has_position), php8))]
+pub type VmZendCompileString =
+    unsafe extern "C" fn(*mut zend_string, *const c_char) -> *mut _zend_op_array;
+#[cfg(all(feature = "timeline", not(php_zend_compile_string_has_position), php7))]
+pub type VmZendCompileString =
+    unsafe extern "C" fn(*mut _zval_struct, *mut c_char) -> *mut _zend_op_array;
 
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
@@ -327,7 +342,7 @@ impl datadog_php_zif_handler {
         let name = name.to_bytes();
         Self {
             name: name.as_ptr() as *const c_char,
-            name_len: name.len().try_into().expect("usize to fit"),
+            name_len: name.len(),
             old_handler,
             new_handler,
         }

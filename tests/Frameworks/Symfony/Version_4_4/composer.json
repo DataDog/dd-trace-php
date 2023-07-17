@@ -10,8 +10,8 @@
         "doctrine/doctrine-bundle": "^2.1,<2.7",
         "doctrine/doctrine-migrations-bundle": "^3.0",
         "doctrine/orm": "^2.7",
-        "phpdocumentor/reflection-docblock": "^5.1",
         "laminas/laminas-code": "<4.4",
+        "phpdocumentor/reflection-docblock": "^5.1",
         "sensio/framework-extra-bundle": "^5.1",
         "symfony/asset": "4.4.*",
         "symfony/console": "4.4.*",
@@ -27,7 +27,7 @@
         "symfony/process": "4.4.*",
         "symfony/property-access": "4.4.*",
         "symfony/property-info": "4.4.*",
-        "symfony/security-bundle": "4.4.*",
+        "symfony/security-bundle": "^4.4",
         "symfony/serializer": "4.4.*",
         "symfony/translation": "4.4.*",
         "symfony/twig-bundle": "4.4.*",
@@ -66,7 +66,8 @@
     "autoload-dev": {
         "psr-4": {
             "App\\Tests\\": "tests/"
-        }
+        },
+        "files": ["../../../Appsec/Mock.php"]
     },
     "replace": {
         "paragonie/random_compat": "2.*",
@@ -86,6 +87,13 @@
         ],
         "post-update-cmd": [
             "@auto-scripts"
+        ],
+        "post-autoload-dump": [
+            "rm -rf var/cache/dev/*",
+            "rm -rf var/cache/prod/*",
+            "@php bin/console doctrine:database:drop --force",
+            "@php bin/console doctrine:database:create",
+            "@php bin/console doctrine:migrations:migrate -n"
         ]
     },
     "conflict": {

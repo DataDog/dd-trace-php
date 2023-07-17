@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Memcache;
 
+use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\Obfuscation;
 use DDTrace\SpanData;
@@ -83,6 +84,9 @@ class MemcacheIntegration extends Integration
                 $span->meta['memcache.cas_token'] = $args[4];
             }
             $span->meta['memcache.query'] = 'cas ?';
+            if (\PHP_MAJOR_VERSION > 5) {
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            }
             $integration->setServerTags($span, $this);
         };
 
@@ -105,7 +109,9 @@ class MemcacheIntegration extends Integration
                 $integration->setServerTags($span, $this);
                 $span->meta['memcache.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
             }
-
+            if (\PHP_MAJOR_VERSION > 5) {
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            }
             $integration->markForTraceAnalytics($span, $command);
         };
         \DDTrace\trace_method('Memcache', $command, $trace);
@@ -138,7 +144,7 @@ class MemcacheIntegration extends Integration
     {
         $span->name = "Memcache.$command";
         $span->type = Type::MEMCACHED;
-        $span->service = 'memcache';
+        Integration::handleInternalSpanServiceName($span, MemcacheIntegration::NAME);
         $span->resource = $command;
         $span->meta['memcache.command'] = $command;
         $span->meta[Tag::SPAN_KIND] = 'client';

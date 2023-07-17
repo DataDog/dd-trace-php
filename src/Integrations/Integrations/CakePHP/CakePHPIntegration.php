@@ -72,8 +72,10 @@ class CakePHPIntegration extends Integration
                     return;
                 }
 
-                $integration->rootSpan->resource =
-                    $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action'];
+                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                    $integration->rootSpan->resource =
+                        $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action'];
+                }
 
                 if (!array_key_exists(Tag::HTTP_URL, $integration->rootSpan->meta)) {
                     $integration->rootSpan->meta[Tag::HTTP_URL] = Router::url($request->here, true)

@@ -62,52 +62,48 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
+This release adds logs correlation and telemetry support:
+- Used configurations, libraries and integrations will be collected. This may be disabled with `DD_INSTRUMENTATION_TELEMETRY_ENABLED=0`.
+- Logs written by common logging libraries will be attached metadata about the trace and span the log line was generated in. This may be disabled with `DD_LOGS_INJECTION=0`.
+
 ### Added
-- Add support for environment variable syntax to config mode in datadog-setup.php #2050
+- Add Logs Correlation #2118
+- Add network destination name to http client spans #2134
+- Add peer.service to Mysqli instrumentation #2142
+- Add peer.service to PHPRedis instrumentation #2152
+- Add peer.service to PDO instrumentation #2148
+- Add peer.service to SQLSRV instrumentation #2155
+- Add peer.service to Mongodb instrumentation #2147
+- Add peer.service to Memcached clients instrumentation #2145
+- Add peer.service to http client instrumentations #2134
+- Add automated login events to Symfony #2132 #2146
+- Opt-in to flat service names #2163
 
 ### Changed
-- Use span links in the RabbitMQ Integration #2092
-- Disable root span generation and removes orphans for Laravel Horizon #2091
+- Move all integrations to deferred loading #2153
+- Reflect changes to datadog.version and datadog.env in existing spans #2165
+- Evaluate the service name after the service mapping for a sampling decision #2166
 
 ### Fixed
-- datadog-setup.php: remove return types for compatibility with PHP 5 #2059 Thanks @dserodio!
-- Work around fiber->execute_data only being correct upon yielding #2072
-- Skip error assignment on the root span for 5xx errors that shouldn't be reported #2089
-- Ensure no crashes happen with multiple observers installed #2093
-- Fix incorrect offset access in Laminas Integration #2094
+- Add invalid regex handling for sampling rules #2160
 
 ### Internal Changes
-- build: delete unused C components #2055
-- build: bump cmake and catch2 versions #2056
-- build: reduce Laravel queues' tests flakiness #2057
-- testing: add snapshot testing #2058
-- build: pin guzzlehttp/promises to ^1.5.3 #2071
-- Update removed methods used in Guzzle V6 & V7 test suites #2073
-- build: drop now-unused uuid component #2096
-- Prepare instrumentation telemetry #2029, #2086, #2099
-- build: Add rebuild with ASAN section to randomized tests README.md #2084
+- Add SpanData::peerServiceSources #2130
+- Handle peer.service-related post-process in the extension #2135
+- Enable instrumentation telemetry by default #2153
 
 ## Profiling
-Allocation profiling is now enabled by default. You can manage it using the `DD_PROFILING_ALLOCATION_ENABLED` environment variable or the `datadog.profiling.allocation_enabled` setting in the INI file. Although the `DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED` environment variable and `datadog.profiling.experimental_allocation_enabled` INI setting still work, the new ones take precedence.
 
 ### Added
-- GA allocation profiling #2038
-- disable allocation profiling if JIT is enabled #2088
+- doc(profiling): make phpinfo() output more helpful #2144
+- timeline: add eval() timings #2150
 
 ### Fixed
-- fixed segfault in test suite #2077
+- Explicit shutdown allocation profiling on fork() #2149
+- Optimize event timestamp for timeline #2157
 
 ### Internal changes
-- move allocation profiling to its own module #2090
-
-## Application Security Management (0.9.0)
-
-### Fixed
-- Use /proc/self/fd to avoid rlimit iteration starvation DataDog/dd-appsec-php#265
-
-### Internal changes
-- Update ruleset to 1.7.1 and libddwaf to 1.11.0 DataDog/dd-appsec-php#267
-- Update fuzzer corpus DataDog/dd-appsec-php#268
+- refactor(profiling): apply clippy suggestions #2141
 ]]></notes>
     <contents>
         <dir name="/">

@@ -22,7 +22,7 @@ RUST_DEBUG_SYMBOLS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
 PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.2/datadog-profiling.tar.gz
-APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.9.0/dd-appsec-php-0.9.0-amd64.tar.gz
+APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.10.0/dd-appsec-php-0.10.0-amd64.tar.gz
 
 INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
@@ -520,6 +520,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
+	test_integrations_monolog1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -570,6 +571,8 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -625,6 +628,8 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -678,6 +683,8 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -735,9 +742,12 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_amqp2 \
 	test_integrations_amqp35 \
 	test_integrations_curl \
+	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -775,9 +785,13 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_amqp35 \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
@@ -810,9 +824,13 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_amqp35 \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
 	test_integrations_mysqli \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
@@ -955,12 +973,24 @@ test_integrations_guzzle6: global_test_run_dependencies
 test_integrations_guzzle7: global_test_run_dependencies
 	$(MAKE) test_scenario_guzzle7
 	$(call run_tests,tests/Integrations/Guzzle/V7)
+test_integrations_laminaslog2: global_test_run_dependencies
+	$(MAKE) test_scenario_laminaslog2
+	$(call run_tests,tests/Integrations/Logs/LaminasLogV2)
 test_integrations_memcached: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Memcached)
 test_integrations_memcache: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Memcache)
+test_integrations_monolog1: global_test_run_dependencies
+	$(MAKE) test_scenario_monolog1
+	$(call run_tests,tests/Integrations/Logs/MonologV1)
+test_integrations_monolog2: global_test_run_dependencies
+	$(MAKE) test_scenario_monolog2
+	$(call run_tests,tests/Integrations/Logs/MonologV2)
+test_integrations_monolog3: global_test_run_dependencies
+	$(MAKE) test_scenario_monolog3
+	$(call run_tests,tests/Integrations/Logs/MonologV3)
 test_integrations_mysqli: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/Mysqli)

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Memcached;
 
+use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\Obfuscation;
 use DDTrace\SpanData;
@@ -94,12 +95,19 @@ class MemcachedIntegration extends Integration
 
         \DDTrace\trace_method('Memcached', 'flush', function (SpanData $span) use ($integration) {
             $integration->setCommonData($span, 'flush');
+            if (\PHP_MAJOR_VERSION > 5) {
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            }
+            $integration->setServerTags($span, $this);
         });
 
         \DDTrace\trace_method('Memcached', 'cas', function (SpanData $span, $args) use ($integration) {
             $integration->setCommonData($span, 'cas');
             $span->meta['memcached.cas_token'] = $args[0];
             $span->meta['memcached.query'] = 'cas ?';
+            if (\PHP_MAJOR_VERSION > 5) {
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            }
             $integration->setServerTags($span, $this);
         });
 
@@ -108,6 +116,7 @@ class MemcachedIntegration extends Integration
             $span->meta['memcached.cas_token'] = $args[0];
             $span->meta['memcached.query'] = 'casByKey ?';
             $span->meta['memcached.server_key'] = $args[1];
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
             $integration->setServerTags($span, $this);
         });
@@ -129,6 +138,9 @@ class MemcachedIntegration extends Integration
                 if (!is_array($args[0])) {
                     $integration->setServerTags($span, $this);
                     $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
+                }
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 }
 
                 $integration->markForTraceAnalytics($span, $command);
@@ -152,6 +164,9 @@ class MemcachedIntegration extends Integration
                     $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
                     $span->meta['memcached.server_key'] = $args[0];
                 }
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
 
                 $integration->markForTraceAnalytics($span, $command);
             }
@@ -169,10 +184,11 @@ class MemcachedIntegration extends Integration
                 if ($command === 'getMulti') {
                     $span->metrics[Tag::DB_ROW_COUNT] = isset($retval) ? (is_array($retval) ? count($retval) : 1) : 0;
                 }
-                if (!is_array($args[0])) {
-                    $integration->setServerTags($span, $this);
-                }
+                $integration->setServerTags($span, $this);
                 $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0], ',');
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
                 $integration->markForTraceAnalytics($span, $command);
             }
         );
@@ -193,6 +209,9 @@ class MemcachedIntegration extends Integration
                 $integration->setServerTags($span, $this);
                 $query = "$command " . Obfuscation::toObfuscatedString($args[1], ',');
                 $span->meta['memcached.query'] = $query;
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
                 $integration->markForTraceAnalytics($span, $command);
             }
         );
@@ -209,6 +228,7 @@ class MemcachedIntegration extends Integration
         $span->name = "Memcached.$command";
         $span->type = Type::MEMCACHED;
         $span->service = 'memcached';
+        Integration::handleInternalSpanServiceName($span, MemcachedIntegration::NAME);
         $span->resource = $command;
         $span->meta['memcached.command'] = $command;
         $span->meta[Tag::SPAN_KIND] = 'client';

@@ -2,7 +2,9 @@
 
 namespace DDTrace\Integrations\Laminas;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\Logs\LogsIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -14,6 +16,8 @@ use Laminas\Stdlib\RequestInterface;
 use Laminas\View\Model\ModelInterface;
 
 use function DDTrace\hook_method;
+use function DDTrace\install_hook;
+use function DDTrace\logs_correlation_trace_id;
 use function DDTrace\trace_method;
 
 class LaminasIntegration extends Integration
@@ -31,6 +35,48 @@ class LaminasIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
+        if (self::shouldLoad(LogsIntegration::NAME)) {
+            // Logs Correlation
+            install_hook(
+                "Laminas\Log\Logger::log",
+                LogsIntegration::getHookFn('log', 1, 2, 0)
+            );
+
+            install_hook(
+                "Laminas\Log\Formatter\Json::format",
+                null,
+                function (HookData $hook) {
+                    $logArray = json_decode($hook->returned, true);
+
+                    $traceId = logs_correlation_trace_id();
+                    $spanId = dd_trace_peek_span_id();
+
+                    $modified = false;
+
+                    if (isset($logArray['extra']['dd.trace_id'])) {
+                        $logArray['extra']['dd.trace_id'] = $traceId;
+                        $modified = true;
+                    }
+
+                    if (isset($logArray['extra']['dd.span_id'])) {
+                        $logArray['extra']['dd.span_id'] = $spanId;
+                        $modified = true;
+                    }
+
+                    if ($modified) {
+                        // Doesn't use JSON_NUMERIC_CHECK because it would convert trace identifiers strings to numbers
+                        $fixedJson = @json_encode(
+                            $logArray,
+                            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION
+                        );
+
+                        $hook->overrideReturnValue($fixedJson);
+                    }
+                }
+            );
+        }
+
+        // Web Integration
         $rootSpan = \DDTrace\root_span();
 
         if (is_null($rootSpan)) {
@@ -214,7 +260,9 @@ class LaminasIntegration extends Integration
                         }
                     );
                 }
-                $rootSpan->resource = "$controller@$action $routeName";
+                if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                    $rootSpan->resource = "$controller@$action $routeName";
+                }
                 $rootSpan->meta[Tag::HTTP_ROUTE] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
             }

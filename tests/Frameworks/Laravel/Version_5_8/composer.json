@@ -46,7 +46,8 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/"
-        }
+        },
+        "files": ["../../../Appsec/Mock.php"]
     },
     "minimum-stability": "dev",
     "prefer-stable": true,

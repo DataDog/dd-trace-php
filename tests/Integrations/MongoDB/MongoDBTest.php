@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Mongo;
 
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -52,6 +53,15 @@ class MongoDBTest extends IntegrationTestCase
                 ],
             ]
         );
+    }
+
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
+        ];
     }
 
     public function testFilterNormalizationRegex()
@@ -799,6 +809,169 @@ class MongoDBTest extends IntegrationTestCase
             ])->setError()
                 ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
         ]);
+    }
+
+
+    public function testManagerExecuteQueryPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $expected = [
+            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db cars {"brand":"?"}')
+                ->withExactTags([
+                    'mongodb.db' => self::DATABASE,
+                    'mongodb.collection' => 'cars',
+                    'mongodb.query' => '{"brand":"?"}',
+                    'span.kind' => 'client',
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
+                    Tag::COMPONENT => 'mongodb',
+                    Tag::DB_SYSTEM => 'mongodb',
+                    'peer.service' => self::DATABASE,
+                    '_dd.peer.service.source' => 'mongodb.db',
+                ]),
+        ];
+
+        $traces = $this->isolateTracer(function () {
+            $query = new \MongoDB\Driver\Query(['brand' => 'ferrari']);
+            $this->manager()->executeQuery('test_db.cars', $query);
+        });
+        $this->assertFlameGraph($traces, $expected);
+    }
+
+
+    public function testManagerExecuteBulkWritePeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            // These are actually expected to be array, stdClass and objects are not supported.
+            $bulkWrite = new \MongoDB\Driver\BulkWrite();
+            $bulkWrite->delete(['brand' => 'ferrari']);
+            $bulkWrite->delete(['brand' => 'chevy']);
+            $bulkWrite->insert(['brand' => 'ford']);
+            $bulkWrite->insert(['brand' => 'maserati']);
+            $bulkWrite->update(['brand' => 'jaguar'], ['brand' => 'gm']);
+            $this->manager()->executeBulkWrite('test_db.cars', $bulkWrite);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'mongodb.driver.cmd',
+                'mongodb',
+                'mongodb',
+                'executeBulkWrite test_db cars'
+            )->withExactTags([
+                'mongodb.db' => self::DATABASE,
+                'mongodb.collection' => 'cars',
+                'span.kind' => 'client',
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
+                'mongodb.deletes.0.filter' => '{"brand":"?"}',
+                'mongodb.deletes.1.filter' => '{"brand":"?"}',
+                'mongodb.updates.0.filter' => '{"brand":"?"}',
+                'mongodb.insertsCount' => 2,
+                Tag::COMPONENT => 'mongodb',
+                Tag::DB_SYSTEM => 'mongodb',
+                'peer.service' => self::DATABASE,
+                '_dd.peer.service.source' => 'mongodb.db',
+            ]),
+        ]);
+    }
+
+    public function testManagerExecuteCommandPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $collectionName = 'my_collection_' . \rand(1, 10000);
+        $expected = [
+            SpanAssertion::build(
+                'mongodb.driver.cmd',
+                'mongodb',
+                'mongodb',
+                'executeCommand test_db ' . $collectionName . ' create'
+            )->withExactTags([
+                'mongodb.db' => self::DATABASE,
+                'mongodb.collection' => $collectionName,
+                'span.kind' => 'client',
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
+                Tag::COMPONENT => 'mongodb',
+                Tag::DB_SYSTEM => 'mongodb',
+                'peer.service' => self::DATABASE,
+                '_dd.peer.service.source' => 'mongodb.db',
+            ]),
+        ];
+
+        // As array
+        $traces = $this->isolateTracer(function () use ($collectionName) {
+            $command = new \MongoDB\Driver\Command(['create' => $collectionName]);
+            $this->manager()->executeCommand('test_db', $command);
+        });
+        $this->assertFlameGraph($traces, $expected);
+        $this->client()->test_db->$collectionName->drop();
+    }
+
+    public function testMethodsWithFilterPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $expected = [
+            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "count test_db cars {\"brand\":\"?\"}")
+                ->withExactTags([
+                    'mongodb.db' => self::DATABASE,
+                    'mongodb.collection' => 'cars',
+                    'mongodb.query' => '{"brand":"?"}',
+                    'span.kind' => 'client',
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
+                    Tag::COMPONENT => 'mongodb',
+                    Tag::DB_SYSTEM => 'mongodb',
+                    'peer.service' => self::DATABASE,
+                    '_dd.peer.service.source' => 'mongodb.db',
+                ])->withChildren([
+                    SpanAssertion::exists('mongodb.driver.cmd')
+                ]),
+        ];
+
+        // As array
+        $traces = $this->isolateTracer(
+            function () {
+                $this->client()->test_db->cars->count(['brand' => 'ferrari']);
+            }
+        );
+        $this->assertFlameGraph($traces, $expected);
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        // As array
+        $traces = $this->isolateTracer(function () {
+            $this->client()->test_db->cars->find(['brand' => new \MongoDB\BSON\Regex('^ford$', 'i')]);
+        });
+
+        $this->assertFlameGraph(
+            $traces,
+            [SpanAssertion::build('mongodb.cmd', 'configured_service', 'mongodb', 'find test_db cars {"brand":"?"}')
+                ->withExactTags([
+                    'mongodb.db' => self::DATABASE,
+                    'mongodb.collection' => 'cars',
+                    'mongodb.query' => '{"brand":"?"}',
+                    'span.kind' => 'client',
+                    'out.host' => self::HOST,
+                    'out.port' => self::PORT,
+                    Tag::COMPONENT => 'mongodb',
+                    Tag::DB_SYSTEM => 'mongodb',
+                ])->withChildren([
+                    SpanAssertion::exists('mongodb.driver.cmd')
+                ]),
+            ]
+        );
     }
 
     private function client()

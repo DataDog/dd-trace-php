@@ -80,7 +80,10 @@ void ddtrace_telemetry_finalize(void) {
             if (!zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
                 origin = cfg->name_index >= 0 ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE;
             }
-            ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, dd_zend_string_to_CharSlice(ini->name), dd_zend_string_to_CharSlice(ini->value), origin);
+            ddog_CharSlice name = dd_zend_string_to_CharSlice(ini->name);
+            name.len -= strlen("datadog.");
+            name.ptr += strlen("datadog.");
+            ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, name, dd_zend_string_to_CharSlice(ini->value), origin);
         }
     }
 

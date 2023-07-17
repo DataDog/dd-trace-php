@@ -54,6 +54,15 @@ class SQLSRVTest extends IntegrationTestCase
         parent::ddTearDown();
     }
 
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
+        ];
+    }
+
     public function testConnectOk()
     {
         $traces = $this->isolateTracer(function () {
@@ -101,6 +110,29 @@ class SQLSRVTest extends IntegrationTestCase
         ]);
     }
 
+    public function testQueryOkPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = 'SELECT * FROM tests WHERE id=1';
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_query($conn, $query, [], ['Scrollable' => 'static']);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags($query, true))
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
+        ]);
+    }
+
     public function testQueryError()
     {
         $query = "SELECT * FROM non_existing_table";
@@ -116,6 +148,32 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
+                ->setError(
+                    'SQLSRV error',
+                    self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
+                )->withExactMetrics([
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
+        ]);
+    }
+
+    public function testQueryErrorPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "SELECT * FROM non_existing_table";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_query($conn, $query);
+            sqlsrv_close($conn);
+        });
+
+        // No metrics expected, as the default 'forward' cursor type is used
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags($query, true))
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
@@ -175,6 +233,32 @@ class SQLSRVTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPrepareOkPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1], ['Scrollable' => 'buffered']);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
+                ->withExactTags(self::baseTags($query)),
+            SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags($query, true))
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
+        ]);
+    }
+
     public function testPrepareError()
     {
         $query = "SELECT * FROM non_existing_table WHERE id = ?";
@@ -194,6 +278,33 @@ class SQLSRVTest extends IntegrationTestCase
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
                 )->withExactTags(self::baseTags($query))
+                ->withExactMetrics([
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
+        ]);
+    }
+
+    public function testPrepareErrorPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $query = "SELECT * FROM non_existing_table WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1]);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::exists('sqlsrv_prepare'),
+            SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
+                ->setError(
+                    'SQLSRV error',
+                    self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
+                )->withExactTags(self::baseTags($query, true))
                 ->withExactMetrics([
                     Tag::ANALYTICS_KEY => 1.0
                 ])
@@ -291,6 +402,32 @@ class SQLSRVTest extends IntegrationTestCase
         ]);
     }
 
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $query = 'SELECT * FROM tests WHERE id=1';
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            sqlsrv_query($conn, $query, [], ['Scrollable' => 'static']);
+            sqlsrv_close($conn);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('sqlsrv_connect'),
+            SpanAssertion::build('sqlsrv_query', 'configured_service', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags($query))
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0
+                ])
+        ]);
+    }
+
     private function createConnection()
     {
         $conn = sqlsrv_connect(
@@ -330,9 +467,9 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertCount(1, $results);
     }
 
-    private static function baseTags($query = null)
+    private static function baseTags($query = null, $expectPeerService = false)
     {
-        return [
+        $tags = [
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => SQLSRVIntegration::NAME,
             Tag::DB_SYSTEM => SQLSRVIntegration::SYSTEM,
@@ -341,6 +478,13 @@ class SQLSRVTest extends IntegrationTestCase
             Tag::TARGET_HOST => self::$host,
             Tag::TARGET_PORT => self::$port,
         ] + ($query ? [Tag::DB_STMT => $query] : []);
+
+        if ($expectPeerService) {
+            $tags['peer.service'] = 'master';
+            $tags['_dd.peer.service.source'] = 'db.instance';
+        }
+
+        return $tags;
     }
 
     private function clearDatabase()

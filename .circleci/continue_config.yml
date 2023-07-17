@@ -71,7 +71,7 @@ aliases:
       DD_REQUEST_DUMPER_FILE: dump.json
 
   - &IMAGE_DOCKER_DD_TEST_AGENT
-    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.10.1
     name: test-agent
     environment:
       LOG_LEVEL: DEBUG
@@ -365,7 +365,7 @@ commands:
                 -e SNAPSHOT_DIR=/snapshots \
                 -p "127.0.0.1:9126:9126" \
                 -v $(pwd)/tests/snapshots:/snapshots \
-                --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+                --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.10.1
               retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               retry_docker run --detach --rm --net net \
@@ -1050,6 +1050,7 @@ jobs:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
+      SKIP_ONLINE_TESTS: 1 # too flaky
     executor:
       name: with_agent
       docker_image: << parameters.docker_image >>
@@ -1545,6 +1546,13 @@ jobs:
         # Batch is only used to run a number of these jobs in parallel via a testing matrix.
         type: integer
     steps: &randomized_tests_steps
+      - run:
+          name: Ensure enough memory via swapfile
+          command: |
+            sudo fallocate -l 16G /swapfile
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+            sudo swapon /swapfile
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}

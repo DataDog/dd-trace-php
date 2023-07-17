@@ -4,7 +4,7 @@ use crate::PROFILER;
 use crate::PROFILER_NAME;
 use crate::REQUEST_LOCALS;
 use libc::{c_char, c_int, c_void, size_t};
-use log::{debug, error, info};
+use log::{debug, error, info, trace};
 use once_cell::sync::OnceCell;
 use std::cell::RefCell;
 use std::ffi::CStr;
@@ -75,7 +75,7 @@ impl AllocationProfilingStats {
                 unsafe {
                     profiler.collect_allocations(
                         zend::ddog_php_prof_get_current_execute_data(),
-                        1 as i64,
+                        1_i64,
                         len as i64,
                         &locals,
                     )
@@ -202,6 +202,7 @@ pub fn allocation_profiling_rshutdown() {
                                 PREV_CUSTOM_MM_REALLOC,
                             );
                         }
+                        trace!("Memory allocation profiling shutdown gracefully.");
                     }
                 }
             }
@@ -297,10 +298,9 @@ unsafe fn allocation_profiling_prev_alloc(len: size_t) -> *mut c_void {
 }
 
 unsafe fn allocation_profiling_orig_alloc(len: size_t) -> *mut c_void {
-    let ptr: *mut c_void;
     let heap = zend::zend_mm_get_heap();
     let custom_heap = prepare_zend_heap(heap);
-    ptr = zend::_zend_mm_alloc(heap, len);
+    let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
     restore_zend_heap(heap, custom_heap);
     ptr
 }
@@ -351,10 +351,9 @@ unsafe fn allocation_profiling_prev_realloc(prev_ptr: *mut c_void, len: size_t) 
 }
 
 unsafe fn allocation_profiling_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    let ptr: *mut c_void;
     let heap = zend::zend_mm_get_heap();
     let custom_heap = prepare_zend_heap(heap);
-    ptr = zend::_zend_mm_realloc(heap, prev_ptr, len);
+    let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
     restore_zend_heap(heap, custom_heap);
     ptr
 }

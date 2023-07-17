@@ -106,6 +106,13 @@ namespace DDTrace {
         public array $links = [];
 
         /**
+         * @var string[] $peerServiceSources A sorted list of tag names used to set the `peer.service` tag. If a tag
+         * name is added to this field and the tag exists on the span at serialization time, then the value of the tag
+         * will be used to set the value of the `peer.service` tag.
+         */
+        public array $peerServiceSources = [];
+
+        /**
          * The name of the file where the instrumented function/method was defined.
          * TODO: Alternatively, this may be set in the ddtrace_span_data structure + ddtrace_span_data_get_source_file()
          *
@@ -464,6 +471,18 @@ namespace DDTrace {
      * @return string The id of the current trace
      */
     function trace_id(): string {}
+
+    /**
+     * Formatted trace id to be used for logs correlation.
+     *
+     * This function handles 128-bit trace ids and 64-bit trace ids. More specifically, if
+     * DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED is set to true and the current trace id is 128-bit, then the trace id
+     * will be returned as a 32-character hexadecimal string. Otherwise, the trace id will be returned as the
+     * decimal representation of the 64-bit trace id.
+     *
+     * @return string The formatted id of the current trace
+     */
+    function logs_correlation_trace_id(): string {}
 
     /**
      * Get information on the current context
