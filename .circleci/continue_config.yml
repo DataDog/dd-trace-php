@@ -1595,6 +1595,13 @@ jobs:
         # Batch is only used to run a number of these jobs in parallel via a testing matrix.
         type: integer
     steps: &randomized_tests_steps
+      - run:
+          name: Ensure enough memory via swapfile
+          command: |
+            sudo fallocate -l 16G /swapfile
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+            sudo swapon /swapfile
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}

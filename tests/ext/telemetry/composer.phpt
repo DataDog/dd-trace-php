@@ -7,7 +7,7 @@ if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing s
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_TELEMETRY_ENABLED=1
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 --INI--
 datadog.trace.agent_url=file://{PWD}/composer-telemetry.out
 --FILE--
@@ -21,15 +21,19 @@ DDTrace\close_span();
 
 dd_trace_internal_fn("finalize_telemetry");
 
-// More timeout for asan
-usleep(300000 * (getenv("SKIP_ASAN") ? 5 : 1));
-foreach (file(__DIR__ . '/composer-telemetry.out') as $l) {
-    if ($l) {
-        $json = json_decode($l, true);
-        $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-        foreach ($batch as $json) {
-            if ($json["request_type"] == "app-dependencies-loaded") {
-                print_r($json["payload"]);
+for ($i = 0; $i < 100; ++$i) {
+    usleep(100000);
+    if (file_exists(__DIR__ . '/composer-telemetry.out')) {
+        foreach (file(__DIR__ . '/composer-telemetry.out') as $l) {
+            if ($l) {
+                $json = json_decode($l, true);
+                $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
+                foreach ($batch as $json) {
+                    if ($json["request_type"] == "app-dependencies-loaded") {
+                        print_r($json["payload"]);
+                        break 3;
+                    }
+                }
             }
         }
     }
