@@ -74,6 +74,8 @@ class HookData {
      * @return bool 'true' on success, otherwise 'false'
      */
     public function overrideReturnValue(mixed $value): bool;
+
+    public function getSourceFile(): string;
 }
 
 /**

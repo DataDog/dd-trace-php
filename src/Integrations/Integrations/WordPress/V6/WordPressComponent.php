@@ -10,7 +10,6 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 
-use function DDTrace\active_span;
 use function DDTrace\hook_function;
 use function DDTrace\install_hook;
 use function DDTrace\remove_hook;
@@ -63,13 +62,11 @@ class WordPressComponent
         return $themeName ?: '';
     }
 
-    public static function extractAndSaveThemeNameFromSpan(SpanData $span, string $hookName, array &$actionHookToTheme)
+    public static function extractAndSaveThemeNameFromSpan(string $file, string $hookName, array &$actionHookToTheme)
     {
         if (array_key_exists($hookName, $actionHookToTheme)) {
             return $actionHookToTheme[$hookName];
         }
-
-        $file = $span->sourceFile;
 
         $themeName = WordPressComponent::extractThemeNameFromFile($file);
         $actionHookToTheme[$hookName] = $themeName ?: null;
@@ -77,13 +74,11 @@ class WordPressComponent
         return $actionHookToTheme[$hookName];
     }
 
-    public static function extractAndSavePluginNameFromSpan(SpanData $span, string $hookName, array &$actionHookToPlugin)
+    public static function extractAndSavePluginNameFromSpan(string $file, string $hookName, array &$actionHookToPlugin)
     {
         if (array_key_exists($hookName, $actionHookToPlugin)) {
             return $actionHookToPlugin[$hookName];
         }
-
-        $file = $span->sourceFile;
 
         // Try to find the plugin associated to the hook
         $plugin = WordPressComponent::extractPluginNameFromFile($file);
@@ -507,37 +502,36 @@ class WordPressComponent
 
         // Actions
         foreach (['do_action', 'do_action_ref_array'] as $function) {
-            trace_function(
+            install_hook(
                 $function,
-                [
-                    'recurse' => true,
-                    'prehook' => function (SpanData $span, $args) use ($integration, &$actionHookToPlugin, &$actionHookToTheme, $interestingActions) {
-                        if (isset($args[0]) && isset($interestingActions[$args[0]])) {
-                            WordPressComponent::setCommonTags($integration, $span, 'action');
+                function (HookData $hook) use ($integration, &$actionHookToPlugin, &$actionHookToTheme, $interestingActions) {
+                    $span = $hook->span();
+                    $args = $hook->args;
 
-                            $hookName = isset($args[0]) ? $args[0] : '?';
-                            $span->resource = "$hookName (hook)";
+                    if (isset($args[0]) && isset($interestingActions[$args[0]])) {
+                        WordPressComponent::setCommonTags($integration, $span, 'action');
 
-                            if ($hookName === '?') {
-                                return;
+                        $hookName = isset($args[0]) ? $args[0] : '?';
+                        $span->resource = "$hookName (hook)";
+
+                        if ($hookName === '?') {
+                            return;
+                        }
+
+                        if (isset($actionHookToPlugin[$hookName])) { // Don't waste time if it gave null before
+                            if ($actionHookToPlugin[$hookName]) {
+                                $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
                             }
-
-                            if (isset($actionHookToPlugin[$hookName])) { // Don't waste time if it gave null before
-                                if ($actionHookToPlugin[$hookName]) {
-                                    $span->meta['wp.plugin'] = $actionHookToPlugin[$hookName];
-                                }
-                            } elseif ($plugin = WordPressComponent::extractAndSavePluginNameFromSpan($span, $hookName, $actionHookToPlugin)) {
+                        } else {
+                            $file = $hook->getSourceFile();
+                            if ($plugin = WordPressComponent::extractAndSavePluginNameFromSpan($file, $hookName, $actionHookToPlugin)) {
                                 $span->meta['wp.plugin'] = $plugin;
-                            } elseif ($theme = WordPressComponent::extractAndSaveThemeNameFromSpan($span, $hookName, $actionHookToTheme)) {
+                            } elseif ($theme = WordPressComponent::extractAndSaveThemeNameFromSpan($file, $hookName, $actionHookToTheme)) {
                                 $span->meta['wp.theme'] = $theme;
                             }
-
-                            return true;
-                        } else {
-                            return false;
                         }
                     }
-                ]
+                }
             );
         }
 
@@ -651,7 +645,7 @@ class WordPressComponent
             }
         };
 
-        trace_function('add_action', function (SpanData $origin, $args) use ($integration, &$actionHookToPlugin, $interestingActions, &$plugins) {
+        hook_function('add_action', function ($args) use ($integration, &$actionHookToPlugin, $interestingActions, &$plugins) {
             $action = $args[0];
             $callback = $args[1];
             $pluginName = end($plugins);
@@ -662,13 +656,13 @@ class WordPressComponent
                         ? "{$callback[0]}::{$callback[1]}"
                         : $callback
                     ),
-                    function (HookData $hook) use ($integration, $callback, $action, &$actionHookToPlugin, $pluginName, $origin) {
+                    function (HookData $hook) use ($integration, $callback, $action, &$actionHookToPlugin, $pluginName) {
                         $span = $hook->span();
 
                         $resource = WordPressComponent::getPrettyCallbackName($callback) . ' (callback)';
                         WordPressComponent::setCommonTags($integration, $span, 'callback', $resource);
 
-                        $file = $origin->sourceFile;
+                        $file = $hook->getSourceFile();
                         if ($plugin = WordPressComponent::extractPluginNameFromFile($file)) {
                             $span->meta['wp.plugin'] = $plugin;
                         } elseif ($themeName = WordPressComponent::extractThemeNameFromFile($file)) {

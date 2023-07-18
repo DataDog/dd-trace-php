@@ -30,7 +30,7 @@ enum ddtrace_span_dataype {
 // Open spans as well as flushed spans keep a reference to the span stack
 struct ddtrace_span_data {
     zend_object std;
-    zval properties_table_placeholder[10];
+    zval properties_table_placeholder[9];
     union {
         struct ddtrace_span_data *parent;
         zval property_parent;
