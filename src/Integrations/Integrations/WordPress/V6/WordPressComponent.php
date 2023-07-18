@@ -193,8 +193,23 @@ class WordPressComponent
 
     public function load(WordPressIntegration $integration)
     {
-        if (!Integration::shouldLoad(WordPressIntegration::NAME)) {
+        $rootSpan = \DDTrace\root_span();
+        if (!$rootSpan) {
             return Integration::NOT_LOADED;
+        }
+
+        // Overwrite the default web integration
+        $integration->addTraceAnalyticsIfEnabled($rootSpan);
+        $rootSpan->name = 'wordpress.request';
+        $rootSpan->service = $integration->getServiceName();
+        $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+        if ('cli' !== PHP_SAPI) {
+            $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
+            $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
+            if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+            }
         }
 
         // File loading
@@ -236,30 +251,12 @@ class WordPressComponent
         });
 
         hook_function('wp', function () use ($integration) {
-            WordPressComponent::setSpansLimit();
+            if (dd_trace_env_config('DD_TRACE_WP_CALLBACKS')) {
+                WordPressComponent::setSpansLimit();
+            }
 
             // Runs after wp-settings.php is loaded - i.e., after the entire core of WordPress functions is
             // loaded and the current user is populated
-            $rootSpan = \DDTrace\root_span();
-            if (!$rootSpan) {
-                return;
-            }
-
-            // Overwrite the default web integration
-            $integration->addTraceAnalyticsIfEnabled($rootSpan);
-            $rootSpan->name = 'wordpress.request';
-            $service = \ddtrace_config_app_name(WordPressIntegration::NAME);
-            $rootSpan->service = $service;
-            $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-            $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-            if ('cli' !== PHP_SAPI) {
-                $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
-                $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
-                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                    $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
-                }
-            }
-
             $user = wp_get_current_user();
             if ($user) {
                 $meta = [];
@@ -654,7 +651,7 @@ class WordPressComponent
             }
         };
 
-        hook_function('add_action', function ($args) use ($integration, &$actionHookToPlugin, $interestingActions, &$plugins) {
+        trace_function('add_action', function (SpanData $origin, $args) use ($integration, &$actionHookToPlugin, $interestingActions, &$plugins) {
             $action = $args[0];
             $callback = $args[1];
             $pluginName = end($plugins);
@@ -665,13 +662,13 @@ class WordPressComponent
                         ? "{$callback[0]}::{$callback[1]}"
                         : $callback
                     ),
-                    function (HookData $hook) use ($integration, $callback, $action, &$actionHookToPlugin, $pluginName) {
+                    function (HookData $hook) use ($integration, $callback, $action, &$actionHookToPlugin, $pluginName, $origin) {
                         $span = $hook->span();
 
                         $resource = WordPressComponent::getPrettyCallbackName($callback);
                         WordPressComponent::setCommonTags($integration, $span, 'callback', $resource);
 
-                        $file = $span->sourceFile;
+                        $file = $origin->sourceFile;
                         if ($plugin = WordPressComponent::extractPluginNameFromFile($file)) {
                             $span->meta['wp.plugin'] = $plugin;
                         } elseif ($themeName = WordPressComponent::extractThemeNameFromFile($file)) {
@@ -684,6 +681,8 @@ class WordPressComponent
                     }
                 );
             }
+
+            return false; // Don't trace 'add_action'; we're only interested in the origin
         });
 
         // Note: add_action delegates to add_filter.
