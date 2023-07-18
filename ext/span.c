@@ -232,8 +232,17 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
         ddtrace_open_span(span);
 
         // Retrieves the name of the file that is being executed, not where the function was defined
+        // (prev) function call -> (call) function definition
         zval *source_file = ddtrace_spandata_property_source_file(span);
-        zend_string *filename = zend_get_executed_filename_ex();
+        zend_execute_data *call = EG(current_execute_data);
+        zend_string *filename = NULL;
+        if (call) {
+            zend_execute_data *prev = call->prev_execute_data;
+            if (prev) {
+                filename = prev->func->op_array.filename;
+            }
+        }
+
         if (filename) {
             ZVAL_STR(source_file, zend_string_copy(filename));
         } else {
