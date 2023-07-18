@@ -363,7 +363,7 @@ class WordPressComponent
                     $integration,
                     $span,
                     'widget',
-                    isset($this->name) ? "name: {$this->name}" : 'name: ?'
+                    isset($this->name) ? "{$this->name} (widget)" : '? (widget)'
                 );
             });
         });
@@ -448,7 +448,7 @@ class WordPressComponent
                     $integration,
                     $span,
                     'block',
-                    isset($args[0]['blockName']) ? "block_name: {$args[0]['blockName']}" : 'block_name: ?'
+                    isset($args[0]['blockName']) ? "{$args[0]['blockName']} (block)" : '? (block)'
                 );
 
                 if (isset($args[0]['attrs'])) {
@@ -468,7 +468,7 @@ class WordPressComponent
                 $integration,
                 $span,
                 'block_template_part',
-                isset($args[0]) && is_string($args[0]) ? "part: {$args[0]}" : 'part: ?'
+                isset($args[0]) && is_string($args[0]) ? "{$args[0]} (part)" : '? (part)'
             );
         });
 
@@ -477,7 +477,7 @@ class WordPressComponent
                 $integration,
                 $span,
                 'template',
-                isset($args[0]) ? "type: {$args[0]}" : 'type: ?'
+                isset($args[0]) ? "{$args[0]} (type)" : '? (type)'
             );
 
             $themeName = WordPressComponent::extractThemeNameFromFile($path);
@@ -516,7 +516,7 @@ class WordPressComponent
                             WordPressComponent::setCommonTags($integration, $span, 'action');
 
                             $hookName = isset($args[0]) ? $args[0] : '?';
-                            $span->resource = "hook: $hookName";
+                            $span->resource = "$hookName (hook)";
 
                             if ($hookName === '?') {
                                 return;
@@ -665,7 +665,7 @@ class WordPressComponent
                     function (HookData $hook) use ($integration, $callback, $action, &$actionHookToPlugin, $pluginName, $origin) {
                         $span = $hook->span();
 
-                        $resource = WordPressComponent::getPrettyCallbackName($callback);
+                        $resource = WordPressComponent::getPrettyCallbackName($callback) . ' (callback)';
                         WordPressComponent::setCommonTags($integration, $span, 'callback', $resource);
 
                         $file = $origin->sourceFile;
