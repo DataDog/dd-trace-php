@@ -28,28 +28,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetReturnString()
     {
-        if (getenv('DD_TRACE_TEST_SAPI') === 'cgi-fcgi') {
-            $this->markTestSkipped("Don't run this test on cgi-fcgi");
-        }
-
-        $this->tracesFromWebRequestSnapshot(function () {
-            $this->call(
-                GetSpec::create(
-                    'A simple GET request returning a string',
-                    '/simple?key=value&pwd=should_redact'
-                )
-            );
-        });
-    }
-
-    public function testScenarioGetReturnStringNginxFastCGI()
-    {
-        // Has some additional spans coming from the parsed section in class-wp.php:main()
-        // that are not present in the Apache version.
-        if (getenv('DD_TRACE_TEST_SAPI') !== 'cgi-fcgi') {
-            $this->markTestSkipped("Run this test with cgi-fcgi");
-        }
-
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 GetSpec::create(
@@ -74,28 +52,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetWithException()
     {
-        // Has some additional spans coming from the parsed section in class-wp.php:main()
-        // that are not present in the Apache version.
-        if (getenv('DD_TRACE_TEST_SAPI') === 'cgi-fcgi') {
-            $this->markTestSkipped("Don't run this test on cgi-fcgi");
-        }
-
-        $this->tracesFromWebRequestSnapshot(function () {
-            $this->call(
-                GetSpec::create(
-                    'A GET request with an exception',
-                    '/error?key=value&pwd=should_redact'
-                )->expectStatusCode(200)
-            );
-        });
-    }
-
-    public function testScenarioGetWithExceptionNginxFastCGI()
-    {
-        if (getenv('DD_TRACE_TEST_SAPI') !== 'cgi-fcgi') {
-            $this->markTestSkipped("Run this test with cgi-fcgi");
-        }
-
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 GetSpec::create(

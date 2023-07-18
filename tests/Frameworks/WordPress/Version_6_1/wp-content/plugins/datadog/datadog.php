@@ -12,16 +12,15 @@
 */
 
 function datadog_parse_request($wp) {
-    if (!isset($_SERVER['PATH_INFO'])) {
-        return;
-    }
-
-    $pathInfo = $_SERVER['PATH_INFO'];
-    if ('/simple' === $pathInfo) {
+    // Retrieve the name of the endpoint (nginx + FASTcgi)
+    // if it is 'simple', then echo "Simple text endpoint\n" and exit
+    // Else, if it is 'error', then throw an exception
+    // Else, do nothing
+    $endpoint = $_SERVER['REQUEST_URI'];
+    if (strpos($endpoint, 'simple') !== false) {
         echo "Simple text endpoint\n";
         exit;
-    }
-    if ('/error' === $pathInfo) {
+    } else if (strpos($endpoint, 'error') !== false) {
         throw new Exception('Oops!');
     }
 }

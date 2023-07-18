@@ -505,10 +505,10 @@ class WordPressComponent
             install_hook(
                 $function,
                 function (HookData $hook) use ($integration, &$actionHookToPlugin, &$actionHookToTheme, $interestingActions) {
-                    $span = $hook->span();
                     $args = $hook->args;
 
                     if (isset($args[0]) && isset($interestingActions[$args[0]])) {
+                        $span = $hook->span();
                         WordPressComponent::setCommonTags($integration, $span, 'action');
 
                         $hookName = isset($args[0]) ? $args[0] : '?';
