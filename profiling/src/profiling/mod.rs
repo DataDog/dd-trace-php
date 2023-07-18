@@ -378,12 +378,6 @@ impl TimeCollector {
         let mut running = true;
 
         while running {
-            // The crossbeam_channel::select! doesn't have the ability to
-            // optionally recv something. Instead, if the tick channel
-            // shouldn't be selected on, then pass the never channel for that
-            // iteration instead, keeping the code structure of the recvs the
-            // same. Since the never channel will never be ready, this
-            // effectively makes that branch optional for that loop iteration.
             let timer = if self.interrupt_manager.has_interrupts() {
                 &wall_timer
             } else {
