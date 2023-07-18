@@ -222,7 +222,7 @@ class WordPressComponent
                     $templateLoader,
                     function (HookData $hook) use ($integration) {
                         $span = $hook->span();
-                        WordPressComponent::setCommonTags($integration, $span, 'load_file', 'file: template-loader.php');
+                        WordPressComponent::setCommonTags($integration, $span, 'load_template_loader');
 
                         remove_hook($hook->id);
                     }
