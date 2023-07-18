@@ -238,7 +238,7 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
         zend_string *filename = NULL;
         if (call) {
             zend_execute_data *prev = call->prev_execute_data;
-            if (prev) {
+            if (prev && prev->func->type == ZEND_USER_FUNCTION && prev->func->op_array.filename) {
                 filename = prev->func->op_array.filename;
             }
         }
