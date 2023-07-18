@@ -150,7 +150,7 @@
        "meta": {
          "component": "wordpress",
          "wp.plugin": "datadog",
-         "wp.plugin_file": "/home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php"
+         "wp.plugin_file": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php"
        }
      },
      {
@@ -1614,7 +1614,7 @@
           "parent_id": 16,
           "type": "web",
           "meta": {
-            "closure.declaration": "/home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/script-loader.php:3398",
+            "closure.declaration": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/script-loader.php:3398",
             "component": "wordpress",
             "wp.callback": "Closure"
           }
