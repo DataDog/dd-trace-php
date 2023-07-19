@@ -1,5 +1,5 @@
 --TEST--
-Retrieve the filename where the function/method was executed from
+Retrieve the filename where the function/method originated from
 --FILE--
 <?php
 
@@ -27,6 +27,6 @@ foo();
 intermediarySetTag();
 
 --EXPECTF--
+fake_span.inc
 get_source_file.php
-get_source_file.php
-intermediary_call.inc
+fake_span.inc

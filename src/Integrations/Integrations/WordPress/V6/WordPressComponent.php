@@ -387,18 +387,20 @@ class WordPressComponent
         trace_function('load_template', function (SpanData $span, array $args) use ($integration) {
             WordPressComponent::setCommonTags($integration, $span, 'load_template');
 
-            if ($plugin = WordPressComponent::extractPluginNameFromFile($args[0])) {
+            $templateFile = $args[0];
+            if ($plugin = WordPressComponent::extractPluginNameFromFile($templateFile)) {
                 $span->meta['wp.plugin'] = $plugin;
-            } elseif ($theme = WordPressComponent::extractThemeNameFromFile($args[0])) {
+            } elseif ($theme = WordPressComponent::extractThemeNameFromFile($templateFile)) {
                 $span->meta['wp.theme'] = $theme;
             }
 
-            // Remove the trailing .php extension, if any
-            $template = $args[0];
-            if (substr($template, -4) === '.php') {
-                $template = substr($template, 0, -4);
-                $span->resource = "$template (template)";
-                $span->meta['wp.template'] = $template;
+            $span->meta['wp.template_file'] = $templateFile;
+            if (substr($templateFile, -4) === '.php') {
+                $templatePart = explode('/', $templateFile);
+                $templatePart = end($templatePart);
+                $templatePart = substr($templatePart, 0, -4);
+                $span->resource = "$templatePart (template)";
+                $span->meta['wp.template_part'] = $templatePart;
             } else {
                 $span->resource = !empty($template) ? $template : $span->name;
             }
