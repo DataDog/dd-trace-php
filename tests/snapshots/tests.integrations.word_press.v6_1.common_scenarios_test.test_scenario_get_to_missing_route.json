@@ -5,7 +5,7 @@
     "resource": "GET /does_not_exist",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 10953734502595496304,
+    "parent_id": 5380795527794892726,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
-      "runtime-id": "4e0898a0-058c-41ad-948d-6ffb42a98898",
+      "runtime-id": "fb83151f-21fe-4447-addb-ba368c7bfc07",
       "span.kind": "server",
       "usr.id": "0"
     },
