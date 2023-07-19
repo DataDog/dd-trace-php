@@ -1,0 +1,39 @@
+{
+    "test_name":"clang_pie",
+    "stacks": [
+      {
+        "profile-type": "alloc-size",
+        "stack-content":
+        [
+          {
+            "regular_expression":"<?php;main;a;standard\\|str_repeat$",
+            "percent": 66,
+            "value": 121999579,
+            "error_margin": 5
+          },
+          {
+            "regular_expression":"<?php;main;b;standard\\|str_repeat$",
+            "percent": 33,
+            "value": 64258130,
+            "error_margin": 5
+          }
+        ]
+      }, {
+        "profile-type": "alloc-samples",
+        "stack-content":
+        [
+          {
+            "regular_expression":"<?php;main;a;standard\\|str_repeat$",
+            "percent": 50,
+            "error_margin": 5
+          },
+          {
+            "regular_expression":"<?php;main;b;standard\\|str_repeat$",
+            "percent": 50,
+            "error_margin": 5
+          }
+        ]
+      }
+    ]
+  }
+  
