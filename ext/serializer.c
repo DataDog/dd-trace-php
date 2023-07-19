@@ -816,6 +816,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(meta), str_key, orig_val) {
             if (str_key) {
                 if (zend_string_equals_literal_ci(str_key, "error.ignored")) {
+                    ddtrace_log_debugf("Ignoring error");
                     ignore_error = zend_is_true(orig_val);
                     continue;
                 }
