@@ -12,10 +12,6 @@
 */
 
 function datadog_parse_request($wp) {
-    // Retrieve the name of the endpoint (nginx + FASTcgi)
-    // if it is 'simple', then echo "Simple text endpoint\n" and exit
-    // Else, if it is 'error', then throw an exception
-    // Else, do nothing
     $endpoint = $_SERVER['REQUEST_URI'];
     if (strpos($endpoint, 'simple') !== false) {
         echo "Simple text endpoint\n";
