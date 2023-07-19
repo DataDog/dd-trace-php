@@ -24,6 +24,7 @@ use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Yii\YiiIntegration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
+use DDTrace\Log\Logger;
 use DDTrace\Log\LoggingTrait;
 
 /**
@@ -139,6 +140,7 @@ class IntegrationsLoader
         self::logDebug('Attempting integrations load; note: some integrations are only loaded on first usage');
 
         foreach ($this->integrations as $name => $class) {
+            Logger::get()->debug("Analyzing integration $class");
             if (!\ddtrace_config_integration_enabled($name)) {
                 self::logDebug('Integration {name} is disabled', ['name' => $name]);
                 continue;
@@ -148,12 +150,14 @@ class IntegrationsLoader
             // auto-instrumentation this method may be called many times as the hook is the autoloader callback.
             // So we want to make sure that we do not load the same integration twice if not required.
             $integrationLoadingStatus = $this->getLoadingStatus($name);
+            Logger::get()->debug("Integration $class loading status: $integrationLoadingStatus");
             if (
                 in_array(
                     $integrationLoadingStatus,
                     [Integration::LOADED, Integration::NOT_AVAILABLE]
                 )
             ) {
+                Logger::get()->debug("Integration $class already loaded");
                 continue;
             }
 
@@ -225,6 +229,22 @@ class IntegrationsLoader
     {
         self::$instance = null;
         self::load();
+    }
+
+    public function loadIntegration($name, $class)
+    {
+        Logger::get()->debug("Loading integration $name");
+        if (ddtrace_config_integration_enabled($name) && self::get()->getLoadingStatus($name) === Integration::NOT_LOADED) {
+            Logger::get()->debug("Integration $name is enabled");
+            if (!isset($this->integrations[$name])) {
+                Logger::get()->debug("Adding class $class");
+                $this->integrations[$name] = $class;
+            }
+            Logger::get()->debug("Go integration $class");
+            $integration = new $class();
+            $this->loadings[$name] = $integration->init();
+            self::logResult($name, $this->loadings[$name]);
+        }
     }
 
     public function reset()

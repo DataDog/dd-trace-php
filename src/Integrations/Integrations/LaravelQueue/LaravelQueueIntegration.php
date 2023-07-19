@@ -4,6 +4,9 @@ namespace DDTrace\Integrations\LaravelQueue;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\Integrations\Laravel\LaravelIntegration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -66,6 +69,15 @@ class LaravelQueueIntegration extends Integration
                         $integration->extractContext($payload);
                         $span->links[] = $newTrace->getLink();
                         $newTrace->links[] = $span->getLink();
+                    }
+
+                    // To be run after the context is extracted so that an exception thrown will be set on the
+                    // correct trace, if any
+                    if (IntegrationsLoader::get()->getLoadingStatus(LaravelIntegration::NAME) === Integration::NOT_LOADED) {
+                        Logger::get()->debug('LaravelIntegration wasn\'t loaded');
+                        IntegrationsLoader::get()->loadIntegration(LaravelIntegration::NAME, '\DDTrace\Integrations\Laravel\LaravelIntegration');
+                    } else {
+                        Logger::get()->debug('LaravelIntegration is enabled');
                     }
                 },
                 'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration, &$newTrace) {
@@ -302,6 +314,7 @@ class LaravelQueueIntegration extends Integration
         }
 
         if ($exception) {
+            Logger::get()->error("Exception thrown while processing job");
             $this->setError($span, $exception);
         }
     }

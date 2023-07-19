@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Laravel;
 
 use DDTrace\Integrations\Lumen\LumenIntegration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
@@ -56,13 +57,17 @@ class LaravelIntegration extends Integration
      */
     public function init()
     {
+        Logger::get()->debug('Initializing ' . self::NAME . ' integration');
+
         if (!self::shouldLoad(self::NAME)) {
+            Logger::get()->debug('Not loading ' . self::NAME . ' integration');
             return Integration::NOT_LOADED;
         }
 
         $rootSpan = \DDTrace\root_span();
 
         if (null === $rootSpan) {
+            Logger::get()->debug('Not loading ' . self::NAME . ' integration: no root span');
             return Integration::NOT_LOADED;
         }
 
@@ -303,10 +308,17 @@ class LaravelIntegration extends Integration
             'Illuminate\Contracts\Debug\ExceptionHandler',
             'report',
             function ($exceptionHandler, $scope, $args) use ($rootSpan, $integration) {
+                Logger::get()->debug('ExceptionHandler::report');
                 if ($args[0] && $exceptionHandler->shouldReport($args[0])) {
+                    Logger::get()->debug('ExceptionHandler::report shouldReport');
+                    Logger::get()->debug("Root span name: {$rootSpan->name}");
+                    Logger::get()->debug("Span links: " . json_encode($rootSpan->links));
+                    Logger::get()->debug("trace_id: " . \DDTrace\trace_id());
                     $integration->setError($rootSpan, $args[0]);
+                    Logger::get()->debug("Root span error message: {$rootSpan->meta['error.message']}");
                     $rootSpan->meta['error.ignored'] = 0;
                 } elseif ($args[0] && !$exceptionHandler->shouldReport($args[0])) {
+                    Logger::get()->debug('ExceptionHandler::report shouldReport false');
                     $rootSpan->meta['error.ignored'] = 1;
                 }
             }
