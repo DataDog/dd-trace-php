@@ -8,6 +8,8 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 
+use function DDTrace\root_span;
+
 class CodeIgniterIntegration extends Integration
 {
     const NAME = 'codeigniter';
@@ -26,10 +28,7 @@ class CodeIgniterIntegration extends Integration
     public function init(\CI_Router $router = null)
     {
         $integration = $this;
-        $rootSpan = \DDTrace\root_span();
-        if (null === $rootSpan) {
-            return Integration::NOT_LOADED;
-        }
+
         $service = \ddtrace_config_app_name(self::NAME);
 
         if (!\defined('CI_VERSION') || !isset($router)) {
@@ -40,7 +39,24 @@ class CodeIgniterIntegration extends Integration
             /* After _set_routing has been called the class and method
              * are known, so now we can set up tracing on CodeIgniter.
              */
-            $integration->registerIntegration($router, $rootSpan, $service);
+            \DDTrace\hook_method(
+                'CI_Router',
+                '_set_routing',
+                function () use ($router, $service, $integration) {
+                    if (($rootSpan = root_span()) === null) {
+                        return false;
+                    }
+
+                    $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                    $rootSpan->name = 'codeigniter.request';
+                    $rootSpan->service = $service;
+                    $rootSpan->type = Type::WEB_SERVLET;
+                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                    $rootSpan->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+
+                    $integration->registerIntegration($router, $rootSpan, $service);
+                }
+            );
         }
 
         return parent::LOADED;
@@ -48,13 +64,6 @@ class CodeIgniterIntegration extends Integration
 
     public function registerIntegration(\CI_Router $router, SpanData $rootSpan, $service)
     {
-        $this->addTraceAnalyticsIfEnabled($rootSpan);
-        $rootSpan->name = 'codeigniter.request';
-        $rootSpan->service = $service;
-        $rootSpan->type = Type::WEB_SERVLET;
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-        $rootSpan->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
-
         $controller = $router->fetch_class();
         $method = $router->fetch_method();
 
