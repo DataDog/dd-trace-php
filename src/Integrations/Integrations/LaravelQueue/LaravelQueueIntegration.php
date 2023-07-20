@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\LaravelQueue;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -45,6 +46,29 @@ class LaravelQueueIntegration extends Integration
     public function init()
     {
         $integration = $this;
+
+        \DDTrace\trace_method(
+            'Illuminate\Queue\Worker',
+            'kill',
+            function () {
+                // This is a workaround to trigger the flush of the queue root span when the worker is killed.
+                if (active_span()) {
+                    Logger::get()->debug('Flushing queue root span');
+                    \DDTrace\flush();
+
+                    if (
+                        dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE")
+                        && dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                    ) {
+                        set_distributed_tracing_context("0", "0");
+                    }
+                } else {
+                    Logger::get()->debug('No active span, skipping queue root span flush');
+                }
+
+                // TODO: See if the exception is properly handled by other hooks, instead of process' posthook :pray:
+            }
+        );
 
         trace_method(
             'Illuminate\Queue\Worker',
