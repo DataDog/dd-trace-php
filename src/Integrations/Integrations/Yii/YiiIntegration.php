@@ -9,6 +9,8 @@ use DDTrace\Type;
 use DDTrace\Util\Versions;
 use yii\helpers\Url;
 
+use function DDTrace\root_span;
+
 class YiiIntegration extends Integration
 {
     const NAME = 'yii';
@@ -38,16 +40,20 @@ class YiiIntegration extends Integration
             return self::NOT_AVAILABLE;
         }
 
-        $rootSpan = \DDTrace\root_span();
-        if (!$rootSpan) {
-            return Integration::NOT_LOADED;
-        }
-
-        $rootSpan->meta[Tag::COMPONENT] = YiiIntegration::NAME;
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-
-        $this->addTraceAnalyticsIfEnabled($rootSpan);
         $service = \ddtrace_config_app_name(YiiIntegration::NAME);
+
+        \DDTrace\hook_method(
+            'yii\di\Container',
+            '__construct',
+            function () {
+                $rootSpan = \DDTrace\root_span();
+
+                $rootSpan->meta[Tag::COMPONENT] = YiiIntegration::NAME;
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
+                $this->addTraceAnalyticsIfEnabled($rootSpan);
+            }
+        );
 
         \DDTrace\trace_method(
             'yii\web\Application',
@@ -92,7 +98,11 @@ class YiiIntegration extends Integration
         \DDTrace\trace_method(
             'yii\base\Controller',
             'runAction',
-            function (SpanData $span, $args) use (&$firstController, $service, $rootSpan) {
+            function (SpanData $span, $args) use (&$firstController, $service) {
+                if (($rootSpan = root_span()) === null) {
+                    return false;
+                }
+
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
