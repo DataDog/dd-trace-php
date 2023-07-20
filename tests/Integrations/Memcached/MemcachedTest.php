@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Memcached;
 
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 use DDTrace\Obfuscation;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -17,7 +18,6 @@ final class MemcachedTest extends IntegrationTestCase
     private static $host = 'memcached_integration';
     private static $port = '11211';
 
-
     protected function ddSetUp()
     {
         parent::ddSetUp();
@@ -28,6 +28,15 @@ final class MemcachedTest extends IntegrationTestCase
             // Cleaning up existing data from previous tests
             $this->client->flush();
         });
+    }
+
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
+        ];
     }
 
     public function testAdd()
@@ -236,13 +245,10 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.deleteMulti', 'memcached', 'memcached', 'deleteMulti')
-                ->withExactTags([
+                ->withExactTags(array_merge($this->baseTags(), [
                     'memcached.query' => 'deleteMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'deleteMulti',
-                    Tag::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'memcached',
-                    Tag::DB_SYSTEM => 'memcached',
-                ]),
+                ])),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::exists('Memcached.get'),
         ]);
@@ -454,12 +460,9 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.flush', 'memcached', 'memcached', 'flush')
-                ->withExactTags([
+                ->withExactTags(array_merge($this->baseTags(), [
                     'memcached.command' => 'flush',
-                    Tag::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'memcached',
-                    Tag::DB_SYSTEM => 'memcached',
-                ]),
+                ])),
             SpanAssertion::exists('Memcached.get'),
         ]);
     }
@@ -518,13 +521,10 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
-                ->withExactTags([
+                ->withExactTags(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
-                    Tag::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'memcached',
-                    Tag::DB_SYSTEM => 'memcached',
-                ])->withExactMetrics([
+                ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
                 ]),
         ]);
@@ -542,13 +542,10 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
-                ->withExactTags([
+                ->withExactTags(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'missing_key'], ','),
                     'memcached.command' => 'getMulti',
-                    Tag::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'memcached',
-                    Tag::DB_SYSTEM => 'memcached',
-                ])->withExactMetrics([
+                ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
         ]);
@@ -561,13 +558,10 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
-                ->withExactTags([
+                ->withExactTags(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
-                    Tag::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'memcached',
-                    Tag::DB_SYSTEM => 'memcached',
-                ])->withExactMetrics([
+                ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 0,
                 ]),
         ]);
@@ -703,13 +697,10 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.setMulti', 'memcached', 'memcached', 'setMulti')
-                ->withExactTags([
+                ->withExactTags(array_merge($this->baseTags(), [
                     'memcached.query' => 'setMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'setMulti',
-                    Tag::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'memcached',
-                    Tag::DB_SYSTEM => 'memcached',
-                ]),
+                ])),
             SpanAssertion::exists('Memcached.getMulti'),
         ]);
     }
@@ -833,13 +824,184 @@ final class MemcachedTest extends IntegrationTestCase
         });
     }
 
-    private static function baseTags()
+    public function testCommandPeerServiceEnabled()
     {
-        return [
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key', 'value');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcached.add', 'memcached', 'memcached', 'add')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(true), [
+                    'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
+                    'memcached.command' => 'add',
+                    Tag::SPAN_KIND => 'client',
+                ]))
+        ]);
+    }
+
+    public function testCommandByKeyPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $this->client->addByKey('my_server', 'key', 'value');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcached.addByKey', 'memcached', 'memcached', 'addByKey')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(true), [
+                    'memcached.query' => 'addByKey ' . Obfuscation::toObfuscatedString('key'),
+                    'memcached.command' => 'addByKey',
+                    'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
+                ]))
+        ]);
+    }
+
+    public function testMultiPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key1', 'value1');
+            $this->client->add('key2', 'value2');
+
+            $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], $this->client->getMulti(['key1', 'key2']));
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Memcached.add'),
+            SpanAssertion::exists('Memcached.add'),
+            SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
+                ->withExactTags(array_merge($this->baseTags(true), [
+                    'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
+                    'memcached.command' => 'getMulti',
+                ]))->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 2,
+                ]),
+        ]);
+    }
+
+    public function testMultiByKeyPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $this->client->addByKey('my_server', 'key1', 'value1');
+            $this->client->addByKey('my_server', 'key2', 'value2');
+
+            $this->assertEquals(
+                ['key1' => 'value1', 'key2' => 'value2'],
+                $this->client->getMultiByKey('my_server', ['key1', 'key2'])
+            );
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Memcached.addByKey'),
+            SpanAssertion::exists('Memcached.addByKey'),
+            SpanAssertion::build('Memcached.getMultiByKey', 'memcached', 'memcached', 'getMultiByKey')
+                ->withExactTags(array_merge(self::baseTags(true), [
+                    'memcached.query' => 'getMultiByKey ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
+                    'memcached.command' => 'getMultiByKey',
+                    'memcached.server_key' => 'my_server',
+                    Tag::SPAN_KIND => 'client',
+                ]))->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 2,
+                ]),
+        ]);
+    }
+
+    public function testFlushPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key', 'value');
+
+            $this->assertSame('value', $this->client->get('key'));
+
+            $this->client->flush();
+
+            $this->assertFalse($this->client->get('key'));
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Memcached.add'),
+            SpanAssertion::exists('Memcached.get'),
+            SpanAssertion::build('Memcached.flush', 'memcached', 'memcached', 'flush')
+                ->withExactTags(array_merge(self::baseTags(true), [
+                    'memcached.command' => 'flush',
+                    Tag::SPAN_KIND => 'client',
+                ])),
+            SpanAssertion::exists('Memcached.get'),
+        ]);
+    }
+
+
+    public function testCasPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $this->client->set('ip_block', 'some_value');
+        if (\PHP_MAJOR_VERSION === 5) {
+            $cas = null;
+            $this->client->get('ip_block', null, $cas);
+        } else {
+            $result = $this->client->get('ip_block', null, \Memcached::GET_EXTENDED);
+            $cas = $result['cas'];
+        }
+        $traces = $this->isolateTracer(function () use ($cas) {
+            $this->client->cas($cas, 'key', 'value');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcached.cas', 'memcached', 'memcached', 'cas')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(true), [
+                    'memcached.query' => 'cas ' . Obfuscation::toObfuscatedString('key'),
+                    'memcached.command' => 'cas',
+                    Tag::SPAN_KIND => 'client',
+                ]))
+                ->withExistingTagsNames(['memcached.cas_token']),
+        ]);
+    }
+
+    private static function baseTags($expectPeerService = false)
+    {
+        $tags = [
             'out.host' => self::$host,
             'out.port' => self::$port,
+            Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'memcached',
             Tag::DB_SYSTEM => 'memcached',
         ];
+
+        if ($expectPeerService) {
+            $tags['peer.service'] = 'memcached_integration';
+            $tags['_dd.peer.service.source'] = 'out.host';
+        }
+
+        return $tags;
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key', 'value');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcached.add', 'configured_service', 'memcached', 'add')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(), [
+                    'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
+                    'memcached.command' => 'add',
+                    Tag::SPAN_KIND => 'client',
+                ]))
+        ]);
     }
 }

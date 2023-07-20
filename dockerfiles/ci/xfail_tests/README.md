@@ -57,7 +57,7 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 
 # Specific tests
 
-## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`
+## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`, `Zend/tests/gh11189(_1).phpt`
 
 Tests memory limits, which we exceed due to tracer being loaded.
 
@@ -69,7 +69,7 @@ By _chance_ the internal comparison happens against another GC protected array w
 
 Test does http request to shut down server.
 
-## `ext/curl/tests/curl_postfields_array.phpt`
+## `ext/curl/tests/curl_postfields_array.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt`
 
 Distributed tracing headers are injected
 
@@ -160,3 +160,13 @@ ddtrace affects the order of destructor execution due to creating span stacks et
 ## `ext/zend_test/tests/`, `Zend/tests/gh10346.phpt`
 
 Observer tests trace all functions, including dd setup. Exclude these from being observed.
+
+## SKIP\_ONLINE\_TESTS
+
+The env var `SKIP_ONLINE_TESTS` is set so that in newer PHP versions, we skip
+any test which checks this env var. Online tests are too flaky for CI.
+
+The exact PHP version that a given test checks this env var varies, but these
+are some tests which are skipped for older versions which don't check it:
+
+ - `ext/sockets/tests/socket_shutdown.phpt`

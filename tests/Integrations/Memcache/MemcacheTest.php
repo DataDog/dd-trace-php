@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Memcache;
 
+use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 use DDTrace\Obfuscation;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -28,6 +29,15 @@ final class MemcacheTest extends IntegrationTestCase
             // Cleaning up existing data from previous tests
             $this->client->flush();
         });
+    }
+
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
+        ];
     }
 
     public function testAdd()
@@ -254,13 +264,82 @@ final class MemcacheTest extends IntegrationTestCase
         ]);
     }
 
-    private static function baseTags()
+    public function testCommandPeerServiceEnabled()
     {
-        return [
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key', 'value');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcache.add', 'memcache', 'memcached', 'add')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(true), [
+                    'memcache.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
+                    'memcache.command' => 'add',
+                    Tag::SPAN_KIND => 'client',
+                ]))
+        ]);
+    }
+
+    public function testCasPeerServiceEnabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+
+        $this->client->set('ip_block', 'some_value');
+        $flags = 0;
+        $result = $this->client->get('ip_block', $flags, $cas);
+        $traces = $this->isolateTracer(function () use ($cas) {
+            $this->client->cas('ip_block', 'value', 0, 0, $cas);
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcache.cas', 'memcache', 'memcached', 'cas')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(true), [
+                    'memcache.query' => 'cas ' . Obfuscation::toObfuscatedString('key'),
+                    'memcache.command' => 'cas',
+                    Tag::SPAN_KIND => 'client',
+                ]))
+                ->withExistingTagsNames(['memcache.cas_token']),
+        ]);
+    }
+
+    private static function baseTags($expectPeerService = false)
+    {
+        $tags = [
             'out.host' => self::$host,
             'out.port' => self::$port,
             Tag::COMPONENT => 'memcache',
             Tag::DB_SYSTEM => 'memcached',
         ];
+
+        if ($expectPeerService) {
+            $tags['peer.service'] = 'memcached_integration';
+            $tags['_dd.peer.service.source'] = 'out.host';
+        }
+
+        return $tags;
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key', 'value');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcache.add', 'configured_service', 'memcached', 'add')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(), [
+                    'memcache.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
+                    'memcache.command' => 'add',
+                    Tag::SPAN_KIND => 'client',
+                ]))
+        ]);
     }
 }

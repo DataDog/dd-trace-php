@@ -68,6 +68,12 @@ static inline zval *ddtrace_spandata_property_links_zval(ddtrace_span_data *span
 static inline zend_array *ddtrace_spandata_property_links(ddtrace_span_data *span) {
     return ddtrace_spandata_property_force_array(ddtrace_spandata_property_links_zval(span));
 }
+static inline zval *ddtrace_spandata_property_peerServiceSources_zval(ddtrace_span_data *span) {
+    return OBJ_PROP_NUM((zend_object *)span, 9);
+}
+static inline zend_array *ddtrace_spandata_property_peer_service_sources(ddtrace_span_data *span) {
+    return ddtrace_spandata_property_force_array(ddtrace_spandata_property_peerServiceSources_zval(span));
+}
 #pragma GCC diagnostic pop
 
 bool ddtrace_tracer_is_limited(void);
@@ -77,6 +83,8 @@ void ddtrace_disable_tracing_in_current_request(void);
 bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value);
 bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value);
 bool ddtrace_alter_default_propagation_style(zval *old_value, zval *new_value);
+bool ddtrace_alter_dd_env(zval *old_value, zval *new_value);
+bool ddtrace_alter_dd_version(zval *old_value, zval *new_value);
 void dd_force_shutdown_tracing(void);
 
 typedef struct {

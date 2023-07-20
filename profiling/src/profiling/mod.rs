@@ -598,7 +598,17 @@ impl Profiler {
                     0
                 };
 
-                let labels = Profiler::message_labels();
+                let mut labels = Profiler::message_labels();
+                #[cfg(feature = "timeline")]
+                if locals.profiling_experimental_timeline_enabled {
+                    if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                        labels.push(Label {
+                            key: "end_timestamp_ns",
+                            value: LabelValue::Num(now.as_nanos() as i64, Some("nanoseconds")),
+                        });
+                    }
+                }
+
                 let n_labels = labels.len();
 
                 match self.send_sample(Profiler::prepare_sample_message(
@@ -667,8 +677,53 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
+    pub fn collect_compile_string(
+        &self,
+        duration: i64,
+        filename: String,
+        line: u32,
+        locals: &RequestLocals,
+    ) {
+        let mut labels = Profiler::message_labels();
+
+        lazy_static! {
+            static ref TIMELINE_COMPILE_FILE_LABELS: Vec<Label> = vec![Label {
+                key: "event",
+                value: LabelValue::Str("compilation".into()),
+            },];
+        }
+
+        labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
+        let n_labels = labels.len();
+
+        match self.send_sample(Profiler::prepare_sample_message(
+            vec![ZendFrame {
+                function: "[eval]".into(),
+                file: Some(Cow::Owned(filename)),
+                line: line,
+            }],
+            SampleValues {
+                timeline: duration,
+                ..Default::default()
+            },
+            labels,
+            locals,
+        )) {
+            Ok(_) => {
+                trace!("Sent event 'compile eval' with {n_labels} labels to profiler.")
+            }
+            Err(err) => {
+                warn!(
+                    "Failed to send event 'compile eval' with {n_labels} labels to profiler: {err}"
+                )
+            }
+        }
+    }
+
+    #[cfg(feature = "timeline")]
     pub fn collect_compile_file(
         &self,
+        now: i64,
         duration: i64,
         filename: String,
         include_type: &str,
@@ -688,6 +743,11 @@ impl Profiler {
             key: "filename",
             value: LabelValue::Str(Cow::from(filename)),
         });
+        labels.push(Label {
+            key: "end_timestamp_ns",
+            value: LabelValue::Num(now, Some("nanoseconds")),
+        });
+
         let n_labels = labels.len();
 
         match self.send_sample(Profiler::prepare_sample_message(
@@ -719,6 +779,7 @@ impl Profiler {
     /// as we do not know about the overhead currently, we only collect a fake frame.
     pub fn collect_garbage_collection(
         &self,
+        now: i64,
         duration: i64,
         reason: &'static str,
         collected: i64,
@@ -739,6 +800,11 @@ impl Profiler {
             key: "gc reason",
             value: LabelValue::Str(Cow::from(reason)),
         });
+        labels.push(Label {
+            key: "end_timestamp_ns",
+            value: LabelValue::Num(now, Some("nanoseconds")),
+        });
+
         #[cfg(php_gc_status)]
         labels.push(Label {
             key: "gc runs",
@@ -802,7 +868,7 @@ impl Profiler {
     fn prepare_sample_message(
         frames: Vec<ZendFrame>,
         samples: SampleValues,
-        mut labels: Vec<Label>,
+        labels: Vec<Label>,
         locals: &RequestLocals,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
@@ -843,14 +909,6 @@ impl Profiler {
             if locals.profiling_experimental_timeline_enabled {
                 sample_types.push(SAMPLE_TYPES[5]);
                 sample_values.push(values[5]);
-                if samples.timeline > 0 || samples.cpu_time > 0 {
-                    if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                        labels.push(Label {
-                            key: "end_timestamp_ns",
-                            value: LabelValue::Num(now.as_nanos() as i64, Some("nanoseconds")),
-                        });
-                    }
-                }
             }
         }
 
@@ -1032,79 +1090,5 @@ mod tests {
             ]
         );
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 40, 50]);
-    }
-
-    #[test]
-    #[cfg(feature = "timeline")]
-    fn profiler_prepare_sample_message_works_with_allocations_and_cpu_time_and_timeline() {
-        let frames = get_frames();
-        let samples = get_samples();
-        let labels = Profiler::message_labels();
-        let mut locals = get_request_locals();
-        locals.profiling_enabled = true;
-        locals.profiling_allocation_enabled = true;
-        locals.profiling_experimental_cpu_time_enabled = true;
-        locals.profiling_experimental_timeline_enabled = true;
-
-        let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals);
-
-        assert_eq!(
-            message.key.sample_types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-time", "nanoseconds"),
-                ValueType::new("alloc-samples", "count"),
-                ValueType::new("alloc-size", "bytes"),
-                ValueType::new("timeline", "nanoseconds"),
-            ]
-        );
-        // for now, just check that this sample has the `end_timestamp_ns` label
-        let n_end_timestamp_ns_labels = message
-            .value
-            .labels
-            .into_iter()
-            .filter(|x| x.key == "end_timestamp_ns")
-            .count();
-        assert_eq!(n_end_timestamp_ns_labels, 1);
-        assert_eq!(message.value.sample_values, vec![10, 20, 30, 40, 50, 60]);
-    }
-
-    #[test]
-    #[cfg(feature = "timeline")]
-    // The `end_timestamp_ns` label shall only show up in CPU time and timeline sample types
-    fn profiler_prepare_sample_message_works_with_allocations_and_timeline_with_timestamp_labels() {
-        let frames = get_frames();
-        let mut samples = get_samples();
-        samples.cpu_time = 0;
-        samples.timeline = 0;
-        let labels = Profiler::message_labels();
-        let mut locals = get_request_locals();
-        locals.profiling_enabled = true;
-        locals.profiling_allocation_enabled = true;
-        locals.profiling_experimental_timeline_enabled = true;
-
-        let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals);
-
-        assert_eq!(
-            message.key.sample_types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("alloc-samples", "count"),
-                ValueType::new("alloc-size", "bytes"),
-                ValueType::new("timeline", "nanoseconds"),
-            ]
-        );
-        let n_end_timestamp_ns_labels = message
-            .value
-            .labels
-            .into_iter()
-            .filter(|x| x.key == "end_timestamp_ns")
-            .count();
-        assert_eq!(n_end_timestamp_ns_labels, 0);
-        assert_eq!(message.value.sample_values, vec![10, 20, 40, 50, 0]);
     }
 }

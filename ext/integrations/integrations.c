@@ -22,7 +22,7 @@
     dd_set_up_deferred_loading_by_method(name, ZAI_STRING_EMPTY, ZAI_STRL_VIEW(fname), \
                                          ZAI_STRL_VIEW(integration), false)
 
-#define INTEGRATION(id, lcname)                                        \
+#define INTEGRATION(id, lcname, ...)                                    \
     {                                                                  \
         .name = DDTRACE_INTEGRATION_##id,                              \
         .name_ucase = #id,                                             \
@@ -158,6 +158,9 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "Dispatcher", "__construct",
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_exec",
+                                           "DDTrace\\Integrations\\Curl\\CurlIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD_POST(DDTRACE_INTEGRATION_CODEIGNITER, "CI_Router", "_set_routing",
                                          "DDTrace\\Integrations\\CodeIgniter\\V2\\CodeIgniterIntegration");
 
@@ -173,13 +176,22 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELOQUENT, "Illuminate\\Database\\Eloquent\\Model", "destroy",
                                          "DDTrace\\Integrations\\Eloquent\\EloquentIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GUZZLE, "GuzzleHttp\\Client", "__construct",
+                                         "DDTrace\\Integrations\\Guzzle\\GuzzleIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "init",
                                          "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "__construct",
-                                             "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
+                                         "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVEL, "Illuminate\\Foundation\\Application", "__construct",
+                                         "DDTrace\\Integrations\\Laravel\\LaravelIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVEL, "Laravel\\Lumen\\Application", "__construct",
+                                         "DDTrace\\Integrations\\Laravel\\LaravelIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LUMEN, "Laravel\\Lumen\\Application", "__construct",
                                          "DDTrace\\Integrations\\Lumen\\LumenIntegration");
+
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHE, "Memcache", "connect",
                                          "DDTrace\\Integrations\\Memcache\\MemcacheIntegration");
@@ -197,6 +209,28 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHED, "Memcached", "__construct",
                                          "DDTrace\\Integrations\\Memcached\\MemcachedIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "emergency",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "alert",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "critical",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "error",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "warning",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "notice",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "info",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "debug",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LOGS, "Psr\\Log\\LoggerInterface", "log",
+                                         "DDTrace\\Integrations\\Logs\\LogsIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MONGO, "MongoClient", "__construct",
+                                         "DDTrace\\Integrations\\Mongo\\MongoIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MONGODB, "mongodb\\driver\\manager", "__construct",
                                          "DDTrace\\Integrations\\MongoDB\\MongoDBIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MONGODB, "mongodb\\driver\\query", "__construct",
@@ -206,11 +240,31 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MONGODB, "mongodb\\driver\\bulkwrite", "__construct",
                                          "DDTrace\\Integrations\\MongoDB\\MongoDBIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_MYSQLI, "mysqli_init",
+                                           "DDTrace\\Integrations\\Mysqli\\MysqliIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_MYSQLI, "mysqli_connect",
+                                           "DDTrace\\Integrations\\Mysqli\\MysqliIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_MYSQLI, "mysqli_real_connect",
+                                           "DDTrace\\Integrations\\Mysqli\\MysqliIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MYSQLI, "mysqli", "__construct",
+                                         "DDTrace\\Integrations\\Mysqli\\MysqliIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Configurator", "__construct",
                                          "DDTrace\\Integrations\\Nette\\NetteIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Bootstrap\\Configurator", "__construct",
                                          "DDTrace\\Integrations\\Nette\\NetteIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_PCNTL, "pcntl_fork",
+                                         "DDTrace\\Integrations\\Pcntl\\PcntlIntegration");
+#if PHP_VERSION_ID >= 80100
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_PCNTL, "pcntl_rfork",
+                                         "DDTrace\\Integrations\\Pcntl\\PcntlIntegration");
+#endif
+#if PHP_VERSION_ID >= 80200
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_PCNTL, "pcntl_forkx",
+                                         "DDTrace\\Integrations\\Pcntl\\PcntlIntegration");
+#endif
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "__construct",
                                          "DDTrace\\Integrations\\PDO\\PDOIntegration");

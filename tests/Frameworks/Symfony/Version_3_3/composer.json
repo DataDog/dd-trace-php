@@ -7,7 +7,8 @@
         "psr-4": {
             "AppBundle\\": "src/AppBundle"
         },
-        "classmap": [ "app/AppKernel.php", "app/AppCache.php" ]
+        "classmap": [ "app/AppKernel.php", "app/AppCache.php" ],
+        "files": ["../../../Appsec/Mock.php"]
     },
     "autoload-dev": {
         "psr-4": { "Tests\\": "tests/" },
@@ -44,6 +45,14 @@
         ],
         "post-update-cmd": [
             "@symfony-scripts"
+        ],
+        "post-autoload-dump": [
+            "@symfony-scripts",
+            "rm -rf var/cache/dev/*",
+            "rm -rf var/cache/prod/*",
+            "@php bin/console doctrine:database:drop --force",
+            "@php bin/console doctrine:database:create",
+            "@php bin/console doctrine:schema:update --force"
         ]
     },
     "config": {

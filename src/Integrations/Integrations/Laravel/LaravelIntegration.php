@@ -183,11 +183,10 @@ class LaravelIntegration extends Integration
                         }
                         $id = null;
                         if (isset($args[1]['id'])) {
-                          $id = $args[1]['id'];
+                            $id = $args[1]['id'];
                         }
                         \datadog\appsec\track_user_signup_event($id, [], true);
                     }
-
                 },
                 'recurse' => true,
             ]
@@ -319,8 +318,7 @@ class LaravelIntegration extends Integration
             'attempt',
             null,
             function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
-                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event'))
-                {
+                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event')) {
                     return;
                 }
                 \datadog\appsec\track_user_login_failure_event(null, false, [], true);
@@ -334,21 +332,25 @@ class LaravelIntegration extends Integration
             function ($This, $scope, $args) use ($rootSpan, $integration) {
                 $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
-                   !function_exists('\datadog\appsec\track_user_login_success_event') ||
-                   !isset($args[0]) ||
-                   !$args[0] ||
-                   !($args[0] instanceof $authClass)
-               ) {
-                   return;
-               }
-               $metadata = [];
-               if (isset($args[0]['name'])) {
-                   $metadata['name'] = $args[0]['name'];
-               }
-               if (isset($args[0]['email'])) {
-                   $metadata['email'] = $args[0]['email'];
-               }
-               \datadog\appsec\track_user_login_success_event($args[0]->getAuthIdentifier(), $metadata, true);
+                    !function_exists('\datadog\appsec\track_user_login_success_event') ||
+                    !isset($args[0]) ||
+                    !$args[0] ||
+                    !($args[0] instanceof $authClass)
+                ) {
+                    return;
+                }
+                $metadata = [];
+                if (isset($args[0]['name'])) {
+                    $metadata['name'] = $args[0]['name'];
+                }
+                if (isset($args[0]['email'])) {
+                    $metadata['email'] = $args[0]['email'];
+                }
+                \datadog\appsec\track_user_login_success_event(
+                    \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
+                    $metadata,
+                    true
+                );
             }
         );
 
@@ -375,7 +377,11 @@ class LaravelIntegration extends Integration
                     $metadata['email'] = $args[0]['email'];
                 }
 
-                \datadog\appsec\track_user_login_success_event($args[0]->getAuthIdentifier(), $metadata, true);
+                \datadog\appsec\track_user_login_success_event(
+                    \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
+                    $metadata,
+                    true
+                );
             }
         );
 
@@ -385,8 +391,7 @@ class LaravelIntegration extends Integration
             'attempt',
             null,
             function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
-                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event'))
-                {
+                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event')) {
                     return;
                 }
                 \datadog\appsec\track_user_login_failure_event(null, false, [], true);
@@ -407,7 +412,11 @@ class LaravelIntegration extends Integration
                 ) {
                     return;
                 }
-                \datadog\appsec\track_user_signup_event($args[0]->getAuthIdentifier(), [], true);
+                \datadog\appsec\track_user_signup_event(
+                    \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
+                    [],
+                    true
+                );
             }
         );
 

@@ -57,6 +57,9 @@ class SQLSRVIntegration extends Integration
                 $span = $hook->span();
                 self::setDefaultAttributes($this, $span, 'sqlsrv_query', $query);
                 $integration->addTraceAnalyticsIfEnabled($span);
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
 
                 ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
 
@@ -99,6 +102,9 @@ class SQLSRVIntegration extends Integration
                 $query = $args[1];
                 self::setDefaultAttributes($this, $span, 'sqlsrv_query', $query, $retval);
                 $integration->addTraceAnalyticsIfEnabled($span);
+                if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+                }
                 ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
 
                 $this->setMetrics($span, $retval);
@@ -129,6 +135,9 @@ class SQLSRVIntegration extends Integration
             $query = ObjectKVStore::get($this, SQLSRVIntegration::QUERY_TAGS_KEY);
             self::setDefaultAttributes($this, $span, 'sqlsrv_execute', $query, $retval);
             $integration->addTraceAnalyticsIfEnabled($span);
+            if (\PHP_MAJOR_VERSION > 5) {
+                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            }
             if ($retval) {
                 $this->setMetrics($span, $args[0]);
             }
@@ -197,7 +206,7 @@ class SQLSRVIntegration extends Integration
         $span->name = $name;
         $span->resource = $query ?? $name;
         $span->type = Type::SQL;
-        $span->service = 'sqlsrv';
+        Integration::handleInternalSpanServiceName($span, SQLSRVIntegration::NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = SQLSRVIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = SQLSRVIntegration::SYSTEM;

@@ -245,6 +245,9 @@ fn cfg_php_feature_flags(vernum: u64) {
     if vernum >= 80300 {
         println!("cargo:rustc-cfg=php_gc_status_extended");
     }
+    if vernum >= 80200 {
+        println!("cargo:rustc-cfg=php_zend_compile_string_has_position");
+    }
 }
 
 fn cfg_zts() {

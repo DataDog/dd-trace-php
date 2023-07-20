@@ -135,13 +135,14 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      * @param RequestSpec $spec
      * @return mixed|null
      */
-    protected function call(RequestSpec $spec)
+    protected function call(RequestSpec $spec, $options = [])
     {
         $response = $this->sendRequest(
             $spec->getMethod(),
             self::HOST . ':' . self::PORT . $spec->getPath(),
             $spec->getHeaders(),
-            $spec->getBody()
+            $spec->getBody(),
+            $options
         );
         return $response;
     }
@@ -155,13 +156,22 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      * @param array|string $body
      * @return mixed|null
      */
-    protected function sendRequest($method, $url, $headers = [], $body = [])
+    protected function sendRequest($method, $url, $headers = [], $body = [], $changedOptions = [])
     {
+        $options = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+        ];
+
+        foreach ($changedOptions as $key => $value) {
+            $options[$key] = $value;
+        }
+
         for ($i = 0; $i < 10; ++$i) {
             $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, $options[CURLOPT_RETURNTRANSFER]);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $options[CURLOPT_FOLLOWLOCATION]);
             if ($method === 'POST') {
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, is_array($body) ? json_encode($body) : $body);

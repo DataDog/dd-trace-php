@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5f6b67ed109fbedcbdf1d13e6a082da85515a08c */
+ * Stub hash: 2463dc3bf6f66db6122c667bb0705bccdf60f6c5 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -100,6 +100,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_startup_logs, 0, 0, IS_S
 ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_trace_id arginfo_DDTrace_startup_logs
+
+#define arginfo_DDTrace_logs_correlation_trace_id arginfo_DDTrace_startup_logs
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_current_context, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
@@ -266,6 +268,7 @@ ZEND_FUNCTION(DDTrace_find_active_exception);
 ZEND_FUNCTION(DDTrace_extract_ip_from_headers);
 ZEND_FUNCTION(DDTrace_startup_logs);
 ZEND_FUNCTION(DDTrace_trace_id);
+ZEND_FUNCTION(DDTrace_logs_correlation_trace_id);
 ZEND_FUNCTION(DDTrace_current_context);
 ZEND_FUNCTION(DDTrace_set_distributed_tracing_context);
 ZEND_FUNCTION(DDTrace_flush);
@@ -338,6 +341,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace", extract_ip_from_headers, DDTrace_extract_ip_from_headers, arginfo_DDTrace_extract_ip_from_headers)
 	ZEND_NS_FALIAS("DDTrace", startup_logs, DDTrace_startup_logs, arginfo_DDTrace_startup_logs)
 	ZEND_NS_FALIAS("DDTrace", trace_id, DDTrace_trace_id, arginfo_DDTrace_trace_id)
+	ZEND_NS_FALIAS("DDTrace", logs_correlation_trace_id, DDTrace_logs_correlation_trace_id, arginfo_DDTrace_logs_correlation_trace_id)
 	ZEND_NS_FALIAS("DDTrace", current_context, DDTrace_current_context, arginfo_DDTrace_current_context)
 	ZEND_NS_FALIAS("DDTrace", set_distributed_tracing_context, DDTrace_set_distributed_tracing_context, arginfo_DDTrace_set_distributed_tracing_context)
 	ZEND_NS_FALIAS("DDTrace", flush, DDTrace_flush, arginfo_DDTrace_flush)
@@ -517,6 +521,12 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_string *property_links_name = zend_string_init("links", sizeof("links") - 1, 1);
 	zend_declare_typed_property(class_entry, property_links_name, &property_links_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_links_name);
+
+	zval property_peerServiceSources_default_value;
+	ZVAL_EMPTY_ARRAY(&property_peerServiceSources_default_value);
+	zend_string *property_peerServiceSources_name = zend_string_init("peerServiceSources", sizeof("peerServiceSources") - 1, 1);
+	zend_declare_typed_property(class_entry, property_peerServiceSources_name, &property_peerServiceSources_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_peerServiceSources_name);
 
 	zend_string *property_parent_class_DDTrace_SpanData = zend_string_init("DDTrace\\SpanData", sizeof("DDTrace\\SpanData")-1, 1);
 	zval property_parent_default_value;

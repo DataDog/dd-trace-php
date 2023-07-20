@@ -685,9 +685,6 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         let locals = cell.borrow();
         let yes: &[u8] = b"true\0";
         let no: &[u8] = b"false\0";
-        let na: &[u8] = b"Not available\0";
-        #[cfg(not(all(feature = "allocation_profiling", feature = "timeline")))]
-        let nc: &[u8] = b"Not compiled\0";
         zend::php_info_print_table_start();
         zend::php_info_print_table_row(2, b"Version\0".as_ptr(), module.version);
         zend::php_info_print_table_row(
@@ -714,7 +711,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                     if locals.profiling_allocation_enabled {
                         yes
                     } else if zend::ddog_php_jit_enabled() {
-                        na
+                        b"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.\0"
                     } else {
                         no
                     }
@@ -723,7 +720,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                 zend::php_info_print_table_row(
                     2,
                     b"Allocation Profiling Enabled\0".as_ptr(),
-                    nc
+                    b"Not available. The profiler was built without allocation profiling.\0"
                 );
             }
         }
@@ -743,7 +740,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                 zend::php_info_print_table_row(
                     2,
                     b"Experimental Timeline Enabled\0".as_ptr(),
-                    nc
+                    b"Not available. The profiler was build without timeline support.\0"
                 );
             }
         }

@@ -3,9 +3,24 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\HookData;
+use DDTrace\Tag;
 
 class DatabaseIntegrationHelper
 {
+    const PEER_SERVICE_SOURCES = [
+        Tag::DB_INSTANCE,
+        Tag::DB_NAME,  // Deprecated, it should be db.instance
+        Tag::MONGODB_DATABASE,
+
+        // For cases like RedisCluster when the cluster name is not defined, we use the first configured host as an
+        // easy to map proxy for the cluster name. This is temporary — hence the _dd prefix — until we agree on a
+        // strategy across all tracers.
+        '_dd.cluster.name',
+        '_dd.first.configured.host',
+
+        Tag::TARGET_HOST,
+    ];
+
     public static function injectDatabaseIntegrationData(HookData $hook, $backend, $argNum = 0)
     {
         $allowedBackends = [

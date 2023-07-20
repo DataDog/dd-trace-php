@@ -20,7 +20,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
             'APP_NAME' => 'custom_autoloaded_app',
             'DD_TRACE_AGENT_PORT' => 80,
             'DD_AGENT_HOST' => 'request-replayer',
-            'DD_TRACE_TELEMETRY_ENABLED' => 1,
+            'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 1,
         ]);
     }
 
@@ -53,7 +53,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $payloads = $this->readTelemetryPayloads($response);
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertContains([
-            "name" => "datadog.agent_host",
+            "name" => "agent_host",
             "value" => "request-replayer",
             "origin" => "EnvVar",
         ], $payloads[0]["payload"]["configuration"]);
