@@ -6,6 +6,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use function DDTrace\root_span;
 
 class NetteIntegration extends Integration
 {
@@ -50,18 +51,23 @@ class NetteIntegration extends Integration
 
     public function load()
     {
-        $rootSpan = \DDTrace\root_span();
-        if (!$rootSpan) {
-            return;
-        }
-
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-
         $service = \ddtrace_config_app_name(NetteIntegration::NAME);
 
-        $this->addTraceAnalyticsIfEnabled($rootSpan);
-        $rootSpan->service = $service;
-        $rootSpan->meta[Tag::COMPONENT] = NetteIntegration::NAME;
+        \DDTrace\hook_method(
+            'Nette\Configurator',
+            '__construct',
+            function () use ($service) {
+                if (($rootSpan = root_span()) === null) {
+                    return;
+                }
+
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
+                $this->addTraceAnalyticsIfEnabled($rootSpan);
+                $rootSpan->service = $service;
+                $rootSpan->meta[Tag::COMPONENT] = NetteIntegration::NAME;
+            }
+        );
 
         \DDTrace\trace_method(
             'Nette\Configurator',
@@ -77,7 +83,11 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Nette\Application\Application',
             'run',
-            function (SpanData $span) use ($rootSpan, $service) {
+            function (SpanData $span) use ($service) {
+                if (($rootSpan = root_span()) === null) {
+                    return false;
+                }
+
                 $span->name = 'nette.application.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
@@ -89,7 +99,10 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Nette\Application\UI\Presenter',
             'run',
-            function (SpanData $span, $args) use ($rootSpan, $service) {
+            function (SpanData $span, $args) use ($service) {
+                if (($rootSpan = root_span()) === null) {
+                    return false;
+                }
 
                 $span->name = 'nette.presenter.run';
                 $span->type = Type::WEB_SERVLET;
