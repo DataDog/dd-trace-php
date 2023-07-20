@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\WordPress\V6;
 use DDTrace\HookData;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -139,6 +140,7 @@ class WordPressComponent
 
         $additionalActionHookNames = dd_trace_env_config("DD_TRACE_WP_ADDITIONAL_ACTIONS");
         if (!empty($additionalActionHookNames)) {
+            $additionalActionHookNames = array_keys($additionalActionHookNames);
             foreach ($additionalActionHookNames as $hookName) {
                 $interestingActions[$hookName] = true;
             }
