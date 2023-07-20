@@ -363,7 +363,7 @@ impl TimeCollector {
         }
     }
 
-    pub fn run(&self) {
+    pub fn run(self) {
         let mut last_wall_export = WallTime::now();
         let mut profiles: HashMap<ProfileIndex, profile::Profile> = HashMap::with_capacity(1);
 
@@ -475,13 +475,21 @@ impl Profiler {
 
         let uploader = Uploader::new(fork_barrier.clone(), upload_receiver, output_pprof);
 
+        let ddprof_time = "ddprof_time";
+        let ddprof_upload = "ddprof_upload";
         Profiler {
             fork_barrier,
             interrupt_manager,
             message_sender,
             upload_sender,
-            time_collector_handle: thread_utils::spawn("ddprof_time", move || time_collector.run()),
-            uploader_handle: thread_utils::spawn("ddprof_upload", move || uploader.run()),
+            time_collector_handle: thread_utils::spawn(ddprof_time, move || {
+                time_collector.run();
+                trace!("thread {ddprof_time} complete, shutting down");
+            }),
+            uploader_handle: thread_utils::spawn(ddprof_upload, move || {
+                uploader.run();
+                trace!("thread {ddprof_upload} complete, shutting down");
+            }),
             should_join: AtomicBool::new(true),
         }
     }
@@ -549,7 +557,7 @@ impl Profiler {
     /// Note that you must call [Profiler::shutdown] afterwards; it's two
     /// parts of the same operation. It's split so you (or other extensions)
     /// can do something while the other threads finish up.
-    pub fn stop(&self, timeout: Duration) {
+    pub fn stop(&mut self, timeout: Duration) {
         debug!("Stopping profiler.");
 
         let sent = match self
@@ -566,6 +574,15 @@ impl Profiler {
             }
         };
         self.should_join.store(sent, Ordering::SeqCst);
+
+        // Drop the sender to the uploader channel to reduce its refcount. At
+        // this state, only the ddprof_time thread will have a sender to the
+        // uploader. Once the sender over there is closed, then the uploader
+        // can quit.
+        // The sender it is replaced with has a disconnected receiver, so it
+        // can't be used to send any messages.
+        let (mut empty_sender, _) = crossbeam_channel::unbounded();
+        std::mem::swap(&mut self.upload_sender, &mut empty_sender);
     }
 
     /// Completes the shutdown process; to start it, call [Profiler::stop]

@@ -2,7 +2,7 @@ use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use crossbeam_channel::{select, Receiver};
 use datadog_profiling::exporter::{Endpoint, File};
-use log::{debug, info, trace, warn};
+use log::{debug, info, warn};
 use std::borrow::Cow;
 use std::str;
 use std::sync::{Arc, Barrier};
@@ -60,7 +60,7 @@ impl Uploader {
         Ok(result.status().as_u16())
     }
 
-    pub fn run(&self) {
+    pub fn run(self) {
         /* Safety: Called from Profiling::new, which is after config is
          * initialized, and before it's destroyed in mshutdown.
          */
@@ -105,7 +105,6 @@ impl Uploader {
                     },
 
                     Err(_) => {
-                        trace!("No more upload messages to handle; joining thread.");
                         break;
                     }
 

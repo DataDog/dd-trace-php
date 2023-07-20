@@ -778,8 +778,8 @@ extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     unsafe { bindings::zai_config_mshutdown() };
 
-    let profiler = PROFILER.lock().unwrap();
-    if let Some(profiler) = profiler.as_ref() {
+    let mut profiler = PROFILER.lock().unwrap();
+    if let Some(profiler) = profiler.as_mut() {
         profiler.stop(Duration::from_secs(1));
     }
 
