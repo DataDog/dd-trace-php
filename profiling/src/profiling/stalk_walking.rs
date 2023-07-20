@@ -58,6 +58,7 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
         Some(func) if func.type_ == ZEND_USER_FUNCTION as u8 => {
+            // Safety: ddog_php_prof_zend_string_view will return a valid ZaiStringView.
             let file = ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string();
             let lineno = match execute_data.opline.as_ref() {
                 Some(opline) => opline.lineno,

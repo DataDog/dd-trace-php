@@ -481,14 +481,17 @@ impl<'a> ZaiStringView<'a> {
         std::slice::from_raw_parts(self.ptr as *const u8, len)
     }
 
+    /// # Safety
+    /// Inherits the safety requirements of [std::slice::from_raw_parts].
     pub unsafe fn into_utf8(self) -> Result<&'a str, Utf8Error> {
         let bytes = self.into_bytes();
         std::str::from_utf8(bytes)
     }
 
     /// # Safety
-    /// Inherits the safety requirements of [std::slice::from_raw_parts], in
-    /// particular, the view must not use a null pointer.
+    /// Inherits the safety requirements of [std::slice::from_raw_parts].
+    #[allow(clippy::inherent_to_string)]
+    #[inline]
     pub unsafe fn to_string(self) -> String {
         String::from_utf8_lossy(self.into_bytes()).to_string()
     }
