@@ -20,7 +20,6 @@ use function DDTrace\logs_correlation_trace_id;
 use function DDTrace\remove_hook;
 use function DDTrace\set_distributed_tracing_context;
 use function DDTrace\start_trace_span;
-use function DDTrace\trace_id;
 use function DDTrace\trace_method;
 use function DDTrace\install_hook;
 use function DDTrace\hook_method;
@@ -73,12 +72,14 @@ class LaravelQueueIntegration extends Integration
 
                     // To be run after the context is extracted so that an exception thrown will be set on the
                     // correct trace, if any
+                    /*
                     if (IntegrationsLoader::get()->getLoadingStatus(LaravelIntegration::NAME) === Integration::NOT_LOADED) {
                         Logger::get()->debug('LaravelIntegration wasn\'t loaded');
                         IntegrationsLoader::get()->loadIntegration(LaravelIntegration::NAME, '\DDTrace\Integrations\Laravel\LaravelIntegration');
                     } else {
                         Logger::get()->debug('LaravelIntegration is enabled');
                     }
+                    */
                 },
                 'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration, &$newTrace) {
                     /** @var Job $job */
@@ -98,6 +99,11 @@ class LaravelQueueIntegration extends Integration
 
                     $activeSpan = active_span(); // This is the span created in the prehook, if any
                     if ($activeSpan !== $span && $activeSpan == $newTrace) {
+                        Logger::get()->debug('LaravelQueueIntegration: active span is the new trace');
+                        if (isset($activeSpan->meta['error.message'])) {
+                            Logger::get()->debug('(active span pre) LaravelQueueIntegration: error.message is set');
+                            Logger::get()->debug($span->meta['error.message']);
+                        }
                         $integration->setSpanAttributes(
                             $activeSpan,
                             'laravel.queue.process',
@@ -105,6 +111,10 @@ class LaravelQueueIntegration extends Integration
                             $job,
                             $exception
                         );
+                        if (isset($activeSpan->meta['error.message'])) {
+                            Logger::get()->debug('(active span post) LaravelQueueIntegration: error.message is set');
+                            Logger::get()->debug($span->meta['error.message']);
+                        }
                         close_span();
 
                         if (
@@ -116,6 +126,11 @@ class LaravelQueueIntegration extends Integration
                     }
 
                     $integration->setSpanAttributes($span, 'laravel.queue.process', 'receive', $job, $exception);
+
+                    if (isset($span->meta['error.message'])) {
+                        Logger::get()->debug('LaravelQueueIntegration: error.message is set');
+                        Logger::get()->debug($span->meta['error.message']);
+                    }
                 },
                 'recurse' => true
             ]

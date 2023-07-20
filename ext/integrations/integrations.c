@@ -85,6 +85,10 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                     "Error loading deferred integration '%s' from DDTrace\\Integrations\\load_deferred_integration",
                     Z_STRVAL(integration));
         }
+
+        if (Z_TYPE(rv) == IS_FALSE) {
+            return; // Don't remove the hook yet
+        }
     }
 
     if (aux->name != -1u) {
@@ -189,7 +193,7 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVEL, "Laravel\\Lumen\\Application", "__construct",
                                          "DDTrace\\Integrations\\Laravel\\LaravelIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVEL, "Illuminate\\Queue\\Worker", "process",
-                                             "DDTrace\\Integrations\\Laravel\\LaravelIntegration");
+                                         "DDTrace\\Integrations\\Laravel\\LaravelIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LUMEN, "Laravel\\Lumen\\Application", "__construct",
                                          "DDTrace\\Integrations\\Lumen\\LumenIntegration");

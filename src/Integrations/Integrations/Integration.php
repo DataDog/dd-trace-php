@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\Contracts\Span;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 
@@ -184,9 +185,12 @@ function load_deferred_integration($integrationName, $hookedObject = null)
         \class_exists($integrationName, $autoload = false)
         && \is_subclass_of($integrationName, 'DDTrace\\Integrations\\Integration')
     ) {
+        Logger::get()->debug("Loading deferred integration $integrationName");
         /** @var Integration $integration */
         $integration = new $integrationName();
         $result = $integration->init($hookedObject);
         IntegrationsLoader::logResult($integrationName, $result);
+
+        return $result === Integration::LOADED;
     }
 }
