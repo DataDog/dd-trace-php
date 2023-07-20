@@ -18,6 +18,7 @@ use Laminas\View\Model\ModelInterface;
 use function DDTrace\hook_method;
 use function DDTrace\install_hook;
 use function DDTrace\logs_correlation_trace_id;
+use function DDTrace\root_span;
 use function DDTrace\trace_method;
 
 class LaminasIntegration extends Integration
@@ -75,14 +76,6 @@ class LaminasIntegration extends Integration
                 }
             );
         }
-
-        // Web Integration
-        $rootSpan = \DDTrace\root_span();
-
-        if (is_null($rootSpan)) {
-            return Integration::NOT_LOADED;
-        }
-
 
         $MVCEvents = [
             'bootstrap',
@@ -205,7 +198,11 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\Application',
             'run',
             [
-                'prehook' => function (SpanData $span) use ($rootSpan) {
+                'prehook' => function (SpanData $span) {
+                    if (($rootSpan = root_span()) === null) {
+                        return false;
+                    }
+
                     $service = \ddtrace_config_app_name('laminas');
                     $rootSpan->name = 'laminas.request';
                     $rootSpan->service = $service;
@@ -225,7 +222,11 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Router\RouteInterface',
             'match',
-            function (SpanData $span, $args, $retval) use ($rootSpan) {
+            function (SpanData $span, $args, $retval) {
+                if (($rootSpan = root_span()) === null) {
+                    return false;
+                }
+
                 $span->name = 'laminas.route.match';
                 $span->resource = \get_class($this) . '@match';
                 $span->meta[Tag::COMPONENT] = 'laminas';
@@ -271,7 +272,11 @@ class LaminasIntegration extends Integration
         hook_method(
             'Laminas\Http\Response',
             'setStatusCode',
-            function ($This, $scope, $args) use ($rootSpan) {
+            function ($This, $scope, $args) {
+                if (($rootSpan = root_span()) === null) {
+                    return;
+                }
+
                 $statusCode = $args[0];
                 $rootSpan->meta[Tag::HTTP_STATUS_CODE] = "$statusCode";
             }
@@ -292,7 +297,11 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\Controller\AbstractController',
             'onDispatch',
             null,
-            function ($This, $score, $args) use ($rootSpan, $integration) {
+            function ($This, $score, $args) use ($integration) {
+                if (($rootSpan = root_span()) === null) {
+                    return false;
+                }
+
                 /** @var MvcEvent $event */
                 $event = $args[0];
 
@@ -307,7 +316,11 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\Application',
             'completeRequest',
-            function (SpanData $span, $args) use ($rootSpan, $integration) {
+            function (SpanData $span, $args) use ($integration) {
+                if (($rootSpan = root_span()) === null) {
+                    return false;
+                }
+
                 $span->name = 'laminas.application.completeRequest';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
@@ -371,7 +384,11 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\View\Http\DefaultRenderingStrategy',
             'render',
-            function (SpanData $span, $args) use ($rootSpan, $integration) {
+            function (SpanData $span, $args) use ($integration) {
+                if (($rootSpan = root_span()) === null) {
+                    return false;
+                }
+
                 $span->name = 'laminas.view.http.renderer';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
@@ -391,7 +408,11 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\View\Console\DefaultRenderingStrategy',
             'render',
-            function (SpanData $span, $args) use ($rootSpan, $integration) {
+            function (SpanData $span, $args) use ($integration) {
+                if (($rootSpan = root_span()) === null) {
+                    return false;
+                }
+
                 $span->name = 'laminas.view.console.renderer';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
@@ -412,7 +433,11 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\MvcEvent',
             'setError',
-            function (SpanData $span, $args, $retval) use ($rootSpan, $integration) {
+            function (SpanData $span, $args, $retval) use ($integration) {
+                if (($rootSpan = root_span()) === null) {
+                    return false;
+                }
+
                 $span->name = 'laminas.mvcEvent.setError';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
