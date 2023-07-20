@@ -87,7 +87,10 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
         }
 
         if (Z_TYPE(rv) == IS_FALSE) {
+            ddtrace_log_debugf("Integration '%s' wasn't loaded", Z_STRVAL(integration));
             return; // Don't remove the hook yet
+        } else {
+            ddtrace_log_debugf("Integration '%s' was loaded", Z_STRVAL(integration));
         }
     }
 
