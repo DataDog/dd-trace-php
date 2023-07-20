@@ -27,7 +27,7 @@ unsafe fn zend_string_to_bytes(zstr: Option<&mut zend_string>) -> &[u8] {
 /// Namespaces are part of the class_name or function_name respectively.
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
-unsafe fn extract_function_name(func: &zend_function) -> Option<String> {
+pub unsafe fn extract_function_name(func: &zend_function) -> Option<String> {
     let method_name: &[u8] = func.name().unwrap_or(b"");
 
     /* The top of the stack seems to reasonably often not have a function, but

@@ -11,8 +11,6 @@ use uploader::*;
 use crate::bindings::ddog_php_prof_get_active_fiber;
 #[cfg(all(php_has_fibers, test))]
 use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
-#[cfg(php_has_fibers)]
-use crate::zend::ddog_php_prof_zend_string_view;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::{AgentEndpoint, RequestLocals};
@@ -914,35 +912,12 @@ impl Profiler {
             }
 
             #[cfg(php_has_fibers)]
-            let fiber = unsafe { ddog_php_prof_get_active_fiber() };
-            #[cfg(php_has_fibers)]
-            if !fiber.is_null() {
-                unsafe {
-                    let functionname = Some(String::from_utf8_lossy(
-                        ddog_php_prof_zend_string_view(
-                            (*(*fiber).fci_cache.function_handler)
-                                .op_array
-                                .function_name
-                                .as_mut(),
-                        )
-                        .into_bytes(),
-                    ))
-                    .unwrap();
-
-                    if !(*fiber).fci_cache.object.is_null() {
-                        let classname = Some(String::from_utf8_lossy(
-                            ddog_php_prof_zend_string_view(
-                                (*(*(*fiber).fci_cache.object).ce).name.as_mut(),
-                            )
-                            .into_bytes(),
-                        ))
-                        .unwrap();
-                        let name = format!("{}::{}", classname, functionname);
-                        labels.push(Label {
-                            key: "fiber",
-                            value: LabelValue::Str(name.into()),
-                        });
-                    } else {
+            {
+                let fiber = unsafe { ddog_php_prof_get_active_fiber() };
+                if !fiber.is_null() {
+                    if let Some(functionname) =
+                        unsafe { extract_function_name(&(*(*fiber).fci_cache.function_handler)) }
+                    {
                         labels.push(Label {
                             key: "fiber",
                             value: LabelValue::Str(functionname.into()),
