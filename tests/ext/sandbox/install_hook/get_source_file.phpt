@@ -27,6 +27,6 @@ foo();
 intermediarySetTag();
 
 --EXPECTF--
-fake_span.inc
 get_source_file.php
-fake_span.inc
+get_source_file.php
+intermediary_call.inc

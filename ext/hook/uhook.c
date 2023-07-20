@@ -733,9 +733,13 @@ ZEND_METHOD(DDTrace_HookData, getSourceFile) {
 
     dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
     zend_execute_data *hook_execute_data = hookData->execute_data;
+    zend_execute_data *prev = NULL;
+    if (hook_execute_data) {
+        prev = hook_execute_data->prev_execute_data;
+    }
 
-    if (hook_execute_data && hook_execute_data->func->type == ZEND_USER_FUNCTION && hook_execute_data->func->op_array.filename) {
-        RETURN_STR_COPY(hook_execute_data->func->op_array.filename);
+    if (prev && prev->func->type == ZEND_USER_FUNCTION && prev->func->op_array.filename) {
+        RETURN_STR_COPY(prev->func->op_array.filename);
     } else {
         RETURN_EMPTY_STRING();
     }
