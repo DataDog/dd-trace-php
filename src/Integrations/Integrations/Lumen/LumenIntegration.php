@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Lumen;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
+use function DDTrace\root_span;
 
 /**
  * Lumen Sandboxed integration
@@ -38,14 +39,18 @@ class LumenIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        $rootSpan = \DDTrace\root_span();
+        \DDTrace\hook_method(
+            'Laravel\Lumen\Application',
+            '__construct',
+            function () {
+                if (($rootSpan = root_span()) === null) {
+                    return;
+                }
 
-        if (null === $rootSpan) {
-            return Integration::NOT_LOADED;
-        }
-
-        $rootSpan->meta[Tag::COMPONENT] = LumenIntegration::NAME;
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->meta[Tag::COMPONENT] = LumenIntegration::NAME;
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+            }
+        );
 
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
@@ -53,7 +58,11 @@ class LumenIntegration extends Integration
         \DDTrace\trace_method(
             'Laravel\Lumen\Application',
             'prepareRequest',
-            function (SpanData $span, $args) use ($rootSpan, $integration, $appName) {
+            function (SpanData $span, $args) use ($integration, $appName) {
+                if (($rootSpan = root_span()) === null) {
+                    return;
+                }
+
                 $request = $args[0];
                 $rootSpan->name = 'lumen.request';
                 $rootSpan->service = $appName;
@@ -75,7 +84,11 @@ class LumenIntegration extends Integration
             'Laravel\Lumen\Application',
             'handleFoundRoute',
             [
-                $hook => function (SpanData $span, $args) use ($rootSpan, $appName) {
+                $hook => function (SpanData $span, $args) use ($appName) {
+                    if (($rootSpan = root_span()) === null) {
+                        return;
+                    }
+
                     $span->service = $appName;
                     $span->type = 'web';
                     if (count($args) < 1 || !\is_array($args[0])) {
@@ -106,7 +119,11 @@ class LumenIntegration extends Integration
             ]
         );
 
-        $exceptionRender = function (SpanData $span, $args) use ($rootSpan, $appName, $integration) {
+        $exceptionRender = function (SpanData $span, $args) use ($appName, $integration) {
+            if (($rootSpan = root_span()) === null) {
+                return;
+            }
+
             $span->service = $appName;
             $span->type = 'web';
             if (count($args) < 1 || !\is_a($args[0], 'Throwable')) {
