@@ -72,8 +72,8 @@ class CakePHPIntegration extends Integration
             function (SpanData $span, array $args) use ($integration) {
                 if ($integration->rootSpan === null) {
                     return false;
-
                 }
+
                 $span->name = $span->resource = 'Controller.invokeAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->appName;
