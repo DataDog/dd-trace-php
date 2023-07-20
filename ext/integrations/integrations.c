@@ -195,7 +195,7 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Laravel\\LaravelIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVEL, "Laravel\\Lumen\\Application", "__construct",
                                          "DDTrace\\Integrations\\Laravel\\LaravelIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVEL, "Illuminate\\Queue\\Worker", "process",
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVEL, "Illuminate\\Contracts\\Queue\\Job", "job",
                                          "DDTrace\\Integrations\\Laravel\\LaravelIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LUMEN, "Laravel\\Lumen\\Application", "__construct",
