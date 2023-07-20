@@ -1,6 +1,5 @@
 use crate::bindings::{
-    ddog_php_prof_zend_string_view, zend_execute_data, zend_function, zend_string,
-    ZEND_USER_FUNCTION,
+    ddog_php_prof_zend_string_view, zend_execute_data, zend_function, ZEND_USER_FUNCTION,
 };
 use std::str::Utf8Error;
 
