@@ -6,6 +6,9 @@ mod pcntl;
 pub mod profiling;
 mod sapi;
 
+#[cfg(feature = "profiling_metrics")]
+mod dogstatsd;
+
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
 
@@ -35,6 +38,9 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
+
+#[cfg(feature = "profiling_metrics")]
+use profiling::stalk_walking;
 
 /// The version of PHP at runtime, not the version compiled against. Sent as
 /// a profile tag.
@@ -305,21 +311,23 @@ pub struct RequestLocals {
     pub profiling_experimental_timeline_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
+    #[cfg(feature = "profiling_metrics")]
+    pub stack_walk_overhead: stalk_walking::OverheadMetrics,
     pub tags: Arc<Vec<Tag>>,
     pub uri: Box<AgentEndpoint>,
     pub version: Option<Cow<'static, str>>,
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
-fn static_tags() -> Vec<Tag> {
-    vec![
+fn static_tags() -> Arc<Vec<Tag>> {
+    Arc::new(vec![
         Tag::from_value("language:php").expect("static tags to be valid"),
         // Safety: calling getpid() is safe.
         Tag::new("process_id", unsafe { libc::getpid() }.to_string())
             .expect("static tags to be valid"),
         Tag::from_value(concat!("profiler_version:", env!("CARGO_PKG_VERSION")))
             .expect("static tags to be valid"),
-    ]
+    ])
 }
 
 thread_local! {
@@ -335,8 +343,10 @@ thread_local! {
         profiling_experimental_timeline_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
-        tags: Arc::new(static_tags()),
-        uri: Box::<AgentEndpoint>::default(),
+        #[cfg(feature = "profiling_metrics")]
+        stack_walk_overhead: stalk_walking::OverheadMetrics::new().unwrap(),
+        tags: static_tags(),
+        uri: Box::new(AgentEndpoint::default()),
         version: None,
         vm_interrupt_addr: std::ptr::null_mut(),
     });
@@ -644,7 +654,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                     warn!("Unable to find interrupt {err}.");
                 }
             }
-            locals.tags = Arc::new(static_tags());
+            locals.tags = static_tags();
         }
     });
 

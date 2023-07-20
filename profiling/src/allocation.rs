@@ -8,6 +8,7 @@ use log::{debug, error, info, trace};
 use once_cell::sync::OnceCell;
 use std::cell::RefCell;
 use std::ffi::CStr;
+use std::ops::DerefMut;
 
 use rand_distr::{Distribution, Poisson};
 
@@ -64,11 +65,11 @@ impl AllocationProfilingStats {
 
         REQUEST_LOCALS.with(|cell| {
             // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-            let locals = cell.try_borrow();
+            let locals = cell.try_borrow_mut();
             if locals.is_err() {
                 return;
             }
-            let locals = locals.unwrap();
+            let mut locals = locals.unwrap();
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
@@ -77,7 +78,7 @@ impl AllocationProfilingStats {
                         zend::ddog_php_prof_get_current_execute_data(),
                         1_i64,
                         len as i64,
-                        &locals,
+                        locals.deref_mut(),
                     )
                 };
             }

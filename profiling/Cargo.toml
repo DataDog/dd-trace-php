@@ -45,6 +45,9 @@ default = ["allocation_profiling", "timeline"]
 allocation_profiling = []
 timeline = []
 stack_walking_tests = []
+# Currently, profiling_metrics is not meant for production, only perf testing,
+# which is why it is not enabled by default.
+profiling_metrics = []
 
 [build-dependencies]
 bindgen = { version = "0.66.1" }
