@@ -475,6 +475,7 @@ impl<'a> ZaiStringView<'a> {
     /// # Safety
     /// Inherits the safety requirements of [std::slice::from_raw_parts], in
     /// particular, the view must not use a null pointer.
+    #[inline]
     pub unsafe fn into_bytes(self) -> &'a [u8] {
         assert!(!self.ptr.is_null());
         let len = self.len;
@@ -483,6 +484,7 @@ impl<'a> ZaiStringView<'a> {
 
     /// # Safety
     /// Inherits the safety requirements of [std::slice::from_raw_parts].
+    #[inline]
     pub unsafe fn into_utf8(self) -> Result<&'a str, Utf8Error> {
         let bytes = self.into_bytes();
         std::str::from_utf8(bytes)
