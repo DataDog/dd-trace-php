@@ -2924,57 +2924,7 @@ workflows:
           name: "Build PECL"
 
       - "package extension":
-          requires:
-            - compile_alpine
-            - "Compile x86_64 PHP 70 nts + zts + debug"
-            - "Compile aarch64 PHP 70 nts + zts + debug"
-            - "Compile x86_64 PHP 71 nts + zts + debug"
-            - "Compile aarch64 PHP 71 nts + zts + debug"
-            - "Compile x86_64 PHP 72 nts + zts + debug"
-            - "Compile aarch64 PHP 72 nts + zts + debug"
-            - "Compile x86_64 PHP 73 nts + zts + debug"
-            - "Compile aarch64 PHP 73 nts + zts + debug"
-            - "Compile x86_64 PHP 74 nts + zts + debug"
-            - "Compile aarch64 PHP 74 nts + zts + debug"
-            - "Compile x86_64 PHP 80 nts + zts + debug"
-            - "Compile aarch64 PHP 80 nts + zts + debug"
-            - "Compile x86_64 PHP 81 nts + zts + debug"
-            - "Compile aarch64 PHP 81 nts + zts + debug"
-            - "Compile x86_64 PHP 82 nts + zts + debug"
-            - "Compile aarch64 PHP 82 nts + zts + debug"
-            - "Build PECL"
-
-            - "Profiler PHP v7.1 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v7.2 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v7.3 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v7.4 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v8.0 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v8.1 - x86_64-alpine-linux-musl"
-            - "Profiler PHP v8.2 - x86_64-alpine-linux-musl"
-
-            - "Profiler PHP v7.1 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v7.2 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v7.3 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v7.4 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v8.0 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v8.1 - x86_64-unknown-linux-gnu"
-            - "Profiler PHP v8.2 - x86_64-unknown-linux-gnu"
-
-            - "Profiler PHP v7.1 - aarch64-alpine-linux-musl"
-            - "Profiler PHP v7.2 - aarch64-alpine-linux-musl"
-            - "Profiler PHP v7.3 - aarch64-alpine-linux-musl"
-            - "Profiler PHP v7.4 - aarch64-alpine-linux-musl"
-            - "Profiler PHP v8.0 - aarch64-alpine-linux-musl"
-            - "Profiler PHP v8.1 - aarch64-alpine-linux-musl"
-            - "Profiler PHP v8.2 - aarch64-alpine-linux-musl"
-
-            - "Profiler PHP v7.1 - aarch64-unknown-linux-gnu"
-            - "Profiler PHP v7.2 - aarch64-unknown-linux-gnu"
-            - "Profiler PHP v7.3 - aarch64-unknown-linux-gnu"
-            - "Profiler PHP v7.4 - aarch64-unknown-linux-gnu"
-            - "Profiler PHP v8.0 - aarch64-unknown-linux-gnu"
-            - "Profiler PHP v8.1 - aarch64-unknown-linux-gnu"
-            - "Profiler PHP v8.2 - aarch64-unknown-linux-gnu"
+          requires: [ 'Prepare Code' ]
 
       - compile_extension_asan:
           requires: [ 'Prepare Code' ]
