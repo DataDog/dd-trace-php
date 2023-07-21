@@ -38,9 +38,9 @@ DDTrace\hook_function('kill', function () {
 process();
 
 var_dump(dd_trace_serialize_closed_spans()); // Spans should be flushed, so this should be empty
---EXPECT--
+--EXPECTF--
 tracing process
 process
-Flushing trace of size 3 to send-queue for http://localhost:8126
+Flushing trace of size 3 to send-queue for %s
 kill
 Killed
