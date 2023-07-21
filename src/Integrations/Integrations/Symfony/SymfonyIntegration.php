@@ -15,6 +15,9 @@ class SymfonyIntegration extends Integration
 {
     const NAME = 'symfony';
 
+    /** @var SpanData */
+    public $symfonyRequestSpan;
+
     public function getName()
     {
         return static::NAME;
@@ -35,19 +38,21 @@ class SymfonyIntegration extends Integration
      */
     public function init()
     {
-        $integration = $this;
-
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
             'handle',
             [
-                'prehook' => function (SpanData $span) use ($integration) {
+                'prehook' => function (SpanData $span) {
                     $rootSpan = \DDTrace\root_span();
                     if ($rootSpan === $span) {
                         return false;
                     }
 
                     $service = \ddtrace_config_app_name('symfony');
+                    $rootSpan->name = 'symfony.request';
+                    $rootSpan->service = $service;
+                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                    $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
                     $span->name = 'symfony.httpkernel.kernel.handle';
                     $span->resource = \get_class($this);
@@ -55,14 +60,6 @@ class SymfonyIntegration extends Integration
                     $span->service = $service;
                     $span->meta[Tag::SPAN_KIND] = 'server';
                     $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-
-                    if ($rootSpan !== null) {
-                        $rootSpan->name = 'symfony.request';
-                        $rootSpan->service = $service;
-                        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                        $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-                        $this->addTraceAnalyticsIfEnabled($rootSpan);
-                    }
                 },
             ]
         );
@@ -92,22 +89,22 @@ class SymfonyIntegration extends Integration
                 if (!function_exists('\datadog\appsec\track_user_signup_event')) {
                     return;
                 }
-                  $metadataClass = 'Doctrine\ORM\Mapping\ClassMetadata';
+                $metadataClass = 'Doctrine\ORM\Mapping\ClassMetadata';
                 if (
-                       !$args ||
-                       !isset($args[0]) ||
-                       !$args[0] ||
-                       !($args[0] instanceof $metadataClass)
+                    !$args ||
+                    !isset($args[0]) ||
+                    !$args[0] ||
+                    !($args[0] instanceof $metadataClass)
                 ) {
-                     return;
+                    return;
                 }
 
-                  $entities = \method_exists($This, 'getScheduledEntityInsertions') ?
+                $entities = \method_exists($This, 'getScheduledEntityInsertions') ?
                     $This->getScheduledEntityInsertions() :
                     [];
-                  $userInterface = 'Symfony\Component\Security\Core\User\UserInterface';
-                  $found = 0;
-                  $userEntity = null;
+                $userInterface = 'Symfony\Component\Security\Core\User\UserInterface';
+                $found = 0;
+                $userEntity = null;
                 foreach ($entities as $entity) {
                     if (! ($entity instanceof $userInterface)) {
                         continue;
@@ -120,14 +117,14 @@ class SymfonyIntegration extends Integration
                     return;
                 }
 
-                  $user = null;
+                $user = null;
                 if (\method_exists($userEntity, 'getUsername')) {
                     $user = $userEntity->getUsername();
                 } elseif (\method_exists($userEntity, 'getUserIdentifier')) {
                     $user = $userEntity->getUserIdentifier();
                 }
 
-                  \datadog\appsec\track_user_signup_event($user, [], true);
+                \datadog\appsec\track_user_signup_event($user, [], true);
             }
         );
 
@@ -284,13 +281,22 @@ class SymfonyIntegration extends Integration
             }
         );
 
+        $rootSpan = \DDTrace\root_span();
+
+        /** @var SpanData $symfonyRequestSpan */
+        $this->symfonyRequestSpan = $rootSpan;
+
+        if ($rootSpan !== null) {
+            $this->addTraceAnalyticsIfEnabled($rootSpan);
+        }
+
         if (
             defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
             && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)
         ) {
-            $this->loadSymfony2($integration);
+            $this->loadSymfony2($this);
         } else {
-            $this->loadSymfony($integration);
+            $this->loadSymfony($this);
         }
 
         return Integration::LOADED;
@@ -351,26 +357,25 @@ class SymfonyIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
-                $rootSpan = \DDTrace\root_span();
+                $integration->symfonyRequestSpan = $integration->symfonyRequestSpan ?: \DDTrace\root_span();
 
-                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                $this->addTraceAnalyticsIfEnabled($rootSpan);
+                $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                $integration->symfonyRequestSpan->meta[Tag::SPAN_KIND] = 'server';
 
-                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                    $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
+                if (!array_key_exists(Tag::HTTP_URL, $integration->symfonyRequestSpan->meta)) {
+                    $integration->symfonyRequestSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
                 }
                 if (isset($response)) {
-                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                    $integration->symfonyRequestSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
 
                 $route = $request->get('_route');
                 if (null !== $route && null !== $request) {
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                        $rootSpan->resource = $route;
+                        $integration->symfonyRequestSpan->resource = $route;
                     }
-                    $rootSpan->meta['symfony.route.name'] = $route;
+                    $integration->symfonyRequestSpan->meta['symfony.route.name'] = $route;
                 }
             }
         );
@@ -387,9 +392,8 @@ class SymfonyIntegration extends Integration
             [
                 'recurse' => true,
                 'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
-                    $rootSpan = \DDTrace\root_span();
-                    if ($rootSpan === $span) {
-                        return false; // e.g., symfony.console.terminate
+                    if (\DDTrace\root_span() === $span) {
+                        return false; // e.g., lone symfony.console.terminate
                     }
 
                     if (!isset($args[0])) {
@@ -451,8 +455,8 @@ class SymfonyIntegration extends Integration
                         return;
                     }
                     if (!$injectedActionInfo) {
-                        $rootSpan = \DDTrace\root_span();
-                        if ($integration->injectActionInfo($event, $eventName, $rootSpan)) {
+                        $integration->symfonyRequestSpan = \DDTrace\root_span();
+                        if ($integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan)) {
                             $injectedActionInfo = true;
                         }
                     }
@@ -465,17 +469,8 @@ class SymfonyIntegration extends Integration
             $span->name = $span->resource = 'symfony.kernel.handleException';
             $span->service = \ddtrace_config_app_name('symfony');
             $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-
-            $rootSpan = \DDTrace\root_span();
-            if (
-                $rootSpan !== null
-                && !(
-                    isset($retval)
-                    && \method_exists($retval, 'getStatusCode')
-                    && $retval->getStatusCode() < 500
-                )
-            ) {
-                $integration->setError($rootSpan, $args[0]);
+            if (!(isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500)) {
+                $integration->setError(\DDTrace\root_span(), $args[0]);
             }
         };
         // Symfony 4.3-
@@ -525,9 +520,10 @@ class SymfonyIntegration extends Integration
                     }
                 }
 
-                $rootSpan = \DDTrace\root_span();
-                if (count($resourceParts) > 0) {
-                    $rootSpan->resource = \implode(' ', $resourceParts);
+                if ($integration->symfonyRequestSpan) {
+                    if (count($resourceParts) > 0) {
+                        $integration->symfonyRequestSpan->resource = \implode(' ', $resourceParts);
+                    }
                 }
 
                 return false;
