@@ -99,7 +99,7 @@ fn build_zend_php_ffis(php_config_includes: &str, preload: bool) {
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
     let preload = if preload { "1" } else { "0" };
 
-    #[cfg(any(feature = "stack_walking_tests"))]
+    #[cfg(feature = "stack_walking_tests")]
     let stack_walking_tests = "1";
 
     #[cfg(not(feature = "stack_walking_tests"))]
