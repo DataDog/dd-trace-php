@@ -47,11 +47,11 @@ class YiiIntegration extends Integration
             '__construct',
             function () {
                 $rootSpan = \DDTrace\root_span();
-
-                $rootSpan->meta[Tag::COMPONENT] = YiiIntegration::NAME;
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-
-                $this->addTraceAnalyticsIfEnabled($rootSpan);
+                if ($rootSpan !== null) {
+                    $rootSpan->meta[Tag::COMPONENT] = YiiIntegration::NAME;
+                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                    $this->addTraceAnalyticsIfEnabled($rootSpan);
+                }
             }
         );
 
@@ -106,9 +106,6 @@ class YiiIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
 
                 $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
 
                 if (
                     $firstController === $this

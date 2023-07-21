@@ -71,6 +71,10 @@ class SymfonyIntegration extends Integration
             'boot',
             [
                 'prehook' => function (SpanData $span) {
+                    if (\DDTrace\root_span() === $span) {
+                        return false;
+                    }
+
                     $span->name = 'symfony.httpkernel.kernel.boot';
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
@@ -347,9 +351,6 @@ class SymfonyIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
                 $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
 
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                 $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
@@ -444,7 +445,7 @@ class SymfonyIntegration extends Integration
                     }
                     if (!$injectedActionInfo) {
                         $rootSpan = root_span();
-                        if ($rootSpan !== null && $integration->injectActionInfo($event, $eventName, $rootSpan)) {
+                        if ($integration->injectActionInfo($event, $eventName, $rootSpan)) {
                             $injectedActionInfo = true;
                         }
                     }
@@ -518,10 +519,8 @@ class SymfonyIntegration extends Integration
                 }
 
                 $rootSpan = root_span();
-                if ($rootSpan !== null) {
-                    if (count($resourceParts) > 0) {
-                        $rootSpan->resource = \implode(' ', $resourceParts);
-                    }
+                if (count($resourceParts) > 0) {
+                    $rootSpan->resource = \implode(' ', $resourceParts);
                 }
 
                 return false;
