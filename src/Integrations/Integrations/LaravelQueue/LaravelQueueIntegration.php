@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\LaravelQueue;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -54,16 +53,8 @@ class LaravelQueueIntegration extends Integration
                 // span.c:ddtrace_close_all_open_spans() -> ensure the span is closed rather than dropped
                 ini_set('datadog.autofinish_spans', '1');
 
-                Logger::get()->debug('Active span: ' . active_span()->name);
-                if (isset(\DDTrace\root_span()->meta['error.message'])) {
-                    Logger::get()->debug('Error message: ' . \DDTrace\root_span()->meta['error.message']);
-                }
-                Logger::get()->debug('Trace id: ' . trace_id());
-                Logger::get()->debug('Root span: ' . \DDTrace\root_span()->name);
                 dd_trace_close_all_spans_and_flush();
-                Logger::get()->debug('Flushed');
-                Logger::get()->debug('Active span?' . (active_span() ? active_span()->name : 'false'));
-                Logger::get()->debug('Root span?' . (\DDTrace\root_span() ? \DDTrace\root_span()->name : 'false'));
+                dd_trace_internal_fn('synchronous_flush', 3);
 
                 if (
                     dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE")
@@ -143,7 +134,6 @@ class LaravelQueueIntegration extends Integration
             null,
             function ($worker, $scope, $args, $retval) use ($integration) {
                 if (($rootSpan = \DDTrace\root_span()) !== null) {
-                    Logger::get()->debug('maxAttemptsExceededException');
                     $integration->setError($rootSpan, $retval);
                 }
             }
