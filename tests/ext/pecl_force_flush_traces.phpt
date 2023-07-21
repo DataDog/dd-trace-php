@@ -1,8 +1,8 @@
 --TEST--
-Force flush the traces mid-way through a trace
+(PECL-only) Force flush the traces mid-way through a trace
 --SKIPIF--
 <?php
-if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not show Termsig=9");
+if (getenv('PHP_PEAR_RUNTESTS') !== '1') die("skip: pecl-only test");
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_GENERATE_ROOT_SPAN=1
@@ -44,5 +44,3 @@ process
 Flushing trace of size 3 to send-queue for http://localhost:8126
 kill
 Killed
-
-Termsig=9
