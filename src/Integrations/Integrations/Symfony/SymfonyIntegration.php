@@ -43,6 +43,9 @@ class SymfonyIntegration extends Integration
             [
                 'prehook' => function (SpanData $span) use ($integration) {
                     $rootSpan = \DDTrace\root_span();
+                    if ($rootSpan === $span) {
+                        return false;
+                    }
 
                     $service = \ddtrace_config_app_name('symfony');
 
@@ -353,6 +356,7 @@ class SymfonyIntegration extends Integration
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                 $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $this->addTraceAnalyticsIfEnabled($rootSpan);
 
                 if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                     $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
@@ -383,6 +387,11 @@ class SymfonyIntegration extends Integration
             [
                 'recurse' => true,
                 'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
+                    $rootSpan = \DDTrace\root_span();
+                    if ($rootSpan === $span) {
+                        return false; // e.g., symfony.console.terminate
+                    }
+
                     if (!isset($args[0])) {
                         return false;
                     }
