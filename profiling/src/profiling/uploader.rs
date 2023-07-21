@@ -104,6 +104,11 @@ impl Uploader {
                         }
                     },
 
+                    // This condition is the only way this loop terminates cleanly. It happens when:
+                    // > A message could not be received because the channel is empty and
+                    // > disconnected.
+                    // In other words, when all Senders attached to this Receiver are dropped, then
+                    // this RecvError occurs, and the loop will terminate.
                     Err(_) => {
                         break;
                     }
