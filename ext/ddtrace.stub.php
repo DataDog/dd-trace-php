@@ -847,6 +847,13 @@ namespace {
     function dd_untrace(string $functionName, string $className = null): bool {}
 
     /**
+     * Blocking-call synchronously flushing all spans to the agent
+     *
+     * @param int $timeout Timeout in milliseconds to wait for the flush to complete
+     */
+    function dd_trace_synchronous_flush(int $timeout): void {}
+
+    /**
      * @deprecated
      * @return bool
      */

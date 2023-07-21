@@ -1663,6 +1663,18 @@ PHP_FUNCTION(dd_trace_close_all_spans_and_flush) {
     RETURN_NULL();
 }
 
+/* {{{ proto void dd_trace_synchronous_flush(int) */
+PHP_FUNCTION(dd_trace_synchronous_flush) {
+    uint32_t timeout;
+
+    if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "l", &timeout) == FAILURE) {
+        ddtrace_log_onceerrf("dd_trace_synchronous_flush() expects a timeout in milliseconds");
+        RETURN_FALSE;
+    }
+
+    ddtrace_coms_synchronous_flush(timeout);
+}
+
 static void dd_ensure_root_span(void) {
     if (!DDTRACE_G(active_stack)->root_span && DDTRACE_G(active_stack)->parent_stack == NULL && get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();  // ensure root span always exists, especially after serialization for testing

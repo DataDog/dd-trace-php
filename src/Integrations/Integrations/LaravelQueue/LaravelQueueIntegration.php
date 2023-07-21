@@ -53,7 +53,7 @@ class LaravelQueueIntegration extends Integration
                 ini_set('datadog.autofinish_spans', '1');
 
                 dd_trace_close_all_spans_and_flush();
-                dd_trace_internal_fn('synchronous_flush', 3);
+                dd_trace_synchronous_flush(1);
 
                 if (
                     dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE")
