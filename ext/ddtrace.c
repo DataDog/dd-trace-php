@@ -1665,14 +1665,21 @@ PHP_FUNCTION(dd_trace_close_all_spans_and_flush) {
 
 /* {{{ proto void dd_trace_synchronous_flush(int) */
 PHP_FUNCTION(dd_trace_synchronous_flush) {
-    uint32_t timeout;
+    zend_long timeout;
 
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "l", &timeout) == FAILURE) {
         ddtrace_log_onceerrf("dd_trace_synchronous_flush() expects a timeout in milliseconds");
-        RETURN_FALSE;
+        RETURN_NULL();
+    }
+
+    // If zend_long is not a uint32_t, we can't pass it to ddtrace_coms_synchronous_flush
+    if (timeout < 0 || timeout > UINT32_MAX) {
+        ddtrace_log_onceerrf("dd_trace_synchronous_flush() expects a timeout in milliseconds");
+        RETURN_NULL();
     }
 
     ddtrace_coms_synchronous_flush(timeout);
+    RETURN_NULL();
 }
 
 static void dd_ensure_root_span(void) {
