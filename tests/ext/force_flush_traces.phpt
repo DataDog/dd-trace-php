@@ -3,6 +3,7 @@ Force flush the traces mid-way through a trace
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not show Termsig=9");
+if (!function_exists('posix_kill')) die('skip: posix_kill not available');
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_GENERATE_ROOT_SPAN=1
