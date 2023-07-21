@@ -8,6 +8,13 @@ function foo($a, $b) {
 }
 
 $hook = DDTrace\install_hook("foo", function($hook) {
+    $hook->overrideArguments([9, 10]);
+});
+
+foo(1, 2); // exact args
+
+DDTrace\remove_hook($hook);
+$hook = DDTrace\install_hook("foo", function($hook) {
     $hook->overrideArguments([5, 6, 7, 8]);
 });
 
@@ -33,6 +40,11 @@ optArg(1, 2);
 
 ?>
 --EXPECTF--
+Array
+(
+    [0] => 9
+    [1] => 10
+)
 Array
 (
     [0] => 5

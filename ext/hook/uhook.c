@@ -656,7 +656,7 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
         RETURN_FALSE;
     }
 
-    if (ZEND_USER_CODE(func->type) && hookData->execute_data->opline > func->op_array.opcodes + zend_hash_num_elements(args)) {
+    if (ZEND_USER_CODE(func->type) && MIN(func->common.num_args, passed_args) > zend_hash_num_elements(args)) {
         LOG_LINE_ONCE(Error, "Can't pass less args to an untyped function than originally passed (minus extra args)");
         RETURN_FALSE;
     }
