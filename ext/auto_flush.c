@@ -39,7 +39,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     char *payload;
     size_t size, limit = get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE();
     if (ddtrace_serialize_simple_array_into_c_string(&traces, &payload, &size)) {
-        ddtrace_log_debugf("Payload: %s", payload);
         if (size > limit) {
             ddtrace_log_errf("Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", size, limit);
             success = false;
