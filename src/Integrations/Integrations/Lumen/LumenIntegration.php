@@ -43,7 +43,7 @@ class LumenIntegration extends Integration
             '__construct',
             function () {
                 $rootSpan = \DDTrace\root_span();
-                if ($rootSpan === null) {
+                if ($rootSpan !== null) {
                     $rootSpan->meta[Tag::COMPONENT] = LumenIntegration::NAME;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 }
