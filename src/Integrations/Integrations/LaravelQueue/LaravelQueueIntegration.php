@@ -51,10 +51,16 @@ class LaravelQueueIntegration extends Integration
             'Illuminate\Queue\Worker',
             'kill',
             function () {
+                // span.c:ddtrace_close_all_open_spans() -> ensure the span is closed rather than dropped
+                ini_set('datadog.autofinish_spans', '1');
+
                 Logger::get()->debug('Active span: ' . active_span()->name);
+                Logger::get()->debug('Trace id: ' . trace_id());
+                Logger::get()->debug('Root span: ' . \DDTrace\root_span()->name);
                 dd_trace_close_all_spans_and_flush();
                 Logger::get()->debug('Flushed');
-                Logger::get()->debug('Active span?' . (active_span() ? 'true' : 'false'));
+                Logger::get()->debug('Active span?' . (active_span() ? active_span()->name : 'false'));
+                Logger::get()->debug('Root span?' . (\DDTrace\root_span() ? \DDTrace\root_span()->name : 'false'));
 
                 if (
                     dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE")

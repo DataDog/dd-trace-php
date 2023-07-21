@@ -36,6 +36,7 @@ static void dd_drop_span_nodestroy(ddtrace_span_data *span, bool silent) {
 }
 
 static void dd_drop_span(ddtrace_span_data *span, bool silent) {
+    ddtrace_log_debugf("Dropping span %s", ZSTR_VAL(ddtrace_convert_to_str(ddtrace_spandata_property_name(span))));
     dd_drop_span_nodestroy(span, silent);
     OBJ_RELEASE(&span->std);
 }
@@ -524,6 +525,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
 
 void ddtrace_close_span(ddtrace_span_data *span) {
     if (span == NULL || !ddtrace_has_top_internal_span(span) || span->type == DDTRACE_SPAN_CLOSED) {
+        ddtrace_log_debugf("Not closing span %s", span ? ZSTR_VAL(ddtrace_convert_to_str(ddtrace_spandata_property_name(span))) : "NULL")  ;
         return;
     }
 
@@ -608,10 +610,13 @@ void ddtrace_close_all_open_spans(bool force_close_root_span) {
 
             ddtrace_span_data *span;
             while ((span = stack->active) && span->stack == stack) {
+                ddtrace_log_debugf("Closing span %s", ZSTR_VAL(ddtrace_convert_to_str(ddtrace_spandata_property_name(span))));
                 if (get_DD_AUTOFINISH_SPANS() || (force_close_root_span && span->type == DDTRACE_AUTOROOT_SPAN)) {
+                    ddtrace_log_debugf("1st scenario");
                     dd_trace_stop_span_time(span);
                     ddtrace_close_span(span);
                 } else {
+                    ddtrace_log_debugf("2nd scenario");
                     ddtrace_drop_span(span);
                 }
             }
