@@ -17,9 +17,6 @@ class SymfonyIntegration extends Integration
 {
     const NAME = 'symfony';
 
-    /** @var SpanData */
-    public $symfonyRequestSpan;
-
     public function getName()
     {
         return static::NAME;
