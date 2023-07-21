@@ -579,8 +579,8 @@ impl Profiler {
         // this state, only the ddprof_time thread will have a sender to the
         // uploader. Once the sender over there is closed, then the uploader
         // can quit.
-        // The sender it is replaced with has a disconnected receiver, so it
-        // can't be used to send any messages.
+        // The sender is replaced with one that has a disconnected receiver, so
+        // the sender can't send any messages.
         let (mut empty_sender, _) = crossbeam_channel::unbounded();
         std::mem::swap(&mut self.upload_sender, &mut empty_sender);
     }
