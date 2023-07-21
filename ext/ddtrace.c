@@ -1660,6 +1660,7 @@ PHP_FUNCTION(dd_trace_peek_span_id) {
 PHP_FUNCTION(dd_trace_close_all_spans_and_flush) {
     UNUSED(execute_data);
     ddtrace_close_all_spans_and_flush();
+    RETURN_NULL();
 }
 
 static void dd_ensure_root_span(void) {
