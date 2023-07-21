@@ -9,6 +9,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 
 use function DDTrace\root_span;
+
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
  */

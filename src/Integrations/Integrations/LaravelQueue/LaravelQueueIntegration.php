@@ -17,7 +17,6 @@ use function DDTrace\logs_correlation_trace_id;
 use function DDTrace\remove_hook;
 use function DDTrace\set_distributed_tracing_context;
 use function DDTrace\start_trace_span;
-use function DDTrace\trace_id;
 use function DDTrace\trace_method;
 use function DDTrace\install_hook;
 use function DDTrace\hook_method;

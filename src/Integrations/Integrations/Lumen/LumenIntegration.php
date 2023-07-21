@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Lumen;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
+
 use function DDTrace\root_span;
 
 /**

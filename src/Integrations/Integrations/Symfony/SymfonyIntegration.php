@@ -10,6 +10,7 @@ use DDTrace\Util\Normalizer;
 use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
+
 use function DDTrace\root_span;
 
 class SymfonyIntegration extends Integration

@@ -6,6 +6,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+
 use function DDTrace\root_span;
 
 class NetteIntegration extends Integration
