@@ -48,6 +48,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 char *url = ddtrace_agent_url();
                 ddtrace_log_debugf("Flushing trace of size %d to send-queue for %s",
                                    zend_hash_num_elements(Z_ARR(trace)), url);
+                ddtrace_log_debugf("Payload: %s", payload);
                 free(url);
             }
             dd_prepare_for_new_trace();
