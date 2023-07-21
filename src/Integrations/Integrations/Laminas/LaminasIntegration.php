@@ -199,21 +199,23 @@ class LaminasIntegration extends Integration
             'run',
             [
                 'prehook' => function (SpanData $span) {
-                    if (($rootSpan = root_span()) === null) {
-                        return false;
-                    }
-
                     $service = \ddtrace_config_app_name('laminas');
-                    $rootSpan->name = 'laminas.request';
-                    $rootSpan->service = $service;
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    $rootSpan->meta[Tag::COMPONENT] = LaminasIntegration::NAME;
-
                     $span->name = 'laminas.application.run';
                     $span->resource = 'laminas.application.run';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
                     $span->meta[Tag::COMPONENT] = 'laminas';
+
+
+                    $rootSpan = root_span();
+                    if ($rootSpan === null) {
+                        return;
+                    }
+
+                    $rootSpan->name = 'laminas.request';
+                    $rootSpan->service = $service;
+                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                    $rootSpan->meta[Tag::COMPONENT] = LaminasIntegration::NAME;
                 }
             ]
         );
@@ -223,10 +225,6 @@ class LaminasIntegration extends Integration
             'Laminas\Router\RouteInterface',
             'match',
             function (SpanData $span, $args, $retval) {
-                if (($rootSpan = root_span()) === null) {
-                    return false;
-                }
-
                 $span->name = 'laminas.route.match';
                 $span->resource = \get_class($this) . '@match';
                 $span->meta[Tag::COMPONENT] = 'laminas';
@@ -234,10 +232,12 @@ class LaminasIntegration extends Integration
                 /** @var RequestInterface $request */
                 $request = $args[0];
 
-
-                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                $rootSpan->meta[Tag::HTTP_VERSION] = $request->getVersion();
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
+                $rootSpan = root_span();
+                if ($rootSpan !== null) {
+                    $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                    $rootSpan->meta[Tag::HTTP_VERSION] = $request->getVersion();
+                    $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
+                }
 
                 $routeMatch = $retval;
                 if (is_null($routeMatch)) {
@@ -261,11 +261,13 @@ class LaminasIntegration extends Integration
                         }
                     );
                 }
-                if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                    $rootSpan->resource = "$controller@$action $routeName";
+                if ($rootSpan !== null) {
+                    if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                        $rootSpan->resource = "$controller@$action $routeName";
+                    }
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $routeName;
+                    $rootSpan->meta['laminas.route.action'] = "$controller@$action";
                 }
-                $rootSpan->meta[Tag::HTTP_ROUTE] = $routeName;
-                $rootSpan->meta['laminas.route.action'] = "$controller@$action";
             }
         );
 
@@ -273,12 +275,11 @@ class LaminasIntegration extends Integration
             'Laminas\Http\Response',
             'setStatusCode',
             function ($This, $scope, $args) {
-                if (($rootSpan = root_span()) === null) {
-                    return;
+                $rootSpan = root_span();
+                if ($rootSpan !== null) {
+                    $statusCode = $args[0];
+                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = "$statusCode";
                 }
-
-                $statusCode = $args[0];
-                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = "$statusCode";
             }
         );
 
@@ -298,7 +299,8 @@ class LaminasIntegration extends Integration
             'onDispatch',
             null,
             function ($This, $score, $args) use ($integration) {
-                if (($rootSpan = root_span()) === null) {
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
                     return false;
                 }
 
@@ -317,14 +319,15 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\Application',
             'completeRequest',
             function (SpanData $span, $args) use ($integration) {
-                if (($rootSpan = root_span()) === null) {
-                    return false;
-                }
-
                 $span->name = 'laminas.application.completeRequest';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = 'laminas';
+
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
 
                 /** @var MvcEvent $event */
                 $event = $args[0];
@@ -385,15 +388,16 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\View\Http\DefaultRenderingStrategy',
             'render',
             function (SpanData $span, $args) use ($integration) {
-                if (($rootSpan = root_span()) === null) {
-                    return false;
-                }
-
                 $span->name = 'laminas.view.http.renderer';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
                 $span->resource = \get_class($this) . '@render';
                 $span->meta[Tag::COMPONENT] = 'laminas';
+
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
 
                 /** @var MvcEvent $event */
                 $event = $args[0];
@@ -409,15 +413,16 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\View\Console\DefaultRenderingStrategy',
             'render',
             function (SpanData $span, $args) use ($integration) {
-                if (($rootSpan = root_span()) === null) {
-                    return false;
-                }
-
                 $span->name = 'laminas.view.console.renderer';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
                 $span->resource = \get_class($this) . '@render';
                 $span->meta[Tag::COMPONENT] = 'laminas';
+
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
 
                 /** @var MvcEvent $event */
                 $event = $args[0];
@@ -434,14 +439,15 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\MvcEvent',
             'setError',
             function (SpanData $span, $args, $retval) use ($integration) {
-                if (($rootSpan = root_span()) === null) {
-                    return false;
-                }
-
                 $span->name = 'laminas.mvcEvent.setError';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = 'laminas';
+
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
 
                 /** @var MvcEvent $event */
                 $event = $retval;

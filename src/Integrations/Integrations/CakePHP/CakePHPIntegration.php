@@ -44,7 +44,8 @@ class CakePHPIntegration extends Integration
         $integration->rootSpan = null;
 
         $setRootSpanInfoFn = function () use ($integration) {
-            if (($rootSpan = root_span()) === null) {
+            $rootSpan = root_span();
+            if ($rootSpan === null) {
                 return;
             }
 

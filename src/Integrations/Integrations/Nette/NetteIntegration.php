@@ -57,7 +57,8 @@ class NetteIntegration extends Integration
             'Nette\Configurator',
             '__construct',
             function () use ($service) {
-                if (($rootSpan = root_span()) === null) {
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
                     return;
                 }
 
@@ -84,15 +85,15 @@ class NetteIntegration extends Integration
             'Nette\Application\Application',
             'run',
             function (SpanData $span) use ($service) {
-                if (($rootSpan = root_span()) === null) {
-                    return false;
-                }
-
                 $span->name = 'nette.application.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = http_response_code();
                 $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
+
+                $rootSpan = root_span();
+                if ($rootSpan !== null) {
+                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = http_response_code();
+                }
             }
         );
 
@@ -100,10 +101,6 @@ class NetteIntegration extends Integration
             'Nette\Application\UI\Presenter',
             'run',
             function (SpanData $span, $args) use ($service) {
-                if (($rootSpan = root_span()) === null) {
-                    return false;
-                }
-
                 $span->name = 'nette.presenter.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
@@ -113,13 +110,16 @@ class NetteIntegration extends Integration
                     return;
                 }
 
-                $request = $args[0];
-                $presenter = $request->getPresenterName();
-                $action = $request->getParameter('action');
+                $rootSpan = root_span();
+                if ($rootSpan !== null) {
+                    $request = $args[0];
+                    $presenter = $request->getPresenterName();
+                    $action = $request->getParameter('action');
 
-                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                $rootSpan->meta['nette.route.presenter'] = $presenter;
-                $rootSpan->meta['nette.route.action'] = $action;
+                    $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                    $rootSpan->meta['nette.route.presenter'] = $presenter;
+                    $rootSpan->meta['nette.route.action'] = $action;
+                }
             }
         );
 

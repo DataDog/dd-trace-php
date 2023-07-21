@@ -99,15 +99,16 @@ class YiiIntegration extends Integration
             'yii\base\Controller',
             'runAction',
             function (SpanData $span, $args) use (&$firstController, $service) {
-                if (($rootSpan = root_span()) === null) {
-                    return false;
-                }
-
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
                 $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
+
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
 
                 if (
                     $firstController === $this

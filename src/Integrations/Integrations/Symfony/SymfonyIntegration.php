@@ -47,15 +47,8 @@ class SymfonyIntegration extends Integration
             [
                 'prehook' => function (SpanData $span) use ($integration) {
                     $rootSpan = \DDTrace\root_span();
-                    if ($rootSpan === $span) {
-                        return false;
-                    }
 
                     $service = \ddtrace_config_app_name('symfony');
-                    $rootSpan->name = 'symfony.request';
-                    $rootSpan->service = $service;
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
                     $span->name = 'symfony.httpkernel.kernel.handle';
                     $span->resource = \get_class($this);
@@ -64,7 +57,13 @@ class SymfonyIntegration extends Integration
                     $span->meta[Tag::SPAN_KIND] = 'server';
                     $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
-                    $this->addTraceAnalyticsIfEnabled($rootSpan);
+                    if ($rootSpan !== null) {
+                        $rootSpan->name = 'symfony.request';
+                        $rootSpan->service = $service;
+                        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                        $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                        $this->addTraceAnalyticsIfEnabled($rootSpan);
+                    }
                 },
             ]
         );
@@ -74,10 +73,6 @@ class SymfonyIntegration extends Integration
             'boot',
             [
                 'prehook' => function (SpanData $span) {
-                    if (\DDTrace\root_span() === $span) {
-                        return false;
-                    }
-
                     $span->name = 'symfony.httpkernel.kernel.boot';
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
@@ -345,10 +340,6 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
             function (SpanData $span, $args, $response) use ($integration) {
-                if (($rootSpan = root_span()) === null) {
-                    return false;
-                }
-
                 /** @var Request $request */
                 list($request) = $args;
 
@@ -356,6 +347,11 @@ class SymfonyIntegration extends Integration
                 $span->service = \ddtrace_config_app_name('symfony');
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
 
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                 $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
@@ -390,10 +386,6 @@ class SymfonyIntegration extends Integration
             [
                 'recurse' => true,
                 'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
-                    if (($rootSpan = root_span()) === null) {
-                        return false;
-                    }
-
                     if (!isset($args[0])) {
                         return false;
                     }
@@ -453,7 +445,8 @@ class SymfonyIntegration extends Integration
                         return;
                     }
                     if (!$injectedActionInfo) {
-                        if ($integration->injectActionInfo($event, $eventName, $rootSpan)) {
+                        $rootSpan = root_span();
+                        if ($rootSpan !== null && $integration->injectActionInfo($event, $eventName, $rootSpan)) {
                             $injectedActionInfo = true;
                         }
                     }
@@ -463,14 +456,19 @@ class SymfonyIntegration extends Integration
 
         // Handling exceptions
         $exceptionHandlingTracer = function (SpanData $span, $args, $retval) use ($integration) {
-            if (($rootSpan = root_span()) === null) {
-                return false;
-            }
-
             $span->name = $span->resource = 'symfony.kernel.handleException';
             $span->service = \ddtrace_config_app_name('symfony');
             $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-            if (!(isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500)) {
+
+            $rootSpan = root_span();
+            if (
+                $rootSpan !== null
+                && !(
+                    isset($retval)
+                    && \method_exists($retval, 'getStatusCode')
+                    && $retval->getStatusCode() < 500
+                )
+            ) {
                 $integration->setError($rootSpan, $args[0]);
             }
         };
@@ -503,10 +501,6 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\HttpKernel\Event\FilterControllerEvent',
             'setController',
             function (SpanData $span, $args) use ($integration) {
-                if (($rootSpan = root_span()) === null) {
-                    return false;
-                }
-
                 list($controllerInfo) = $args;
                 $resourceParts = [];
 
@@ -525,7 +519,8 @@ class SymfonyIntegration extends Integration
                     }
                 }
 
-                if ($rootSpan) {
+                $rootSpan = root_span();
+                if ($rootSpan !== null) {
                     if (count($resourceParts) > 0) {
                         $rootSpan->resource = \implode(' ', $resourceParts);
                     }
