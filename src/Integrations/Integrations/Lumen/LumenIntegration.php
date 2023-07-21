@@ -6,8 +6,6 @@ use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 
-use function DDTrace\root_span;
-
 /**
  * Lumen Sandboxed integration
  */
@@ -44,7 +42,7 @@ class LumenIntegration extends Integration
             'Laravel\Lumen\Application',
             '__construct',
             function () {
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     $rootSpan->meta[Tag::COMPONENT] = LumenIntegration::NAME;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
@@ -61,7 +59,7 @@ class LumenIntegration extends Integration
             function (SpanData $span, $args) use ($integration, $appName) {
                 $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
 
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $request = $args[0];
                     $rootSpan->name = 'lumen.request';
@@ -85,7 +83,7 @@ class LumenIntegration extends Integration
             'handleFoundRoute',
             [
                 $hook => function (SpanData $span, $args) use ($appName) {
-                    $rootSpan = root_span();
+                    $rootSpan = \DDTrace\root_span();
 
                     $span->service = $appName;
                     $span->type = 'web';
@@ -131,7 +129,7 @@ class LumenIntegration extends Integration
 
             $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
 
-            $rootSpan = root_span();
+            $rootSpan = \DDTrace\root_span();
             if ($rootSpan !== null) {
                 $exception = $args[0];
                 $integration->setError($rootSpan, $exception);

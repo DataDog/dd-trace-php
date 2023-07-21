@@ -9,8 +9,6 @@ use DDTrace\Type;
 use DDTrace\Util\Versions;
 use yii\helpers\Url;
 
-use function DDTrace\root_span;
-
 class YiiIntegration extends Integration
 {
     const NAME = 'yii';
@@ -105,7 +103,7 @@ class YiiIntegration extends Integration
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
                 $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
 
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
 
                 if (
                     $firstController === $this

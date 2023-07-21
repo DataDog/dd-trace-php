@@ -11,8 +11,6 @@ use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
 
-use function DDTrace\root_span;
-
 class SymfonyIntegration extends Integration
 {
     const NAME = 'symfony';
@@ -350,7 +348,7 @@ class SymfonyIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
 
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                 $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
@@ -444,7 +442,7 @@ class SymfonyIntegration extends Integration
                         return;
                     }
                     if (!$injectedActionInfo) {
-                        $rootSpan = root_span();
+                        $rootSpan = \DDTrace\root_span();
                         if ($integration->injectActionInfo($event, $eventName, $rootSpan)) {
                             $injectedActionInfo = true;
                         }
@@ -459,7 +457,7 @@ class SymfonyIntegration extends Integration
             $span->service = \ddtrace_config_app_name('symfony');
             $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
-            $rootSpan = root_span();
+            $rootSpan = \DDTrace\root_span();
             if (
                 $rootSpan !== null
                 && !(
@@ -518,7 +516,7 @@ class SymfonyIntegration extends Integration
                     }
                 }
 
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if (count($resourceParts) > 0) {
                     $rootSpan->resource = \implode(' ', $resourceParts);
                 }

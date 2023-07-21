@@ -7,8 +7,6 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-use function DDTrace\root_span;
-
 class NetteIntegration extends Integration
 {
     const NAME = 'nette';
@@ -58,7 +56,7 @@ class NetteIntegration extends Integration
             'Nette\Configurator',
             '__construct',
             function () use ($service) {
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
                 }
@@ -91,7 +89,7 @@ class NetteIntegration extends Integration
                 $span->service = $service;
                 $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = http_response_code();
                 }
@@ -111,7 +109,7 @@ class NetteIntegration extends Integration
                     return;
                 }
 
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $request = $args[0];
                     $presenter = $request->getPresenterName();

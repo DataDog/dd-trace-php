@@ -8,8 +8,6 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-use function DDTrace\root_span;
-
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
  */
@@ -80,7 +78,7 @@ class LaravelIntegration extends Integration
                 $span->resource = 'Illuminate\Foundation\Application@handle';
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
                 }
@@ -102,7 +100,7 @@ class LaravelIntegration extends Integration
             'findRoute',
             null,
             function ($This, $scope, $args, $route) use ($integration) {
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
                 }
@@ -149,7 +147,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Http\Response',
             'send',
             function ($This, $scope, $args) use ($integration) {
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
                 }
@@ -240,7 +238,7 @@ class LaravelIntegration extends Integration
             'Illuminate\View\Engines\CompilerEngine',
             'get',
             function (SpanData $span, $args) use ($integration) {
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return false;
                 }
@@ -279,7 +277,7 @@ class LaravelIntegration extends Integration
                     \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
                 }
 
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->name = 'laravel.request';
                     $rootSpan->service = $serviceName;
@@ -292,7 +290,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Console\Application',
             '__construct',
             function () use ($integration) {
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
                 }
@@ -310,7 +308,7 @@ class LaravelIntegration extends Integration
             'Symfony\Component\Console\Application',
             'renderException',
             function ($This, $scope, $args) use ($integration) {
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $integration->setError($rootSpan, $args[0]);
                 }
@@ -323,7 +321,7 @@ class LaravelIntegration extends Integration
             'Symfony\Component\Console\Application',
             'renderThrowable',
             function ($This, $scope, $args) use ($integration) {
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $integration->setError($rootSpan, $args[0]);
                 }
@@ -335,7 +333,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Contracts\Debug\ExceptionHandler',
             'report',
             function ($exceptionHandler, $scope, $args) use ($integration) {
-                $rootSpan = root_span();
+                $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
                 }

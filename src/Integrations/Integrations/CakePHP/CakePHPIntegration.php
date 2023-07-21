@@ -10,8 +10,6 @@ use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 use Router;
 
-use function DDTrace\root_span;
-
 class CakePHPIntegration extends Integration
 {
     const NAME = 'cakephp';
@@ -44,7 +42,7 @@ class CakePHPIntegration extends Integration
         $integration->rootSpan = null;
 
         $setRootSpanInfoFn = function () use ($integration) {
-            $rootSpan = root_span();
+            $rootSpan = \DDTrace\root_span();
             if ($rootSpan === null) {
                 return;
             }
