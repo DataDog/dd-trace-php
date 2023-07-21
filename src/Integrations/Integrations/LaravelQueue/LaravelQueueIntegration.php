@@ -55,6 +55,9 @@ class LaravelQueueIntegration extends Integration
                 ini_set('datadog.autofinish_spans', '1');
 
                 Logger::get()->debug('Active span: ' . active_span()->name);
+                if (isset(\DDTrace\root_span()->meta['error.message'])) {
+                    Logger::get()->debug('Error message: ' . \DDTrace\root_span()->meta['error.message']);
+                }
                 Logger::get()->debug('Trace id: ' . trace_id());
                 Logger::get()->debug('Root span: ' . \DDTrace\root_span()->name);
                 dd_trace_close_all_spans_and_flush();
@@ -134,12 +137,29 @@ class LaravelQueueIntegration extends Integration
             ]
         );
 
+        hook_method(
+            'Illuminate\Queue\Worker',
+            'maxAttemptsExceededException',
+            null,
+            function ($worker, $scope, $args, $retval) use ($integration) {
+                if (($rootSpan = \DDTrace\root_span()) !== null) {
+                    Logger::get()->debug('maxAttemptsExceededException');
+                    $integration->setError($rootSpan, $retval);
+                }
+            }
+        );
+
         trace_method(
             'Illuminate\Queue\Jobs\Job',
             'fire',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes($span, 'laravel.queue.fire', 'process', $this, $exception);
-            }
+            [
+                'prehook' => function (SpanData $span, $args, $retval) use ($integration) {
+                    $integration->setSpanAttributes($span, 'laravel.queue.fire', 'process', $this);
+                },
+                'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration) {
+                    $integration->setSpanAttributes($span, 'laravel.queue.fire', 'process', $this, $exception);
+                }
+            ]
         );
 
         if (PHP_MAJOR_VERSION > 5) {
