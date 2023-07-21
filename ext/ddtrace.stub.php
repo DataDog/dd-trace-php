@@ -819,6 +819,11 @@ namespace {
     function dd_trace_peek_span_id(): string {}
 
     /**
+     * Force close all spans and force-send finished traces to the agent
+     */
+    function dd_trace_close_all_spans_and_flush(): void {}
+
+    /**
      * @alias DDTrace_trace_function
      */
     function dd_trace_function(string $functionName, \Closure|array|null $tracingClosureOrConfigArray): bool {}
