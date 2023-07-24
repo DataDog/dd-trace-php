@@ -13,14 +13,14 @@ use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
 use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
-use log::{debug, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::str;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -157,6 +157,13 @@ pub enum ProfilerMessage {
     Cancel,
     Sample(SampleMessage),
     LocalRootSpanResource(LocalRootSpanResourceMessage),
+
+    /// Used to put the helper thread into a barrier for caller so it can fork.
+    Pause,
+
+    /// Used to wake the helper thread so it can synchronize the fact a
+    /// request is being served.
+    Wake,
 }
 
 pub struct Globals {
@@ -176,9 +183,9 @@ impl Default for Globals {
 
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
-    fork_senders: [Sender<()>; 2],
     interrupt_manager: Arc<InterruptManager>,
     message_sender: Sender<ProfilerMessage>,
+    upload_sender: Sender<UploadMessage>,
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
@@ -186,11 +193,9 @@ pub struct Profiler {
 
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
-    fork_receiver: Receiver<()>,
     interrupt_manager: Arc<InterruptManager>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
-    wall_time_period: Duration,
     upload_period: Duration,
 }
 
@@ -213,12 +218,12 @@ impl TimeCollector {
         let end_time = wall_export.systemtime;
 
         for (index, profile) in profiles.drain() {
-            let message = UploadMessage {
+            let message = UploadMessage::Upload(UploadRequest {
                 index,
                 profile,
                 end_time,
                 duration,
-            };
+            });
             if let Err(err) = self.upload_sender.try_send(message) {
                 warn!("Failed to upload profile: {err}");
             }
@@ -358,7 +363,7 @@ impl TimeCollector {
         }
     }
 
-    pub fn run(&self) {
+    pub fn run(self) {
         let mut last_wall_export = WallTime::now();
         let mut profiles: HashMap<ProfileIndex, profile::Profile> = HashMap::with_capacity(1);
 
@@ -367,11 +372,24 @@ impl TimeCollector {
             UPLOAD_PERIOD.as_secs(),
             WALL_TIME_PERIOD.as_millis());
 
-        let wall_time_tick = crossbeam_channel::tick(self.wall_time_period);
+        let wall_timer = crossbeam_channel::tick(WALL_TIME_PERIOD);
         let upload_tick = crossbeam_channel::tick(self.upload_period);
+        let never = crossbeam_channel::never();
         let mut running = true;
 
         while running {
+            // The crossbeam_channel::select! doesn't have the ability to
+            // optionally recv something. Instead, if the tick channel
+            // shouldn't be selected on, then pass the never channel for that
+            // iteration instead, keeping the code structure of the recvs the
+            // same. Since the never channel will never be ready, this
+            // effectively makes that branch optional for that loop iteration.
+            let timer = if self.interrupt_manager.has_interrupts() {
+                &wall_timer
+            } else {
+                &never
+            };
+
             crossbeam_channel::select! {
 
                 recv(self.message_receiver) -> result => {
@@ -385,8 +403,19 @@ impl TimeCollector {
                                 // flush what we have before exiting
                                 last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                                 running = false;
-                            }
+                            },
+                            ProfilerMessage::Pause => {
+                                // First, wait for every thread to finish what
+                                // they are currently doing.
+                                self.fork_barrier.wait();
+                                // Then, wait for the fork to be completed.
+                                self.fork_barrier.wait();
+                            },
+                            // The purpose is to wake up and sync the state of
+                            // the interrupt manager.
+                            ProfilerMessage::Wake => {}
                         },
+
                         Err(_) => {
                             /* Docs say:
                              * > A message could not be received because the
@@ -398,10 +427,13 @@ impl TimeCollector {
                     }
                 },
 
-                recv(wall_time_tick) -> message => {
-                    if message.is_ok() {
-                        self.interrupt_manager.trigger_interrupts()
-                    }
+                recv(timer) -> message => match message {
+                    Ok(_) => self.interrupt_manager.trigger_interrupts(),
+
+                    Err(err) => {
+                        warn!("{err}");
+                        break;
+                    },
                 },
 
                 recv(upload_tick) -> message => {
@@ -410,78 +442,97 @@ impl TimeCollector {
                     }
                 },
 
-                recv(self.fork_receiver) -> message => {
-                    if message.is_ok() {
-                        // First, wait for every thread to finish what they are currently doing.
-                        self.fork_barrier.wait();
-                        // Then, wait for the fork to be completed.
-                        self.fork_barrier.wait();
-                    }
-                }
-
             }
         }
     }
 }
 
-pub struct UploadMessage {
+pub struct UploadRequest {
     index: ProfileIndex,
     profile: profile::Profile,
     end_time: SystemTime,
     duration: Option<Duration>,
 }
 
+pub enum UploadMessage {
+    Pause,
+    Upload(UploadRequest),
+}
+
 impl Profiler {
     pub fn new(output_pprof: Option<Cow<'static, str>>) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
-        let (fork_sender0, fork_receiver0) = crossbeam_channel::bounded(1);
-        let interrupt_manager = Arc::new(InterruptManager::new(Mutex::new(Vec::with_capacity(1))));
+        let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
-        let (fork_sender1, fork_receiver1) = crossbeam_channel::bounded(1);
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
-            fork_receiver: fork_receiver0,
             interrupt_manager: interrupt_manager.clone(),
             message_receiver,
-            upload_sender,
-            wall_time_period: WALL_TIME_PERIOD,
+            upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
         };
 
-        let uploader = Uploader::new(
-            fork_barrier.clone(),
-            fork_receiver1,
-            upload_receiver,
-            output_pprof,
-        );
+        let uploader = Uploader::new(fork_barrier.clone(), upload_receiver, output_pprof);
 
+        let ddprof_time = "ddprof_time";
+        let ddprof_upload = "ddprof_upload";
         Profiler {
             fork_barrier,
-            fork_senders: [fork_sender0, fork_sender1],
             interrupt_manager,
             message_sender,
-            time_collector_handle: thread_utils::spawn("ddprof_time", move || time_collector.run()),
-            uploader_handle: thread_utils::spawn("ddprof_upload", move || uploader.run()),
+            upload_sender,
+            time_collector_handle: thread_utils::spawn(ddprof_time, move || {
+                time_collector.run();
+                trace!("thread {ddprof_time} complete, shutting down");
+            }),
+            uploader_handle: thread_utils::spawn(ddprof_upload, move || {
+                uploader.run();
+                trace!("thread {ddprof_upload} complete, shutting down");
+            }),
             should_join: AtomicBool::new(true),
         }
     }
 
-    pub fn add_interrupt(&self, interrupt: VmInterrupt) -> Result<(), (usize, VmInterrupt)> {
-        self.interrupt_manager.add_interrupt(interrupt)
+    pub fn add_interrupt(&self, interrupt: VmInterrupt) {
+        // First, add the interrupt to the set.
+        self.interrupt_manager.add_interrupt(interrupt);
+
+        // Second, make a best-effort attempt to wake the helper thread so
+        // that it is aware another PHP request is in flight.
+        _ = self.message_sender.try_send(ProfilerMessage::Wake);
     }
 
-    pub fn remove_interrupt(&self, interrupt: VmInterrupt) -> Result<(), VmInterrupt> {
+    pub fn remove_interrupt(&self, interrupt: VmInterrupt) {
+        // First, remove the interrupt to the set.
         self.interrupt_manager.remove_interrupt(interrupt)
+
+        // Second, do not try to wake the helper thread. In NTS mode, the next
+        // request may come before the timer expires anyway, and if not, at
+        // worst we had 1 wake-up outside of a request, which is the same as
+        // if we wake it now.
+        // In ZTS mode, this would just be unnecessary wake-ups, as there are
+        // likely to be other threads serving requests.
     }
 
     /// Call before a fork, on the thread of the parent process that will fork.
     pub fn fork_prepare(&self) {
-        for sender in self.fork_senders.iter() {
-            // Hmm, what to do with errors?
-            let _ = sender.send(());
+        // Send the message to the uploader first, as it has a longer worst-
+        // case time to wait.
+        let uploader_result = self.upload_sender.send(UploadMessage::Pause);
+        let profiler_result = self.message_sender.send(ProfilerMessage::Pause);
+
+        // todo: handle fails more gracefully, but it's tricky to sync 3
+        //       threads, any of which could have crashed or be delayed. This
+        //       could also deadlock.
+        match (uploader_result, profiler_result) {
+            (Ok(_), Ok(_)) => {
+                self.fork_barrier.wait();
+            }
+            (_, _) => {
+                error!("failed to prepare the profiler for forking, a deadlock could occur")
+            }
         }
-        self.fork_barrier.wait();
     }
 
     /// Call after a fork, but only on the thread of the parent process that forked.
@@ -506,8 +557,9 @@ impl Profiler {
     /// Note that you must call [Profiler::shutdown] afterwards; it's two
     /// parts of the same operation. It's split so you (or other extensions)
     /// can do something while the other threads finish up.
-    pub fn stop(&self, timeout: Duration) {
+    pub fn stop(&mut self, timeout: Duration) {
         debug!("Stopping profiler.");
+
         let sent = match self
             .message_sender
             .send_timeout(ProfilerMessage::Cancel, timeout)
@@ -522,6 +574,15 @@ impl Profiler {
             }
         };
         self.should_join.store(sent, Ordering::SeqCst);
+
+        // Drop the sender to the uploader channel to reduce its refcount. At
+        // this state, only the ddprof_time thread will have a sender to the
+        // uploader. Once the sender over there is closed, then the uploader
+        // can quit.
+        // The sender is replaced with one that has a disconnected receiver, so
+        // the sender can't send any messages.
+        let (mut empty_sender, _) = crossbeam_channel::unbounded();
+        std::mem::swap(&mut self.upload_sender, &mut empty_sender);
     }
 
     /// Completes the shutdown process; to start it, call [Profiler::stop]
@@ -571,7 +632,7 @@ impl Profiler {
         &self,
         execute_data: *mut zend_execute_data,
         interrupt_count: u32,
-        mut locals: &mut RequestLocals,
+        locals: &mut RequestLocals,
     ) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
@@ -700,7 +761,7 @@ impl Profiler {
             vec![ZendFrame {
                 function: "[eval]".into(),
                 file: Some(Cow::Owned(filename)),
-                line: line,
+                line,
             }],
             SampleValues {
                 timeline: duration,

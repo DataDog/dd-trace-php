@@ -1,5 +1,6 @@
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct VmInterrupt {
@@ -22,39 +23,41 @@ impl std::fmt::Display for VmInterrupt {
 unsafe impl Send for VmInterrupt {}
 
 pub(super) struct InterruptManager {
-    vm_interrupts: Mutex<Vec<VmInterrupt>>,
+    vm_interrupts: Arc<Mutex<HashSet<VmInterrupt>>>,
 }
 
 impl InterruptManager {
-    pub(super) fn new(vm_interrupts: Mutex<Vec<VmInterrupt>>) -> Self {
-        Self { vm_interrupts }
+    pub(super) fn new() -> Self {
+        // Capacity 1 because we expect there to be 1 thread in NTS mode, and
+        // if it happens to be ZTS this is just an initial capacity anyway.
+        let vm_interrupts = Arc::new(Mutex::new(HashSet::with_capacity(1)));
+        Self {
+            vm_interrupts: vm_interrupts.clone(),
+        }
     }
 
-    pub(super) fn add_interrupt(&self, interrupt: VmInterrupt) -> Result<(), (usize, VmInterrupt)> {
+    /// Add the interrupt to the manager's set.
+    pub(super) fn add_interrupt(&self, interrupt: VmInterrupt) {
         let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
-        if let Some(index) = vm_interrupts.iter().position(|v| v == &interrupt) {
-            return Err((index, interrupt));
-        }
-        vm_interrupts.push(interrupt);
-        Ok(())
+        vm_interrupts.insert(interrupt);
     }
 
-    pub(super) fn remove_interrupt(&self, interrupt: VmInterrupt) -> Result<(), VmInterrupt> {
+    /// Remove the interrupt from the manager's set.
+    pub(super) fn remove_interrupt(&self, interrupt: VmInterrupt) {
         let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
-        match vm_interrupts.iter().position(|v| v == &interrupt) {
-            None => Err(interrupt),
-            Some(index) => {
-                vm_interrupts.swap_remove(index);
-                Ok(())
-            }
-        }
+        vm_interrupts.remove(&interrupt);
+    }
+
+    #[inline]
+    pub(super) fn has_interrupts(&self) -> bool {
+        !self.vm_interrupts.lock().unwrap().is_empty()
     }
 
     pub(super) fn trigger_interrupts(&self) {
         let vm_interrupts = self.vm_interrupts.lock().unwrap();
         vm_interrupts.iter().for_each(|obj| unsafe {
-            (*obj.engine_ptr).store(true, Ordering::SeqCst);
             (*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
+            (*obj.engine_ptr).store(true, Ordering::SeqCst);
         });
     }
 }
