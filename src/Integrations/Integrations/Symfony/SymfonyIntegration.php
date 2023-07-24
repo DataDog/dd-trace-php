@@ -38,11 +38,13 @@ class SymfonyIntegration extends Integration
      */
     public function init()
     {
+        $integration = $this;
+
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
             'handle',
             [
-                'prehook' => function (SpanData $span) {
+                'prehook' => function (SpanData $span) use ($integration) {
                     $rootSpan = \DDTrace\root_span();
                     if ($rootSpan === $span) {
                         return false;
@@ -53,6 +55,7 @@ class SymfonyIntegration extends Integration
                     $rootSpan->service = $service;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                     $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                    $integration->addTraceAnalyticsIfEnabled($rootSpan);
 
                     $span->name = 'symfony.httpkernel.kernel.handle';
                     $span->resource = \get_class($this);
@@ -281,14 +284,8 @@ class SymfonyIntegration extends Integration
             }
         );
 
-        $rootSpan = \DDTrace\root_span();
-
         /** @var SpanData $symfonyRequestSpan */
-        $this->symfonyRequestSpan = $rootSpan;
-
-        if ($rootSpan !== null) {
-            $this->addTraceAnalyticsIfEnabled($rootSpan);
-        }
+        $this->symfonyRequestSpan = \DDTrace\root_span();
 
         if (
             defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
@@ -362,6 +359,7 @@ class SymfonyIntegration extends Integration
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                 $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                 $integration->symfonyRequestSpan->meta[Tag::SPAN_KIND] = 'server';
+                $integration->addTraceAnalyticsIfEnabled($integration->symfonyRequestSpan);
 
                 if (!array_key_exists(Tag::HTTP_URL, $integration->symfonyRequestSpan->meta)) {
                     $integration->symfonyRequestSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
