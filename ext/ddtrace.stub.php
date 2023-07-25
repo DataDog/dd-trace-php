@@ -819,7 +819,9 @@ namespace {
     function dd_trace_peek_span_id(): string {}
 
     /**
-     * Force close all spans and force-send finished traces to the agent
+     * Force-finish all spans and force-send finished traces to the agent. Note that this function drops (resp. closes)
+     * all currently open spans if DD_AUTOFINISH_SPANS is set to 'false' (resp. 'true'). Dropped spans are not sent to
+     * the agent.
      */
     function dd_trace_close_all_spans_and_flush(): void {}
 

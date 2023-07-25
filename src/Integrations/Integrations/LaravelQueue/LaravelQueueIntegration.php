@@ -146,7 +146,9 @@ class LaravelQueueIntegration extends Integration
                     $integration->setSpanAttributes($span, 'laravel.queue.fire', 'process', $this);
                 },
                 'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                    $integration->setSpanAttributes($span, 'laravel.queue.fire', 'process', $this, $exception);
+                    if ($exception) {
+                        $integration->setError($span, $exception);
+                    }
                 }
             ]
         );

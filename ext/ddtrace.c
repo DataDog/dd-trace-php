@@ -1658,7 +1658,7 @@ PHP_FUNCTION(dd_trace_peek_span_id) {
 
 /* {{{ proto void dd_trace_close_all_spans_and_flush() */
 PHP_FUNCTION(dd_trace_close_all_spans_and_flush) {
-    UNUSED(execute_data);
+    zend_parse_parameters_none();
     ddtrace_close_all_spans_and_flush();
     RETURN_NULL();
 }
@@ -1667,9 +1667,8 @@ PHP_FUNCTION(dd_trace_close_all_spans_and_flush) {
 PHP_FUNCTION(dd_trace_synchronous_flush) {
     zend_long timeout;
 
-    if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "l", &timeout) == FAILURE) {
-        ddtrace_log_onceerrf("dd_trace_synchronous_flush() expects a timeout in milliseconds");
-        RETURN_NULL();
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &timeout) == FAILURE) {
+        RETURN_THROWS();
     }
 
     // If zend_long is not a uint32_t, we can't pass it to ddtrace_coms_synchronous_flush

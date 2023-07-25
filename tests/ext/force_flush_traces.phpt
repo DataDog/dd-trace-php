@@ -2,7 +2,6 @@
 Force flush the traces mid-way through a trace
 --SKIPIF--
 <?php
-if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not show Termsig=9");
 if (!function_exists('posix_kill')) die('skip: posix_kill not available');
 --ENV--
 DD_TRACE_DEBUG=1
@@ -45,5 +44,4 @@ process
 Flushing trace of size 3 to send-queue for %s
 kill
 Killed
-
-Termsig=9
+%r(\nTermsig=9)?%r
