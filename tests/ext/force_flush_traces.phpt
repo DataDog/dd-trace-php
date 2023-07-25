@@ -33,6 +33,7 @@ DDTrace\trace_function('process', [
 DDTrace\hook_function('kill', function () {
     ini_set('datadog.autofinish_spans', '1');
     dd_trace_close_all_spans_and_flush(); // 3: root span + process + start_trace_span
+    dd_trace_synchronous_flush(3, 3);
 });
 
 process();

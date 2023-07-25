@@ -1668,7 +1668,11 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
     zend_long timeout;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &timeout) == FAILURE) {
+#if PHP_VERSION_ID < 80000
         RETURN_THROWS();
+#else
+        RETURN_NULL();
+#endif
     }
 
     // If zend_long is not a uint32_t, we can't pass it to ddtrace_coms_synchronous_flush
