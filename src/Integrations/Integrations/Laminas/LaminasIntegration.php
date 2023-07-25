@@ -317,17 +317,13 @@ class LaminasIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = 'laminas';
 
-                $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
-
                 /** @var MvcEvent $event */
                 $event = $args[0];
 
                 $request = $event->getRequest();
                 $method = $request->getMethod();
 
+                $rootSpan = root_span();
                 $rootSpan->meta[Tag::HTTP_METHOD] = $method;
                 $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
             }
@@ -387,17 +383,12 @@ class LaminasIntegration extends Integration
                 $span->resource = \get_class($this) . '@render';
                 $span->meta[Tag::COMPONENT] = 'laminas';
 
-                $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
-
                 /** @var MvcEvent $event */
                 $event = $args[0];
 
                 $exception = $event->getParam('exception');
                 if ($exception) {
-                    $integration->setError($rootSpan, $exception);
+                    $integration->setError(root_span(), $exception);
                 }
             }
         );
@@ -412,17 +403,12 @@ class LaminasIntegration extends Integration
                 $span->resource = \get_class($this) . '@render';
                 $span->meta[Tag::COMPONENT] = 'laminas';
 
-                $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
-
                 /** @var MvcEvent $event */
                 $event = $args[0];
 
                 $exception = $event->getParam('exception');
                 if ($exception) {
-                    $integration->setError($rootSpan, $exception);
+                    $integration->setError(root_span(), $exception);
                 }
             }
         );
@@ -437,17 +423,12 @@ class LaminasIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = 'laminas';
 
-                $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
-
                 /** @var MvcEvent $event */
                 $event = $retval;
 
                 $exception = $event->getParam('exception');
                 if ($exception) {
-                    $integration->setError($rootSpan, $exception);
+                    $integration->setError(root_span(), $exception);
                 }
             }
         );
