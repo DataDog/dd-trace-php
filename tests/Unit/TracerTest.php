@@ -268,4 +268,22 @@ final class TracerTest extends BaseTestCase
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         dd_trace_internal_fn('ddtrace_reload_config');
     }
+
+    public function testMixingOpenTracingAndModernAPI()
+    {
+        $tracer = new Tracer(new DebugTransport());
+        $tracer->startRootSpan('foo');
+        $foo = $tracer->getActiveSpan();
+
+        $rootSpan = \DDTrace\start_trace_span();
+        $this->assertSame($tracer->getActiveSpan()->internalSpan, $rootSpan);
+        \DDTrace\close_span();
+
+        $this->assertSame($foo, $tracer->getActiveSpan());
+        $tracer->getActiveSpan()->finish();
+
+        $this->assertSame(2, dd_trace_closed_spans_count());
+        $traces = \dd_trace_serialize_closed_spans();
+        $this->assertCount(2, $traces);
+    }
 }
