@@ -77,6 +77,7 @@ static void ddtrace_sigsegv_handler(int sig) {
 #endif
     }
 
+    // _Exit to avoid atexit() handlers, they may crash in this SIGSEGV signal handler...
     _Exit(128 + sig);
 }
 

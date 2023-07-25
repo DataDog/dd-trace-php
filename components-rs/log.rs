@@ -11,7 +11,7 @@ bitflags! {
     #[repr(C)]
     pub struct Log: u32 {
         const None = 0;
-        const Once = 1 << 0;
+        const Once = 1 << 0; // I.e. once per request
         const Error = 1 << 1;
         const Warn = 1 << 2;
         const Info = 1 << 3;
