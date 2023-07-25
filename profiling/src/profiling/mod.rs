@@ -4,7 +4,7 @@ mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
-use stalk_walking::*;
+pub use stalk_walking::*;
 use uploader::*;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
@@ -322,7 +322,7 @@ impl TimeCollector {
                 .expect("entry to exist; just inserted it")
         };
 
-        let mut locations = vec![];
+        let mut locations = Vec::with_capacity(message.value.frames.len());
 
         let values = message.value.sample_values;
         let labels: Vec<profile::api::Label> = message
@@ -336,7 +336,7 @@ impl TimeCollector {
             let location = Location {
                 lines: vec![Line {
                     function: Function {
-                        name: frame.function.as_str(),
+                        name: frame.function.as_ref(),
                         system_name: "",
                         filename: frame.file.as_deref().unwrap_or(""),
                         start_line: 0,
@@ -760,7 +760,7 @@ impl Profiler {
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
                 function: "[eval]".into(),
-                file: Some(filename),
+                file: Some(Cow::Owned(filename)),
                 line,
             }],
             SampleValues {
@@ -813,7 +813,7 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: format!("[{include_type}]"),
+                function: format!("[{include_type}]").into(),
                 file: None,
                 line: 0,
             }],
@@ -879,7 +879,7 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: "[gc]".to_string(),
+                function: "[gc]".into(),
                 file: None,
                 line: 0,
             }],
@@ -998,8 +998,8 @@ mod tests {
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
-            function: "foobar()".to_string(),
-            file: Some("foobar.php".to_string()),
+            function: "foobar()".into(),
+            file: Some("foobar.php".into()),
             line: 42,
         }]
     }
