@@ -125,7 +125,7 @@ VALUES
 	(2,'home','http://localhost:9999','yes'),
 	(3,'blogname','Datadog','yes'),
 	(4,'blogdescription','Just another WordPress site','yes'),
-	(5,'users_can_register','0','yes'),
+	(5,'users_can_register','1','yes'),
 	(6,'admin_email','sammyk@datadoghq.com','yes'),
 	(7,'start_of_week','1','yes'),
 	(8,'use_balanceTags','0','yes'),

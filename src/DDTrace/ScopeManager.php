@@ -129,8 +129,8 @@ final class ScopeManager implements ScopeManagerInterface
 
         $currentSpanId = $topScope->getSpan()->getSpanId();
         $newScopes = [];
-        for ($span = active_span(); $span->id != $currentSpanId; $span = $span->parent) {
-            $scope = new Scope($this, new Span($span, new SpanContext(trace_id(), $span->id, $span->parent->id)), true);
+        for ($span = active_span(); $span && ($span->id != $currentSpanId); $span = $span->parent) {
+            $scope = new Scope($this, new Span($span, new SpanContext(trace_id(), $span->id, $span->parent ? $span->parent->id : null)), true);
             $newScopes[] = $scope;
         }
         foreach (array_reverse($newScopes) as $scope) {

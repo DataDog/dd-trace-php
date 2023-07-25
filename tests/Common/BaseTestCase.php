@@ -13,7 +13,7 @@ use DDTrace\Util\Versions;
  * @method void assertEmpty(array $arr)
  * @method void assertFalse(boolean $value)
  * @method void assertNotEmpty(array $arr)
- * @method void assertSame(mixed $expected, array $value)
+ * @method void assertSame(mixed $expected, mixed $value)
  * @method void assertTrue(boolean $value)
  */
 abstract class BaseTestCase extends MultiPHPUnitVersionAdapter

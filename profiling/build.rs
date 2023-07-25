@@ -26,9 +26,10 @@ fn main() {
     let vernum = php_config_vernum();
     let preload = cfg_preload(vernum);
     let fibers = cfg_fibers(vernum);
+    let run_time_cache = cfg_run_time_cache(vernum);
 
     generate_bindings(php_config_includes, fibers);
-    build_zend_php_ffis(php_config_includes, preload, fibers);
+    build_zend_php_ffis(php_config_includes, preload, run_time_cache, fibers);
 
     cfg_php_major_version(vernum);
     cfg_php_feature_flags(vernum);
@@ -69,7 +70,12 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/json/json.h",
 ];
 
-fn build_zend_php_ffis(php_config_includes: &str, preload: bool, fibers: bool) {
+fn build_zend_php_ffis(
+    php_config_includes: &str,
+    preload: bool,
+    run_time_cache: bool,
+    fibers: bool,
+) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=src/php_ffi.c");
     println!("cargo:rerun-if-changed=../ext/handlers_api.c");
@@ -100,8 +106,9 @@ fn build_zend_php_ffis(php_config_includes: &str, preload: bool, fibers: bool) {
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
     let preload = if preload { "1" } else { "0" };
     let fibers = if fibers { "1" } else { "0" };
+    let run_time_cache = if run_time_cache { "1" } else { "0" };
 
-    #[cfg(any(feature = "stack_walking_tests"))]
+    #[cfg(feature = "stack_walking_tests")]
     let stack_walking_tests = "1";
 
     #[cfg(not(feature = "stack_walking_tests"))]
@@ -111,6 +118,7 @@ fn build_zend_php_ffis(php_config_includes: &str, preload: bool, fibers: bool) {
         .files(files.into_iter().chain(zai_c_files.into_iter()))
         .define("CFG_PRELOAD", preload)
         .define("CFG_FIBERS", fibers)
+        .define("CFG_RUN_TIME_CACHE", run_time_cache)
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .includes([Path::new("../ext")])
         .includes(
@@ -216,6 +224,15 @@ fn generate_bindings(php_config_includes: &str, fibers: bool) {
 fn cfg_preload(vernum: u64) -> bool {
     if vernum >= 70400 {
         println!("cargo:rustc-cfg=php_preload");
+        true
+    } else {
+        false
+    }
+}
+
+fn cfg_run_time_cache(vernum: u64) -> bool {
+    if vernum >= 80000 {
+        println!("cargo:rustc-cfg=php_run_time_cache");
         true
     } else {
         false
