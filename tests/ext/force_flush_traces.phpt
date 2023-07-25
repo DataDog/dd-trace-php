@@ -3,6 +3,7 @@ Force flush the traces mid-way through a trace
 --SKIPIF--
 <?php
 if (!function_exists('posix_kill')) die('skip: posix_kill not available');
+if (getenv('PHP_PEAR_RUNTESTS') === '1') die('skip: Pear/RunTest.php does not support %r...%r tags');
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_GENERATE_ROOT_SPAN=1
@@ -33,7 +34,6 @@ DDTrace\trace_function('process', [
 DDTrace\hook_function('kill', function () {
     ini_set('datadog.autofinish_spans', '1');
     dd_trace_close_all_spans_and_flush(); // 3: root span + process + start_trace_span
-    dd_trace_synchronous_flush(3, 3);
 });
 
 process();
