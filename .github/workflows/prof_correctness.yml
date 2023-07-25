@@ -58,13 +58,13 @@ jobs:
           DD_PROFILING_OUTPUT_PPROF=profiling/tests/correctness/time/test.pprof php -d extension=target/release/libdatadog_php_profiling.so profiling/tests/correctness/time.php
 
       - name: Check profiler correctness for allocations
-        uses: Datadog/prof-correctness@florian/compile-if-commit-sha-available
+        uses: Datadog/prof-correctness/analyze@florian/compile-if-commit-sha-available
         with:
           expected_json: profiling/tests/correctness/allocations.json
           pprof_path: profiling/tests/correctness/allocations/
 
       - name: Check profiler correctness for time
-        uses: Datadog/prof-correctness@florian/compile-if-commit-sha-available
+        uses: Datadog/prof-correctness/analyze@florian/compile-if-commit-sha-available
         with:
           expected_json: profiling/tests/correctness/time.json
           pprof_path: profiling/tests/correctness/time/
