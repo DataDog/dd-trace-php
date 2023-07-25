@@ -166,7 +166,7 @@ static zend_always_inline bool zend_parse_arg_obj(zval *arg, zend_object **dest,
 
 typedef ZEND_RESULT_CODE zend_result;
 
-#define RETURN_THROWS RETURN NULL
+#define RETURN_THROWS RETURN_NULL
 #endif
 
 #if PHP_VERSION_ID < 70400
