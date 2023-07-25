@@ -1,5 +1,5 @@
 {
-    "test_name":"clang_pie",
+    "test_name":"php_allocations",
     "stacks": [
       {
         "profile-type": "alloc-size",
@@ -36,4 +36,4 @@
       }
     ]
   }
-  
+

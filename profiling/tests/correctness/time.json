@@ -1,5 +1,5 @@
 {
-    "test_name":"clang_pie",
+    "test_name":"php_time",
     "stacks": [
       {
         "profile-type": "wall-time",
@@ -44,4 +44,4 @@
       }
     ]
   }
-  
+
