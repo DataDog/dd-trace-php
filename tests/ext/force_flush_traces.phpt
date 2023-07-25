@@ -45,4 +45,4 @@ process
 Flushing trace of size 3 to send-queue for %s
 kill
 Killed
-%r(\nTermsig=9)?%r
+%r\n?(Termsig=9)?%r
