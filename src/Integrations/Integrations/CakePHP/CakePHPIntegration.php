@@ -69,10 +69,6 @@ class CakePHPIntegration extends Integration
             'Controller',
             'invokeAction',
             function (SpanData $span, array $args) use ($integration) {
-                if ($integration->rootSpan === null) {
-                    return false;
-                }
-
                 $span->name = $span->resource = 'Controller.invokeAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->appName;
@@ -110,10 +106,6 @@ class CakePHPIntegration extends Integration
         \DDTrace\trace_method('ExceptionRenderer', '__construct', [
             'instrument_when_limited' => 1,
             'posthook' => function (SpanData $span, array $args) use ($integration) {
-                if ($integration->rootSpan === null) {
-                    return false;
-                }
-
                 $integration->setError($integration->rootSpan, $args[0]);
                 $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
                 return false;
@@ -123,10 +115,6 @@ class CakePHPIntegration extends Integration
         \DDTrace\trace_method('CakeResponse', 'statusCode', [
             'instrument_when_limited' => 1,
             'posthook' => function (SpanData $span, $args, $return) use ($integration) {
-                if ($integration->rootSpan === null) {
-                    return false;
-                }
-
                 $integration->rootSpan->meta[Tag::HTTP_STATUS_CODE] = $return;
                 $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
                 return false;
@@ -135,10 +123,6 @@ class CakePHPIntegration extends Integration
 
         // Create a trace span for every template rendered
         \DDTrace\trace_method('View', 'render', function (SpanData $span) use ($integration) {
-            if ($integration->rootSpan === null) {
-                return false;
-            }
-
             $span->name = 'cakephp.view';
             $span->type = Type::WEB_SERVLET;
             $file = $this->viewPath . '/' . $this->view . $this->ext;

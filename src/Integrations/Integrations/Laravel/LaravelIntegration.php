@@ -79,9 +79,6 @@ class LaravelIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
                 $rootSpan = \DDTrace\root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
 
                 // Overwriting the default web integration
                 $rootSpan->name = 'laravel.request';
@@ -239,9 +236,6 @@ class LaravelIntegration extends Integration
             'get',
             function (SpanData $span, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
-                if ($rootSpan === null) {
-                    return false;
-                }
 
                 // This is used by both laravel and lumen. For consistency we rename it for lumen traces as otherwise
                 // users would see a span changing name as they upgrade to the new version.
@@ -278,11 +272,9 @@ class LaravelIntegration extends Integration
                 }
 
                 $rootSpan = \DDTrace\root_span();
-                if ($rootSpan !== null) {
-                    $rootSpan->name = 'laravel.request';
-                    $rootSpan->service = $serviceName;
-                    $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-                }
+                $rootSpan->name = 'laravel.request';
+                $rootSpan->service = $serviceName;
+                $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
         );
 

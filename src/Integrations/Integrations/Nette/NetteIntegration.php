@@ -52,22 +52,22 @@ class NetteIntegration extends Integration
     {
         $service = \ddtrace_config_app_name(NetteIntegration::NAME);
 
-        \DDTrace\hook_method(
-            'Nette\Configurator',
-            '__construct',
-            function () use ($service) {
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
-
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-
-                $this->addTraceAnalyticsIfEnabled($rootSpan);
-                $rootSpan->service = $service;
-                $rootSpan->meta[Tag::COMPONENT] = NetteIntegration::NAME;
+        $setRootSpanFn = function () use ($service) {
+            $rootSpan = \DDTrace\root_span();
+            if ($rootSpan === null) {
+                return;
             }
-        );
+
+            $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
+            $this->addTraceAnalyticsIfEnabled($rootSpan);
+            $rootSpan->service = $service;
+            $rootSpan->meta[Tag::COMPONENT] = NetteIntegration::NAME;
+        };
+
+        \DDTrace\hook_method('Nette\Configurator', '__construct', $setRootSpanFn);
+        \DDTrace\hook_method('Nette\Bootstrap\Configurator', '__construct', $setRootSpanFn);
+
 
         \DDTrace\trace_method(
             'Nette\Configurator',
@@ -90,9 +90,7 @@ class NetteIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = NetteIntegration::NAME;
 
                 $rootSpan = \DDTrace\root_span();
-                if ($rootSpan !== null) {
-                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = http_response_code();
-                }
+                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = http_response_code();
             }
         );
 
@@ -109,16 +107,14 @@ class NetteIntegration extends Integration
                     return;
                 }
 
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan !== null) {
-                    $request = $args[0];
-                    $presenter = $request->getPresenterName();
-                    $action = $request->getParameter('action');
+                $request = $args[0];
+                $presenter = $request->getPresenterName();
+                $action = $request->getParameter('action');
 
-                    $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                    $rootSpan->meta['nette.route.presenter'] = $presenter;
-                    $rootSpan->meta['nette.route.action'] = $action;
-                }
+                $rootSpan = \DDTrace\root_span();
+                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->meta['nette.route.presenter'] = $presenter;
+                $rootSpan->meta['nette.route.action'] = $action;
             }
         );
 

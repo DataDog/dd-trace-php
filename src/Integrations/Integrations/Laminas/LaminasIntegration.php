@@ -208,10 +208,6 @@ class LaminasIntegration extends Integration
 
 
                     $rootSpan = root_span();
-                    if ($rootSpan === null) {
-                        return;
-                    }
-
                     $rootSpan->name = 'laminas.request';
                     $rootSpan->service = $service;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
@@ -233,11 +229,9 @@ class LaminasIntegration extends Integration
                 $request = $args[0];
 
                 $rootSpan = root_span();
-                if ($rootSpan !== null) {
-                    $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                    $rootSpan->meta[Tag::HTTP_VERSION] = $request->getVersion();
-                    $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
-                }
+                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->meta[Tag::HTTP_VERSION] = $request->getVersion();
+                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
 
                 $routeMatch = $retval;
                 if (is_null($routeMatch)) {
@@ -261,13 +255,12 @@ class LaminasIntegration extends Integration
                         }
                     );
                 }
-                if ($rootSpan !== null) {
-                    if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                        $rootSpan->resource = "$controller@$action $routeName";
-                    }
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $routeName;
-                    $rootSpan->meta['laminas.route.action'] = "$controller@$action";
+
+                if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                    $rootSpan->resource = "$controller@$action $routeName";
                 }
+                $rootSpan->meta[Tag::HTTP_ROUTE] = $routeName;
+                $rootSpan->meta['laminas.route.action'] = "$controller@$action";
             }
         );
 
