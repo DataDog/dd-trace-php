@@ -276,12 +276,13 @@ final class TracerTest extends BaseTestCase
 
         $tracer = new Tracer(new DebugTransport());
         $tracer->startRootSpan('foo');
-        $tracer->getActiveSpan();
+        $foo = $tracer->getActiveSpan();
 
-        \DDTrace\start_trace_span();
-        $tracer->getActiveSpan();
+        $rootSpan = \DDTrace\start_trace_span();
+        $this->assertSame($tracer->getActiveSpan()->internalSpan, $rootSpan);
         \DDTrace\close_span();
 
+        $this->assertSame($foo, $tracer->getActiveSpan());
         $tracer->getActiveSpan()->finish();
 
         $this->assertSame(2, dd_trace_closed_spans_count());
