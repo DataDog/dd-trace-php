@@ -83,6 +83,14 @@
     },
     "extra": {
         "scenarios": {
+            "opentelemetry_beta1": {
+                "require": {
+                    "open-telemetry/opentelemetry": "1.0.0beta1"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "opentracing_beta5": {
                 "require": {
                     "opentracing/opentracing": "1.0.0-beta5"
