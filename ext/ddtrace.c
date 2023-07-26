@@ -1678,7 +1678,7 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
 
     // If zend_long is not a uint32_t, we can't pass it to ddtrace_coms_synchronous_flush
     if (timeout < 0 || timeout > UINT32_MAX) {
-        ddtrace_log_onceerrf("dd_trace_synchronous_flush() expects a timeout in milliseconds");
+        LOG_LINE_ONCE(Error, "dd_trace_synchronous_flush() expects a timeout in milliseconds");
         RETURN_NULL();
     }
 
