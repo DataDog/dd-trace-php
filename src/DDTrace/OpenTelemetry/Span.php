@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace DDTrace\OpenTelemetry\SDK\Trace;
 
+use DDTrace\SpanData;
+use DDTrace\Tag;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
@@ -12,27 +14,42 @@ use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\SDK\Trace\SpanDataInterface;
 use Throwable;
 
+use function DDTrace\close_span;
+
 final class Span extends API\Span implements ReadWriteSpanInterface
 {
+    private SpanData $span;
+
+    private bool $hasEnded;
+
+    private API\SpanContextInterface $context;
+
+    private API\SpanContextInterface $parentContext;
+
+    private int $kind;
+
+    private string $statusCode;
+
+    private InstrumentationScopeInterface $instrumentationScope;
 
     public function getName(): string
     {
-        // TODO: Implement getName() method.
+        return $this->span->name;
     }
 
     public function getParentContext(): API\SpanContextInterface
     {
-        // TODO: Implement getParentContext() method.
+        return $this->parentContext;
     }
 
     public function getInstrumentationScope(): InstrumentationScopeInterface
     {
-        // TODO: Implement getInstrumentationScope() method.
+        return $this->instrumentationScope;
     }
 
     public function hasEnded(): bool
     {
-        // TODO: Implement hasEnded() method.
+        return $this->hasEnded;
     }
 
     /**
@@ -48,7 +65,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getDuration(): int
     {
-        // TODO: Implement getDuration() method.
+        return $this->span->getDuration();
     }
 
     /**
@@ -56,7 +73,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getKind(): int
     {
-        // TODO: Implement getKind() method.
+        return $this->kind;
     }
 
     /**
@@ -64,7 +81,29 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getAttribute(string $key)
     {
-        // TODO: Implement getAttribute() method.
+        $meta = $this->span->meta;
+
+        if (isset($meta[$key])) {
+            return $meta[$key];
+        }
+
+        if (empty($meta)) {
+            return null;
+        }
+
+        // Support for nested attributes through dot notation
+        $prefix = '';
+        $parts = explode('.', $key);
+        foreach ($parts as $part) {
+            $prefix .= $part;
+            if (isset($meta[$prefix])) {
+                return $meta[$prefix];
+            } else {
+                $prefix .= '.';
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -72,7 +111,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getContext(): SpanContextInterface
     {
-        // TODO: Implement getContext() method.
+        return $this->context;
     }
 
     /**
@@ -80,7 +119,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function isRecording(): bool
     {
-        // TODO: Implement isRecording() method.
+        return !$this->hasEnded;
     }
 
     /**
@@ -88,7 +127,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function setAttribute(string $key, $value): SpanInterface
     {
-        // TODO: Implement setAttribute() method.
+        if (!$this->hasEnded) {
+            $this->span->meta[$key] = $value;
+        }
+
+        return $this;
     }
 
     /**
@@ -96,7 +139,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function setAttributes(iterable $attributes): SpanInterface
     {
-        // TODO: Implement setAttributes() method.
+        foreach ($attributes as $key => $value) {
+            $this->setAttribute($key, $value);
+        }
+
+        return $this;
     }
 
     /**
@@ -113,7 +160,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function recordException(Throwable $exception, iterable $attributes = []): SpanInterface
     {
-        // TODO: Implement recordException() method.
+        // no-op
         return $this;
     }
 
@@ -122,7 +169,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function updateName(string $name): SpanInterface
     {
-        // TODO: Implement updateName() method.
+        if (!$this->hasEnded) {
+            $this->span->name = $name;
+        }
+
+        return $this;
     }
 
     /**
@@ -130,7 +181,19 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function setStatus(string $code, string $description = null): SpanInterface
     {
-        // TODO: Implement setStatus() method.
+        if ($this->hasEnded) {
+            return $this;
+        }
+
+        if ($this->statusCode === API\StatusCode::STATUS_UNSET && $code === API\StatusCode::STATUS_ERROR) {
+            $this->statusCode = $code;
+            $this->span->meta[Tag::ERROR_MSG] = $description;
+        } elseif ($this->statusCode === API\StatusCode::STATUS_ERROR && $code === API\StatusCode::STATUS_OK) {
+            $this->statusCode = $code;
+            unset($this->span->meta[Tag::ERROR_MSG]);
+        }
+
+        return $this;
     }
 
     /**
@@ -138,6 +201,12 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function end(int $endEpochNanos = null): void
     {
-        // TODO: Implement end() method.
+        if ($this->hasEnded) {
+            return;
+        }
+
+        // TODO: Actually check if the span was closed (change extension to return a boolean?)
+        close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
+        $this->hasEnded = true;
     }
 }
