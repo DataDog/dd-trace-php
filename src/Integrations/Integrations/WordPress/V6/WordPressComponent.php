@@ -137,7 +137,7 @@ class WordPressComponent
             'shutdown' => true
         ];
 
-        $additionalActionHookNames = dd_trace_env_config("DD_TRACE_WP_ADDITIONAL_ACTIONS");
+        $additionalActionHookNames = dd_trace_env_config("DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS");
         if (!empty($additionalActionHookNames)) {
             $additionalActionHookNames = array_keys($additionalActionHookNames);
             foreach ($additionalActionHookNames as $hookName) {
@@ -247,7 +247,7 @@ class WordPressComponent
         });
 
         hook_function('wp', function () use ($integration) {
-            if (dd_trace_env_config('DD_TRACE_WP_CALLBACKS')) {
+            if (dd_trace_env_config('DD_TRACE_WORDPRESS_CALLBACKS')) {
                 WordPressComponent::setSpansLimit();
             }
 
@@ -328,6 +328,14 @@ class WordPressComponent
             WordPressComponent::setCommonTags($integration, $span, 'wp_widgets_init');
         });
 
+        trace_method('WP_Widget_Factory', '_register_widgets', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP_Widget_Factory._register_widgets');
+        });
+
+        \DDTrace\trace_method('WP_Widget', 'display_callback', function (SpanData $span) use ($integration) {
+            WordPressComponent::setCommonTags($integration, $span, 'WP_Widget.display_callback');
+        });
+
         // These not called in PHP 5 due to call_user_func_array() bug
         trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($integration) {
             WordPressComponent::setCommonTags($integration, $span, 'wp_maybe_load_widgets');
@@ -403,7 +411,7 @@ class WordPressComponent
                 $span->resource = "$templatePart (template)";
                 $span->meta['wp.template_part'] = $templatePart;
             } else {
-                $span->resource = !empty($template) ? $template : $span->name;
+                $span->resource = !empty($templateFile) ? "$templateFile (template)" : $span->name;
             }
         });
 
@@ -606,7 +614,7 @@ class WordPressComponent
             $action = $args[0];
             $callback = $args[1];
             $pluginName = end($plugins);
-            if (isset($interestingActions[$action]) && dd_trace_env_config('DD_TRACE_WP_CALLBACKS')) {
+            if (isset($interestingActions[$action]) && dd_trace_env_config('DD_TRACE_WORDPRESS_CALLBACKS')) {
                 install_hook(
                     (
                     is_array($callback) && is_string($callback[0])
