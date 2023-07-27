@@ -4,42 +4,165 @@ declare(strict_types=1);
 
 namespace DDTrace\OpenTelemetry\SDK\Trace;
 
+use DDTrace\Propagator;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
+use OpenTelemetry\Context\ContextInterface;
+use OpenTelemetry\SDK\Common\Attribute\Attributes;
+use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
+use OpenTelemetry\SDK\Resource\ResourceInfo;
+use OpenTelemetry\SDK\Trace\EventInterface;
+use OpenTelemetry\SDK\Trace\ImmutableSpan;
+use OpenTelemetry\SDK\Trace\LinkInterface;
 use OpenTelemetry\SDK\Trace\ReadWriteSpanInterface;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\SDK\Trace\SpanDataInterface;
+use OpenTelemetry\SDK\Trace\SpanLimits;
+use OpenTelemetry\SDK\Trace\SpanProcessorInterface;
+use OpenTelemetry\SDK\Trace\StatusData;
+use OpenTelemetry\SDK\Trace\StatusDataInterface;
 use Throwable;
 
 use function DDTrace\close_span;
+use function DDTrace\trace_id;
 
 final class Span extends API\Span implements ReadWriteSpanInterface
 {
     private SpanData $span;
 
-    private bool $hasEnded;
-
+    /** @readonly */
     private API\SpanContextInterface $context;
 
-    private API\SpanContextInterface $parentContext;
+    /** @readonly */
+    private API\SpanContextInterface $parentSpanContext;
 
+    /**
+     * @readonly
+     *
+     * @var list<LinkInterface>
+     */
+    private array $links;
+
+    /** @readonly */
+    private int $totalRecordedLinks;
+
+    /** @readonly */
     private int $kind;
 
-    private string $statusCode;
+    /** @readonly */
+    private ResourceInfo $resource;
 
+    /** @readonly */
     private InstrumentationScopeInterface $instrumentationScope;
+
+    /** @readonly */
+    private int $startEpochNanos;
+
+    /** @var non-empty-string */
+    private string $name;
+
+    /** @var list<EventInterface> */
+    private array $events = [];
+
+    private AttributesBuilderInterface $attributesBuilder;
+    private int $totalRecordedEvents = 0;
+    private StatusDataInterface $status;
+    private int $endEpochNanos = 0;
+    private bool $hasEnded = false;
+
+    private function __construct(
+        SpanData $span,
+        API\SpanContextInterface $context,
+        InstrumentationScopeInterface $instrumentationScope,
+        int $kind,
+        API\SpanContextInterface $parentSpanContext,
+        SpanProcessorInterface $spanProcessor,
+        ResourceInfo $resource,
+        AttributesBuilderInterface $attributesBuilder,
+        array $links,
+        int $totalRecordedLinks,
+        int $startEpochNanos
+    ) {
+        $this->span = $span;
+        $this->context = $context;
+        $this->instrumentationScope = $instrumentationScope;
+        $this->kind = $kind;
+        $this->parentSpanContext = $parentSpanContext;
+        $this->spanProcessor = $spanProcessor;
+        $this->resource = $resource;
+        $this->attributesBuilder = $attributesBuilder;
+        $this->links = $links;
+        $this->totalRecordedLinks = $totalRecordedLinks;
+        $this->startEpochNanos = $startEpochNanos;
+
+        $this->status = StatusData::unset();
+    }
+
+    /**
+     * This method _MUST_ not be used directly.
+     * End users should use a {@see API\TracerInterface} in order to create spans.
+     *
+     * @param non-empty-string $name
+     * @psalm-param API\SpanKind::KIND_* $kind
+     * @param list<LinkInterface> $links
+     *
+     * @internal
+     * @psalm-internal OpenTelemetry
+     */
+    public static function startSpan(
+        SpanData $span,
+        API\SpanContextInterface $context,
+        InstrumentationScopeInterface $instrumentationScope,
+        int $kind,
+        API\SpanInterface $parentSpan,
+        ContextInterface $parentContext,
+        ResourceInfo $resource,
+        AttributesBuilderInterface $attributesBuilder,
+        array $links,
+        int $totalRecordedLinks,
+        int $startEpochNanos
+    ): self {
+        $OTelSpan = new self(
+            $span,
+            $context,
+            $instrumentationScope,
+            $kind,
+            $parentSpan->getContext(),
+            $resource,
+            $attributesBuilder,
+            $links,
+            $totalRecordedLinks,
+            $startEpochNanos
+        );
+
+        // TODO: Span Processors are future work
+
+        return $OTelSpan;
+    }
 
     public function getName(): string
     {
         return $this->span->name;
     }
 
+    /**
+     * @inheritDoc
+     */
+    public function getContext(): SpanContextInterface
+    {
+        $headers = \DDTrace\generate_distributed_tracing_headers();
+        $traceFlags = isset($headers[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]) ? API\TraceFlags::SAMPLED : API\TraceFlags::DEFAULT;
+        $traceState = isset($headers["tracestate"]) ? new API\TraceState($headers["tracestate"]) : null; // TODO: Check if the parsing is correct
+
+        return API\SpanContext::create(trace_id(), $this->span->id, $traceFlags, $traceState);
+    }
+
     public function getParentContext(): API\SpanContextInterface
     {
-        return $this->parentContext;
+        return $this->parentSpanContext;
     }
 
     public function getInstrumentationScope(): InstrumentationScopeInterface
@@ -57,7 +180,17 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function toSpanData(): SpanDataInterface
     {
-        // TODO: Implement toSpanData() method.
+        return new ImmutableSpan(
+            $this,
+            $this->getName(),
+            null, // TODO: Handle Span Links
+        null,
+            Attributes::create($this->span->meta), // TODO: See if it handles 'nested' attributes correctly
+            0,
+            new StatusData($this->statusCode, $this->description),
+            $this->hasEnded ? $this->getDuration() : 0,
+            $this->hasEnded
+        );
     }
 
     /**
@@ -104,14 +237,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         }
 
         return null;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function getContext(): SpanContextInterface
-    {
-        return $this->context;
     }
 
     /**
@@ -187,9 +312,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         if ($this->statusCode === API\StatusCode::STATUS_UNSET && $code === API\StatusCode::STATUS_ERROR) {
             $this->statusCode = $code;
+            $this->description = $description;
             $this->span->meta[Tag::ERROR_MSG] = $description;
         } elseif ($this->statusCode === API\StatusCode::STATUS_ERROR && $code === API\StatusCode::STATUS_OK) {
             $this->statusCode = $code;
+            $this->description = $description;
             unset($this->span->meta[Tag::ERROR_MSG]);
         }
 
