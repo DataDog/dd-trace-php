@@ -37,7 +37,9 @@ define( 'DB_CHARSET', 'utf8mb4' );
 /** The database collate type. Don't change this if in doubt. */
 define( 'DB_COLLATE', '' );
 
-define('DISABLE_WP_CRON', 'true');
+define( 'DISABLE_WP_CRON', true ); // disable cron
+define( 'WP_CACHE', false );  // disable cache/transients
+define( 'DISABLE_CACHE', true );  // disable cache/transients
 
 /**#@+
  * Authentication unique keys and salts.
@@ -81,7 +83,7 @@ $table_prefix = 'wp55_';
  *
  * @link https://wordpress.org/support/article/debugging-in-wordpress/
  */
-define( 'WP_DEBUG', false );
+define( 'WP_DEBUG', true );
 
 /* Add any custom values between this line and the "stop editing" line. */
 

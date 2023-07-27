@@ -332,10 +332,6 @@ class WordPressComponent
             WordPressComponent::setCommonTags($integration, $span, 'WP_Widget_Factory._register_widgets');
         });
 
-        \DDTrace\trace_method('WP_Widget', 'display_callback', function (SpanData $span) use ($integration) {
-            WordPressComponent::setCommonTags($integration, $span, 'WP_Widget.display_callback');
-        });
-
         // These not called in PHP 5 due to call_user_func_array() bug
         trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($integration) {
             WordPressComponent::setCommonTags($integration, $span, 'wp_maybe_load_widgets');

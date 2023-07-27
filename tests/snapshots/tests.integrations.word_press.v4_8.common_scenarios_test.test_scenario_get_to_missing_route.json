@@ -1,0 +1,1323 @@
+[[
+  {
+    "name": "wordpress.request",
+    "service": "wordpress_test_app",
+    "resource": "GET /does_not_exist",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 6934551404127269683,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-1",
+      "component": "wordpress",
+      "http.method": "GET",
+      "http.status_code": "200",
+      "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
+      "runtime-id": "004030ea-2d10-499a-83ad-1e83753a2ed5",
+      "span.kind": "server",
+      "usr.id": "0"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "mysqli_real_connect",
+       "service": "mysqli",
+       "resource": "mysqli_real_connect",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "mysqli",
+         "db.system": "mysql",
+         "db.type": "mysql",
+         "out.host": "mysql_integration",
+         "out.port": "3306",
+         "span.kind": "client"
+       }
+     },
+     {
+       "name": "mysqli_query",
+       "service": "mysqli",
+       "resource": "SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_520_ci'",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "mysqli",
+         "db.system": "mysql",
+         "db.type": "mysql",
+         "out.host": "mysql_integration",
+         "out.port": "3306",
+         "span.kind": "client"
+       }
+     },
+     {
+       "name": "mysqli_query",
+       "service": "mysqli",
+       "resource": "SELECT @@SESSION.sql_mode",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "mysqli",
+         "db.system": "mysql",
+         "db.type": "mysql",
+         "out.host": "mysql_integration",
+         "out.port": "3306",
+         "span.kind": "client"
+       },
+       "metrics": {
+         "db.row_count": 1.0
+       }
+     },
+     {
+       "name": "mysqli_query",
+       "service": "mysqli",
+       "resource": "SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION'",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "mysqli",
+         "db.system": "mysql",
+         "db.type": "mysql",
+         "out.host": "mysql_integration",
+         "out.port": "3306",
+         "span.kind": "client"
+       }
+     },
+     {
+       "name": "mysqli_query",
+       "service": "mysqli",
+       "resource": "SELECT option_name, option_value FROM wp_options WHERE autoload = 'yes'",
+       "trace_id": 0,
+       "span_id": 6,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "mysqli",
+         "db.name": "test",
+         "db.system": "mysql",
+         "db.type": "mysql",
+         "out.host": "mysql_integration",
+         "out.port": "3306",
+         "span.kind": "client"
+       },
+       "metrics": {
+         "db.row_count": 108.0
+       }
+     },
+     {
+       "name": "create_initial_taxonomies",
+       "service": "wordpress_test_app",
+       "resource": "create_initial_taxonomies",
+       "trace_id": 0,
+       "span_id": 7,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wp.callback": "create_initial_taxonomies"
+       }
+     },
+     {
+       "name": "create_initial_post_types",
+       "service": "wordpress_test_app",
+       "resource": "create_initial_post_types",
+       "trace_id": 0,
+       "span_id": 8,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wp.callback": "create_initial_post_types"
+       }
+     },
+     {
+       "name": "load_plugin",
+       "service": "wordpress_test_app",
+       "resource": "datadog (plugin)",
+       "trace_id": 0,
+       "span_id": 9,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wp.plugin": "datadog",
+         "wp.plugin_file": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/plugins/datadog/datadog.php"
+       }
+     },
+     {
+       "name": "action",
+       "service": "wordpress_test_app",
+       "resource": "plugins_loaded (hook)",
+       "trace_id": 0,
+       "span_id": 10,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wp.hook": "plugins_loaded"
+       }
+     },
+        {
+          "name": "wp_maybe_load_widgets",
+          "service": "wordpress_test_app",
+          "resource": "wp_maybe_load_widgets",
+          "trace_id": 0,
+          "span_id": 20,
+          "parent_id": 10,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "wp_maybe_load_widgets"
+          }
+        },
+        {
+          "name": "wp_maybe_load_embeds",
+          "service": "wordpress_test_app",
+          "resource": "wp_maybe_load_embeds",
+          "trace_id": 0,
+          "span_id": 21,
+          "parent_id": 10,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "wp_maybe_load_embeds"
+          }
+        },
+        {
+          "name": "_wp_customize_include",
+          "service": "wordpress_test_app",
+          "resource": "_wp_customize_include",
+          "trace_id": 0,
+          "span_id": 22,
+          "parent_id": 10,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "_wp_customize_include"
+          }
+        },
+     {
+       "name": "action",
+       "service": "wordpress_test_app",
+       "resource": "setup_theme (hook)",
+       "trace_id": 0,
+       "span_id": 11,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wp.hook": "setup_theme"
+       }
+     },
+     {
+       "name": "mysqli_query",
+       "service": "mysqli",
+       "resource": "SELECT option_value FROM wp_options WHERE option_name = 'WPLANG' LIMIT 1",
+       "trace_id": 0,
+       "span_id": 12,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "mysqli",
+         "db.name": "test",
+         "db.system": "mysql",
+         "db.type": "mysql",
+         "out.host": "mysql_integration",
+         "out.port": "3306",
+         "span.kind": "client"
+       },
+       "metrics": {
+         "db.row_count": 0.0
+       }
+     },
+     {
+       "name": "action",
+       "service": "wordpress_test_app",
+       "resource": "after_setup_theme (hook)",
+       "trace_id": 0,
+       "span_id": 13,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wp.hook": "after_setup_theme"
+       }
+     },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "twentyseventeen_setup (callback)",
+          "trace_id": 0,
+          "span_id": 23,
+          "parent_id": 13,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "twentyseventeen_setup"
+          }
+        },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "twentyseventeen_custom_header_setup (callback)",
+          "trace_id": 0,
+          "span_id": 24,
+          "parent_id": 13,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "twentyseventeen_custom_header_setup"
+          }
+        },
+     {
+       "name": "WP.init",
+       "service": "wordpress_test_app",
+       "resource": "WP.init",
+       "trace_id": 0,
+       "span_id": 14,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "kses_init (callback)",
+          "trace_id": 0,
+          "span_id": 25,
+          "parent_id": 14,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "kses_init"
+          }
+        },
+     {
+       "name": "action",
+       "service": "wordpress_test_app",
+       "resource": "init (hook)",
+       "trace_id": 0,
+       "span_id": 15,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wp.hook": "init"
+       }
+     },
+        {
+          "name": "create_initial_post_types",
+          "service": "wordpress_test_app",
+          "resource": "create_initial_post_types",
+          "trace_id": 0,
+          "span_id": 26,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "create_initial_taxonomies",
+          "service": "wordpress_test_app",
+          "resource": "create_initial_taxonomies",
+          "trace_id": 0,
+          "span_id": 27,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "wp_widgets_init",
+          "service": "wordpress_test_app",
+          "resource": "wp_widgets_init",
+          "trace_id": 0,
+          "span_id": 28,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "wp_widgets_init"
+          }
+        },
+           {
+             "name": "WP_Widget_Factory._register_widgets",
+             "service": "wordpress_test_app",
+             "resource": "WP_Widget_Factory._register_widgets",
+             "trace_id": 0,
+             "span_id": 48,
+             "parent_id": 28,
+             "type": "web",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "smilies_init (callback)",
+          "trace_id": 0,
+          "span_id": 29,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "smilies_init"
+          }
+        },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "wp_cron (callback)",
+          "trace_id": 0,
+          "span_id": 30,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "wp_cron"
+          }
+        },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "_show_post_preview (callback)",
+          "trace_id": 0,
+          "span_id": 31,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "_show_post_preview"
+          }
+        },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "rest_api_init (callback)",
+          "trace_id": 0,
+          "span_id": 32,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "rest_api_init"
+          }
+        },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "wp_schedule_update_checks (callback)",
+          "trace_id": 0,
+          "span_id": 33,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "wp_schedule_update_checks"
+          }
+        },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "check_theme_switched (callback)",
+          "trace_id": 0,
+          "span_id": 34,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "check_theme_switched"
+          }
+        },
+           {
+             "name": "mysqli_query",
+             "service": "mysqli",
+             "resource": "SELECT option_value FROM wp_options WHERE option_name = 'theme_switched' LIMIT 1",
+             "trace_id": 0,
+             "span_id": 49,
+             "parent_id": 34,
+             "type": "sql",
+             "meta": {
+               "component": "mysqli",
+               "db.name": "test",
+               "db.system": "mysql",
+               "db.type": "mysql",
+               "out.host": "mysql_integration",
+               "out.port": "3306",
+               "span.kind": "client"
+             },
+             "metrics": {
+               "db.row_count": 0.0
+             }
+           },
+     {
+       "name": "action",
+       "service": "wordpress_test_app",
+       "resource": "wp_loaded (hook)",
+       "trace_id": 0,
+       "span_id": 16,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wp.hook": "wp_loaded"
+       }
+     },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "_custom_header_background_just_in_time (callback)",
+          "trace_id": 0,
+          "span_id": 35,
+          "parent_id": 16,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "_custom_header_background_just_in_time"
+          }
+        },
+     {
+       "name": "WP.main",
+       "service": "wordpress_test_app",
+       "resource": "WP.main",
+       "trace_id": 0,
+       "span_id": 17,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "WP.init",
+          "service": "wordpress_test_app",
+          "resource": "WP.init",
+          "trace_id": 0,
+          "span_id": 36,
+          "parent_id": 17,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.parse_request",
+          "service": "wordpress_test_app",
+          "resource": "WP.parse_request",
+          "trace_id": 0,
+          "span_id": 37,
+          "parent_id": 17,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "mysqli_query",
+             "service": "mysqli",
+             "resource": "\n\t\tSELECT ID, post_name, post_parent, post_type\n\t\tFROM wp_posts\n\t\tWHERE post_name IN ('does_not_exist')\n\t\tAND post_type IN ('page','attachment')\n\t",
+             "trace_id": 0,
+             "span_id": 50,
+             "parent_id": 37,
+             "type": "sql",
+             "meta": {
+               "component": "mysqli",
+               "db.name": "test",
+               "db.system": "mysql",
+               "db.type": "mysql",
+               "out.host": "mysql_integration",
+               "out.port": "3306",
+               "span.kind": "client"
+             },
+             "metrics": {
+               "db.row_count": 0.0
+             }
+           },
+        {
+          "name": "WP.send_headers",
+          "service": "wordpress_test_app",
+          "resource": "WP.send_headers",
+          "trace_id": 0,
+          "span_id": 38,
+          "parent_id": 17,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.query_posts",
+          "service": "wordpress_test_app",
+          "resource": "WP.query_posts",
+          "trace_id": 0,
+          "span_id": 39,
+          "parent_id": 17,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "mysqli_query",
+             "service": "mysqli",
+             "resource": "SELECT   wp_posts.* FROM wp_posts  WHERE 1=1  AND wp_posts.post_name = 'does_not_exist' AND wp_posts.post_type = 'post'  ORDER BY wp_posts.post_date DESC ",
+             "trace_id": 0,
+             "span_id": 51,
+             "parent_id": 39,
+             "type": "sql",
+             "meta": {
+               "component": "mysqli",
+               "db.name": "test",
+               "db.system": "mysql",
+               "db.type": "mysql",
+               "out.host": "mysql_integration",
+               "out.port": "3306",
+               "span.kind": "client"
+             },
+             "metrics": {
+               "db.row_count": 0.0
+             }
+           },
+        {
+          "name": "WP.handle_404",
+          "service": "wordpress_test_app",
+          "resource": "WP.handle_404",
+          "trace_id": 0,
+          "span_id": 40,
+          "parent_id": 17,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.register_globals",
+          "service": "wordpress_test_app",
+          "resource": "WP.register_globals",
+          "trace_id": 0,
+          "span_id": 41,
+          "parent_id": 17,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "action",
+          "service": "wordpress_test_app",
+          "resource": "wp (hook)",
+          "trace_id": 0,
+          "span_id": 42,
+          "parent_id": 17,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.hook": "wp"
+          }
+        },
+     {
+       "name": "load_template_loader",
+       "service": "wordpress_test_app",
+       "resource": "load_template_loader",
+       "trace_id": 0,
+       "span_id": 18,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "action",
+          "service": "wordpress_test_app",
+          "resource": "template_redirect (hook)",
+          "trace_id": 0,
+          "span_id": 43,
+          "parent_id": 18,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.hook": "template_redirect"
+          }
+        },
+           {
+             "name": "callback",
+             "service": "wordpress_test_app",
+             "resource": "_wp_admin_bar_init (callback)",
+             "trace_id": 0,
+             "span_id": 52,
+             "parent_id": 43,
+             "type": "web",
+             "meta": {
+               "component": "wordpress",
+               "wp.callback": "_wp_admin_bar_init"
+             }
+           },
+           {
+             "name": "callback",
+             "service": "wordpress_test_app",
+             "resource": "twentyseventeen_content_width (callback)",
+             "trace_id": 0,
+             "span_id": 53,
+             "parent_id": 43,
+             "type": "web",
+             "meta": {
+               "component": "wordpress",
+               "wp.callback": "twentyseventeen_content_width"
+             }
+           },
+           {
+             "name": "callback",
+             "service": "wordpress_test_app",
+             "resource": "wp_old_slug_redirect (callback)",
+             "trace_id": 0,
+             "span_id": 54,
+             "parent_id": 43,
+             "type": "web",
+             "meta": {
+               "component": "wordpress",
+               "wp.callback": "wp_old_slug_redirect"
+             }
+           },
+              {
+                "name": "mysqli_query",
+                "service": "mysqli",
+                "resource": "SELECT post_id FROM wp_postmeta, wp_posts WHERE ID = post_id AND post_type = 'post' AND meta_key = '_wp_old_slug' AND meta_value = 'does_not_exist'",
+                "trace_id": 0,
+                "span_id": 60,
+                "parent_id": 54,
+                "type": "sql",
+                "meta": {
+                  "component": "mysqli",
+                  "db.name": "test",
+                  "db.system": "mysql",
+                  "db.type": "mysql",
+                  "out.host": "mysql_integration",
+                  "out.port": "3306",
+                  "span.kind": "client"
+                },
+                "metrics": {
+                  "db.row_count": 0.0
+                }
+              },
+           {
+             "name": "callback",
+             "service": "wordpress_test_app",
+             "resource": "rest_output_link_header (callback)",
+             "trace_id": 0,
+             "span_id": 55,
+             "parent_id": 43,
+             "type": "web",
+             "meta": {
+               "component": "wordpress",
+               "wp.callback": "rest_output_link_header"
+             }
+           },
+           {
+             "name": "callback",
+             "service": "wordpress_test_app",
+             "resource": "wp_shortlink_header (callback)",
+             "trace_id": 0,
+             "span_id": 56,
+             "parent_id": 43,
+             "type": "web",
+             "meta": {
+               "component": "wordpress",
+               "wp.callback": "wp_shortlink_header"
+             }
+           },
+           {
+             "name": "callback",
+             "service": "wordpress_test_app",
+             "resource": "wp_redirect_admin_locations (callback)",
+             "trace_id": 0,
+             "span_id": 57,
+             "parent_id": 43,
+             "type": "web",
+             "meta": {
+               "component": "wordpress",
+               "wp.callback": "wp_redirect_admin_locations"
+             }
+           },
+        {
+          "name": "template",
+          "service": "wordpress_test_app",
+          "resource": "404 (type)",
+          "trace_id": 0,
+          "span_id": 44,
+          "parent_id": 18,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.template_type": "404",
+            "wp.theme": "Twenty Seventeen"
+          }
+        },
+        {
+          "name": "get_header",
+          "service": "wordpress_test_app",
+          "resource": "get_header",
+          "trace_id": 0,
+          "span_id": 45,
+          "parent_id": 18,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "load_template",
+             "service": "wordpress_test_app",
+             "resource": "header (template)",
+             "trace_id": 0,
+             "span_id": 58,
+             "parent_id": 45,
+             "type": "web",
+             "meta": {
+               "component": "wordpress",
+               "wp.template_file": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/header.php",
+               "wp.template_part": "header",
+               "wp.theme": "Twenty Seventeen"
+             }
+           },
+              {
+                "name": "action",
+                "service": "wordpress_test_app",
+                "resource": "wp_head (hook)",
+                "trace_id": 0,
+                "span_id": 61,
+                "parent_id": 58,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wp.hook": "wp_head"
+                }
+              },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "twentyseventeen_javascript_detection (callback)",
+                   "trace_id": 0,
+                   "span_id": 65,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "twentyseventeen_javascript_detection"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "_wp_render_title_tag (callback)",
+                   "trace_id": 0,
+                   "span_id": 66,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "_wp_render_title_tag"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_enqueue_scripts (callback)",
+                   "trace_id": 0,
+                   "span_id": 67,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_enqueue_scripts"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "noindex (callback)",
+                   "trace_id": 0,
+                   "span_id": 68,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "noindex"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_post_preview_js (callback)",
+                   "trace_id": 0,
+                   "span_id": 69,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_post_preview_js"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_resource_hints (callback)",
+                   "trace_id": 0,
+                   "span_id": 70,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_resource_hints"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "feed_links (callback)",
+                   "trace_id": 0,
+                   "span_id": 71,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "feed_links"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "feed_links_extra (callback)",
+                   "trace_id": 0,
+                   "span_id": 72,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "feed_links_extra"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "print_emoji_detection_script (callback)",
+                   "trace_id": 0,
+                   "span_id": 73,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "print_emoji_detection_script"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_print_styles (callback)",
+                   "trace_id": 0,
+                   "span_id": 74,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_print_styles"
+                   }
+                 },
+                 {
+                   "name": "wp_print_head_scripts",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_print_head_scripts",
+                   "trace_id": 0,
+                   "span_id": 75,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_print_head_scripts"
+                   }
+                 },
+                    {
+                      "name": "mysqli_query",
+                      "service": "mysqli",
+                      "resource": "SELECT option_value FROM wp_options WHERE option_name = 'can_compress_scripts' LIMIT 1",
+                      "trace_id": 0,
+                      "span_id": 96,
+                      "parent_id": 75,
+                      "type": "sql",
+                      "meta": {
+                        "component": "mysqli",
+                        "db.name": "test",
+                        "db.system": "mysql",
+                        "db.type": "mysql",
+                        "out.host": "mysql_integration",
+                        "out.port": "3306",
+                        "span.kind": "client"
+                      },
+                      "metrics": {
+                        "db.row_count": 1.0
+                      }
+                    },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "rest_output_link_wp_head (callback)",
+                   "trace_id": 0,
+                   "span_id": 76,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "rest_output_link_wp_head"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "rsd_link (callback)",
+                   "trace_id": 0,
+                   "span_id": 77,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "rsd_link"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wlwmanifest_link (callback)",
+                   "trace_id": 0,
+                   "span_id": 78,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wlwmanifest_link"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "adjacent_posts_rel_link_wp_head (callback)",
+                   "trace_id": 0,
+                   "span_id": 79,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "adjacent_posts_rel_link_wp_head"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "locale_stylesheet (callback)",
+                   "trace_id": 0,
+                   "span_id": 80,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "locale_stylesheet"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_generator (callback)",
+                   "trace_id": 0,
+                   "span_id": 81,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_generator"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "rel_canonical (callback)",
+                   "trace_id": 0,
+                   "span_id": 82,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "rel_canonical"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_shortlink_wp_head (callback)",
+                   "trace_id": 0,
+                   "span_id": 83,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_shortlink_wp_head"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "_custom_logo_header_styles (callback)",
+                   "trace_id": 0,
+                   "span_id": 84,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "_custom_logo_header_styles"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_oembed_add_discovery_links (callback)",
+                   "trace_id": 0,
+                   "span_id": 85,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_oembed_add_discovery_links"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_oembed_add_host_js (callback)",
+                   "trace_id": 0,
+                   "span_id": 86,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_oembed_add_host_js"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "twentyseventeen_pingback_header (callback)",
+                   "trace_id": 0,
+                   "span_id": 87,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "twentyseventeen_pingback_header"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "twentyseventeen_colors_css_wrap (callback)",
+                   "trace_id": 0,
+                   "span_id": 88,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "twentyseventeen_colors_css_wrap"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "WP_Widget_Recent_Comments::recent_comments_style (callback)",
+                   "trace_id": 0,
+                   "span_id": 89,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "WP_Widget_Recent_Comments::recent_comments_style"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "twentyseventeen_header_style (callback)",
+                   "trace_id": 0,
+                   "span_id": 90,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "twentyseventeen_header_style"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_site_icon (callback)",
+                   "trace_id": 0,
+                   "span_id": 91,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_site_icon"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_custom_css_cb (callback)",
+                   "trace_id": 0,
+                   "span_id": 92,
+                   "parent_id": 61,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_custom_css_cb"
+                   }
+                 },
+              {
+                "name": "body_class",
+                "service": "wordpress_test_app",
+                "resource": "body_class",
+                "trace_id": 0,
+                "span_id": 62,
+                "parent_id": 58,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress"
+                }
+              },
+              {
+                "name": "the_custom_header_markup",
+                "service": "wordpress_test_app",
+                "resource": "the_custom_header_markup",
+                "trace_id": 0,
+                "span_id": 63,
+                "parent_id": 58,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress"
+                }
+              },
+        {
+          "name": "get_footer",
+          "service": "wordpress_test_app",
+          "resource": "get_footer",
+          "trace_id": 0,
+          "span_id": 46,
+          "parent_id": 18,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "load_template",
+             "service": "wordpress_test_app",
+             "resource": "footer (template)",
+             "trace_id": 0,
+             "span_id": 59,
+             "parent_id": 46,
+             "type": "web",
+             "meta": {
+               "component": "wordpress",
+               "wp.template_file": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/footer.php",
+               "wp.template_part": "footer",
+               "wp.theme": "Twenty Seventeen"
+             }
+           },
+              {
+                "name": "action",
+                "service": "wordpress_test_app",
+                "resource": "wp_footer (hook)",
+                "trace_id": 0,
+                "span_id": 64,
+                "parent_id": 59,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress",
+                  "wp.hook": "wp_footer"
+                }
+              },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_print_footer_scripts (callback)",
+                   "trace_id": 0,
+                   "span_id": 93,
+                   "parent_id": 64,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_print_footer_scripts"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "wp_admin_bar_render (callback)",
+                   "trace_id": 0,
+                   "span_id": 94,
+                   "parent_id": 64,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "wp_admin_bar_render"
+                   }
+                 },
+                 {
+                   "name": "callback",
+                   "service": "wordpress_test_app",
+                   "resource": "twentyseventeen_include_svg_icons (callback)",
+                   "trace_id": 0,
+                   "span_id": 95,
+                   "parent_id": 64,
+                   "type": "web",
+                   "meta": {
+                     "component": "wordpress",
+                     "wp.callback": "twentyseventeen_include_svg_icons"
+                   }
+                 },
+     {
+       "name": "action",
+       "service": "wordpress_test_app",
+       "resource": "shutdown (hook)",
+       "trace_id": 0,
+       "span_id": 19,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wp.hook": "shutdown"
+       }
+     },
+        {
+          "name": "callback",
+          "service": "wordpress_test_app",
+          "resource": "wp_ob_end_flush_all (callback)",
+          "trace_id": 0,
+          "span_id": 47,
+          "parent_id": 19,
+          "type": "web",
+          "meta": {
+            "component": "wordpress",
+            "wp.callback": "wp_ob_end_flush_all"
+          }
+        }]]

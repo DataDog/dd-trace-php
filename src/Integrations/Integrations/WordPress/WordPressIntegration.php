@@ -59,11 +59,8 @@ class WordPressIntegration extends Integration
                 return false;
             }
             $majorVersion = substr($GLOBALS['wp_version'], 0, 1);
-            if ($majorVersion >= 6) {
+            if ($majorVersion >= 4) {
                 $loader = new WordPressComponent();
-                $loader->load($integration);
-            } elseif ($majorVersion >= 4) {
-                $loader = new WordPressIntegrationLoader();
                 $loader->load($integration);
             }
 
