@@ -5,19 +5,19 @@
     "resource": "GET /error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 9614063824599769117,
+    "parent_id": 12877067472779999152,
     "type": "web",
     "error": 1,
     "meta": {
       "_dd.p.dm": "-1",
       "component": "wordpress",
-      "error.message": "Uncaught Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:24",
+      "error.message": "Uncaught Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:23",
       "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(287): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(311): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/plugin.php(544): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(745): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/functions.php(1285): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/index.php(17): require()\n#8 {main}",
       "error.type": "Exception",
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
-      "runtime-id": "adfad3be-8ab3-4507-b37d-d1b258faa5a6",
+      "runtime-id": "78f2c05b-d996-4e25-984f-777fad06083c",
       "span.kind": "server"
     },
     "metrics": {
@@ -425,7 +425,7 @@
        "error": 1,
        "meta": {
          "component": "wordpress",
-         "error.message": "Thrown Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:24",
+         "error.message": "Thrown Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:23",
          "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(287): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(311): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/plugin.php(544): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(745): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/functions.php(1285): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/index.php(17): require()\n#8 {main}",
          "error.type": "Exception"
        }
@@ -453,7 +453,7 @@
           "error": 1,
           "meta": {
             "component": "wordpress",
-            "error.message": "Thrown Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:24",
+            "error.message": "Thrown Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:23",
             "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(287): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(311): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/plugin.php(544): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(745): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/functions.php(1285): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/index.php(17): require()\n#8 {main}",
             "error.type": "Exception"
           }
