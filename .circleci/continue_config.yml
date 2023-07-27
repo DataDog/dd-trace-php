@@ -71,7 +71,7 @@ aliases:
       DD_REQUEST_DUMPER_FILE: dump.json
 
   - &IMAGE_DOCKER_DD_TEST_AGENT
-    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.10.1
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
     name: test-agent
     environment:
       LOG_LEVEL: DEBUG
@@ -81,7 +81,9 @@ aliases:
       SNAPSHOT_DIR: /snapshots
       SNAPSHOT_CI: 1
       DD_SUPPRESS_TRACE_PARSE_ERRORS: true
-      DISABLED_CHECKS: trace_content_length
+      ENABLED_CHECKS: trace_stall,trace_peer_service,trace_dd_service
+      DD_POOL_TRACE_CHECK_FAILURES: true
+      DD_DISABLE_ERROR_RESPONSES: true
 
   - &IMAGE_DOCKER_SQLSRV
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -180,6 +182,42 @@ aliases:
     run:
       name: Waiting for Dockerized APM Test Agent
       command: wait-for test-agent:9126 --timeout=30
+
+  - &STEP_GET_TEST_AGENT_RESULTS
+    run:
+      name: Get APM Test Agent Trace Check Results
+      when: always
+      command: |
+        sudo apt update
+        sudo apt install -y jq
+        set +e  # Disable exiting from testagent response failure
+        SUMMARY_RESPONSE=$(curl -s -w "\n%{http_code}" -o summary_response.txt http://test-agent:9126/test/trace_check/summary)
+        set -e
+        SUMMARY_RESPONSE_CODE=$(echo "$SUMMARY_RESPONSE" | awk 'END {print $NF}')
+        if [[ SUMMARY_RESPONSE_CODE -eq 200 ]]; then
+          echo "APM Test Agent is running. (HTTP 200)"
+        else
+          echo "APM Test Agent is not running and was not used for testing. No checks failed."
+          exit 0
+        fi
+        
+        RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://test-agent:9126/test/trace_check/failures)
+        RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
+            
+        if [[ $RESPONSE_CODE -eq 200 ]]; then
+          echo "All APM Test Agent Check Traces returned successful! (HTTP 200)"
+          echo "APM Test Agent Check Traces Summary Results:"
+          cat summary_response.txt | jq '.'
+        elif [[ $RESPONSE_CODE -eq 404 ]]; then
+          echo "Real APM Agent running in place of TestAgent, no checks to validate!"
+        else
+          echo "APM Test Agent Check Traces failed with response code: $RESPONSE_CODE"
+          echo "Failures:"
+          cat response.txt
+          echo "APM Test Agent Check Traces Summary Results:"
+          cat summary_response.txt | jq '.'
+          exit 1
+        fi
 
   # Fix intermittent error: "Could not resolve host: httpbin_integration"
   - &STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
@@ -359,13 +397,15 @@ commands:
                 -e LOG_LEVEL=DEBUG \
                 -e TRACE_LANGUAGE=php \
                 -e DD_TRACE_AGENT_URL=http://request-replayer:80 \
-                -e DISABLED_CHECKS=trace_content_length \
+                -e ENABLED_CHECKS=trace_stall,trace_peer_service,trace_dd_service \
                 -e DD_SUPPRESS_TRACE_PARSE_ERRORS=true \
+                -e DD_POOL_TRACE_CHECK_FAILURES=true \
+                -e DD_DISABLE_ERROR_RESPONSES=true \
                 -e PORT=9126 \
                 -e SNAPSHOT_DIR=/snapshots \
                 -p "127.0.0.1:9126:9126" \
                 -v $(pwd)/tests/snapshots:/snapshots \
-                --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.10.1
+                --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
               retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               retry_docker run --detach --rm --net net \
@@ -727,6 +767,7 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
+      - <<: *STEP_GET_TEST_AGENT_RESULTS
 
   test_multi_observer:
     parameters:
@@ -772,6 +813,7 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
+      - <<: *STEP_GET_TEST_AGENT_RESULTS
 
   test_arm:
     machine:
@@ -898,6 +940,7 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
+      - <<: *STEP_GET_TEST_AGENT_RESULTS
 
   asan: *TEST_BASE
 
@@ -969,6 +1012,7 @@ jobs:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_GET_TEST_AGENT_RESULTS
 
   integration:
     working_directory: ~/datadog
@@ -1038,6 +1082,7 @@ jobs:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_GET_TEST_AGENT_RESULTS
 
   php_language_tests:
     parameters:
@@ -1115,6 +1160,7 @@ jobs:
           path: /tmp/artifacts/tests/
       - store_artifacts:
           path: /tmp/artifacts/
+      - <<: *STEP_GET_TEST_AGENT_RESULTS
 
   integration_tests:
     working_directory: ~/datadog
@@ -1185,6 +1231,7 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_GET_TEST_AGENT_RESULTS
 
   internal_integrations:
     parameters:
@@ -1254,6 +1301,7 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
+      - <<: *STEP_GET_TEST_AGENT_RESULTS
 
   min_install_tests:
     parameters:
@@ -1302,6 +1350,7 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
+      - <<: *STEP_GET_TEST_AGENT_RESULTS
 
   framework_tests:
     working_directory: ~/datadog

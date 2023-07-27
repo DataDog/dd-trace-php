@@ -1,3 +1,6 @@
+#![feature(allow_internal_unstable)]
+
+pub mod log;
 pub mod telemetry;
 
 use ddcommon::container_id::{get_container_id, set_cgroup_file};
