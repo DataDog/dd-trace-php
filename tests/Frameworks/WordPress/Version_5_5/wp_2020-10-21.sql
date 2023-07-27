@@ -176,6 +176,8 @@ INSERT INTO `wp55_options` VALUES (1,'siteurl','http://localhost:9999','yes'),(2
 /*!40000 ALTER TABLE `wp55_options` ENABLE KEYS */;
 UNLOCK TABLES;
 
+DELETE FROM `wp_options` WHERE `option_name` LIKE ('%\_transient\_%');
+
 --
 -- Table structure for table `wp55_postmeta`
 --

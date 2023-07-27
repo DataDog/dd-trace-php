@@ -162,7 +162,7 @@ class WordPressIntegrationLoader
 
         \DDTrace\trace_method('wpdb', 'query', function (SpanData $span, array $args) use ($service) {
             $span->name = 'wpdb.query';
-            $span->resource = $args[0];
+            $span->resource = $this->remove_placeholder_escape($args[0]);
             $span->type = Type::SQL;
             $span->service = $service;
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
