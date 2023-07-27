@@ -12,7 +12,6 @@
 */
 
 function datadog_parse_request($wp) {
-    \DDTrace\Log\Logger::get()->debug("Query vars: " . json_encode($wp->query_vars, JSON_PRETTY_PRINT));
 	if (!isset($wp->query_vars['name'])) {
 		return;
 	}
@@ -23,8 +22,5 @@ function datadog_parse_request($wp) {
 	if ('error' === $wp->query_vars['name']) {
 		throw new Exception('Oops!');
 	}
-
-    status_header(404);
-    include get_404_template();
 }
 add_action('parse_request', 'datadog_parse_request');
