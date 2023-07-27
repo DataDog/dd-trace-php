@@ -96,7 +96,14 @@ unsafe fn extract_function_name(
 
     buffer.extend_from_slice(method_name);
 
-    add_parameters(&mut buffer, execute_data, func, module_name, method_name);
+    add_parameters(
+        &mut buffer,
+        execute_data,
+        func,
+        module_name,
+        class_name,
+        method_name,
+    );
 
     Some(String::from_utf8_lossy(buffer.as_slice()).into_owned())
 }
@@ -105,55 +112,85 @@ unsafe fn arg0(execute_data: &zend_execute_data) -> Option<&mut zval> {
     ddog_php_prof_zend_call_arg(execute_data, 0).as_mut()
 }
 
+unsafe fn interesting_arg0(
+    func: &zend_function,
+    module_name: &[u8],
+    class_name: &[u8],
+    method_name: &[u8],
+) -> Option<(&'static str, &'static str)> {
+    // Short-circuit since none of these match any cases currently
+    if !class_name.is_empty() || !module_name.is_empty() || func.common.required_num_args < 1 {
+        return None;
+    }
+
+    const DO_ACTION: &'static str = "do_action";
+    const DO_ACTION_REF_ARRAY: &'static str = "do_action_ref_array";
+    const HOOK_NAME: &'static str = "hook_name";
+
+    match std::str::from_utf8(method_name) {
+        Ok(method_name) => {
+            // convert it into the known static string
+            let method_name = match method_name {
+                DO_ACTION => DO_ACTION,
+                DO_ACTION_REF_ARRAY => DO_ACTION_REF_ARRAY,
+                _ => return None,
+            };
+            let param0_name = func
+                .common
+                .arg_info
+                .as_ref()
+                .map(|arg_info| ddog_php_prof_zend_string_view(arg_info.name.as_mut()).into_bytes())
+                .unwrap_or(b"");
+
+            match std::str::from_utf8(param0_name) {
+                Ok(HOOK_NAME) => return Some((method_name, HOOK_NAME)),
+                Ok(name) => log::debug!("'{method_name}' is likely not WordPress's: parameter 0 has name '{name}' instead of 'hook_name'"),
+                Err(err) => log::debug!("encountered invalid utf-8 string in parameter 0 of {method_name}: {err}"),
+            }
+        }
+        _ => {}
+    }
+
+    return None;
+}
+
 unsafe fn add_parameters(
     buffer: &mut Vec<u8>,
     execute_data: &zend_execute_data,
     func: &zend_function,
     module_name: &[u8],
+    class_name: &[u8],
     method_name: &[u8],
 ) {
-    // detect that it's probably wordpress's do_action
-    // todo: is this stable across PHP versions?
-    if !module_name.is_empty() || func.common.required_num_args < 1 {
-        return;
-    }
-    if method_name != b"do_action" && method_name != b"do_action_ref_array" {
-        return;
-    }
-    let method_name = std::str::from_utf8(method_name)
-        .expect("method name to be valid utf-8 (do_action or do_action_ref_array)");
-
-    // Safety: checked that required_num_args is at least 0
-    if let Some(arg_info) = func.common.arg_info.as_ref() {
-        let parameter_name = ddog_php_prof_zend_string_view(arg_info.name.as_mut()).into_bytes();
-        if parameter_name != b"hook_name" {
-            log::trace!("'do_action' is likely not WordPress's: parameter 0 has name '{}' instead of 'hook_name'", String::from_utf8_lossy(parameter_name));
-            return;
-        }
-
-        if let Some(arg0) = arg0(execute_data) {
-            let argument_name: Result<String, _> = String::try_from(arg0);
-            match argument_name {
-                Ok(name) => {
-                    use std::io::Write;
-                    // writes to Vecs always succeed
-                    _ = write!(buffer, "(hook_name: '{name}')");
-                }
-                Err(err) => {
-                    let error = match err {
-                        StringError::Null => {
-                            Cow::Borrowed("zval type was string, but the string pointer was null")
-                        }
-                        StringError::Type(t) => {
-                            Cow::Owned(format!("expected zval type string, found {t}"))
-                        }
-                    };
-                    log::warn!("failed to get arg 0 of '{method_name}': {error}");
+    if let Some((method_name, param0)) =
+        interesting_arg0(func, module_name, class_name, method_name)
+    {
+        match arg0(execute_data) {
+            Some(arg0) => {
+                let arg0_str: Result<String, _> = String::try_from(arg0);
+                match arg0_str {
+                    Ok(arg0_str) => {
+                        use std::io::Write;
+                        // writes to Vecs always succeed
+                        _ = write!(buffer, "({param0}: '{arg0_str}')");
+                    }
+                    Err(err) => {
+                        let error = match err {
+                            StringError::Null => Cow::Borrowed(
+                                "zval type was string, but the string pointer was null",
+                            ),
+                            StringError::Type(t) => {
+                                Cow::Owned(format!("expected zval type string, found {t}"))
+                            }
+                        };
+                        log::warn!("failed to get arg 0 of '{method_name}': {error}");
+                    }
                 }
             }
-        } else {
-            log::warn!("failed to get arg 0 of '{method_name}': couldn't locate zval")
-        };
+            None => {
+                log::warn!("failed to get arg 0 of '{method_name}': couldn't locate zval")
+            }
+        }
     }
 }
 
