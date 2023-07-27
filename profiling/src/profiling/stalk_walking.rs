@@ -144,8 +144,8 @@ unsafe fn interesting_arg0(
 
             match std::str::from_utf8(param0_name) {
                 Ok(HOOK_NAME) => return Some((method_name, HOOK_NAME)),
-                Ok(name) => log::debug!("'{method_name}' is likely not WordPress's: parameter 0 has name '{name}' instead of 'hook_name'"),
-                Err(err) => log::debug!("encountered invalid utf-8 string in parameter 0 of {method_name}: {err}"),
+                Ok(name) => log::trace!("'{method_name}' is likely not WordPress's: parameter 0 has name '{name}' instead of 'hook_name'"),
+                Err(err) => log::warn!("encountered invalid utf-8 string in parameter 0 of {method_name}: {err}"),
             }
         }
         _ => {}
