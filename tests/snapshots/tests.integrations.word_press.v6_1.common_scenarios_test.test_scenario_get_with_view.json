@@ -149,8 +149,8 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "/home/circleci/datadogn": "datadog",
-         "/home/circleci/datadogn_file": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php"
+         "wp.plugin": "datadog",
+         "wp.plugin_file": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-content/plugins/datadog/datadog.php"
        }
      },
      {
