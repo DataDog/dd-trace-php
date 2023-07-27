@@ -26,3 +26,6 @@ rename_variants = "ScreamingSnakeCase"
 [parse]
 parse_deps = true
 include = ["ddcommon", "ddtelemetry", "ddcommon-ffi", "ddtelemetry-ffi", "datadog-sidecar", "datadog-ipc", "uuid"]
+
+[macro_expansion]
+bitflags = true

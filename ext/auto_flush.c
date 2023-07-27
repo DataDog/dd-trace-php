@@ -3,7 +3,8 @@
 #include "comms_php.h"
 #include "coms.h"
 #include "ddtrace_string.h"
-#include "logging.h"
+#include "configuration.h"
+#include <components/log/log.h>
 #include "serializer.h"
 #include "span.h"
 
@@ -28,7 +29,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
 
     if (zend_hash_num_elements(Z_ARR(trace)) == 0) {
         zend_array_destroy(Z_ARR(trace));
-        ddtrace_log_debug("No finished traces to be sent to the agent");
+        LOG(Info, "No finished traces to be sent to the agent");
         return SUCCESS;
     }
 
@@ -40,13 +41,13 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     size_t size, limit = get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE();
     if (ddtrace_serialize_simple_array_into_c_string(&traces, &payload, &size)) {
         if (size > limit) {
-            ddtrace_log_errf("Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", size, limit);
+            LOG(Error, "Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", size, limit);
             success = false;
         } else {
             success = ddtrace_send_traces_via_thread(1, payload, size);
             if (success) {
                 char *url = ddtrace_agent_url();
-                ddtrace_log_debugf("Flushing trace of size %d to send-queue for %s",
+                LOG(Info, "Flushing trace of size %d to send-queue for %s",
                                    zend_hash_num_elements(Z_ARR(trace)), url);
                 free(url);
             }
