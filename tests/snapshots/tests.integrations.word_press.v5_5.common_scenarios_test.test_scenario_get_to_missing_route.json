@@ -494,7 +494,7 @@
               {
                 "name": "load_template",
                 "service": "wordpress_55_test_app",
-                "resource": "/home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/header.php",
+                "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/header.php",
                 "trace_id": 0,
                 "span_id": 58,
                 "parent_id": 47,
@@ -575,7 +575,7 @@
            {
              "name": "load_template",
              "service": "wordpress_55_test_app",
-             "resource": "/home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/template-parts/footer-menus-widgets.php",
+             "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/template-parts/footer-menus-widgets.php",
              "trace_id": 0,
              "span_id": 48,
              "parent_id": 32,
@@ -1025,7 +1025,7 @@
               {
                 "name": "load_template",
                 "service": "wordpress_55_test_app",
-                "resource": "/home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/footer.php",
+                "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/footer.php",
                 "trace_id": 0,
                 "span_id": 61,
                 "parent_id": 49,
@@ -1208,7 +1208,7 @@
         {
           "name": "load_template",
           "service": "wordpress_55_test_app",
-          "resource": "/home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/header.php",
+          "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/header.php",
           "trace_id": 0,
           "span_id": 39,
           "parent_id": 18,
@@ -1220,7 +1220,7 @@
      {
        "name": "load_template",
        "service": "wordpress_55_test_app",
-       "resource": "/home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/template-parts/footer-menus-widgets.php",
+       "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/template-parts/footer-menus-widgets.php",
        "trace_id": 0,
        "span_id": 19,
        "parent_id": 1,
@@ -1373,7 +1373,7 @@
         {
           "name": "load_template",
           "service": "wordpress_55_test_app",
-          "resource": "/home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/footer.php",
+          "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/themes/twentytwenty/footer.php",
           "trace_id": 0,
           "span_id": 42,
           "parent_id": 20,
