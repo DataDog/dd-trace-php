@@ -129,3 +129,9 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data);
 
 void ddog_php_opcache_init_handle();
 bool ddog_php_jit_enabled();
+
+/**
+ * Gets arg `n` of the `ex` frame. Returns NULL on error.
+ * @see ZEND_FUNCTION(func_get_arg)
+ */
+zval *ddog_php_prof_zend_call_arg(zend_execute_data const *ex, unsigned int n);

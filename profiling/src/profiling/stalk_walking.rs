@@ -1,6 +1,6 @@
 use crate::bindings::{
-    ddog_php_prof_zend_string_view, zend_execute_data, zend_function, zend_string,
-    ZEND_USER_FUNCTION,
+    ddog_php_prof_zend_call_arg, ddog_php_prof_zend_string_view, zend_execute_data, zend_function,
+    zend_string, zval, StringError, ZEND_USER_FUNCTION,
 };
 use crate::string_table::{OwnedStringTable, StringTable};
 use std::borrow::Cow;
@@ -64,7 +64,10 @@ unsafe fn zend_string_to_bytes(zstr: Option<&mut zend_string>) -> &[u8] {
 /// Namespaces are part of the class_name or function_name respectively.
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
-unsafe fn extract_function_name(func: &zend_function) -> Option<String> {
+unsafe fn extract_function_name(
+    execute_data: &zend_execute_data,
+    func: &zend_function,
+) -> Option<String> {
     let method_name: &[u8] = func.name().unwrap_or(b"");
 
     /* The top of the stack seems to reasonably often not have a function, but
@@ -93,7 +96,65 @@ unsafe fn extract_function_name(func: &zend_function) -> Option<String> {
 
     buffer.extend_from_slice(method_name);
 
+    add_parameters(&mut buffer, execute_data, func, module_name, method_name);
+
     Some(String::from_utf8_lossy(buffer.as_slice()).into_owned())
+}
+
+unsafe fn arg0(execute_data: &zend_execute_data) -> Option<&mut zval> {
+    ddog_php_prof_zend_call_arg(execute_data, 0).as_mut()
+}
+
+unsafe fn add_parameters(
+    buffer: &mut Vec<u8>,
+    execute_data: &zend_execute_data,
+    func: &zend_function,
+    module_name: &[u8],
+    method_name: &[u8],
+) {
+    // detect that it's probably wordpress's do_action
+    // todo: is this stable across PHP versions?
+    if !module_name.is_empty() || func.common.required_num_args < 1 {
+        return;
+    }
+    if method_name != b"do_action" && method_name != b"do_action_ref_array" {
+        return;
+    }
+    let method_name = std::str::from_utf8(method_name)
+        .expect("method name to be valid utf-8 (do_action or do_action_ref_array)");
+
+    // Safety: checked that required_num_args is at least 0
+    if let Some(arg_info) = func.common.arg_info.as_ref() {
+        let parameter_name = ddog_php_prof_zend_string_view(arg_info.name.as_mut()).into_bytes();
+        if parameter_name != b"hook_name" {
+            log::trace!("'do_action' is likely not WordPress's: parameter 0 has name '{}' instead of 'hook_name'", String::from_utf8_lossy(parameter_name));
+            return;
+        }
+
+        if let Some(arg0) = arg0(execute_data) {
+            let argument_name: Result<String, _> = String::try_from(arg0);
+            match argument_name {
+                Ok(name) => {
+                    use std::io::Write;
+                    // writes to Vecs always succeed
+                    _ = write!(buffer, "(hook_name: '{name}')");
+                }
+                Err(err) => {
+                    let error = match err {
+                        StringError::Null => {
+                            Cow::Borrowed("zval type was string, but the string pointer was null")
+                        }
+                        StringError::Type(t) => {
+                            Cow::Owned(format!("expected zval type string, found {t}"))
+                        }
+                    };
+                    log::warn!("failed to get arg 0 of '{method_name}': {error}");
+                }
+            }
+        } else {
+            log::warn!("failed to get arg 0 of '{method_name}': couldn't locate zval")
+        };
+    }
 }
 
 unsafe fn handle_file_cache_slot_helper(
@@ -143,6 +204,7 @@ unsafe fn handle_file_cache_slot(
 }
 
 unsafe fn handle_function_cache_slot(
+    execute_data: &zend_execute_data,
     func: &zend_function,
     string_table: &mut RefMut<OwnedStringTable>,
     cache_slots: &mut [usize; 2],
@@ -152,7 +214,7 @@ unsafe fn handle_function_cache_slot(
         let str = string_table.get_offset(offset);
         Some(Cow::Owned(str.to_string()))
     } else {
-        let name = extract_function_name(func)?;
+        let name = extract_function_name(execute_data, func)?;
         let offset = string_table.insert(name.as_ref());
         cache_slots[0] = offset;
         Some(Cow::Owned(name))
@@ -195,7 +257,8 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
                         stats.hit += 1;
                     }
                 });
-                let function = handle_function_cache_slot(func, &mut string_table, cache_slots);
+                let function =
+                    handle_function_cache_slot(execute_data, func, &mut string_table, cache_slots);
                 let (file, line) =
                     handle_file_cache_slot(execute_data, &mut string_table, cache_slots);
 
@@ -207,7 +270,7 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
                     let mut stats = cell.borrow_mut();
                     stats.not_applicable += 1;
                 });
-                let function = extract_function_name(func).map(Cow::Owned);
+                let function = extract_function_name(execute_data, func).map(Cow::Owned);
                 let (file, line) = extract_file_and_line(execute_data);
                 let file = file.map(Cow::Owned);
                 (function, file, line)
@@ -229,7 +292,7 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
 #[cfg(not(php_run_time_cache))]
 unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
     if let Some(func) = execute_data.func.as_ref() {
-        let function = extract_function_name(func);
+        let function = extract_function_name(execute_data, func);
         let (file, line) = extract_file_and_line(execute_data);
 
         // Only create a new frame if there's file or function info.
