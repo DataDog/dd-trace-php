@@ -399,15 +399,12 @@ class WordPressComponent
                 $span->meta['wp.theme'] = $theme;
             }
 
-            $span->meta['wp.template_file'] = $templateFile;
             if (substr($templateFile, -4) === '.php') {
                 $templatePart = explode('/', $templateFile);
                 $templatePart = end($templatePart);
                 $templatePart = substr($templatePart, 0, -4);
                 $span->resource = "$templatePart (template)";
                 $span->meta['wp.template_part'] = $templatePart;
-            } else {
-                $span->resource = !empty($templateFile) ? "$templateFile (template)" : $span->name;
             }
         });
 
@@ -592,7 +589,6 @@ class WordPressComponent
                                 $span = $hook->span();
                                 WordPressComponent::setCommonTags($integration, $span, 'load_plugin', "$pluginName (plugin)");
                                 $span->meta['wp.plugin'] = $pluginName;
-                                $span->meta['wp.plugin_file'] = $plugin;
                             },
                             function ($hook) use (&$plugins) {
                                 $top = \array_pop($plugins);
