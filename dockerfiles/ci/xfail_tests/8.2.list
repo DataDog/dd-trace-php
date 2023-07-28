@@ -36,8 +36,6 @@ Zend/tests/weakrefs/weakmap_basic_map_behavior.phpt
 Zend/tests/weakrefs/weakmap_error_conditions.phpt
 ext/curl/tests/bug45161.phpt
 ext/curl/tests/bug64267.phpt
-ext/curl/tests/bug68937.phpt
-ext/curl/tests/bug68937_2.phpt
 ext/curl/tests/bug76675.phpt
 ext/curl/tests/bug77535.phpt
 ext/curl/tests/bug79033.phpt
