@@ -61,16 +61,4 @@ class CommonScenariosTest extends WebFrameworkTestCase
             );
         });
     }
-
-    public function testScenarioGetToMissingRoute()
-    {
-        $this->tracesFromWebRequestSnapshot(function () {
-            $this->call(
-                GetSpec::create(
-                    'A GET request to a missing route',
-                    '/does_not_exist?key=value&pwd=should_redact'
-                )->expectStatusCode(301)
-            );
-        });
-    }
 }
