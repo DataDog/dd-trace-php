@@ -5,7 +5,7 @@
     "resource": "GET /simple",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 3094046320779370970,
+    "parent_id": 1389894039860028044,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple?key=value&<redacted>",
-      "runtime-id": "004030ea-2d10-499a-83ad-1e83753a2ed5",
+      "runtime-id": "778e84df-4db2-44fe-a457-219fcd816a7e",
       "span.kind": "server",
       "usr.id": "0"
     },
@@ -122,8 +122,7 @@
        "parent_id": 1,
        "type": "web",
        "meta": {
-         "component": "wordpress",
-         "wp.callback": "create_initial_taxonomies"
+         "component": "wordpress"
        }
      },
      {
@@ -135,8 +134,7 @@
        "parent_id": 1,
        "type": "web",
        "meta": {
-         "component": "wordpress",
-         "wp.callback": "create_initial_post_types"
+         "component": "wordpress"
        }
      },
      {
@@ -149,8 +147,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.plugin": "datadog",
-         "wp.plugin_file": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/plugins/datadog/datadog.php"
+         "wp.plugin": "datadog"
        }
      },
      {
@@ -175,8 +172,7 @@
           "parent_id": 10,
           "type": "web",
           "meta": {
-            "component": "wordpress",
-            "wp.callback": "wp_maybe_load_widgets"
+            "component": "wordpress"
           }
         },
         {
@@ -188,8 +184,7 @@
           "parent_id": 10,
           "type": "web",
           "meta": {
-            "component": "wordpress",
-            "wp.callback": "wp_maybe_load_embeds"
+            "component": "wordpress"
           }
         },
         {
@@ -201,8 +196,7 @@
           "parent_id": 10,
           "type": "web",
           "meta": {
-            "component": "wordpress",
-            "wp.callback": "_wp_customize_include"
+            "component": "wordpress"
           }
         },
      {
@@ -252,32 +246,6 @@
          "wp.hook": "after_setup_theme"
        }
      },
-        {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "twentyseventeen_setup (callback)",
-          "trace_id": 0,
-          "span_id": 22,
-          "parent_id": 13,
-          "type": "web",
-          "meta": {
-            "component": "wordpress",
-            "wp.callback": "twentyseventeen_setup"
-          }
-        },
-        {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "twentyseventeen_custom_header_setup (callback)",
-          "trace_id": 0,
-          "span_id": 23,
-          "parent_id": 13,
-          "type": "web",
-          "meta": {
-            "component": "wordpress",
-            "wp.callback": "twentyseventeen_custom_header_setup"
-          }
-        },
      {
        "name": "WP.init",
        "service": "wordpress_test_app",
@@ -290,19 +258,6 @@
          "component": "wordpress"
        }
      },
-        {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "kses_init (callback)",
-          "trace_id": 0,
-          "span_id": 24,
-          "parent_id": 14,
-          "type": "web",
-          "meta": {
-            "component": "wordpress",
-            "wp.callback": "kses_init"
-          }
-        },
      {
        "name": "action",
        "service": "wordpress_test_app",
@@ -321,7 +276,7 @@
           "service": "wordpress_test_app",
           "resource": "create_initial_post_types",
           "trace_id": 0,
-          "span_id": 25,
+          "span_id": 22,
           "parent_id": 15,
           "type": "web",
           "meta": {
@@ -333,7 +288,7 @@
           "service": "wordpress_test_app",
           "resource": "create_initial_taxonomies",
           "trace_id": 0,
-          "span_id": 26,
+          "span_id": 23,
           "parent_id": 15,
           "type": "web",
           "meta": {
@@ -345,12 +300,11 @@
           "service": "wordpress_test_app",
           "resource": "wp_widgets_init",
           "trace_id": 0,
-          "span_id": 27,
+          "span_id": 24,
           "parent_id": 15,
           "type": "web",
           "meta": {
-            "component": "wordpress",
-            "wp.callback": "wp_widgets_init"
+            "component": "wordpress"
           }
         },
            {
@@ -358,112 +312,34 @@
              "service": "wordpress_test_app",
              "resource": "WP_Widget_Factory._register_widgets",
              "trace_id": 0,
-             "span_id": 38,
-             "parent_id": 27,
+             "span_id": 28,
+             "parent_id": 24,
              "type": "web",
              "meta": {
                "component": "wordpress"
              }
            },
         {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "smilies_init (callback)",
+          "name": "mysqli_query",
+          "service": "mysqli",
+          "resource": "SELECT option_value FROM wp_options WHERE option_name = 'theme_switched' LIMIT 1",
           "trace_id": 0,
-          "span_id": 28,
+          "span_id": 25,
           "parent_id": 15,
-          "type": "web",
+          "type": "sql",
           "meta": {
-            "component": "wordpress",
-            "wp.callback": "smilies_init"
+            "component": "mysqli",
+            "db.name": "test",
+            "db.system": "mysql",
+            "db.type": "mysql",
+            "out.host": "mysql_integration",
+            "out.port": "3306",
+            "span.kind": "client"
+          },
+          "metrics": {
+            "db.row_count": 0.0
           }
         },
-        {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "wp_cron (callback)",
-          "trace_id": 0,
-          "span_id": 29,
-          "parent_id": 15,
-          "type": "web",
-          "meta": {
-            "component": "wordpress",
-            "wp.callback": "wp_cron"
-          }
-        },
-        {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "_show_post_preview (callback)",
-          "trace_id": 0,
-          "span_id": 30,
-          "parent_id": 15,
-          "type": "web",
-          "meta": {
-            "component": "wordpress",
-            "wp.callback": "_show_post_preview"
-          }
-        },
-        {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "rest_api_init (callback)",
-          "trace_id": 0,
-          "span_id": 31,
-          "parent_id": 15,
-          "type": "web",
-          "meta": {
-            "component": "wordpress",
-            "wp.callback": "rest_api_init"
-          }
-        },
-        {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "wp_schedule_update_checks (callback)",
-          "trace_id": 0,
-          "span_id": 32,
-          "parent_id": 15,
-          "type": "web",
-          "meta": {
-            "component": "wordpress",
-            "wp.callback": "wp_schedule_update_checks"
-          }
-        },
-        {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "check_theme_switched (callback)",
-          "trace_id": 0,
-          "span_id": 33,
-          "parent_id": 15,
-          "type": "web",
-          "meta": {
-            "component": "wordpress",
-            "wp.callback": "check_theme_switched"
-          }
-        },
-           {
-             "name": "mysqli_query",
-             "service": "mysqli",
-             "resource": "SELECT option_value FROM wp_options WHERE option_name = 'theme_switched' LIMIT 1",
-             "trace_id": 0,
-             "span_id": 39,
-             "parent_id": 33,
-             "type": "sql",
-             "meta": {
-               "component": "mysqli",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.type": "mysql",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             },
-             "metrics": {
-               "db.row_count": 0.0
-             }
-           },
      {
        "name": "action",
        "service": "wordpress_test_app",
@@ -477,19 +353,6 @@
          "wp.hook": "wp_loaded"
        }
      },
-        {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "_custom_header_background_just_in_time (callback)",
-          "trace_id": 0,
-          "span_id": 34,
-          "parent_id": 16,
-          "type": "web",
-          "meta": {
-            "component": "wordpress",
-            "wp.callback": "_custom_header_background_just_in_time"
-          }
-        },
      {
        "name": "WP.main",
        "service": "wordpress_test_app",
@@ -507,7 +370,7 @@
           "service": "wordpress_test_app",
           "resource": "WP.init",
           "trace_id": 0,
-          "span_id": 35,
+          "span_id": 26,
           "parent_id": 17,
           "type": "web",
           "meta": {
@@ -519,7 +382,7 @@
           "service": "wordpress_test_app",
           "resource": "WP.parse_request",
           "trace_id": 0,
-          "span_id": 36,
+          "span_id": 27,
           "parent_id": 17,
           "type": "web",
           "meta": {
@@ -531,8 +394,8 @@
              "service": "mysqli",
              "resource": "\n\t\tSELECT ID, post_name, post_parent, post_type\n\t\tFROM wp_posts\n\t\tWHERE post_name IN ('simple')\n\t\tAND post_type IN ('page','attachment')\n\t",
              "trace_id": 0,
-             "span_id": 40,
-             "parent_id": 36,
+             "span_id": 29,
+             "parent_id": 27,
              "type": "sql",
              "meta": {
                "component": "mysqli",
@@ -559,17 +422,4 @@
          "component": "wordpress",
          "wp.hook": "shutdown"
        }
-     },
-        {
-          "name": "callback",
-          "service": "wordpress_test_app",
-          "resource": "wp_ob_end_flush_all (callback)",
-          "trace_id": 0,
-          "span_id": 37,
-          "parent_id": 18,
-          "type": "web",
-          "meta": {
-            "component": "wordpress",
-            "wp.callback": "wp_ob_end_flush_all"
-          }
-        }]]
+     }]]

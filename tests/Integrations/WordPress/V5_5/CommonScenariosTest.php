@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use Exception;
 
-final class CommonScenariosTest extends WebFrameworkTestCase
+class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
@@ -27,6 +27,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'wordpress_55_test_app',
+            'DD_TRACE_WORDPRESS_CALLBACKS' => '0'
         ]);
     }
 
