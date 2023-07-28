@@ -189,28 +189,26 @@ class WordPressComponent
 
     public function load(WordPressIntegration $integration)
     {
-        $rootSpan = \DDTrace\root_span();
-        if (!$rootSpan) {
-            return Integration::NOT_LOADED;
-        }
-
-        // Overwrite the default web integration
-        $integration->addTraceAnalyticsIfEnabled($rootSpan);
-        $rootSpan->name = 'wordpress.request';
-        $rootSpan->service = $integration->getServiceName();
-        $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-        if ('cli' !== PHP_SAPI) {
-            $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
-            $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
-            if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
-            }
-        }
-
         // File loading
         hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
             WordPressComponent::allowQueryParamsInResourceName();
+
+            // Overwrite the default web integration
+            $rootSpan = \DDTrace\root_span();
+            if ($rootSpan) {
+                $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                $rootSpan->name = 'wordpress.request';
+                $rootSpan->service = $integration->getServiceName();
+                $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                if ('cli' !== PHP_SAPI) {
+                    $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
+                    $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
+                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                        $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+                    }
+                }
+            }
 
             if (defined('ABSPATH') && defined('WPINC')) { // Just for a matter of safety :)
                 $templateLoader = ABSPATH . WPINC . '/template-loader.php';
