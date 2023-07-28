@@ -85,6 +85,7 @@ jobs:
           key: ${{ runner.os }}-helper
       - name: Install clang-{tidy,format}
         run: |
+          sudo apt-get remove -y python3-lldb-14
           sudo .github/workflows/scripts/llvm.sh 15
           sudo apt-get install -y clang-tidy-15 clang-format-15 libboost-system-dev
       - name: Generate Build Scripts
@@ -126,6 +127,7 @@ jobs:
           key: ${{ runner.os }}-helper
       - name: Install clang
         run: |
+          sudo apt-get remove -y python3-lldb-14
           sudo .github/workflows/scripts/llvm.sh 15
       - name: Generate Build Scripts
         run: |
