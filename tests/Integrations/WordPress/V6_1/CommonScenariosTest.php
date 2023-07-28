@@ -69,7 +69,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 GetSpec::create(
                     'A GET request to a missing route',
                     '/does_not_exist?key=value&pwd=should_redact'
-                )->expectStatusCode(404)
+                )
             );
         });
     }

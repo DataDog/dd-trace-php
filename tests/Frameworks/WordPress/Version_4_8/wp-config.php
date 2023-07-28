@@ -78,12 +78,10 @@ $table_prefix  = 'wp_';
  *
  * @link https://codex.wordpress.org/Debugging_in_WordPress
  */
-define('WP_DEBUG', true);
+define('WP_DEBUG', false);
 
 /** Disable internal Wp-Cron feature **/
 define('DISABLE_WP_CRON', true);
-define('WP_CACHE', false);  // disable cache/transients
-define('DISABLE_CACHE', true);  // disable cache/transients
 
 /* That's all, stop editing! Happy blogging. */
 

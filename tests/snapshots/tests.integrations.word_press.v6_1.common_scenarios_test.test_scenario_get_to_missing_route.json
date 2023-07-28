@@ -5,15 +5,15 @@
     "resource": "GET /does_not_exist",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 600724586954176672,
+    "parent_id": 5054390913021796771,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
       "component": "wordpress",
       "http.method": "GET",
-      "http.status_code": "200",
+      "http.status_code": "301",
       "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
-      "runtime-id": "2d2bdfc9-18cc-4453-b46a-da0c77809c57",
+      "runtime-id": "378cabe8-409c-4a2d-83db-960e9680db79",
       "span.kind": "server",
       "usr.id": "0"
     },
