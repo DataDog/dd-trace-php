@@ -101,8 +101,7 @@ unsafe fn handle_file_cache_slot_helper(
         // Safety: if we have cache slots, we definitely have a func.
         let func = &*execute_data.func;
         let file = if func.type_ == ZEND_USER_FUNCTION as u8 {
-            let bytes = zend_string_to_bytes(func.op_array.filename.as_mut());
-            String::from_utf8_lossy(bytes)
+            ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string()
         } else {
             return None;
         };
