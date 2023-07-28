@@ -200,6 +200,7 @@ static size_t _dd_check_for_agent_error(char *error, bool quick) {
 
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "X-Datadog-Diagnostic-Check: 1");
+    headers = curl_slist_append(headers, "Content-Type: application/json");
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
     const char *body = "[]";

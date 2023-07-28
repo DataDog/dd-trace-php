@@ -64,7 +64,6 @@ trait SnapshotTestTrait
         $url = self::$testAgentUrl . '/test/session/start?test_session_token=' . $token;
 
         $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($ch);
 
@@ -90,7 +89,6 @@ trait SnapshotTestTrait
         for ($i = 0; $i < 50; $i++) { // 50 is an arbitrary number
             try {
                 $ch = curl_init($tracesUrl);
-                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 $response = curl_exec($ch);
                 $traces = json_decode($response, true);
@@ -126,7 +124,6 @@ trait SnapshotTestTrait
             '&test_session_token=' . $token;
 
         $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($ch);
 
