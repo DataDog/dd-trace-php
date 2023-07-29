@@ -98,7 +98,7 @@ namespace DDTrace {
         /**
          * @var string The unique identifier of the span
          */
-        public readonly string $id = "";
+        public readonly string $id;
 
         /**
          * @var SpanLink[] $spanLinks An array of span links
@@ -115,7 +115,7 @@ namespace DDTrace {
         /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
-        public readonly SpanData|null $parent = null;
+        public readonly SpanData|null $parent;
 
         /**
          * @var SpanStack The span's stack trace
@@ -154,12 +154,12 @@ namespace DDTrace {
         /**
          * @var SpanStack|null The parent stack, or 'null' if there is none
          */
-        public readonly SpanStack|null $parent = null;
+        public SpanStack|null $parent;
 
         /**
-         * @var SpanData The active span
+         * @var SpanData|null The active span
          */
-        public SpanData|null $active = null;
+        public SpanData|null $active;
     }
 
     // phpcs:disable Generic.Files.LineLength.TooLong

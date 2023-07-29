@@ -28,8 +28,8 @@ class HookData {
     public mixed $returned;
 
     /**
-     * The a possible thrown exception within that function.
-     * Uninitialized in a begin hook.
+     * The possible thrown exception within that function.
+     * Uninitialized in a beginning hook.
      */
     public ?\Throwable $exception;
 
