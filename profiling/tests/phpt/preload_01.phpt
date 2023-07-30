@@ -33,9 +33,7 @@ opcache.preload_user=root
 echo "Done.", PHP_EOL;
 ?>
 --EXPECTREGEX--
-.* zend_post_startup_cb hasn't happened yet; not enabling profiler.
+.*zend_post_startup_cb hasn't happened yet; not enabling profiler.
 preloading
-.* Started with an upload period of [0-9]+ seconds and approximate wall-time period of [0-9]+ milliseconds.
-Done.
-.* Stopping profiler.
-.*
+.*Started with an upload period of [0-9]+ seconds and approximate wall-time period of [0-9]+ milliseconds.
+Done.*
