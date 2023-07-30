@@ -19,7 +19,7 @@ use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use ddcommon::cstr;
 use lazy_static::lazy_static;
-use libc::c_char;
+use libc::{c_char, c_short, c_ushort};
 use log::{debug, error, info, trace, warn, LevelFilter};
 use once_cell::sync::OnceCell;
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
