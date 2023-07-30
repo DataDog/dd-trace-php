@@ -1,11 +1,10 @@
 use crate::bindings::{
-    ddog_php_prof_zend_string_view, zend_execute_data, zend_function, zend_string,
-    ZEND_USER_FUNCTION,
+    ddog_php_prof_zend_call_arg, ddog_php_prof_zend_string_view, zend_execute_data, zend_function,
+    zend_string, zval, StringError, ZEND_USER_FUNCTION,
 };
 use crate::string_table::{OwnedStringTable, StringTable};
 use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
-use std::mem::transmute;
 use std::str::Utf8Error;
 
 /// Used to help track the function run_time_cache hit rate. It glosses over
@@ -41,13 +40,31 @@ pub unsafe fn activate_run_time_cache() {
     CACHED_STRINGS.with(|cell| cell.replace(OwnedStringTable::new()));
 }
 
+const PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
+const TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
+
 #[derive(Default, Debug)]
 pub struct ZendFrame {
     // Most tools don't like frames that don't have function names, so use a
     // fake name if you need to like "<?php".
     pub function: Cow<'static, str>,
-    pub file: Option<Cow<'static, str>>,
+    pub file: Option<String>,
     pub line: u32, // use 0 for no line info
+}
+
+impl ZendFrame {
+    fn new(function: Option<Cow<'static, str>>, file: Option<String>, line: u32) -> Option<Self> {
+        // Only create a new frame if there's file or function info.
+        if file.is_some() || function.is_some() {
+            Some(Self {
+                function: function.unwrap_or(PHP_OPEN_TAG),
+                file,
+                line,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 // todo: dedup
@@ -96,40 +113,109 @@ unsafe fn extract_function_name(func: &zend_function) -> Option<String> {
     Some(String::from_utf8_lossy(buffer.as_slice()).into_owned())
 }
 
+unsafe fn arg0(execute_data: &zend_execute_data) -> Option<&mut zval> {
+    ddog_php_prof_zend_call_arg(execute_data, 0).as_mut()
+}
+
+unsafe fn interesting_arg0<'a>(fullname: &str, func: &'a zend_function) -> Option<&'a str> {
+    if func.common.required_num_args < 1 {
+        return None;
+    }
+
+    if !matches!(fullname, "do_action" | "do_action_ref_array") {
+        return None;
+    }
+
+    // List of others that may be interesting:
+    // load_template( string $_template_file, bool $load_once = true, array $args = array() )
+
+    let param0_name = func
+        .common
+        .arg_info
+        .as_ref()
+        .map(|arg_info| ddog_php_prof_zend_string_view(arg_info.name.as_mut()).into_bytes())
+        .unwrap_or(b"");
+
+    match std::str::from_utf8(param0_name) {
+        Ok(name) if name == "hook_name" => Some(name),
+        Ok(name) => {
+            log::trace!("'{fullname}' is likely not WordPress's: parameter 0 has name '{name}' instead of 'hook_name'");
+            None
+        }
+        Err(err) => {
+            log::warn!("encountered invalid utf-8 string in parameter 0 of {fullname}: {err}");
+            None
+        }
+    }
+}
+
+unsafe fn add_parameters(
+    fullname: &mut String,
+    execute_data: &zend_execute_data,
+    func: &zend_function,
+) {
+    if let Some(param0) = interesting_arg0(fullname, func) {
+        match arg0(execute_data) {
+            Some(arg0) => {
+                let arg0_str: Result<String, _> = String::try_from(arg0);
+                match arg0_str {
+                    Ok(arg0_str) => {
+                        fullname.push('(');
+                        fullname.push_str(param0);
+                        fullname.push_str(": '");
+                        fullname.push_str(&arg0_str);
+                        fullname.push_str("')");
+                    }
+                    Err(err) => {
+                        let error = match err {
+                            StringError::Null => Cow::Borrowed(
+                                "zval type was string, but the string pointer was null",
+                            ),
+                            StringError::Type(t) => {
+                                Cow::Owned(format!("expected zval type string, found {t}"))
+                            }
+                        };
+                        log::warn!("failed to get arg 0 of '{fullname}': {error}");
+                    }
+                }
+            }
+            None => {
+                log::warn!("failed to get arg 0 of '{fullname}': couldn't locate zval")
+            }
+        }
+    }
+}
+
 unsafe fn handle_file_cache_slot_helper(
     execute_data: &zend_execute_data,
     string_table: &mut RefMut<OwnedStringTable>,
     cache_slots: &mut [usize; 2],
-) -> Option<Cow<'static, str>> {
-    let offset = if cache_slots[1] > 0 {
-        cache_slots[1]
+) -> Option<String> {
+    let filename = if cache_slots[1] > 0 {
+        let offset = cache_slots[1];
+        let str = string_table.get_offset(offset);
+        String::from(str)
     } else {
         // Safety: if we have cache slots, we definitely have a func.
         let func = &*execute_data.func;
-        let file = if func.type_ == ZEND_USER_FUNCTION as u8 {
-            let bytes = zend_string_to_bytes(func.op_array.filename.as_mut());
-            String::from_utf8_lossy(bytes)
-        } else {
+        if func.type_ != ZEND_USER_FUNCTION as u8 {
             return None;
         };
+        let bytes = zend_string_to_bytes(func.op_array.filename.as_mut());
+        let file = String::from_utf8_lossy(bytes).into_owned();
         let offset = string_table.insert(file.as_ref());
         cache_slots[1] = offset;
-        offset
+        file
     };
-    let str = string_table.get_offset(offset);
-
-    // Safety: changing the lifetime to 'static is safe because
-    // the other threads using it are joined before this thread
-    // ever dies.
-    // todo: this is _not_ ZTS safe.
-    Some(Cow::Borrowed(transmute(str)))
+    Some(filename)
 }
 
+#[cfg(php_run_time_cache)]
 unsafe fn handle_file_cache_slot(
     execute_data: &zend_execute_data,
     string_table: &mut RefMut<OwnedStringTable>,
     cache_slots: &mut [usize; 2],
-) -> (Option<Cow<'static, str>>, u32) {
+) -> (Option<String>, u32) {
     match handle_file_cache_slot_helper(execute_data, string_table, cache_slots) {
         Some(filename) => {
             let lineno = match execute_data.opline.as_ref() {
@@ -142,20 +228,21 @@ unsafe fn handle_file_cache_slot(
     }
 }
 
+#[cfg(php_run_time_cache)]
 unsafe fn handle_function_cache_slot(
     func: &zend_function,
     string_table: &mut RefMut<OwnedStringTable>,
     cache_slots: &mut [usize; 2],
-) -> Option<Cow<'static, str>> {
+) -> Option<String> {
     if cache_slots[0] > 0 {
         let offset = cache_slots[0];
         let str = string_table.get_offset(offset);
-        Some(Cow::Owned(str.to_string()))
+        Some(str.to_string())
     } else {
         let name = extract_function_name(func)?;
         let offset = string_table.insert(name.as_ref());
         cache_slots[0] = offset;
-        Some(Cow::Owned(name))
+        Some(name)
     }
 }
 
@@ -195,7 +282,15 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
                         stats.hit += 1;
                     }
                 });
-                let function = handle_function_cache_slot(func, &mut string_table, cache_slots);
+                let function =
+                    match handle_function_cache_slot(func, &mut string_table, cache_slots) {
+                        Some(mut fname) => {
+                            add_parameters(&mut fname, execute_data, func);
+                            Some(Cow::Owned(fname))
+                        }
+                        None => None,
+                    };
+
                 let (file, line) =
                     handle_file_cache_slot(execute_data, &mut string_table, cache_slots);
 
@@ -207,43 +302,36 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
                     let mut stats = cell.borrow_mut();
                     stats.not_applicable += 1;
                 });
-                let function = extract_function_name(func).map(Cow::Owned);
+                let function = match extract_function_name(func) {
+                    None => None,
+                    Some(mut fname) => {
+                        add_parameters(&mut fname, execute_data, func);
+                        Some(Cow::Owned(fname))
+                    }
+                };
                 let (file, line) = extract_file_and_line(execute_data);
-                let file = file.map(Cow::Owned);
                 (function, file, line)
             }
         };
-
-        if function.is_some() || file.is_some() {
-            Some(ZendFrame {
-                function: function.unwrap_or(Cow::Borrowed("<?php")),
-                file,
-                line,
-            })
-        } else {
-            None
-        }
+        ZendFrame::new(function, file, line)
     })
 }
 
 #[cfg(not(php_run_time_cache))]
 unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
     if let Some(func) = execute_data.func.as_ref() {
-        let function = extract_function_name(func);
+        let function = match extract_function_name(func) {
+            None => None,
+            Some(mut fname) => {
+                add_parameters(&mut name, execute_data, func);
+                Some(Cow::Owned(name))
+            }
+        };
         let (file, line) = extract_file_and_line(execute_data);
-
-        // Only create a new frame if there's file or function info.
-        if file.is_some() || function.is_some() {
-            // If there's no function name, use a fake name.
-            let function = function.map(Cow::Owned).unwrap_or_else(|| "<?php".into());
-            return Some(ZendFrame {
-                function,
-                file: file.map(Cow::Owned),
-                line,
-            });
-        }
+        ZendFrame::new(function, file, line)
+    } else {
+        None
     }
-    None
 }
 
 pub fn collect_stack_sample(
@@ -263,7 +351,7 @@ pub fn collect_stack_sample(
              */
             if samples.len() == max_depth - 1 {
                 samples.push(ZendFrame {
-                    function: "[truncated]".into(),
+                    function: TRUNCATED,
                     file: None,
                     line: 0,
                 });

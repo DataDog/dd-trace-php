@@ -821,6 +821,7 @@ dependencies = [
 name = "ddtrace-php"
 version = "0.0.1"
 dependencies = [
+ "bitflags 2.3.3",
  "cbindgen",
  "cc_utils",
  "datadog-sidecar",
