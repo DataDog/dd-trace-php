@@ -512,7 +512,7 @@ impl<'a> ZaiStringView<'a> {
     #[allow(clippy::inherent_to_string)]
     #[inline]
     pub unsafe fn to_string(self) -> String {
-        String::from_utf8_lossy(self.into_bytes()).to_string()
+        String::from_utf8_lossy(self.into_bytes()).into_owned()
     }
 }
 
