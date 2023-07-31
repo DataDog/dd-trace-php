@@ -1,6 +1,5 @@
 use crate::bindings::{
-    ddog_php_prof_zend_string_view, zend_execute_data, zend_function, zend_string,
-    ZEND_USER_FUNCTION,
+    ddog_php_prof_zend_string_view, zend_execute_data, zend_function, ZEND_USER_FUNCTION,
 };
 use crate::string_table::{OwnedStringTable, StringTable};
 use std::borrow::Cow;
@@ -48,11 +47,6 @@ pub struct ZendFrame {
     pub function: Cow<'static, str>,
     pub file: Option<Cow<'static, str>>,
     pub line: u32, // use 0 for no line info
-}
-
-// todo: dedup
-unsafe fn zend_string_to_bytes(zstr: Option<&mut zend_string>) -> &[u8] {
-    ddog_php_prof_zend_string_view(zstr).into_bytes()
 }
 
 /// Extract the "function name" component for the frame. This is a string which
@@ -107,8 +101,7 @@ unsafe fn handle_file_cache_slot_helper(
         // Safety: if we have cache slots, we definitely have a func.
         let func = &*execute_data.func;
         let file = if func.type_ == ZEND_USER_FUNCTION as u8 {
-            let bytes = zend_string_to_bytes(func.op_array.filename.as_mut());
-            String::from_utf8_lossy(bytes)
+            ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string()
         } else {
             return None;
         };
@@ -163,8 +156,8 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
         Some(func) if func.type_ == ZEND_USER_FUNCTION as u8 => {
-            let bytes = zend_string_to_bytes(func.op_array.filename.as_mut());
-            let file = String::from_utf8_lossy(bytes).to_string();
+            // Safety: ddog_php_prof_zend_string_view will return a valid ZaiStringView.
+            let file = ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string();
             let lineno = match execute_data.opline.as_ref() {
                 Some(opline) => opline.lineno,
                 None => 0,

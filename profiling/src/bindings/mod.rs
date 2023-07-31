@@ -434,13 +434,9 @@ impl TryFrom<&mut zval> for String {
             }
 
             // Safety: checked the pointer wasn't null above.
-            let view = unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()) };
-
-            // Safety: ddog_php_prof_zend_string_view returns a fully populated string.
-            let bytes = unsafe { view.into_bytes() };
-
-            // PHP does not guarantee UTF-8 correctness, so lossy convert.
-            Ok(String::from_utf8_lossy(bytes).into_owned())
+            let str =
+                unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()).to_string() };
+            Ok(str)
         } else {
             Err(StringError::Type(r#type))
         }
@@ -496,15 +492,27 @@ impl<'a> ZaiStringView<'a> {
     /// # Safety
     /// Inherits the safety requirements of [std::slice::from_raw_parts], in
     /// particular, the view must not use a null pointer.
+    #[inline]
     pub unsafe fn into_bytes(self) -> &'a [u8] {
         assert!(!self.ptr.is_null());
         let len = self.len;
         std::slice::from_raw_parts(self.ptr as *const u8, len)
     }
 
+    /// # Safety
+    /// Inherits the safety requirements of [std::slice::from_raw_parts].
+    #[inline]
     pub unsafe fn into_utf8(self) -> Result<&'a str, Utf8Error> {
         let bytes = self.into_bytes();
         std::str::from_utf8(bytes)
+    }
+
+    /// # Safety
+    /// Inherits the safety requirements of [std::slice::from_raw_parts].
+    #[allow(clippy::inherent_to_string)]
+    #[inline]
+    pub unsafe fn to_string(self) -> String {
+        String::from_utf8_lossy(self.into_bytes()).into_owned()
     }
 }
 
