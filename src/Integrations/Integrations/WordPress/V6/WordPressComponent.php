@@ -619,6 +619,7 @@ class WordPressComponent
                         $callbackName = WordPressComponent::getPrettyCallbackName($callback);
                         WordPressComponent::setCommonTags($integration, $span, 'callback', $callbackName . ' (callback)');
                         $span->meta['wp.callback'] = $callbackName;
+                        $span->meta['wp.hook'] = $action;
 
                         $file = $hook->getSourceFile();
                         if ($plugin = WordPressComponent::extractPluginNameFromFile($file)) {

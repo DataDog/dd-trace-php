@@ -5,19 +5,19 @@
     "resource": "GET /error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 8467615445420847934,
+    "parent_id": 5595983595133542711,
     "type": "web",
     "error": 1,
     "meta": {
       "_dd.p.dm": "-1",
       "component": "wordpress",
-      "error.message": "Uncaught Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:23",
-      "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(287): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(311): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/plugin.php(544): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(745): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/functions.php(1285): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/index.php(17): require()\n#8 {main}",
+      "error.message": "Uncaught Exception: Oops! in /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:23",
+      "error.stack": "#0 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(287): datadog_parse_request()\n#1 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(311): WP_Hook->apply_filters()\n#2 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/plugin.php(544): WP_Hook->do_action()\n#3 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(745): WP->parse_request()\n#5 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/functions.php(1285): WP->main()\n#6 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-blog-header.php(16): wp()\n#7 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/index.php(17): require()\n#8 {main}",
       "error.type": "Exception",
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
-      "runtime-id": "9fe7e0f9-74ef-47cc-b4b5-6a16aaecdc4d",
+      "runtime-id": "0c35f3fc-0eef-4b34-a371-910d90ea063f",
       "span.kind": "server",
       "usr.id": "0"
     },
@@ -127,7 +127,8 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.callback": "create_initial_taxonomies"
+         "wp.callback": "create_initial_taxonomies",
+         "wp.hook": "init"
        }
      },
      {
@@ -140,7 +141,8 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.callback": "create_initial_post_types"
+         "wp.callback": "create_initial_post_types",
+         "wp.hook": "init"
        }
      },
      {
@@ -179,7 +181,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "wp_maybe_load_widgets"
+            "wp.callback": "wp_maybe_load_widgets",
+            "wp.hook": "plugins_loaded"
           }
         },
         {
@@ -192,7 +195,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "wp_maybe_load_embeds"
+            "wp.callback": "wp_maybe_load_embeds",
+            "wp.hook": "plugins_loaded"
           }
         },
         {
@@ -205,7 +209,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "_wp_add_additional_image_sizes"
+            "wp.callback": "_wp_add_additional_image_sizes",
+            "wp.hook": "plugins_loaded"
           }
         },
         {
@@ -218,7 +223,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "_wp_customize_include"
+            "wp.callback": "_wp_customize_include",
+            "wp.hook": "plugins_loaded"
           }
         },
      {
@@ -244,7 +250,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "create_initial_theme_features"
+            "wp.callback": "create_initial_theme_features",
+            "wp.hook": "setup_theme"
           }
         },
      {
@@ -304,7 +311,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "twentytwenty_theme_support"
+            "wp.callback": "twentytwenty_theme_support",
+            "wp.hook": "after_setup_theme"
           }
         },
         {
@@ -317,7 +325,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "twentytwenty_block_editor_settings"
+            "wp.callback": "twentytwenty_block_editor_settings",
+            "wp.hook": "after_setup_theme"
           }
         },
      {
@@ -342,7 +351,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "kses_init"
+            "wp.callback": "kses_init",
+            "wp.hook": "init"
           }
         },
      {
@@ -392,7 +402,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "wp_widgets_init"
+            "wp.callback": "wp_widgets_init",
+            "wp.hook": "init"
           }
         },
            {
@@ -438,7 +449,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "smilies_init"
+            "wp.callback": "smilies_init",
+            "wp.hook": "init"
           }
         },
         {
@@ -451,7 +463,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "wp_init_targeted_link_rel_filters"
+            "wp.callback": "wp_init_targeted_link_rel_filters",
+            "wp.hook": "init"
           }
         },
         {
@@ -464,7 +477,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "_register_core_block_patterns_and_categories"
+            "wp.callback": "_register_core_block_patterns_and_categories",
+            "wp.hook": "init"
           }
         },
         {
@@ -477,7 +491,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "wp_cron"
+            "wp.callback": "wp_cron",
+            "wp.hook": "init"
           }
         },
         {
@@ -490,7 +505,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "wp_schedule_delete_old_privacy_export_files"
+            "wp.callback": "wp_schedule_delete_old_privacy_export_files",
+            "wp.hook": "init"
           }
         },
         {
@@ -503,7 +519,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "_show_post_preview"
+            "wp.callback": "_show_post_preview",
+            "wp.hook": "init"
           }
         },
         {
@@ -516,7 +533,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "rest_api_init"
+            "wp.callback": "rest_api_init",
+            "wp.hook": "init"
           }
         },
         {
@@ -529,7 +547,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "wp_sitemaps_get_server"
+            "wp.callback": "wp_sitemaps_get_server",
+            "wp.hook": "init"
           }
         },
         {
@@ -542,7 +561,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "wp_schedule_update_checks"
+            "wp.callback": "wp_schedule_update_checks",
+            "wp.hook": "init"
           }
         },
         {
@@ -555,7 +575,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_archives"
+            "wp.callback": "register_block_core_archives",
+            "wp.hook": "init"
           }
         },
         {
@@ -568,7 +589,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_block"
+            "wp.callback": "register_block_core_block",
+            "wp.hook": "init"
           }
         },
         {
@@ -581,7 +603,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_calendar"
+            "wp.callback": "register_block_core_calendar",
+            "wp.hook": "init"
           }
         },
         {
@@ -594,7 +617,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_categories"
+            "wp.callback": "register_block_core_categories",
+            "wp.hook": "init"
           }
         },
         {
@@ -607,7 +631,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_latest_comments"
+            "wp.callback": "register_block_core_latest_comments",
+            "wp.hook": "init"
           }
         },
         {
@@ -620,7 +645,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_latest_posts"
+            "wp.callback": "register_block_core_latest_posts",
+            "wp.hook": "init"
           }
         },
         {
@@ -633,7 +659,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_rss"
+            "wp.callback": "register_block_core_rss",
+            "wp.hook": "init"
           }
         },
         {
@@ -646,7 +673,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_search"
+            "wp.callback": "register_block_core_search",
+            "wp.hook": "init"
           }
         },
         {
@@ -659,7 +687,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_shortcode"
+            "wp.callback": "register_block_core_shortcode",
+            "wp.hook": "init"
           }
         },
         {
@@ -672,7 +701,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_social_link"
+            "wp.callback": "register_block_core_social_link",
+            "wp.hook": "init"
           }
         },
         {
@@ -685,7 +715,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_block_core_tag_cloud"
+            "wp.callback": "register_block_core_tag_cloud",
+            "wp.hook": "init"
           }
         },
         {
@@ -698,7 +729,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "register_core_block_types_from_metadata"
+            "wp.callback": "register_core_block_types_from_metadata",
+            "wp.hook": "init"
           }
         },
         {
@@ -711,7 +743,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "twentytwenty_menus"
+            "wp.callback": "twentytwenty_menus",
+            "wp.hook": "init"
           }
         },
         {
@@ -724,7 +757,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "twentytwenty_classic_editor_styles"
+            "wp.callback": "twentytwenty_classic_editor_styles",
+            "wp.hook": "init"
           }
         },
         {
@@ -737,7 +771,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "check_theme_switched"
+            "wp.callback": "check_theme_switched",
+            "wp.hook": "init"
           }
         },
            {
@@ -784,7 +819,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "_custom_header_background_just_in_time"
+            "wp.callback": "_custom_header_background_just_in_time",
+            "wp.hook": "wp_loaded"
           }
         },
      {
@@ -798,8 +834,8 @@
        "error": 1,
        "meta": {
          "component": "wordpress",
-         "error.message": "Thrown Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:23",
-         "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(287): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(311): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/plugin.php(544): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(745): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/functions.php(1285): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/index.php(17): require()\n#8 {main}",
+         "error.message": "Thrown Exception: Oops! in /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:23",
+         "error.stack": "#0 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(287): datadog_parse_request()\n#1 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(311): WP_Hook->apply_filters()\n#2 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/plugin.php(544): WP_Hook->do_action()\n#3 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(745): WP->parse_request()\n#5 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/functions.php(1285): WP->main()\n#6 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-blog-header.php(16): wp()\n#7 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/index.php(17): require()\n#8 {main}",
          "error.type": "Exception"
        }
      },
@@ -826,8 +862,8 @@
           "error": 1,
           "meta": {
             "component": "wordpress",
-            "error.message": "Thrown Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:23",
-            "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(287): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(311): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/plugin.php(544): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(745): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/functions.php(1285): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/index.php(17): require()\n#8 {main}",
+            "error.message": "Thrown Exception: Oops! in /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:23",
+            "error.stack": "#0 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(287): datadog_parse_request()\n#1 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(311): WP_Hook->apply_filters()\n#2 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/plugin.php(544): WP_Hook->do_action()\n#3 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(745): WP->parse_request()\n#5 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-includes/functions.php(1285): WP->main()\n#6 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/wp-blog-header.php(16): wp()\n#7 /home/circleci/app/tests/Frameworks/WordPress/Version_5_5/index.php(17): require()\n#8 {main}",
             "error.type": "Exception"
           }
         },
@@ -875,6 +911,7 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.callback": "wp_ob_end_flush_all"
+            "wp.callback": "wp_ob_end_flush_all",
+            "wp.hook": "shutdown"
           }
         }]]
