@@ -759,7 +759,7 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: "[eval]".into(),
+                function: COW_EVAL,
                 file: Some(filename),
                 line,
             }],
