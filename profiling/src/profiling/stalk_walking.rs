@@ -96,25 +96,6 @@ unsafe fn extract_function_name(func: &zend_function) -> Option<String> {
 }
 
 #[cfg(php_run_time_cache)]
-unsafe fn handle_function_cache_slot(
-    func: &zend_function,
-    string_table: &mut RefMut<OwnedStringTable>,
-    cache_slots: &mut [usize; 2],
-) -> Option<Cow<'static, str>> {
-    let fname = if cache_slots[0] > 0 {
-        let offset = cache_slots[0];
-        let str = string_table.get_offset(offset);
-        str.to_string()
-    } else {
-        let name = extract_function_name(func)?;
-        let offset = string_table.insert(name.as_ref());
-        cache_slots[0] = offset;
-        name
-    };
-    Some(Cow::Owned(fname))
-}
-
-#[cfg(php_run_time_cache)]
 unsafe fn handle_file_cache_slot_helper(
     execute_data: &zend_execute_data,
     string_table: &mut RefMut<OwnedStringTable>,
@@ -156,6 +137,25 @@ unsafe fn handle_file_cache_slot(
         }
         None => (None, 0),
     }
+}
+
+#[cfg(php_run_time_cache)]
+unsafe fn handle_function_cache_slot(
+    func: &zend_function,
+    string_table: &mut RefMut<OwnedStringTable>,
+    cache_slots: &mut [usize; 2],
+) -> Option<Cow<'static, str>> {
+    let fname = if cache_slots[0] > 0 {
+        let offset = cache_slots[0];
+        let str = string_table.get_offset(offset);
+        str.to_string()
+    } else {
+        let name = extract_function_name(func)?;
+        let offset = string_table.insert(name.as_ref());
+        cache_slots[0] = offset;
+        name
+    };
+    Some(Cow::Owned(fname))
 }
 
 unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
