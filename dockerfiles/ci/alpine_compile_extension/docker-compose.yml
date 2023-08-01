@@ -123,8 +123,8 @@ services:
       x-bake: *bake
       args:
         php_version: 8.3.0
-        php_sha: "741a9da205a18a754902a39e3cd7c4e66ef2611975a0f94027be001b6a8ed020"
-        php_url: https://downloads.php.net/~jakub/php-8.3.0alpha1.tar.gz
+        php_sha: "c4241bf49f1d91b0d6acf29a5c5d69c631e7e5f5c3eb83eba7fa3221046083f5"
+        php_url: https://downloads.php.net/~eric/php-8.3.0beta1.tar.gz
         php_api: 20220830
     command: build-dd-trace-php
     volumes:
