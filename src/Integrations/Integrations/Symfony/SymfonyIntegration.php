@@ -358,7 +358,9 @@ class SymfonyIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                if ($integration->symfonyRequestSpan->name !== 'drupal.request') {
+                    $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                }
                 $integration->symfonyRequestSpan->meta[Tag::SPAN_KIND] = 'server';
 
                 if (!array_key_exists(Tag::HTTP_URL, $integration->symfonyRequestSpan->meta)) {
@@ -385,7 +387,7 @@ class SymfonyIntegration extends Integration
          * the closure must be run _before_ the original call via 'prehook'.
         */
         \DDTrace\trace_method(
-            'Symfony\Component\EventDispatcher\EventDispatcher',
+            'Symfony\Contracts\EventDispatcher\EventDispatcherInterface',
             'dispatch',
             [
                 'recurse' => true,
