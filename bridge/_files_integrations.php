@@ -11,6 +11,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/AMQP/AMQPIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/CakePHP/CakePHPIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/CodeIgniter/V2/CodeIgniterIntegration.php',
+    __DIR__ . '/../src/Integrations/Integrations/Drupal/DrupalIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Web/WebIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/IntegrationsLoader.php',
     __DIR__ . '/../src/Integrations/Integrations/Pcntl/PcntlIntegration.php',
