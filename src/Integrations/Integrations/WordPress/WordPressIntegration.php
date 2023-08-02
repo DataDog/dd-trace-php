@@ -59,8 +59,9 @@ class WordPressIntegration extends Integration
                 return false;
             }
             $majorVersion = substr($GLOBALS['wp_version'], 0, 1);
+            $enhancedIntegration = dd_trace_env_config('DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION');
             if ($majorVersion >= 4) {
-                $loader = new WordPressComponent();
+                $loader = $enhancedIntegration ? new WordPressComponent() : new WordPressIntegrationLoader();
                 $loader->load($integration);
             }
 
