@@ -70,9 +70,9 @@ class DrupalIntegration extends Integration
 
                 if (is_array($retval)) {
                     list($controller, $method) = $retval;
-                    $rootSpan->resource = $controller . '::' . $method;
+                    $rootSpan->resource = get_class($controller) . '::' . $method;
                 } else {
-                    $rootSpan->resource = $retval;
+                    $rootSpan->resource = get_class($retval); // TODO: Do better :)
                 }
             }
         );
@@ -85,6 +85,8 @@ class DrupalIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('drupal');
                 $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+
+                // TODO: Add tags
             }
         );
 
