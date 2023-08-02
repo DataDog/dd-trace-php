@@ -4,8 +4,13 @@ mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
-use stalk_walking::*;
+pub use stalk_walking::*;
 use uploader::*;
+
+#[cfg(all(php_has_fibers, not(test)))]
+use crate::bindings::ddog_php_prof_get_active_fiber;
+#[cfg(all(php_has_fibers, test))]
+use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::{AgentEndpoint, RequestLocals};
@@ -322,7 +327,7 @@ impl TimeCollector {
                 .expect("entry to exist; just inserted it")
         };
 
-        let mut locations = vec![];
+        let mut locations = Vec::with_capacity(message.value.frames.len());
 
         let values = message.value.sample_values;
         let labels: Vec<profile::api::Label> = message
@@ -336,7 +341,7 @@ impl TimeCollector {
             let location = Location {
                 lines: vec![Line {
                     function: Function {
-                        name: frame.function.as_str(),
+                        name: frame.function.as_ref(),
                         system_name: "",
                         filename: frame.file.as_deref().unwrap_or(""),
                         start_line: 0,
@@ -759,7 +764,7 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: "[eval]".into(),
+                function: COW_EVAL,
                 file: Some(filename),
                 line,
             }],
@@ -813,7 +818,7 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: format!("[{include_type}]"),
+                function: format!("[{include_type}]").into(),
                 file: None,
                 line: 0,
             }],
@@ -879,7 +884,7 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: "[gc]".to_string(),
+                function: "[gc]".into(),
                 file: None,
                 line: 0,
             }],
@@ -929,7 +934,8 @@ impl Profiler {
     fn prepare_sample_message(
         frames: Vec<ZendFrame>,
         samples: SampleValues,
-        labels: Vec<Label>,
+        #[cfg(php_has_fibers)] mut labels: Vec<Label>,
+        #[cfg(not(php_has_fibers))] labels: Vec<Label>,
         locals: &RequestLocals,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
@@ -971,6 +977,21 @@ impl Profiler {
                 sample_types.push(SAMPLE_TYPES[5]);
                 sample_values.push(values[5]);
             }
+
+            #[cfg(php_has_fibers)]
+            if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
+                // Safety: the fcc is set by Fiber::__construct as part of zpp,
+                // which will always set the function_handler on success, and
+                // there's nothing changing that value in all of fibers
+                // afterwards, from start to destruction of the fiber itself.
+                let func = unsafe { &*fiber.fci_cache.function_handler };
+                if let Some(functionname) = unsafe { extract_function_name(func) } {
+                    labels.push(Label {
+                        key: "fiber",
+                        value: LabelValue::Str(functionname.into()),
+                    });
+                }
+            }
         }
 
         let tags = Arc::clone(&locals.tags);
@@ -998,8 +1019,8 @@ mod tests {
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
-            function: "foobar()".to_string(),
-            file: Some("foobar.php".to_string()),
+            function: "foobar()".into(),
+            file: Some("foobar.php".into()),
             line: 42,
         }]
     }

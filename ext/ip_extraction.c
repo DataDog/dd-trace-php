@@ -6,7 +6,8 @@
 #include <zend_smart_str.h>
 
 #include "compatibility.h"
-#include "logging.h"
+#include "configuration.h"
+#include <components/log/log.h>
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -164,7 +165,7 @@ static zend_string *dd_try_extract_ip_from_custom_header(const zval *server, zen
         }
     }
 
-    ddtrace_log_debugf("No available IP from header '%.*s'", ZSTR_LEN(ipheader), ZSTR_VAL(ipheader));
+    LOG(Warn, "No available IP from header '%.*s'", ZSTR_LEN(ipheader), ZSTR_VAL(ipheader));
 
     return NULL;
 }
@@ -197,7 +198,7 @@ static zend_string *dd_ipaddr_to_zstr(const ipaddr *ipaddr) {
     char buf[INET6_ADDRSTRLEN];
     const char *res = inet_ntop(ipaddr->af, (char *)&ipaddr->v4, buf, sizeof(buf));
     if (!res) {
-        ddtrace_log_debug("inet_ntop failed");
+        LOG(Warn, "inet_ntop failed");
         return NULL;
     }
     return zend_string_init(res, strlen(res), 0);
@@ -327,7 +328,7 @@ static bool dd_parse_ip_address(const char *_addr, size_t addr_len, bool ip_or_e
         ret = inet_pton(AF_INET6, addr, &out->v6);
         if (ret != 1) {
             if (ip_or_error) {
-                ddtrace_log_errf("Not recognized as IP address: \"%s\"", addr);
+                LOG(Error, "Not recognized as IP address: \"%s\"", addr);
             }
             res = false;
             goto err;
@@ -337,15 +338,15 @@ static bool dd_parse_ip_address(const char *_addr, size_t addr_len, bool ip_or_e
         static const uint8_t ip4_mapped_prefix[12] = {[10 ... 11] = 0xFF};
         if (memcmp(s6addr, ip4_mapped_prefix, sizeof(ip4_mapped_prefix)) == 0) {
             // IPv4 mapped
-            ddtrace_log_debugf("Parsed as IPv4 mapped address: %s", addr);
+            LOG(Warn, "Parsed as IPv4 mapped address: %s", addr);
             memcpy(&out->v4.s_addr, s6addr + sizeof(ip4_mapped_prefix), 4);
             out->af = AF_INET;
         } else {
-            ddtrace_log_debugf("Parsed as IPv6 address: %s", addr);
+            LOG(Warn, "Parsed as IPv6 address: %s", addr);
             out->af = AF_INET6;
         }
     } else {
-        ddtrace_log_debugf("Parsed as IPv4 address: %s", addr);
+        LOG(Warn, "Parsed as IPv4 address: %s", addr);
         out->af = AF_INET;
     }
 

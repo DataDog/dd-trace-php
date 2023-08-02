@@ -1,5 +1,5 @@
 --TEST--
-Allocation profiling should be disabled when JIT is active
+[profiling] Allocation profiling should be disabled when JIT is active
 --DESCRIPTION--
 We did find a crash in PHP when collecting a stack sample in allocation
 profiling when JIT is activated in a `ZEND_GENERATOR_RETURN`. For the time being
