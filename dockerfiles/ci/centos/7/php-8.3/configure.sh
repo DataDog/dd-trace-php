@@ -3,6 +3,12 @@ if [ -z "${PHP_SRC_DIR}" ]; then
     exit 1
 fi
 
+# needed for CentOS7 vs PHP 8.3, otherwise you get a:
+# ld: dynamic STT_GNU_IFUNC symbol `mb_wchar_to_utf16le' with pointer equality in `ext/mbstring/libmbfl/filters/mbfilter_utf16.o' can not be used when making an executable; recompile with -fPIE and relink with -pie
+# see also https://github.com/php/php-src/issues/11603
+export LDFLAGS=-pie
+export CFLAGS=-fPIE
+
 ${PHP_SRC_DIR}/configure \
     --enable-option-checking=fatal \
     --enable-calendar \
