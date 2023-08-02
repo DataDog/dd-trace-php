@@ -4,7 +4,6 @@ use crate::bindings::{
 use crate::string_table::{OwnedStringTable, StringTable};
 use std::borrow::Cow;
 use std::cell::{RefCell, RefMut};
-use std::mem::transmute;
 use std::str::Utf8Error;
 
 /// Used to help track the function run_time_cache hit rate. It glosses over
@@ -40,12 +39,18 @@ pub unsafe fn activate_run_time_cache() {
     CACHED_STRINGS.with(|cell| cell.replace(OwnedStringTable::new()));
 }
 
+const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
+const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
+
+#[cfg(feature = "timeline")]
+pub const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
+
 #[derive(Default, Debug)]
 pub struct ZendFrame {
     // Most tools don't like frames that don't have function names, so use a
     // fake name if you need to like "<?php".
     pub function: Cow<'static, str>,
-    pub file: Option<Cow<'static, str>>,
+    pub file: Option<String>,
     pub line: u32, // use 0 for no line info
 }
 
@@ -90,39 +95,38 @@ unsafe fn extract_function_name(func: &zend_function) -> Option<String> {
     Some(String::from_utf8_lossy(buffer.as_slice()).into_owned())
 }
 
+#[cfg(php_run_time_cache)]
 unsafe fn handle_file_cache_slot_helper(
     execute_data: &zend_execute_data,
     string_table: &mut RefMut<OwnedStringTable>,
     cache_slots: &mut [usize; 2],
-) -> Option<Cow<'static, str>> {
-    let offset = if cache_slots[1] > 0 {
-        cache_slots[1]
+) -> Option<String> {
+    let file = if cache_slots[1] > 0 {
+        let offset = cache_slots[1];
+        let str = string_table.get_offset(offset);
+        String::from(str)
     } else {
         // Safety: if we have cache slots, we definitely have a func.
         let func = &*execute_data.func;
-        let file = if func.type_ == ZEND_USER_FUNCTION as u8 {
-            ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string()
-        } else {
+        if func.type_ != ZEND_USER_FUNCTION as u8 {
             return None;
         };
+
+        let file = ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string();
         let offset = string_table.insert(file.as_ref());
         cache_slots[1] = offset;
-        offset
+        file
     };
-    let str = string_table.get_offset(offset);
 
-    // Safety: changing the lifetime to 'static is safe because
-    // the other threads using it are joined before this thread
-    // ever dies.
-    // todo: this is _not_ ZTS safe.
-    Some(Cow::Borrowed(transmute(str)))
+    Some(file)
 }
 
+#[cfg(php_run_time_cache)]
 unsafe fn handle_file_cache_slot(
     execute_data: &zend_execute_data,
     string_table: &mut RefMut<OwnedStringTable>,
     cache_slots: &mut [usize; 2],
-) -> (Option<Cow<'static, str>>, u32) {
+) -> (Option<String>, u32) {
     match handle_file_cache_slot_helper(execute_data, string_table, cache_slots) {
         Some(filename) => {
             let lineno = match execute_data.opline.as_ref() {
@@ -135,21 +139,23 @@ unsafe fn handle_file_cache_slot(
     }
 }
 
+#[cfg(php_run_time_cache)]
 unsafe fn handle_function_cache_slot(
     func: &zend_function,
     string_table: &mut RefMut<OwnedStringTable>,
     cache_slots: &mut [usize; 2],
 ) -> Option<Cow<'static, str>> {
-    if cache_slots[0] > 0 {
+    let fname = if cache_slots[0] > 0 {
         let offset = cache_slots[0];
         let str = string_table.get_offset(offset);
-        Some(Cow::Owned(str.to_string()))
+        str.to_string()
     } else {
         let name = extract_function_name(func)?;
         let offset = string_table.insert(name.as_ref());
         cache_slots[0] = offset;
-        Some(Cow::Owned(name))
-    }
+        name
+    };
+    Some(Cow::Owned(fname))
 }
 
 unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
@@ -202,14 +208,13 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
                 });
                 let function = extract_function_name(func).map(Cow::Owned);
                 let (file, line) = extract_file_and_line(execute_data);
-                let file = file.map(Cow::Owned);
                 (function, file, line)
             }
         };
 
         if function.is_some() || file.is_some() {
             Some(ZendFrame {
-                function: function.unwrap_or(Cow::Borrowed("<?php")),
+                function: function.unwrap_or(COW_PHP_OPEN_TAG),
                 file,
                 line,
             })
@@ -228,10 +233,10 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
         // Only create a new frame if there's file or function info.
         if file.is_some() || function.is_some() {
             // If there's no function name, use a fake name.
-            let function = function.map(Cow::Owned).unwrap_or_else(|| "<?php".into());
+            let function = function.map(Cow::Owned).unwrap_or(COW_PHP_OPEN_TAG);
             return Some(ZendFrame {
                 function,
-                file: file.map(Cow::Owned),
+                file,
                 line,
             });
         }
@@ -256,7 +261,7 @@ pub fn collect_stack_sample(
              */
             if samples.len() == max_depth - 1 {
                 samples.push(ZendFrame {
-                    function: "[truncated]".into(),
+                    function: COW_TRUNCATED,
                     file: None,
                     line: 0,
                 });
