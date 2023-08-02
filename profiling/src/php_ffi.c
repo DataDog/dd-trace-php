@@ -172,6 +172,18 @@ zend_execute_data* ddog_php_prof_get_current_execute_data() {
     return EG(current_execute_data);
 }
 
+#if CFG_FIBERS // defined by build.rs
+zend_fiber* ddog_php_prof_get_active_fiber()
+{
+    return EG(active_fiber);
+}
+
+zend_fiber* ddog_php_prof_get_active_fiber_test()
+{
+    return NULL;
+}
+#endif
+
 #if CFG_RUN_TIME_CACHE // defined by build.rs
 static int ddog_php_prof_run_time_cache_handle = -1;
 #endif

@@ -7,6 +7,11 @@ pub use interrupts::*;
 pub use stalk_walking::*;
 use uploader::*;
 
+#[cfg(all(php_has_fibers, not(test)))]
+use crate::bindings::ddog_php_prof_get_active_fiber;
+#[cfg(all(php_has_fibers, test))]
+use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
+
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::{AgentEndpoint, RequestLocals};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
@@ -929,7 +934,8 @@ impl Profiler {
     fn prepare_sample_message(
         frames: Vec<ZendFrame>,
         samples: SampleValues,
-        labels: Vec<Label>,
+        #[cfg(php_has_fibers)] mut labels: Vec<Label>,
+        #[cfg(not(php_has_fibers))] labels: Vec<Label>,
         locals: &RequestLocals,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
@@ -970,6 +976,21 @@ impl Profiler {
             if locals.profiling_experimental_timeline_enabled {
                 sample_types.push(SAMPLE_TYPES[5]);
                 sample_values.push(values[5]);
+            }
+
+            #[cfg(php_has_fibers)]
+            if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
+                // Safety: the fcc is set by Fiber::__construct as part of zpp,
+                // which will always set the function_handler on success, and
+                // there's nothing changing that value in all of fibers
+                // afterwards, from start to destruction of the fiber itself.
+                let func = unsafe { &*fiber.fci_cache.function_handler };
+                if let Some(functionname) = unsafe { extract_function_name(func) } {
+                    labels.push(Label {
+                        key: "fiber",
+                        value: LabelValue::Str(functionname.into()),
+                    });
+                }
             }
         }
 
