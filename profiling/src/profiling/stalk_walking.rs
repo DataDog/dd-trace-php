@@ -102,7 +102,7 @@ unsafe fn handle_file_cache_slot_helper(
     cache_slots: &mut [usize; 2],
 ) -> Option<String> {
     let file = if cache_slots[1] > 0 {
-        let offset = cache_slots[1];
+        let offset = cache_slots[1] as u32;
         let str = string_table.get_offset(offset);
         String::from(str)
     } else {
@@ -114,7 +114,7 @@ unsafe fn handle_file_cache_slot_helper(
 
         let file = ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string();
         let offset = string_table.insert(file.as_ref());
-        cache_slots[1] = offset;
+        cache_slots[1] = offset as usize;
         file
     };
 
@@ -146,13 +146,13 @@ unsafe fn handle_function_cache_slot(
     cache_slots: &mut [usize; 2],
 ) -> Option<Cow<'static, str>> {
     let fname = if cache_slots[0] > 0 {
-        let offset = cache_slots[0];
+        let offset = cache_slots[0] as u32;
         let str = string_table.get_offset(offset);
         str.to_string()
     } else {
         let name = extract_function_name(func)?;
         let offset = string_table.insert(name.as_ref());
-        cache_slots[0] = offset;
+        cache_slots[0] = offset as usize;
         name
     };
     Some(Cow::Owned(fname))
