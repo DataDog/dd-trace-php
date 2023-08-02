@@ -172,13 +172,27 @@ zend_execute_data* ddog_php_prof_get_current_execute_data() {
     return EG(current_execute_data);
 }
 
+#if CFG_FIBERS // defined by build.rs
+zend_fiber* ddog_php_prof_get_active_fiber()
+{
+    return EG(active_fiber);
+}
+
+zend_fiber* ddog_php_prof_get_active_fiber_test()
+{
+    return NULL;
+}
+#endif
+
 #if CFG_RUN_TIME_CACHE // defined by build.rs
 static int ddog_php_prof_run_time_cache_handle = -1;
 #endif
 
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 #if CFG_RUN_TIME_CACHE // defined by build.rs
-    // Grab 2, one for function name and one for filename.
+    // Grab 1 slot for the full module|class::method name.
+    // Grab 1 slot for caching filename, as it turns out the utf-8 validity
+    // check is worth caching.
 #if PHP_VERSION_ID < 80200
     ddog_php_prof_run_time_cache_handle =
         zend_get_op_array_extension_handle(module_name);
@@ -221,10 +235,7 @@ static bool has_invalid_run_time_cache(zend_function const *func) {
 #endif
 
 uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
-#if CFG_STACK_WALKING_TESTS
-    return NULL;
-#endif
-#if CFG_RUN_TIME_CACHE
+#if CFG_RUN_TIME_CACHE && !CFG_STACK_WALKING_TESTS
     if (UNEXPECTED(has_invalid_run_time_cache(func))) return NULL;
 
 #if PHP_VERSION_ID < 80200
@@ -243,6 +254,7 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
     return cache_addr + ddog_php_prof_run_time_cache_handle;
 
 #else
+    (void)func;
     /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
      * that weren't truly fixed until PHP 8:
      * https://github.com/php/php-src/pull/5871
