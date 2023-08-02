@@ -279,6 +279,9 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_minit();
 
+    #[cfg(feature = "timeline")]
+    timeline::timeline_minit();
+
     ZendResult::Success
 }
 
@@ -383,10 +386,10 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     ) = unsafe {
         (
             config::profiling_enabled(),
-            config::profiling_endpoint_collection_enabled(),
-            config::profiling_experimental_cpu_time_enabled(),
-            config::profiling_allocation_enabled(),
-            config::profiling_experimental_timeline_enabled(),
+            config::profiling_endpoint_collection_enabled() && config::profiling_enabled(),
+            config::profiling_experimental_cpu_time_enabled() && config::profiling_enabled(),
+            config::profiling_allocation_enabled() && config::profiling_enabled(),
+            config::profiling_experimental_timeline_enabled() && config::profiling_enabled(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
         )
@@ -555,9 +558,6 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rinit();
 
-    #[cfg(feature = "timeline")]
-    timeline::timeline_rinit();
-
     ZendResult::Success
 }
 
@@ -664,9 +664,6 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rshutdown();
-
-    #[cfg(feature = "timeline")]
-    timeline::timeline_rshutdown();
 
     ZendResult::Success
 }

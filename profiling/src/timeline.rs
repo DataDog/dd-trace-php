@@ -18,19 +18,7 @@ static mut PREV_ZEND_COMPILE_STRING: Option<zend::VmZendCompileString> = None;
 /// The engine's original (or neighbouring extensions) `zend_compile_file()` function
 static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
 
-pub fn timeline_rinit() {
-    let (profiling_enabled, profiling_experimental_timeline_enabled) = unsafe {
-        (
-            config::profiling_enabled(),
-            config::profiling_experimental_timeline_enabled(),
-        )
-    };
-
-    if !profiling_enabled || !profiling_experimental_timeline_enabled {
-        return;
-    }
-
-    info!("Enabling experimental timeline");
+pub fn timeline_minit() {
     unsafe {
         // register our function in the `gc_collect_cycles` pointer
         PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
@@ -46,56 +34,6 @@ pub fn timeline_rinit() {
     }
 }
 
-pub fn timeline_rshutdown() {
-    let (profiling_enabled, profiling_experimental_timeline_enabled) = unsafe {
-        (
-            config::profiling_enabled(),
-            config::profiling_experimental_timeline_enabled(),
-        )
-    };
-
-    if !profiling_enabled || !profiling_experimental_timeline_enabled {
-        return;
-    }
-
-    let mut clean_shutdown = true;
-    // reset handlers if found
-    unsafe {
-        if zend::gc_collect_cycles == Some(ddog_php_prof_gc_collect_cycles) {
-            zend::gc_collect_cycles = PREV_GC_COLLECT_CYCLES;
-        } else {
-            clean_shutdown = false;
-        }
-
-        if zend::zend_compile_file == Some(ddog_php_prof_compile_file) {
-            zend::zend_compile_file = PREV_ZEND_COMPILE_FILE;
-        } else {
-            clean_shutdown = false;
-        }
-
-        if zend::zend_compile_string == Some(ddog_php_prof_compile_string) {
-            zend::zend_compile_string = PREV_ZEND_COMPILE_STRING;
-        } else {
-            clean_shutdown = false;
-        }
-    }
-
-    if !clean_shutdown {
-        // There seems to be another extension that is loaded after us, using one of the hooks we
-        // are using that did not cleanly shutdown, so the pointers are messed up. Best bet to
-        // avoid segfaults is to not touch those pointers and make sure our extension will not be
-        // `dlclose()`-ed so the pointers stay valid
-        let zend_extension =
-            unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
-        if !zend_extension.is_null() {
-            // Safety: Checked for null pointer above.
-            unsafe {
-                (*zend_extension).handle = std::ptr::null_mut();
-            }
-        }
-    }
-}
-
 unsafe extern "C" fn ddog_php_prof_compile_string(
     #[cfg(php7)] source_string: *mut zend::_zval_struct,
     #[cfg(php8)] source_string: *mut zend::ZendString,
@@ -104,28 +42,37 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
     #[cfg(php_zend_compile_string_has_position)] position: zend::zend_compile_position,
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_STRING {
-        let start = Instant::now();
-        #[cfg(php_zend_compile_string_has_position)]
-        let op_array = prev(source_string, filename, position);
-        #[cfg(not(php_zend_compile_string_has_position))]
-        let op_array = prev(source_string, filename);
-        let duration = start.elapsed();
+        return REQUEST_LOCALS.with(|cell| {
+            let locals = match cell.try_borrow() {
+                Ok(locals) => locals,
+                Err(_) => {
+                    #[cfg(php_zend_compile_string_has_position)]
+                    return prev(source_string, filename, position);
+                    #[cfg(not(php_zend_compile_string_has_position))]
+                    return prev(source_string, filename);
+                }
+            };
 
-        // eval() failed, could be invalid PHP or file not found, ...
-        // TODO we might collect this event anyway and label it accordingly in a later stage of
-        // this feature
-        if op_array.is_null() {
-            return op_array;
-        }
-
-        REQUEST_LOCALS.with(|cell| {
-            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-            let locals = cell.try_borrow();
-            if locals.is_err() {
-                return;
+            if !locals.profiling_experimental_timeline_enabled {
+                #[cfg(php_zend_compile_string_has_position)]
+                return prev(source_string, filename, position);
+                #[cfg(not(php_zend_compile_string_has_position))]
+                return prev(source_string, filename);
             }
-            // Safety: got checked above
-            let locals = locals.unwrap();
+
+            let start = Instant::now();
+            #[cfg(php_zend_compile_string_has_position)]
+            let op_array = prev(source_string, filename, position);
+            #[cfg(not(php_zend_compile_string_has_position))]
+            let op_array = prev(source_string, filename);
+            let duration = start.elapsed();
+
+            // eval() failed, could be invalid PHP or file not found, ...
+            // TODO we might collect this event anyway and label it accordingly in a later stage of
+            // this feature
+            if op_array.is_null() {
+                return op_array;
+            }
 
             let filename = ddog_php_prof_zend_string_view(zend_get_executed_filename_ex().as_mut())
                 .to_string();
@@ -145,8 +92,8 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
                     &locals,
                 );
             }
+            return op_array;
         });
-        return op_array;
     }
     error!("No previous `zend_compile_string` handler found! This is a huge problem as your eval() won't work and PHP will higly likely crash. I am sorry, but the die is cast.");
     ptr::null_mut()
@@ -157,29 +104,30 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
     r#type: i32,
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_FILE {
-        let start = Instant::now();
-        let op_array = prev(handle, r#type);
-        let duration = start.elapsed();
-        let now = SystemTime::now().duration_since(UNIX_EPOCH);
+        return REQUEST_LOCALS.with(|cell| {
+            let locals = match cell.try_borrow() {
+                Ok(locals) => locals,
+                Err(_) => {
+                    return prev(handle, r#type);
+                }
+            };
 
-        // include/require failed, could be invalid PHP or file not found, ...
-        // or time went backwards
-        // TODO we might collect this event anyway and label it accordingly in a later stage of
-        // this feature
-        if op_array.is_null() || (*op_array).filename.is_null() || now.is_err() {
-            return op_array;
-        }
-
-        // Safety: check for `is_err()` in the if above
-
-        REQUEST_LOCALS.with(|cell| {
-            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-            let locals = cell.try_borrow();
-            if locals.is_err() {
-                return;
+            if !locals.profiling_experimental_timeline_enabled {
+                return prev(handle, r#type);
             }
-            // Safety: got checked above
-            let locals = locals.unwrap();
+
+            let start = Instant::now();
+            let op_array = prev(handle, r#type);
+            let duration = start.elapsed();
+            let now = SystemTime::now().duration_since(UNIX_EPOCH);
+
+            // include/require failed, could be invalid PHP or file not found, ...
+            // or time went backwards
+            // TODO we might collect this event anyway and label it accordingly in a later stage of
+            // this feature
+            if op_array.is_null() || (*op_array).filename.is_null() || now.is_err() {
+                return op_array;
+            }
 
             let include_type = match r#type as u32 {
                 zend::ZEND_INCLUDE => "include", // `include_once()` and `include_once()`
@@ -210,8 +158,8 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
                     &locals,
                 );
             }
+            op_array
         });
-        return op_array;
     }
     error!("No previous `zend_compile_file` handler found! This is a huge problem as your include()/require() won't work and PHP will higly likely crash. I am sorry, but the die is cast.");
     ptr::null_mut()
@@ -238,37 +186,41 @@ unsafe fn gc_reason() -> &'static str {
 #[no_mangle]
 unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if let Some(prev) = PREV_GC_COLLECT_CYCLES {
-        #[cfg(php_gc_status)]
-        let mut status = MaybeUninit::<zend::zend_gc_status>::uninit();
+        return REQUEST_LOCALS.with(|cell| {
+            let locals = match cell.try_borrow() {
+                Ok(locals) => locals,
+                Err(_) => {
+                    return prev();
+                }
+            };
 
-        let start = Instant::now();
-        let collected = prev();
-        let duration = start.elapsed();
-        let now = SystemTime::now().duration_since(UNIX_EPOCH);
-        if now.is_err() {
-            // time went backwards
-            return collected;
-        }
-
-        let reason = gc_reason();
-
-        #[cfg(php_gc_status)]
-        zend::zend_gc_get_status(status.as_mut_ptr());
-        #[cfg(php_gc_status)]
-        let status = status.assume_init();
-
-        trace!(
-            "Garbage collection with reason \"{reason}\" took {} nanoseconds",
-            duration.as_nanos()
-        );
-
-        REQUEST_LOCALS.with(|cell| {
-            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-            let locals = cell.try_borrow();
-            if locals.is_err() {
-                return;
+            if !locals.profiling_experimental_timeline_enabled {
+                return prev();
             }
-            let locals = locals.unwrap();
+
+            #[cfg(php_gc_status)]
+            let mut status = MaybeUninit::<zend::zend_gc_status>::uninit();
+
+            let start = Instant::now();
+            let collected = prev();
+            let duration = start.elapsed();
+            let now = SystemTime::now().duration_since(UNIX_EPOCH);
+            if now.is_err() {
+                // time went backwards
+                return collected;
+            }
+
+            let reason = gc_reason();
+
+            #[cfg(php_gc_status)]
+            zend::zend_gc_get_status(status.as_mut_ptr());
+            #[cfg(php_gc_status)]
+            let status = status.assume_init();
+
+            trace!(
+                "Garbage collection with reason \"{reason}\" took {} nanoseconds",
+                duration.as_nanos()
+            );
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 cfg_if::cfg_if! {
@@ -294,8 +246,8 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
                     }
                 }
             }
+            collected
         });
-        collected
     } else {
         // this should never happen, as it would mean that no `gc_collect_cycles` function pointer
         // did exist, which could only be the case if another extension was misbehaving.
