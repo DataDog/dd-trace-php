@@ -4,7 +4,7 @@ use crate::PROFILER;
 use crate::PROFILER_NAME;
 use crate::REQUEST_LOCALS;
 use libc::{c_char, c_int, c_void, size_t};
-use log::{debug, error, info, trace};
+use log::{debug, error, trace, warn};
 use once_cell::sync::OnceCell;
 use std::cell::RefCell;
 use std::ffi::CStr;
@@ -156,62 +156,54 @@ pub fn allocation_profiling_rinit() {
 }
 
 pub fn allocation_profiling_rshutdown() {
-    REQUEST_LOCALS.with(|cell| {
-        let mut locals = cell.borrow_mut();
+    // If `is_zend_mm()` is true, the custom handlers have been reset to `None`
+    // already. This is unexpected, therefore we will not touch the ZendMM handlers
+    // anymore as resetting to prev handlers might result in segfaults and other
+    // undefined behaviour.
+    if is_zend_mm() {
+        return;
+    }
 
-        if !locals.profiling_enabled || !locals.profiling_allocation_enabled {
-            return;
-        }
-
-        // If `is_zend_mm()` is true, the custom handlers have been reset to `None`
-        // already. This is unexpected, therefore we will not touch the ZendMM handlers
-        // anymore as resetting to prev handlers might result in segfaults and other
-        // undefined behaviour.
-        if !is_zend_mm() {
-            let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
-            let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
-            let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
+    let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
+    let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
+    let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
+    unsafe {
+        zend::zend_mm_get_custom_handlers(
+            zend::zend_mm_get_heap(),
+            &mut custom_mm_malloc,
+            &mut custom_mm_free,
+            &mut custom_mm_realloc,
+        );
+    }
+    if custom_mm_free != Some(alloc_profiling_free)
+        || custom_mm_malloc != Some(alloc_profiling_malloc)
+        || custom_mm_realloc != Some(alloc_profiling_realloc)
+    {
+        // Custom handlers are installed, but it's not us. Someone, somewhere might have
+        // function pointers to our custom handlers. Best bet to avoid segfaults is to not
+        // touch custom handlers in ZendMM and make sure our extension will not be
+        // `dlclose()`-ed so the pointers stay valid
+        let zend_extension =
+            unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
+        if !zend_extension.is_null() {
+            // Safety: Checked for null pointer above.
             unsafe {
-                zend::zend_mm_get_custom_handlers(
-                    zend::zend_mm_get_heap(),
-                    &mut custom_mm_malloc,
-                    &mut custom_mm_free,
-                    &mut custom_mm_realloc,
-                );
-            }
-            if custom_mm_free != Some(alloc_profiling_free)
-                || custom_mm_malloc != Some(alloc_profiling_malloc)
-                || custom_mm_realloc != Some(alloc_profiling_realloc)
-            {
-                // Custom handlers are installed, but it's not us. Someone, somewhere might have
-                // function pointers to our custom handlers. Best bet to avoid segfaults is to not
-                // touch custom handlers in ZendMM and make sure our extension will not be
-                // `dlclose()`-ed so the pointers stay valid
-                let zend_extension =
-                    unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
-                if !zend_extension.is_null() {
-                    // Safety: Checked for null pointer above.
-                    unsafe {
-                        (*zend_extension).handle = std::ptr::null_mut();
-                    }
-                }
-                // disable any further allocation profiling
-                locals.profiling_allocation_enabled = false;
-                info!("Memory allocation profiling disabled.");
-            } else {
-                // This is the happy path (restore previously installed custom handlers)!
-                unsafe {
-                    zend::ddog_php_prof_zend_mm_set_custom_handlers(
-                        zend::zend_mm_get_heap(),
-                        PREV_CUSTOM_MM_ALLOC,
-                        PREV_CUSTOM_MM_FREE,
-                        PREV_CUSTOM_MM_REALLOC,
-                    );
-                }
-                trace!("Memory allocation profiling shutdown gracefully.");
+                (*zend_extension).handle = std::ptr::null_mut();
             }
         }
-    });
+        warn!("Found another extension using the custom heap which is unexpected at this point, so the extension handle was `null`'ed to avoid being `dlclose()`'ed.");
+    } else {
+        // This is the happy path (restore previously installed custom handlers)!
+        unsafe {
+            zend::ddog_php_prof_zend_mm_set_custom_handlers(
+                zend::zend_mm_get_heap(),
+                PREV_CUSTOM_MM_ALLOC,
+                PREV_CUSTOM_MM_FREE,
+                PREV_CUSTOM_MM_REALLOC,
+            );
+        }
+        trace!("Memory allocation profiling shutdown gracefully.");
+    }
 }
 
 pub fn allocation_profiling_startup() {
