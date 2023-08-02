@@ -96,7 +96,7 @@ unsafe fn handle_file_cache_slot_helper(
     cache_slots: &mut [usize; 2],
 ) -> Option<Cow<'static, str>> {
     let offset = if cache_slots[1] > 0 {
-        cache_slots[1] as u32
+        cache_slots[1]
     } else {
         // Safety: if we have cache slots, we definitely have a func.
         let func = &*execute_data.func;
@@ -106,7 +106,7 @@ unsafe fn handle_file_cache_slot_helper(
             return None;
         };
         let offset = string_table.insert(file.as_ref());
-        cache_slots[1] = offset as usize;
+        cache_slots[1] = offset;
         offset
     };
     let str = string_table.get_offset(offset);
@@ -141,13 +141,13 @@ unsafe fn handle_function_cache_slot(
     cache_slots: &mut [usize; 2],
 ) -> Option<Cow<'static, str>> {
     if cache_slots[0] > 0 {
-        let offset = cache_slots[0] as u32;
+        let offset = cache_slots[0];
         let str = string_table.get_offset(offset);
         Some(Cow::Owned(str.to_string()))
     } else {
         let name = extract_function_name(func)?;
         let offset = string_table.insert(name.as_ref());
-        cache_slots[0] = offset as usize;
+        cache_slots[0] = offset;
         Some(Cow::Owned(name))
     }
 }
