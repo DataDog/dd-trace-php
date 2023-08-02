@@ -119,6 +119,9 @@ typedef struct ddog_InstanceId ddog_InstanceId;
 
 typedef struct ddog_TelemetryActionsBuffer ddog_TelemetryActionsBuffer;
 
+typedef struct ddog_Log {
+  uint32_t bits;
+} ddog_Log;
 typedef struct ddog_BlockingTransport_TelemetryInterfaceResponse__TelemetryInterfaceRequest ddog_TelemetryTransport;
 
 typedef enum ddog_Option_VecU8_Tag {
