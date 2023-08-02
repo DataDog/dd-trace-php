@@ -121,7 +121,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             // Safety: got checked above
             let locals = locals.unwrap();
 
-            if !locals.profiling_experimental_timeline_enabled {
+            if !locals.profiling_enabled || !locals.profiling_experimental_timeline_enabled {
                 return;
             }
 
@@ -214,7 +214,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
             }
             let locals = locals.unwrap();
 
-            if !locals.profiling_experimental_timeline_enabled {
+            if !locals.profiling_enabled || !locals.profiling_experimental_timeline_enabled {
                 return;
             }
 
