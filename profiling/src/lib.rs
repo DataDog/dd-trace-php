@@ -279,9 +279,6 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_minit();
 
-    #[cfg(feature = "timeline")]
-    timeline::timeline_minit();
-
     ZendResult::Success
 }
 
@@ -558,6 +555,9 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rinit();
 
+    #[cfg(feature = "timeline")]
+    timeline::timeline_rinit();
+
     ZendResult::Success
 }
 
@@ -664,6 +664,9 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rshutdown();
+
+    #[cfg(feature = "timeline")]
+    timeline::timeline_rshutdown();
 
     ZendResult::Success
 }

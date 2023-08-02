@@ -1,8 +1,8 @@
-use crate::bindings as zend;
 use crate::zend::{ddog_php_prof_zend_string_view, zend_get_executed_filename_ex};
+use crate::{bindings as zend, config, PROFILER_NAME};
 use crate::{PROFILER, REQUEST_LOCALS};
 use libc::c_char;
-use log::{error, trace};
+use log::{error, info, trace};
 use std::mem::MaybeUninit;
 use std::ptr;
 use std::time::Instant;
@@ -18,17 +18,81 @@ static mut PREV_ZEND_COMPILE_STRING: Option<zend::VmZendCompileString> = None;
 /// The engine's original (or neighbouring extensions) `zend_compile_file()` function
 static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
 
-pub fn timeline_minit() {
+pub fn timeline_rinit() {
+    let (profiling_enabled, profiling_experimental_timeline_enabled) = unsafe {
+        (
+            config::profiling_enabled(),
+            config::profiling_experimental_timeline_enabled(),
+        )
+    };
+
+    if !profiling_enabled || !profiling_experimental_timeline_enabled {
+        return;
+    }
+
+    info!("Enabling experimental timeline");
     unsafe {
         // register our function in the `gc_collect_cycles` pointer
         PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
         zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);
+
         // register our function in the `zend_compile_file` pointer
         PREV_ZEND_COMPILE_FILE = zend::zend_compile_file;
         zend::zend_compile_file = Some(ddog_php_prof_compile_file);
+
         // register our function in the `zend_compile_string` pointer
         PREV_ZEND_COMPILE_STRING = zend::zend_compile_string;
         zend::zend_compile_string = Some(ddog_php_prof_compile_string);
+    }
+}
+
+pub fn timeline_rshutdown() {
+    let (profiling_enabled, profiling_experimental_timeline_enabled) = unsafe {
+        (
+            config::profiling_enabled(),
+            config::profiling_experimental_timeline_enabled(),
+        )
+    };
+
+    if !profiling_enabled || !profiling_experimental_timeline_enabled {
+        return;
+    }
+
+    let mut clean_shutdown = true;
+    // reset handlers if found
+    unsafe {
+        if zend::gc_collect_cycles == Some(ddog_php_prof_gc_collect_cycles) {
+            zend::gc_collect_cycles = PREV_GC_COLLECT_CYCLES;
+        } else {
+            clean_shutdown = false;
+        }
+
+        if zend::zend_compile_file == Some(ddog_php_prof_compile_file) {
+            zend::zend_compile_file = PREV_ZEND_COMPILE_FILE;
+        } else {
+            clean_shutdown = false;
+        }
+
+        if zend::zend_compile_string == Some(ddog_php_prof_compile_string) {
+            zend::zend_compile_string = PREV_ZEND_COMPILE_STRING;
+        } else {
+            clean_shutdown = false;
+        }
+    }
+
+    if !clean_shutdown {
+        // There seems to be another extension that is loaded after us, using one of the hooks we
+        // are using that did not cleanly shutdown, so the pointers are messed up. Best bet to
+        // avoid segfaults is to not touch those pointers and make sure our extension will not be
+        // `dlclose()`-ed so the pointers stay valid
+        let zend_extension =
+            unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
+        if !zend_extension.is_null() {
+            // Safety: Checked for null pointer above.
+            unsafe {
+                (*zend_extension).handle = std::ptr::null_mut();
+            }
+        }
     }
 }
 
@@ -62,10 +126,6 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
             }
             // Safety: got checked above
             let locals = locals.unwrap();
-
-            if !locals.profiling_experimental_timeline_enabled {
-                return;
-            }
 
             let filename = ddog_php_prof_zend_string_view(zend_get_executed_filename_ex().as_mut())
                 .to_string();
@@ -120,10 +180,6 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             }
             // Safety: got checked above
             let locals = locals.unwrap();
-
-            if !locals.profiling_experimental_timeline_enabled {
-                return;
-            }
 
             let include_type = match r#type as u32 {
                 zend::ZEND_INCLUDE => "include", // `include_once()` and `include_once()`
@@ -213,10 +269,6 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
                 return;
             }
             let locals = locals.unwrap();
-
-            if !locals.profiling_experimental_timeline_enabled {
-                return;
-            }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 cfg_if::cfg_if! {
