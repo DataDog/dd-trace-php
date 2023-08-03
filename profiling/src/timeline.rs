@@ -1,8 +1,8 @@
+use crate::bindings as zend;
 use crate::zend::{ddog_php_prof_zend_string_view, zend_get_executed_filename_ex};
-use crate::{bindings as zend, config, PROFILER_NAME};
 use crate::{PROFILER, REQUEST_LOCALS};
 use libc::c_char;
-use log::{error, info, trace};
+use log::{error, trace};
 use std::mem::MaybeUninit;
 use std::ptr;
 use std::time::Instant;
