@@ -908,7 +908,14 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
 /// interrupt_count.
 fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
     REQUEST_LOCALS.with(|cell| {
-        let mut locals = cell.borrow_mut();
+        // try to borrow and bail out if not successful
+        let mut locals = match cell.try_borrow_mut() {
+            Ok(locals) => locals,
+            Err(_) => {
+                return;
+            }
+        };
+
         if !locals.profiling_enabled {
             return;
         }
