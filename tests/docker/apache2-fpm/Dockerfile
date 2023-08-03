@@ -18,11 +18,12 @@ ADD --chown=www-data:www-data examples/webroot/ /var/www/html/
 COPY --from=extension /opt/ /opt/
 RUN find /opt -name ddappsec.so -exec ln -s -v '{}' $(php -r 'echo ini_get("extension_dir");') \;
 
+RUN touch /tmp/appsec.log && chown www-data.www-data /tmp/appsec.log
+
 COPY --from=dd-appsec-php-helper /opt /opt
 ADD tests/docker/php.ini /etc/php/
 ADD tests/docker/apache2-fpm/entrypoint.sh /
 
-ARG PHP_VERSION
 ARG VARIANT
 ADD tests/docker/apache2-fpm/php-site.conf /etc/apache2/sites-available/
 ADD tests/docker/fpm-common/php-fpm.conf /etc/

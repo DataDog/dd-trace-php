@@ -126,8 +126,11 @@ function build_php {
     --enable-pdo=shared
     --with-pdo-pgsql=shared
     --enable-phar=shared
+    --with-libxml
+    --enable-xml
     --enable-simplexml=shared
     --enable-xmlreader=shared
+    --enable-xmlwriter=shared
     --with-iconv=shared
     $([[ $version_id -ge 80000 ]] && echo --with-zip=shared || echo --enable-zip=shared)
     --enable-ctype=shared

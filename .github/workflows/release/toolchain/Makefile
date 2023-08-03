@@ -56,7 +56,7 @@ src/%/.finger: %-$(LLVM_VERSION).src.tar.xz
 		AR=$(GCC_TOOL_PREFIX)ar \
 		RANLIB=$(GCC_TOOL_PREFIX)ranlib \
 			../../src/musl/configure --prefix=$(MUSL_SYSROOT) && \
-		$(MAKE) -j && \
+		$(MAKE) -j $(shell nproc) && \
 		$(MAKE) install && \
 		popd && \
 		touch $@
@@ -94,7 +94,7 @@ COMMON_CMAKE_OPTIONS := -DCMAKE_BUILD_TYPE=$(RELTYPE) \
 			-DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
 			-DCOMPILER_RT_BUILD_CRT=ON \
 			../../src/compiler-rt && \
-		$(MAKE) -j && $(MAKE) install && \
+		$(MAKE) -j $(shell nproc) && $(MAKE) install && \
 		popd && \
 		touch $@
 
@@ -106,7 +106,7 @@ COMMON_CMAKE_OPTIONS := -DCMAKE_BUILD_TYPE=$(RELTYPE) \
 			-DLLVM_PATH=../../src/llvm \
 			-DLIBUNWIND_USE_COMPILER_RT=ON \
 			../../src/libunwind && \
-		$(MAKE) -j && $(MAKE) install && \
+		$(MAKE) -j $(shell nproc) && $(MAKE) install && \
 		popd && \
 		touch $@
 
@@ -121,7 +121,7 @@ COMMON_CMAKE_OPTIONS := -DCMAKE_BUILD_TYPE=$(RELTYPE) \
 			-DLIBCXXABI_LIBUNWIND_PATH=../../src/libunwind \
 			-DLIBCXXABI_LIBCXX_INCLUDES=../../src/libcxx/include \
 			../../src/libcxxabi && \
-		$(MAKE) -j && $(MAKE) install && \
+		$(MAKE) -j $(shell nproc) && $(MAKE) install && \
 		popd && \
 		touch $@
 
@@ -145,7 +145,7 @@ COMMON_CMAKE_OPTIONS := -DCMAKE_BUILD_TYPE=$(RELTYPE) \
 			-DLIBCXX_ENABLE_FILESYSTEM=ON \
 			-DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=0 \
 			../../src/libcxx && \
-		$(MAKE) -j && $(MAKE) install && \
+		$(MAKE) -j $(shell nproc) && $(MAKE) install && \
 		popd && \
 		touch $@
 

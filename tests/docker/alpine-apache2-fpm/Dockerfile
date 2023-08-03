@@ -5,7 +5,7 @@ FROM dd-appsec-php-extension:$PHP_VERSION-$VARIANT as extension
 
 FROM php:$PHP_VERSION-fpm-alpine$ALPINE_VERSION
 
-RUN apk add --no-cache apache2 apache2-proxy libexecinfo bash
+RUN apk add --no-cache apache2 apache2-proxy libexecinfo bash libgcc
 
 ARG TRACER_VERSION
 RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \

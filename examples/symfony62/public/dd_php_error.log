@@ -1,0 +1,1044 @@
+[07-Jul-2023 08:28:13 UTC] DATADOG TRACER DIAGNOSTICS - DDTRACE_REQUEST_INIT_HOOK: 'DDTRACE_REQUEST_INIT_HOOK=/home/circleci/app/bridge/dd_wrap_autoloader.php' is deprecated, use DD_TRACE_REQUEST_INIT_HOOK instead.
+[07-Jul-2023 08:28:13 UTC] DATADOG TRACER CONFIGURATION - {"DDTRACE_REQUEST_INIT_HOOK":"'DDTRACE_REQUEST_INIT_HOOK=\/home\/circleci\/app\/bridge\/dd_wrap_autoloader.php' is deprecated, use DD_TRACE_REQUEST_INIT_HOOK instead.","date":"2023-07-07T08:28:13Z","os_name":"Linux 4f755cea64fb 5.15.49-linuxkit #1 SMP PREEMPT Tue Sep 13 07:51:32 UTC 2022 aarch64","os_version":"5.15.49-linuxkit","version":"0.89.0","lang":"php","lang_version":"8.2.6","env":null,"enabled":true,"service":"test_symfony_62","enabled_cli":true,"agent_url":"http:\/\/test-agent:9126","debug":true,"analytics_enabled":false,"sample_rate":1,"sampling_rules":[],"tags":[],"service_mapping":[],"distributed_tracing_enabled":true,"priority_sampling_enabled":true,"dd_version":null,"architecture":"aarch64","sapi":"cli-server","datadog.trace.request_init_hook":"\/home\/circleci\/app\/bridge\/dd_wrap_autoloader.php","open_basedir_configured":false,"uri_fragment_regex":null,"uri_mapping_incoming":null,"uri_mapping_outgoing":null,"auto_flush_enabled":false,"generate_root_span":true,"http_client_split_by_domain":false,"measure_compile_time":true,"report_hostname_on_root_span":false,"traced_internal_functions":null,"auto_prepend_file_configured":false,"integrations_disabled":"default","enabled_from_env":true,"opcache.file_cache":null}
+[07-Jul-2023 08:28:13 UTC] For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() page. Alternatively set DD_TRACE_DEBUG=1 to add diagnostic checks to the error logs on the first request of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.
+[07-Jul-2023 08:28:13 UTC] [2023-07-07T08:28:13+00:00] [ddtrace] [debug] - Attempting integrations load; note: some integrations are only loaded on first usage
+[07-Jul-2023 08:28:13 UTC] [2023-07-07T08:28:13+00:00] [ddtrace] [debug] - Loaded integration web
+[07-Jul-2023 08:28:13 UTC] [2023-07-07T08:28:13+00:00] [ddtrace] [debug] - Loaded integration pcntl
+[07-Jul-2023 08:28:13 UTC] [2023-07-07T08:28:13+00:00] [ddtrace] [debug] - Loaded integration curl
+[07-Jul-2023 08:28:13 UTC] [2023-07-07T08:28:13+00:00] [ddtrace] [debug] - Loaded integration guzzle
+[07-Jul-2023 08:28:13 UTC] [2023-07-07T08:28:13+00:00] [ddtrace] [debug] - Loaded integration laravel
+[07-Jul-2023 08:28:13 UTC] [2023-07-07T08:28:13+00:00] [ddtrace] [debug] - Loaded integration mysqli
+[07-Jul-2023 08:28:13 UTC] [2023-07-07T08:28:13+00:00] [ddtrace] [debug] - Loaded integration DDTrace\Integrations\Symfony\SymfonyIntegration
+[07-Jul-2023 08:28:13 UTC] [info] Matched route "simple".
+[07-Jul-2023 08:28:13 UTC] Flushing trace of size 11 to send-queue for http://test-agent:9126
+[07-Jul-2023 08:28:18 UTC] [2023-07-07T08:28:18+00:00] [ddtrace] [debug] - Attempting integrations load; note: some integrations are only loaded on first usage
+[07-Jul-2023 08:28:18 UTC] [2023-07-07T08:28:18+00:00] [ddtrace] [debug] - Loaded integration web
+[07-Jul-2023 08:28:18 UTC] [2023-07-07T08:28:18+00:00] [ddtrace] [debug] - Loaded integration pcntl
+[07-Jul-2023 08:28:18 UTC] [2023-07-07T08:28:18+00:00] [ddtrace] [debug] - Loaded integration curl
+[07-Jul-2023 08:28:18 UTC] [2023-07-07T08:28:18+00:00] [ddtrace] [debug] - Loaded integration guzzle
+[07-Jul-2023 08:28:18 UTC] [2023-07-07T08:28:18+00:00] [ddtrace] [debug] - Loaded integration laravel
+[07-Jul-2023 08:28:18 UTC] [2023-07-07T08:28:18+00:00] [ddtrace] [debug] - Loaded integration mysqli
+[07-Jul-2023 08:28:18 UTC] [2023-07-07T08:28:18+00:00] [ddtrace] [debug] - Loaded integration DDTrace\Integrations\Symfony\SymfonyIntegration
+[07-Jul-2023 08:28:18 UTC] [info] Matched route "simple_view".
+[07-Jul-2023 08:28:18 UTC] Flushing trace of size 12 to send-queue for http://test-agent:9126
+[07-Jul-2023 08:36:58 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:36:58 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:36:58 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:36:58 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:36:58 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 08:36:59 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:36:59 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:36:59 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:36:59 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:36:59 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:36:59 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:36:59 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:36:59 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:36:59 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:36:59 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:37:16 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:37:16 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:37:16 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:37:33 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:37:33 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:37:33 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:40:53 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:40:53 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:40:53 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [critical] Uncaught PHP Exception TypeError: "Cannot assign null to property App\Entity\User::$roles of type array" at /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/vendor/doctrine/persistence/src/Persistence/Reflection/RuntimeReflectionProperty.php line 60
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\Security\Http\Firewall\ExceptionListener::onKernelException".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::logKernelException".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelException".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException".
+[07-Jul-2023 08:40:53 UTC] [debug] Listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException" stopped propagation of the event "kernel.exception".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:40:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:40:53 UTC] 2023-07-07T08:40:53+00:00 [critical] Uncaught Error: Cannot assign null to property App\Entity\User::$roles of type array
+[07-Jul-2023 08:41:34 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:41:34 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:41:34 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [critical] Uncaught PHP Exception TypeError: "Cannot assign null to property App\Entity\User::$roles of type array" at /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/vendor/doctrine/persistence/src/Persistence/Reflection/RuntimeReflectionProperty.php line 60
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\Security\Http\Firewall\ExceptionListener::onKernelException".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::logKernelException".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelException".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException".
+[07-Jul-2023 08:41:34 UTC] [debug] Listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException" stopped propagation of the event "kernel.exception".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:41:34 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:41:34 UTC] 2023-07-07T08:41:34+00:00 [critical] Uncaught Error: Cannot assign null to property App\Entity\User::$roles of type array
+[07-Jul-2023 08:42:10 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:42:10 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:42:10 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:42:12 UTC] [info] Authenticator successful!
+[07-Jul-2023 08:42:12 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:42:12 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 08:42:12 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:42:12 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:44:01 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:44:01 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:44:01 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:44:03 UTC] [info] Authenticator successful!
+[07-Jul-2023 08:44:03 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:44:03 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 08:44:03 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:44:03 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:44:36 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:44:36 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:44:36 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:44:37 UTC] [info] Authenticator successful!
+[07-Jul-2023 08:44:37 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:44:37 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 08:44:37 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:44:37 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:45:29 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:45:29 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:45:29 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:45:30 UTC] [info] Authenticator successful!
+[07-Jul-2023 08:45:30 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:45:30 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 08:45:30 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:45:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:45:39 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:45:39 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:45:39 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:45:41 UTC] [info] Authenticator successful!
+[07-Jul-2023 08:45:41 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:45:41 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 08:45:41 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:45:41 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:46:26 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:46:26 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:46:26 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:46:28 UTC] [info] Authenticator successful!
+[07-Jul-2023 08:46:28 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:46:28 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 08:46:28 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:46:28 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:48:09 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:48:09 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:48:09 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [error] Uncaught PHP Exception Symfony\Component\HttpKernel\Exception\BadRequestHttpException: "The key "_username" must be a string, "NULL" given." at /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/vendor/symfony/security-http/Authenticator/FormLoginAuthenticator.php line 127
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 08:48:09 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\Security\Http\Firewall\ExceptionListener::onKernelException".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::logKernelException".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelException".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException".
+[07-Jul-2023 08:48:10 UTC] [debug] Listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException" stopped propagation of the event "kernel.exception".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:48:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:50:00 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:50:00 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:50:00 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:50:01 UTC] [info] Authenticator successful!
+[07-Jul-2023 08:50:01 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:50:01 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 08:50:01 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:50:01 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:57:22 UTC] PHP Fatal error:  Cannot redeclare App\Controller\LoginController::index() in /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/src/Controller/LoginController.php on line 28
+[07-Jul-2023 08:57:34 UTC] PHP Fatal error:  Cannot redeclare App\Controller\LoginController::index() in /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/src/Controller/LoginController.php on line 28
+[07-Jul-2023 08:58:08 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:58:08 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:58:08 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:58:15 UTC] [info] Authenticator successful!
+[07-Jul-2023 08:58:15 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:58:15 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 08:58:15 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:58:15 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 08:58:29 UTC] [info] Matched route "app_login".
+[07-Jul-2023 08:58:29 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 08:58:29 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 08:58:30 UTC] [info] Authenticator successful!
+[07-Jul-2023 08:58:30 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 08:58:30 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 08:58:30 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 08:58:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:21:56 UTC] [info] Matched route "app_login".
+[07-Jul-2023 14:21:56 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:21:56 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:21:57 UTC] [info] Authenticator successful!
+[07-Jul-2023 14:21:57 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:21:57 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 14:21:57 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:21:57 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:10 UTC] [info] Matched route "alex".
+[07-Jul-2023 14:26:10 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:26:10 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:26:10 UTC] [debug] Authenticator does not support the request.
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.view" to listener "Symfony\Bridge\Twig\EventListener\TemplateAttributeListener::onKernelView".
+[07-Jul-2023 14:26:10 UTC] [critical] Uncaught PHP Exception Symfony\Component\HttpKernel\Exception\ControllerDoesNotReturnResponseException: "The controller must return a "Symfony\Component\HttpFoundation\Response" object but it returned null. Did you forget to add a return statement somewhere in your controller?" at /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/src/Controller/LoginController.php line 31
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\Security\Http\Firewall\ExceptionListener::onKernelException".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::logKernelException".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelException".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException".
+[07-Jul-2023 14:26:10 UTC] [debug] Listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException" stopped propagation of the event "kernel.exception".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:25 UTC] [info] Matched route "alex".
+[07-Jul-2023 14:26:25 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:26:25 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:26:25 UTC] [debug] Authenticator does not support the request.
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.view" to listener "Symfony\Bridge\Twig\EventListener\TemplateAttributeListener::onKernelView".
+[07-Jul-2023 14:26:25 UTC] [critical] Uncaught PHP Exception Symfony\Component\HttpKernel\Exception\ControllerDoesNotReturnResponseException: "The controller must return a "Symfony\Component\HttpFoundation\Response" object but it returned null. Did you forget to add a return statement somewhere in your controller?" at /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/src/Controller/LoginController.php line 31
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\Security\Http\Firewall\ExceptionListener::onKernelException".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::logKernelException".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelException".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException".
+[07-Jul-2023 14:26:25 UTC] [debug] Listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException" stopped propagation of the event "kernel.exception".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:26:25 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:26:26 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:26:26 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:26:26 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:26 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:26 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:26:26 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:27:27 UTC] [info] Matched route "alex".
+[07-Jul-2023 14:27:27 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:27:27 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:27:27 UTC] [debug] Authenticator does not support the request.
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:27:27 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:27:39 UTC] [info] Matched route "alex".
+[07-Jul-2023 14:27:39 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:27:39 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:27:39 UTC] [debug] Authenticator does not support the request.
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:27:39 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:28:08 UTC] [info] Matched route "app_login".
+[07-Jul-2023 14:28:08 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:28:08 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:28:10 UTC] [info] Authenticator successful!
+[07-Jul-2023 14:28:10 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:28:10 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 14:28:10 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:28:10 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:32:28 UTC] [info] Matched route "app_login".
+[07-Jul-2023 14:32:28 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:32:28 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:32:30 UTC] [info] Authenticator successful!
+[07-Jul-2023 14:32:30 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:32:30 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 14:32:30 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:32:30 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:33:12 UTC] [info] Matched route "app_login".
+[07-Jul-2023 14:33:12 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:33:12 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:33:13 UTC] [info] Authenticator successful!
+[07-Jul-2023 14:33:14 UTC] [debug] The "Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator" authenticator set the response. Any later authenticator will not be called
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:33:14 UTC] [debug] Listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest" stopped propagation of the event "kernel.request".
+[07-Jul-2023 14:33:14 UTC] [debug] Stored the security token in the session.
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:33:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:34:49 UTC] [info] Matched route "alex".
+[07-Jul-2023 14:34:49 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:34:49 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:34:49 UTC] [debug] Authenticator does not support the request.
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [critical] Uncaught PHP Exception Symfony\Component\DependencyInjection\Exception\RuntimeException: "Cannot resolve argument $logger of "App\Controller\LoginController::alex()": Cannot determine controller argument for "App\Controller\LoginController::alex()": the $logger argument is type-hinted with the non-existent class or interface: "App\Controller\LoggerInterface". Did you forget to add a use statement?" at /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/vendor/symfony/dependency-injection/Container.php line 376
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\Security\Http\Firewall\ExceptionListener::onKernelException".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::logKernelException".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelException".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException".
+[07-Jul-2023 14:34:49 UTC] [debug] Listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException" stopped propagation of the event "kernel.exception".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:34:49 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:14 UTC] [info] Matched route "alex".
+[07-Jul-2023 14:35:14 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:35:14 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:35:14 UTC] [debug] Authenticator does not support the request.
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [critical] Uncaught PHP Exception Symfony\Component\DependencyInjection\Exception\RuntimeException: "Cannot resolve argument $logger of "App\Controller\LoginController::alex()": Cannot determine controller argument for "App\Controller\LoginController::alex()": the $logger argument is type-hinted with the non-existent class or interface: "App\Controller\LoggerInterface". Did you forget to add a use statement?" at /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/vendor/symfony/dependency-injection/Container.php line 376
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\Security\Http\Firewall\ExceptionListener::onKernelException".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::logKernelException".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelException".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException".
+[07-Jul-2023 14:35:14 UTC] [debug] Listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException" stopped propagation of the event "kernel.exception".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:14 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:53 UTC] [info] Matched route "alex".
+[07-Jul-2023 14:35:53 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:35:53 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:35:53 UTC] [debug] Authenticator does not support the request.
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [critical] Uncaught PHP Exception Symfony\Component\DependencyInjection\Exception\RuntimeException: "Cannot resolve argument $logger of "App\Controller\LoginController::alex()": Cannot determine controller argument for "App\Controller\LoginController::alex()": the $logger argument is type-hinted with the non-existent class or interface: "App\Controller\LoggerInterface". Did you forget to add a use statement?" at /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/vendor/symfony/dependency-injection/Container.php line 376
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\Security\Http\Firewall\ExceptionListener::onKernelException".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::logKernelException".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelException".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException".
+[07-Jul-2023 14:35:53 UTC] [debug] Listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException" stopped propagation of the event "kernel.exception".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:35:53 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:36:07 UTC] [info] Matched route "alex".
+[07-Jul-2023 14:36:07 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:36:07 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:36:07 UTC] [debug] Authenticator does not support the request.
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [critical] Uncaught PHP Exception Symfony\Component\DependencyInjection\Exception\RuntimeException: "Cannot resolve argument $logger of "App\Controller\LoginController::alex()": Cannot determine controller argument for "App\Controller\LoginController::alex()": the $logger argument is type-hinted with the non-existent class or interface: "App\Controller\LoggerInterface". Did you forget to add a use statement?" at /home/circleci/app/tests/Frameworks/Symfony/Version_6_2/vendor/symfony/dependency-injection/Container.php line 376
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\Security\Http\Firewall\ExceptionListener::onKernelException".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::logKernelException".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelException".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.exception" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException".
+[07-Jul-2023 14:36:07 UTC] [debug] Listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onKernelException" stopped propagation of the event "kernel.exception".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:36:07 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[07-Jul-2023 14:37:15 UTC] [info] Matched route "alex".
+[07-Jul-2023 14:37:15 UTC] [debug] Checking for authenticator support.
+[07-Jul-2023 14:37:15 UTC] [debug] Checking support on authenticator.
+[07-Jul-2023 14:37:15 UTC] [debug] Authenticator does not support the request.
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\DebugHandlersListener::configure".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\ValidateRequestListener::onKernelRequest".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelRequest".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::setDefaultLocale".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelRequest".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelRequest".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelRequest".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::configureLogoutUrlGenerator".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelRequest".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelControllerArguments".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.controller_arguments" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::onControllerArguments".
+[07-Jul-2023 14:37:15 UTC] [info] I just got the logger
+[07-Jul-2023 14:37:15 UTC] [error] An error occurred
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\Security\Http\Firewall\ContextListener::onKernelResponse".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ResponseListener::onKernelResponse".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\CacheAttributeListener::onKernelResponse".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\ErrorListener::removeCspHeader".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\DisallowRobotsIndexingListener::onResponse".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.response" to listener "Symfony\Component\HttpKernel\EventListener\SessionListener::onKernelResponse".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleListener::onKernelFinishRequest".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\RouterListener::onKernelFinishRequest".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Bundle\SecurityBundle\Debug\TraceableFirewallListener::onKernelFinishRequest".
+[07-Jul-2023 14:37:15 UTC] [debug] Notified event "kernel.finish_request" to listener "Symfony\Component\HttpKernel\EventListener\LocaleAwareListener::onKernelFinishRequest".
+[10-Jul-2023 07:17:35 UTC] DATADOG TRACER DIAGNOSTICS - DDTRACE_REQUEST_INIT_HOOK: 'DDTRACE_REQUEST_INIT_HOOK=/home/circleci/app/bridge/dd_wrap_autoloader.php' is deprecated, use DD_TRACE_REQUEST_INIT_HOOK instead.
+[10-Jul-2023 07:17:35 UTC] DATADOG TRACER CONFIGURATION - {"DDTRACE_REQUEST_INIT_HOOK":"'DDTRACE_REQUEST_INIT_HOOK=\/home\/circleci\/app\/bridge\/dd_wrap_autoloader.php' is deprecated, use DD_TRACE_REQUEST_INIT_HOOK instead.","date":"2023-07-10T07:17:35Z","os_name":"Linux 26f10bcafdba 5.15.49-linuxkit #1 SMP PREEMPT Tue Sep 13 07:51:32 UTC 2022 aarch64","os_version":"5.15.49-linuxkit","version":"0.89.0","lang":"php","lang_version":"8.2.6","env":null,"enabled":true,"service":"test_symfony_62","enabled_cli":true,"agent_url":"http:\/\/test-agent:9126","debug":true,"analytics_enabled":false,"sample_rate":1,"sampling_rules":[],"tags":[],"service_mapping":[],"distributed_tracing_enabled":true,"priority_sampling_enabled":true,"dd_version":null,"architecture":"aarch64","sapi":"cli-server","datadog.trace.request_init_hook":"\/home\/circleci\/app\/bridge\/dd_wrap_autoloader.php","open_basedir_configured":false,"uri_fragment_regex":null,"uri_mapping_incoming":null,"uri_mapping_outgoing":null,"auto_flush_enabled":false,"generate_root_span":true,"http_client_split_by_domain":false,"measure_compile_time":true,"report_hostname_on_root_span":false,"traced_internal_functions":null,"auto_prepend_file_configured":false,"integrations_disabled":"default","enabled_from_env":true,"opcache.file_cache":null}
+[10-Jul-2023 07:17:35 UTC] For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() page. Alternatively set DD_TRACE_DEBUG=1 to add diagnostic checks to the error logs on the first request of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.
+[10-Jul-2023 07:17:35 UTC] [2023-07-10T07:17:35+00:00] [ddtrace] [debug] - Attempting integrations load; note: some integrations are only loaded on first usage
+[10-Jul-2023 07:17:35 UTC] [2023-07-10T07:17:35+00:00] [ddtrace] [debug] - Loaded integration web
+[10-Jul-2023 07:17:35 UTC] [2023-07-10T07:17:35+00:00] [ddtrace] [debug] - Loaded integration pcntl
+[10-Jul-2023 07:17:35 UTC] [2023-07-10T07:17:35+00:00] [ddtrace] [debug] - Loaded integration curl
+[10-Jul-2023 07:17:35 UTC] [2023-07-10T07:17:35+00:00] [ddtrace] [debug] - Loaded integration guzzle
+[10-Jul-2023 07:17:35 UTC] [2023-07-10T07:17:35+00:00] [ddtrace] [debug] - Loaded integration laravel
+[10-Jul-2023 07:17:35 UTC] [2023-07-10T07:17:35+00:00] [ddtrace] [debug] - Loaded integration mysqli
+[10-Jul-2023 07:17:35 UTC] [2023-07-10T07:17:35+00:00] [ddtrace] [debug] - Loaded integration DDTrace\Integrations\Symfony\SymfonyIntegration
+[10-Jul-2023 07:17:35 UTC] Flushing trace of size 11 to send-queue for http://test-agent:9126
+[10-Jul-2023 07:17:47 UTC] [2023-07-10T07:17:47+00:00] [ddtrace] [debug] - Attempting integrations load; note: some integrations are only loaded on first usage
+[10-Jul-2023 07:17:47 UTC] [2023-07-10T07:17:47+00:00] [ddtrace] [debug] - Loaded integration web
+[10-Jul-2023 07:17:47 UTC] [2023-07-10T07:17:47+00:00] [ddtrace] [debug] - Loaded integration pcntl
+[10-Jul-2023 07:17:47 UTC] [2023-07-10T07:17:47+00:00] [ddtrace] [debug] - Loaded integration curl
+[10-Jul-2023 07:17:47 UTC] [2023-07-10T07:17:47+00:00] [ddtrace] [debug] - Loaded integration guzzle
+[10-Jul-2023 07:17:47 UTC] [2023-07-10T07:17:47+00:00] [ddtrace] [debug] - Loaded integration laravel
+[10-Jul-2023 07:17:47 UTC] [2023-07-10T07:17:47+00:00] [ddtrace] [debug] - Loaded integration mysqli
+[10-Jul-2023 07:17:47 UTC] [2023-07-10T07:17:47+00:00] [ddtrace] [debug] - Loaded integration DDTrace\Integrations\Symfony\SymfonyIntegration
+[10-Jul-2023 07:17:47 UTC] Flushing trace of size 12 to send-queue for http://test-agent:9126
+[10-Jul-2023 07:17:52 UTC] [2023-07-10T07:17:52+00:00] [ddtrace] [debug] - Attempting integrations load; note: some integrations are only loaded on first usage
+[10-Jul-2023 07:17:52 UTC] [2023-07-10T07:17:52+00:00] [ddtrace] [debug] - Loaded integration web
+[10-Jul-2023 07:17:52 UTC] [2023-07-10T07:17:52+00:00] [ddtrace] [debug] - Loaded integration pcntl
+[10-Jul-2023 07:17:52 UTC] [2023-07-10T07:17:52+00:00] [ddtrace] [debug] - Loaded integration curl
+[10-Jul-2023 07:17:52 UTC] [2023-07-10T07:17:52+00:00] [ddtrace] [debug] - Loaded integration guzzle
+[10-Jul-2023 07:17:52 UTC] [2023-07-10T07:17:52+00:00] [ddtrace] [debug] - Loaded integration laravel
+[10-Jul-2023 07:17:52 UTC] [2023-07-10T07:17:52+00:00] [ddtrace] [debug] - Loaded integration mysqli
+[10-Jul-2023 07:17:52 UTC] [2023-07-10T07:17:52+00:00] [ddtrace] [debug] - Loaded integration DDTrace\Integrations\Symfony\SymfonyIntegration
+[10-Jul-2023 07:17:52 UTC] Flushing trace of size 19 to send-queue for http://test-agent:9126
+[10-Jul-2023 07:17:58 UTC] [2023-07-10T07:17:58+00:00] [ddtrace] [debug] - Attempting integrations load; note: some integrations are only loaded on first usage
+[10-Jul-2023 07:17:58 UTC] [2023-07-10T07:17:58+00:00] [ddtrace] [debug] - Loaded integration web
+[10-Jul-2023 07:17:58 UTC] [2023-07-10T07:17:58+00:00] [ddtrace] [debug] - Loaded integration pcntl
+[10-Jul-2023 07:17:58 UTC] [2023-07-10T07:17:58+00:00] [ddtrace] [debug] - Loaded integration curl
+[10-Jul-2023 07:17:58 UTC] [2023-07-10T07:17:58+00:00] [ddtrace] [debug] - Loaded integration guzzle
+[10-Jul-2023 07:17:58 UTC] [2023-07-10T07:17:58+00:00] [ddtrace] [debug] - Loaded integration laravel
+[10-Jul-2023 07:17:58 UTC] [2023-07-10T07:17:58+00:00] [ddtrace] [debug] - Loaded integration mysqli
+[10-Jul-2023 07:17:58 UTC] [2023-07-10T07:17:58+00:00] [ddtrace] [debug] - Loaded integration DDTrace\Integrations\Symfony\SymfonyIntegration
+[10-Jul-2023 07:17:58 UTC] Flushing trace of size 16 to send-queue for http://test-agent:9126
