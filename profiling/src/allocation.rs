@@ -90,14 +90,13 @@ thread_local! {
 
 pub fn allocation_profiling_rinit() {
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
-        // try to borrow and assume allocation profiling disabled on error
-        let locals = match cell.try_borrow() {
-            Ok(locals) => locals,
-            Err(_) => {
-                return false;
+        match cell.try_borrow() {
+            Ok(locals) => locals.profiling_allocation_enabled,
+            Err(_err) => {
+                error!("Memory allocation was not initialized correctly due to a borrow error. Please report this to Datadog.");
+                false
             }
-        };
-        locals.profiling_allocation_enabled
+        }
     });
 
     if !allocation_profiling {
@@ -247,14 +246,10 @@ unsafe extern "C" fn alloc_profiling_gc_mem_caches(
     return_value: *mut zend::zval,
 ) {
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
-        // try to borrow and assume allocation profiling disabled on error
-        let locals = match cell.try_borrow() {
-            Ok(locals) => locals,
-            Err(_) => {
-                return false;
-            }
-        };
-        locals.profiling_allocation_enabled
+        cell.try_borrow()
+            .map(|locals| locals.profiling_allocation_enabled)
+            // Not logging here to avoid potentially overwhelming logs.
+            .unwrap_or(false)
     });
 
     if let Some(func) = GC_MEM_CACHES_HANDLER {
