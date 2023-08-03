@@ -1,0 +1,784 @@
+[[
+  {
+    "name": "wordpress.request",
+    "service": "wordpress_test_app",
+    "resource": "GET /simple_view",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 8857871325985691477,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-1",
+      "component": "wordpress",
+      "http.method": "GET",
+      "http.status_code": "200",
+      "http.url": "http://localhost:9999/simple_view?key=value&<redacted>",
+      "runtime-id": "428dc730-8980-4ebd-bdbd-82af66398be8",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "wpdb.__construct",
+       "service": "wordpress_test_app",
+       "resource": "wpdb.__construct",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "wordpress",
+         "db.host": "mysql_integration",
+         "db.name": "test",
+         "db.system": "mysql",
+         "db.user": "test"
+       }
+     },
+        {
+          "name": "mysqli_real_connect",
+          "service": "mysqli",
+          "resource": "mysqli_real_connect",
+          "trace_id": 0,
+          "span_id": 21,
+          "parent_id": 2,
+          "type": "sql",
+          "meta": {
+            "component": "mysqli",
+            "db.system": "mysql",
+            "db.type": "mysql",
+            "out.host": "mysql_integration",
+            "out.port": "3306",
+            "span.kind": "client"
+          }
+        },
+        {
+          "name": "mysqli_query",
+          "service": "mysqli",
+          "resource": "SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_520_ci'",
+          "trace_id": 0,
+          "span_id": 22,
+          "parent_id": 2,
+          "type": "sql",
+          "meta": {
+            "component": "mysqli",
+            "db.system": "mysql",
+            "db.type": "mysql",
+            "out.host": "mysql_integration",
+            "out.port": "3306",
+            "span.kind": "client"
+          }
+        },
+        {
+          "name": "mysqli_query",
+          "service": "mysqli",
+          "resource": "SELECT @@SESSION.sql_mode",
+          "trace_id": 0,
+          "span_id": 23,
+          "parent_id": 2,
+          "type": "sql",
+          "meta": {
+            "component": "mysqli",
+            "db.system": "mysql",
+            "db.type": "mysql",
+            "out.host": "mysql_integration",
+            "out.port": "3306",
+            "span.kind": "client"
+          },
+          "metrics": {
+            "db.row_count": 1.0
+          }
+        },
+        {
+          "name": "mysqli_query",
+          "service": "mysqli",
+          "resource": "SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION'",
+          "trace_id": 0,
+          "span_id": 24,
+          "parent_id": 2,
+          "type": "sql",
+          "meta": {
+            "component": "mysqli",
+            "db.system": "mysql",
+            "db.type": "mysql",
+            "out.host": "mysql_integration",
+            "out.port": "3306",
+            "span.kind": "client"
+          }
+        },
+     {
+       "name": "wpdb.query",
+       "service": "wordpress_test_app",
+       "resource": "SELECT option_name, option_value FROM wp_options WHERE autoload = 'yes'",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "mysqli_query",
+          "service": "mysqli",
+          "resource": "SELECT option_name, option_value FROM wp_options WHERE autoload = 'yes'",
+          "trace_id": 0,
+          "span_id": 25,
+          "parent_id": 3,
+          "type": "sql",
+          "meta": {
+            "component": "mysqli",
+            "db.name": "test",
+            "db.system": "mysql",
+            "db.type": "mysql",
+            "out.host": "mysql_integration",
+            "out.port": "3306",
+            "span.kind": "client"
+          },
+          "metrics": {
+            "db.row_count": 108.0
+          }
+        },
+     {
+       "name": "create_initial_taxonomies",
+       "service": "wordpress_test_app",
+       "resource": "create_initial_taxonomies",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "create_initial_post_types",
+       "service": "wordpress_test_app",
+       "resource": "create_initial_post_types",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "wp_maybe_load_widgets",
+       "service": "wordpress_test_app",
+       "resource": "wp_maybe_load_widgets",
+       "trace_id": 0,
+       "span_id": 6,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "wp_maybe_load_embeds",
+       "service": "wordpress_test_app",
+       "resource": "wp_maybe_load_embeds",
+       "trace_id": 0,
+       "span_id": 7,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "_wp_customize_include",
+       "service": "wordpress_test_app",
+       "resource": "_wp_customize_include",
+       "trace_id": 0,
+       "span_id": 8,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "wpdb.query",
+       "service": "wordpress_test_app",
+       "resource": "SELECT option_value FROM wp_options WHERE option_name = 'WPLANG' LIMIT 1",
+       "trace_id": 0,
+       "span_id": 9,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "mysqli_query",
+          "service": "mysqli",
+          "resource": "SELECT option_value FROM wp_options WHERE option_name = 'WPLANG' LIMIT 1",
+          "trace_id": 0,
+          "span_id": 26,
+          "parent_id": 9,
+          "type": "sql",
+          "meta": {
+            "component": "mysqli",
+            "db.name": "test",
+            "db.system": "mysql",
+            "db.type": "mysql",
+            "out.host": "mysql_integration",
+            "out.port": "3306",
+            "span.kind": "client"
+          },
+          "metrics": {
+            "db.row_count": 0.0
+          }
+        },
+     {
+       "name": "WP.init",
+       "service": "wordpress_test_app",
+       "resource": "WP.init",
+       "trace_id": 0,
+       "span_id": 10,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "create_initial_post_types",
+       "service": "wordpress_test_app",
+       "resource": "create_initial_post_types",
+       "trace_id": 0,
+       "span_id": 11,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "create_initial_taxonomies",
+       "service": "wordpress_test_app",
+       "resource": "create_initial_taxonomies",
+       "trace_id": 0,
+       "span_id": 12,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "WP_Widget_Factory._register_widgets",
+       "service": "wordpress_test_app",
+       "resource": "WP_Widget_Factory._register_widgets",
+       "trace_id": 0,
+       "span_id": 13,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "wpdb.query",
+       "service": "wordpress_test_app",
+       "resource": "SELECT option_value FROM wp_options WHERE option_name = 'theme_switched' LIMIT 1",
+       "trace_id": 0,
+       "span_id": 14,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "mysqli_query",
+          "service": "mysqli",
+          "resource": "SELECT option_value FROM wp_options WHERE option_name = 'theme_switched' LIMIT 1",
+          "trace_id": 0,
+          "span_id": 27,
+          "parent_id": 14,
+          "type": "sql",
+          "meta": {
+            "component": "mysqli",
+            "db.name": "test",
+            "db.system": "mysql",
+            "db.type": "mysql",
+            "out.host": "mysql_integration",
+            "out.port": "3306",
+            "span.kind": "client"
+          },
+          "metrics": {
+            "db.row_count": 0.0
+          }
+        },
+     {
+       "name": "WP.main",
+       "service": "wordpress_test_app",
+       "resource": "WP.main",
+       "trace_id": 0,
+       "span_id": 15,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "WP.init",
+          "service": "wordpress_test_app",
+          "resource": "WP.init",
+          "trace_id": 0,
+          "span_id": 28,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.parse_request",
+          "service": "wordpress_test_app",
+          "resource": "WP.parse_request",
+          "trace_id": 0,
+          "span_id": 29,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "wpdb.query",
+             "service": "wordpress_test_app",
+             "resource": "\n\t\tSELECT ID, post_name, post_parent, post_type\n\t\tFROM wp_posts\n\t\tWHERE post_name IN ('simple_view')\n\t\tAND post_type IN ('page','attachment')\n\t",
+             "trace_id": 0,
+             "span_id": 38,
+             "parent_id": 29,
+             "type": "sql",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+              {
+                "name": "mysqli_query",
+                "service": "mysqli",
+                "resource": "\n\t\tSELECT ID, post_name, post_parent, post_type\n\t\tFROM wp_posts\n\t\tWHERE post_name IN ('simple_view')\n\t\tAND post_type IN ('page','attachment')\n\t",
+                "trace_id": 0,
+                "span_id": 46,
+                "parent_id": 38,
+                "type": "sql",
+                "meta": {
+                  "component": "mysqli",
+                  "db.name": "test",
+                  "db.system": "mysql",
+                  "db.type": "mysql",
+                  "out.host": "mysql_integration",
+                  "out.port": "3306",
+                  "span.kind": "client"
+                },
+                "metrics": {
+                  "db.row_count": 1.0
+                }
+              },
+           {
+             "name": "wpdb.query",
+             "service": "wordpress_test_app",
+             "resource": "SELECT * FROM wp_posts WHERE ID = 2 LIMIT 1",
+             "trace_id": 0,
+             "span_id": 39,
+             "parent_id": 29,
+             "type": "sql",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+              {
+                "name": "mysqli_query",
+                "service": "mysqli",
+                "resource": "SELECT * FROM wp_posts WHERE ID = 2 LIMIT 1",
+                "trace_id": 0,
+                "span_id": 47,
+                "parent_id": 39,
+                "type": "sql",
+                "meta": {
+                  "component": "mysqli",
+                  "db.name": "test",
+                  "db.system": "mysql",
+                  "db.type": "mysql",
+                  "out.host": "mysql_integration",
+                  "out.port": "3306",
+                  "span.kind": "client"
+                },
+                "metrics": {
+                  "db.row_count": 1.0
+                }
+              },
+        {
+          "name": "WP.send_headers",
+          "service": "wordpress_test_app",
+          "resource": "WP.send_headers",
+          "trace_id": 0,
+          "span_id": 30,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.query_posts",
+          "service": "wordpress_test_app",
+          "resource": "WP.query_posts",
+          "trace_id": 0,
+          "span_id": 31,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "wpdb.query",
+             "service": "wordpress_test_app",
+             "resource": "SELECT   wp_posts.* FROM wp_posts  WHERE 1=1  AND (wp_posts.ID = '2') AND wp_posts.post_type = 'page'  ORDER BY wp_posts.post_date DESC ",
+             "trace_id": 0,
+             "span_id": 40,
+             "parent_id": 31,
+             "type": "sql",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+              {
+                "name": "mysqli_query",
+                "service": "mysqli",
+                "resource": "SELECT   wp_posts.* FROM wp_posts  WHERE 1=1  AND (wp_posts.ID = '2') AND wp_posts.post_type = 'page'  ORDER BY wp_posts.post_date DESC ",
+                "trace_id": 0,
+                "span_id": 48,
+                "parent_id": 40,
+                "type": "sql",
+                "meta": {
+                  "component": "mysqli",
+                  "db.name": "test",
+                  "db.system": "mysql",
+                  "db.type": "mysql",
+                  "out.host": "mysql_integration",
+                  "out.port": "3306",
+                  "span.kind": "client"
+                },
+                "metrics": {
+                  "db.row_count": 1.0
+                }
+              },
+           {
+             "name": "wpdb.query",
+             "service": "wordpress_test_app",
+             "resource": "SELECT post_id, meta_key, meta_value FROM wp_postmeta WHERE post_id IN (2) ORDER BY meta_id ASC",
+             "trace_id": 0,
+             "span_id": 41,
+             "parent_id": 31,
+             "type": "sql",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+              {
+                "name": "mysqli_query",
+                "service": "mysqli",
+                "resource": "SELECT post_id, meta_key, meta_value FROM wp_postmeta WHERE post_id IN (2) ORDER BY meta_id ASC",
+                "trace_id": 0,
+                "span_id": 49,
+                "parent_id": 41,
+                "type": "sql",
+                "meta": {
+                  "component": "mysqli",
+                  "db.name": "test",
+                  "db.system": "mysql",
+                  "db.type": "mysql",
+                  "out.host": "mysql_integration",
+                  "out.port": "3306",
+                  "span.kind": "client"
+                },
+                "metrics": {
+                  "db.row_count": 3.0
+                }
+              },
+        {
+          "name": "WP.handle_404",
+          "service": "wordpress_test_app",
+          "resource": "WP.handle_404",
+          "trace_id": 0,
+          "span_id": 32,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+        {
+          "name": "WP.register_globals",
+          "service": "wordpress_test_app",
+          "resource": "WP.register_globals",
+          "trace_id": 0,
+          "span_id": 33,
+          "parent_id": 15,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+     {
+       "name": "get_header",
+       "service": "wordpress_test_app",
+       "resource": "get_header",
+       "trace_id": 0,
+       "span_id": 16,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "load_template",
+          "service": "wordpress_test_app",
+          "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/header.php",
+          "trace_id": 0,
+          "span_id": 34,
+          "parent_id": 16,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "wp_head",
+             "service": "wordpress_test_app",
+             "resource": "wp_head",
+             "trace_id": 0,
+             "span_id": 42,
+             "parent_id": 34,
+             "type": "web",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+              {
+                "name": "wp_print_head_scripts",
+                "service": "wordpress_test_app",
+                "resource": "wp_print_head_scripts",
+                "trace_id": 0,
+                "span_id": 50,
+                "parent_id": 42,
+                "type": "web",
+                "meta": {
+                  "component": "wordpress"
+                }
+              },
+                 {
+                   "name": "wpdb.query",
+                   "service": "wordpress_test_app",
+                   "resource": "SELECT option_value FROM wp_options WHERE option_name = 'can_compress_scripts' LIMIT 1",
+                   "trace_id": 0,
+                   "span_id": 52,
+                   "parent_id": 50,
+                   "type": "sql",
+                   "meta": {
+                     "component": "wordpress"
+                   }
+                 },
+                    {
+                      "name": "mysqli_query",
+                      "service": "mysqli",
+                      "resource": "SELECT option_value FROM wp_options WHERE option_name = 'can_compress_scripts' LIMIT 1",
+                      "trace_id": 0,
+                      "span_id": 54,
+                      "parent_id": 52,
+                      "type": "sql",
+                      "meta": {
+                        "component": "mysqli",
+                        "db.name": "test",
+                        "db.system": "mysql",
+                        "db.type": "mysql",
+                        "out.host": "mysql_integration",
+                        "out.port": "3306",
+                        "span.kind": "client"
+                      },
+                      "metrics": {
+                        "db.row_count": 1.0
+                      }
+                    },
+           {
+             "name": "body_class",
+             "service": "wordpress_test_app",
+             "resource": "body_class",
+             "trace_id": 0,
+             "span_id": 43,
+             "parent_id": 34,
+             "type": "web",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+              {
+                "name": "wpdb.query",
+                "service": "wordpress_test_app",
+                "resource": "SELECT * FROM wp_posts  WHERE (post_type = 'page' AND post_status = 'publish')    AND post_parent = 2   ORDER BY wp_posts.post_title ASC LIMIT 0,1",
+                "trace_id": 0,
+                "span_id": 51,
+                "parent_id": 43,
+                "type": "sql",
+                "meta": {
+                  "component": "wordpress"
+                }
+              },
+                 {
+                   "name": "mysqli_query",
+                   "service": "mysqli",
+                   "resource": "SELECT * FROM wp_posts  WHERE (post_type = 'page' AND post_status = 'publish')    AND post_parent = 2   ORDER BY wp_posts.post_title ASC LIMIT 0,1",
+                   "trace_id": 0,
+                   "span_id": 53,
+                   "parent_id": 51,
+                   "type": "sql",
+                   "meta": {
+                     "component": "mysqli",
+                     "db.name": "test",
+                     "db.system": "mysql",
+                     "db.type": "mysql",
+                     "out.host": "mysql_integration",
+                     "out.port": "3306",
+                     "span.kind": "client"
+                   },
+                   "metrics": {
+                     "db.row_count": 0.0
+                   }
+                 },
+           {
+             "name": "the_custom_header_markup",
+             "service": "wordpress_test_app",
+             "resource": "the_custom_header_markup",
+             "trace_id": 0,
+             "span_id": 44,
+             "parent_id": 34,
+             "type": "web",
+             "meta": {
+               "component": "wordpress"
+             }
+           },
+     {
+       "name": "wpdb.query",
+       "service": "wordpress_test_app",
+       "resource": "SELECT * FROM wp_users WHERE ID = '1'",
+       "trace_id": 0,
+       "span_id": 17,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "mysqli_query",
+          "service": "mysqli",
+          "resource": "SELECT * FROM wp_users WHERE ID = '1'",
+          "trace_id": 0,
+          "span_id": 35,
+          "parent_id": 17,
+          "type": "sql",
+          "meta": {
+            "component": "mysqli",
+            "db.name": "test",
+            "db.system": "mysql",
+            "db.type": "mysql",
+            "out.host": "mysql_integration",
+            "out.port": "3306",
+            "span.kind": "client"
+          },
+          "metrics": {
+            "db.row_count": 1.0
+          }
+        },
+     {
+       "name": "wpdb.query",
+       "service": "wordpress_test_app",
+       "resource": "SELECT user_id, meta_key, meta_value FROM wp_usermeta WHERE user_id IN (1) ORDER BY umeta_id ASC",
+       "trace_id": 0,
+       "span_id": 18,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "mysqli_query",
+          "service": "mysqli",
+          "resource": "SELECT user_id, meta_key, meta_value FROM wp_usermeta WHERE user_id IN (1) ORDER BY umeta_id ASC",
+          "trace_id": 0,
+          "span_id": 36,
+          "parent_id": 18,
+          "type": "sql",
+          "meta": {
+            "component": "mysqli",
+            "db.name": "test",
+            "db.system": "mysql",
+            "db.type": "mysql",
+            "out.host": "mysql_integration",
+            "out.port": "3306",
+            "span.kind": "client"
+          },
+          "metrics": {
+            "db.row_count": 17.0
+          }
+        },
+     {
+       "name": "load_template",
+       "service": "wordpress_test_app",
+       "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/template-parts/page/content-page.php",
+       "trace_id": 0,
+       "span_id": 19,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+     {
+       "name": "get_footer",
+       "service": "wordpress_test_app",
+       "resource": "get_footer",
+       "trace_id": 0,
+       "span_id": 20,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress"
+       }
+     },
+        {
+          "name": "load_template",
+          "service": "wordpress_test_app",
+          "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/footer.php",
+          "trace_id": 0,
+          "span_id": 37,
+          "parent_id": 20,
+          "type": "web",
+          "meta": {
+            "component": "wordpress"
+          }
+        },
+           {
+             "name": "wp_print_footer_scripts",
+             "service": "wordpress_test_app",
+             "resource": "wp_print_footer_scripts",
+             "trace_id": 0,
+             "span_id": 45,
+             "parent_id": 37,
+             "type": "web",
+             "meta": {
+               "component": "wordpress"
+             }
+           }]]
