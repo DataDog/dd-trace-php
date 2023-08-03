@@ -1,0 +1,38 @@
+{
+    "test_name": "php_timeline",
+    "stacks": [
+        {
+            "profile-type": "timeline",
+            "stack-content": [
+                {
+                    "regular_expression": "[gc]",
+                    "labels": [
+                        {
+                            "key": "gc reason",
+                            "values": [
+                                "induced"
+                            ]
+                        },
+                        {
+                            "key": "event",
+                            "values": [
+                                "gc"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "regular_expression": "[include]",
+                    "labels": [
+                        {
+                            "key": "event",
+                            "values": [
+                                "compilation"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
