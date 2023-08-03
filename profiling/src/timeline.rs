@@ -98,7 +98,7 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
                     &locals,
                 );
             }
-            return op_array;
+            op_array
         });
     }
     error!("No previous `zend_compile_string` handler found! This is a huge problem as your eval() won't work and PHP will higly likely crash. I am sorry, but the die is cast.");
@@ -197,7 +197,7 @@ unsafe fn gc_reason() -> &'static str {
 #[no_mangle]
 unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if let Some(prev) = PREV_GC_COLLECT_CYCLES {
-        return REQUEST_LOCALS.with(|cell| {
+        REQUEST_LOCALS.with(|cell| {
             // try to borrow and bail out if not successful
             let locals = match cell.try_borrow() {
                 Ok(locals) => locals,
@@ -259,7 +259,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
                 }
             }
             collected
-        });
+        })
     } else {
         // this should never happen, as it would mean that no `gc_collect_cycles` function pointer
         // did exist, which could only be the case if another extension was misbehaving.
