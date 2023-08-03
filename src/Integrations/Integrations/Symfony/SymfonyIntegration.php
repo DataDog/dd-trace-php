@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Symfony;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -38,6 +39,8 @@ class SymfonyIntegration extends Integration
      */
     public function init()
     {
+        Logger::get()->debug("Initializing Symfony's integration");
+
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
             'handle',
@@ -304,6 +307,7 @@ class SymfonyIntegration extends Integration
 
     public function loadSymfony($integration)
     {
+        Logger::get()->debug("calling loadSymfony()");
         /* Move this to its own integration
         $doctrineRepositories = [];
         \DDTrace\hook_method(
@@ -349,6 +353,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
             function (SpanData $span, $args, $response) use ($integration) {
+                Logger::get()->debug("HttpKernel::handle posthook");
                 /** @var Request $request */
                 list($request) = $args;
 
@@ -358,7 +363,7 @@ class SymfonyIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                if ($integration->symfonyRequestSpan->name !== 'drupal.request') {
+                if ($integration->symfonyRequestSpan->name === 'symfony.request') {
                     $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                 }
                 $integration->symfonyRequestSpan->meta[Tag::SPAN_KIND] = 'server';
@@ -392,14 +397,17 @@ class SymfonyIntegration extends Integration
             [
                 'recurse' => true,
                 'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
+                    Logger::get()->debug("EventDispatcherInterface::dispatch prehook");
                     if (!isset($args[0])) {
                         return false;
                     }
                     if (\is_object($args[0])) {
+                        Logger::get()->debug("EventDispatcherInterface::dispatch prehook is_object");
                         // dispatch($event, string $eventName = null)
                         $event = $args[0];
                         $eventName = isset($args[1]) && \is_string($args[1]) ? $args[1] : \get_class($event);
                     } elseif (\is_string($args[0])) {
+                        Logger::get()->debug("EventDispatcherInterface::dispatch prehook is_string");
                         // dispatch($eventName, Event $event = null)
                         $eventName = $args[0];
                         $event = isset($args[1]) && \is_object($args[1]) ? $args[1] : null;
@@ -407,6 +415,8 @@ class SymfonyIntegration extends Integration
                         // Invalid API usage
                         return false;
                     }
+
+                    Logger::get()->debug("EventDispatcherInterface::dispatch prehook eventName: $eventName");
 
                     // trace the container itself
                     if ($eventName === 'kernel.controller' && \method_exists($event, 'getController')) {
