@@ -200,10 +200,10 @@ aliases:
           echo "APM Test Agent is not running and was not used for testing. No checks failed."
           exit 0
         fi
-        
+
         RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://test-agent:9126/test/trace_check/failures)
         RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
-            
+
         if [[ $RESPONSE_CODE -eq 200 ]]; then
           echo "All APM Test Agent Check Traces returned successful! (HTTP 200)"
           echo "APM Test Agent Check Traces Summary Results:"
@@ -2458,6 +2458,7 @@ jobs:
                     # Add undocumented installer currently used by relenv
                     cp -v profiling/datadog-profiling-install.sh "datadog-profiling/${triplet}/bin/"
                   done
+                  find
                   tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
       - run:
           name: Build packages
@@ -3264,6 +3265,7 @@ workflows:
                 - alpine:3.12
                 - alpine:3.15
                 - alpine:3.16
+                - alpine:3.17
                 - alpine:latest
       - verify_alpine:
           requires: [ "package extension" ]
@@ -3300,7 +3302,7 @@ workflows:
                 - php:8.0-fpm-alpine
                 - php:8.1-fpm-alpine
                 - php:8.2-fpm-alpine
-                - php:8.3.0alpha1-fpm-alpine
+                - php:8.3.0beta1-fpm-alpine
       - verify_centos:
           requires: [ "package extension" ]
           matrix:
@@ -3763,6 +3765,12 @@ workflows:
       - placeholder:
           requires: [ 'Prepare Code' ]
           name: Language tests
+
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 83 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/8.3.list
+          docker_image: "datadog/dd-trace-ci:php-8.3_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 82 language tests"
