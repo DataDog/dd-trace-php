@@ -1,5 +1,6 @@
 pub mod bindings;
 pub mod capi;
+mod clocks;
 mod config;
 mod logging;
 mod pcntl;
@@ -15,6 +16,7 @@ mod timeline;
 
 use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};
+use clocks::*;
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use ddcommon::cstr;
@@ -310,11 +312,6 @@ extern "C" fn prshutdown() -> ZendResult {
     unsafe { bindings::zai_config_rshutdown() };
 
     ZendResult::Success
-}
-
-pub struct Clocks {
-    pub cpu_time: Option<cpu_time::ThreadTime>,
-    pub wall_time: Instant,
 }
 
 pub struct RequestLocals {
