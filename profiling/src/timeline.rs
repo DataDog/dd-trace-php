@@ -18,20 +18,27 @@ static mut PREV_ZEND_COMPILE_STRING: Option<zend::VmZendCompileString> = None;
 /// The engine's original (or neighbouring extensions) `zend_compile_file()` function
 static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
 
+/// This functions needs to be called in MINIT of the module
 pub fn timeline_minit() {
     unsafe {
         // register our function in the `gc_collect_cycles` pointer
         PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
         zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);
+
         // register our function in the `zend_compile_file` pointer
         PREV_ZEND_COMPILE_FILE = zend::zend_compile_file;
         zend::zend_compile_file = Some(ddog_php_prof_compile_file);
+
         // register our function in the `zend_compile_string` pointer
         PREV_ZEND_COMPILE_STRING = zend::zend_compile_string;
         zend::zend_compile_string = Some(ddog_php_prof_compile_string);
     }
 }
 
+/// This function gets called when a `eval()` is being called. This is done by letting the
+/// `zend_compile_string` function pointer point to this function.
+/// When called, we call the previous function and measure the wall-time it took to compile the
+/// given string which will then be reported to the profiler.
 unsafe extern "C" fn ddog_php_prof_compile_string(
     #[cfg(php7)] source_string: *mut zend::_zval_struct,
     #[cfg(php8)] source_string: *mut zend::ZendString,
@@ -40,6 +47,21 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
     #[cfg(php_zend_compile_string_has_position)] position: zend::zend_compile_position,
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_STRING {
+        let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+            // try to borrow and bail out if not successful
+            match cell.try_borrow() {
+                Ok(locals) => locals.profiling_experimental_timeline_enabled,
+                Err(_) => false,
+            }
+        });
+
+        if !timeline_enabled {
+            #[cfg(php_zend_compile_string_has_position)]
+            return prev(source_string, filename, position);
+            #[cfg(not(php_zend_compile_string_has_position))]
+            return prev(source_string, filename);
+        }
+
         let start = Instant::now();
         #[cfg(php_zend_compile_string_has_position)]
         let op_array = prev(source_string, filename, position);
@@ -47,35 +69,30 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
         let op_array = prev(source_string, filename);
         let duration = start.elapsed();
 
-        // eval() failed, could be invalid PHP or file not found, ...
+        // eval() failed
         // TODO we might collect this event anyway and label it accordingly in a later stage of
         // this feature
         if op_array.is_null() {
             return op_array;
         }
 
+        let filename =
+            ddog_php_prof_zend_string_view(zend_get_executed_filename_ex().as_mut()).to_string();
+
+        let line = zend::zend_get_executed_lineno();
+
+        trace!(
+            "Compiling eval()'ed code in \"{filename}\" at line {line} took {} nanoseconds",
+            duration.as_nanos(),
+        );
         REQUEST_LOCALS.with(|cell| {
-            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-            let locals = cell.try_borrow();
-            if locals.is_err() {
-                return;
-            }
-            // Safety: got checked above
-            let locals = locals.unwrap();
-
-            if !locals.profiling_experimental_timeline_enabled {
-                return;
-            }
-
-            let filename = ddog_php_prof_zend_string_view(zend_get_executed_filename_ex().as_mut())
-                .to_string();
-
-            let line = zend::zend_get_executed_lineno();
-
-            trace!(
-                "Compiling eval()'ed code in \"{filename}\" at line {line} took {} nanoseconds",
-                duration.as_nanos(),
-            );
+            // try to borrow and bail out if not successful
+            let locals = match cell.try_borrow() {
+                Ok(locals) => locals,
+                Err(_) => {
+                    return;
+                }
+            };
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 profiler.collect_compile_string(
@@ -92,57 +109,66 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
     ptr::null_mut()
 }
 
+/// This function gets called when a file is `include()`ed/`require()`d. This is done by letting
+/// the `zend_compile_file` function pointer point to this function.
+/// When called, we call the previous function and measure the wall-time it took to compile the
+/// given file which will then be reported to the profiler.
 unsafe extern "C" fn ddog_php_prof_compile_file(
     handle: *mut zend::zend_file_handle,
     r#type: i32,
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_FILE {
+        let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+            // try to borrow and bail out if not successful
+            match cell.try_borrow() {
+                Ok(locals) => locals.profiling_experimental_timeline_enabled,
+                Err(_) => false,
+            }
+        });
+
+        if !timeline_enabled {
+            return prev(handle, r#type);
+        }
+
         let start = Instant::now();
         let op_array = prev(handle, r#type);
         let duration = start.elapsed();
         let now = SystemTime::now().duration_since(UNIX_EPOCH);
 
-        // include/require failed, could be invalid PHP or file not found, ...
-        // or time went backwards
+        // include/require failed, could be invalid PHP in file or file not found, or time went
+        // backwards
         // TODO we might collect this event anyway and label it accordingly in a later stage of
         // this feature
         if op_array.is_null() || (*op_array).filename.is_null() || now.is_err() {
             return op_array;
         }
 
-        // Safety: check for `is_err()` in the if above
+        let include_type = match r#type as u32 {
+            zend::ZEND_INCLUDE => "include", // `include_once()` and `include_once()`
+            zend::ZEND_REQUIRE => "require", // `require()` and `require_once()`
+            _default => "",
+        };
 
+        // Extract the filename from the returned op_array.
+        // We could also extract from the handle, but those filenames might be different from
+        // the one in the `op_array`: In the handle we get what `include()` was called with,
+        // for example "/var/www/html/../vendor/foo/bar.php" while during stack walking we get
+        // "/var/html/vendor/foo/bar.php". This makes sure it is the exact same string we'd
+        // collect in stack walking and therefore we are fully utilizing the pprof string table
+        let filename = ddog_php_prof_zend_string_view((*op_array).filename.as_mut()).to_string();
+
+        trace!(
+            "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
+            duration.as_nanos(),
+        );
         REQUEST_LOCALS.with(|cell| {
-            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-            let locals = cell.try_borrow();
-            if locals.is_err() {
-                return;
-            }
-            // Safety: got checked above
-            let locals = locals.unwrap();
-
-            if !locals.profiling_enabled || !locals.profiling_experimental_timeline_enabled {
-                return;
-            }
-
-            let include_type = match r#type as u32 {
-                zend::ZEND_INCLUDE => "include", // `include_once()` and `include_once()`
-                zend::ZEND_REQUIRE => "require", // `require()` and `require_once()`
-                _default => "",
+            // try to borrow and bail out if not successful
+            let locals = match cell.try_borrow() {
+                Ok(locals) => locals,
+                Err(_) => {
+                    return;
+                }
             };
-
-            // extract the filename from the returned op_array
-            // we could also extract from the handle, but those filenames might be different from
-            // the one in the `op_array`: In the handle we get what `include()` was called with,
-            // for example "/var/www/html/../vendor/foo/bar.php" while during stack walking we get
-            // "/var/html/vendor/foo/bar.php". This makes sure it is the exact same string we'd
-            // collect in stack walking and therefore we are fully utilizing the pprof string table
-            let filename = ddog_php_prof_zend_string_view((*op_array).filename.as_mut()).to_string();
-
-            trace!(
-                "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
-                duration.as_nanos(),
-            );
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 profiler.collect_compile_file(
@@ -182,6 +208,18 @@ unsafe fn gc_reason() -> &'static str {
 #[no_mangle]
 unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if let Some(prev) = PREV_GC_COLLECT_CYCLES {
+        let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+            // try to borrow and bail out if not successful
+            match cell.try_borrow() {
+                Ok(locals) => locals.profiling_experimental_timeline_enabled,
+                Err(_) => false,
+            }
+        });
+
+        if !timeline_enabled {
+            return prev();
+        }
+
         #[cfg(php_gc_status)]
         let mut status = MaybeUninit::<zend::zend_gc_status>::uninit();
 
@@ -207,16 +245,13 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         );
 
         REQUEST_LOCALS.with(|cell| {
-            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-            let locals = cell.try_borrow();
-            if locals.is_err() {
-                return;
-            }
-            let locals = locals.unwrap();
-
-            if !locals.profiling_enabled || !locals.profiling_experimental_timeline_enabled {
-                return;
-            }
+            // try to borrow and bail out if not successful
+            let locals = match cell.try_borrow() {
+                Ok(locals) => locals,
+                Err(_) => {
+                    return;
+                }
+            };
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 cfg_if::cfg_if! {
