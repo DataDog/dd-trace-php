@@ -13,7 +13,7 @@ use crate::bindings::ddog_php_prof_get_active_fiber;
 use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
-use crate::{AgentEndpoint, RequestLocals, TAGS};
+use crate::{AgentEndpoint, RequestLocals, CLOCKS, TAGS};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
@@ -637,7 +637,7 @@ impl Profiler {
         &self,
         execute_data: *mut zend_execute_data,
         interrupt_count: u32,
-        locals: &mut RequestLocals,
+        locals: &RequestLocals,
     ) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
@@ -645,24 +645,28 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
+                let (wall_time, cpu_time) = CLOCKS.with(|cell| {
+                    let mut tls_clocks = cell.borrow_mut();
 
-                let now = Instant::now();
-                let wall_time = now.duration_since(locals.last_wall_time);
-                locals.last_wall_time = now;
-                let wall_time: i64 = wall_time.as_nanos().try_into().unwrap_or(i64::MAX);
+                    let wall_now = Instant::now();
+                    let wall_time = wall_now.duration_since(tls_clocks.wall_time);
+                    tls_clocks.wall_time = wall_now;
+                    let wall_time: i64 = wall_time.as_nanos().try_into().unwrap_or(i64::MAX);
 
-                /* If CPU time is disabled, or if it's enabled but not available on the platform,
-                 * then `locals.last_cpu_time` will be None.
-                 */
-                let cpu_time = if let Some(last_cpu_time) = locals.last_cpu_time {
-                    let now = cpu_time::ThreadTime::try_now()
-                        .expect("CPU time to work since it's worked before during this process");
-                    let cpu_time = Self::cpu_sub(now, last_cpu_time);
-                    locals.last_cpu_time = Some(now);
-                    cpu_time
-                } else {
-                    0
-                };
+                    // If CPU time is disabled, or if it's enabled but not available on the
+                    // platform, then `tsl_clocks.cpu_time` will be None.
+                    let cpu_time = if let Some(last_cpu_time) = tls_clocks.cpu_time {
+                        let now = cpu_time::ThreadTime::try_now().expect(
+                            "CPU time to work since it's worked before during this process",
+                        );
+                        let cpu_time = Self::cpu_sub(now, last_cpu_time);
+                        tls_clocks.cpu_time = Some(now);
+                        cpu_time
+                    } else {
+                        0
+                    };
+                    (wall_time, cpu_time)
+                });
 
                 let mut labels = Profiler::message_labels();
                 #[cfg(feature = "timeline")]
@@ -1029,8 +1033,6 @@ mod tests {
         RequestLocals {
             env: None,
             interrupt_count: AtomicU32::new(0),
-            last_cpu_time: None,
-            last_wall_time: Instant::now(),
             profiling_enabled: true,
             profiling_endpoint_collection_enabled: true,
             profiling_experimental_cpu_time_enabled: false,
@@ -1038,7 +1040,6 @@ mod tests {
             profiling_experimental_timeline_enabled: false,
             profiling_log_level: LevelFilter::Off,
             service: None,
-            tags: Arc::new(static_tags()),
             uri: Box::<AgentEndpoint>::default(),
             version: None,
             vm_interrupt_addr: std::ptr::null_mut(),

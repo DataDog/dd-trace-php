@@ -301,11 +301,14 @@ extern "C" fn prshutdown() -> ZendResult {
     ZendResult::Success
 }
 
+pub struct Clocks {
+    pub cpu_time: Option<cpu_time::ThreadTime>,
+    pub wall_time: Instant,
+}
+
 pub struct RequestLocals {
     pub env: Option<Cow<'static, str>>,
     pub interrupt_count: AtomicU32,
-    pub last_cpu_time: Option<cpu_time::ThreadTime>,
-    pub last_wall_time: Instant,
     pub profiling_enabled: bool,
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
@@ -335,11 +338,14 @@ fn static_tags() -> Vec<Tag> {
 }
 
 thread_local! {
+    static CLOCKS: RefCell<Clocks> = RefCell::new(Clocks {
+        cpu_time: None,
+        wall_time: Instant::now(),
+    });
+
     static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals {
         env: None,
         interrupt_count: AtomicU32::new(0),
-        last_cpu_time: None,
-        last_wall_time: Instant::now(),
         profiling_enabled: false,
         profiling_endpoint_collection_enabled: true,
         profiling_experimental_cpu_time_enabled: true,
@@ -526,14 +532,17 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
 
     if profiling_enabled {
         REQUEST_LOCALS.with(|cell| {
-            let mut locals = cell.borrow_mut();
+            let locals = cell.borrow();
 
-            locals.last_wall_time = Instant::now();
-            if locals.profiling_experimental_cpu_time_enabled {
-                let now = cpu_time::ThreadTime::try_now()
-                    .expect("CPU time to work since it's worked before during this process");
-                locals.last_cpu_time = Some(now);
-            }
+            CLOCKS.with(|cell| {
+                let mut tls_clocks = cell.borrow_mut();
+                tls_clocks.wall_time = Instant::now();
+                tls_clocks.cpu_time = if locals.profiling_experimental_cpu_time_enabled {
+                    cpu_time::ThreadTime::try_now().ok()
+                } else {
+                    None
+                };
+            });
 
             TAGS.with(|cell| {
                 let mut tags = static_tags();
