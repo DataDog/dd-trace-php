@@ -311,7 +311,7 @@ extern "C" fn prshutdown() -> ZendResult {
      */
     unsafe { bindings::zai_config_rshutdown() };
 
-    TAGS.with(|cell| *cell.borrow_mut() = Arc::default());
+    TAGS.with(|cell| cell.replace(Arc::default()));
 
     ZendResult::Success
 }
@@ -539,7 +539,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 // standardized tag name.
                 add_tag(&mut tags, "runtime_version", PHP_VERSION.as_str());
                 add_tag(&mut tags, "php.sapi", SAPI.as_ref());
-                *cell.borrow_mut() = Arc::new(tags);
+                cell.replace(Arc::new(tags));
             });
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
