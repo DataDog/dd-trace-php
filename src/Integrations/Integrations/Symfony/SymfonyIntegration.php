@@ -270,6 +270,10 @@ class SymfonyIntegration extends Integration
                      */
                     'recurse' => true,
                     'posthook' => function (SpanData $span, $args, $retval, $exception) use ($scope, $integration) {
+                        if (\DDTrace\root_span() === $span) {
+                            return false;
+                        }
+
                         $span->name = 'symfony.console.command.run';
                         $span->resource = $this->getName() ?: $span->name;
                         $span->service = \ddtrace_config_app_name('symfony');
