@@ -285,7 +285,8 @@ class SymfonyIntegration extends Integration
                         $span->type = Type::CLI;
                         $span->meta['symfony.console.command.class'] = $scope;
                         $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-                    }]);
+                    }]
+                );
             }
         );
 
