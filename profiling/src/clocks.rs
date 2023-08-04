@@ -7,6 +7,15 @@ pub struct Clocks {
 }
 
 impl Clocks {
+    pub fn initialize(&mut self, cpu_time_enabled: bool) {
+        self.wall_time = Instant::now();
+        self.cpu_time = if cpu_time_enabled {
+            ThreadTime::try_now().ok()
+        } else {
+            None
+        };
+    }
+
     #[inline(always)]
     fn cpu_sub(now: ThreadTime, prev: ThreadTime) -> i64 {
         let now = now.as_duration();
@@ -34,7 +43,7 @@ impl Clocks {
         let wall_time: i64 = wall_time.as_nanos().try_into().unwrap_or(i64::MAX);
 
         // If CPU time is disabled, or if it's enabled but not available on the
-        // platform, then `tsl_clocks.cpu_time` will be None.
+        // platform, then `self.cpu_time` will be None.
         let cpu_time = if let Some(last_cpu_time) = self.cpu_time {
             let now = ThreadTime::try_now()
                 .expect("CPU time to work since it's worked before during this process");

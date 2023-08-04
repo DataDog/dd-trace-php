@@ -311,6 +311,8 @@ extern "C" fn prshutdown() -> ZendResult {
      */
     unsafe { bindings::zai_config_rshutdown() };
 
+    TAGS.with(|cell| *cell.borrow_mut() = Arc::default());
+
     ZendResult::Success
 }
 
@@ -331,6 +333,7 @@ pub struct RequestLocals {
 
 thread_local! {
     static CLOCKS: RefCell<Clocks> = RefCell::new(Clocks {
+        cpu_time_enabled: false,
         cpu_time: None,
         wall_time: Instant::now(),
     });
@@ -525,16 +528,8 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
     if profiling_enabled {
         REQUEST_LOCALS.with(|cell| {
             let locals = cell.borrow();
-
-            CLOCKS.with(|cell| {
-                let mut tls_clocks = cell.borrow_mut();
-                tls_clocks.wall_time = Instant::now();
-                tls_clocks.cpu_time = if locals.profiling_experimental_cpu_time_enabled {
-                    cpu_time::ThreadTime::try_now().ok()
-                } else {
-                    None
-                };
-            });
+            let cpu_time_enabled = locals.profiling_experimental_cpu_time_enabled;
+            CLOCKS.with(|cell| cell.borrow_mut().initialize(cpu_time_enabled));
 
             TAGS.with(|cell| {
                 let mut tags = LAZY_STATICS_TAGS.clone();
