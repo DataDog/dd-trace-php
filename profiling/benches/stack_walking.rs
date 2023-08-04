@@ -16,7 +16,7 @@ fn benchmark(c: &mut Criterion) {
         let stack = unsafe { zend::ddog_php_test_create_fake_zend_execute_data(99) };
         group.throughput(criterion::Throughput::Elements(*depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), depth, |b, &_depth| {
-            b.iter(|| collect_stack_sample(black_box(stack)))
+            b.iter(|| unsafe { collect_stack_sample(black_box(stack)) })
         });
     }
     group.finish();

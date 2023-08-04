@@ -5,7 +5,7 @@
 
 #include <ext/standard/php_versioning.h>
 
-#include <components/log/log.h>
+#include "logging.h"
 
 bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
     if (strcmp("xdebug", module->name) == 0) {
@@ -56,9 +56,9 @@ void ddtrace_excluded_modules_startup() {
         if (module && module->name && module->version && ddtrace_is_excluded_module(module, error)) {
             ddtrace_has_excluded_module = true;
             if (strcmp("xdebug", module->name) == 0) {
-                LOG(Error, error);
+                ddtrace_log_err(error);
             } else {
-                LOG(Warn, error);
+                ddtrace_log_debug(error);
             }
             return;
         }

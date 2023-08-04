@@ -16,7 +16,9 @@ dd_trace_circuit_breaker_t *dd_trace_circuit_breaker = NULL;
 dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {0};
 
 static void handle_prepare_error(const char *call_name) {
-    perror(call_name);
+    if (get_DD_TRACE_DEBUG()) {
+        perror(call_name);
+    }
 
     if (!dd_trace_circuit_breaker) {
         // if shared memory is not working use local copy

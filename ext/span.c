@@ -9,7 +9,7 @@
 #include "compat_string.h"
 #include "configuration.h"
 #include "ddtrace.h"
-#include <components/log/log.h>
+#include "logging.h"
 #include "random.h"
 #include "serializer.h"
 #include "ext/standard/php_string.h"
@@ -425,11 +425,11 @@ void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until) {
     ddtrace_span_data *span;
     while ((span = until->stack->active) && span->stack == until->stack && span != until && span->type != DDTRACE_AUTOROOT_SPAN) {
         if (span->type == DDTRACE_INTERNAL_SPAN) {
-            LOG(Error, "Found internal span data while closing userland spans");
+            ddtrace_log_err("Found internal span data while closing userland spans");
         }
 
         zend_string *name = ddtrace_convert_to_str(ddtrace_spandata_property_name(span));
-        LOG(Warn, "Found unfinished span while automatically closing spans with name '%s'", ZSTR_VAL(name));
+        ddtrace_log_debugf("Found unfinished span while automatically closing spans with name '%s'", ZSTR_VAL(name));
         zend_string_release(name);
 
         if (get_DD_AUTOFINISH_SPANS()) {
@@ -517,7 +517,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
 
         if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE) {
             // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
-            LOG(Warn, "Unable to auto flush the tracer");
+            ddtrace_log_debug("Unable to auto flush the tracer");
         }
     }
 }

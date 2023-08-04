@@ -4,10 +4,9 @@
 #include <time.h>
 
 #include "ddtrace.h"
-#include <components/log/log.h>
+#include "logging.h"
 #include "span.h"
 #include "zend_extensions.h"
-#include <zai_string/string.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -32,13 +31,13 @@ void dd_search_for_profiling_symbols(void *arg) {
 
         profiling_interrupt_function = DL_FETCH_SYMBOL(handle, "datadog_profiling_interrupt_function");
         if (UNEXPECTED(!profiling_interrupt_function)) {
-            LOG(Warn, "[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n", "datadog_profiling_interrupt_function",
+            ddtrace_log_debugf("[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n", "datadog_profiling_interrupt_function",
                                DL_ERROR());
         }
 
         profiling_notify_trace_finished = DL_FETCH_SYMBOL(handle, "datadog_profiling_notify_trace_finished");
         if (UNEXPECTED(!profiling_notify_trace_finished)) {
-            LOG(Warn, "[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n", extension->version, DL_ERROR());
+            ddtrace_log_debugf("[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n", extension->version, DL_ERROR());
         }
     }
 }

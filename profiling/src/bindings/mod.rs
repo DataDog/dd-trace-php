@@ -286,23 +286,6 @@ extern "C" {
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
     pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_string_view;
-
-    /// Registers the run_time_cache slot with the engine. Must be done in
-    /// module init or extension startup.
-    pub fn ddog_php_prof_function_run_time_cache_init(module_name: *const c_char);
-
-    /// Gets the address of a function's run_time_cache slot. May return None
-    /// if it detects incomplete initialization, which is always a bug but
-    /// none-the-less has been seen in the wild. It may also return None if
-    /// the run_time_cache is not available on this function type.
-    #[cfg(not(feature = "stack_walking_tests"))]
-    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
-
-    /// mock for testing
-    #[cfg(feature = "stack_walking_tests")]
-    pub fn ddog_test_php_prof_function_run_time_cache(
-        func: &zend_function,
-    ) -> Option<&mut [usize; 2]>;
 }
 
 #[cfg(php_preload)]
@@ -434,9 +417,13 @@ impl TryFrom<&mut zval> for String {
             }
 
             // Safety: checked the pointer wasn't null above.
-            let str =
-                unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()).to_string() };
-            Ok(str)
+            let view = unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()) };
+
+            // Safety: ddog_php_prof_zend_string_view returns a fully populated string.
+            let bytes = unsafe { view.into_bytes() };
+
+            // PHP does not guarantee UTF-8 correctness, so lossy convert.
+            Ok(String::from_utf8_lossy(bytes).into_owned())
         } else {
             Err(StringError::Type(r#type))
         }
@@ -492,27 +479,15 @@ impl<'a> ZaiStringView<'a> {
     /// # Safety
     /// Inherits the safety requirements of [std::slice::from_raw_parts], in
     /// particular, the view must not use a null pointer.
-    #[inline]
     pub unsafe fn into_bytes(self) -> &'a [u8] {
         assert!(!self.ptr.is_null());
         let len = self.len;
         std::slice::from_raw_parts(self.ptr as *const u8, len)
     }
 
-    /// # Safety
-    /// Inherits the safety requirements of [std::slice::from_raw_parts].
-    #[inline]
     pub unsafe fn into_utf8(self) -> Result<&'a str, Utf8Error> {
         let bytes = self.into_bytes();
         std::str::from_utf8(bytes)
-    }
-
-    /// # Safety
-    /// Inherits the safety requirements of [std::slice::from_raw_parts].
-    #[allow(clippy::inherent_to_string)]
-    #[inline]
-    pub unsafe fn to_string(self) -> String {
-        String::from_utf8_lossy(self.into_bytes()).into_owned()
     }
 }
 
@@ -549,22 +524,4 @@ pub struct ZaiConfigMemoizedEntry {
             stage: c_int,
         ) -> c_int,
     >,
-}
-
-#[cfg(test)]
-mod tests {
-
-    // If this fails, then ddog_php_prof_function_run_time_cache needs to be
-    // adjusted accordingly.
-    #[test]
-    fn test_sizeof_fixed_size_slice_is_same_as_pointer() {
-        assert_eq!(
-            std::mem::size_of::<&[usize; 2]>(),
-            std::mem::size_of::<*mut usize>()
-        );
-        assert_eq!(
-            std::mem::align_of::<&[usize; 2]>(),
-            std::mem::align_of::<*mut usize>()
-        );
-    }
 }

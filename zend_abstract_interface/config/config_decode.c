@@ -6,6 +6,7 @@
 #include <main/php.h>
 #include <stdbool.h>
 #include <string.h>
+#include <strings.h>
 
 #if PHP_VERSION_ID < 80000
 #if PHP_VERSION_ID < 70300

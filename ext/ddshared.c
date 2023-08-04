@@ -3,7 +3,7 @@
 #include <components-rs/ddtrace.h>
 
 #include "ddtrace.h"
-#include <components/log/log.h>
+#include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

@@ -1,5 +1,5 @@
 use crate::bindings as zend;
-use crate::zend::{ddog_php_prof_zend_string_view, zend_get_executed_filename_ex};
+use crate::zend::ddog_php_prof_zend_string_view;
 use crate::{PROFILER, REQUEST_LOCALS};
 use libc::c_char;
 use log::{error, trace};
@@ -67,8 +67,12 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
                 return;
             }
 
-            let filename = ddog_php_prof_zend_string_view(zend_get_executed_filename_ex().as_mut())
-                .to_string();
+            let filename = Some(String::from_utf8_lossy(
+                ddog_php_prof_zend_string_view(zend::zend_get_executed_filename_ex().as_mut())
+                    .into_bytes(),
+            ))
+            .unwrap_or_default()
+            .to_string();
 
             let line = zend::zend_get_executed_lineno();
 
@@ -121,7 +125,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             // Safety: got checked above
             let locals = locals.unwrap();
 
-            if !locals.profiling_enabled || !locals.profiling_experimental_timeline_enabled {
+            if !locals.profiling_experimental_timeline_enabled {
                 return;
             }
 
@@ -137,7 +141,8 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             // for example "/var/www/html/../vendor/foo/bar.php" while during stack walking we get
             // "/var/html/vendor/foo/bar.php". This makes sure it is the exact same string we'd
             // collect in stack walking and therefore we are fully utilizing the pprof string table
-            let filename = ddog_php_prof_zend_string_view((*op_array).filename.as_mut()).to_string();
+            let filename = ddog_php_prof_zend_string_view((*op_array).filename.as_mut());
+            let filename = String::from_utf8_lossy(filename.into_bytes()).to_string();
 
             trace!(
                 "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
@@ -214,7 +219,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
             }
             let locals = locals.unwrap();
 
-            if !locals.profiling_enabled || !locals.profiling_experimental_timeline_enabled {
+            if !locals.profiling_experimental_timeline_enabled {
                 return;
             }
 

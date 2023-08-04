@@ -6,7 +6,7 @@
 #include "engine_hooks.h"  // for ddtrace_backup_error_handling
 #include "handlers_http.h"
 #include "handlers_internal.h"
-#include <components/log/log.h>
+#include "logging.h"
 #include "priority_sampling/priority_sampling.h"
 #include "span.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"

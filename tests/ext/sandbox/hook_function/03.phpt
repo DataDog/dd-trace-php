@@ -16,7 +16,7 @@ greet('Datadog');
 
 ?>
 --EXPECTF--
-DDTrace\hook_function was given neither prehook nor posthook in %s on line %d
+DDTrace\hook_function was given neither prehook nor posthook.
 bool(false)
 Hello, Datadog.
 Flushing trace of size 1 to send-queue for %s

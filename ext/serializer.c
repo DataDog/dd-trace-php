@@ -26,7 +26,7 @@
 #include "engine_api.h"
 #include "engine_hooks.h"
 #include "ip_extraction.h"
-#include <components/log/log.h>
+#include "logging.h"
 #include "mpack/mpack.h"
 #include "priority_sampling/priority_sampling.h"
 #include "span.h"
@@ -129,7 +129,7 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
             mpack_write_cstr(writer, Z_STRVAL_P(trace));
             break;
         default:
-            LOG(Warn, "Serialize values must be of type array, string, int, float, bool or null");
+            ddtrace_log_debug("Serialize values must be of type array, string, int, float, bool or null");
             return 0;
             break;
     }
@@ -256,12 +256,12 @@ static zend_result dd_exception_to_error_type(zend_object *exception, void *cont
                     error_type_string = "E_USER_ERROR";
                     break;
                 default:
-                    LOG_UNREACHABLE(
+                    ddtrace_assert_log_debug(
                         "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
             }
 
         } else {
-            LOG_UNREACHABLE("Exception was a DDTrace\\FatalError but failed to get an exception code");
+            ddtrace_assert_log_debug("Exception was a DDTrace\\FatalError but failed to get an exception code");
         }
 
         value = ddtrace_string_cstring_ctor((char *)error_type_string);
@@ -1118,7 +1118,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
                                ? ZAI_STRING_FROM_ZSTR(Z_STR(prop_type_as_string))
                                : ZAI_STRL_VIEW("custom");
         zai_string_view resource = ZAI_STRING_FROM_ZSTR(Z_STR(prop_resource_as_string));
-        LOG(Warn, "Notifying profiler of finished local root span.");
+        ddtrace_log_debug("Notifying profiler of finished local root span.");
         profiling_notify_trace_finished(span->span_id, type, resource);
     }
 

@@ -1,8 +1,8 @@
 #include "integrations.h"
 
 #include "../configuration.h"
+#include "../logging.h"
 #include "../telemetry.h"
-#include <components/log/log.h>
 #include <hook/hook.h>
 #undef INTEGRATION
 
@@ -81,7 +81,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
         }
 
         if (UNEXPECTED(!success)) {
-            LOG(Warn,
+            ddtrace_log_debugf(
                     "Error loading deferred integration '%s' from DDTrace\\Integrations\\load_deferred_integration",
                     Z_STRVAL(integration));
         }

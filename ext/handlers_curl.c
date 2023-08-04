@@ -12,7 +12,7 @@ __attribute__((weak)) zend_class_entry *curl_multi_ce = NULL;
 #include "engine_hooks.h"  // for ddtrace_backup_error_handling
 #include "handlers_http.h"
 #include "handlers_internal.h"
-#include <components/log/log.h>
+#include "logging.h"
 
 // True global - only modify during MINIT/MSHUTDOWN
 bool dd_ext_curl_loaded = false;
@@ -343,7 +343,7 @@ void ddtrace_curl_handlers_startup(void) {
             curl_ce = *curl_ce_ptr;
             curl_multi_ce = *curl_multi_ce_ptr;
         } else {
-            LOG(Warn, "Unable to load ext/curl symbols");
+            ddtrace_log_debug("Unable to load ext/curl symbols");
             dd_ext_curl_loaded = false;
             return;
         }

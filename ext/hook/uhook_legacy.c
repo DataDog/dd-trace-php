@@ -2,11 +2,9 @@
 #include <zend_closures.h>
 #include <hook/hook.h>
 #include "uhook.h"
-#include "../configuration.h"
-#include "../span.h"
 #include <sandbox/sandbox.h>
 
-#include <components/log/log.h>
+#include "../logging.h"
 
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 
@@ -162,7 +160,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
             ddtrace_clear_execute_data_span(invocation, false);
 
             if (get_DD_TRACE_ENABLED()) {
-                LOG_ONCE(Error, "Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
+                ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
             }
         } else if (dyn->span->duration != DDTRACE_SILENTLY_DROPPED_SPAN) {
             zval *exception_zv = ddtrace_spandata_property_exception(dyn->span);
@@ -198,7 +196,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
             ddtrace_clear_execute_data_span(invocation, false);
 
             if (get_DD_TRACE_ENABLED()) {
-                LOG_ONCE(Error, "Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
+                ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(EX(func)->common.function_name));
             }
         } else if (dyn->span->duration != DDTRACE_SILENTLY_DROPPED_SPAN) {
             zval *exception_zv = ddtrace_spandata_property_exception(dyn->span);
@@ -249,7 +247,7 @@ static void dd_uhook_dtor(void *data) {
 
 static bool _parse_config_array(zval *config_array, zval **prehook, zval **posthook, bool *run_when_limited, bool *allow_recursion) {
     if (Z_TYPE_P(config_array) != IS_ARRAY) {
-        LOG_LINE_ONCE(Warn, "Expected config_array to be an associative array");
+        ddtrace_log_debug("Expected config_array to be an associative array");
         return false;
     }
 
@@ -258,7 +256,7 @@ static bool _parse_config_array(zval *config_array, zval **prehook, zval **posth
 
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(config_array), key, value) {
         if (!key) {
-            LOG_LINE_ONCE(Warn, "Expected config_array to be an associative array");
+            ddtrace_log_debug("Expected config_array to be an associative array");
             return false;
         }
         // TODO Optimize this
@@ -266,14 +264,14 @@ static bool _parse_config_array(zval *config_array, zval **prehook, zval **posth
             if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
                 *posthook = value;
             } else {
-                LOG_LINE_ONCE(Warn, "Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
+                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
                 return false;
             }
         } else if (strcmp("prehook", ZSTR_VAL(key)) == 0) {
             if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
                 *prehook = value;
             } else {
-                LOG_LINE_ONCE(Warn, "Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
+                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
                 return false;
             }
         } else if (strcmp("instrument_when_limited", ZSTR_VAL(key)) == 0) {
@@ -282,13 +280,13 @@ static bool _parse_config_array(zval *config_array, zval **prehook, zval **posth
                     *run_when_limited = true;
                 }
             } else {
-                LOG_LINE_ONCE(Warn, "Expected '%s' to be an int", ZSTR_VAL(key));
+                ddtrace_log_debugf("Expected '%s' to be an int", ZSTR_VAL(key));
                 return false;
             }
         } else if (strcmp("recurse", ZSTR_VAL(key)) == 0) {
             *allow_recursion = zval_is_true(value);
         } else {
-            LOG_LINE_ONCE(Warn, "Unknown option '%s' in config_array", ZSTR_VAL(key));
+            ddtrace_log_debugf("Unknown option '%s' in config_array", ZSTR_VAL(key));
             return false;
         }
     }
@@ -323,7 +321,7 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
             Z_PARAM_ARRAY(config_array)
         ZEND_PARSE_PARAMETERS_END_EX({
             if (ddtrace_quiet_zpp()) {
-                LOG_LINE_ONCE(Error,
+                ddtrace_log_onceerrf(
                         "Unable to parse parameters for DDTrace\\%s_%s; expected "
                         "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)",
                         tracing ? "trace" : "hook", method ? "method" : "function");
@@ -339,7 +337,7 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     }
 
     if (!prehook && !posthook) {
-        LOG_LINE_ONCE(Warn, "DDTrace\\%s_%s was given neither prehook nor posthook", tracing ? "trace" : "hook", method ? "method" : "function");
+        ddtrace_log_debugf("DDTrace\\%s_%s was given neither prehook nor posthook.", tracing ? "trace" : "hook", method ? "method" : "function");
         RETURN_FALSE;
     }
 
@@ -366,12 +364,14 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
 
     uint32_t hook_limit = get_DD_TRACE_HOOK_LIMIT();
     if (hook_limit > 0 && zai_hook_count_installed(class_str, func_str) >= hook_limit) {
-        LOG_LINE_ONCE(Error,
-                "Could not add hook to %s%s%s with more than datadog.trace.hook_limit = %d installed hooks",
+        ddtrace_log_onceerrf(
+                "Could not add hook to %s%s%s with more than datadog.trace.hook_limit = %d installed hooks in %s:%d",
                 method ? ZSTR_VAL(class_name) : "",
                 method ? "::" : "",
                 ZSTR_VAL(method_name),
-                hook_limit);
+                hook_limit,
+                zend_get_executed_filename(),
+                zend_get_executed_lineno());
 
         dd_uhook_dtor(def);
         RETURN_FALSE;
@@ -400,7 +400,7 @@ PHP_FUNCTION(dd_untrace) {
         Z_PARAM_OPTIONAL
         Z_PARAM_STR(class_name)
     ZEND_PARSE_PARAMETERS_END_EX({
-         LOG_LINE_ONCE(Error, "unexpected parameter for dd_untrace, the function name must be provided");
+         ddtrace_log_onceerrf("unexpected parameter for dd_untrace. the function name must be provided");
          RETURN_FALSE;
     });
 

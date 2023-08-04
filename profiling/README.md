@@ -52,7 +52,7 @@ may run `/path/to/php -d extension=target/debug/libdatadog_php_profiling.so
 The following command will help you run the [PHPT tests](tests/phpt):
 
 ```sh
-/path/to/php /path/to/run-tests.php -d extension=target/release/libdatadog_php_profiling.so -n tests/phpt
+/path/to/php /path/to/run-tests.php -d extension=target/release/libdatadog_php_profiling.so tests/phpt
 ```
 
 Be aware that the PHPT tests will fail with the debug version of the profiler,

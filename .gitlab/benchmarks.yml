@@ -7,11 +7,7 @@ benchmarks:
   stage: benchmarks
   rules:
     - changes:
-        paths:
-          - profiling/**/*
-        compare_to: "master"
-      when: on_success
-    - when: manual
+      - profiling/**/*
   tags: ["runner:apm-k8s-tweaked-metal"]
   needs: []
   image:

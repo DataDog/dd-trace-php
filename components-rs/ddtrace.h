@@ -8,14 +8,6 @@
 #include "telemetry.h"
 #include "sidecar.h"
 
-#define ddog_Log_None (ddog_Log){ .bits = (uint32_t)0 }
-#define ddog_Log_Once (ddog_Log){ .bits = (uint32_t)(1 << 0) }
-#define ddog_Log_Error (ddog_Log){ .bits = (uint32_t)(1 << 1) }
-#define ddog_Log_Warn (ddog_Log){ .bits = (uint32_t)(1 << 2) }
-#define ddog_Log_Info (ddog_Log){ .bits = (uint32_t)(1 << 3) }
-#define ddog_Log_Deprecated (ddog_Log){ .bits = (uint32_t)((1 << 4) | 1) }
-#define ddog_Log_Startup (ddog_Log){ .bits = (uint32_t)(1 << 5) }
-
 typedef uint64_t ddog_QueueId;
 
 /**
@@ -127,8 +119,6 @@ typedef ddog_Bytes ddog_Uuid;
 
 extern ddog_Uuid ddtrace_runtime_id;
 
-extern void (*ddog_log_callback)(struct ddog_Log, ddog_CharSlice);
-
 /**
  * # Safety
  * Must be called from a single-threaded context, such as MINIT.
@@ -140,18 +130,6 @@ void ddtrace_format_runtime_id(uint8_t (*buf)[36]);
 ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
-
-bool ddog_shall_log(struct ddog_Log level);
-
-void ddog_set_log_category(struct ddog_Log level);
-
-void ddog_parse_log_category(const ddog_CharSlice *category_names,
-                             uintptr_t num,
-                             bool startup_logs_by_default);
-
-void ddog_log(struct ddog_Log category, ddog_CharSlice msg);
-
-void ddog_reset_log_once(void);
 
 bool ddtrace_detect_composer_installed_json(ddog_TelemetryTransport **transport,
                                             const struct ddog_InstanceId *instance_id,

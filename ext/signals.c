@@ -15,7 +15,7 @@
 #include "configuration.h"
 #include "ddtrace.h"
 #include "ext/version.h"
-#include <components/log/log.h>
+#include "logging.h"
 
 #if defined HAVE_EXECINFO_H && defined backtrace_size_t && defined HAVE_BACKTRACE
 #define DDTRACE_HAVE_BACKTRACE 1
@@ -39,7 +39,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 static void ddtrace_sigsegv_handler(int sig) {
     if (!DDTRACE_G(backtrace_handler_already_run)) {
         DDTRACE_G(backtrace_handler_already_run) = true;
-        LOG(Error, "Segmentation fault");
+        ddtrace_log_errf("Segmentation fault");
 
 #if HAVE_SIGACTION
         bool health_metrics_enabled = get_DD_TRACE_HEALTH_METRICS_ENABLED();
@@ -50,35 +50,34 @@ static void ddtrace_sigsegv_handler(int sig) {
             dogstatsd_client_status status = dogstatsd_client_count(client, metric, "1", tags);
 
             if (status == DOGSTATSD_CLIENT_OK) {
-                LOG(Error, "sigsegv health metric sent");
+                ddtrace_log_errf("sigsegv health metric sent");
             }
         }
 #endif
 
 #if DDTRACE_HAVE_BACKTRACE
-        LOG(Error, "Datadog PHP Trace extension (DEBUG MODE)");
-        LOG(Error, "Received Signal %d", sig);
+        ddtrace_log_err("Datadog PHP Trace extension (DEBUG MODE)");
+        ddtrace_log_errf("Received Signal %d", sig);
         void *array[MAX_STACK_SIZE];
         backtrace_size_t size = backtrace(array, MAX_STACK_SIZE);
         if (size == MAX_STACK_SIZE) {
-            LOG(Error, "Note: max stacktrace size reached");
+            ddtrace_log_err("Note: max stacktrace size reached");
         }
 
-        LOG(Error, "Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
-        LOG(Error, "Backtrace:");
+        ddtrace_log_err("Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
+        ddtrace_log_err("Backtrace:");
 
         char **backtraces = backtrace_symbols(array, size);
         if (backtraces) {
             for (backtrace_size_t i = 0; i < size; i++) {
-                LOG(Error, backtraces[i]);
+                ddtrace_log_err(backtraces[i]);
             }
             free(backtraces);
         }
 #endif
     }
 
-    // _Exit to avoid atexit() handlers, they may crash in this SIGSEGV signal handler...
-    _Exit(128 + sig);
+    exit(128 + sig);
 }
 
 void ddtrace_signals_first_rinit(void) {

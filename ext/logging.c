@@ -6,11 +6,8 @@
 #include <time.h>
 
 #include "configuration.h"
-#include <main/SAPI.h>
 
-static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
-    return (ddog_CharSlice){ .len = str->len, .ptr = str->val };
-}
+extern inline void ddtrace_log_err(const char *message);
 
 atomic_uintptr_t php_ini_error_log;
 
@@ -73,53 +70,32 @@ int ddtrace_bgs_logf(const char *fmt, ...) {
     return ret;
 }
 
-static void ddtrace_log_callback(ddog_Log log, ddog_CharSlice msg) {
-    (void)log; // maybe use?
+void ddtrace_log_errf(const char *format, ...) {
+    va_list args;
+    char *buffer;
 
-    char *message = (char*)msg.ptr;
-    if (msg.ptr[msg.len]) {
-        message = strndup(msg.ptr, msg.len);
-        php_log_err(message);
-        free(message);
-    } else {
-        php_log_err(message);
-    }
+    va_start(args, format);
+    vspprintf(&buffer, 0, format, args);
+    ddtrace_log_err(buffer);
+
+    efree(buffer);
+    va_end(args);
 }
 
+static atomic_int dd_force_log_once_flag = 1;
+void ddtrace_log_onceerrf(const char *format, ...) {
+    va_list args;
+    char *buffer;
+    int expected = 1;
 
-void ddtrace_log_init(void) {
-    ddog_log_callback = ddtrace_log_callback;
-}
-
-bool ddtrace_alter_dd_trace_debug(zval *old_value, zval *new_value) {
-    UNUSED(old_value);
-
-    /* Multiple log categories, maybe do it some day?
-    ALLOCA_FLAG(use_heap);
-    size_t num_categories = zend_hash_num_elements(Z_ARR_P(new_value));
-    ddog_CharSlice *categories = do_alloca(num_categories * sizeof(ddog_CharSlice), use_heap);
-
-    zend_string *log_category;
-    int i = 0;
-    ZEND_HASH_FOREACH_STR_KEY(Z_ARR_P(new_value), log_category) {
-        categories[i++] = dd_zend_string_to_CharSlice(log_category);
-    } ZEND_HASH_FOREACH_END();
-
-    ddog_parse_log_categories(categories, num_categories, strcmp("cli", sapi_module.name) != 0 && get_global_DD_TRACE_STARTUP_LOGS());
-    free_alloca(categories, use_heap);
-    */
-
-    ddog_Log log = ddog_Log_Error;
-    if (Z_TYPE_P(new_value) == IS_TRUE) {
-        log.bits = ddog_Log_Error.bits | ddog_Log_Warn.bits | ddog_Log_Deprecated.bits | ddog_Log_Info.bits;
-        if (strcmp("cli", sapi_module.name) != 0 && (runtime_config_first_init ? get_DD_TRACE_STARTUP_LOGS() : get_global_DD_TRACE_STARTUP_LOGS())) {
-            log.bits |= ddog_Log_Startup.bits;
-        }
+    va_start(args, format);
+    vspprintf(&buffer, 0, format, args);
+    if (get_DD_TRACE_DEBUG()) {
+        ddtrace_log_err(buffer);
+    } else if (atomic_compare_exchange_strong(&dd_force_log_once_flag, &expected, 0)) {
+        ddtrace_log_errf("%s This message is only displayed once. Use DD_TRACE_DEBUG=1 to show all messages.", buffer);
     }
-    if (!(runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS())) {
-        log.bits |= ddog_Log_Once.bits;
-    }
-    ddog_set_log_category(log);
 
-    return true;
+    efree(buffer);
+    va_end(args);
 }
