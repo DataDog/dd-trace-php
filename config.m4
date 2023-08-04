@@ -69,6 +69,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   DD_TRACE_COMPONENT_SOURCES="\
     components/container_id/container_id.c \
+    components/log/log.c \
     components/sapi/sapi.c \
     components/string_view/string_view.c \
   "
@@ -214,6 +215,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_ADD_BUILD_DIR([$ext_builddir/components])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/container_id])
+  PHP_ADD_BUILD_DIR([$ext_builddir/components/log])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/sapi])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/string_view])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/uuid])
@@ -277,7 +279,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   cat <<EOT >> Makefile.fragments
 \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components-rs" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*"; echo "$all_object_files" ) 2>/dev/null | xargs )
-	(cd "$ext_srcdir/components-rs"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") && test "$PHP_DDTRACE_RUST_SYMBOLS" == yes || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
+	(cd "$ext_srcdir/components-rs"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ RUSTC_BOOTSTRAP=1 \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") && test "$PHP_DDTRACE_RUST_SYMBOLS" == yes || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
 EOT
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then
