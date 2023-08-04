@@ -13,7 +13,7 @@ use crate::bindings::ddog_php_prof_get_active_fiber;
 use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
-use crate::{AgentEndpoint, RequestLocals};
+use crate::{AgentEndpoint, RequestLocals, TAGS};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
@@ -994,7 +994,7 @@ impl Profiler {
             }
         }
 
-        let tags = Arc::clone(&locals.tags);
+        let tags = TAGS.with(|cell| Arc::clone(&cell.borrow()));
 
         SampleMessage {
             key: ProfileIndex {
