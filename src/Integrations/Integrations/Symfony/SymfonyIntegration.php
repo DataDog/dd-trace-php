@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Symfony;
 
+use DDTrace\Integrations\Drupal\DrupalIntegration;
 use DDTrace\Integrations\Integration;
 use DDTrace\Log\Logger;
 use DDTrace\SpanData;
@@ -11,6 +12,7 @@ use DDTrace\Util\Normalizer;
 use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
+use function DDTrace\hook_method;
 
 class SymfonyIntegration extends Integration
 {
@@ -18,6 +20,9 @@ class SymfonyIntegration extends Integration
 
     /** @var SpanData */
     public $symfonyRequestSpan;
+
+    /** @var string */
+    public $frameworkPrefix = SymfonyIntegration::NAME;
 
     public function getName()
     {
@@ -349,6 +354,16 @@ class SymfonyIntegration extends Integration
         );
          */
 
+        \DDTrace\hook_method(
+            'Symfony\Component\HttpKernel\HttpKernel',
+            '__construct',
+            function () use ($integration) {
+                if (strpos(\DDTrace\root_span()->name, DrupalIntegration::NAME) !== false) {
+                    $integration->frameworkPrefix = DrupalIntegration::NAME;
+                }
+            }
+        );
+
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
@@ -357,15 +372,13 @@ class SymfonyIntegration extends Integration
                 /** @var Request $request */
                 list($request) = $args;
 
-                $span->name = $span->resource = 'symfony.kernel.handle';
-                $span->service = \ddtrace_config_app_name('symfony');
+                $span->name = $span->resource = $integration->frameworkPrefix . '.kernel.handle';
+                $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = $integration->frameworkPrefix;
 
                 $integration->symfonyRequestSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                if ($integration->symfonyRequestSpan->name === 'symfony.request') {
-                    $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-                }
+                $integration->symfonyRequestSpan->meta[Tag::COMPONENT] = $integration->frameworkPrefix;
                 $integration->symfonyRequestSpan->meta[Tag::SPAN_KIND] = 'server';
 
                 if (!array_key_exists(Tag::HTTP_URL, $integration->symfonyRequestSpan->meta)) {
@@ -380,7 +393,7 @@ class SymfonyIntegration extends Integration
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                         $integration->symfonyRequestSpan->resource = $route;
                     }
-                    $integration->symfonyRequestSpan->meta['symfony.route.name'] = $route;
+                    $integration->symfonyRequestSpan->meta[$integration->frameworkPrefix . '.route.name'] = $route;
                 }
             }
         );
@@ -429,24 +442,24 @@ class SymfonyIntegration extends Integration
                                         \DDTrace\trace_method(
                                             $class,
                                             $method,
-                                            function (SpanData $span) use ($controllerName) {
-                                                $span->name = 'symfony.controller';
+                                            function (SpanData $span) use ($controllerName, $integration) {
+                                                $span->name = $integration->frameworkPrefix . '.controller';
                                                 $span->resource = $controllerName;
                                                 $span->type = Type::WEB_SERVLET;
-                                                $span->service = \ddtrace_config_app_name('symfony');
-                                                $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                                                $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
+                                                $span->meta[Tag::COMPONENT] = $integration->frameworkPrefix;
                                             }
                                         );
                                     }
                                 } else {
                                     \DDTrace\trace_function(
                                         $controllerName,
-                                        function (SpanData $span) use ($controllerName) {
-                                            $span->name = 'symfony.controller';
+                                        function (SpanData $span) use ($controllerName, $integration) {
+                                            $span->name = $integration->frameworkPrefix . '.controller';
                                             $span->resource = $controllerName;
                                             $span->type = Type::WEB_SERVLET;
-                                            $span->service = \ddtrace_config_app_name('symfony');
-                                            $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                                            $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
+                                            $span->meta[Tag::COMPONENT] = $integration->frameworkPrefix;
                                         }
                                     );
                                 }
@@ -454,14 +467,14 @@ class SymfonyIntegration extends Integration
                         }
                     }
 
-                    $span->name = $span->resource = 'symfony.' . $eventName;
-                    $span->service = \ddtrace_config_app_name('symfony');
-                    $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                    $span->name = $span->resource = $integration->frameworkPrefix . '.' . $eventName;
+                    $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
+                    $span->meta[Tag::COMPONENT] = $integration->frameworkPrefix;
                     if ($event === null) {
                         return;
                     }
                     if (!$injectedActionInfo) {
-                        if ($integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan)) {
+                        if ($integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan, $integration->frameworkPrefix)) {
                             $injectedActionInfo = true;
                         }
                     }
@@ -540,8 +553,9 @@ class SymfonyIntegration extends Integration
      * @param \Symfony\Component\EventDispatcher\Event $event
      * @param string $eventName
      * @param SpanData $requestSpan
+     * @param string $prefix
      */
-    public function injectActionInfo($event, $eventName, SpanData $requestSpan)
+    public function injectActionInfo($event, $eventName, SpanData $requestSpan, $prefix)
     {
         if (
             !\defined("\Symfony\Component\HttpKernel\KernelEvents::CONTROLLER")
@@ -563,7 +577,7 @@ class SymfonyIntegration extends Integration
         }
 
         $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
-        $requestSpan->meta['symfony.route.action'] = $action;
+        $requestSpan->meta["$prefix.route.action"] = $action;
 
         return true;
     }
