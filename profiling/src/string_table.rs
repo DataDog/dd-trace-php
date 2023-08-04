@@ -34,7 +34,7 @@ impl StringTable {
 
     #[allow(unused)]
     #[inline]
-    pub fn len(&self) -> usize {
+    pub fn len(&self) -> u32 {
         self.inner.with_dependent(|table| table.len())
     }
 
@@ -45,24 +45,24 @@ impl StringTable {
     }
 
     #[inline]
-    pub fn insert(&mut self, str: &str) -> usize {
+    pub fn insert(&mut self, str: &str) -> u32 {
         self.insert_full(str).0
     }
 
     #[inline]
-    pub fn insert_full(&mut self, str: &str) -> (usize, bool) {
+    pub fn insert_full(&mut self, str: &str) -> (u32, bool) {
         self.inner
             .with_dependent_mut(|table| table.insert_full(str))
     }
 
     #[inline]
-    pub fn get_offset(&self, offset: usize) -> &str {
+    pub fn get_offset(&self, offset: u32) -> &str {
         self.inner.with_dependent(|table| table.get_offset(offset))
     }
 
     #[allow(unused)]
     #[inline]
-    pub fn get_range(&self, range: Range<usize>) -> &[&str] {
+    pub fn get_range(&self, range: Range<u32>) -> &[&str] {
         self.inner.with_dependent(|table| table.get_range(range))
     }
 }
@@ -76,7 +76,7 @@ impl Default for StringTable {
 struct BorrowedStringTable<'b> {
     arena: &'b Bump,
     vec: Vec<&'b str>,
-    map: HashMap<&'b str, usize, RandomState>,
+    map: HashMap<&'b str, u32, RandomState>,
 }
 
 impl<'b> BorrowedStringTable<'b> {
@@ -94,18 +94,21 @@ impl<'b> BorrowedStringTable<'b> {
     }
 
     #[inline]
-    fn len(&self) -> usize {
-        self.vec.len()
+    fn len(&self) -> u32 {
+        self.vec.len() as u32
     }
 
     #[inline]
-    fn insert(&mut self, str: &str) -> usize {
+    fn insert(&mut self, str: &str) -> u32 {
         self.insert_full(str).0
     }
 
-    fn insert_full(&mut self, str: &str) -> (usize, bool) {
+    fn insert_full(&mut self, str: &str) -> (u32, bool) {
         match self.map.get(str) {
             None => {
+                if self.len() == u32::MAX {
+                    panic!("string table is full");
+                }
                 let owned = collections::String::from_str_in(str, self.arena);
 
                 /* Consume the string but retain a reference to its data in
@@ -115,7 +118,7 @@ impl<'b> BorrowedStringTable<'b> {
                  */
                 let bumped_str = owned.into_bump_str();
 
-                let id = self.vec.len();
+                let id = self.vec.len() as u32;
                 self.vec.push(bumped_str);
 
                 self.map.insert(bumped_str, id);
@@ -127,14 +130,17 @@ impl<'b> BorrowedStringTable<'b> {
     }
 
     #[inline]
-    fn get_offset(&self, offset: usize) -> &str {
-        self.vec[offset]
+    fn get_offset(&self, offset: u32) -> &str {
+        self.vec[offset as usize]
     }
 
     #[allow(unused)]
     #[inline]
-    fn get_range(&self, range: Range<usize>) -> &[&str] {
-        &self.vec[range]
+    fn get_range(&self, range: Range<u32>) -> &[&str] {
+        &self.vec[Range {
+            start: range.start as usize,
+            end: range.end as usize,
+        }]
     }
 }
 
