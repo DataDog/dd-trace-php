@@ -38,6 +38,8 @@ class SymfonyIntegration extends Integration
      */
     public function init()
     {
+        $integration = $this;
+
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
             'handle',
@@ -253,7 +255,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Console\Command\Command',
             '__construct',
             null,
-            function ($This, $scope) use (&$symfonyCommandsIntegrated) {
+            function ($This, $scope) use (&$symfonyCommandsIntegrated, $integration) {
                 if (isset($symfonyCommandsIntegrated[$scope])) {
                     return;
                 }
@@ -267,17 +269,19 @@ class SymfonyIntegration extends Integration
                      * - https://symfony.com/doc/current/components/console/events.html.
                      */
                     'recurse' => true,
-                    'prehook' => function (SpanData $span) use ($scope) {
-                        if (\DDTrace\root_span() === $span) {
-                            return false;
-                        }
+                    'posthook' => function (SpanData $span, $args, $retval, $exception) use ($scope, $integration) {
                         $span->name = 'symfony.console.command.run';
                         $span->resource = $this->getName() ?: $span->name;
                         $span->service = \ddtrace_config_app_name('symfony');
                         $span->type = Type::CLI;
                         $span->meta['symfony.console.command.class'] = $scope;
                         $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-                    }]);
+
+                        if ($exception !== null) {
+                            $integration->setError(\DDTrace\root_span(), $exception);
+                        }
+                    }]
+                );
             }
         );
 
