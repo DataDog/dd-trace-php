@@ -54,6 +54,17 @@ static PROFILER_NAME_CSTR: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(
 static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
 
 lazy_static! {
+    static ref LAZY_STATICS_TAGS: Vec<Tag> = {
+        vec![
+            Tag::from_value("language:php").expect("language tag to be valid"),
+            // Safety: calling getpid() is safe.
+            Tag::new("process_id", unsafe { libc::getpid() }.to_string())
+                .expect("process_id tag to be valid"),
+            Tag::from_value(concat!("profiler_version:", env!("CARGO_PKG_VERSION")))
+                .expect("profiler_version tag to be valid"),
+            Tag::new("runtime-id", &runtime_id().to_string()).expect("runtime-id tag to be valid"),
+        ]
+    };
 
     /// The version of PHP at runtime, not the version compiled against. Sent
     /// as a profile tag.
@@ -321,22 +332,6 @@ pub struct RequestLocals {
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
-fn static_tags() -> Vec<Tag> {
-    vec![
-        Tag::from_value("language:php").expect("language tag to be valid"),
-        // Safety: calling getpid() is safe.
-        Tag::new("process_id", unsafe { libc::getpid() }.to_string())
-            .expect("process_id tag to be valid"),
-        Tag::from_value(concat!("profiler_version:", env!("CARGO_PKG_VERSION")))
-            .expect("profiler_version tag to be valid"),
-        Tag::new("runtime-id", &runtime_id().to_string()).expect("runtime-id tag to be valid"),
-        // This should probably be "language_version", but this is the
-        // standardized tag name.
-        Tag::new("runtime_version", PHP_VERSION.as_str()).expect("runtime_version tag to be valid"),
-        Tag::new("php.sapi", SAPI.as_ref()).expect("php.sapi tag to be valid"),
-    ]
-}
-
 thread_local! {
     static CLOCKS: RefCell<Clocks> = RefCell::new(Clocks {
         cpu_time: None,
@@ -363,7 +358,7 @@ thread_local! {
     /// because the values _can_ change from request to request depending on
     /// the on the values sent in the SAPI for env, service, version, etc.
     /// They get reset at the end of the request.
-    static TAGS: RefCell<Arc<Vec<Tag>>> = RefCell::new(Arc::new(static_tags()));
+    static TAGS: RefCell<Arc<Vec<Tag>>> = RefCell::new(Arc::new(Vec::new()));
 }
 
 /// Gets the runtime-id for the process. Do not call before RINIT!
@@ -545,10 +540,14 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
             });
 
             TAGS.with(|cell| {
-                let mut tags = static_tags();
+                let mut tags = LAZY_STATICS_TAGS.clone();
                 add_optional_tag(&mut tags, "service", &locals.service);
                 add_optional_tag(&mut tags, "env", &locals.env);
                 add_optional_tag(&mut tags, "version", &locals.version);
+                // This should probably be "language_version", but this is the
+                // standardized tag name.
+                add_tag(&mut tags, "runtime_version", PHP_VERSION.as_str());
+                add_tag(&mut tags, "php.sapi", SAPI.as_ref());
                 *cell.borrow_mut() = Arc::new(tags);
             });
 

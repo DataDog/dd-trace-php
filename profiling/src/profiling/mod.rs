@@ -1018,7 +1018,6 @@ impl Profiler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::static_tags;
     use log::LevelFilter;
 
     fn get_frames() -> Vec<ZendFrame> {
