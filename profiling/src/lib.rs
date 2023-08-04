@@ -30,7 +30,7 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
-use std::ops::DerefMut;
+use std::ops::Deref;
 use std::os::raw::c_int;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -333,7 +333,6 @@ pub struct RequestLocals {
 
 thread_local! {
     static CLOCKS: RefCell<Clocks> = RefCell::new(Clocks {
-        cpu_time_enabled: false,
         cpu_time: None,
         wall_time: Instant::now(),
     });
@@ -886,7 +885,7 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
 fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
     REQUEST_LOCALS.with(|cell| {
         // try to borrow and bail out if not successful
-        let mut locals = match cell.try_borrow_mut() {
+        let locals = match cell.try_borrow() {
             Ok(locals) => locals,
             Err(_) => {
                 return;
@@ -911,7 +910,7 @@ fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe { profiler.collect_time(execute_data, interrupt_count, locals.deref_mut()) };
+            unsafe { profiler.collect_time(execute_data, interrupt_count, locals.deref()) };
         }
     });
 }
