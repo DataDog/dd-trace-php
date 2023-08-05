@@ -37,6 +37,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
 use std::time::{Duration, Instant};
+pub use string_table::*;
 use uuid::Uuid;
 
 /// The global profiler. Profiler gets made during the first rinit after an
@@ -311,6 +312,9 @@ extern "C" fn prshutdown() -> ZendResult {
      */
     unsafe { bindings::zai_config_rshutdown() };
 
+    // Safety: calling in prshutdown as required.
+    unsafe { profiling::prshutdown_run_time_cache() };
+
     TAGS.with(|cell| cell.replace(Arc::default()));
 
     ZendResult::Success
@@ -367,6 +371,9 @@ fn runtime_id() -> &'static Uuid {
 }
 
 extern "C" fn activate() {
+    #[cfg(debug_assertions)]
+    trace!("activate");
+
     // Safety: calling in activate as required.
     unsafe { profiling::activate_run_time_cache() };
 }

@@ -1,146 +1,150 @@
-use ahash::RandomState;
-use bumpalo::{collections, Bump};
-use ouroboros::self_referencing;
-use std::collections::HashMap;
-use std::ops::Range;
+use hashbrown::HashSet;
+use std::ops::{Shl, Shr};
+use std::sync::Arc;
 
-// ouroboros will add a lot of functions to this struct, which we don't want
-// to expose publicly, hence why the guts are wrapped into a private object.
-#[self_referencing]
-struct StringTableCell {
-    owner: Bump,
+/// Holds Arc references to Strings in two forms:
+///  1. As a set, for the purpose of de-duplicating strings.
+///  2. As a vec, for the purpose of holding onto references on behalf of
+///     something else, like in the PHP run time cache.
+pub struct StringTable {
+    /// The generation must never be 0 so that [StringTableIndex] never has a
+    /// generation of 0, which ensures it doesn't have an all-zero
+    /// representation in 64 bits for the run time cache.
+    generation: u32,
 
-    #[borrows(owner)]
-    #[covariant]
-    dependent: BorrowedStringTable<'this>,
+    /// The main set of references stored in the table. This allows strings to
+    /// be deduplicated, as well as to live around for a while.
+    strings: HashSet<Arc<String>>,
+
+    /// The references stored on behalf of someone else. They are accessed by
+    /// using a [StringTableIndex] instead of the Arc.
+    raws: Vec<Option<Arc<String>>>,
 }
 
-pub struct StringTable {
-    inner: StringTableCell,
+/// Represents an index into a StringTable.
+pub struct StringTableIndex {
+    /// Must never be zero.
+    index: u32,
+
+    /// The generation of the StringTable this index is associated with.
+    generation: u32,
+}
+
+impl StringTableIndex {
+    /// Packs the [StringTableIndex] into u64. Unpack it with
+    /// [StringTableIndex::from_u64].
+    #[inline]
+    pub fn into_u64(&self) -> u64 {
+        let upper = (self.generation as u64).shl(32);
+        upper | (self.index as u64)
+    }
+
+    /// Unpack the u64 into a [StringTableIndex].
+    /// # Safety
+    /// The bits should come unchanged from a [StringTableIndex::into_u64]
+    /// operation, and the index should not have previously been untracked by
+    /// calling [StringTable::untrack].
+    #[inline]
+    pub unsafe fn from_u64(bits: u64) -> StringTableIndex {
+        let generation = bits.shr(32) as u32;
+        let index = (bits | (u32::MAX as u64)) as u32;
+        StringTableIndex { generation, index }
+    }
+}
+
+/// A new type to teach hashbrown about the equivalence with Arc<String>.
+#[derive(Hash)]
+struct ArcStr<'a>(&'a str);
+
+impl<'a> hashbrown::Equivalent<Arc<String>> for ArcStr<'a> {
+    fn equivalent(&self, key: &Arc<String>) -> bool {
+        key.as_str().eq(self.0)
+    }
 }
 
 impl StringTable {
-    #[inline]
+    /// Creates a new, empty string table.
     pub fn new() -> Self {
-        Self::with_capacity(4000)
-    }
-
-    #[inline]
-    pub fn with_capacity(capacity: usize) -> Self {
-        let arena = Bump::with_capacity(capacity);
-        let inner = StringTableCell::new(arena, |arena| BorrowedStringTable::new(arena));
-        Self { inner }
-    }
-
-    #[allow(unused)]
-    #[inline]
-    pub fn len(&self) -> u32 {
-        self.inner.with_dependent(|table| table.len())
-    }
-
-    #[allow(unused)]
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    #[inline]
-    pub fn insert(&mut self, str: &str) -> u32 {
-        self.insert_full(str).0
-    }
-
-    #[inline]
-    pub fn insert_full(&mut self, str: &str) -> (u32, bool) {
-        self.inner
-            .with_dependent_mut(|table| table.insert_full(str))
-    }
-
-    #[inline]
-    pub fn get_offset(&self, offset: u32) -> &str {
-        self.inner.with_dependent(|table| table.get_offset(offset))
-    }
-
-    #[allow(unused)]
-    #[inline]
-    pub fn get_range(&self, range: Range<u32>) -> &[&str] {
-        self.inner.with_dependent(|table| table.get_range(range))
-    }
-}
-
-impl Default for StringTable {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-struct BorrowedStringTable<'b> {
-    arena: &'b Bump,
-    vec: Vec<&'b str>,
-    map: HashMap<&'b str, u32, RandomState>,
-}
-
-impl<'b> BorrowedStringTable<'b> {
-    #[inline]
-    fn new(arena: &'b Bump) -> Self {
-        let mut table = Self {
-            arena,
-            vec: Default::default(),
-            map: Default::default(),
-        };
-
-        // string tables always have the empty string
-        table.insert("");
-        table
-    }
-
-    #[inline]
-    fn len(&self) -> u32 {
-        self.vec.len() as u32
-    }
-
-    #[inline]
-    fn insert(&mut self, str: &str) -> u32 {
-        self.insert_full(str).0
-    }
-
-    fn insert_full(&mut self, str: &str) -> (u32, bool) {
-        match self.map.get(str) {
-            None => {
-                if self.len() == u32::MAX {
-                    panic!("string table is full");
-                }
-                let owned = collections::String::from_str_in(str, self.arena);
-
-                /* Consume the string but retain a reference to its data in
-                 * the arena. The reference is valid as long as the arena
-                 * doesn't get reset. This is partly the reason for the unsafe
-                 * marker on `StringTable::new`.
-                 */
-                let bumped_str = owned.into_bump_str();
-
-                let id = self.vec.len() as u32;
-                self.vec.push(bumped_str);
-
-                self.map.insert(bumped_str, id);
-                assert_eq!(self.vec.len(), self.map.len());
-                (id, true)
-            }
-            Some(offset) => (*offset, false),
+        Self {
+            // Must not use generation 0.
+            generation: 1,
+            strings: HashSet::new(),
+            raws: Vec::new(),
         }
     }
 
-    #[inline]
-    fn get_offset(&self, offset: u32) -> &str {
-        self.vec[offset as usize]
+    /// Inserts the string into the StringTable, and returns a strong reference
+    /// to the inserted string.
+    pub fn insert_str(&mut self, value: &str) -> Arc<String> {
+        let arcstr = ArcStr(value);
+        let value = self
+            .strings
+            .get_or_insert_with(&arcstr, |val| Arc::new(String::from(val.0)));
+        value.clone()
     }
 
-    #[allow(unused)]
-    #[inline]
-    fn get_range(&self, range: Range<u32>) -> &[&str] {
-        &self.vec[Range {
-            start: range.start as usize,
-            end: range.end as usize,
-        }]
+    /// Inserts the String into the StringTable, and returns a strong reference
+    /// to the inserted string.
+    pub fn insert_string(&mut self, value: String) -> Arc<String> {
+        let strong = Arc::new(value);
+        self.strings.insert(strong.clone());
+        strong
+    }
+
+    /// Track the reference internally of behalf of something else. The
+    /// returned [StringTableIndex] can be used to track it by proxy.
+    pub fn track(&mut self, value: Arc<String>) -> StringTableIndex {
+        // create before putting it into the table so its index is correct
+        let index = StringTableIndex {
+            generation: self.generation,
+            index: self.raws.len() as u32,
+        };
+        self.raws.push(Some(value));
+        index
+    }
+
+    /// Un-tracks the reference held internally on behalf of the index. If the
+    /// index is used again somehow, it will return an error. This should
+    /// always be an error in the caller's code, as otherwise they haven't
+    /// upheld the invariants required.
+    pub fn untrack(&mut self, index: StringTableIndex) -> anyhow::Result<()> {
+        let expected_generation = self.generation;
+        let actual_generation = index.generation;
+        anyhow::ensure!(actual_generation == expected_generation,
+            "tried to untrack a raw string from a String Table, but the generations do not match: expected {expected_generation}, actual {actual_generation}");
+
+        let offset = index.index as usize;
+        match self.raws.get_mut(offset) {
+            None => anyhow::bail!("tried to untrack a raw string with index {offset} from a StringTable but the index is out of bounds"),
+            Some(slot) => {
+                *slot = None;
+                Ok(())
+            }
+        }
+    }
+
+    /// Fetch the value of the raw string out of the StringTable, and create a
+    /// strong reference to it. The RawString is not consumed, and remains a
+    /// strong reference.
+    pub fn get(&self, index: &StringTableIndex) -> Option<Arc<String>> {
+        if self.generation != index.generation {
+            return None;
+        }
+
+        self.raws.get(index.index as usize).map(Arc::clone)
+    }
+
+    /// Clears the StringTable. It's important that clear isn't called while
+    /// tracked pointers might still be used.
+    pub fn clear(&mut self) {
+        self.strings.clear();
+        self.raws.clear();
+
+        let gen = self
+            .generation
+            .checked_add(1)
+            .expect("StringTable generation to not overflow");
+        self.generation = gen;
     }
 }
 
@@ -148,60 +152,74 @@ impl<'b> BorrowedStringTable<'b> {
 mod tests {
     use super::*;
 
-    /// Pass in an empty set, which should only include the empty string at 0.
-    pub fn basic(mut set: StringTable) {
-        // the empty string must always be included in the set at 0.
-        let empty_str = set.get_offset(0);
-        assert_eq!("", empty_str);
-
-        let cases = &[
-            (0, ""),
-            (1, "local root span id"),
-            (2, "span id"),
-            (3, "trace endpoint"),
-            (4, "samples"),
-            (5, "count"),
-            (6, "wall-time"),
-            (7, "nanoseconds"),
-            (8, "cpu-time"),
-            (9, "<?php"),
-            (10, "/srv/demo/public/index.php"),
-            (11, "pid"),
-        ];
-
-        for (offset, str) in cases.iter() {
-            let actual_offset = set.insert(str);
-            assert_eq!(*offset, actual_offset);
-        }
-
-        // repeat them to ensure they aren't re-added
-        for (offset, str) in cases.iter() {
-            let actual_offset = set.insert(str);
-            assert_eq!(*offset, actual_offset);
-        }
-
-        // let's fetch some offsets
-        assert_eq!("", set.get_offset(0));
-        assert_eq!("/srv/demo/public/index.php", set.get_offset(10));
-
-        // Check a range too
-        let slice = set.get_range(7..10);
-        let expected_slice = &["nanoseconds", "cpu-time", "<?php"];
-        assert_eq!(expected_slice, slice);
-    }
-
-    /// If this fails, bumpalo may have changed its allocation patterns, and
-    /// [StringTable::new] may need adjusted.
     #[test]
-    fn test_bump() {
-        let arena = Bump::with_capacity(4000);
-        assert_eq!(4096 - 64, arena.chunk_capacity());
+    fn basic_refcounts() {
+        let mut table = StringTable::new();
+
+        let strong = table.insert_str("<?php");
+        assert_eq!(2, Arc::strong_count(&strong));
+        let strong2 = table.insert_str("<?php");
+        assert_eq!(3, Arc::strong_count(&strong));
+
+        // This string should be totally irrelevant to our refcounts on strong.
+        let irrelevant = table.insert_str("irrelevant");
+        assert_eq!(3, Arc::strong_count(&strong));
+        assert_eq!("irrelevant", irrelevant.as_str());
+        drop(irrelevant);
+
+        let weak = table.track(strong2);
+        assert_eq!(3, Arc::strong_count(&strong));
+
+        let actual = table.get(&weak).unwrap();
+        assert_eq!("<?php", actual.as_str());
+        assert_eq!(4, Arc::strong_count(&strong));
+
+        // This clears two references:
+        //  1. One from StringTable.strings set.
+        //  2. One from StringTable.raws vec.
+        table.clear();
+
+        drop(strong);
+
+        // This should be the only remaining refcount.
+        assert_eq!(1, Arc::strong_count(&actual));
     }
 
     #[test]
-    fn owned_string_table() {
-        // small size, to allow testing re-alloc.
-        let set = StringTable::with_capacity(64);
-        basic(set);
+    fn track_and_untrack_simple() {
+        let mut table = StringTable::new();
+
+        let strong = table.insert_str("<?php");
+
+        let weak = table.track(strong.clone());
+        table.untrack(weak).unwrap();
+
+        // `weak` was untracked. This leaves two refs:
+        //  1. The table still holds one.
+        //  2. The `strong` reference is still around.
+        assert_eq!(2, Arc::strong_count(&strong));
+
+        drop(table);
+
+        // Only the `strong` survives.
+        assert_eq!(1, Arc::strong_count(&strong));
+    }
+
+    #[test]
+    fn track_and_untrack_outlived() {
+        let mut table = StringTable::new();
+
+        // Running refcount: 2 (1st in strong, 2nd in table)
+        let strong = table.insert_str("<?php");
+        assert_eq!(2, Arc::strong_count(&strong));
+
+        let weak = table.track(strong.clone());
+        assert_eq!(3, Arc::strong_count(&strong));
+
+        table.untrack(weak).unwrap();
+        assert_eq!(2, Arc::strong_count(&strong));
+
+        drop(table);
+        assert_eq!(1, Arc::strong_count(&strong));
     }
 }

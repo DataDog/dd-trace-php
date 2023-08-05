@@ -1,10 +1,10 @@
 use crate::bindings::{
     ddog_php_prof_zend_string_view, zend_execute_data, zend_function, ZEND_USER_FUNCTION,
 };
-use crate::string_table::StringTable;
-use std::borrow::Cow;
+use crate::{StringTable, StringTableIndex};
 use std::cell::{RefCell, RefMut};
 use std::str::Utf8Error;
+use std::sync::Arc;
 
 /// Used to help track the function run_time_cache hit rate. It glosses over
 /// the fact that there are two cache slots used, and they don't have to be in
@@ -31,6 +31,8 @@ thread_local! {
     pub static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> = RefCell::new(Default::default())
 }
 
+/// Initializes the run time cache StringTable. This needs to be done before
+/// rinit in case other extensions run code in rinit.
 /// # Safety
 /// Must be called in Zend Extension activate.
 #[inline]
@@ -39,18 +41,22 @@ pub unsafe fn activate_run_time_cache() {
     CACHED_STRINGS.with(|cell| cell.replace(StringTable::new()));
 }
 
-const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
-const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
-
-#[cfg(feature = "timeline")]
-pub const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
+/// Clears the run time cache to reduce memory in case it's idle for a while
+/// before serving a new request.
+/// # Safety
+/// Must be called in module prshutdown.
+#[inline]
+pub unsafe fn prshutdown_run_time_cache() {
+    #[cfg(php_run_time_cache)]
+    CACHED_STRINGS.with(|cell| cell.borrow_mut().clear());
+}
 
 #[derive(Default, Debug)]
 pub struct ZendFrame {
     // Most tools don't like frames that don't have function names, so use a
     // fake name if you need to like "<?php".
-    pub function: Cow<'static, str>,
-    pub file: Option<String>,
+    pub function: Arc<String>,
+    pub file: Option<Arc<String>>,
     pub line: u32, // use 0 for no line info
 }
 
@@ -100,25 +106,30 @@ unsafe fn handle_file_cache_slot_helper(
     execute_data: &zend_execute_data,
     string_table: &mut RefMut<StringTable>,
     cache_slots: &mut [usize; 2],
-) -> Option<String> {
+) -> Option<Arc<String>> {
     let file = if cache_slots[1] > 0 {
-        let offset = cache_slots[1] as u32;
-        let str = string_table.get_offset(offset);
-        String::from(str)
+        let index = StringTableIndex::from_u64(cache_slots[1] as u64);
+        string_table.get(&index)
     } else {
-        // Safety: if we have cache slots, we definitely have a func.
-        let func = &*execute_data.func;
-        if func.type_ != ZEND_USER_FUNCTION as u8 {
-            return None;
-        };
-
-        let file = ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string();
-        let offset = string_table.insert(file.as_ref());
-        cache_slots[1] = offset as usize;
-        file
+        None
     };
 
-    Some(file)
+    match file {
+        None => {
+            // Safety: if we have cache slots, we definitely have a func.
+            let func = &*execute_data.func;
+            if func.type_ != ZEND_USER_FUNCTION as u8 {
+                return None;
+            };
+
+            let file = ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string();
+            let strong = string_table.insert_string(file);
+            let index = string_table.track(strong.clone());
+            cache_slots[1] = index.into_u64() as usize;
+            Some(strong)
+        }
+        Some(file) => Some(file),
+    }
 }
 
 #[cfg(php_run_time_cache)]
@@ -126,7 +137,7 @@ unsafe fn handle_file_cache_slot(
     execute_data: &zend_execute_data,
     string_table: &mut RefMut<StringTable>,
     cache_slots: &mut [usize; 2],
-) -> (Option<String>, u32) {
+) -> (Option<Arc<String>>, u32) {
     match handle_file_cache_slot_helper(execute_data, string_table, cache_slots) {
         Some(filename) => {
             let lineno = match execute_data.opline.as_ref() {
@@ -144,18 +155,23 @@ unsafe fn handle_function_cache_slot(
     func: &zend_function,
     string_table: &mut RefMut<StringTable>,
     cache_slots: &mut [usize; 2],
-) -> Option<Cow<'static, str>> {
+) -> Option<Arc<String>> {
     let fname = if cache_slots[0] > 0 {
-        let offset = cache_slots[0] as u32;
-        let str = string_table.get_offset(offset);
-        str.to_string()
+        let index = StringTableIndex::from_u64(cache_slots[0] as u64);
+        string_table.get(&index)
     } else {
-        let name = extract_function_name(func)?;
-        let offset = string_table.insert(name.as_ref());
-        cache_slots[0] = offset as usize;
-        name
+        None
     };
-    Some(Cow::Owned(fname))
+    match fname {
+        None => {
+            let name = extract_function_name(func)?;
+            let strong = string_table.insert_string(name);
+            let weak = string_table.track(strong.clone());
+            cache_slots[0] = weak.into_u64() as usize;
+            Some(strong)
+        }
+        Some(fname) => Some(fname),
+    }
 }
 
 unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
@@ -206,15 +222,15 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
                     let mut stats = cell.borrow_mut();
                     stats.not_applicable += 1;
                 });
-                let function = extract_function_name(func).map(Cow::Owned);
+                let function = extract_function_name(func).map(Arc::new);
                 let (file, line) = extract_file_and_line(execute_data);
-                (function, file, line)
+                (function, file.map(Arc::new), line)
             }
         };
 
         if function.is_some() || file.is_some() {
             Some(ZendFrame {
-                function: function.unwrap_or(COW_PHP_OPEN_TAG),
+                function: function.unwrap_or_else(|| Arc::new(String::from("<?php"))),
                 file,
                 line,
             })
@@ -233,7 +249,9 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
         // Only create a new frame if there's file or function info.
         if file.is_some() || function.is_some() {
             // If there's no function name, use a fake name.
-            let function = function.map(Cow::Owned).unwrap_or(COW_PHP_OPEN_TAG);
+            let function = function
+                .map(Cow::Owned)
+                .unwrap_or_else(|| Arc::new(String::from("<?php")));
             return Some(ZendFrame {
                 function,
                 file,
@@ -261,7 +279,7 @@ pub fn collect_stack_sample(
              */
             if samples.len() == max_depth - 1 {
                 samples.push(ZendFrame {
-                    function: COW_TRUNCATED,
+                    function: Arc::new(String::from("[truncated]")),
                     file: None,
                     line: 0,
                 });

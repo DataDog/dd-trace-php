@@ -343,7 +343,10 @@ impl TimeCollector {
                     function: Function {
                         name: frame.function.as_ref(),
                         system_name: "",
-                        filename: frame.file.as_deref().unwrap_or(""),
+                        filename: match &frame.file {
+                            None => "",
+                            Some(file) => file.as_str(),
+                        },
                         start_line: 0,
                     },
                     line: frame.line as i64,
@@ -728,8 +731,8 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: COW_EVAL,
-                file: Some(filename),
+                function: Arc::new(String::from("[eval]")),
+                file: Some(Arc::new(filename)),
                 line,
             }],
             SampleValues {
@@ -848,7 +851,7 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: "[gc]".into(),
+                function: Arc::new(String::from("[gc]")),
                 file: None,
                 line: 0,
             }],
@@ -982,8 +985,8 @@ mod tests {
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
+            function: Arc::new(String::from("foobar()")),
+            file: Some(Arc::new(String::from("foobar.php"))),
             line: 42,
         }]
     }
