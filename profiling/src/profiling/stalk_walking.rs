@@ -250,8 +250,9 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
         if file.is_some() || function.is_some() {
             // If there's no function name, use a fake name.
             let function = function
-                .map(Cow::Owned)
+                .map(Arc::new)
                 .unwrap_or_else(|| Arc::new(String::from("<?php")));
+            let file = file.map(Arc::new);
             return Some(ZendFrame {
                 function,
                 file,
