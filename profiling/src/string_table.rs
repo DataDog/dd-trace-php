@@ -131,7 +131,10 @@ impl StringTable {
             return None;
         }
 
-        self.raws.get(index.index as usize).map(Arc::clone)
+        match self.raws.get(index.index as usize) {
+            Some(Some(arc)) => Some(arc.clone()),
+            _ => None,
+        }
     }
 
     /// Clears the StringTable. It's important that clear isn't called while

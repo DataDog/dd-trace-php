@@ -1,10 +1,13 @@
 use crate::bindings::{
     ddog_php_prof_zend_string_view, zend_execute_data, zend_function, ZEND_USER_FUNCTION,
 };
-use crate::{StringTable, StringTableIndex};
-use std::cell::{RefCell, RefMut};
 use std::str::Utf8Error;
 use std::sync::Arc;
+
+#[cfg(php_run_time_cache)]
+use crate::{StringTable, StringTableIndex};
+#[cfg(php_run_time_cache)]
+use std::cell::{RefCell, RefMut};
 
 /// Used to help track the function run_time_cache hit rate. It glosses over
 /// the fact that there are two cache slots used, and they don't have to be in

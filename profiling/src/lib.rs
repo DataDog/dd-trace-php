@@ -6,6 +6,8 @@ mod logging;
 mod pcntl;
 pub mod profiling;
 mod sapi;
+
+#[cfg(php_run_time_cache)]
 mod string_table;
 
 #[cfg(feature = "allocation_profiling")]
@@ -37,8 +39,10 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
 use std::time::{Duration, Instant};
-pub use string_table::*;
 use uuid::Uuid;
+
+#[cfg(php_run_time_cache)]
+pub use string_table::*;
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
