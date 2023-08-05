@@ -3,7 +3,6 @@ use crate::zend::{ddog_php_prof_zend_string_view, zend_get_executed_filename_ex}
 use crate::{PROFILER, REQUEST_LOCALS};
 use libc::c_char;
 use log::{error, trace};
-use std::mem::MaybeUninit;
 use std::ptr;
 use std::time::Instant;
 use std::time::SystemTime;
@@ -221,7 +220,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         }
 
         #[cfg(php_gc_status)]
-        let mut status = MaybeUninit::<zend::zend_gc_status>::uninit();
+        let mut status = std::mem::MaybeUninit::<zend::zend_gc_status>::uninit();
 
         let start = Instant::now();
         let collected = prev();
