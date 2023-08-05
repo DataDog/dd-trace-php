@@ -311,16 +311,16 @@ mod tests {
 
             assert_eq!(stack.len(), 3);
 
-            assert_eq!(stack[0].function, "function name 003");
-            assert_eq!(stack[0].file, Some("filename-003.php".into()));
+            assert_eq!(stack[0].function.as_str(), "function name 003");
+            assert_eq!(stack[0].file.as_ref().unwrap().as_str(), "filename-003.php");
             assert_eq!(stack[0].line, 0);
 
-            assert_eq!(stack[1].function, "function name 002");
-            assert_eq!(stack[1].file, Some("filename-002.php".into()));
+            assert_eq!(stack[1].function.as_str(), "function name 002");
+            assert_eq!(stack[1].file.as_ref().unwrap().as_str(), "filename-002.php");
             assert_eq!(stack[1].line, 0);
 
-            assert_eq!(stack[2].function, "function name 001");
-            assert_eq!(stack[2].file, Some("filename-001.php".into()));
+            assert_eq!(stack[2].function.as_str(), "function name 001");
+            assert_eq!(stack[2].file.as_ref().unwrap().as_str(), "filename-001.php");
             assert_eq!(stack[2].line, 0);
 
             // Free the allocated memory
