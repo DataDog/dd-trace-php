@@ -43,7 +43,7 @@ static PHP_FUNCTION(set_user_wrapper)
 
 void dd_user_tracking_startup(void)
 {
-    if (!dd_trace_is_loaded()) {
+    if (!dd_trace_enabled()) {
         return;
     }
     zend_function *set_user = zend_hash_str_find_ptr(
