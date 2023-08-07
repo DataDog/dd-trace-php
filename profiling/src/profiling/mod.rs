@@ -39,6 +39,9 @@ use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 #[cfg(feature = "allocation_profiling")]
 use datadog_profiling::profile::api::UpscalingInfo;
 
+#[cfg(feature = "exception_profiling")]
+use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
 // Guide: upload period / upload timeout should give about the order of
@@ -57,6 +60,7 @@ struct SampleValues {
     alloc_samples: i64,
     alloc_size: i64,
     timeline: i64,
+    exception: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -259,6 +263,12 @@ impl TimeCollector {
         #[cfg(feature = "allocation_profiling")]
         let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
 
+        // check if we have the `exception-samples` sample types
+        #[cfg(feature = "exception_profiling")]
+        let exception_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "exception-samples");
+
         let period = WALL_TIME_PERIOD.as_nanos();
         let mut profile = profile::ProfileBuilder::new()
             .period(Some(Period {
@@ -286,6 +296,20 @@ impl TimeCollector {
                 Ok(_id) => {}
                 Err(err) => {
                     warn!("Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        #[cfg(feature = "exception_profiling")]
+        if let Some(exception_samples_offset) = exception_samples_offset {
+            let upscaling_info = UpscalingInfo::Proportional {
+                scale: EXCEPTION_PROFILING_INTERVAL,
+            };
+            let values_offset: Vec<usize> = vec![exception_samples_offset];
+            match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for exception samples, exception samples reported will be wrong: {err}")
                 }
             }
         }
@@ -704,6 +728,49 @@ impl Profiler {
         }
     }
 
+    #[cfg(feature = "exception_profiling")]
+    /// Collect a stack sample with exception
+    pub unsafe fn collect_exception(
+        &self,
+        execute_data: *mut zend_execute_data,
+        exception: String,
+        locals: &RequestLocals,
+    ) {
+        let result = collect_stack_sample(execute_data);
+        match result {
+            Ok(frames) => {
+                let depth = frames.len();
+                let mut labels = Profiler::message_labels();
+
+                labels.push(Label {
+                    key: "exception type",
+                    value: LabelValue::Str(exception.clone().into()),
+                });
+                let n_labels = labels.len();
+
+                match self.send_sample(Profiler::prepare_sample_message(
+                    frames,
+                    SampleValues {
+                        exception: 1,
+                        ..Default::default()
+                    },
+                    labels,
+                    locals
+                )) {
+                    Ok(_) => trace!(
+                        "Sent stack sample of {depth} frames, {n_labels} labels with Exception {exception} to profiler."
+                    ),
+                    Err(err) => warn!(
+                        "Failed to send stack sample of {depth} frames, {n_labels} labels with Exception {exception} to profiler: {err}"
+                    ),
+                }
+            }
+            Err(err) => {
+                warn!("Failed to collect stack sample: {err}")
+            }
+        }
+    }
+
     #[cfg(feature = "timeline")]
     pub fn collect_compile_string(
         &self,
@@ -906,23 +973,25 @@ impl Profiler {
         locals: &RequestLocals,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
-        static SAMPLE_TYPES: &[ValueType; 6] = &[
+        static SAMPLE_TYPES: &[ValueType; 7] = &[
             ValueType::new("sample", "count"),
             ValueType::new("wall-time", "nanoseconds"),
             ValueType::new("cpu-time", "nanoseconds"),
             ValueType::new("alloc-samples", "count"),
             ValueType::new("alloc-size", "bytes"),
             ValueType::new("timeline", "nanoseconds"),
+            ValueType::new("exception-samples", "count"),
         ];
 
         // Allows us to slice the SampleValues as if they were an array.
-        let values: [i64; 6] = [
+        let values: [i64; 7] = [
             samples.interrupt_count,
             samples.wall_time,
             samples.cpu_time,
             samples.alloc_samples,
             samples.alloc_size,
             samples.timeline,
+            samples.exception,
         ];
 
         let mut sample_types = Vec::with_capacity(SAMPLE_TYPES.len());
@@ -943,6 +1012,12 @@ impl Profiler {
             if locals.profiling_experimental_timeline_enabled {
                 sample_types.push(SAMPLE_TYPES[5]);
                 sample_values.push(values[5]);
+            }
+
+            #[cfg(feature = "exception_profiling")]
+            if locals.profiling_experimental_exception_enabled {
+                sample_types.push(SAMPLE_TYPES[6]);
+                sample_values.push(values[6]);
             }
 
             #[cfg(php_has_fibers)]
@@ -1000,6 +1075,7 @@ mod tests {
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
             profiling_experimental_timeline_enabled: false,
+            profiling_experimental_exception_enabled: false,
             profiling_log_level: LevelFilter::Off,
             service: None,
             uri: Box::<AgentEndpoint>::default(),
@@ -1016,6 +1092,7 @@ mod tests {
             alloc_samples: 40,
             alloc_size: 50,
             timeline: 60,
+            exception: 70,
         }
     }
 

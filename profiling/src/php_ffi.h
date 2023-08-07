@@ -1,5 +1,6 @@
 #include <SAPI.h>
 #include <Zend/zend_extensions.h>
+#include <Zend/zend_exceptions.h>
 #include <Zend/zend_types.h>
 #if CFG_FIBERS // defined by build.rs
 #include <Zend/zend_fibers.h>

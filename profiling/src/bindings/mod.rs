@@ -33,6 +33,9 @@ pub type VmZendCompileString =
 pub type VmZendCompileString =
     unsafe extern "C" fn(*mut _zval_struct, *mut c_char) -> *mut _zend_op_array;
 
+#[cfg(feature = "exception_profiling")]
+pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zend_object);
+
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
 #[cfg(feature = "allocation_profiling")]

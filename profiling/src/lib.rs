@@ -11,6 +11,9 @@ mod string_table;
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
 
+#[cfg(feature = "exception_profiling")]
+mod exception;
+
 #[cfg(feature = "timeline")]
 mod timeline;
 
@@ -370,6 +373,7 @@ pub struct RequestLocals {
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
     pub profiling_experimental_timeline_enabled: bool,
+    pub profiling_experimental_exception_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
     pub uri: Box<AgentEndpoint>,
@@ -391,6 +395,7 @@ thread_local! {
         profiling_experimental_cpu_time_enabled: true,
         profiling_allocation_enabled: true,
         profiling_experimental_timeline_enabled: true,
+        profiling_experimental_exception_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
         uri: Box::<AgentEndpoint>::default(),
@@ -441,6 +446,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         profiling_experimental_cpu_time_enabled,
         profiling_allocation_enabled,
         profiling_experimental_timeline_enabled,
+        profiling_experimental_exception_enabled,
         log_level,
         output_pprof,
     ) = unsafe {
@@ -451,6 +457,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             profiling_enabled && config::profiling_experimental_cpu_time_enabled(),
             profiling_enabled && config::profiling_allocation_enabled(),
             profiling_enabled && config::profiling_experimental_timeline_enabled(),
+            profiling_enabled && config::profiling_experimental_exception_enabled(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
         )
@@ -468,6 +475,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
         locals.profiling_allocation_enabled = profiling_allocation_enabled;
         locals.profiling_experimental_timeline_enabled = profiling_experimental_timeline_enabled;
+        locals.profiling_experimental_exception_enabled = profiling_experimental_exception_enabled;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
@@ -602,6 +610,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rinit();
 
+    #[cfg(feature = "exception_profiling")]
+    exception::exception_profiling_rinit();
+
     ZendResult::Success
 }
 
@@ -708,6 +719,9 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rshutdown();
 
+    #[cfg(feature = "exception_profiling")]
+    exception::exception_profiling_rshutdown();
+
     ZendResult::Success
 }
 
@@ -787,6 +801,26 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                     2,
                     b"Experimental Timeline Enabled\0".as_ptr(),
                     b"Not available. The profiler was build without timeline support.\0"
+                );
+            }
+        }
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "exception_profiling")] {
+                zend::php_info_print_table_row(
+                    2,
+                    b"Experimental Exception Profiling Enabled\0".as_ptr(),
+                    if locals.profiling_experimental_exception_enabled {
+                        yes
+                    } else {
+                        no
+                    },
+                );
+            } else {
+                zend::php_info_print_table_row(
+                    2,
+                    b"Experimental Exception Profiling Enabled\0".as_ptr(),
+                    b"Not available. The profiler was build without exception profiling support.\0"
                 );
             }
         }

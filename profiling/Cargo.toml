@@ -46,8 +46,9 @@ harness = false
 [features]
 default = ["allocation_profiling", "timeline"]
 allocation_profiling = []
-stack_walking_tests = []
 timeline = []
+exception_profiling = []
+stack_walking_tests = []
 
 # only for testing:
 trigger_time_sample = []
