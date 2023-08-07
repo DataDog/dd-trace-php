@@ -624,7 +624,7 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-profiling",
- "ddcommon 2.2.0",
+ "ddcommon 3.0.0 (git+https://github.com/DataDog/libdatadog?rev=fbdbee64d9247a576d1607d5e09cd33155d68212)",
  "env_logger",
  "indexmap 2.0.0",
  "lazy_static",
@@ -640,14 +640,14 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "2.2.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v2.2.0#ef8935ce7e77bedbb3dcbcf9dcc2f41bb0e6db90"
+version = "3.0.0"
+source = "git+https://github.com/DataDog/libdatadog?rev=fbdbee64d9247a576d1607d5e09cd33155d68212#fbdbee64d9247a576d1607d5e09cd33155d68212"
 dependencies = [
  "anyhow",
  "bitmaps",
  "bytes",
  "chrono",
- "ddcommon 2.2.0",
+ "ddcommon 3.0.0 (git+https://github.com/DataDog/libdatadog?rev=fbdbee64d9247a576d1607d5e09cd33155d68212)",
  "derivative",
  "futures",
  "futures-core",
@@ -729,29 +729,6 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "2.2.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v2.2.0#ef8935ce7e77bedbb3dcbcf9dcc2f41bb0e6db90"
-dependencies = [
- "anyhow",
- "futures",
- "futures-core",
- "futures-util",
- "hex",
- "hyper",
- "hyper-rustls",
- "lazy_static",
- "log",
- "pin-project",
- "regex",
- "rustls",
- "rustls-native-certs",
- "serde",
- "tokio",
- "tokio-rustls",
-]
-
-[[package]]
-name = "ddcommon"
 version = "3.0.0"
 dependencies = [
  "anyhow",
@@ -765,6 +742,29 @@ dependencies = [
  "lazy_static",
  "log",
  "maplit",
+ "pin-project",
+ "regex",
+ "rustls",
+ "rustls-native-certs",
+ "serde",
+ "tokio",
+ "tokio-rustls",
+]
+
+[[package]]
+name = "ddcommon"
+version = "3.0.0"
+source = "git+https://github.com/DataDog/libdatadog?rev=fbdbee64d9247a576d1607d5e09cd33155d68212#fbdbee64d9247a576d1607d5e09cd33155d68212"
+dependencies = [
+ "anyhow",
+ "futures",
+ "futures-core",
+ "futures-util",
+ "hex",
+ "hyper",
+ "hyper-rustls",
+ "lazy_static",
+ "log",
  "pin-project",
  "regex",
  "rustls",
