@@ -91,7 +91,14 @@ pub fn exception_profiling_rinit() {
 
 pub fn exception_profiling_rshutdown() {}
 
-unsafe extern "C" fn exception_profiling_throw_exception_hook(exception: *mut zend::zend_object) {
+unsafe extern "C" fn exception_profiling_throw_exception_hook(
+    #[cfg(php7)] exception: *mut zend::zval,
+    #[cfg(php8)] exception: *mut zend::zend_object,
+) {
+    #[cfg(php7)]
+    let exception_name =
+        ddog_php_prof_zend_string_view((*(*(*exception).value.obj).ce).name.as_mut()).to_string();
+    #[cfg(php8)]
     let exception_name =
         ddog_php_prof_zend_string_view((*(*exception).ce).name.as_mut()).to_string();
 
