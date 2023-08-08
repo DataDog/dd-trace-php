@@ -1,5 +1,16 @@
 # Datadog AppSec for PHP Release
 
+### v0.11.0
+
+#### Fixes
+- ([#281](https://github.com/DataDog/dd-appsec-php/pull/281)) Ensure ddtrace is also enabled
+- ([#279](https://github.com/DataDog/dd-appsec-php/pull/279)) Add trusted IPs capability
+
+#### Miscellaneous Changes
+- ([#270](https://github.com/DataDog/dd-appsec-php/pull/270)) Add automated login events integration test for Laravel and Symfony
+- ([#279](https://github.com/DataDog/dd-appsec-php/pull/279)) Update WAF to 1.12.0
+- ([#280](https://github.com/DataDog/dd-appsec-php/pull/280)) Upload suppressions and fix current ones
+
 ### v0.10.0
 
 #### Additions
