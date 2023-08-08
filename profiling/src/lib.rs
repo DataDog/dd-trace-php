@@ -398,12 +398,13 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         log_level,
         output_pprof,
     ) = unsafe {
+        let profiling_enabled = config::profiling_enabled();
         (
-            config::profiling_enabled(),
-            config::profiling_endpoint_collection_enabled() && config::profiling_enabled(),
-            config::profiling_experimental_cpu_time_enabled() && config::profiling_enabled(),
-            config::profiling_allocation_enabled() && config::profiling_enabled(),
-            config::profiling_experimental_timeline_enabled() && config::profiling_enabled(),
+            profiling_enabled,
+            profiling_enabled && config::profiling_endpoint_collection_enabled(),
+            profiling_enabled && config::profiling_experimental_cpu_time_enabled(),
+            profiling_enabled && config::profiling_allocation_enabled(),
+            profiling_enabled && config::profiling_experimental_timeline_enabled(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
         )
