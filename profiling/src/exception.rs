@@ -111,4 +111,8 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
         let mut exceptions = cell.borrow_mut();
         exceptions.track_exception(exception_name)
     });
+
+    if let Some(prev) = PREV_ZEND_THROW_EXCEPTION_HOOK {
+        prev(exception);
+    }
 }
