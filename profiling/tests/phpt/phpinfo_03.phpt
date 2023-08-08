@@ -9,10 +9,10 @@ if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires Datadog Continuous Profiler\n";
 ?>
 --ENV--
-DD_PROFILING_ENABLED=no
-DD_PROFILING_LOG_LEVEL=info
-DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=yes
-DD_PROFILING_ALLOCATION_ENABLED=yes
+DD_PROFILING_ENABLED=yes
+DD_PROFILING_LOG_LEVEL=off
+DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
+DD_PROFILING_ALLOCATION_ENABLED=no
 DD_SERVICE=datadog-profiling-phpt
 DD_ENV=dev
 DD_VERSION=13
@@ -45,11 +45,11 @@ assert(isset($values["Version"]));
 
 // Check exact values for this set
 $sections = [
-    ["Profiling Enabled", "false"],
-    ["Experimental CPU Time Profiling Enabled", "false (profiling disabled)"],
-    ["Allocation Profiling Enabled", "false (profiling disabled)"],
-    ["Endpoint Collection Enabled", "false (profiling disabled)"],
-    ["Profiling Log Level", "info"],
+    ["Profiling Enabled", "true"],
+    ["Experimental CPU Time Profiling Enabled", "false"],
+    ["Allocation Profiling Enabled", "false"],
+    ["Endpoint Collection Enabled", "true"],
+    ["Profiling Log Level", "off"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],
     ["Application's Environment (DD_ENV)", "dev"],
     ["Application's Service (DD_SERVICE)", "datadog-profiling-phpt"],
@@ -63,7 +63,7 @@ foreach ($sections as [$key, $expected]) {
     );
 }
 
-echo "Done.";
+echo "Done.", PHP_EOL;
 
 ?>
 --EXPECT--

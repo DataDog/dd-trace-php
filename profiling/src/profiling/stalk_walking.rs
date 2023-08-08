@@ -3,7 +3,7 @@ use crate::bindings::{
 };
 use crate::string_table::StringTable;
 use std::borrow::Cow;
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
 use std::str::Utf8Error;
 
 /// Used to help track the function run_time_cache hit rate. It glosses over
@@ -96,9 +96,10 @@ pub unsafe fn extract_function_name(func: &zend_function) -> Option<String> {
 }
 
 #[cfg(php_run_time_cache)]
+#[inline]
 unsafe fn handle_file_cache_slot_helper(
     execute_data: &zend_execute_data,
-    string_table: &mut RefMut<StringTable>,
+    string_table: &mut StringTable,
     cache_slots: &mut [usize; 2],
 ) -> Option<String> {
     let file = if cache_slots[1] > 0 {
@@ -124,7 +125,7 @@ unsafe fn handle_file_cache_slot_helper(
 #[cfg(php_run_time_cache)]
 unsafe fn handle_file_cache_slot(
     execute_data: &zend_execute_data,
-    string_table: &mut RefMut<StringTable>,
+    string_table: &mut StringTable,
     cache_slots: &mut [usize; 2],
 ) -> (Option<String>, u32) {
     match handle_file_cache_slot_helper(execute_data, string_table, cache_slots) {
@@ -142,7 +143,7 @@ unsafe fn handle_file_cache_slot(
 #[cfg(php_run_time_cache)]
 unsafe fn handle_function_cache_slot(
     func: &zend_function,
-    string_table: &mut RefMut<StringTable>,
+    string_table: &mut StringTable,
     cache_slots: &mut [usize; 2],
 ) -> Option<Cow<'static, str>> {
     let fname = if cache_slots[0] > 0 {
@@ -175,53 +176,52 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
 }
 
 #[cfg(php_run_time_cache)]
-unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+unsafe fn collect_call_frame(
+    execute_data: &zend_execute_data,
+    string_table: &mut StringTable,
+) -> Option<ZendFrame> {
     #[cfg(not(feature = "stack_walking_tests"))]
     use crate::bindings::ddog_php_prof_function_run_time_cache;
     #[cfg(feature = "stack_walking_tests")]
     use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
 
     let func = execute_data.func.as_ref()?;
-    CACHED_STRINGS.with(|cell| {
-        let mut string_table = cell.borrow_mut();
-        let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
-            Some(cache_slots) => {
-                FUNCTION_CACHE_STATS.with(|cell| {
-                    let mut stats = cell.borrow_mut();
-                    if cache_slots[0] == 0 {
-                        stats.missed += 1;
-                    } else {
-                        stats.hit += 1;
-                    }
-                });
-                let function = handle_function_cache_slot(func, &mut string_table, cache_slots);
-                let (file, line) =
-                    handle_file_cache_slot(execute_data, &mut string_table, cache_slots);
+    let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
+        Some(cache_slots) => {
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let mut stats = cell.borrow_mut();
+                if cache_slots[0] == 0 {
+                    stats.missed += 1;
+                } else {
+                    stats.hit += 1;
+                }
+            });
+            let function = handle_function_cache_slot(func, string_table, cache_slots);
+            let (file, line) = handle_file_cache_slot(execute_data, string_table, cache_slots);
 
-                (function, file, line)
-            }
-
-            None => {
-                FUNCTION_CACHE_STATS.with(|cell| {
-                    let mut stats = cell.borrow_mut();
-                    stats.not_applicable += 1;
-                });
-                let function = extract_function_name(func).map(Cow::Owned);
-                let (file, line) = extract_file_and_line(execute_data);
-                (function, file, line)
-            }
-        };
-
-        if function.is_some() || file.is_some() {
-            Some(ZendFrame {
-                function: function.unwrap_or(COW_PHP_OPEN_TAG),
-                file,
-                line,
-            })
-        } else {
-            None
+            (function, file, line)
         }
-    })
+
+        None => {
+            FUNCTION_CACHE_STATS.with(|cell| {
+                let mut stats = cell.borrow_mut();
+                stats.not_applicable += 1;
+            });
+            let function = extract_function_name(func).map(Cow::Owned);
+            let (file, line) = extract_file_and_line(execute_data);
+            (function, file, line)
+        }
+    };
+
+    if function.is_some() || file.is_some() {
+        Some(ZendFrame {
+            function: function.unwrap_or(COW_PHP_OPEN_TAG),
+            file,
+            line,
+        })
+    } else {
+        None
+    }
 }
 
 #[cfg(not(php_run_time_cache))]
@@ -244,15 +244,24 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
     None
 }
 
-pub fn collect_stack_sample(
+#[inline]
+fn collect_stack_sample_helper(
     top_execute_data: *mut zend_execute_data,
+    #[cfg(php_run_time_cache)] string_table: &mut StringTable,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     let max_depth = 512;
     let mut samples = Vec::with_capacity(max_depth >> 3);
     let mut execute_data_ptr = top_execute_data;
 
     while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-        if let Some(frame) = unsafe { collect_call_frame(execute_data) } {
+        let maybe_frame = unsafe {
+            collect_call_frame(
+                execute_data,
+                #[cfg(php_run_time_cache)]
+                string_table,
+            )
+        };
+        if let Some(frame) = maybe_frame {
             samples.push(frame);
 
             /* -1 to reserve room for the [truncated] message. In case the
@@ -272,6 +281,21 @@ pub fn collect_stack_sample(
         execute_data_ptr = execute_data.prev_execute_data;
     }
     Ok(samples)
+}
+
+pub fn collect_stack_sample(
+    top_execute_data: *mut zend_execute_data,
+) -> Result<Vec<ZendFrame>, Utf8Error> {
+    cfg_if::cfg_if! {
+        if #[cfg(php_run_time_cache)] {
+            CACHED_STRINGS.with(|cell| {
+                let mut string_table = cell.borrow_mut();
+                collect_stack_sample_helper(top_execute_data, &mut *string_table)
+            })
+        } else {
+            collect_stack_sample_helper(top_execute_data)
+        }
+    }
 }
 
 #[cfg(test)]
