@@ -4,6 +4,8 @@ use crate::PROFILER;
 use crate::REQUEST_LOCALS;
 use log::{error, trace};
 use std::cell::RefCell;
+use std::sync::atomic::AtomicI64;
+use std::sync::atomic::Ordering;
 
 use rand_distr::{Distribution, Poisson};
 
@@ -11,7 +13,7 @@ use rand_distr::{Distribution, Poisson};
 static mut PREV_ZEND_THROW_EXCEPTION_HOOK: Option<zend::VmZendThrowExceptionHook> = None;
 
 /// take a sample every 100 exceptions
-pub const EXCEPTION_PROFILING_INTERVAL: f64 = 100.0;
+pub static EXCEPTION_PROFILING_INTERVAL: AtomicI64 = AtomicI64::new(100);
 
 pub struct ExceptionProfilingStats {
     /// number of exceptions until next sample collection
@@ -26,7 +28,7 @@ impl ExceptionProfilingStats {
     }
 
     fn next_sampling_interval() -> i64 {
-        Poisson::new(EXCEPTION_PROFILING_INTERVAL)
+        Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64)
             .unwrap()
             .sample(&mut rand::thread_rng()) as i64
     }
@@ -68,12 +70,12 @@ thread_local! {
 }
 
 pub fn exception_profiling_rinit() {
-    let exception_profiling: bool = REQUEST_LOCALS.with(|cell| {
+    let (exception_profiling, sampling_distance) = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
-            Ok(locals) => locals.profiling_experimental_exception_enabled,
+            Ok(locals) => (locals.profiling_experimental_exception_enabled, locals.profiling_experimental_exception_sampling_distance),
             Err(_err) => {
                 error!("Exception profiling was not initialized correctly due to a borrow error. Please report this to Datadog.");
-                false
+                (false, 0)
             }
         }
     });
@@ -82,7 +84,10 @@ pub fn exception_profiling_rinit() {
         return;
     }
 
-    trace!("Exception profiling enabled");
+    EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::Relaxed);
+
+    trace!("Exception profiling enabled with sampling disance of {sampling_distance}");
+
     unsafe {
         PREV_ZEND_THROW_EXCEPTION_HOOK = zend::zend_throw_exception_hook;
         zend::zend_throw_exception_hook = Some(exception_profiling_throw_exception_hook);

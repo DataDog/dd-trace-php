@@ -303,7 +303,7 @@ impl TimeCollector {
         #[cfg(feature = "exception_profiling")]
         if let Some(exception_samples_offset) = exception_samples_offset {
             let upscaling_info = UpscalingInfo::Proportional {
-                scale: EXCEPTION_PROFILING_INTERVAL,
+                scale: EXCEPTION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
             };
             let values_offset: Vec<usize> = vec![exception_samples_offset];
             match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
@@ -1076,6 +1076,7 @@ mod tests {
             profiling_allocation_enabled: false,
             profiling_experimental_timeline_enabled: false,
             profiling_experimental_exception_enabled: false,
+            profiling_experimental_exception_sampling_distance: 1,
             profiling_log_level: LevelFilter::Off,
             service: None,
             uri: Box::<AgentEndpoint>::default(),

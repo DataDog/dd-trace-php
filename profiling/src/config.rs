@@ -142,6 +142,7 @@ pub(crate) enum ConfigId {
     ProfilingAllocationEnabled,
     ProfilingExperimentalTimelineEnabled,
     ProfilingExperimentalExceptionEnabled,
+    ProfilingExperimentalExceptionSamplingDistance,
     ProfilingLogLevel,
     ProfilingOutputPprof,
 
@@ -167,6 +168,9 @@ impl ConfigId {
             ProfilingExperimentalTimelineEnabled => b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
             ProfilingExperimentalExceptionEnabled => {
                 b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED\0"
+            }
+            ProfilingExperimentalExceptionSamplingDistance => {
+                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE\0"
             }
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
@@ -234,6 +238,13 @@ pub(crate) unsafe fn profiling_experimental_exception_enabled() -> bool {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn profiling_experimental_exception_sampling_distance() -> i64 {
+    get_int(ProfilingExperimentalExceptionSamplingDistance, 100)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
     get_str(ProfilingOutputPprof)
 }
@@ -254,6 +265,15 @@ unsafe fn get_str(id: ConfigId) -> Option<Cow<'static, str>> {
             }
         }
         Err(_err) => None,
+    }
+}
+
+unsafe fn get_int(id: ConfigId, default: i64) -> i64 {
+    let value = get_value(id);
+    let num: Result<i64, _> = value.try_into();
+    match num {
+        Ok(value) => value,
+        Err(_err) => default,
     }
 }
 
@@ -444,6 +464,16 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: ProfilingExperimentalExceptionEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStringView::literal(b"0\0"),
+                    aliases: std::ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: None,
+                    parser: None,
+                },
+                zai_config_entry {
+                    id: transmute(ProfilingExperimentalExceptionSamplingDistance),
+                    name: ProfilingExperimentalExceptionSamplingDistance.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_INT,
+                    default_encoded_value: ZaiStringView::literal(b"100\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,

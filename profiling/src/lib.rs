@@ -374,6 +374,7 @@ pub struct RequestLocals {
     pub profiling_allocation_enabled: bool,
     pub profiling_experimental_timeline_enabled: bool,
     pub profiling_experimental_exception_enabled: bool,
+    pub profiling_experimental_exception_sampling_distance: i64,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
     pub uri: Box<AgentEndpoint>,
@@ -396,6 +397,7 @@ thread_local! {
         profiling_allocation_enabled: true,
         profiling_experimental_timeline_enabled: true,
         profiling_experimental_exception_enabled: true,
+        profiling_experimental_exception_sampling_distance: 100,
         profiling_log_level: LevelFilter::Off,
         service: None,
         uri: Box::<AgentEndpoint>::default(),
@@ -447,6 +449,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         profiling_allocation_enabled,
         profiling_experimental_timeline_enabled,
         profiling_experimental_exception_enabled,
+        profiling_experimental_exception_sampling_distance,
         log_level,
         output_pprof,
     ) = unsafe {
@@ -458,6 +461,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             profiling_enabled && config::profiling_allocation_enabled(),
             profiling_enabled && config::profiling_experimental_timeline_enabled(),
             profiling_enabled && config::profiling_experimental_exception_enabled(),
+            config::profiling_experimental_exception_sampling_distance(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
         )
@@ -476,6 +480,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         locals.profiling_allocation_enabled = profiling_allocation_enabled;
         locals.profiling_experimental_timeline_enabled = profiling_experimental_timeline_enabled;
         locals.profiling_experimental_exception_enabled = profiling_experimental_exception_enabled;
+        locals.profiling_experimental_exception_sampling_distance =
+            profiling_experimental_exception_sampling_distance;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
