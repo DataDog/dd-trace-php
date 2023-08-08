@@ -48,11 +48,9 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_STRING {
         let timeline_enabled = REQUEST_LOCALS.with(|cell| {
-            // try to borrow and bail out if not successful
-            match cell.try_borrow() {
-                Ok(locals) => locals.profiling_experimental_timeline_enabled,
-                Err(_) => false,
-            }
+            cell.try_borrow()
+                .map(|locals| locals.profiling_experimental_timeline_enabled)
+                .unwrap_or(false)
         });
 
         if !timeline_enabled {
@@ -119,11 +117,9 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_FILE {
         let timeline_enabled = REQUEST_LOCALS.with(|cell| {
-            // try to borrow and bail out if not successful
-            match cell.try_borrow() {
-                Ok(locals) => locals.profiling_experimental_timeline_enabled,
-                Err(_) => false,
-            }
+            cell.try_borrow()
+                .map(|locals| locals.profiling_experimental_timeline_enabled)
+                .unwrap_or(false)
         });
 
         if !timeline_enabled {
@@ -209,11 +205,9 @@ unsafe fn gc_reason() -> &'static str {
 unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if let Some(prev) = PREV_GC_COLLECT_CYCLES {
         let timeline_enabled = REQUEST_LOCALS.with(|cell| {
-            // try to borrow and bail out if not successful
-            match cell.try_borrow() {
-                Ok(locals) => locals.profiling_experimental_timeline_enabled,
-                Err(_) => false,
-            }
+            cell.try_borrow()
+                .map(|locals| locals.profiling_experimental_timeline_enabled)
+                .unwrap_or(false)
         });
 
         if !timeline_enabled {
