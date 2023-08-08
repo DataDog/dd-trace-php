@@ -29,7 +29,7 @@ class HookData {
 
     /**
      * The possible thrown exception within that function.
-     * Uninitialized in a beginning hook.
+     * Uninitialized in a begin hook.
      */
     public ?\Throwable $exception;
 
