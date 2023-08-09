@@ -69,6 +69,13 @@ thread_local! {
     static EXCEPTION_PROFILING_STATS: RefCell<ExceptionProfilingStats> = RefCell::new(ExceptionProfilingStats::new());
 }
 
+pub fn exception_profiling_minit() {
+    unsafe {
+        PREV_ZEND_THROW_EXCEPTION_HOOK = zend::zend_throw_exception_hook;
+        zend::zend_throw_exception_hook = Some(exception_profiling_throw_exception_hook);
+    }
+}
+
 pub fn exception_profiling_rinit() {
     let (exception_profiling, sampling_distance) = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
@@ -87,30 +94,39 @@ pub fn exception_profiling_rinit() {
     EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::Relaxed);
 
     trace!("Exception profiling enabled with sampling disance of {sampling_distance}");
-
-    unsafe {
-        PREV_ZEND_THROW_EXCEPTION_HOOK = zend::zend_throw_exception_hook;
-        zend::zend_throw_exception_hook = Some(exception_profiling_throw_exception_hook);
-    }
 }
 
-pub fn exception_profiling_rshutdown() {}
+pub fn exception_profiling_mshutdown() {
+    unsafe {
+        zend::zend_throw_exception_hook = PREV_ZEND_THROW_EXCEPTION_HOOK;
+        PREV_ZEND_THROW_EXCEPTION_HOOK = None;
+    }
+}
 
 unsafe extern "C" fn exception_profiling_throw_exception_hook(
     #[cfg(php7)] exception: *mut zend::zval,
     #[cfg(php8)] exception: *mut zend::zend_object,
 ) {
-    #[cfg(php7)]
-    let exception_name =
-        ddog_php_prof_zend_string_view((*(*(*exception).value.obj).ce).name.as_mut()).to_string();
-    #[cfg(php8)]
-    let exception_name =
-        ddog_php_prof_zend_string_view((*(*exception).ce).name.as_mut()).to_string();
-
-    EXCEPTION_PROFILING_STATS.with(|cell| {
-        let mut exceptions = cell.borrow_mut();
-        exceptions.track_exception(exception_name)
+    let exception_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.profiling_experimental_exception_enabled)
+            .unwrap_or(false)
     });
+
+    if exception_profiling {
+        #[cfg(php7)]
+        let exception_name =
+            ddog_php_prof_zend_string_view((*(*(*exception).value.obj).ce).name.as_mut())
+                .to_string();
+        #[cfg(php8)]
+        let exception_name =
+            ddog_php_prof_zend_string_view((*(*exception).ce).name.as_mut()).to_string();
+
+        EXCEPTION_PROFILING_STATS.with(|cell| {
+            let mut exceptions = cell.borrow_mut();
+            exceptions.track_exception(exception_name)
+        });
+    }
 
     if let Some(prev) = PREV_ZEND_THROW_EXCEPTION_HOOK {
         prev(exception);
