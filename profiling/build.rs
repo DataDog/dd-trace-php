@@ -27,9 +27,16 @@ fn main() {
     let preload = cfg_preload(vernum);
     let fibers = cfg_fibers(vernum);
     let run_time_cache = cfg_run_time_cache(vernum);
+    let trigger_time_sample = cfg_trigger_time_sample();
 
     generate_bindings(php_config_includes, fibers);
-    build_zend_php_ffis(php_config_includes, preload, run_time_cache, fibers);
+    build_zend_php_ffis(
+        php_config_includes,
+        preload,
+        run_time_cache,
+        fibers,
+        trigger_time_sample,
+    );
 
     cfg_php_major_version(vernum);
     cfg_php_feature_flags(vernum);
@@ -75,6 +82,7 @@ fn build_zend_php_ffis(
     preload: bool,
     run_time_cache: bool,
     fibers: bool,
+    trigger_time_sample: bool,
 ) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=src/php_ffi.c");
@@ -107,6 +115,7 @@ fn build_zend_php_ffis(
     let preload = if preload { "1" } else { "0" };
     let fibers = if fibers { "1" } else { "0" };
     let run_time_cache = if run_time_cache { "1" } else { "0" };
+    let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
 
     #[cfg(feature = "stack_walking_tests")]
     let stack_walking_tests = "1";
@@ -120,6 +129,7 @@ fn build_zend_php_ffis(
         .define("CFG_FIBERS", fibers)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
+        .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
         .includes([Path::new("../ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
@@ -237,6 +247,10 @@ fn cfg_run_time_cache(vernum: u64) -> bool {
     } else {
         false
     }
+}
+
+fn cfg_trigger_time_sample() -> bool {
+    env::var("CARGO_FEATURE_TRIGGER_TIME_SAMPLE").is_ok()
 }
 
 fn cfg_php_major_version(vernum: u64) {

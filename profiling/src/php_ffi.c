@@ -412,13 +412,15 @@ bool ddog_php_jit_enabled() {
     return jit;
 }
 
-// Provided by Rust.
-void ddog_php_prof_trigger_time_sample(void);
 
 #if PHP_VERSION_ID < 70200
 #define zend_parse_parameters_none_throw() \
     (EXPECTED(ZEND_NUM_ARGS() == 0) ? SUCCESS : zend_parse_parameters_throw(ZEND_NUM_ARGS(), ""))
 #endif
+
+#if CFG_TRIGGER_TIME_SAMPLE
+// Provided by Rust.
+void ddog_php_prof_trigger_time_sample(void);
 
 static ZEND_FUNCTION(Datadog_Profiling_trigger_time_sample) {
     zend_parse_parameters_none_throw();
@@ -428,14 +430,17 @@ static ZEND_FUNCTION(Datadog_Profiling_trigger_time_sample) {
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_Datadog_Profiling_trigger_time_sample, 0, 0, 0)
 ZEND_END_ARG_INFO()
+#endif
 
 static const zend_function_entry functions[] = {
+#if CFG_TRIGGER_TIME_SAMPLE
     ZEND_NS_NAMED_FE(
         "Datadog\\Profiling",
         trigger_time_sample,
         ZEND_FN(Datadog_Profiling_trigger_time_sample),
         arginfo_Datadog_Profiling_trigger_time_sample
     )
+#endif
     ZEND_FE_END
 };
 const zend_function_entry* ddog_php_prof_functions = functions;
