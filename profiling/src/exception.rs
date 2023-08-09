@@ -1,5 +1,4 @@
 use crate::bindings as zend;
-use crate::zend::ddog_php_prof_zend_string_view;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
 use log::{error, trace};
@@ -115,12 +114,9 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
 
     if exception_profiling {
         #[cfg(php7)]
-        let exception_name =
-            ddog_php_prof_zend_string_view((*(*(*exception).value.obj).ce).name.as_mut())
-                .to_string();
+        let exception_name = (*(*exception).value.obj).name();
         #[cfg(php8)]
-        let exception_name =
-            ddog_php_prof_zend_string_view((*(*exception).ce).name.as_mut()).to_string();
+        let exception_name = (*exception).name();
 
         EXCEPTION_PROFILING_STATS.with(|cell| {
             let mut exceptions = cell.borrow_mut();

@@ -85,6 +85,12 @@ pub struct ZendString {
     _opaque: [u8; 0],
 }
 
+impl _zend_object {
+    pub fn name(&self) -> String {
+        unsafe { ddog_php_prof_zend_string_view((*self.ce).name.as_mut()).to_string() }
+    }
+}
+
 impl _zend_function {
     /// Returns a slice to the zend_string's data if it's present and not
     /// empty; otherwise returns None.
