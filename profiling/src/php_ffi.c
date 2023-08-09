@@ -411,3 +411,26 @@ bool ddog_php_jit_enabled() {
     }
     return jit;
 }
+
+// Provided by Rust.
+void ddog_php_prof_trigger_time_sample(void);
+
+static ZEND_FUNCTION(Datadog_Profiling_trigger_time_sample) {
+    zend_parse_parameters_none_throw();
+    ddog_php_prof_trigger_time_sample();
+    RETURN_NULL();
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_Datadog_Profiling_trigger_time_sample, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+static const zend_function_entry functions[] = {
+    ZEND_NS_NAMED_FE(
+        "Datadog\\Profiling",
+        trigger_time_sample,
+        ZEND_FN(Datadog_Profiling_trigger_time_sample),
+        arginfo_Datadog_Profiling_trigger_time_sample
+    )
+    ZEND_FE_END
+};
+const zend_function_entry* ddog_php_prof_functions = functions;

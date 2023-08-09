@@ -147,6 +147,8 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
 
     let module = zend::ModuleEntry {
         name: PROFILER_NAME.as_ptr(),
+        // Safety: php_ffi.c defines this correctly
+        functions: unsafe { bindings::ddog_php_prof_functions },
         module_startup_func: Some(minit),
         module_shutdown_func: Some(mshutdown),
         request_startup_func: Some(rinit),

@@ -1,11 +1,13 @@
 //! Definitions for interacting with the profiler from a C API, such as the
 //! ddtrace extension.
 
+use super::REQUEST_LOCALS;
 use crate::bindings::zend_execute_data;
 use crate::runtime_id;
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
+use std::sync::atomic::Ordering;
 
 /// A non-owning, not necessarily null terminated, not utf-8 encoded, borrowed
 /// string. Must satisfy the requirements of [core::slice::from_raw_parts],
@@ -89,6 +91,21 @@ pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
 #[no_mangle]
 pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend_execute_data) {
     crate::interrupt_function(execute_data);
+}
+
+#[no_mangle]
+extern "C" fn ddog_php_prof_trigger_time_sample() {
+    REQUEST_LOCALS.with(|cell| {
+        if let Ok(locals) = cell.try_borrow() {
+            if locals.profiling_enabled {
+                // Safety: only vm interrupts are stored there, or possibly null (edges only).
+                if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
+                    locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
+                    vm_interrupt.store(true, Ordering::SeqCst);
+                }
+            }
+        }
+    })
 }
 
 #[cfg(test)]
