@@ -1,0 +1,17 @@
+{
+    "test_name":"php_time",
+    "stacks": [
+      {
+        "profile-type": "wall-time",
+        "stack-content":
+        [
+          {
+            "regular_expression":"<?php;main;Datadog\\Test\\Class1::method1;class@anonymous::__invoke;Datadog\\Test\\Class1::{closure}$",
+            "percent": 100,
+            "error_margin": 100
+          }
+        ]
+      }
+    ]
+  }
+
