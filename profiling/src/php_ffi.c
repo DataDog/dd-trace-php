@@ -415,6 +415,11 @@ bool ddog_php_jit_enabled() {
 // Provided by Rust.
 void ddog_php_prof_trigger_time_sample(void);
 
+#if PHP_VERSION_ID < 70200
+#define zend_parse_parameters_none_throw() \
+    (EXPECTED(ZEND_NUM_ARGS() == 0) ? SUCCESS : zend_parse_parameters_throw(ZEND_NUM_ARGS(), ""))
+#endif
+
 static ZEND_FUNCTION(Datadog_Profiling_trigger_time_sample) {
     zend_parse_parameters_none_throw();
     ddog_php_prof_trigger_time_sample();
