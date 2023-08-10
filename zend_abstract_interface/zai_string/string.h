@@ -118,12 +118,12 @@ zai_option_str zai_option_str_from_str(zai_string_view str) {
     return (zai_option_str) {.ptr = str.len ? str.ptr : "", .len = str.len};
 }
 
-/** Returns true of the option holds a value. */
+/** Returns true if the option holds a value. */
 static inline bool zai_option_str_is_some(zai_option_str self) {
     return self.ptr != NULL;
 }
 
-/** Returns true of the option does not hold a value. */
+/** Returns true if the option does not hold a value. */
 static inline bool zai_option_str_is_none(zai_option_str self) {
     return self.ptr == NULL;
 }
