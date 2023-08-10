@@ -75,9 +75,9 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
         bool success;
         zval *thisp = getThis();
         if (thisp) {
-            success = zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 2, &integration, thisp);
+            success = zai_symbol_call_global(ZAI_STRL_VIEW("ddtrace\\integrations\\load_deferred_integration"), &rv, 2, &integration, thisp);
         } else {
-            success = zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
+            success = zai_symbol_call_global(ZAI_STRL_VIEW("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
         }
 
         if (UNEXPECTED(!success)) {

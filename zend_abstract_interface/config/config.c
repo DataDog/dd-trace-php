@@ -34,7 +34,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
     for (; name_index < memoized->names_count; name_index++) {
         zai_string_view name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
         if (zai_config_get_env_value(name, buf)) {
-            zai_string_view env_value = {.len = strlen(buf.ptr), .ptr = buf.ptr};
+            zai_string_view env_value = ZAI_STRING_FROM_CSTR(buf.ptr);
             if (!zai_config_decode_value(env_value, memoized->type, memoized->parser, &tmp, /* persistent */ true)) {
                 // TODO Log decoding error
             } else {

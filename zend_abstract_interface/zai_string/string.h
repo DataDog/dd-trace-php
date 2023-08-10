@@ -5,28 +5,80 @@
 #include <stddef.h>
 #include <string.h>
 
+#include <Zend/zend.h>
+
+/**
+ * Represents a non-owning view of a string.
+ *
+ * When initializing the struct, use one of the initialization macros or
+ * functions. Do not initialize the struct directly e.g. `{0, null}`.
+ *
+ * todo: move .ptr to come before .len to match ddtrace_string and Rust and
+ *       ensure it's never null.
+ */
 typedef struct zai_string_view_s {
     size_t len;
     const char *ptr;
 } zai_string_view;
 
-#define ZAI_STRL_VIEW(cstr) \
-    (zai_string_view) { .len = sizeof(cstr) - 1, .ptr = (cstr) }
+/** Use if data is known to be non-null, use zai_string_view_new otherwise. */
+#define ZAI_STRING_VIEW_NEW(data, size)   \
+    (zai_string_view) {.len = (size), .ptr = (data)}
+
+#define ZAI_STRL_VIEW(literal) \
+    ZAI_STRING_VIEW_NEW("" literal, sizeof(literal) - 1) \
 
 #define ZAI_STRING_EMPTY \
-    (zai_string_view) { .len = 0, .ptr = "" }
+    ZAI_STRING_VIEW_NEW("", 0)
 
-#define ZAI_STRING_FROM_ZSTR(str) \
-    (zai_string_view) { .len = ZSTR_LEN(str), .ptr = ZSTR_VAL(str) }
+/** Use if cstr is known to be non-null, use zai_string_from_cstr otherwise. */
+#define ZAI_STRING_FROM_CSTR(cstr)  \
+    ZAI_STRING_VIEW_NEW((cstr), strlen(cstr))
+
+/** Use if zstr is known to be non-null, use zai_string_from_zstr otherwise. */
+#define ZAI_STRING_FROM_ZSTR(zstr)  \
+    ZAI_STRING_VIEW_NEW(ZSTR_VAL(zstr), ZSTR_LEN(zstr))
+
+/**
+ * Creates a zai_string_view from the given pointer and length. If the pointer
+ * is null, then ZAI_STRING_EMPTY will be returned.
+ *
+ * If the pointer is known to be non-null, use ZAI_STRING_VIEW_NEW directly.
+ */
+static inline zai_string_view zai_string_view_new(const char *ptr, size_t len) {
+    return ptr ? ZAI_STRING_VIEW_NEW(ptr, len) : ZAI_STRING_EMPTY;
+}
+
+/**
+ * Creates a zai_string_view from a possibly-null C-string. Returns
+ * ZAI_STRING_EMPTY if the pointer is null.
+ *
+ * If the pointer is known to be non-null, use ZAI_STRING_FROM_CSTR directly.
+ */
+static inline zai_string_view zai_string_from_cstr(const char *cstr) {
+    return cstr ? ZAI_STRING_FROM_CSTR(cstr) : ZAI_STRING_EMPTY;
+}
+
+/**
+ * Creates a zai_string_view from a possibly-null zend_string. Returns
+ * ZAI_STRING_EMPTY if the pointer is null.
+ *
+ * If the pointer is known to be non-null, use ZAI_STRING_FROM_ZSTR directly.
+ */
+static inline zai_string_view zai_string_from_zstr(zend_string *zstr) {
+    return zstr ? ZAI_STRING_FROM_ZSTR(zstr) : ZAI_STRING_EMPTY;
+}
 
 static inline bool zai_string_stuffed(zai_string_view s) { return s.ptr && s.len; }
 
-static inline bool zai_string_equals_literal(zai_string_view s, const char *str) {
-    return s.len == strlen(str) && (strlen(str) == 0 || strncmp(s.ptr, str, strlen(str)) == 0);
+static inline
+bool zai_string_view_eq(zai_string_view a, zai_string_view b) {
+    return a.len == b.len && (b.len == 0 || memcmp(a.ptr, b.ptr, b.len) == 0);
 }
 
-static inline bool zai_string_equals_literal_ci(zai_string_view s, const char *str) {
-    return s.len == strlen(str) && (strlen(str) == 0 || strncasecmp(s.ptr, str, strlen(str)) == 0);
+static inline bool zai_string_equals_ci_cstr(zai_string_view s, const char *str) {
+    size_t len = strlen(str);
+    return s.len == len && (len == 0 || strncasecmp(s.ptr, str, strlen(str)) == 0);
 }
 
 /** Represents an optional string view. Please treat this as opaque. */
