@@ -28,7 +28,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
     zval tmp;
     ZVAL_UNDEF(&tmp);
 
-    zai_string_view value = {0};
+    zai_string_view value = ZAI_STRING_EMPTY;
 
     int16_t name_index = 0;
     for (; name_index < memoized->names_count; name_index++) {
@@ -51,7 +51,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
         name_index = ini_name_index;
     }
 
-    if (value.ptr) {
+    if (zai_string_stuffed(value)) {
         // TODO If name_index > 0, log deprecation notice
         zai_config_decode_value(value, memoized->type, memoized->parser, &tmp, /* persistent */ true);
         assert(Z_TYPE(tmp) > IS_NULL);
