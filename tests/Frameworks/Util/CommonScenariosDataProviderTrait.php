@@ -41,6 +41,11 @@ trait CommonScenariosDataProviderTrait
         if ($i !== false) {
             unset($unexpectedRequest[$i]);
         }
+        //Only available in Laravel for now
+        $i = array_search('A GET request to a dynamic route returning a string', $unexpectedRequest, true);
+        if ($i !== false) {
+            unset($unexpectedRequest[$i]);
+        }
         if ($unexpectedRequest) {
             throw new \Exception(
                 'Found the following scenarios not having any expectation defined: '
