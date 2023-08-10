@@ -1,7 +1,8 @@
-The purpose of this test is to check that we capture certain frames correctly,
-as they are a bit strange compared to regular frames.
-
 <?php
+
+/* The purpose of this test is to check that we capture certain frames
+ * correctly, as they are a bit strange compared to regular frames.
+ */
 
 namespace Datadog\Test {
     class Class1 {
