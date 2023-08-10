@@ -123,6 +123,7 @@ class LaravelIntegration extends Integration
                 if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
                 }
+                $rootSpan->meta[Tag::HTTP_ROUTE] = \DDTrace\Util\Normalizer::normalizeDynamicUrl($route->uri());
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }

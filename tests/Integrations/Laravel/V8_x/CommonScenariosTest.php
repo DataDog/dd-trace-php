@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
@@ -52,6 +53,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
+                        'http.route' => '/simple',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])->withChildren([
@@ -95,6 +97,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                        'http.route' => '/simple_view',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])->withChildren([
@@ -154,6 +157,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
+                        'http.route' => '/error',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])->setError('Exception', 'Controller error', true)->withChildren([
@@ -237,6 +241,50 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             ])
                         ])
                     ])
+                ],
+                'A GET request to a dynamic route returning a string' => [
+                    SpanAssertion::build(
+                        'laravel.request',
+                        'laravel_test_app',
+                        'web',
+                        'App\Http\Controllers\CommonSpecsController@dynamicRoute unnamed_route'
+                    )->withExactTags([
+                        'laravel.route.name' => 'unnamed_route',
+                        'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@dynamicRoute',
+                        'http.method' => 'GET',
+                        'http.url' => 'http://localhost:9999/dynamic_route/dynamic01/static/dynamic02',
+                        'http.status_code' => '200',
+                        'http.route' => '/dynamic_route/:param01/static/:param02?',
+                        TAG::SPAN_KIND => 'server',
+                        TAG::COMPONENT => 'laravel'
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'laravel.action',
+                            'laravel_test_app',
+                            'web',
+                            'dynamic_route/{param01}/static/{param02?}'
+                        )->withExactTags([
+                            TAG::COMPONENT => 'laravel'
+                        ]),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
+                        ),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                    ]),
                 ]
             ]
         );

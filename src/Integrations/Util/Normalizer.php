@@ -336,4 +336,13 @@ class Normalizer
 
         return \trim(preg_replace('/[^a-zA-Z0-9.\_]+/', '-', $noSpaces), '- ');
     }
+
+    public static function normalizeDynamicUrl($dynamicUrl)
+    {
+        if (empty($dynamicUrl)) {
+            return '';
+        }
+        $result = \preg_replace('/\{([a-zA-Z0-9?_]+)\}/', ':\1', $dynamicUrl);
+        return isset($result[0]) && $result[0] != '/' ? '/' .$result: $result;
+    }
 }
