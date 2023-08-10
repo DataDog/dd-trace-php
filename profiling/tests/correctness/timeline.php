@@ -1,5 +1,7 @@
 <?php
 
-gc_collect_cycles();
+function foobar () {
+    gc_collect_cycles();
+}
 
-include(__DIR__.'/timeline_empty.php');
+include(__DIR__.'/timeline_call.php');

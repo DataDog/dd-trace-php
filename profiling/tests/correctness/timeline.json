@@ -5,7 +5,9 @@
             "profile-type": "timeline",
             "stack-content": [
                 {
-                    "regular_expression": "[gc]",
+                    "regular_expression": "^\\[gc\\]$",
+                    "percent": 100,
+                    "error_margin": 100,
                     "labels": [
                         {
                             "key": "gc reason",
@@ -22,7 +24,22 @@
                     ]
                 },
                 {
-                    "regular_expression": "[include]",
+                    "regular_expression": "^\\[require\\]$",
+                    "percent": 100,
+                    "error_margin": 100,
+                    "labels": [
+                        {
+                            "key": "event",
+                            "values": [
+                                "compilation"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "regular_expression": "^\\[include\\]$",
+                    "percent": 100,
+                    "error_margin": 100,
                     "labels": [
                         {
                             "key": "event",
