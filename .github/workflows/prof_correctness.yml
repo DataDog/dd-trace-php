@@ -56,6 +56,8 @@ jobs:
           DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
           mkdir profiling/tests/correctness/time/
           DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/time/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/time.php
+          mkdir profiling/tests/correctness/strange_frames/
+          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/strange_frames/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/strange_frames.php
 
       - name: Check profiler correctness for allocations
         uses: Datadog/prof-correctness/analyze@main
