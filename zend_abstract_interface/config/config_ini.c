@@ -106,7 +106,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
             if (i > 0) {
                 zend_string_release(*target);
                 *target = zend_string_copy(entries[0]->modified ? entries[0]->orig_value : entries[0]->value);
-            } else if (buf->ptr != NULL) {
+            } else if (zai_string_stuffed(*buf)) {
                 zend_string_release(*target);
                 *target = zend_string_init(buf->ptr, buf->len, 1);
             } else if (parsed_ini_value != NULL) {
@@ -133,7 +133,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
             buf->ptr = ZSTR_VAL(runtime_value);
             buf->len = ZSTR_LEN(runtime_value);
             zend_string_release(runtime_value);
-        } else if (parsed_ini_value && buf->ptr == NULL) {
+        } else if (parsed_ini_value && !zai_string_stuffed(*buf)) {
             buf->ptr = ZSTR_VAL(parsed_ini_value);
             buf->len = ZSTR_LEN(parsed_ini_value);
         }
