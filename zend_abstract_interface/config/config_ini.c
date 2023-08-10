@@ -32,8 +32,11 @@ static void zai_config_lock_ini_copying(THREAD_T thread_id) {
 #endif
 
 // values retrieved here are assumed to be valid
-int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_count, zai_string_view *buf,
-                                        zai_string_view default_value, zai_config_id entry_id) {
+int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
+                                        int16_t ini_count,
+                                        zai_option_str *buf,
+                                        zai_string_view default_value,
+                                        zai_config_id entry_id) {
     if (!env_to_ini_name) return -1;
 
     zai_config_memoized_entry *memoized = &zai_config_memoized_entries[entry_id];
@@ -106,7 +109,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
             if (i > 0) {
                 zend_string_release(*target);
                 *target = zend_string_copy(entries[0]->modified ? entries[0]->orig_value : entries[0]->value);
-            } else if (buf->ptr != NULL) {
+            } else if (zai_option_str_is_some(*buf)) {
                 zend_string_release(*target);
                 *target = zend_string_init(buf->ptr, buf->len, 1);
             } else if (parsed_ini_value != NULL) {
@@ -133,7 +136,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries, int16_t ini_co
             buf->ptr = ZSTR_VAL(runtime_value);
             buf->len = ZSTR_LEN(runtime_value);
             zend_string_release(runtime_value);
-        } else if (parsed_ini_value && buf->ptr == NULL) {
+        } else if (parsed_ini_value && zai_option_str_is_none(*buf)) {
             buf->ptr = ZSTR_VAL(parsed_ini_value);
             buf->len = ZSTR_LEN(parsed_ini_value);
         }
