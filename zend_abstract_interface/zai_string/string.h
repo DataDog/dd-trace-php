@@ -69,7 +69,10 @@ static inline zai_string_view zai_string_from_zstr(zend_string *zstr) {
     return zstr ? ZAI_STRING_FROM_ZSTR(zstr) : ZAI_STRING_EMPTY;
 }
 
-static inline bool zai_string_stuffed(zai_string_view s) { return s.ptr && s.len; }
+/** Returns whether the string is empty. */
+static inline bool zai_str_is_empty(zai_string_view self) {
+    return self.len == 0 || self.ptr == NULL;
+}
 
 static inline
 bool zai_string_view_eq(zai_string_view a, zai_string_view b) {
