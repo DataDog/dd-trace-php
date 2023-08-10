@@ -30,6 +30,7 @@ class NormalizerTest extends BaseTestCase
                     ['/dynamic_route/{param01}/static/{param02?}', '/dynamic_route/:param01/static/:param02?'],
                     ['/dynamic_route/{param01}/static/{param02?}/', '/dynamic_route/:param01/static/:param02?/'],
                     ['/dynamic_route/param01/static/param02/', '/dynamic_route/param01/static/param02/'],
+                    ['/posts/{post:slug}/images/{image?:size}/', '/posts/:post/images/:image?/'],
             ];
         }
 }

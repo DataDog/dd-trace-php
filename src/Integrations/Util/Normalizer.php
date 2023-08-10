@@ -342,7 +342,7 @@ class Normalizer
         if (empty($dynamicUrl)) {
             return '';
         }
-        $result = \preg_replace('/\{([a-zA-Z0-9?_]+)\}/', ':\1', $dynamicUrl);
+        $result = \preg_replace('/\{([a-zA-Z0-9?_]+)(:[a-zA-Z0-9_]+)?\}/', ':\1', $dynamicUrl);
         return isset($result[0]) && $result[0] != '/' ? '/' .$result: $result;
     }
 }
