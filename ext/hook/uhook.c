@@ -557,7 +557,7 @@ PHP_FUNCTION(DDTrace_remove_hook) {
     dd_uhook_def *def;
     if ((def = zend_hash_index_find_ptr(&dd_active_hooks, (zend_ulong)id))) {
         if (def->function) {
-            zai_string_view scope = zai_string_from_zstr(def->scope);
+            zai_string_view scope = zai_str_from_zstr(def->scope);
             zai_string_view function = ZAI_STRING_FROM_ZSTR(def->function);
             zai_hook_remove(scope, function, id);
         } else {

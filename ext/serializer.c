@@ -581,7 +581,7 @@ static zend_string *dd_build_req_url() {
     if (question_mark) {
         uri_len = question_mark - uri;
         query_string = zai_filter_query_string(
-            ZAI_STRING_VIEW_NEW(question_mark + 1, strlen(uri) - uri_len - 1),
+            ZAI_STR_NEW(question_mark + 1, strlen(uri) - uri_len - 1),
             get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED(), get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
     } else {
         uri_len = strlen(uri);
@@ -664,7 +664,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
                 const char *query_str = dd_get_query_string();
                 if (query_str) {
                     query_string =
-                        zai_filter_query_string(ZAI_STRING_FROM_CSTR(query_str),
+                        zai_filter_query_string(ZAI_STR_FROM_CSTR(query_str),
                                                 get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED(),
                                                 get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
                 }

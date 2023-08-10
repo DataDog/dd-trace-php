@@ -235,7 +235,7 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
     }
 
     zai_config_id duplicate;
-    if (zai_config_get_id_by_name(ZAI_STRING_VIEW_NEW(ini_name->ptr, ini_name->len), &duplicate)) {
+    if (zai_config_get_id_by_name(ZAI_STR_NEW(ini_name->ptr, ini_name->len), &duplicate)) {
         return;
     }
 
@@ -246,7 +246,7 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
         memoized->original_on_modify = existing->on_modify;
         zai_string_view current_value = memoized->default_encoded_value;
         zai_string_view value_view = ZAI_STRING_FROM_ZSTR(existing->value);
-        if (!zai_string_view_eq(current_value, value_view)) {
+        if (!zai_str_eq(current_value, value_view)) {
             zval decoded;
             // This should never fail, ideally, as all usages should validate the same way, but at least not crash, just don't accept the value then
             if (zai_config_decode_value(value_view, memoized->type, memoized->parser, &decoded, 1)) {

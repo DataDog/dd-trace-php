@@ -20,7 +20,7 @@ static inline zval *zai_exception_read_property(zend_object *object, const char 
 
     ZVAL_OBJ(&zv, object);
 
-    zval *property = zai_symbol_lookup_property(ZAI_SYMBOL_SCOPE_OBJECT, &zv, ZAI_STRING_VIEW_NEW(pn, pnl));
+    zval *property = zai_symbol_lookup_property(ZAI_SYMBOL_SCOPE_OBJECT, &zv, ZAI_STR_NEW(pn, pnl));
 
     if (!property) {
         return &EG(uninitialized_zval);

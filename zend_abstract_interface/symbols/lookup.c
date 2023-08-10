@@ -74,7 +74,7 @@ static inline zai_string_view zai_symbol_lookup_clean(zai_string_view view) {
     if (!view.len || *view.ptr != '\\') {
         return view;
     }
-    return ZAI_STRING_VIEW_NEW(view.ptr + 1, view.len - 1);
+    return ZAI_STR_NEW(view.ptr + 1, view.len - 1);
 }
 
 static inline zai_string_view zai_symbol_lookup_key(zai_string_view *namespace, zai_string_view *name, bool lower) {
