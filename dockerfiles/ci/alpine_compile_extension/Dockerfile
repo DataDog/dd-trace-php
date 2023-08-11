@@ -1,4 +1,4 @@
-FROM alpine:3.17 as base
+FROM alpine:3.18 as base
 
 RUN mkdir -p /app
 WORKDIR /app
