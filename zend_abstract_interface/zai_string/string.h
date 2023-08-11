@@ -21,7 +21,7 @@ typedef struct zai_string_view_s {
     const char *ptr;
 } zai_string_view;
 
-/** Use if data is known to be non-null, use zai_string_view_new otherwise. */
+/** Use if data is known to be non-null, use zai_str_new otherwise. */
 #define ZAI_STR_NEW(data, size)   \
     (zai_string_view) {.len = (size), .ptr = (data)}
 
@@ -45,7 +45,7 @@ typedef struct zai_string_view_s {
  *
  * If the pointer is known to be non-null, use ZAI_STR_NEW directly.
  */
-static inline zai_string_view zai_string_view_new(const char *ptr, size_t len) {
+static inline zai_string_view zai_str_new(const char *ptr, size_t len) {
     return ptr ? ZAI_STR_NEW(ptr, len) : ZAI_STR_EMPTY;
 }
 
