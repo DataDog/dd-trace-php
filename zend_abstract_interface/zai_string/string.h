@@ -36,7 +36,7 @@ typedef struct zai_string_view_s {
     ZAI_STR_NEW((cstr), strlen(cstr))
 
 /** Use if zstr is known to be non-null, use zai_str_from_zstr otherwise. */
-#define ZAI_STRING_FROM_ZSTR(zstr)  \
+#define ZAI_STR_FROM_ZSTR(zstr)  \
     ZAI_STR_NEW(ZSTR_VAL(zstr), ZSTR_LEN(zstr))
 
 /**
@@ -63,10 +63,10 @@ static inline zai_string_view zai_str_from_cstr(const char *cstr) {
  * Creates a zai_string_view from a possibly-null zend_string. Returns
  * ZAI_STR_EMPTY if the pointer is null.
  *
- * If the pointer is known to be non-null, use ZAI_STRING_FROM_ZSTR directly.
+ * If the pointer is known to be non-null, use ZAI_STR_FROM_ZSTR directly.
  */
 static inline zai_string_view zai_str_from_zstr(zend_string *zstr) {
-    return zstr ? ZAI_STRING_FROM_ZSTR(zstr) : ZAI_STR_EMPTY;
+    return zstr ? ZAI_STR_FROM_ZSTR(zstr) : ZAI_STR_EMPTY;
 }
 
 /** Returns whether the string is empty. */

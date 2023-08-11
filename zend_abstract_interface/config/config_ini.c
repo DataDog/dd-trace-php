@@ -58,7 +58,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
                 // validate
                 zval new_zv;
                 ZVAL_UNDEF(&new_zv);
-                if (!zai_config_decode_value(ZAI_STRING_FROM_ZSTR(ini_str), memoized->type, memoized->parser, &new_zv, true)) {
+                if (!zai_config_decode_value(ZAI_STR_FROM_ZSTR(ini_str), memoized->type, memoized->parser, &new_zv, true)) {
                     continue;
                 }
                 zai_config_dtor_pzval(&new_zv);
@@ -82,7 +82,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
             // validate
             zval new_zv;
             ZVAL_UNDEF(&new_zv);
-            if (!zai_config_decode_value(ZAI_STRING_FROM_ZSTR(Z_STR_P(inizv)), memoized->type, memoized->parser, &new_zv, true)) {
+            if (!zai_config_decode_value(ZAI_STR_FROM_ZSTR(Z_STR_P(inizv)), memoized->type, memoized->parser, &new_zv, true)) {
                 continue;
             }
             zai_config_dtor_pzval(&new_zv);
@@ -245,7 +245,7 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
     if ((existing = zend_hash_str_find_ptr(EG(ini_directives), ini_name->ptr, ini_name->len))) {
         memoized->original_on_modify = existing->on_modify;
         zai_string_view current_value = memoized->default_encoded_value;
-        zai_string_view value_view = ZAI_STRING_FROM_ZSTR(existing->value);
+        zai_string_view value_view = ZAI_STR_FROM_ZSTR(existing->value);
         if (!zai_str_eq(current_value, value_view)) {
             zval decoded;
             // This should never fail, ideally, as all usages should validate the same way, but at least not crash, just don't accept the value then
