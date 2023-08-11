@@ -33,7 +33,7 @@ const zend_function_entry ddtrace_testing_closure_functions[] = {
 #include <cstring>
 
 static bool zai_symbol_call_closure_test(zai_string_view vfn) {
-    zend_function *function = zai_symbol_lookup_function_ns(ZAI_STRL_VIEW("DDTraceTesting"), vfn);
+    zend_function *function = zai_symbol_lookup_function_ns(ZAI_STRL("DDTraceTesting"), vfn);
 
     if (!function) {
         return false;
@@ -53,7 +53,7 @@ static bool zai_symbol_call_closure_test(zai_string_view vfn) {
 TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/call/closure", "closure bound", "./stubs/call/closure/Stub.php", {
     tea_extension_functions(ddtrace_testing_closure_functions);
 },{
-    REQUIRE(zai_symbol_call_closure_test(ZAI_STRL_VIEW("closureTestBinding")));
+    REQUIRE(zai_symbol_call_closure_test(ZAI_STRL("closureTestBinding")));
 
     zval result;
 
@@ -71,7 +71,7 @@ zval_ptr_dtor(&ddtrace_testing_closure_object);
 TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/call/closure", "closure rebound", "./stubs/call/closure/Stub.php", {
     tea_extension_functions(ddtrace_testing_closure_functions);
 },{
-    REQUIRE(zai_symbol_call_closure_test(ZAI_STRL_VIEW("closureTestRebinding")));
+    REQUIRE(zai_symbol_call_closure_test(ZAI_STRL("closureTestRebinding")));
 
     zval result;
 

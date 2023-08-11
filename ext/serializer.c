@@ -1116,7 +1116,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (profiling_notify_trace_finished && top_level_span && Z_TYPE(prop_resource_as_string) == IS_STRING) {
         zai_string_view type = Z_TYPE(prop_type_as_string) == IS_STRING
                                ? ZAI_STRING_FROM_ZSTR(Z_STR(prop_type_as_string))
-                               : ZAI_STRL_VIEW("custom");
+                               : ZAI_STRL("custom");
         zai_string_view resource = ZAI_STRING_FROM_ZSTR(Z_STR(prop_resource_as_string));
         LOG(Warn, "Notifying profiler of finished local root span.");
         profiling_notify_trace_finished(span->span_id, type, resource);

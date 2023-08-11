@@ -12,7 +12,7 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "global function", "./stubs/call/use
 
     zval result;
 
-    zai_string_view fn = ZAI_STRL_VIEW("\\stub");
+    zai_string_view fn = ZAI_STRL("\\stub");
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 1, &param));
 
@@ -29,8 +29,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "ns function", "./stubs/call/user/St
 
     zval result;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view fn = ZAI_STRL_VIEW("stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view fn = ZAI_STRL("stub");
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 1, &param));
 
@@ -44,9 +44,9 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "ns function", "./stubs/call/user/St
 TEA_TEST_CASE_WITH_STUB("symbol/call/user", "static public", "./stubs/call/user/Stub.php", {
     zval result;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
-    zai_string_view fn = ZAI_STRL_VIEW("staticPublicFunction");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
+    zai_string_view fn = ZAI_STRL("staticPublicFunction");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -61,9 +61,9 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "static public", "./stubs/call/user/
 TEA_TEST_CASE_WITH_STUB("symbol/call/user", "static protected", "./stubs/call/user/Stub.php", {
     zval result;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
-    zai_string_view fn = ZAI_STRL_VIEW("staticProtectedFunction");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
+    zai_string_view fn = ZAI_STRL("staticProtectedFunction");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -78,9 +78,9 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "static protected", "./stubs/call/us
 TEA_TEST_CASE_WITH_STUB("symbol/call/user", "static private", "./stubs/call/user/Stub.php", {
     zval result;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
-    zai_string_view fn = ZAI_STRL_VIEW("staticPrivateFunction");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
+    zai_string_view fn = ZAI_STRL("staticPrivateFunction");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -95,14 +95,14 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "static private", "./stubs/call/user
 TEA_TEST_CASE_WITH_STUB("symbol/call/user", "instance public", "./stubs/call/user/Stub.php", {
     zval result, object;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
     zai_symbol_new(&object, ce, 0);
 
-    zai_string_view fn = ZAI_STRL_VIEW("publicFunction");
+    zai_string_view fn = ZAI_STRL("publicFunction");
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_OBJECT, &object, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 0));
 
@@ -116,14 +116,14 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "instance public", "./stubs/call/use
 TEA_TEST_CASE_WITH_STUB("symbol/call/user", "instance protected", "./stubs/call/user/Stub.php", {
     zval result, object;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
     zai_symbol_new(&object, ce, 0);
 
-    zai_string_view fn = ZAI_STRL_VIEW("protectedFunction");
+    zai_string_view fn = ZAI_STRL("protectedFunction");
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_OBJECT, &object, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 0));
 
@@ -137,14 +137,14 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "instance protected", "./stubs/call/
 TEA_TEST_CASE_WITH_STUB("symbol/call/user", "instance private", "./stubs/call/user/Stub.php", {
     zval result, object;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
     zai_symbol_new(&object, ce, 0);
 
-    zai_string_view fn = ZAI_STRL_VIEW("privateFunction");
+    zai_string_view fn = ZAI_STRL("privateFunction");
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_OBJECT, &object, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 0));
 
@@ -158,14 +158,14 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "instance private", "./stubs/call/us
 TEA_TEST_CASE_WITH_STUB("symbol/call/user", "no magic", "./stubs/call/user/Stub.php", {
     zval result, object;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("NoMagicCall");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("NoMagicCall");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
     zai_symbol_new(&object, ce, 0);
 
-    zai_string_view fn = ZAI_STRL_VIEW("nonExistent");
+    zai_string_view fn = ZAI_STRL("nonExistent");
 
     REQUIRE(!zai_symbol_call(ZAI_SYMBOL_SCOPE_OBJECT, &object, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 0));
 
@@ -175,12 +175,12 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "no magic", "./stubs/call/user/Stub.
 TEA_TEST_CASE_WITH_STUB("symbol/call/user", "no abstract", "./stubs/call/user/Stub.php", {
     zval result;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("NoAbstractCall");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("NoAbstractCall");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
-    zai_string_view fn = ZAI_STRL_VIEW("abstractFunction");
+    zai_string_view fn = ZAI_STRL("abstractFunction");
 
     REQUIRE(!zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 0));
 })
@@ -188,12 +188,12 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "no abstract", "./stubs/call/user/St
 TEA_TEST_CASE_WITH_STUB("symbol/call/user", "static mismatch", "./stubs/call/user/Stub.php", {
     zval result;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("NoStaticMismatch");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("NoStaticMismatch");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
-    zai_string_view fn = ZAI_STRL_VIEW("nonStaticFunction");
+    zai_string_view fn = ZAI_STRL("nonStaticFunction");
 
     REQUIRE(!zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 0));
 })
@@ -201,12 +201,12 @@ TEA_TEST_CASE_WITH_STUB("symbol/call/user", "static mismatch", "./stubs/call/use
 TEA_TEST_CASE_WITH_STUB("symbol/call/user", "exception", "./stubs/call/user/Stub.php", {
     zval result;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("NoExceptionLeakage");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("NoExceptionLeakage");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
-    zai_string_view fn = ZAI_STRL_VIEW("throwsException");
+    zai_string_view fn = ZAI_STRL("throwsException");
 
     REQUIRE(!zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 0));
 })

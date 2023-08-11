@@ -24,8 +24,8 @@ static void ext_ini_env_to_ini_name(zai_string_view env_name, zai_config_name *i
 }
 
 static PHP_MINIT_FUNCTION(zai_config_ini) {
-    zai_string_view aliases_int[] = {ZAI_STRL_VIEW("INI_BAR_ALIASED_INT_OLD")};
-    zai_string_view aliases_string[] = {ZAI_STRL_VIEW("INI_BAR_ALIASED_STRING_OLD"), ZAI_STRL_VIEW("INI_BAR_ALIASED_STRING_OLDER")};
+    zai_string_view aliases_int[] = {ZAI_STRL("INI_BAR_ALIASED_INT_OLD")};
+    zai_string_view aliases_string[] = {ZAI_STRL("INI_BAR_ALIASED_STRING_OLD"), ZAI_STRL("INI_BAR_ALIASED_STRING_OLDER")};
     zai_config_entry entries[] = {
         EXT_CFG_ENTRY(INI_FOO_BOOL, BOOL, "1"),
         EXT_CFG_ENTRY(INI_FOO_DOUBLE, DOUBLE, "0.5"),

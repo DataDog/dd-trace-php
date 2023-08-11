@@ -119,15 +119,15 @@ static void zai_hook_test_yield_ascending(zend_ulong invocation, zend_execute_da
 
 #define INSTALL_HOOK(fn) INSTALL_CLASS_HOOK("", fn)
 #define INSTALL_CLASS_HOOK(class, fn) REQUIRE(zai_hook_install( \
-    ZAI_STRL_VIEW(class), \
-    ZAI_STRL_VIEW(fn), \
+    ZAI_STRL(class), \
+    ZAI_STRL(fn), \
     zai_hook_test_begin, \
     zai_hook_test_end, \
     ZAI_HOOK_AUX(NULL, NULL), \
     4) != -1)
 #define INSTALL_GENERATOR_HOOK(fn, resume, yield) REQUIRE(zai_hook_install_generator( \
-                                               ZAI_STRL_VIEW(""), \
-                                               ZAI_STRL_VIEW(fn), \
+                                               ZAI_STRL(""), \
+                                               ZAI_STRL(fn), \
                                                zai_hook_test_begin,    \
                                                resume, \
                                                yield, \
@@ -136,7 +136,7 @@ static void zai_hook_test_yield_ascending(zend_ulong invocation, zend_execute_da
                                                4) != -1)
 #define CALL_FN(fn, ...) do { \
     zval result; \
-    zai_string_view _fn_name = ZAI_STRL_VIEW(fn);               \
+    zai_string_view _fn_name = ZAI_STRL(fn);               \
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result, 0)); \
     __VA_ARGS__               \
     zval_ptr_dtor(&result);                          \
@@ -405,7 +405,7 @@ static void zai_hook_test_yield_multi_gen(zend_ulong invocation, zend_execute_da
 INTERCEPTOR_TEST_CASE("generator yield intercepting of yield from multi-generator", {
     int32_t *zai_hook_test_multi_yield_invocations = (int32_t *)calloc(1, 4);
     INSTALL_GENERATOR_HOOK("yieldFromInnerGenerator", zai_hook_test_resume, zai_hook_test_yield_ascending);
-    REQUIRE(zai_hook_install_generator(ZAI_STRL_VIEW(""),ZAI_STRL_VIEW("yieldFromMultiGenerator"),
+    REQUIRE(zai_hook_install_generator(ZAI_STRL(""),ZAI_STRL("yieldFromMultiGenerator"),
                 zai_hook_test_begin, zai_hook_test_resume, zai_hook_test_yield_multi_gen, zai_hook_test_end,
                 ZAI_HOOK_AUX(zai_hook_test_multi_yield_invocations, free), 4) != -1);
     ++zai_hook_test_yield_invocations;
@@ -480,7 +480,7 @@ INTERCEPTOR_TEST_CASE("bailout in intercepted functions runs end handlers", {
     INSTALL_HOOK("bailout");
 
     zval result;
-    zai_string_view _fn_name = ZAI_STRL_VIEW("bailout");
+    zai_string_view _fn_name = ZAI_STRL("bailout");
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result, 0) == false);
 
     REQUIRE(CG(unclean_shutdown));

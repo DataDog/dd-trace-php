@@ -23,8 +23,8 @@ typedef uint16_t zai_config_id;
 
 #define ZAI_CONFIG_ENTRY(_id, _name, _type, default, ...)                          \
     {                                                                              \
-        .id = _id, .name = ZAI_STRL_VIEW(#_name), .type = ZAI_CONFIG_TYPE_##_type, \
-        .default_encoded_value = ZAI_STRL_VIEW(default), ##__VA_ARGS__,            \
+        .id = _id, .name = ZAI_STRL(#_name), .type = ZAI_CONFIG_TYPE_##_type, \
+        .default_encoded_value = ZAI_STRL(default), ##__VA_ARGS__,            \
     }
 
 #define ZAI_CONFIG_ALIASED_ENTRY(id, name, type, default, _aliases, ...) \

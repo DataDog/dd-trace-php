@@ -18,12 +18,12 @@ TEA_TEST_CASE("config/decode", "bool", {
     // ---
 
     zai_string_view truthy[] = {
-        ZAI_STRL_VIEW("1"),
-        ZAI_STRL_VIEW("true"),
-        ZAI_STRL_VIEW("TRUE"),
-        ZAI_STRL_VIEW("True"),
-        ZAI_STRL_VIEW("yes"),
-        ZAI_STRL_VIEW("on"),
+        ZAI_STRL("1"),
+        ZAI_STRL("true"),
+        ZAI_STRL("TRUE"),
+        ZAI_STRL("True"),
+        ZAI_STRL("yes"),
+        ZAI_STRL("on"),
     };
 
     for (zai_string_view name : truthy) {
@@ -37,13 +37,13 @@ TEA_TEST_CASE("config/decode", "bool", {
     // ---
 
     zai_string_view falsey[] = {
-        ZAI_STRL_VIEW("0"),
-        ZAI_STRL_VIEW("false"),
-        ZAI_STRL_VIEW("FALSE"),
-        ZAI_STRL_VIEW("False"),
-        ZAI_STRL_VIEW("no"),
-        ZAI_STRL_VIEW("off"),
-        ZAI_STRL_VIEW(""),
+        ZAI_STRL("0"),
+        ZAI_STRL("false"),
+        ZAI_STRL("FALSE"),
+        ZAI_STRL("False"),
+        ZAI_STRL("no"),
+        ZAI_STRL("off"),
+        ZAI_STRL(""),
     };
 
     for (zai_string_view name : falsey) {
@@ -68,12 +68,12 @@ TEA_TEST_CASE("config/decode", "double", {
     // ---
 
     expected_double successes[] = {
-        {ZAI_STRL_VIEW("0"), 0.0},
-        {ZAI_STRL_VIEW("1"), 1.0},
-        {ZAI_STRL_VIEW("-1.5"), -1.5},
-        {ZAI_STRL_VIEW("4.2"), 4.2},
-        {ZAI_STRL_VIEW("    4.2    "), 4.2},
-        {ZAI_STRL_VIEW("4.   2"), 4.0},  // It's weird, but ¯\_(ツ)_/¯
+        {ZAI_STRL("0"), 0.0},
+        {ZAI_STRL("1"), 1.0},
+        {ZAI_STRL("-1.5"), -1.5},
+        {ZAI_STRL("4.2"), 4.2},
+        {ZAI_STRL("    4.2    "), 4.2},
+        {ZAI_STRL("4.   2"), 4.0},  // It's weird, but ¯\_(ツ)_/¯
     };
 
     for (expected_double expected : successes) {
@@ -88,14 +88,14 @@ TEA_TEST_CASE("config/decode", "double", {
     // ---
 
     zai_string_view errors[] = {
-        ZAI_STRL_VIEW(""),
-        ZAI_STRL_VIEW("NaN"),
-        ZAI_STRL_VIEW("INF"),
-        ZAI_STRL_VIEW("foo"),
-        ZAI_STRL_VIEW("4foo"),
-        ZAI_STRL_VIEW("0x0"),
-        ZAI_STRL_VIEW("0.0.0"),
-        ZAI_STRL_VIEW("4.2.0"),
+        ZAI_STRL(""),
+        ZAI_STRL("NaN"),
+        ZAI_STRL("INF"),
+        ZAI_STRL("foo"),
+        ZAI_STRL("4foo"),
+        ZAI_STRL("0x0"),
+        ZAI_STRL("0.0.0"),
+        ZAI_STRL("4.2.0"),
     };
 
     for (zai_string_view name : errors) {
@@ -120,14 +120,14 @@ TEA_TEST_CASE("config/decode", "int", {
     // ---
 
     expected_int successes[] = {
-        {ZAI_STRL_VIEW("0"), 0},
-        {ZAI_STRL_VIEW("1"), 1},
-        {ZAI_STRL_VIEW("-2"), -2},
-        {ZAI_STRL_VIEW("42"), 42},
-        {ZAI_STRL_VIEW("    42    "), 42},
+        {ZAI_STRL("0"), 0},
+        {ZAI_STRL("1"), 1},
+        {ZAI_STRL("-2"), -2},
+        {ZAI_STRL("42"), 42},
+        {ZAI_STRL("    42    "), 42},
 #if PHP_VERSION_ID < 80200
 // int parsing changed on PHP 8.2
-        {ZAI_STRL_VIEW("4   2"), 4},  // It's weird, but ¯\_(ツ)_/¯
+        {ZAI_STRL("4   2"), 4},  // It's weird, but ¯\_(ツ)_/¯
 #endif
     };
 
@@ -143,16 +143,16 @@ TEA_TEST_CASE("config/decode", "int", {
     // ---
 
     zai_string_view errors[] = {
-        ZAI_STRL_VIEW(""),
-        ZAI_STRL_VIEW("NaN"),
-        ZAI_STRL_VIEW("INF"),
-        ZAI_STRL_VIEW("foo"),
-        ZAI_STRL_VIEW("4foo"),
-        ZAI_STRL_VIEW("0x0"),
-        ZAI_STRL_VIEW("0.0.0"),
-        ZAI_STRL_VIEW("4.2.0"),
+        ZAI_STRL(""),
+        ZAI_STRL("NaN"),
+        ZAI_STRL("INF"),
+        ZAI_STRL("foo"),
+        ZAI_STRL("4foo"),
+        ZAI_STRL("0x0"),
+        ZAI_STRL("0.0.0"),
+        ZAI_STRL("4.2.0"),
 #if PHP_VERSION_ID >= 80200
-        ZAI_STRL_VIEW("4   2"),
+        ZAI_STRL("4   2"),
 #endif
     };
 
@@ -179,12 +179,12 @@ TEA_TEST_CASE("config/decode", "map", {
     // ---
 
     expected_map successes[] = {
-        {ZAI_STRL_VIEW("key:val,c:d"), { "key", "c" }, { "val", "d" }},
-        {ZAI_STRL_VIEW("\t\na\t:\n"), { "a" }, { "" }},
-        {ZAI_STRL_VIEW("\t\na\t:\n,c:"), { "a", "c" }, { "", "" }},
-        {ZAI_STRL_VIEW("\t\na\t: b \n"), { "a" }, { "b" }},
-        {ZAI_STRL_VIEW("a:b\t,\t"), { "a" }, { "b" }},
-        {ZAI_STRL_VIEW("\t,a:b"), { "a" }, { "b" }},
+        {ZAI_STRL("key:val,c:d"), { "key", "c" }, { "val", "d" }},
+        {ZAI_STRL("\t\na\t:\n"), { "a" }, { "" }},
+        {ZAI_STRL("\t\na\t:\n,c:"), { "a", "c" }, { "", "" }},
+        {ZAI_STRL("\t\na\t: b \n"), { "a" }, { "b" }},
+        {ZAI_STRL("a:b\t,\t"), { "a" }, { "b" }},
+        {ZAI_STRL("\t,a:b"), { "a" }, { "b" }},
     };
 
     for (expected_map expected : successes) {
@@ -206,13 +206,13 @@ TEA_TEST_CASE("config/decode", "map", {
     // ---
 
     zai_string_view errors[] = {
-        ZAI_STRL_VIEW(":"),
-        ZAI_STRL_VIEW(","),
-        ZAI_STRL_VIEW(":,"),
-        ZAI_STRL_VIEW(":a"),
-        ZAI_STRL_VIEW(" : "),
-        ZAI_STRL_VIEW(", "),
-        ZAI_STRL_VIEW("\t\n:"),
+        ZAI_STRL(":"),
+        ZAI_STRL(","),
+        ZAI_STRL(":,"),
+        ZAI_STRL(":a"),
+        ZAI_STRL(" : "),
+        ZAI_STRL(", "),
+        ZAI_STRL("\t\n:"),
     };
 
     for (zai_string_view name : errors) {
@@ -238,11 +238,11 @@ TEA_TEST_CASE("config/decode", "set", {
     // ---
 
     expected_set successes[] = {
-        {ZAI_STRL_VIEW("key,foo"), { "key", "foo" }},
-        {ZAI_STRL_VIEW("\t\n a \t\n"), { "a" }},
-        {ZAI_STRL_VIEW("a\t\n,\t\nb"), { "a", "b" }},
-        {ZAI_STRL_VIEW("a\t,\t"), { "a" }},
-        {ZAI_STRL_VIEW("\t,,a"), { "a" }},
+        {ZAI_STRL("key,foo"), { "key", "foo" }},
+        {ZAI_STRL("\t\n a \t\n"), { "a" }},
+        {ZAI_STRL("a\t\n,\t\nb"), { "a", "b" }},
+        {ZAI_STRL("a\t,\t"), { "a" }},
+        {ZAI_STRL("\t,,a"), { "a" }},
     };
 
     for (expected_set expected : successes) {
@@ -264,8 +264,8 @@ TEA_TEST_CASE("config/decode", "set", {
     // ---
 
     zai_string_view errors[] = {
-        ZAI_STRL_VIEW(","),
-        ZAI_STRL_VIEW("\t\n, "),
+        ZAI_STRL(","),
+        ZAI_STRL("\t\n, "),
     };
 
     for (zai_string_view name : errors) {
@@ -291,9 +291,9 @@ TEA_TEST_CASE_BARE("config/decode", "json", {
     // ---
 
     zai_string_view errors[] = {
-        ZAI_STRL_VIEW("0"),
-        ZAI_STRL_VIEW("\"foo\""),
-        ZAI_STRL_VIEW("[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]"),
+        ZAI_STRL("0"),
+        ZAI_STRL("\"foo\""),
+        ZAI_STRL("[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]"),
     };
 
     for (zai_string_view name : errors) {
@@ -307,7 +307,7 @@ TEA_TEST_CASE_BARE("config/decode", "json", {
     // ---
 
     ZVAL_UNDEF(&value);
-    ret = zai_config_decode_value(ZAI_STRL_VIEW("{\"foo\":1,\"bar\":\"str\",\"baz\":[1],\"empty\":[]}"), type, NULL, &value, true);
+    ret = zai_config_decode_value(ZAI_STRL("{\"foo\":1,\"bar\":\"str\",\"baz\":[1],\"empty\":[]}"), type, NULL, &value, true);
 
     // ---
 

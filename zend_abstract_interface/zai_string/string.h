@@ -25,7 +25,7 @@ typedef struct zai_string_view_s {
 #define ZAI_STR_NEW(data, size)   \
     (zai_string_view) {.len = (size), .ptr = (data)}
 
-#define ZAI_STRL_VIEW(literal) \
+#define ZAI_STRL(literal) \
     ZAI_STR_NEW("" literal, sizeof(literal) - 1) \
 
 #define ZAI_STRING_EMPTY \

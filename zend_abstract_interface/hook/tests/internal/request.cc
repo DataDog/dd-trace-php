@@ -45,7 +45,7 @@ extern "C" {
     }
 }
 
-static zai_string_view zai_hook_test_target = ZAI_STRL_VIEW("phpversion");
+static zai_string_view zai_hook_test_target = ZAI_STRL("phpversion");
 static zend_long zai_hook_test_index;
 
 #define HOOK_TEST_CASE(description, statics, request, ...) \

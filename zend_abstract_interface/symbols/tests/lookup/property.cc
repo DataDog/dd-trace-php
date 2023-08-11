@@ -7,8 +7,8 @@ extern "C" {
 #include <cstring>
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "public static", "./stubs/lookup/property/Stub.php", {
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -18,7 +18,7 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "public static", "./stubs/look
         return;
     }
 
-    zai_string_view name = ZAI_STRL_VIEW("publicStatic");
+    zai_string_view name = ZAI_STRL("publicStatic");
 
     zval *property = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
 
@@ -28,8 +28,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "public static", "./stubs/look
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "protected static", "./stubs/lookup/property/Stub.php", {
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -39,7 +39,7 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "protected static", "./stubs/l
         return;
     }
 
-    zai_string_view name = ZAI_STRL_VIEW("protectedStatic");
+    zai_string_view name = ZAI_STRL("protectedStatic");
 
     zval *property = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
 
@@ -49,8 +49,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "protected static", "./stubs/l
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "private static", "./stubs/lookup/property/Stub.php", {
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -60,7 +60,7 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "private static", "./stubs/loo
         return;
     }
 
-    zai_string_view name = ZAI_STRL_VIEW("privateStatic");
+    zai_string_view name = ZAI_STRL("privateStatic");
 
     zval *property = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
 
@@ -70,8 +70,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "private static", "./stubs/loo
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "static access instance property", "./stubs/lookup/property/Stub.php", {
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -81,14 +81,14 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "static access instance proper
         return;
     }
 
-    zai_string_view name = ZAI_STRL_VIEW("publicProperty");
+    zai_string_view name = ZAI_STRL("publicProperty");
 
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, ZAI_SYMBOL_SCOPE_CLASS, ce, &name));
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "undeclared static", "./stubs/lookup/property/Stub.php", {
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -98,14 +98,14 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "undeclared static", "./stubs/
         return;
     }
 
-    zai_string_view name = ZAI_STRL_VIEW("undeclaredStaticProperty");
+    zai_string_view name = ZAI_STRL("undeclaredStaticProperty");
 
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, ZAI_SYMBOL_SCOPE_CLASS, ce, &name));
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "public", "./stubs/lookup/property/Stub.php", {
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -118,7 +118,7 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "public", "./stubs/lookup/prop
     zval object;
     zai_symbol_new(&object, ce, 0);
 
-    zai_string_view name = ZAI_STRL_VIEW("publicProperty");
+    zai_string_view name = ZAI_STRL("publicProperty");
 
     zval *property = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, ZAI_SYMBOL_SCOPE_OBJECT, &object, &name);
 
@@ -130,8 +130,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "public", "./stubs/lookup/prop
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "protected", "./stubs/lookup/property/Stub.php", {
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -144,7 +144,7 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "protected", "./stubs/lookup/p
     zval object;
     zai_symbol_new(&object, ce, 0);
 
-    zai_string_view name = ZAI_STRL_VIEW("protectedProperty");
+    zai_string_view name = ZAI_STRL("protectedProperty");
 
     zval *property = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, ZAI_SYMBOL_SCOPE_OBJECT, &object, &name);
 
@@ -156,8 +156,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "protected", "./stubs/lookup/p
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "private", "./stubs/lookup/property/Stub.php", {
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -170,7 +170,7 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "private", "./stubs/lookup/pro
     zval object;
     zai_symbol_new(&object, ce, 0);
 
-    zai_string_view name = ZAI_STRL_VIEW("privateProperty");
+    zai_string_view name = ZAI_STRL("privateProperty");
 
     zval *property = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, ZAI_SYMBOL_SCOPE_OBJECT, &object, &name);
 
@@ -182,8 +182,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "private", "./stubs/lookup/pro
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "dynamic", "./stubs/lookup/property/Stub.php", {
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -196,7 +196,7 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "dynamic", "./stubs/lookup/pro
     zval object;
     zai_symbol_new(&object, ce, 0);
 
-    zai_string_view name = ZAI_STRL_VIEW("dynamicProperty");
+    zai_string_view name = ZAI_STRL("dynamicProperty");
 
     zval *property = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, ZAI_SYMBOL_SCOPE_OBJECT, &object, &name);
 
@@ -208,8 +208,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "dynamic", "./stubs/lookup/pro
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "undeclared", "./stubs/lookup/property/Stub.php", {
-    zai_string_view ns = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL_VIEW("Stub");
+    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
+    zai_string_view cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -222,7 +222,7 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/property", "undeclared", "./stubs/lookup/
     zval object;
     zai_symbol_new(&object, ce, 0);
 
-    zai_string_view name = ZAI_STRL_VIEW("undeclaredProperty");
+    zai_string_view name = ZAI_STRL("undeclaredProperty");
 
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, ZAI_SYMBOL_SCOPE_OBJECT, &object, &name));
 

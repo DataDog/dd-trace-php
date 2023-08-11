@@ -66,6 +66,6 @@ static inline __attribute__((warn_unused_result)) zai_env_result zai_getenv(zai_
     return zai_getenv_ex(name, buf, false);
 }
 
-#define zai_getenv_literal(name, buf) zai_getenv(ZAI_STRL_VIEW(name), buf)
+#define zai_getenv_literal(name, buf) zai_getenv(ZAI_STRL(name), buf)
 
 #endif  // ZAI_ENV_H
