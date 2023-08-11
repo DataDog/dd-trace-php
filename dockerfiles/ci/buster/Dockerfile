@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV ACCEPT_EULA=Y
 
 ENV DEVLIBS \
-    libclang-13-dev \
+    libclang-16-dev \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \

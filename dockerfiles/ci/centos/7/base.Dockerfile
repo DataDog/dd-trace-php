@@ -106,7 +106,7 @@ RUN printf "source scl_source enable devtoolset-7" | tee -a /etc/profile.d/zzz-d
 ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
 
 # Caution, takes a very long time! Since we have to build one from source,
-# I picked LLVM 14, which matches Rust 1.60.
+# I picked LLVM 16, which matches Rust 1.71.
 # Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
 RUN source scl_source enable devtoolset-7 \
   && yum install -y python3 \
@@ -119,7 +119,7 @@ RUN source scl_source enable devtoolset-7 \
   && cd - \
   && rm -fr "${SRC_DIR}/ninja" \
   && cd /usr/local/src \
-  && git clone --depth 1 -b release/14.x https://github.com/llvm/llvm-project.git \
+  && git clone --depth 1 -b release/16.x https://github.com/llvm/llvm-project.git \
   && mkdir -vp llvm-project/build \
   && cd llvm-project/build \
   && cmake -G Ninja -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
