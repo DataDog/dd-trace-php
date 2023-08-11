@@ -21,7 +21,7 @@ extern "C" {
         uint32_t u;
     } zai_hook_test_fixed_t;
 
-    zai_string_view zai_hook_test_nonexistent = {.len = sizeof("zai_hook_test_nonexistent")-1, .ptr = "zai_hook_test_nonexistent"};
+    zai_str zai_hook_test_nonexistent = {.len = sizeof("zai_hook_test_nonexistent")-1, .ptr = "zai_hook_test_nonexistent"};
 
     static zai_hook_test_fixed_t zai_hook_test_fixed_first = {42};
     static zai_hook_test_fixed_t zai_hook_test_fixed_second = {42};
@@ -45,7 +45,7 @@ extern "C" {
     }
 }
 
-static zai_string_view zai_hook_test_target = ZAI_STRL("phpversion");
+static zai_str zai_hook_test_target = ZAI_STRL("phpversion");
 static zend_long zai_hook_test_index;
 
 #define HOOK_TEST_CASE(description, statics, request, ...) \

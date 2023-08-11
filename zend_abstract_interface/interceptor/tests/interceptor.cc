@@ -136,7 +136,7 @@ static void zai_hook_test_yield_ascending(zend_ulong invocation, zend_execute_da
                                                4) != -1)
 #define CALL_FN(fn, ...) do { \
     zval result; \
-    zai_string_view _fn_name = ZAI_STRL(fn);               \
+    zai_str _fn_name = ZAI_STRL(fn);               \
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result, 0)); \
     __VA_ARGS__               \
     zval_ptr_dtor(&result);                          \
@@ -480,7 +480,7 @@ INTERCEPTOR_TEST_CASE("bailout in intercepted functions runs end handlers", {
     INSTALL_HOOK("bailout");
 
     zval result;
-    zai_string_view _fn_name = ZAI_STRL("bailout");
+    zai_str _fn_name = ZAI_STRL("bailout");
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result, 0) == false);
 
     REQUIRE(CG(unclean_shutdown));

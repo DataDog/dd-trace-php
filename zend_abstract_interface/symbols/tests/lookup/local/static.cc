@@ -7,8 +7,8 @@ extern "C" {
 #include <cstring>
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/local/static", "scalar", "./stubs/lookup/local/static/Stub.php", {
-    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL("Stub");
+    zai_str ns = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -20,14 +20,14 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/local/static", "scalar", "./stubs/lookup/
 
     zval result;
 
-    zai_string_view name = ZAI_STRL("scalar");
+    zai_str name = ZAI_STRL("scalar");
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_NAMED, &name, &result, 0));
 
     zval_ptr_dtor(&result);
 
-    zai_string_view var = ZAI_STRL("var");
-    zai_string_view target = ZAI_STRL("target");
+    zai_str var = ZAI_STRL("var");
+    zai_str target = ZAI_STRL("target");
     zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &target);
 
     zval *local = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_LOCAL, ZAI_SYMBOL_SCOPE_STATIC, method, &var);
@@ -38,8 +38,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/local/static", "scalar", "./stubs/lookup/
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/local/static", "refcounted", "./stubs/lookup/local/static/Stub.php", {
-    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL("Stub");
+    zai_str ns = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -51,14 +51,14 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/local/static", "refcounted", "./stubs/loo
 
     zval result;
 
-    zai_string_view name = ZAI_STRL("refcounted");
+    zai_str name = ZAI_STRL("refcounted");
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_NAMED, &name, &result, 0));
 
     zval_ptr_dtor(&result);
 
-    zai_string_view var = ZAI_STRL("var");
-    zai_string_view target = ZAI_STRL("target");
+    zai_str var = ZAI_STRL("var");
+    zai_str target = ZAI_STRL("target");
     zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &target);
 
     zval *local = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_LOCAL, ZAI_SYMBOL_SCOPE_STATIC, method, &var);
@@ -68,8 +68,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/local/static", "refcounted", "./stubs/loo
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/local/static", "reference", "./stubs/lookup/local/static/Stub.php", {
-    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL("Stub");
+    zai_str ns = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -81,14 +81,14 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/local/static", "reference", "./stubs/look
 
     zval result;
 
-    zai_string_view name = ZAI_STRL("reference");
+    zai_str name = ZAI_STRL("reference");
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_NAMED, &name, &result, 0));
 
     zval_ptr_dtor(&result);
 
-    zai_string_view var = ZAI_STRL("var");
-    zai_string_view target = ZAI_STRL("targetWithReference");
+    zai_str var = ZAI_STRL("var");
+    zai_str target = ZAI_STRL("targetWithReference");
     zend_function* method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &target);
 
     zval *local = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_LOCAL, ZAI_SYMBOL_SCOPE_STATIC, method, &var);

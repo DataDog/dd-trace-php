@@ -32,7 +32,7 @@ const zend_function_entry ddtrace_testing_closure_functions[] = {
 #include <cstdlib>
 #include <cstring>
 
-static bool zai_symbol_call_closure_test(zai_string_view vfn) {
+static bool zai_symbol_call_closure_test(zai_str vfn) {
     zend_function *function = zai_symbol_lookup_function_ns(ZAI_STRL("DDTraceTesting"), vfn);
 
     if (!function) {

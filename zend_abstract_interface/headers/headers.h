@@ -15,7 +15,7 @@ typedef enum {
     ZAI_HEADER_ERROR,
 } zai_header_result;
 
-zai_header_result zai_read_header(zai_string_view uppercase_header_name, zend_string **header_value);
+zai_header_result zai_read_header(zai_str uppercase_header_name, zend_string **header_value);
 
 #define zai_read_header_literal(uppercase_header_name, header_value) \
     zai_read_header(ZAI_STRL(uppercase_header_name), header_value)

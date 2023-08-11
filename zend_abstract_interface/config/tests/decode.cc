@@ -17,7 +17,7 @@ TEA_TEST_CASE("config/decode", "bool", {
 
     // ---
 
-    zai_string_view truthy[] = {
+    zai_str truthy[] = {
         ZAI_STRL("1"),
         ZAI_STRL("true"),
         ZAI_STRL("TRUE"),
@@ -26,7 +26,7 @@ TEA_TEST_CASE("config/decode", "bool", {
         ZAI_STRL("on"),
     };
 
-    for (zai_string_view name : truthy) {
+    for (zai_str name : truthy) {
         ZVAL_UNDEF(&value);
         ret = zai_config_decode_value(name, type, NULL, &value, false);
 
@@ -36,7 +36,7 @@ TEA_TEST_CASE("config/decode", "bool", {
 
     // ---
 
-    zai_string_view falsey[] = {
+    zai_str falsey[] = {
         ZAI_STRL("0"),
         ZAI_STRL("false"),
         ZAI_STRL("FALSE"),
@@ -46,7 +46,7 @@ TEA_TEST_CASE("config/decode", "bool", {
         ZAI_STRL(""),
     };
 
-    for (zai_string_view name : falsey) {
+    for (zai_str name : falsey) {
         ZVAL_UNDEF(&value);
         ret = zai_config_decode_value(name, type, NULL, &value, false);
 
@@ -56,7 +56,7 @@ TEA_TEST_CASE("config/decode", "bool", {
 })
 
 typedef struct expected_double_s {
-    zai_string_view name;
+    zai_str name;
     double value;
 } expected_double;
 
@@ -87,7 +87,7 @@ TEA_TEST_CASE("config/decode", "double", {
 
     // ---
 
-    zai_string_view errors[] = {
+    zai_str errors[] = {
         ZAI_STRL(""),
         ZAI_STRL("NaN"),
         ZAI_STRL("INF"),
@@ -98,7 +98,7 @@ TEA_TEST_CASE("config/decode", "double", {
         ZAI_STRL("4.2.0"),
     };
 
-    for (zai_string_view name : errors) {
+    for (zai_str name : errors) {
         ZVAL_UNDEF(&value);
         ret = zai_config_decode_value(name, type, NULL, &value, false);
 
@@ -108,7 +108,7 @@ TEA_TEST_CASE("config/decode", "double", {
 })
 
 typedef struct expected_int_s {
-    zai_string_view name;
+    zai_str name;
     int value;
 } expected_int;
 
@@ -142,7 +142,7 @@ TEA_TEST_CASE("config/decode", "int", {
 
     // ---
 
-    zai_string_view errors[] = {
+    zai_str errors[] = {
         ZAI_STRL(""),
         ZAI_STRL("NaN"),
         ZAI_STRL("INF"),
@@ -156,7 +156,7 @@ TEA_TEST_CASE("config/decode", "int", {
 #endif
     };
 
-    for (zai_string_view name : errors) {
+    for (zai_str name : errors) {
         ZVAL_UNDEF(&value);
         ret = zai_config_decode_value(name, type, NULL, &value, false);
 
@@ -166,7 +166,7 @@ TEA_TEST_CASE("config/decode", "int", {
 })
 
 typedef struct expected_map_s {
-    zai_string_view name;
+    zai_str name;
     const char *key[3];
     const char *value[3];
 } expected_map;
@@ -205,7 +205,7 @@ TEA_TEST_CASE("config/decode", "map", {
 
     // ---
 
-    zai_string_view errors[] = {
+    zai_str errors[] = {
         ZAI_STRL(":"),
         ZAI_STRL(","),
         ZAI_STRL(":,"),
@@ -215,7 +215,7 @@ TEA_TEST_CASE("config/decode", "map", {
         ZAI_STRL("\t\n:"),
     };
 
-    for (zai_string_view name : errors) {
+    for (zai_str name : errors) {
         ZVAL_UNDEF(&value);
         ret = zai_config_decode_value(name, type, NULL, &value, false);
 
@@ -225,7 +225,7 @@ TEA_TEST_CASE("config/decode", "map", {
 })
 
 typedef struct expected_set_s {
-    zai_string_view name;
+    zai_str name;
     const char *key[3];
 } expected_set;
 
@@ -263,12 +263,12 @@ TEA_TEST_CASE("config/decode", "set", {
 
     // ---
 
-    zai_string_view errors[] = {
+    zai_str errors[] = {
         ZAI_STRL(","),
         ZAI_STRL("\t\n, "),
     };
 
-    for (zai_string_view name : errors) {
+    for (zai_str name : errors) {
         ZVAL_UNDEF(&value);
         ret = zai_config_decode_value(name, type, NULL, &value, false);
 
@@ -290,13 +290,13 @@ TEA_TEST_CASE_BARE("config/decode", "json", {
 
     // ---
 
-    zai_string_view errors[] = {
+    zai_str errors[] = {
         ZAI_STRL("0"),
         ZAI_STRL("\"foo\""),
         ZAI_STRL("[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]"),
     };
 
-    for (zai_string_view name : errors) {
+    for (zai_str name : errors) {
         ZVAL_UNDEF(&value);
         ret = zai_config_decode_value(name, type, NULL, &value, false);
 

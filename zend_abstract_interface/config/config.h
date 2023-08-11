@@ -29,18 +29,18 @@ typedef uint16_t zai_config_id;
 
 #define ZAI_CONFIG_ALIASED_ENTRY(id, name, type, default, _aliases, ...) \
     ZAI_CONFIG_ENTRY(id, name, type, default, .aliases = _aliases,       \
-                     .aliases_count = sizeof(_aliases) / sizeof(zai_string_view), ##__VA_ARGS__)
+                     .aliases_count = sizeof(_aliases) / sizeof(zai_str), ##__VA_ARGS__)
 
 struct zai_config_entry_s {
     zai_config_id id;
     // Env name
-    zai_string_view name;
+    zai_str name;
     zai_config_type type;
-    zai_string_view default_encoded_value;
+    zai_str default_encoded_value;
     // Alias env names in order of precedence:
     // (e.g. DD_SERVICE_NAME, DD_TRACE_APP_NAME, ddtrace_app_name)
     // TODO: Drop old names
-    const zai_string_view *aliases;
+    const zai_str *aliases;
     uint8_t aliases_count;
     // Accept or reject ini changes, potentially apply to the currently running system
     zai_config_apply_ini_change ini_change;
@@ -58,7 +58,7 @@ struct zai_config_memoized_entry_s {
     uint8_t names_count;
     zai_config_type type;
     zval decoded_value;
-    zai_string_view default_encoded_value;
+    zai_str default_encoded_value;
     // The index of the name that was used to set the value
     //     anything > 0 is deprecated
     //     -1 == not set from env or system ini
@@ -97,7 +97,7 @@ extern zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_
 // If caller wants to return to userland: Caller must refcount++ & dtor
 zval *zai_config_get_value(zai_config_id id);
 
-bool zai_config_get_id_by_name(zai_string_view name, zai_config_id *id);
+bool zai_config_get_id_by_name(zai_str name, zai_config_id *id);
 
 // Adds name to name<->id mapping. Id may be present multiple times.
 void zai_config_register_config_id(zai_config_name *name, zai_config_id id);

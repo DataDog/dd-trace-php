@@ -10,7 +10,7 @@
 #define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len)
 #endif
 
-zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_rinit) {
+zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit) {
     if (!buf.ptr || !buf.len) return ZAI_ENV_ERROR;
 
     buf.ptr[0] = '\0';

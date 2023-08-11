@@ -94,7 +94,7 @@ void datadog_php_profiling_install_internal_function_handler(
  * `dest` is expected to be uninitialized. Any existing content will not be
  * dtor'.
  */
-void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_view view,
+void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
                                                       bool persistent);
 
 /**

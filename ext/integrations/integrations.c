@@ -46,8 +46,8 @@ void ddtrace_integrations_mshutdown(void) { zend_hash_destroy(&_dd_string_to_int
 typedef struct {
     ddtrace_integration_name name;
     zend_string *classname;
-    zai_string_view scope;
-    zai_string_view function;
+    zai_str scope;
+    zai_str function;
     zend_long id;
 } dd_integration_aux;
 
@@ -101,7 +101,7 @@ static bool dd_invoke_integration_loader_and_unhook_prehook(zend_ulong invocatio
     return true;
 }
 
-static void dd_hook_method_and_unhook_on_first_call(zai_string_view Class, zai_string_view method, zai_string_view callback, ddtrace_integration_name name, bool posthook) {
+static void dd_hook_method_and_unhook_on_first_call(zai_str Class, zai_str method, zai_str callback, ddtrace_integration_name name, bool posthook) {
     dd_integration_aux *aux = malloc(sizeof(*aux));
     aux->name = name;
     aux->classname = zend_string_init(callback.ptr, callback.len, 1);
@@ -132,8 +132,8 @@ static void dd_load_test_integrations(void) {
     // DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
 }
 
-static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, zai_string_view Class,
-                                                 zai_string_view method, zai_string_view integration, bool posthook) {
+static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, zai_str Class,
+                                                 zai_str method, zai_str integration, bool posthook) {
     // We unconditionally install our hooks. We skip it on hit.
     dd_hook_method_and_unhook_on_first_call(Class, method, integration, name, posthook);
 }

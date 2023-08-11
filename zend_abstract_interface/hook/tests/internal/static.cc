@@ -41,7 +41,7 @@ extern "C" {
     }
 }
 
-static zai_string_view zai_hook_test_target = ZAI_STRL("phpversion");
+static zai_str zai_hook_test_target = ZAI_STRL("phpversion");
 
 #define HOOK_TEST_CASE(description, statics, ...) \
     TEA_TEST_CASE_BARE("hook/internal/static", description, {   \

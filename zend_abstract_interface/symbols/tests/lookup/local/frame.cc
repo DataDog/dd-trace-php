@@ -10,7 +10,7 @@ ZEND_END_ARG_INFO()
 // clang-format off
 static PHP_FUNCTION(ddtrace_testing_frame_intercept) {
     zend_execute_data *frame = EX(prev_execute_data);
-    zai_string_view name = ZAI_STRL("var");
+    zai_str name = ZAI_STRL("var");
 
     zval* result = (zval*) zai_symbol_lookup(
         ZAI_SYMBOL_TYPE_LOCAL,
@@ -37,8 +37,8 @@ TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "scalar", "./
     tea_sapi_module.php_ini_ignore = 1;
     tea_extension_functions(ddtrace_testing_frame_extension_functions);
 },{
-    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL("Stub");
+    zai_str ns = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -50,7 +50,7 @@ TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "scalar", "./
 
     zval result;
 
-    zai_string_view name = ZAI_STRL("scalar");
+    zai_str name = ZAI_STRL("scalar");
     zend_function *method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result, 0));
@@ -65,8 +65,8 @@ TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "refcounted",
     tea_sapi_module.php_ini_ignore = 1;
     tea_extension_functions(ddtrace_testing_frame_extension_functions);
 },{
-    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL("Stub");
+    zai_str ns = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -78,7 +78,7 @@ TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "refcounted",
 
     zval result;
 
-    zai_string_view name = ZAI_STRL("refcounted");
+    zai_str name = ZAI_STRL("refcounted");
     zend_function *method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result, 0));
@@ -93,8 +93,8 @@ TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "reference", 
     tea_sapi_module.php_ini_ignore = 1;
     tea_extension_functions(ddtrace_testing_frame_extension_functions);
 },{
-    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL("Stub");
+    zai_str ns = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -106,7 +106,7 @@ TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "reference", 
 
     zval result;
 
-    zai_string_view name = ZAI_STRL("reference");
+    zai_str name = ZAI_STRL("reference");
     zend_function *method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result, 0));
@@ -121,8 +121,8 @@ TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "param", "./s
     tea_sapi_module.php_ini_ignore = 1;
     tea_extension_functions(ddtrace_testing_frame_extension_functions);
 },{
-    zai_string_view ns = ZAI_STRL("\\DDTraceTesting");
-    zai_string_view cn = ZAI_STRL("Stub");
+    zai_str ns = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn = ZAI_STRL("Stub");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -135,7 +135,7 @@ TEA_TEST_CASE_WITH_STUB_WITH_PROLOGUE("symbol/lookup/local/frame", "param", "./s
     zval result, param;
     ZVAL_LONG(&param, 42);
 
-    zai_string_view name = ZAI_STRL("param");
+    zai_str name = ZAI_STRL("param");
     zend_function *method = (zend_function*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
 
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_CLASS, ce, ZAI_SYMBOL_FUNCTION_KNOWN, method, &result, 1, &param));

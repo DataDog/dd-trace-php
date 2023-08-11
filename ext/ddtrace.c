@@ -2045,14 +2045,14 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
     RETURN_TRUE;
 }
 
-void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, const char *, zend_string **header_value, void *data), void *data);
+void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_str, const char *, zend_string **header_value, void *data), void *data);
 
 typedef struct {
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;
 } dd_fci_fcc_pair;
 
-static bool dd_read_userspace_header(zai_string_view zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
+static bool dd_read_userspace_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
     UNUSED(zai_header);
     dd_fci_fcc_pair *func = (dd_fci_fcc_pair *) data;
     zval retval, arg;
@@ -2072,7 +2072,7 @@ static bool dd_read_userspace_header(zai_string_view zai_header, const char *low
     return true;
 }
 
-static bool dd_read_array_header(zai_string_view zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
+static bool dd_read_array_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
     UNUSED(zai_header);
     zend_array *array = (zend_array *) data;
     zval *value = zend_hash_str_find(array, lowercase_header, strlen(lowercase_header));
@@ -2312,7 +2312,7 @@ static inline bool dd_is_hex_char(char chr) {
     return (chr >= '0' && chr <= '9') || (chr >= 'a' && chr <= 'f');
 }
 
-void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, const char *, zend_string **header_value, void *data), void *data) {
+void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_str, const char *, zend_string **header_value, void *data), void *data) {
     zend_string *trace_id_str, *parent_id_str, *priority_str, *propagated_tags, *b3_header_str, *traceparent, *tracestate;
 
     DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){ 0 };
@@ -2603,7 +2603,7 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_string_view, c
     }
 }
 
-static bool dd_read_zai_header(zai_string_view zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
+static bool dd_read_zai_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
     UNUSED(lowercase_header, data);
     if (zai_read_header(zai_header, header_value) != ZAI_HEADER_SUCCESS) {
         return false;

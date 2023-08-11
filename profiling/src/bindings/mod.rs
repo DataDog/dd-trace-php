@@ -286,10 +286,10 @@ extern "C" {
     #[cfg(php7)]
     pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void) -> ZendResult;
 
-    /// Converts the `zstr` into a `zai_string_view`. A None as well as empty
+    /// Converts the `zstr` into a `zai_str`. A None as well as empty
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
-    pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_string_view;
+    pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_str;
 
     /// Registers the run_time_cache slot with the engine. Must be done in
     /// module init or extension startup.
@@ -523,10 +523,10 @@ impl<'a> ZaiStringView<'a> {
 #[repr(C)]
 pub struct ZaiConfigEntry {
     pub id: zai_config_id,
-    pub name: zai_string_view<'static>,
+    pub name: zai_str<'static>,
     pub type_: zai_config_type,
-    pub default_encoded_value: zai_string_view<'static>,
-    pub aliases: *const zai_string_view<'static>,
+    pub default_encoded_value: zai_str<'static>,
+    pub aliases: *const zai_str<'static>,
     pub aliases_count: u8,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
@@ -539,7 +539,7 @@ pub struct ZaiConfigMemoizedEntry {
     pub names_count: u8,
     pub type_: zai_config_type,
     pub decoded_value: zval,
-    pub default_encoded_value: zai_string_view<'static>,
+    pub default_encoded_value: zai_str<'static>,
     pub name_index: i16,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
