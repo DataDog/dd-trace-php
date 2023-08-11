@@ -8,6 +8,10 @@ use std::marker::PhantomData;
 use std::str::Utf8Error;
 use std::sync::atomic::AtomicBool;
 
+extern "C" {
+    pub static ddog_php_prof_functions: *const zend_function_entry;
+}
+
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
 #[cfg(feature = "timeline")]
