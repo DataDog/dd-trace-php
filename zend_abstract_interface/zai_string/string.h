@@ -28,7 +28,7 @@ typedef struct zai_string_view_s {
 #define ZAI_STRL(literal) \
     ZAI_STR_NEW("" literal, sizeof(literal) - 1) \
 
-#define ZAI_STRING_EMPTY \
+#define ZAI_STR_EMPTY \
     ZAI_STR_NEW("", 0)
 
 /** Use if cstr is known to be non-null, use zai_str_from_cstr otherwise. */
@@ -41,32 +41,32 @@ typedef struct zai_string_view_s {
 
 /**
  * Creates a zai_string_view from the given pointer and length. If the pointer
- * is null, then ZAI_STRING_EMPTY will be returned.
+ * is null, then ZAI_STR_EMPTY will be returned.
  *
  * If the pointer is known to be non-null, use ZAI_STR_NEW directly.
  */
 static inline zai_string_view zai_string_view_new(const char *ptr, size_t len) {
-    return ptr ? ZAI_STR_NEW(ptr, len) : ZAI_STRING_EMPTY;
+    return ptr ? ZAI_STR_NEW(ptr, len) : ZAI_STR_EMPTY;
 }
 
 /**
  * Creates a zai_string_view from a possibly-null C-string. Returns
- * ZAI_STRING_EMPTY if the pointer is null.
+ * ZAI_STR_EMPTY if the pointer is null.
  *
  * If the pointer is known to be non-null, use ZAI_STR_FROM_CSTR directly.
  */
 static inline zai_string_view zai_str_from_cstr(const char *cstr) {
-    return cstr ? ZAI_STR_FROM_CSTR(cstr) : ZAI_STRING_EMPTY;
+    return cstr ? ZAI_STR_FROM_CSTR(cstr) : ZAI_STR_EMPTY;
 }
 
 /**
  * Creates a zai_string_view from a possibly-null zend_string. Returns
- * ZAI_STRING_EMPTY if the pointer is null.
+ * ZAI_STR_EMPTY if the pointer is null.
  *
  * If the pointer is known to be non-null, use ZAI_STRING_FROM_ZSTR directly.
  */
 static inline zai_string_view zai_str_from_zstr(zend_string *zstr) {
-    return zstr ? ZAI_STRING_FROM_ZSTR(zstr) : ZAI_STRING_EMPTY;
+    return zstr ? ZAI_STRING_FROM_ZSTR(zstr) : ZAI_STR_EMPTY;
 }
 
 /** Returns whether the string is empty. */
@@ -138,7 +138,7 @@ static inline bool zai_option_str_is_none(zai_option_str self) {
 static inline
 bool zai_option_str_get(zai_option_str self, zai_string_view *view) {
     zai_string_view value = {.len = self.len, .ptr = self.ptr};
-    *view = zai_option_str_is_some(self) ? value : ZAI_STRING_EMPTY;
+    *view = zai_option_str_is_some(self) ? value : ZAI_STR_EMPTY;
     return self.ptr;
 }
 

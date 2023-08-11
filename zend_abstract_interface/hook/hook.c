@@ -484,7 +484,7 @@ static zend_long zai_hook_request_install(zai_hook_t *hook) {
     }
 
     zend_class_entry *ce = NULL;
-    zai_string_view scope = hook->scope ? ZAI_STRING_FROM_ZSTR(hook->scope) : ZAI_STRING_EMPTY;
+    zai_string_view scope = hook->scope ? ZAI_STRING_FROM_ZSTR(hook->scope) : ZAI_STR_EMPTY;
     zend_function *function = zai_hook_lookup_function(scope, ZAI_STRING_FROM_ZSTR(hook->function), &ce);
     if (function) {
         hook->resolved_scope = ce;

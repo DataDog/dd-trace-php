@@ -152,7 +152,7 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
  */
 zai_string_view ddog_php_prof_zend_string_view(zend_string *zstr) {
     return (!zstr || ZSTR_LEN(zstr) == 0)
-        ? ZAI_STRING_EMPTY
+        ? ZAI_STR_EMPTY
         : ZAI_STRING_FROM_ZSTR(zstr);
 }
 

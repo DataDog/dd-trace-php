@@ -19,7 +19,7 @@
                                          ZAI_STRL(integration), true)
 
 #define DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(name, fname, integration)                           \
-    dd_set_up_deferred_loading_by_method(name, ZAI_STRING_EMPTY, ZAI_STRL(fname), \
+    dd_set_up_deferred_loading_by_method(name, ZAI_STR_EMPTY, ZAI_STRL(fname), \
                                          ZAI_STRL(integration), false)
 
 #define INTEGRATION(id, lcname, ...)                                    \

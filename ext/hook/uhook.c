@@ -485,7 +485,7 @@ type_error:
         }
     } else {
         const char *colon = strchr(ZSTR_VAL(name), ':');
-        zai_string_view scope = ZAI_STRING_EMPTY, function = ZAI_STRING_FROM_ZSTR(name);
+        zai_string_view scope = ZAI_STR_EMPTY, function = ZAI_STRING_FROM_ZSTR(name);
         if (colon) {
             def->scope = zend_string_init(function.ptr, colon - ZSTR_VAL(name), 0);
             do ++colon; while (*colon == ':');
@@ -508,7 +508,7 @@ type_error:
                 } else {
                     def->file = zend_string_copy(name);
                 }
-                function = ZAI_STRING_EMPTY;
+                function = ZAI_STR_EMPTY;
             } else {
                 def->function = zend_string_init(function.ptr, function.len, 0);
             }

@@ -73,7 +73,7 @@ HOOK_TEST_CASE("continue", {
     zai_hook_test_reset(true);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -102,7 +102,7 @@ HOOK_TEST_CASE("stop", {
     zai_hook_test_reset(false);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -131,7 +131,7 @@ HOOK_TEST_CASE("multiple continue", {
     zai_hook_test_reset(true);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -139,7 +139,7 @@ HOOK_TEST_CASE("multiple continue", {
         sizeof(zai_hook_test_dynamic_t)) != -1);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -168,7 +168,7 @@ HOOK_TEST_CASE("multiple stop", {
     zai_hook_test_reset(false);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -176,7 +176,7 @@ HOOK_TEST_CASE("multiple stop", {
         sizeof(zai_hook_test_dynamic_t)) != -1);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
