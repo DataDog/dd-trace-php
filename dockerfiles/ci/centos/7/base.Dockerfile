@@ -122,7 +122,7 @@ RUN source scl_source enable devtoolset-7 \
   && git clone --depth 1 -b release/16.x https://github.com/llvm/llvm-project.git \
   && mkdir -vp llvm-project/build \
   && cd llvm-project/build \
-  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
+  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
   && cmake --build . --parallel $(nproc) --target "install/strip" \
   && rm -f /usr/local/lib/libclang*.a /usr/local/lib/libLLVM*.a \
   && cd - \
