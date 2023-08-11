@@ -43,7 +43,7 @@ TEA_TEST_CASE("config/decode", "bool", {
         ZAI_STRL("False"),
         ZAI_STRL("no"),
         ZAI_STRL("off"),
-        ZAI_STRL(""),
+        ZAI_STR_EMPTY,
     };
 
     for (zai_str name : falsey) {
@@ -88,7 +88,7 @@ TEA_TEST_CASE("config/decode", "double", {
     // ---
 
     zai_str errors[] = {
-        ZAI_STRL(""),
+        ZAI_STR_EMPTY,
         ZAI_STRL("NaN"),
         ZAI_STRL("INF"),
         ZAI_STRL("foo"),
@@ -143,7 +143,7 @@ TEA_TEST_CASE("config/decode", "int", {
     // ---
 
     zai_str errors[] = {
-        ZAI_STRL(""),
+        ZAI_STR_EMPTY,
         ZAI_STRL("NaN"),
         ZAI_STRL("INF"),
         ZAI_STRL("foo"),

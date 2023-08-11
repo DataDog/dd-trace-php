@@ -126,7 +126,7 @@ static void zai_hook_test_yield_ascending(zend_ulong invocation, zend_execute_da
     ZAI_HOOK_AUX(NULL, NULL), \
     4) != -1)
 #define INSTALL_GENERATOR_HOOK(fn, resume, yield) REQUIRE(zai_hook_install_generator( \
-                                               ZAI_STRL(""), \
+                                               ZAI_STR_EMPTY, \
                                                ZAI_STRL(fn), \
                                                zai_hook_test_begin,    \
                                                resume, \
@@ -405,7 +405,7 @@ static void zai_hook_test_yield_multi_gen(zend_ulong invocation, zend_execute_da
 INTERCEPTOR_TEST_CASE("generator yield intercepting of yield from multi-generator", {
     int32_t *zai_hook_test_multi_yield_invocations = (int32_t *)calloc(1, 4);
     INSTALL_GENERATOR_HOOK("yieldFromInnerGenerator", zai_hook_test_resume, zai_hook_test_yield_ascending);
-    REQUIRE(zai_hook_install_generator(ZAI_STRL(""),ZAI_STRL("yieldFromMultiGenerator"),
+    REQUIRE(zai_hook_install_generator(ZAI_STR_EMPTY,ZAI_STRL("yieldFromMultiGenerator"),
                 zai_hook_test_begin, zai_hook_test_resume, zai_hook_test_yield_multi_gen, zai_hook_test_end,
                 ZAI_HOOK_AUX(zai_hook_test_multi_yield_invocations, free), 4) != -1);
     ++zai_hook_test_yield_invocations;

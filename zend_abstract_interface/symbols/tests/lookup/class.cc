@@ -23,7 +23,7 @@ TEA_TEST_CASE("symbol/lookup/class", "global, does not exist", {
 })
 
 TEA_TEST_CASE("symbol/lookup/class", "empty ns, exists", {
-    zai_str ns   = ZAI_STRL("");
+    zai_str ns    = ZAI_STR_EMPTY;
     zai_str lower = ZAI_STRL("stdclass");
     zai_str mixed = ZAI_STRL("stdClass");
 
@@ -32,7 +32,7 @@ TEA_TEST_CASE("symbol/lookup/class", "empty ns, exists", {
 })
 
 TEA_TEST_CASE("symbol/lookup/class", "root ns, exists", {
-    zai_str ns   = ZAI_STRL("\\");
+    zai_str ns    = ZAI_STRL("\\");
     zai_str lower = ZAI_STRL("stdclass");
     zai_str mixed = ZAI_STRL("stdClass");
 
@@ -47,7 +47,7 @@ TEA_TEST_CASE("symbol/lookup/class", "root ns fqcn, exists", {
 })
 
 TEA_TEST_CASE("symbol/lookup/class", "root ns, does not exist", {
-    zai_str ns   = ZAI_STRL("\\");
+    zai_str ns    = ZAI_STRL("\\");
     zai_str lower = ZAI_STRL("nosuchclass");
     zai_str mixed = ZAI_STRL("NoSuchClass");
 
