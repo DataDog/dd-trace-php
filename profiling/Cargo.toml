@@ -46,8 +46,11 @@ harness = false
 [features]
 default = ["allocation_profiling", "timeline"]
 allocation_profiling = []
-timeline = []
 stack_walking_tests = []
+timeline = []
+
+# only for testing:
+trigger_time_sample = []
 
 [build-dependencies]
 bindgen = { version = "0.66.1" }

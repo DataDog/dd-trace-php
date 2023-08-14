@@ -60,12 +60,6 @@ class LaravelIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        $rootSpan = \DDTrace\root_span();
-
-        if (null === $rootSpan) {
-            return Integration::NOT_LOADED;
-        }
-
         $integration = $this;
 
         if (dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE") && $this->isArtisanQueueCommand()) {
@@ -77,7 +71,15 @@ class LaravelIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\Foundation\Application',
             'handle',
-            function (SpanData $span, $args, $response) use ($rootSpan, $integration) {
+            function (SpanData $span, $args, $response) use ($integration) {
+                $span->name = 'laravel.application.handle';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $integration->getServiceName();
+                $span->resource = 'Illuminate\Foundation\Application@handle';
+                $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+
+                $rootSpan = \DDTrace\root_span();
+
                 // Overwriting the default web integration
                 $rootSpan->name = 'laravel.request';
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
@@ -87,12 +89,6 @@ class LaravelIntegration extends Integration
                 $rootSpan->service = $integration->getServiceName();
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-
-                $span->name = 'laravel.application.handle';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->getServiceName();
-                $span->resource = 'Illuminate\Foundation\Application@handle';
-                $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
         );
 
@@ -100,7 +96,12 @@ class LaravelIntegration extends Integration
             'Illuminate\Routing\Router',
             'findRoute',
             null,
-            function ($This, $scope, $args, $route) use ($rootSpan, $integration) {
+            function ($This, $scope, $args, $route) use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
                 if (!isset($route)) {
                     return;
                 }
@@ -142,7 +143,12 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Http\Response',
             'send',
-            function ($This, $scope, $args) use ($rootSpan, $integration) {
+            function ($This, $scope, $args) use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
                 $ignoreError = isset($rootSpan->meta['error.ignored']) && $rootSpan->meta['error.ignored'];
                 if (isset($This->exception) && $This->getStatusCode() >= 500 && !$ignoreError) {
                     $integration->setError($rootSpan, $This->exception);
@@ -228,7 +234,9 @@ class LaravelIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\View\Engines\CompilerEngine',
             'get',
-            function (SpanData $span, $args) use ($integration, $rootSpan) {
+            function (SpanData $span, $args) use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+
                 // This is used by both laravel and lumen. For consistency we rename it for lumen traces as otherwise
                 // users would see a span changing name as they upgrade to the new version.
                 $span->name = $integration->isLumen($rootSpan) ? 'lumen.view' : 'laravel.view';
@@ -246,7 +254,15 @@ class LaravelIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\Foundation\ProviderRepository',
             'load',
-            function (SpanData $span) use ($rootSpan, $integration) {
+            function (SpanData $span) use ($integration) {
+                $serviceName = $integration->getServiceName();
+
+                $span->name = 'laravel.provider.load';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $serviceName;
+                $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
+                $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+
                 if (
                     dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
                     && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
@@ -255,22 +271,22 @@ class LaravelIntegration extends Integration
                     \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
                 }
 
-                $serviceName = $integration->getServiceName();
-                $span->name = 'laravel.provider.load';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = $serviceName;
-                $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
+                $rootSpan = \DDTrace\root_span();
                 $rootSpan->name = 'laravel.request';
                 $rootSpan->service = $serviceName;
                 $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-                $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
         );
 
         \DDTrace\hook_method(
             'Illuminate\Console\Application',
             '__construct',
-            function () use ($rootSpan, $integration) {
+            function () use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
                 $rootSpan->name = 'laravel.artisan';
                 $rootSpan->resource = !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan';
                 unset($rootSpan->meta[Tag::SPAN_KIND]);
@@ -283,8 +299,11 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Symfony\Component\Console\Application',
             'renderException',
-            function ($This, $scope, $args) use ($rootSpan, $integration) {
-                $integration->setError($rootSpan, $args[0]);
+            function ($This, $scope, $args) use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan !== null) {
+                    $integration->setError($rootSpan, $args[0]);
+                }
             }
         );
 
@@ -293,8 +312,11 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Symfony\Component\Console\Application',
             'renderThrowable',
-            function ($This, $scope, $args) use ($rootSpan, $integration) {
-                $integration->setError($rootSpan, $args[0]);
+            function ($This, $scope, $args) use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan !== null) {
+                    $integration->setError($rootSpan, $args[0]);
+                }
             }
         );
 
@@ -302,7 +324,12 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Contracts\Debug\ExceptionHandler',
             'report',
-            function ($exceptionHandler, $scope, $args) use ($rootSpan, $integration) {
+            function ($exceptionHandler, $scope, $args) use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
                 if ($args[0] && $exceptionHandler->shouldReport($args[0])) {
                     $integration->setError($rootSpan, $args[0]);
                     $rootSpan->meta['error.ignored'] = 0;
@@ -317,7 +344,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\SessionGuard',
             'attempt',
             null,
-            function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
+            function ($This, $scope, $args, $loginSuccess) use ($integration) {
                 if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event')) {
                     return;
                 }
@@ -329,7 +356,7 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Auth\SessionGuard',
             'setUser',
-            function ($This, $scope, $args) use ($rootSpan, $integration) {
+            function ($This, $scope, $args) use ($integration) {
                 $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
                     !function_exists('\datadog\appsec\track_user_login_success_event') ||
@@ -358,7 +385,7 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Auth\Guard',
             'setUser',
-            function ($This, $scope, $args) use ($rootSpan, $integration) {
+            function ($This, $scope, $args) use ($integration) {
                 $authClass = 'Illuminate\Auth\UserInterface';
                 if (
                     !function_exists('\datadog\appsec\track_user_login_success_event') ||
@@ -390,7 +417,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\Guard',
             'attempt',
             null,
-            function ($This, $scope, $args, $loginSuccess) use ($rootSpan, $integration) {
+            function ($This, $scope, $args, $loginSuccess) use ($integration) {
                 if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event')) {
                     return;
                 }
@@ -402,7 +429,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\Events\Registered',
             '__construct',
             null,
-            function ($This, $scope, $args) use ($rootSpan, $integration) {
+            function ($This, $scope, $args) use ($integration) {
                 $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
                     !function_exists('\datadog\appsec\track_user_signup_event') ||

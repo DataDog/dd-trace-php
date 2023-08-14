@@ -1661,6 +1661,31 @@ PHP_FUNCTION(dd_trace_peek_span_id) {
     RETURN_STR(ddtrace_span_id_as_string(ddtrace_peek_span_id()));
 }
 
+/* {{{ proto void dd_trace_close_all_spans_and_flush() */
+PHP_FUNCTION(dd_trace_close_all_spans_and_flush) {
+    zend_parse_parameters_none();
+    ddtrace_close_all_spans_and_flush();
+    RETURN_NULL();
+}
+
+/* {{{ proto void dd_trace_synchronous_flush(int) */
+PHP_FUNCTION(dd_trace_synchronous_flush) {
+    zend_long timeout;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &timeout) == FAILURE) {
+        RETURN_THROWS();
+    }
+
+    // If zend_long is not a uint32_t, we can't pass it to ddtrace_coms_synchronous_flush
+    if (timeout < 0 || timeout > UINT32_MAX) {
+        LOG_LINE_ONCE(Error, "dd_trace_synchronous_flush() expects a timeout in milliseconds");
+        RETURN_NULL();
+    }
+
+    ddtrace_coms_synchronous_flush(timeout);
+    RETURN_NULL();
+}
+
 static void dd_ensure_root_span(void) {
     if (!DDTRACE_G(active_stack)->root_span && DDTRACE_G(active_stack)->parent_stack == NULL && get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();  // ensure root span always exists, especially after serialization for testing

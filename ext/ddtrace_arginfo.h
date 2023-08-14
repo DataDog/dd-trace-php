@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 2463dc3bf6f66db6122c667bb0705bccdf60f6c5 */
+ * Stub hash: d76f5179a4cac6921e820a94e4dd9b198fd303e7 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -207,6 +207,8 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_dd_trace_peek_span_id arginfo_DDTrace_startup_logs
 
+#define arginfo_dd_trace_close_all_spans_and_flush arginfo_DDTrace_flush
+
 #define arginfo_dd_trace_function arginfo_DDTrace_trace_function
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_method, 0, 3, _IS_BOOL, 0)
@@ -218,6 +220,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_untrace, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, functionName, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, className, IS_STRING, 0, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_synchronous_flush, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, timeout, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 #define arginfo_dd_trace_forward_call arginfo_dd_trace_disable_in_request
@@ -302,9 +308,11 @@ ZEND_FUNCTION(dd_trace_tracer_is_limited);
 ZEND_FUNCTION(dd_trace_compile_time_microseconds);
 ZEND_FUNCTION(dd_trace_serialize_closed_spans);
 ZEND_FUNCTION(dd_trace_peek_span_id);
+ZEND_FUNCTION(dd_trace_close_all_spans_and_flush);
 ZEND_FUNCTION(DDTrace_trace_function);
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(dd_untrace);
+ZEND_FUNCTION(dd_trace_synchronous_flush);
 ZEND_FUNCTION(dd_trace_forward_call);
 ZEND_FUNCTION(dd_trace_push_span_id);
 ZEND_FUNCTION(dd_trace_pop_span_id);
@@ -375,9 +383,11 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds)
 	ZEND_FE(dd_trace_serialize_closed_spans, arginfo_dd_trace_serialize_closed_spans)
 	ZEND_FE(dd_trace_peek_span_id, arginfo_dd_trace_peek_span_id)
+	ZEND_FE(dd_trace_close_all_spans_and_flush, arginfo_dd_trace_close_all_spans_and_flush)
 	ZEND_FALIAS(dd_trace_function, DDTrace_trace_function, arginfo_dd_trace_function)
 	ZEND_FALIAS(dd_trace_method, DDTrace_trace_method, arginfo_dd_trace_method)
 	ZEND_FE(dd_untrace, arginfo_dd_untrace)
+	ZEND_FE(dd_trace_synchronous_flush, arginfo_dd_trace_synchronous_flush)
 	ZEND_DEP_FE(dd_trace_forward_call, arginfo_dd_trace_forward_call)
 	ZEND_DEP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, arginfo_dd_trace_generate_id)
 	ZEND_DEP_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id)

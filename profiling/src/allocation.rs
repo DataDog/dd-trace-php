@@ -1,5 +1,4 @@
 use crate::bindings as zend;
-use crate::config;
 use crate::PROFILER;
 use crate::PROFILER_NAME;
 use crate::REQUEST_LOCALS;
@@ -90,14 +89,17 @@ thread_local! {
 }
 
 pub fn allocation_profiling_rinit() {
-    let (profiling_enabled, profiling_allocation_enabled) = unsafe {
-        (
-            config::profiling_enabled(),
-            config::profiling_allocation_enabled(),
-        )
-    };
+    let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
+        match cell.try_borrow() {
+            Ok(locals) => locals.profiling_allocation_enabled,
+            Err(_err) => {
+                error!("Memory allocation was not initialized correctly due to a borrow error. Please report this to Datadog.");
+                false
+            }
+        }
+    });
 
-    if !profiling_enabled || !profiling_allocation_enabled {
+    if !allocation_profiling {
         return;
     }
 
@@ -244,14 +246,10 @@ unsafe extern "C" fn alloc_profiling_gc_mem_caches(
     return_value: *mut zend::zval,
 ) {
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
-        // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-        let locals = cell.try_borrow();
-        if locals.is_err() {
-            // we can't check and don't know so assume it is not activated
-            return false;
-        }
-        let locals = locals.unwrap();
-        locals.profiling_allocation_enabled
+        cell.try_borrow()
+            .map(|locals| locals.profiling_allocation_enabled)
+            // Not logging here to avoid potentially overwhelming logs.
+            .unwrap_or(false)
     });
 
     if let Some(func) = GC_MEM_CACHES_HANDLER {
