@@ -5,7 +5,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV ACCEPT_EULA=Y
 
 ENV DEVLIBS \
-    libclang-13-dev \
+    clang-16 \
+    libclang-16-dev \
+    llvm-16-dev \
+    lld-16 \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \
@@ -72,6 +75,14 @@ RUN set -eux; \
 # Ensure debug symbols are available
     echo "deb http://deb.debian.org/debian-debug/ buster-debug main" | \
         tee -a /etc/apt/sources.list; \
+    \
+# Use LLVM from orig vendor (also LLVM 16 is not shipped with buster)
+    apt-get update; \
+    apt-get install -y curl gnupg; \
+    echo "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-16 main" >> /etc/apt/sources.list; \
+    echo "deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-16 main" >> /etc/apt/sources.list; \
+    curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \
+    curl https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
     \
 # prevent Debian's PHP packages from being installed
 # https://github.com/docker-library/php/pull/542
