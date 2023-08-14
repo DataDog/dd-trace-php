@@ -135,6 +135,7 @@ class DrupalIntegration extends Integration
             }
         );
 
+        /*
         hook_method(
             'Drupal\Core\Extension\ModuleHandler',
             'invokeAllWith',
@@ -143,7 +144,7 @@ class DrupalIntegration extends Integration
                 // TODO: hook metrics
 
                 $callback = $args[1];
-                $modules = $moduleHandler->getImplementationInfo($hook);
+                $modules = $moduleHandler->getImplementationInfo($hook); // TODO: This is a protected method!
                 foreach ($modules as $module) {
                     install_hook(
                         $callback,
@@ -154,6 +155,18 @@ class DrupalIntegration extends Integration
                         }
                     );
                 }
+            }
+        );
+        */
+
+        trace_method(
+            'Drupal\big_pipe\Render\BigPipe',
+            'renderPlaceholder',
+            function (SpanData $span, $args) {
+                $span->name = 'drupal.placeholder.render';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = \ddtrace_config_app_name('drupal');
+                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
             }
         );
 
@@ -260,6 +273,8 @@ class DrupalIntegration extends Integration
                 $renderFunction = 'twig_render_template'; // Default
 
                 $activeTheme = $themeManager->getActiveTheme();
+                $themeName = $activeTheme->getName();
+                Logger::get()->debug("ThemeManager::render themeName: $themeName");
                 $themeEngine = $activeTheme->getEngine();
                 Logger::get()->debug("ThemeManager::render themeEngine: $themeEngine");
                 // The theme engine may use a different extension and a different renderer
@@ -269,14 +284,14 @@ class DrupalIntegration extends Integration
                     $themeEngine = 'twig'; // Default
                 }
 
-                if (!isset($themeEngines[$themeEngine])) {
+                if (!isset($themeEngines[$themeEngine])) { // Install hook only once per theme engine
                     $themeEngines[$themeEngine] = true;
                     Logger::get()->debug("ThemeManager::render install_hook on $renderFunction");
                     trace_function(
                         $renderFunction,
                         [
                             'recurse' => true,
-                            'posthook' =>  function (SpanData $span, $args) use ($themeEngine) {
+                            'posthook' =>  function (SpanData $span, $args) use ($themeName, $themeEngine) {
                                 $span->name = 'drupal.templating.render';
                                 $span->service = \ddtrace_config_app_name('drupal');
                                 $span->type = Type::WEB_SERVLET;
@@ -285,6 +300,7 @@ class DrupalIntegration extends Integration
                                 $templateFile = $args[0];
                                 if (isset($templateFile)) {
                                     $span->meta['drupal.template'] = $templateFile;
+                                    $span->meta['drupal.theme_name'] = $themeName;
                                     $span->meta['drupal.theme_engine'] = $themeEngine;
                                 }
                             }
