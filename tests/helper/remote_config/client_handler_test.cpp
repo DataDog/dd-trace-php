@@ -45,8 +45,8 @@ ACTION_P(SignalCall, promise) { promise->set_value(true); }
 
 class ClientHandlerTest : public ::testing::Test {
 public:
-    service_identifier sid{
-        "service", "env", "tracer_version", "app_version", "runtime_id"};
+    service_identifier sid{"service", {"extra_service01", "extra_service02"},
+        "env", "tracer_version", "app_version", "runtime_id"};
     dds::engine_settings settings;
     remote_config::settings rc_settings;
     std::shared_ptr<dds::service_config> service_config;

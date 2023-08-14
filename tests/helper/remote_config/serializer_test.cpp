@@ -109,7 +109,8 @@ int targets_version = 123;
 remote_config::protocol::client get_client()
 {
     remote_config::protocol::client_tracer client_tracer = {"some runtime id",
-        "some tracer version", "some service", "some env", "some app version"};
+        "some tracer version", "some service", {"extra01", "extra02"},
+        "some env", "some app version"};
 
     std::vector<remote_config::protocol::config_state> config_states;
 
@@ -206,6 +207,12 @@ TEST(RemoteConfigSerializer, RequestCanBeSerializedWithClientField)
     assert_it_contains_string(client_tracer_itr->value, "env", "some env");
     assert_it_contains_string(
         client_tracer_itr->value, "app_version", "some app version");
+
+    rapidjson::Value::ConstMemberIterator extra_services_itr =
+        find_and_assert_type(
+            client_tracer_itr->value, "extra_services", rapidjson::kArrayType);
+    EXPECT_EQ("extra01", extra_services_itr->value[0]);
+    EXPECT_EQ("extra02", extra_services_itr->value[1]);
 
     // Client state fields
     rapidjson::Value::ConstMemberIterator client_state_itr =

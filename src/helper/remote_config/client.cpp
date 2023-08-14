@@ -76,7 +76,7 @@ client::ptr client::from_settings(service_identifier &&sid,
     }
 
     const protocol::client_tracer ct{sid_.runtime_id, sid_.tracer_version,
-        sid_.service, sid_.env, sid_.app_version};
+        sid_.service, sid_.extra_services, sid_.env, sid_.app_version};
 
     const protocol::client_state cs{targets_version_, config_states,
         !last_poll_error_.empty(), last_poll_error_, opaque_backend_state_};

@@ -47,6 +47,7 @@ extern bool runtime_config_first_init;
     CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/ddappsec-helper"))                                                             \
     CONFIG(STRING, DD_APPSEC_HELPER_RUNTIME_PATH, "/tmp", .ini_change = dd_on_runtime_path_update)                                    \
     SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                                            \
+    CONFIG(CUSTOM(SET), DD_EXTRA_SERVICES, "", .parser = _parse_list)                                                                  \
     CONFIG(STRING, DD_APPSEC_HELPER_EXTRA_ARGS, "")                                                                                   \
     CONFIG(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                                       \
     CONFIG(STRING, DD_ENV, "")                                                                                                        \

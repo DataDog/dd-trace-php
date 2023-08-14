@@ -24,8 +24,8 @@ public:
 
 TEST(ServiceTest, NullEngine)
 {
-    service_identifier sid{
-        "service", "env", "tracer_version", "app_version", "runtime_id"};
+    service_identifier sid{"service", {"extra01", "extra02"}, "env",
+        "tracer_version", "app_version", "runtime_id"};
     std::shared_ptr<engine> engine;
     auto client = std::make_unique<mock::client>(sid);
     EXPECT_CALL(*client, poll).Times(0);

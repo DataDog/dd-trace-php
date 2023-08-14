@@ -12,12 +12,14 @@
 namespace dds {
 struct service_identifier {
     std::string service;
+    std::vector<std::string> extra_services;
     std::string env;
     std::string tracer_version;
     std::string app_version;
     std::string runtime_id;
 
-    MSGPACK_DEFINE_MAP(service, env, tracer_version, app_version, runtime_id);
+    MSGPACK_DEFINE_MAP(
+        service, extra_services, env, tracer_version, app_version, runtime_id);
 
     bool operator==(const service_identifier &oth) const noexcept
     {
@@ -28,10 +30,21 @@ struct service_identifier {
 
     friend auto &operator<<(std::ostream &os, const service_identifier &id)
     {
-        return os << "{service=" << id.service << ", env=" << id.env
-                  << ", tracer_version=" << id.tracer_version
-                  << ", app_version=" << id.app_version
-                  << ", runtime_id=" << id.runtime_id << "}";
+        os << "{service=" << id.service << ", env=" << id.env
+           << ", tracer_version=" << id.tracer_version
+           << ", app_version=" << id.app_version
+           << ", runtime_id=" << id.runtime_id;
+
+        os << ", extra_services=[";
+        for (int i = 0; i < id.extra_services.size(); i++) {
+            os << id.extra_services[i];
+            if (i + 1 < id.extra_services.size()) {
+                os << ", ";
+            }
+        }
+        os << "]}";
+
+        return os;
     }
 
     struct hash {

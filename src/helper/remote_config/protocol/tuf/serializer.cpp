@@ -28,6 +28,15 @@ void serialize_client_tracer(rapidjson::Document::AllocatorType &alloc,
     tracer_object.AddMember("env", client_tracer.env, alloc);
     tracer_object.AddMember("app_version", client_tracer.app_version, alloc);
 
+    rapidjson::Value extra_services_array(rapidjson::kArrayType);
+
+    for (auto const &service_name : client_tracer.extra_services) {
+        rapidjson::Value service(rapidjson::kStringType);
+        service.SetString(service_name.c_str(), service_name.length(), alloc);
+        extra_services_array.PushBack(service, alloc);
+    }
+
+    tracer_object.AddMember("extra_services", extra_services_array, alloc);
     client_field.AddMember("client_tracer", tracer_object, alloc);
 }
 
