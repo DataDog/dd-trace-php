@@ -15,6 +15,7 @@ RUN set -eux; \
         libmcrypt-dev \
         libsodium-dev \
         libxml2-dev \
+        gnu-libiconv-dev \
         oniguruma-dev
 
 # Profiling deps
