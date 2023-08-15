@@ -102,9 +102,6 @@ RUN source scl_source enable devtoolset-7; set -eux; \
 
 ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig"
 
-RUN printf "source scl_source enable devtoolset-7" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
-ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
-
 # Caution, takes a very long time! Since we have to build one from source,
 # I picked LLVM 16, which matches Rust 1.71.
 # Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
@@ -150,9 +147,9 @@ RUN source scl_source enable devtoolset-7 \
   && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" "protobuf-${PROTOBUF_VERSION}"
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.71.0"
-ARG RUST_SHA256_ARM="9b0dbf715d75cd91bc4b5c0c57dc9c40ee8076530278fc92bdfb8f71131d798f"
-ARG RUST_SHA256_X86="43f0b7551dcb363de7360a9d8bda777fced722c60acdce9e4a6d62b50ae83997"
+ARG RUST_VERSION="1.71.1"
+ARG RUST_SHA256_ARM="c7cf230c740a62ea1ca6a4304d955c286aea44e3c6fc960b986a8c2eeea4ec3f"
+ARG RUST_SHA256_X86="34778d1cda674990dfc0537bc600066046ae9cb5d65a07809f7e7da31d4689c4"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
@@ -171,8 +168,6 @@ RUN source scl_source enable devtoolset-7 \
     && cd - \
     && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
 
-ENV PATH="/rust/cargo/bin:${PATH}"
-
 # now install PHP specific dependencies
 RUN set -eux; \
     rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm; \
@@ -190,5 +185,10 @@ RUN set -eux; \
     readline-devel \
     zlib-devel; \
     yum clean all;
+
+RUN printf "source scl_source enable devtoolset-7" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
+ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
+
+ENV PATH="/rust/cargo/bin:${PATH}"
 
 RUN echo '#define SECBIT_NO_SETUID_FIXUP (1 << 2)' > '/usr/include/linux/securebits.h'
