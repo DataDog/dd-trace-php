@@ -819,7 +819,11 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                     if locals.profiling_experimental_exception_enabled {
                         yes
                     } else {
-                        no
+                        if locals.profiling_enabled {
+                            no
+                        } else {
+                            no_all
+                        }
                     },
                 );
             } else {
