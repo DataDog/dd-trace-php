@@ -11,5 +11,4 @@ export CC
 export CFLAGS="-flto=thin"
 export RANLIB
 
-RUSTFLAGS="-Clinker-plugin-lto -C linker=clang -C link-arg=-fuse-ld=lld" \
-    cargo build --release -vv
+RUSTFLAGS="-Clinker-plugin-lto -C linker=clang -C link-arg=-fuse-ld=lld" cargo "$@"
