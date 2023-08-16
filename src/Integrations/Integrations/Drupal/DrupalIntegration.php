@@ -63,50 +63,12 @@ class DrupalIntegration extends Integration
             ]
         );
 
-        hook_method(
-            'Drupal\Core\Controller\ControllerResolver',
-            'getControllerFromDefinition',
-            null,
-            function ($This, $scope, $args, $retval) {
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
-
-                /*
-                if (is_array($retval)) {
-                    list($controller, $method) = $retval;
-                    $rootSpan->resource = get_class($controller) . '::' . $method;
-                } elseif (is_object($retval)) {
-                    $rootSpan->resource = get_class($retval);
-                } elseif (is_string($retval)) {
-                    $rootSpan->resource = $retval;
-                }
-                */
-            }
-        );
-
-        /* Noisy?
-        trace_method(
-            'Drupal\Core\Render\Renderer',
-            'render',
-            [
-                'recurse' => true,
-                'posthook' =>  function (SpanData $span, $args) {
-                    $span->name = 'drupal.render';
-                    $span->type = Type::WEB_SERVLET;
-                    $span->service = \ddtrace_config_app_name('drupal');
-                    $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
-                }
-            ]
-        );
-        */
-
+        // Views Metrics
         trace_method(
             'Drupal\views\ViewExecutable',
             'execute',
             function (SpanData $span, $args, $retval) {
-                // TODO: Do view metrics
+                // TODO: Create a new span as a metric workaround
                 $span->name = 'drupal.view.execute';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('drupal');
@@ -120,45 +82,86 @@ class DrupalIntegration extends Integration
             }
         );
 
-        hook_method(
-            'Drupal\page_cache\StackMiddleware\PageCache',
-            'get',
-            function ($pageCache, $scope, $args, $retval) {
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
-
-                if ($retval) {
-                    $rootSpan->meta['drupal.page_cache'] = 'hit';
-                }
-            }
-        );
-
+        // Cache Metrics (Cache hit/miss)
         /*
         hook_method(
-            'Drupal\Core\Extension\ModuleHandler',
-            'invokeAllWith',
-            function ($moduleHandler, $scope, $args) {
-                $hook = $args[0];
-                // TODO: hook metrics
-
-                $callback = $args[1];
-                $modules = $moduleHandler->getImplementationInfo($hook); // TODO: This is a protected method!
-                foreach ($modules as $module) {
-                    install_hook(
-                        $callback,
-                        function (HookData $hook) use ($module) {
-                            // TODO: module metrics
-
-                            remove_hook($hook->id);
-                        }
-                    );
-                }
+            'Drupal\Core\Cache\CacheBackendInterface',
+            'getMultiple',
+            function ($cacheBackend, $scope, $args) {
+                $nCids = count($args[0]);
+            },
+            function ($cacheBackend, $scope, $args, $retval) {
+                $nCids = count($args[0]); // &cids parameter is modified by reference to match the cache hits
             }
         );
         */
 
+        // Module and Hook Metrics
+        hook_method(
+            'Drupal\Core\Extension\ModuleHandler',
+            'invokeAllWith',
+            function ($moduleHandler, $scope, $args) {
+                /** @var string $hook */
+                $hook = $args[0];
+                /** @var callable $callback */
+                $callback = $args[1];
+
+                install_hook(
+                    $callback,
+                    function (HookData $callbackHookData) use ($hook) {
+                        // callback's signature: (callable $hook, string $module)
+                        $args = $callbackHookData->args;
+                        $module = $args[1];
+
+                        $functionName = $module . '_' . $hook;
+                        install_hook(
+                            $functionName,
+                            function (HookData $fnHookData) use ($hook, $module, $functionName) {
+                                // TODO: Create a span as a metric workaround
+                                $span = $fnHookData->span();
+                                $span->name = 'drupal.hook.' . $hook;
+                                $span->type = Type::WEB_SERVLET;
+                                $span->service = \ddtrace_config_app_name('drupal');
+                                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+
+                                $span->meta['drupal.hook'] = $hook;
+                                $span->meta['drupal.module'] = $module;
+                                $span->meta['drupal.function'] = $functionName;
+
+                                remove_hook($fnHookData->id);
+                            }
+                        );
+
+                        remove_hook($callbackHookData->id);
+                    }
+                );
+            }
+        );
+
+        install_hook(
+            'Drupal\views\ViewExecutable::execute',
+            function (HookData $hook) {
+                // TODO: Create a span as a metric workaround
+                $span = $hook->span();
+                $span->name = 'drupal.view.execute';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = \ddtrace_config_app_name('drupal');
+                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+
+                /** @var \Drupal\views\Entity\View $storage */
+                $storage = $this->storage;
+
+                if (method_exists($storage, 'label')) {
+                    $label = $storage->label();
+                    if (is_string($label)) {
+                        $span->meta['drupal.view'] = $label;
+                    }
+                }
+            }
+        );
+
+
+        /*
         trace_method(
             'Drupal\big_pipe\Render\BigPipe',
             'renderPlaceholder',
@@ -168,100 +171,6 @@ class DrupalIntegration extends Integration
                 $span->service = \ddtrace_config_app_name('drupal');
                 $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
             }
-        );
-
-        trace_method(
-            'Drupal\Core\Extension\ModuleHandler',
-            'invoke',
-            function (SpanData $span, $args) {
-                $hook = $args[0];
-                $module = $args[1];
-
-                $span->name = 'drupal.hook.invoke';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('drupal');
-                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
-
-                $span->meta['drupal.hook'] = $hook;
-                $span->meta['drupal.module'] = $module;
-
-                $callback = $module . '_' . $hook;
-                // TODO: install_hook on callback + metrics
-            }
-        );
-
-        /*
-        trace_method(
-            'Drupal\Component\EventDispatcher\ContainerAwareEventDispatcher',
-            'dispatch',
-            [
-                'recurse' => true,
-                'prehook' => function (SpanData $span, $args) {
-                    if (!isset($args[0])) {
-                        return false;
-                    }
-                    if (\is_object($args[0])) {
-                        // dispatch($event, string $eventName = null)
-                        $event = $args[0];
-                        $eventName = isset($args[1]) && \is_string($args[1]) ? $args[1] : \get_class($event);
-                    } elseif (\is_string($args[0])) {
-                        // dispatch($eventName, Event $event = null)
-                        $eventName = $args[0];
-                        $event = isset($args[1]) && \is_object($args[1]) ? $args[1] : null;
-                    } else {
-                        // Invalid API usage
-                        return false;
-                    }
-
-                    // trace the container itself
-                    if ($eventName === 'kernel.controller' && \method_exists($event, 'getController')) {
-                        $controller = $event->getController();
-                        if (!($controller instanceof \Closure)) {
-                            if (\is_callable($controller, false, $controllerName) && $controllerName !== null) {
-                                if (\strpos($controllerName, '::') > 0) {
-                                    list($class, $method) = \explode('::', $controllerName);
-                                    if (isset($class, $method)) {
-                                        \DDTrace\trace_method(
-                                            $class,
-                                            $method,
-                                            function (SpanData $span) use ($controllerName) {
-                                                $span->name = 'drupal.controller';
-                                                $span->resource = $controllerName;
-                                                $span->type = Type::WEB_SERVLET;
-                                                $span->service = \ddtrace_config_app_name('drupal');
-                                                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
-                                            }
-                                        );
-                                    }
-                                } else {
-                                    \DDTrace\trace_function(
-                                        $controllerName,
-                                        function (SpanData $span) use ($controllerName) {
-                                            $span->name = 'drupal.controller';
-                                            $span->resource = $controllerName;
-                                            $span->type = Type::WEB_SERVLET;
-                                            $span->service = \ddtrace_config_app_name('drupal');
-                                            $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
-                                        }
-                                    );
-                                }
-                            }
-                        }
-                    }
-
-                    $span->name = $span->resource = 'drupal.' . $eventName;
-                    $span->service = \ddtrace_config_app_name('drupal');
-                    $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
-                    if ($event === null) {
-                        return;
-                    }
-                    //if (!$injectedActionInfo) {
-                    //    if ($integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan)) {
-                    //        $injectedActionInfo = true;
-                    //    }
-                    //}
-                }
-            ]
         );
         */
 
@@ -292,7 +201,7 @@ class DrupalIntegration extends Integration
                         [
                             'recurse' => true,
                             'posthook' =>  function (SpanData $span, $args) use ($themeName, $themeEngine) {
-                                $span->name = 'drupal.templating.render';
+                                $span->name = 'drupal.template.render';
                                 $span->service = \ddtrace_config_app_name('drupal');
                                 $span->type = Type::WEB_SERVLET;
                                 $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
@@ -311,18 +220,6 @@ class DrupalIntegration extends Integration
                 }
             }
         );
-
-        /*
-        hook_method(
-            'Drupal\Core\Utility\LinkGenerator',
-            'generate',
-            function ($linkGenerator, $scope, $args, $generatedLink) {
-                if ($generatedLink !== null && $generatedLink instanceof \Drupal\Core\GeneratedLink) {
-                    $url = $generatedLink->getGeneratedLink();
-                }
-            }
-        );
-        */
 
         trace_method(
             'Drupal\big_pipe\Render\BigPipeResponse',
