@@ -227,7 +227,7 @@ static void zai_hook_hash_destroy(zval *zv) {
 }
 
 /* {{{ */
-static inline zend_function *zai_hook_lookup_function(zai_string_view scope, zai_string_view func, zend_class_entry **ce) {
+static inline zend_function *zai_hook_lookup_function(zai_str scope, zai_str func, zend_class_entry **ce) {
     zend_function *function = NULL;
 
     if (scope.len) {
@@ -484,8 +484,8 @@ static zend_long zai_hook_request_install(zai_hook_t *hook) {
     }
 
     zend_class_entry *ce = NULL;
-    zai_string_view scope = hook->scope ? ZAI_STRING_FROM_ZSTR(hook->scope) : ZAI_STRING_EMPTY;
-    zend_function *function = zai_hook_lookup_function(scope, ZAI_STRING_FROM_ZSTR(hook->function), &ce);
+    zai_str scope = hook->scope ? ZAI_STR_FROM_ZSTR(hook->scope) : ZAI_STR_EMPTY;
+    zend_function *function = zai_hook_lookup_function(scope, ZAI_STR_FROM_ZSTR(hook->function), &ce);
     if (function) {
         hook->resolved_scope = ce;
         hook->is_abstract = (function->common.fn_flags & ZEND_ACC_ABSTRACT) != 0;
@@ -996,7 +996,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
                 if (Z_TYPE_INFO_P(hook_zv) == ZAI_IS_SHARED_HOOK_PTR) {
                     // lookup primary by name
                     zend_class_entry *ce = NULL;
-                    zend_function *origin_func = zai_hook_lookup_function(ZAI_STRING_FROM_ZSTR(hook->scope), ZAI_STRING_FROM_ZSTR(hook->function), &ce);
+                    zend_function *origin_func = zai_hook_lookup_function(ZAI_STR_FROM_ZSTR(hook->scope), ZAI_STR_FROM_ZSTR(hook->function), &ce);
                     zai_hook_table_find(&zai_hook_resolved, zai_hook_install_address(origin_func), (void**)&hooks);
                     zai_hook_remove_abstract_recursive(hooks, ce, hook->function, (zend_ulong)-hook->id);
                     address = zai_hook_install_address(hooks->resolved);
@@ -1160,7 +1160,7 @@ static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool
 }
 
 /* {{{ */
-zend_long zai_hook_install_generator(zai_string_view scope, zai_string_view function,
+zend_long zai_hook_install_generator(zai_str scope, zai_str function,
         zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic) {
     bool persistent = !PG(modules_activated);
@@ -1190,7 +1190,7 @@ zend_long zai_hook_install_generator(zai_string_view scope, zai_string_view func
     }
 }
 
-zend_long zai_hook_install(zai_string_view scope, zai_string_view function,
+zend_long zai_hook_install(zai_str scope, zai_str function,
         zai_hook_begin begin, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic) {
     return zai_hook_install_generator(scope, function, begin, NULL, NULL, end, aux, dynamic);
@@ -1212,7 +1212,7 @@ bool zai_hook_remove_resolved(zai_install_address function_address, zend_long in
     return false;
 }
 
-bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index) {
+bool zai_hook_remove(zai_str scope, zai_str function, zend_long index) {
     if (!function.len) {
         return zai_hook_remove_from_entry(&zai_hook_tls->request_files, (zend_ulong)index);
     }
@@ -1328,7 +1328,7 @@ static zai_hook_iterator zai_hook_iterator_init(HashTable *hooks) {
     return callback(hooks); \
 
 
-zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_view function) {
+zai_hook_iterator zai_hook_iterate_installed(zai_str scope, zai_str function) {
     zai_hook_installed_operation((zai_hook_iterator){0}, zai_hook_iterator_init, zai_hook_iterate_resolved)
 }
 
@@ -1351,7 +1351,7 @@ void zai_hook_iterator_free(zai_hook_iterator *iterator) {
     }
 }
 
-uint32_t zai_hook_count_installed(zai_string_view scope, zai_string_view function) {
+uint32_t zai_hook_count_installed(zai_str scope, zai_str function) {
     zai_hook_installed_operation(0, zend_hash_num_elements, zai_hook_count_resolved)
 }
 

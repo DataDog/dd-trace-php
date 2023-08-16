@@ -34,7 +34,7 @@ static inline bool zai_symbol_call_known(
 
 static inline bool zai_symbol_call_named(
                     zai_symbol_scope_t scope_type, void *scope,
-                    zai_string_view *function,
+                    zai_str *function,
                     zval *rv,
                     uint32_t argc, ...) {
     bool result;
@@ -48,7 +48,7 @@ static inline bool zai_symbol_call_named(
     return result;
 }
 
-static inline bool zai_symbol_call_static(zend_class_entry *scope, zai_string_view function, zval *rv, uint32_t argc, ...) {
+static inline bool zai_symbol_call_static(zend_class_entry *scope, zai_str function, zval *rv, uint32_t argc, ...) {
     bool result;
 
     va_list args;
@@ -60,7 +60,7 @@ static inline bool zai_symbol_call_static(zend_class_entry *scope, zai_string_vi
     return result;
 }
 
-static inline bool zai_symbol_call_global(zai_string_view vfn,
+static inline bool zai_symbol_call_global(zai_str vfn,
                                            zval *rv,
                                            uint32_t argc, ...) {
     bool result;
@@ -75,8 +75,8 @@ static inline bool zai_symbol_call_global(zai_string_view vfn,
 }
 
 static inline bool zai_symbol_call_ns(
-    zai_string_view vns,
-    zai_string_view vfn,
+    zai_str vns,
+    zai_str vfn,
     zval *rv,
     uint32_t argc, ...) {
     bool result;

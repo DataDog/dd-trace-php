@@ -4,7 +4,7 @@
 static inline
 zval *zai_symbol_lookup_property(zai_symbol_scope_t scope_type,
                                  void *scope,
-                                 zai_string_view name) {
+                                 zai_str name) {
     return (zval *)zai_symbol_lookup(ZAI_SYMBOL_TYPE_PROPERTY, scope_type, scope, &name);
 }
 

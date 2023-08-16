@@ -14,7 +14,7 @@
 
 // Converts the env name to an INI name
 // Max buffer: ZAI_CONFIG_NAME_BUFSIZ
-typedef void (*zai_config_env_to_ini_name)(zai_string_view env_name, zai_config_name *ini_name);
+typedef void (*zai_config_env_to_ini_name)(zai_str env_name, zai_config_name *ini_name);
 
 void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_number);
 void zai_config_ini_rinit();
@@ -31,7 +31,7 @@ void zai_config_ini_mshutdown();
 int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
                                         int16_t ini_count,
                                         zai_option_str *buf,
-                                        zai_string_view default_value,
+                                        zai_str default_value,
                                         zai_config_id entry_id);
 
 typedef bool (*zai_config_apply_ini_change)(zval *old_value, zval *new_value);

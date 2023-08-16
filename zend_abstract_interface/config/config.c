@@ -13,7 +13,7 @@ _Static_assert(ZAI_CONFIG_ENTRIES_COUNT_MAX < 256, "zai config entry count is ov
 uint8_t zai_config_memoized_entries_count = 0;
 zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
 
-static bool zai_config_get_env_value(zai_string_view name, zai_env_buffer buf) {
+static bool zai_config_get_env_value(zai_str name, zai_env_buffer buf) {
     // TODO Handle other return codes
     // We want to explicitly allow pre-RINIT access to env vars here. So that callers can have an early view at config.
     // But in general allmost all configurations shall only be accessed after first RINIT. (the trivial getter will
@@ -32,9 +32,9 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
 
     int16_t name_index = 0;
     for (; name_index < memoized->names_count; name_index++) {
-        zai_string_view name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
+        zai_str name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
         if (zai_config_get_env_value(name, buf)) {
-            zai_string_view env_value = ZAI_STR_FROM_CSTR(buf.ptr);
+            zai_str env_value = ZAI_STR_FROM_CSTR(buf.ptr);
             if (!zai_config_decode_value(env_value, memoized->type, memoized->parser, &tmp, /* persistent */ true)) {
                 // TODO Log decoding error
             } else {
@@ -48,7 +48,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
     int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value,
                                                              memoized->default_encoded_value, id);
 
-    zai_string_view value_view;
+    zai_str value_view;
     if (zai_option_str_get(value, &value_view)) {
         if (value_view.ptr != buf.ptr && ini_name_index >= 0) {
             name_index = ini_name_index;
@@ -64,7 +64,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
     // Nothing to do; default value was already decoded at MINIT
 }
 
-static void zai_config_copy_name(zai_config_name *dest, zai_string_view src) {
+static void zai_config_copy_name(zai_config_name *dest, zai_str src) {
     assert((src.len < ZAI_CONFIG_NAME_BUFSIZ) && "Name length greater than the buffer size");
     strncpy(dest->ptr, src.ptr, src.len);
     dest->len = src.len;

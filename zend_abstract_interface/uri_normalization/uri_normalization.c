@@ -138,7 +138,7 @@ zend_string *zai_uri_normalize_path(zend_string *path, zend_array *fragmentRegex
     return path;
 }
 
-zend_string *zai_filter_query_string(zai_string_view queryString, zend_array *whitelist, zend_string *pattern) {
+zend_string *zai_filter_query_string(zai_str queryString, zend_array *whitelist, zend_string *pattern) {
     if (zend_hash_num_elements(whitelist) == 0) {
         return ZSTR_EMPTY_ALLOC();
     }

@@ -94,15 +94,15 @@ static bool hook_is_installed(zend_op_array *op_array) {
 
 #define INSTALL_HOOK(fn) INSTALL_CLASS_HOOK("", fn)
 #define INSTALL_CLASS_HOOK(class, fn) REQUIRE(zai_hook_install( \
-    ZAI_STRL_VIEW(class), \
-    ZAI_STRL_VIEW(fn), \
+    ZAI_STRL(class), \
+    ZAI_STRL(fn), \
     zai_hook_test_begin, \
     zai_hook_test_end, \
     ZAI_HOOK_AUX(NULL, NULL), \
     0) != -1)
 #define CALL_FN(fn, ...) do { \
     zval result; \
-    zai_string_view _fn_name = ZAI_STRL_VIEW(fn);               \
+    zai_str _fn_name = ZAI_STRL(fn);               \
     REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result, 0)); \
     __VA_ARGS__               \
     zval_ptr_dtor(&result);                          \
@@ -121,12 +121,12 @@ TEA_TEST_CASE_WITH_PROLOGUE("interceptor", "runtime top-level resolving", init_i
     REQUIRE(stub);
 
     {
-        zend_function *fn = zai_symbol_lookup_function_global(ZAI_STRL_VIEW("doAlias"));
+        zend_function *fn = zai_symbol_lookup_function_global(ZAI_STRL("doAlias"));
         CHECK(hook_is_installed(&fn->op_array));
     }
     {
-        zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL_VIEW("TopLevel"));
-        zai_string_view name = ZAI_STRL_VIEW("foo");
+        zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL("TopLevel"));
+        zai_str name = ZAI_STRL("foo");
         zend_function *classfn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
         CHECK(hook_is_installed(&classfn->op_array));
     }
@@ -135,22 +135,22 @@ TEA_TEST_CASE_WITH_PROLOGUE("interceptor", "runtime top-level resolving", init_i
 INTERCEPTOR_TEST_CASE("runtime eval resolving", {
     INSTALL_HOOK("dynamicFunction");
     CALL_FN("doEval");
-    zend_function *fn = zai_symbol_lookup_function_global(ZAI_STRL_VIEW("dynamicFunction"));
+    zend_function *fn = zai_symbol_lookup_function_global(ZAI_STRL("dynamicFunction"));
     REQUIRE(hook_is_installed(&fn->op_array));
 });
 
 INTERCEPTOR_TEST_CASE("runtime function resolving", {
     INSTALL_HOOK("aFunction");
     CALL_FN("defineFunc");
-    zend_function *fn = zai_symbol_lookup_function_global(ZAI_STRL_VIEW("aFunction"));
+    zend_function *fn = zai_symbol_lookup_function_global(ZAI_STRL("aFunction"));
     REQUIRE(hook_is_installed(&fn->op_array));
 });
 
 INTERCEPTOR_TEST_CASE("runtime simple class resolving", {
     INSTALL_CLASS_HOOK("Normal", "foo");
     CALL_FN("defineNormal");
-    zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL_VIEW("Normal"));
-    zai_string_view name = ZAI_STRL_VIEW("foo");
+    zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL("Normal"));
+    zai_str name = ZAI_STRL("foo");
     zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
     REQUIRE(hook_is_installed(&fn->op_array));
 });
@@ -158,8 +158,8 @@ INTERCEPTOR_TEST_CASE("runtime simple class resolving", {
 INTERCEPTOR_TEST_CASE("runtime inherited class resolving", {
     INSTALL_CLASS_HOOK("Inherited", "bar");
     CALL_FN("defineInherited");
-    zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL_VIEW("Inherited"));
-    zai_string_view name = ZAI_STRL_VIEW("bar");
+    zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL("Inherited"));
+    zai_str name = ZAI_STRL("bar");
     zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
     REQUIRE(hook_is_installed(&fn->op_array));
 });
@@ -168,8 +168,8 @@ INTERCEPTOR_TEST_CASE("runtime inherited delayed class resolving", {
     INSTALL_CLASS_HOOK("Inherited", "bar");
     CALL_FN("defineNormal");
     CALL_FN("defineDelayedInherited");
-    zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL_VIEW("Inherited"));
-    zai_string_view name = ZAI_STRL_VIEW("bar");
+    zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL("Inherited"));
+    zai_str name = ZAI_STRL("bar");
     zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
     REQUIRE(hook_is_installed(&fn->op_array));
 });
@@ -177,8 +177,8 @@ INTERCEPTOR_TEST_CASE("runtime inherited delayed class resolving", {
 INTERCEPTOR_TEST_CASE("runtime trait using class resolving", {
     INSTALL_CLASS_HOOK("TraitImport", "bar");
     CALL_FN("defineTraitUser");
-    zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL_VIEW("TraitImport"));
-    zai_string_view name = ZAI_STRL_VIEW("bar");
+    zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL("TraitImport"));
+    zai_str name = ZAI_STRL("bar");
     zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
     REQUIRE(hook_is_installed(&fn->op_array));
 });
@@ -186,8 +186,8 @@ INTERCEPTOR_TEST_CASE("runtime trait using class resolving", {
 INTERCEPTOR_TEST_CASE("runtime class_alias resolving", {
     INSTALL_CLASS_HOOK("Aliased", "foo");
     CALL_FN("doAlias");
-    zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL_VIEW("Aliased"));
-    zai_string_view name = ZAI_STRL_VIEW("foo");
+    zend_class_entry *ce = zai_symbol_lookup_class_global(ZAI_STRL("Aliased"));
+    zai_str name = ZAI_STRL("foo");
     zend_function *fn = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, ce, &name);
     REQUIRE(hook_is_installed(&fn->op_array));
 });
