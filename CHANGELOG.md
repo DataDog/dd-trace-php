@@ -1,5 +1,10 @@
 # Datadog AppSec for PHP Release
 
+### v0.12.0
+
+#### Additions
+- ([#282](https://github.com/DataDog/dd-appsec-php/pull/282)) Add `extra_services` configuration
+
 ### v0.11.0
 
 #### Fixes
