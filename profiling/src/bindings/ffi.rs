@@ -4,12 +4,12 @@
 
 use crate::bindings::{
     _zend_module_entry, zend_bool, zend_extension, zend_module_entry, zend_result, ZaiConfigEntry,
-    ZaiConfigMemoizedEntry, ZaiStringView, ZendString,
+    ZaiConfigMemoizedEntry, ZaiStr, ZendString,
 };
 
 pub type _zend_string = ZendString;
 
-pub type zai_str_s<'a> = ZaiStringView<'a>;
+pub type zai_str_s<'a> = ZaiStr<'a>;
 pub type zai_str<'a> = zai_str_s<'a>;
 
 pub type zai_config_entry_s = ZaiConfigEntry;

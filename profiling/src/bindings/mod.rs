@@ -3,6 +3,7 @@ mod ffi;
 pub use ffi::*;
 
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
+use std::borrow::Cow;
 use std::ffi::CStr;
 use std::marker::PhantomData;
 use std::str::Utf8Error;
@@ -439,7 +440,7 @@ impl TryFrom<&mut zval> for String {
 
             // Safety: checked the pointer wasn't null above.
             let str =
-                unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()).to_string() };
+                unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()).into_string() };
             Ok(str)
         } else {
             Err(StringError::Type(r#type))
@@ -447,15 +448,20 @@ impl TryFrom<&mut zval> for String {
     }
 }
 
+/// A non-owning, not necessarily null terminated, not necessarily utf-8
+/// encoded, borrowed string.
+/// It must satisfy the requirements of [core::slice::from_raw_parts], notably
+/// it must not use the nul pointer even when the length is 0.
+/// Keep this representation in sync with zai_str.
 #[repr(C)]
-pub struct ZaiStringView<'a> {
-    len: size_t,
+pub struct ZaiStr<'a> {
     ptr: *const c_char,
+    len: size_t,
     _marker: PhantomData<&'a [c_char]>,
 }
 
-impl<'a> From<&'a str> for ZaiStringView<'a> {
-    fn from(val: &'a str) -> Self {
+impl<'a> From<&'a [u8]> for ZaiStr<'a> {
+    fn from(val: &'a [u8]) -> Self {
         Self {
             len: val.len(),
             ptr: val.as_ptr() as *const c_char,
@@ -464,8 +470,14 @@ impl<'a> From<&'a str> for ZaiStringView<'a> {
     }
 }
 
-impl<'a> ZaiStringView<'a> {
-    pub const fn new() -> ZaiStringView<'a> {
+impl<'a> From<&'a str> for ZaiStr<'a> {
+    fn from(value: &'a str) -> Self {
+        Self::from(value.as_bytes())
+    }
+}
+
+impl<'a> ZaiStr<'a> {
+    pub const fn new() -> ZaiStr<'a> {
         const NULL: &[u8] = b"\0";
         Self {
             len: 0,
@@ -481,42 +493,49 @@ impl<'a> ZaiStringView<'a> {
 
     /// # Safety
     /// `str` must be valid for [CStr::from_bytes_with_nul_unchecked]
-    pub const unsafe fn literal(str: &'static [u8]) -> Self {
+    pub const unsafe fn literal(bytes: &'static [u8]) -> Self {
+        // Chance at catching some UB at runtime with debug builds.
+        debug_assert!(!bytes.is_empty() && bytes[bytes.len() - 1] == 0);
+
         let mut i: usize = 0;
-        while str[i] != b'\0' {
+        while bytes[i] != b'\0' {
             i += 1;
         }
         Self {
             len: i as size_t,
-            ptr: str.as_ptr() as *const c_char,
+            ptr: bytes.as_ptr() as *const c_char,
             _marker: PhantomData,
         }
     }
 
-    /// # Safety
-    /// Inherits the safety requirements of [std::slice::from_raw_parts], in
-    /// particular, the view must not use a null pointer.
     #[inline]
-    pub unsafe fn into_bytes(self) -> &'a [u8] {
-        assert!(!self.ptr.is_null());
+    pub fn as_bytes(&self) -> &'a [u8] {
+        debug_assert!(!self.ptr.is_null());
         let len = self.len;
-        std::slice::from_raw_parts(self.ptr as *const u8, len)
+        // Safety: the ZaiStr is supposed to uphold all the invariants, and
+        // the pointer has been debug_asserted to not be null, so 🤞🏻.
+        unsafe { std::slice::from_raw_parts(self.ptr as *const u8, len) }
     }
 
-    /// # Safety
-    /// Inherits the safety requirements of [std::slice::from_raw_parts].
     #[inline]
-    pub unsafe fn into_utf8(self) -> Result<&'a str, Utf8Error> {
+    pub fn into_bytes(self) -> &'a [u8] {
+        self.as_bytes()
+    }
+
+    #[inline]
+    pub fn into_utf8(self) -> Result<&'a str, Utf8Error> {
         let bytes = self.into_bytes();
         std::str::from_utf8(bytes)
     }
 
-    /// # Safety
-    /// Inherits the safety requirements of [std::slice::from_raw_parts].
-    #[allow(clippy::inherent_to_string)]
     #[inline]
-    pub unsafe fn to_string(self) -> String {
-        String::from_utf8_lossy(self.into_bytes()).into_owned()
+    pub fn into_string(self) -> String {
+        self.to_string_lossy().into_owned()
+    }
+
+    #[inline]
+    pub fn to_string_lossy(&self) -> Cow<str> {
+        String::from_utf8_lossy(self.as_bytes())
     }
 }
 

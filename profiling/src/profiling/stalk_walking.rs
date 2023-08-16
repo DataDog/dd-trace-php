@@ -113,7 +113,7 @@ unsafe fn handle_file_cache_slot_helper(
             return None;
         };
 
-        let file = ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string();
+        let file = ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).into_string();
         let offset = string_table.insert(file.as_ref());
         cache_slots[1] = offset as usize;
         file
@@ -163,8 +163,9 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
         Some(func) if func.type_ == ZEND_USER_FUNCTION as u8 => {
-            // Safety: ddog_php_prof_zend_string_view will return a valid ZaiStringView.
-            let file = ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).to_string();
+            // Safety: ddog_php_prof_zend_string_view will return a valid ZaiStr.
+            let file =
+                ddog_php_prof_zend_string_view(func.op_array.filename.as_mut()).into_string();
             let lineno = match execute_data.opline.as_ref() {
                 Some(opline) => opline.lineno,
                 None => 0,
