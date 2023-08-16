@@ -89,15 +89,6 @@ class SymfonyIntegration extends Integration
                 if (!function_exists('\datadog\appsec\track_user_signup_event')) {
                     return;
                 }
-                $metadataClass = 'Doctrine\ORM\Mapping\ClassMetadata';
-                if (
-                    !$args ||
-                    !isset($args[0]) ||
-                    !$args[0] ||
-                    !($args[0] instanceof $metadataClass)
-                ) {
-                    return;
-                }
 
                 $entities = \method_exists($This, 'getScheduledEntityInsertions') ?
                     $This->getScheduledEntityInsertions() :
@@ -106,7 +97,7 @@ class SymfonyIntegration extends Integration
                 $found = 0;
                 $userEntity = null;
                 foreach ($entities as $entity) {
-                    if (! ($entity instanceof $userInterface)) {
+                    if (!($entity instanceof $userInterface)) {
                         continue;
                     }
                     $found++;
@@ -271,13 +262,37 @@ class SymfonyIntegration extends Integration
                         if (\DDTrace\root_span() === $span) {
                             return false;
                         }
+
                         $span->name = 'symfony.console.command.run';
                         $span->resource = $this->getName() ?: $span->name;
                         $span->service = \ddtrace_config_app_name('symfony');
                         $span->type = Type::CLI;
                         $span->meta['symfony.console.command.class'] = $scope;
                         $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-                    }]);
+                    }]
+                );
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Symfony\Component\Console\Application',
+            'renderException',
+            function ($This, $scope, $args) use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan !== null) {
+                    $integration->setError($rootSpan, $args[0]);
+                }
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Symfony\Component\Console\Application',
+            'renderThrowable',
+            function ($This, $scope, $args) use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan !== null) {
+                    $integration->setError($rootSpan, $args[0]);
+                }
             }
         );
 
@@ -335,7 +350,6 @@ class SymfonyIntegration extends Integration
             }
         );
          */
-
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
