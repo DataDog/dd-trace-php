@@ -54,11 +54,11 @@ DD_CONFIGURATION
 
 static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persistent) {
     UNUSED(persistent);
-    if (zai_str_equals_ci_cstr(value, "disabled")) {
+    if (zai_str_eq_ci_cstr(value, "disabled")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_DISABLED);
-    } else if (zai_str_equals_ci_cstr(value, "service")) {
+    } else if (zai_str_eq_ci_cstr(value, "service")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_SERVICE);
-    } else if (zai_str_equals_ci_cstr(value, "full")) {
+    } else if (zai_str_eq_ci_cstr(value, "full")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_FULL);
     } else {
         return false;

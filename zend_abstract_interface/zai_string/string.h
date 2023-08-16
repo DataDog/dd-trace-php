@@ -78,7 +78,7 @@ static inline bool zai_str_eq(zai_str a, zai_str b) {
     return a.len == b.len && (b.len == 0 || memcmp(a.ptr, b.ptr, b.len) == 0);
 }
 
-static inline bool zai_str_equals_ci_cstr(zai_str s, const char *str) {
+static inline bool zai_str_eq_ci_cstr(zai_str s, const char *str) {
     size_t len = strlen(str);
     return s.len == len && (len == 0 || strncasecmp(s.ptr, str, strlen(str)) == 0);
 }
