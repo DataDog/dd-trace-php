@@ -19,7 +19,7 @@ use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
 use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
 use log::{debug, error, info, trace, warn};
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
@@ -246,8 +246,8 @@ impl TimeCollector {
             .sample_types
             .iter()
             .map(|sample_type| profile::api::ValueType {
-                r#type: sample_type.r#type.borrow(),
-                unit: sample_type.unit.borrow(),
+                r#type: sample_type.r#type,
+                unit: sample_type.unit,
             })
             .collect();
 
@@ -263,8 +263,8 @@ impl TimeCollector {
         let mut profile = profile::ProfileBuilder::new()
             .period(Some(Period {
                 r#type: profile::api::ValueType {
-                    r#type: WALL_TIME_PERIOD_TYPE.r#type.borrow(),
-                    unit: WALL_TIME_PERIOD_TYPE.unit.borrow(),
+                    r#type: WALL_TIME_PERIOD_TYPE.r#type,
+                    unit: WALL_TIME_PERIOD_TYPE.unit,
                 },
                 value: period.min(i64::MAX as u128) as i64,
             }))
@@ -614,7 +614,7 @@ impl Profiler {
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
-    pub unsafe fn collect_time(
+    pub fn collect_time(
         &self,
         execute_data: *mut zend_execute_data,
         interrupt_count: u32,
@@ -668,7 +668,7 @@ impl Profiler {
 
     #[cfg(feature = "allocation_profiling")]
     /// Collect a stack sample with memory allocations
-    pub unsafe fn collect_allocations(
+    pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
         alloc_samples: i64,
@@ -949,7 +949,7 @@ impl Profiler {
                 // there's nothing changing that value in all of fibers
                 // afterwards, from start to destruction of the fiber itself.
                 let func = unsafe { &*fiber.fci_cache.function_handler };
-                if let Some(functionname) = unsafe { extract_function_name(func) } {
+                if let Some(functionname) = extract_function_name(func) {
                     labels.push(Label {
                         key: "fiber",
                         value: LabelValue::Str(functionname.into()),
