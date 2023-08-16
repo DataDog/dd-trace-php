@@ -28,7 +28,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
     zval tmp;
     ZVAL_UNDEF(&tmp);
 
-    zai_string_view value = {0};
+    zai_option_str value = ZAI_OPTION_STR_NONE;
 
     int16_t name_index = 0;
     for (; name_index < memoized->names_count; name_index++) {
@@ -39,7 +39,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
                 // TODO Log decoding error
             } else {
                 zai_config_dtor_pzval(&tmp);
-                value = env_value;
+                value = zai_option_str_from_str(env_value);
             }
             break;
         }
@@ -47,13 +47,14 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
 
     int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value,
                                                              memoized->default_encoded_value, id);
-    if (value.ptr != buf.ptr && ini_name_index >= 0) {
-        name_index = ini_name_index;
-    }
 
-    if (value.ptr) {
+    zai_string_view value_view;
+    if (zai_option_str_get(value, &value_view)) {
+        if (value_view.ptr != buf.ptr && ini_name_index >= 0) {
+            name_index = ini_name_index;
+        }
         // TODO If name_index > 0, log deprecation notice
-        zai_config_decode_value(value, memoized->type, memoized->parser, &tmp, /* persistent */ true);
+        zai_config_decode_value(value_view, memoized->type, memoized->parser, &tmp, /* persistent */ true);
         assert(Z_TYPE(tmp) > IS_NULL);
         zai_config_dtor_pzval(&memoized->decoded_value);
         ZVAL_COPY_VALUE(&memoized->decoded_value, &tmp);
