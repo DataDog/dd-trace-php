@@ -157,8 +157,8 @@ bool zai_config_is_initialized(void);
 static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     // ensure validity at any stage
     zai_config_id id;
-    zai_str name = {.len = ZSTR_LEN(entry->name), .ptr = ZSTR_VAL(entry->name)};
-    zai_str value_view = {.len = ZSTR_LEN(new_value), .ptr = ZSTR_VAL(new_value)};
+    zai_str name = ZAI_STR_FROM_ZSTR(entry->name);
+    zai_str value_view = ZAI_STR_FROM_ZSTR(new_value);
 
     if (!zai_config_get_id_by_name(name, &id)) {
         // TODO Log cannot find ID
@@ -293,7 +293,7 @@ void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_numb
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         for (uint8_t n = 0; n < memoized->names_count; ++n) {
             zai_config_name *ini_name = &ini_names[i * ZAI_CONFIG_NAMES_COUNT_MAX + n];
-            zai_str name = {.len = memoized->names[n].len, .ptr = memoized->names[n].ptr};
+            zai_str name = ZAI_STR_NEW(memoized->names[n].ptr, memoized->names[n].len);
             zai_config_add_ini_entry(memoized, name, ini_name, module_number, i);
             // We need to cache ini directives here, at least for ZTS in order to access the global inis
             memoized->ini_entries[n] = zend_hash_str_find_ptr(EG(ini_directives), ini_name->ptr, ini_name->len);
@@ -370,7 +370,7 @@ void zai_config_ini_rinit(void) {
         }
 
         for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
-            zai_str name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
+            zai_str name = ZAI_STR_NEW(memoized->names[name_index].ptr, memoized->names[name_index].len);
             zai_env_result result = zai_getenv_ex(name, buf, false);
 
             if (result == ZAI_ENV_SUCCESS) {
@@ -389,7 +389,7 @@ void zai_config_ini_rinit(void) {
                     }
                     zend_string_release(str);
                 } else {
-                    zai_str rte_value = {.len = strlen(buf.ptr), .ptr = buf.ptr};
+                    zai_str rte_value = ZAI_STR_FROM_CSTR(buf.ptr);
 
                     zval new_zv;
                     ZVAL_UNDEF(&new_zv);

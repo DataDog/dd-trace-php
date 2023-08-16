@@ -50,7 +50,7 @@ TEA_TEST_CASE("symbol/call/internal", "empty ns", {
 
     zval result;
 
-    zai_str ns = ZAI_STRL("");
+    zai_str ns = ZAI_STR_EMPTY;
     zai_str fn = ZAI_STRL("strlen");
 
     zai_symbol_call(ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 1, &param);
