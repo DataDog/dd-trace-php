@@ -15,7 +15,7 @@ zai_env_result zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_
 
     buf.ptr[0] = '\0';
 
-    if (!zai_string_stuffed(name)) return ZAI_ENV_ERROR;
+    if (zai_str_is_empty(name)) return ZAI_ENV_ERROR;
 
     if (buf.len > ZAI_ENV_MAX_BUFSIZ) return ZAI_ENV_BUFFER_TOO_BIG;
 

@@ -57,7 +57,7 @@ void zai_config_register_config_id(zai_config_name *name, zai_config_id id) {
 
 bool zai_config_get_id_by_name(zai_string_view name, zai_config_id *id) {
     if (!zai_config_name_map.nTableSize) return false;
-    if (!zai_string_stuffed(name) || !id) return false;
+    if (zai_str_is_empty(name) || !id) return false;
 
     assert(name.ptr && name.len && id);
     if (!zai_config_name_map.nTableSize) {

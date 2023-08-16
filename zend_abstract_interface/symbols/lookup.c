@@ -74,7 +74,7 @@ static inline zai_string_view zai_symbol_lookup_clean(zai_string_view view) {
     if (!view.len || *view.ptr != '\\') {
         return view;
     }
-    return (zai_string_view){ .ptr = view.ptr + 1, .len = view.len - 1 };
+    return ZAI_STR_NEW(view.ptr + 1, view.len - 1);
 }
 
 static inline zai_string_view zai_symbol_lookup_key(zai_string_view *namespace, zai_string_view *name, bool lower) {
@@ -199,7 +199,7 @@ static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t 
     return function;
 }
 
-static inline zval* zai_symbol_lookup_constant_global(zai_symbol_scope_t scope_type, void *scope, zai_string_view *name) {
+static inline zval* lookup_constant_global(zai_symbol_scope_t scope_type, void *scope, zai_string_view *name) {
     zai_string_view key = *name;
 
     if (scope_type == ZAI_SYMBOL_SCOPE_NAMESPACE) {
@@ -266,7 +266,7 @@ static inline zval* zai_symbol_lookup_constant_impl(
     switch (scope_type) {
         case ZAI_SYMBOL_SCOPE_GLOBAL:
         case ZAI_SYMBOL_SCOPE_NAMESPACE:
-            return zai_symbol_lookup_constant_global(scope_type, scope, name	);
+            return lookup_constant_global(scope_type, scope, name	);
 
         case ZAI_SYMBOL_SCOPE_CLASS:
         case ZAI_SYMBOL_SCOPE_OBJECT:

@@ -1213,7 +1213,7 @@ PHP_FUNCTION(dd_trace_env_config) {
     }
 
     zai_config_id id;
-    if (zai_config_get_id_by_name((zai_string_view){.ptr = ZSTR_VAL(env_name), .len = ZSTR_LEN(env_name)}, &id)) {
+    if (zai_config_get_id_by_name(ZAI_STRING_FROM_ZSTR(env_name), &id)) {
         RETURN_COPY(zai_config_get_value(id));
     } else {
         RETURN_NULL();
