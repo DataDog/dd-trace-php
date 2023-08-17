@@ -26,9 +26,6 @@ zend_class_entry *ddtrace_hook_data_ce;
 zend_property_info *ddtrace_hook_data_returned_prop_info;
 #endif
 
-ZEND_TLS HashTable dd_closure_hooks;
-ZEND_TLS HashTable dd_active_hooks;
-
 typedef struct {
     size_t size;
     zend_long id[];
@@ -341,7 +338,7 @@ static void dd_uhook_dtor(void *data) {
     } else if (def->file) {
         zend_string_release(def->file);
     }
-    zend_hash_index_del(&dd_active_hooks, (zend_ulong)def->id);
+    zend_hash_index_del(&DDTRACE_G(uhook_active_hooks), (zend_ulong)def->id);
     efree(def);
 }
 
@@ -473,13 +470,13 @@ type_error:
 
             zval *hooks_zv;
             dd_closure_list *hooks;
-            if ((hooks_zv = zend_hash_index_find(&dd_closure_hooks, (zend_ulong)(uintptr_t)closure))) {
+            if ((hooks_zv = zend_hash_index_find(&DDTRACE_G(uhook_closure_hooks), (zend_ulong)(uintptr_t)closure))) {
                 hooks = Z_PTR_P(hooks_zv);
                 Z_PTR_P(hooks_zv) = hooks = erealloc(hooks, sizeof(dd_closure_list) + sizeof(zend_long) * ++hooks->size);
             } else {
                 hooks = emalloc(sizeof(dd_closure_list) + sizeof(zend_long));
                 hooks->size = 1;
-                zend_hash_index_add_new_ptr(&dd_closure_hooks, (zend_ulong)(uintptr_t)closure, hooks);
+                zend_hash_index_add_new_ptr(&DDTRACE_G(uhook_closure_hooks), (zend_ulong)(uintptr_t)closure, hooks);
             }
             hooks->id[hooks->size - 1] = id;
         }
@@ -541,7 +538,7 @@ error:
     }
 
     def->id = id;
-    zend_hash_index_add_ptr(&dd_active_hooks, (zend_ulong)def->id, def);
+    zend_hash_index_add_ptr(&DDTRACE_G(uhook_active_hooks), (zend_ulong)def->id, def);
     RETURN_LONG(id);
 } /* }}} */
 
@@ -555,7 +552,7 @@ PHP_FUNCTION(DDTrace_remove_hook) {
     ZEND_PARSE_PARAMETERS_END();
 
     dd_uhook_def *def;
-    if ((def = zend_hash_index_find_ptr(&dd_active_hooks, (zend_ulong)id))) {
+    if ((def = zend_hash_index_find_ptr(&DDTRACE_G(uhook_active_hooks), (zend_ulong)id))) {
         if (def->function) {
             zai_str scope = zai_str_from_zstr(def->scope);
             zai_str function = ZAI_STR_FROM_ZSTR(def->function);
@@ -722,25 +719,25 @@ ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
 }
 
 void zai_uhook_rinit() {
-    zend_hash_init(&dd_active_hooks, 8, NULL, NULL, 0);
-    zend_hash_init(&dd_closure_hooks, 8, NULL, NULL, 0);
+    zend_hash_init(&DDTRACE_G(uhook_active_hooks), 8, NULL, NULL, 0);
+    zend_hash_init(&DDTRACE_G(uhook_closure_hooks), 8, NULL, NULL, 0);
 }
 
 void zai_uhook_rshutdown() {
-    zend_hash_destroy(&dd_closure_hooks);
-    zend_hash_destroy(&dd_active_hooks);
+    zend_hash_destroy(&DDTRACE_G(uhook_closure_hooks));
+    zend_hash_destroy(&DDTRACE_G(uhook_active_hooks));
 }
 
 static zend_object_free_obj_t dd_uhook_closure_free_obj;
 static void dd_uhook_closure_free_wrapper(zend_object *object) {
     dd_closure_list *hooks;
     zai_install_address address = zai_hook_install_address(zend_get_closure_method_def(object));
-    if ((hooks = zend_hash_index_find_ptr(&dd_closure_hooks, (zend_ulong)(uintptr_t)object))) {
+    if ((hooks = zend_hash_index_find_ptr(&DDTRACE_G(uhook_closure_hooks), (zend_ulong)(uintptr_t)object))) {
         for (size_t i = 0; i < hooks->size; ++i) {
             zai_hook_remove_resolved(address, hooks->id[i]);
         }
         efree(hooks);
-        zend_hash_index_del(&dd_closure_hooks, (zend_ulong) (uintptr_t) object);
+        zend_hash_index_del(&DDTRACE_G(uhook_closure_hooks), (zend_ulong) (uintptr_t) object);
     }
     dd_uhook_closure_free_obj(object);
 }
