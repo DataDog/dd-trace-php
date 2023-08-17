@@ -5,7 +5,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV ACCEPT_EULA=Y
 
 ENV DEVLIBS \
-    libclang-13-dev \
+    clang-16 \
+    libclang-16-dev \
+    llvm-16-dev \
+    lld-16 \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \
@@ -72,6 +75,14 @@ RUN set -eux; \
 # Ensure debug symbols are available
     echo "deb http://deb.debian.org/debian-debug/ buster-debug main" | \
         tee -a /etc/apt/sources.list; \
+    \
+# Use LLVM from orig vendor (also LLVM 16 is not shipped with buster)
+    apt-get update; \
+    apt-get install -y curl gnupg; \
+    echo "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-16 main" >> /etc/apt/sources.list; \
+    echo "deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-16 main" >> /etc/apt/sources.list; \
+    curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \
+    curl https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
     \
 # prevent Debian's PHP packages from being installed
 # https://github.com/docker-library/php/pull/542
@@ -237,9 +248,9 @@ RUN set -eux; \
     chown -R circleci:circleci /opt;
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.64.0"
-ARG RUST_SHA256_ARM="7d8860572431bd4ee1b9cd0cd77cf7ff29fdd5b91ed7c92a820f872de6ced558"
-ARG RUST_SHA256_X86="a893977f238291370ab96726a74b6b9ae854dc75fbf5730954d901a93843bf9b"
+ARG RUST_VERSION="1.71.1"
+ARG RUST_SHA256_ARM="c7cf230c740a62ea1ca6a4304d955c286aea44e3c6fc960b986a8c2eeea4ec3f"
+ARG RUST_SHA256_X86="34778d1cda674990dfc0537bc600066046ae9cb5d65a07809f7e7da31d4689c4"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup

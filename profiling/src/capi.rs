@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 /// A non-owning, not necessarily null terminated, not utf-8 encoded, borrowed
 /// string. Must satisfy the requirements of [core::slice::from_raw_parts],
 /// notably it must not use the nul pointer even when the length is 0.
-/// Keep this representation in sync with zai_string_view.
+/// Keep this representation in sync with zai_str.
 #[repr(C)]
 pub struct StringView<'a> {
     len: libc::size_t,
@@ -76,6 +76,23 @@ impl From<&uuid::Uuid> for Uuid {
 #[no_mangle]
 pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
     Uuid::from(runtime_id())
+}
+
+#[cfg(feature = "trigger_time_sample")]
+#[no_mangle]
+extern "C" fn ddog_php_prof_trigger_time_sample() {
+    use std::sync::atomic::Ordering;
+    super::REQUEST_LOCALS.with(|cell| {
+        if let Ok(locals) = cell.try_borrow() {
+            if locals.profiling_enabled {
+                // Safety: only vm interrupts are stored there, or possibly null (edges only).
+                if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
+                    locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
+                    vm_interrupt.store(true, Ordering::SeqCst);
+                }
+            }
+        }
+    })
 }
 
 /// Gathers a time sample if the configured period has elapsed. Used by the

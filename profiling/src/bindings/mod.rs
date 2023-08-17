@@ -8,6 +8,10 @@ use std::marker::PhantomData;
 use std::str::Utf8Error;
 use std::sync::atomic::AtomicBool;
 
+extern "C" {
+    pub static ddog_php_prof_functions: *const zend_function_entry;
+}
+
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
 #[cfg(feature = "timeline")]
@@ -282,10 +286,10 @@ extern "C" {
     #[cfg(php7)]
     pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void) -> ZendResult;
 
-    /// Converts the `zstr` into a `zai_string_view`. A None as well as empty
+    /// Converts the `zstr` into a `zai_str`. A None as well as empty
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
-    pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_string_view;
+    pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_str;
 
     /// Registers the run_time_cache slot with the engine. Must be done in
     /// module init or extension startup.
@@ -434,13 +438,9 @@ impl TryFrom<&mut zval> for String {
             }
 
             // Safety: checked the pointer wasn't null above.
-            let view = unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()) };
-
-            // Safety: ddog_php_prof_zend_string_view returns a fully populated string.
-            let bytes = unsafe { view.into_bytes() };
-
-            // PHP does not guarantee UTF-8 correctness, so lossy convert.
-            Ok(String::from_utf8_lossy(bytes).into_owned())
+            let str =
+                unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()).to_string() };
+            Ok(str)
         } else {
             Err(StringError::Type(r#type))
         }
@@ -496,25 +496,37 @@ impl<'a> ZaiStringView<'a> {
     /// # Safety
     /// Inherits the safety requirements of [std::slice::from_raw_parts], in
     /// particular, the view must not use a null pointer.
+    #[inline]
     pub unsafe fn into_bytes(self) -> &'a [u8] {
         assert!(!self.ptr.is_null());
         let len = self.len;
         std::slice::from_raw_parts(self.ptr as *const u8, len)
     }
 
+    /// # Safety
+    /// Inherits the safety requirements of [std::slice::from_raw_parts].
+    #[inline]
     pub unsafe fn into_utf8(self) -> Result<&'a str, Utf8Error> {
         let bytes = self.into_bytes();
         std::str::from_utf8(bytes)
+    }
+
+    /// # Safety
+    /// Inherits the safety requirements of [std::slice::from_raw_parts].
+    #[allow(clippy::inherent_to_string)]
+    #[inline]
+    pub unsafe fn to_string(self) -> String {
+        String::from_utf8_lossy(self.into_bytes()).into_owned()
     }
 }
 
 #[repr(C)]
 pub struct ZaiConfigEntry {
     pub id: zai_config_id,
-    pub name: zai_string_view<'static>,
+    pub name: zai_str<'static>,
     pub type_: zai_config_type,
-    pub default_encoded_value: zai_string_view<'static>,
-    pub aliases: *const zai_string_view<'static>,
+    pub default_encoded_value: zai_str<'static>,
+    pub aliases: *const zai_str<'static>,
     pub aliases_count: u8,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
@@ -527,7 +539,7 @@ pub struct ZaiConfigMemoizedEntry {
     pub names_count: u8,
     pub type_: zai_config_type,
     pub decoded_value: zval,
-    pub default_encoded_value: zai_string_view<'static>,
+    pub default_encoded_value: zai_str<'static>,
     pub name_index: i16,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,

@@ -485,13 +485,13 @@ type_error:
         }
     } else {
         const char *colon = strchr(ZSTR_VAL(name), ':');
-        zai_string_view scope = ZAI_STRING_EMPTY, function = {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
+        zai_str scope = ZAI_STR_EMPTY, function = ZAI_STR_FROM_ZSTR(name);
         if (colon) {
             def->scope = zend_string_init(function.ptr, colon - ZSTR_VAL(name), 0);
             do ++colon; while (*colon == ':');
             def->function = zend_string_init(colon, ZSTR_VAL(name) + ZSTR_LEN(name) - colon, 0);
-            scope = (zai_string_view) {.ptr = ZSTR_VAL(def->scope), .len = ZSTR_LEN(def->scope)};
-            function = (zai_string_view) {.ptr = ZSTR_VAL(def->function), .len = ZSTR_LEN(def->function)};
+            scope = ZAI_STR_FROM_ZSTR(def->scope);
+            function = ZAI_STR_FROM_ZSTR(def->function);
         } else {
             def->scope = NULL;
             if (ZSTR_LEN(name) == 0 || strchr(ZSTR_VAL(name), '.')) {
@@ -508,7 +508,7 @@ type_error:
                 } else {
                     def->file = zend_string_copy(name);
                 }
-                function = ZAI_STRING_EMPTY;
+                function = ZAI_STR_EMPTY;
             } else {
                 def->function = zend_string_init(function.ptr, function.len, 0);
             }
@@ -557,10 +557,8 @@ PHP_FUNCTION(DDTrace_remove_hook) {
     dd_uhook_def *def;
     if ((def = zend_hash_index_find_ptr(&dd_active_hooks, (zend_ulong)id))) {
         if (def->function) {
-            zai_string_view scope = ZAI_STRING_EMPTY, function = { .ptr = ZSTR_VAL(def->function), .len = ZSTR_LEN(def->function) };
-            if (def->scope) {
-                scope = (zai_string_view){ .ptr = ZSTR_VAL(def->scope), .len = ZSTR_LEN(def->scope) };
-            }
+            zai_str scope = zai_str_from_zstr(def->scope);
+            zai_str function = ZAI_STR_FROM_ZSTR(def->function);
             zai_hook_remove(scope, function, id);
         } else {
             zai_hook_remove_resolved(def->install_address, id);

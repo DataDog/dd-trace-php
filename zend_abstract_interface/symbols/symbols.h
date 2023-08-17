@@ -39,7 +39,7 @@ typedef enum {
     ZAI_SYMBOL_SCOPE_OBJECT,
     /* The next parameter is expected to be null */
     ZAI_SYMBOL_SCOPE_GLOBAL,
-    /* The next parameter is zai_string_view* */
+    /* The next parameter is zai_str* */
     ZAI_SYMBOL_SCOPE_NAMESPACE,
     /* The next parameter is zend_execute_data* */
     ZAI_SYMBOL_SCOPE_FRAME,
@@ -51,7 +51,7 @@ typedef enum {
 void* zai_symbol_lookup(
         zai_symbol_type_t symbol_type,
         zai_symbol_scope_t scope_type, void *scope,
-        zai_string_view *name);
+        zai_str *name);
 
 #include "api/class.h"
 #include "api/function.h"
@@ -63,7 +63,7 @@ void* zai_symbol_lookup(
 typedef enum {
     /* The function parameter is zend_function* */
     ZAI_SYMBOL_FUNCTION_KNOWN,
-    /* The function parameter is zai_string_view* */
+    /* The function parameter is zai_str* */
     ZAI_SYMBOL_FUNCTION_NAMED,
     /* The function parameter is zval* Z_TYPE_P IS_OBJECT, instanceof zend_ce_closure */
     ZAI_SYMBOL_FUNCTION_CLOSURE,

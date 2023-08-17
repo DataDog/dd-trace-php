@@ -38,16 +38,20 @@ class YiiIntegration extends Integration
             return self::NOT_AVAILABLE;
         }
 
-        $rootSpan = \DDTrace\root_span();
-        if (!$rootSpan) {
-            return Integration::NOT_LOADED;
-        }
-
-        $rootSpan->meta[Tag::COMPONENT] = YiiIntegration::NAME;
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-
-        $this->addTraceAnalyticsIfEnabled($rootSpan);
         $service = \ddtrace_config_app_name(YiiIntegration::NAME);
+
+        \DDTrace\hook_method(
+            'yii\di\Container',
+            '__construct',
+            function () {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan !== null) {
+                    $rootSpan->meta[Tag::COMPONENT] = YiiIntegration::NAME;
+                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                    $this->addTraceAnalyticsIfEnabled($rootSpan);
+                }
+            }
+        );
 
         \DDTrace\trace_method(
             'yii\web\Application',
@@ -92,12 +96,14 @@ class YiiIntegration extends Integration
         \DDTrace\trace_method(
             'yii\base\Controller',
             'runAction',
-            function (SpanData $span, $args) use (&$firstController, $service, $rootSpan) {
+            function (SpanData $span, $args) use (&$firstController, $service) {
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
                 $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
+
+                $rootSpan = \DDTrace\root_span();
 
                 if (
                     $firstController === $this

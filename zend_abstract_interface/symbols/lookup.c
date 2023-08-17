@@ -31,7 +31,7 @@ static inline bool zai_symbol_update(zend_class_entry *ce) {
     return false;
 }
 
-static inline void *zai_symbol_lookup_table(HashTable *table, zai_string_view key, bool ncase, bool pointer) {
+static inline void *zai_symbol_lookup_table(HashTable *table, zai_str key, bool ncase, bool pointer) {
     zval *result;
 #if PHP_VERSION_ID >= 70300
     zval resultzv;
@@ -70,17 +70,17 @@ static inline void *zai_symbol_lookup_table(HashTable *table, zai_string_view ke
     }
 }
 
-static inline zai_string_view zai_symbol_lookup_clean(zai_string_view view) {
+static inline zai_str zai_symbol_lookup_clean(zai_str view) {
     if (!view.len || *view.ptr != '\\') {
         return view;
     }
-    return (zai_string_view){ .ptr = view.ptr + 1, .len = view.len - 1 };
+    return ZAI_STR_NEW(view.ptr + 1, view.len - 1);
 }
 
-static inline zai_string_view zai_symbol_lookup_key(zai_string_view *namespace, zai_string_view *name, bool lower) {
-    zai_string_view rv;
-    zai_string_view vns     = zai_symbol_lookup_clean(*namespace);
-    zai_string_view vn      = zai_symbol_lookup_clean(*name);
+static inline zai_str zai_symbol_lookup_key(zai_str *namespace, zai_str *name, bool lower) {
+    zai_str rv;
+    zai_str vns     = zai_symbol_lookup_clean(*namespace);
+    zai_str vn      = zai_symbol_lookup_clean(*name);
 
     char *result = NULL;
 #define CHAR_AT(n) (result[n])
@@ -130,7 +130,7 @@ static inline zval* zai_symbol_lookup_return_zval(zval *zv) {
     return zv;
 }
 
-static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t scope_type, void *scope, zai_string_view *name) {
+static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t scope_type, void *scope, zai_str *name) {
     void *result = NULL;
 
     switch (scope_type) {
@@ -142,7 +142,7 @@ static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t 
         } break;
 
         case ZAI_SYMBOL_SCOPE_NAMESPACE: {
-            zai_string_view key = zai_symbol_lookup_key(scope, name, true);
+            zai_str key = zai_symbol_lookup_key(scope, name, true);
 
             if (key.ptr) {
                 result = zai_symbol_lookup_table(
@@ -161,9 +161,9 @@ static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t 
     return result;
 }
 
-static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t scope_type, void *scope, zai_string_view *name) {
+static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t scope_type, void *scope, zai_str *name) {
     HashTable *table = NULL;
-    zai_string_view key = *name;
+    zai_str key = *name;
 
     switch (scope_type) {
         case ZAI_SYMBOL_SCOPE_CLASS:
@@ -199,8 +199,8 @@ static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t 
     return function;
 }
 
-static inline zval* zai_symbol_lookup_constant_global(zai_symbol_scope_t scope_type, void *scope, zai_string_view *name) {
-    zai_string_view key = *name;
+static inline zval* lookup_constant_global(zai_symbol_scope_t scope_type, void *scope, zai_str *name) {
+    zai_str key = *name;
 
     if (scope_type == ZAI_SYMBOL_SCOPE_NAMESPACE) {
         key = zai_symbol_lookup_key(scope, name, false);
@@ -222,7 +222,7 @@ static inline zval* zai_symbol_lookup_constant_global(zai_symbol_scope_t scope_t
     return &constant->value;
 }
 
-static inline zval* zai_symbol_lookup_constant_class(zai_symbol_scope_t scope_type, void *scope, zai_string_view *name) {
+static inline zval* zai_symbol_lookup_constant_class(zai_symbol_scope_t scope_type, void *scope, zai_str *name) {
     zend_class_entry *ce;
 
     switch (scope_type) {
@@ -262,11 +262,11 @@ static inline zval* zai_symbol_lookup_constant_class(zai_symbol_scope_t scope_ty
 
 static inline zval* zai_symbol_lookup_constant_impl(
         zai_symbol_scope_t scope_type, void *scope,
-        zai_string_view *name) {
+        zai_str *name) {
     switch (scope_type) {
         case ZAI_SYMBOL_SCOPE_GLOBAL:
         case ZAI_SYMBOL_SCOPE_NAMESPACE:
-            return zai_symbol_lookup_constant_global(scope_type, scope, name	);
+            return lookup_constant_global(scope_type, scope, name	);
 
         case ZAI_SYMBOL_SCOPE_CLASS:
         case ZAI_SYMBOL_SCOPE_OBJECT:
@@ -280,7 +280,7 @@ static inline zval* zai_symbol_lookup_constant_impl(
 
 static inline zval* zai_symbol_lookup_property_impl(
         zai_symbol_scope_t scope_type, void *scope,
-        zai_string_view *name) {
+        zai_str *name) {
     zend_property_info *info = NULL;
     zend_class_entry *ce = NULL;
 
@@ -334,7 +334,7 @@ static inline zval* zai_symbol_lookup_property_impl(
     return zai_symbol_lookup_return_zval(OBJ_PROP(Z_OBJ_P((zval*)scope), info->offset));
 }
 
-static inline zval* zai_symbol_lookup_local_frame(zend_execute_data *ex, zai_string_view *name) {
+static inline zval* zai_symbol_lookup_local_frame(zend_execute_data *ex, zai_str *name) {
     zend_function *function = ex->func;
 
     if (!function || function->type != ZEND_USER_FUNCTION) {
@@ -354,7 +354,7 @@ static inline zval* zai_symbol_lookup_local_frame(zend_execute_data *ex, zai_str
     return zai_symbol_lookup_return_zval(local);
 }
 
-static inline zval* zai_symbol_lookup_local_static(zend_function *function, zai_string_view *name) {
+static inline zval* zai_symbol_lookup_local_static(zend_function *function, zai_str *name) {
     if (function->type != ZEND_USER_FUNCTION || !function->op_array.static_variables) {
         return NULL;
     }
@@ -380,7 +380,7 @@ static inline zval* zai_symbol_lookup_local_static(zend_function *function, zai_
 
 static inline zval* zai_symbol_lookup_local_impl(
         zai_symbol_scope_t scope_type, void *scope,
-        zai_string_view *name) {
+        zai_str *name) {
     switch (scope_type) {
         case ZAI_SYMBOL_SCOPE_FRAME:
             return zai_symbol_lookup_local_frame(scope, name);
@@ -394,7 +394,7 @@ static inline zval* zai_symbol_lookup_local_impl(
     return NULL;
 }
 
-void* zai_symbol_lookup(zai_symbol_type_t symbol_type, zai_symbol_scope_t scope_type, void *scope, zai_string_view *name) {
+void* zai_symbol_lookup(zai_symbol_type_t symbol_type, zai_symbol_scope_t scope_type, void *scope, zai_str *name) {
     switch (symbol_type) {
         case ZAI_SYMBOL_TYPE_CLASS:
             return zai_symbol_lookup_class_impl(scope_type, scope, name);

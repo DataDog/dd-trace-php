@@ -1,5 +1,6 @@
 pub mod bindings;
 pub mod capi;
+mod clocks;
 mod config;
 mod logging;
 mod pcntl;
@@ -15,6 +16,7 @@ mod timeline;
 
 use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};
+use clocks::*;
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
 use ddcommon::cstr;
@@ -28,7 +30,7 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
-use std::ops::DerefMut;
+use std::ops::Deref;
 use std::os::raw::c_int;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -36,10 +38,6 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
-
-/// The version of PHP at runtime, not the version compiled against. Sent as
-/// a profile tag.
-static PHP_VERSION: OnceCell<String> = OnceCell::new();
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
@@ -58,6 +56,49 @@ static PROFILER_NAME_CSTR: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(
 static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
 
 lazy_static! {
+    static ref LAZY_STATICS_TAGS: Vec<Tag> = {
+        vec![
+            Tag::from_value("language:php").expect("language tag to be valid"),
+            // Safety: calling getpid() is safe.
+            Tag::new("process_id", unsafe { libc::getpid() }.to_string())
+                .expect("process_id tag to be valid"),
+            Tag::from_value(concat!("profiler_version:", env!("CARGO_PKG_VERSION")))
+                .expect("profiler_version tag to be valid"),
+            Tag::new("runtime-id", &runtime_id().to_string()).expect("runtime-id tag to be valid"),
+        ]
+    };
+
+    /// The version of PHP at runtime, not the version compiled against. Sent
+    /// as a profile tag.
+    static ref PHP_VERSION: String = {
+        // Reflection uses the PHP_VERSION as its version, see:
+        // https://github.com/php/php-src/blob/PHP-8.1.4/ext/reflection/php_reflection.h#L25
+        // https://github.com/php/php-src/blob/PHP-8.1.4/ext/reflection/php_reflection.c#L7157
+        // It goes back to at least PHP 7.1:
+        // https://github.com/php/php-src/blob/PHP-7.1/ext/reflection/php_reflection.h
+
+        // Safety: CStr string is null-terminated without any interior null bytes.
+        let module_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"Reflection\0") };
+        get_module_version(module_name)
+            .expect("Reflection's zend_module_entry to be found and contain a valid string")
+    };
+
+    /// The Server API the profiler is running under.
+    static ref SAPI: Sapi = {
+        // Safety: sapi_module is initialized before minit and there should be
+        // no concurrent threads.
+        let sapi_module = unsafe { zend::sapi_module };
+        if sapi_module.name.is_null() {
+            panic!("the sapi_module's name is a null pointer");
+        }
+
+        // Safety: value has been checked for NULL; I haven't checked that the
+        // engine ensures its length is less than `isize::MAX`, but it is a
+        // risk I'm willing to take.
+        let sapi_name = unsafe { CStr::from_ptr(sapi_module.name) };
+        Sapi::from_name(sapi_name.to_string_lossy().as_ref())
+    };
+
     // Safety: PROFILER_NAME is a byte slice that satisfies the safety requirements.
     // Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
     static ref PROFILER_NAME_STR: &'static str = PROFILER_NAME_CSTR.to_str().unwrap();
@@ -80,14 +121,6 @@ static RUNTIME_ID: OnceCell<Uuid> = OnceCell::new();
 extern "C" {
     pub static ddtrace_runtime_id: *const Uuid;
 }
-
-/// The Server API the profiler is running under.
-static SAPI: OnceCell<Sapi> = OnceCell::new();
-
-/// The version of the ZendEngine at runtime, not the version compiled against.
-/// It's currently unused, but I hope to send it as a metric or something soon
-/// so I'm keeping it here so I don't have to look up how to get it again.
-static ZEND_VERSION: OnceCell<String> = OnceCell::new();
 
 /// The function `get_module` is what makes this a PHP module. Please do not
 /// call this directly; only let it be called by the engine. Generally it is
@@ -114,6 +147,8 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
 
     let module = zend::ModuleEntry {
         name: PROFILER_NAME.as_ptr(),
+        // Safety: php_ffi.c defines this correctly
+        functions: unsafe { bindings::ddog_php_prof_functions },
         module_startup_func: Some(minit),
         module_shutdown_func: Some(mshutdown),
         request_startup_func: Some(rinit),
@@ -154,7 +189,7 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
  * mechanisms like std::sync::Once::call_once may not be suitable.
  * Be careful out there!
  */
-extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
+extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     /* When developing the extension, it's useful to see log messages that
      * occur before the user can configure the log level. However, if we
      * initialized the logger here unconditionally then they'd have no way to
@@ -163,7 +198,7 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     {
         logging::log_init(LevelFilter::Trace);
-        trace!("MINIT({}, {})", r#type, module_number);
+        trace!("MINIT({_type}, {module_number})");
     }
 
     #[cfg(target_vendor = "apple")]
@@ -181,22 +216,6 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
          * let _ = ddcommon::connector::load_root_certs();
          */
     }
-
-    // Ignore unused result; use SAPI.get() which returns an Option if it's uninitialized.
-    let _ = SAPI.get_or_try_init(|| {
-        // Safety: sapi_module is initialized by minit; should be no concurrent threads.
-        let sapi_module = unsafe { zend::sapi_module };
-        if !sapi_module.name.is_null() {
-            /* Safety: value has been checked for NULL; I haven't checked that
-             * the engine ensures its length is less than `isize::MAX`, but it
-             * is a risk I'm willing to take.
-             */
-            let sapi_name = unsafe { CStr::from_ptr(sapi_module.name) };
-            Ok(Sapi::from_name(sapi_name.to_string_lossy().as_ref()))
-        } else {
-            Err(())
-        }
-    });
 
     config::minit(module_number);
 
@@ -294,14 +313,14 @@ extern "C" fn prshutdown() -> ZendResult {
      */
     unsafe { bindings::zai_config_rshutdown() };
 
+    TAGS.with(|cell| cell.replace(Arc::default()));
+
     ZendResult::Success
 }
 
 pub struct RequestLocals {
     pub env: Option<Cow<'static, str>>,
     pub interrupt_count: AtomicU32,
-    pub last_cpu_time: Option<cpu_time::ThreadTime>,
-    pub last_wall_time: Instant,
     pub profiling_enabled: bool,
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
@@ -309,29 +328,20 @@ pub struct RequestLocals {
     pub profiling_experimental_timeline_enabled: bool,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
-    pub tags: Arc<Vec<Tag>>,
     pub uri: Box<AgentEndpoint>,
     pub version: Option<Cow<'static, str>>,
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
-fn static_tags() -> Vec<Tag> {
-    vec![
-        Tag::from_value("language:php").expect("static tags to be valid"),
-        // Safety: calling getpid() is safe.
-        Tag::new("process_id", unsafe { libc::getpid() }.to_string())
-            .expect("static tags to be valid"),
-        Tag::from_value(concat!("profiler_version:", env!("CARGO_PKG_VERSION")))
-            .expect("static tags to be valid"),
-    ]
-}
-
 thread_local! {
+    static CLOCKS: RefCell<Clocks> = RefCell::new(Clocks {
+        cpu_time: None,
+        wall_time: Instant::now(),
+    });
+
     static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals {
         env: None,
         interrupt_count: AtomicU32::new(0),
-        last_cpu_time: None,
-        last_wall_time: Instant::now(),
         profiling_enabled: false,
         profiling_endpoint_collection_enabled: true,
         profiling_experimental_cpu_time_enabled: true,
@@ -339,14 +349,20 @@ thread_local! {
         profiling_experimental_timeline_enabled: true,
         profiling_log_level: LevelFilter::Off,
         service: None,
-        tags: Arc::new(static_tags()),
         uri: Box::<AgentEndpoint>::default(),
         version: None,
         vm_interrupt_addr: std::ptr::null_mut(),
     });
+
+    /// The tags for this thread/request. These get sent to other threads,
+    /// which is why they are Arc. However, they are wrapped in a RefCell
+    /// because the values _can_ change from request to request depending on
+    /// the on the values sent in the SAPI for env, service, version, etc.
+    /// They get reset at the end of the request.
+    static TAGS: RefCell<Arc<Vec<Tag>>> = RefCell::new(Arc::new(Vec::new()));
 }
 
-/// Gets the runtime-id for the process.
+/// Gets the runtime-id for the process. Do not call before RINIT!
 fn runtime_id() -> &'static Uuid {
     RUNTIME_ID
         .get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
@@ -360,9 +376,9 @@ extern "C" fn activate() {
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
  * using it for catastrophic errors only.
  */
-extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
+extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
-    trace!("RINIT({}, {})", r#type, module_number);
+    trace!("RINIT({_type}, {_module_number})");
 
     /* At the moment, logging is truly global, so init it exactly once whether
      * profiling is enabled or not.
@@ -384,12 +400,13 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         log_level,
         output_pprof,
     ) = unsafe {
+        let profiling_enabled = config::profiling_enabled();
         (
-            config::profiling_enabled(),
-            config::profiling_endpoint_collection_enabled(),
-            config::profiling_experimental_cpu_time_enabled(),
-            config::profiling_allocation_enabled(),
-            config::profiling_experimental_timeline_enabled(),
+            profiling_enabled,
+            profiling_enabled && config::profiling_endpoint_collection_enabled(),
+            profiling_enabled && config::profiling_experimental_cpu_time_enabled(),
+            profiling_enabled && config::profiling_allocation_enabled(),
+            profiling_enabled && config::profiling_experimental_timeline_enabled(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
         )
@@ -413,14 +430,14 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
         unsafe {
             locals.env = config::env();
             locals.service = config::service().or_else(|| {
-                SAPI.get().and_then(|sapi| match sapi {
+                match *SAPI {
                     Sapi::Cli => {
                         // Safety: sapi globals are safe to access during rinit
-                        sapi.request_script_name(&sapi_globals)
+                        SAPI.request_script_name(&sapi_globals)
                             .or(Some(Cow::Borrowed("cli.command")))
                     }
                     _ => Some(Cow::Borrowed("web.request")),
-                })
+                }
             });
             locals.version = config::version();
 
@@ -462,7 +479,7 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
                 // Safety: I'm willing to bet the module pretty name is less than `isize::MAX`.
                 let pretty_name =
                     unsafe { CStr::from_ptr(sapi_module.pretty_name) }.to_string_lossy();
-                if SAPI.get().unwrap_or(&Sapi::Unknown) != &Sapi::Unknown {
+                if *SAPI != Sapi::Unknown {
                     debug!("Recognized SAPI: {pretty_name}.");
                 } else {
                     warn!("Unrecognized SAPI: {pretty_name}.");
@@ -512,38 +529,21 @@ extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
 
     if profiling_enabled {
         REQUEST_LOCALS.with(|cell| {
-            let mut locals = cell.borrow_mut();
+            let locals = cell.borrow();
+            let cpu_time_enabled = locals.profiling_experimental_cpu_time_enabled;
+            CLOCKS.with(|cell| cell.borrow_mut().initialize(cpu_time_enabled));
 
-            locals.last_wall_time = Instant::now();
-            if locals.profiling_experimental_cpu_time_enabled {
-                let now = cpu_time::ThreadTime::try_now()
-                    .expect("CPU time to work since it's worked before during this process");
-                locals.last_cpu_time = Some(now);
-            }
-
-            {
-                // Calling make_mut would be more efficient, but we get into
-                // issues with borrowing part of `locals` mutably and others
-                // immutably. So, we clone the tags and replace locals.tags
-                // later.
-                let mut tags = (*locals.tags).clone();
-
+            TAGS.with(|cell| {
+                let mut tags = LAZY_STATICS_TAGS.clone();
                 add_optional_tag(&mut tags, "service", &locals.service);
                 add_optional_tag(&mut tags, "env", &locals.env);
                 add_optional_tag(&mut tags, "version", &locals.version);
-
-                let runtime_id = runtime_id();
-                if !runtime_id.is_nil() {
-                    add_tag(&mut tags, "runtime-id", &runtime_id.to_string());
-                }
-
-                /* This should probably be "language_version", but this is
-                 * the tag that was standardized for this purpose. */
-                add_optional_tag(&mut tags, "runtime_version", &PHP_VERSION.get());
-                add_optional_tag(&mut tags, "php.sapi", &SAPI.get());
-
-                locals.tags = Arc::new(tags);
-            }
+                // This should probably be "language_version", but this is the
+                // standardized tag name.
+                add_tag(&mut tags, "runtime_version", PHP_VERSION.as_str());
+                add_tag(&mut tags, "php.sapi", SAPI.as_ref());
+                cell.replace(Arc::new(tags));
+            });
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 let interrupt = VmInterrupt {
@@ -634,9 +634,9 @@ fn detect_uri_from_config(
     AgentEndpoint::default()
 }
 
-extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
+extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
-    trace!("RSHUTDOWN({}, {})", r#type, module_number);
+    trace!("RSHUTDOWN({_type}, {_module_number})");
 
     #[cfg(php_run_time_cache)]
     {
@@ -648,7 +648,7 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
     }
 
     REQUEST_LOCALS.with(|cell| {
-        let mut locals = cell.borrow_mut();
+        let locals = cell.borrow();
 
         if locals.profiling_enabled {
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
@@ -658,7 +658,6 @@ extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
                 };
                 profiler.remove_interrupt(interrupt);
             }
-            locals.tags = Arc::new(static_tags());
         }
     });
 
@@ -681,6 +680,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         let locals = cell.borrow();
         let yes: &[u8] = b"true\0";
         let no: &[u8] = b"false\0";
+        let no_all: &[u8] = b"false (profiling disabled)\0";
         zend::php_info_print_table_start();
         zend::php_info_print_table_row(2, b"Version\0".as_ptr(), module.version);
         zend::php_info_print_table_row(
@@ -694,8 +694,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             b"Experimental CPU Time Profiling Enabled\0".as_ptr(),
             if locals.profiling_experimental_cpu_time_enabled {
                 yes
-            } else {
+            } else if locals.profiling_enabled {
                 no
+            } else {
+                no_all
             },
         );
 
@@ -708,8 +710,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                         yes
                     } else if zend::ddog_php_jit_enabled() {
                         b"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.\0"
-                    } else {
+                    } else if locals.profiling_enabled {
                         no
+                    } else {
+                        no_all
                     }
                 );
             } else {
@@ -728,8 +732,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                     b"Experimental Timeline Enabled\0".as_ptr(),
                     if locals.profiling_experimental_timeline_enabled {
                         yes
-                    } else {
+                    } else if locals.profiling_enabled {
                         no
+                    } else {
+                        no_all
                     },
                 );
             } else {
@@ -746,8 +752,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             b"Endpoint Collection Enabled\0".as_ptr(),
             if locals.profiling_endpoint_collection_enabled {
                 yes
-            } else {
+            } else if locals.profiling_enabled {
                 no
+            } else {
+                no_all
             },
         );
 
@@ -790,9 +798,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
     });
 }
 
-extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
+extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
-    trace!("MSHUTDOWN({}, {})", r#type, module_number);
+    trace!("MSHUTDOWN({_type}, {_module_number})");
 
     unsafe { bindings::zai_config_mshutdown() };
 
@@ -833,26 +841,6 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     unsafe {
         bindings::ddog_php_prof_function_run_time_cache_init(PROFILER_NAME_CSTR.as_ptr())
     };
-
-    // Ignore a failure as ZEND_VERSION.get() will return an Option if it's not set.
-    let _ = ZEND_VERSION.get_or_try_init(|| {
-        // Safety: CStr string is null-terminated without any interior null bytes.
-        let module_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"Core\0") };
-        get_module_version(module_name).ok_or(())
-    });
-
-    // Ignore a failure as PHP_VERSION.get() will return an Option if it's not set.
-    let _ = PHP_VERSION.get_or_try_init(|| {
-        // Reflection uses the PHP_VERSION as its version, see:
-        // https://github.com/php/php-src/blob/PHP-8.1.4/ext/reflection/php_reflection.h#L25
-        // https://github.com/php/php-src/blob/PHP-8.1.4/ext/reflection/php_reflection.c#L7157
-        // It goes back to at least PHP 7.1:
-        // https://github.com/php/php-src/blob/PHP-7.1/ext/reflection/php_reflection.h
-
-        // Safety: CStr string is null-terminated without any interior null bytes.
-        let module_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"Reflection\0") };
-        get_module_version(module_name).ok_or(())
-    });
 
     // Safety: calling this in zend_extension startup.
     unsafe { pcntl::startup() };
@@ -908,7 +896,14 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
 /// interrupt_count.
 fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
     REQUEST_LOCALS.with(|cell| {
-        let mut locals = cell.borrow_mut();
+        // try to borrow and bail out if not successful
+        let locals = match cell.try_borrow() {
+            Ok(locals) => locals,
+            Err(_) => {
+                return;
+            }
+        };
+
         if !locals.profiling_enabled {
             return;
         }
@@ -927,7 +922,7 @@ fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe { profiler.collect_time(execute_data, interrupt_count, locals.deref_mut()) };
+            profiler.collect_time(execute_data, interrupt_count, locals.deref());
         }
     });
 }

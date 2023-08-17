@@ -479,7 +479,7 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
             // As long as there's something to flush, we must hold a reference (to avoid cycle collection)
             GC_ADDREF(&stack->std);
 
-            if (stack->root_span->stack == stack || stack->root_span->type == DDTRACE_SPAN_CLOSED) {
+            if (stack->root_span && (stack->root_span->stack == stack || stack->root_span->type == DDTRACE_SPAN_CLOSED)) {
                 stack->next = DDTRACE_G(top_closed_stack);
                 DDTRACE_G(top_closed_stack) = stack;
             } else {
