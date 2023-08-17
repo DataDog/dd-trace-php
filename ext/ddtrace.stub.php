@@ -150,16 +150,16 @@ namespace DDTrace {
      * 'switch_stack' functions. 'create_stack' creates a new SpanStack whose parent is the currently active stack,
      * while 'switch_stack' switches the active span.
      */
-    readonly class SpanStack {
+    class SpanStack {
         /**
          * @var SpanStack|null The parent stack, or 'null' if there is none
          */
-        public SpanStack|null $parent;
+        public readonly SpanStack|null $parent;
 
         /**
          * @var SpanData|null The active span
          */
-        public SpanData|null $active;
+        public SpanData|null $active = null;
     }
 
     // phpcs:disable Generic.Files.LineLength.TooLong

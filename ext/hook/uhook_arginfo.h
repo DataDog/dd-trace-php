@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 998812aa3cd8f153aa141d6be99e957a38d3a60b */
+ * Stub hash: a5fb3dcc16aa9ce2eb23410e7e40f2d835adf66f */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING|MAY_BE_CALLABLE, NULL)
@@ -87,10 +87,10 @@ static zend_class_entry *register_class_DDTrace_HookData(void)
 	zend_declare_typed_property(class_entry, property_returned_name, &property_returned_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
 	zend_string_release(property_returned_name);
 
-	zend_string *property_exception_class_Throwable = zend_string_init("Throwable", sizeof("Throwable")-1, 1);
 	zval property_exception_default_value;
 	ZVAL_UNDEF(&property_exception_default_value);
 	zend_string *property_exception_name = zend_string_init("exception", sizeof("exception") - 1, 1);
+	zend_string *property_exception_class_Throwable = zend_string_init("Throwable", sizeof("Throwable")-1, 1);
 	zend_declare_typed_property(class_entry, property_exception_name, &property_exception_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_exception_class_Throwable, 0, MAY_BE_NULL));
 	zend_string_release(property_exception_name);
 

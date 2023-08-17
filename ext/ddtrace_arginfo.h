@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d76f5179a4cac6921e820a94e4dd9b198fd303e7 */
+ * Stub hash: 414789fb27e3a704af44a6c25ae021ce97c85b43 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -513,15 +513,15 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_declare_typed_property(class_entry, property_metrics_name, &property_metrics_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_metrics_name);
 
-	zend_string *property_exception_class_Throwable = zend_string_init("Throwable", sizeof("Throwable")-1, 1);
 	zval property_exception_default_value;
 	ZVAL_NULL(&property_exception_default_value);
 	zend_string *property_exception_name = zend_string_init("exception", sizeof("exception") - 1, 1);
+	zend_string *property_exception_class_Throwable = zend_string_init("Throwable", sizeof("Throwable")-1, 1);
 	zend_declare_typed_property(class_entry, property_exception_name, &property_exception_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_exception_class_Throwable, 0, MAY_BE_NULL));
 	zend_string_release(property_exception_name);
 
 	zval property_id_default_value;
-	ZVAL_EMPTY_STRING(&property_id_default_value);
+	ZVAL_UNDEF(&property_id_default_value);
 	zend_string *property_id_name = zend_string_init("id", sizeof("id") - 1, 1);
 	zend_declare_typed_property(class_entry, property_id_name, &property_id_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
 	zend_string_release(property_id_name);
@@ -538,17 +538,17 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_declare_typed_property(class_entry, property_peerServiceSources_name, &property_peerServiceSources_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_peerServiceSources_name);
 
-	zend_string *property_parent_class_DDTrace_SpanData = zend_string_init("DDTrace\\SpanData", sizeof("DDTrace\\SpanData")-1, 1);
 	zval property_parent_default_value;
-	ZVAL_NULL(&property_parent_default_value);
+	ZVAL_UNDEF(&property_parent_default_value);
 	zend_string *property_parent_name = zend_string_init("parent", sizeof("parent") - 1, 1);
+	zend_string *property_parent_class_DDTrace_SpanData = zend_string_init("DDTrace\\SpanData", sizeof("DDTrace\\SpanData")-1, 1);
 	zend_declare_typed_property(class_entry, property_parent_name, &property_parent_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_parent_class_DDTrace_SpanData, 0, MAY_BE_NULL));
 	zend_string_release(property_parent_name);
 
-	zend_string *property_stack_class_DDTrace_SpanStack = zend_string_init("DDTrace\\SpanStack", sizeof("DDTrace\\SpanStack")-1, 1);
 	zval property_stack_default_value;
 	ZVAL_UNDEF(&property_stack_default_value);
 	zend_string *property_stack_name = zend_string_init("stack", sizeof("stack") - 1, 1);
+	zend_string *property_stack_class_DDTrace_SpanStack = zend_string_init("DDTrace\\SpanStack", sizeof("DDTrace\\SpanStack")-1, 1);
 	zend_declare_typed_property(class_entry, property_stack_name, &property_stack_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_stack_class_DDTrace_SpanStack, 0, 0));
 	zend_string_release(property_stack_name);
 
@@ -561,19 +561,18 @@ static zend_class_entry *register_class_DDTrace_SpanStack(void)
 
 	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "SpanStack", class_DDTrace_SpanStack_methods);
 	class_entry = zend_register_internal_class_ex(&ce, NULL);
-	class_entry->ce_flags |= ZEND_ACC_READONLY_CLASS;
 
-	zend_string *property_parent_class_DDTrace_SpanStack = zend_string_init("DDTrace\\SpanStack", sizeof("DDTrace\\SpanStack")-1, 1);
 	zval property_parent_default_value;
-	ZVAL_NULL(&property_parent_default_value);
+	ZVAL_UNDEF(&property_parent_default_value);
 	zend_string *property_parent_name = zend_string_init("parent", sizeof("parent") - 1, 1);
+	zend_string *property_parent_class_DDTrace_SpanStack = zend_string_init("DDTrace\\SpanStack", sizeof("DDTrace\\SpanStack")-1, 1);
 	zend_declare_typed_property(class_entry, property_parent_name, &property_parent_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_parent_class_DDTrace_SpanStack, 0, MAY_BE_NULL));
 	zend_string_release(property_parent_name);
 
-	zend_string *property_active_class_DDTrace_SpanData = zend_string_init("DDTrace\\SpanData", sizeof("DDTrace\\SpanData")-1, 1);
 	zval property_active_default_value;
 	ZVAL_NULL(&property_active_default_value);
 	zend_string *property_active_name = zend_string_init("active", sizeof("active") - 1, 1);
+	zend_string *property_active_class_DDTrace_SpanData = zend_string_init("DDTrace\\SpanData", sizeof("DDTrace\\SpanData")-1, 1);
 	zend_declare_typed_property(class_entry, property_active_name, &property_active_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_active_class_DDTrace_SpanData, 0, MAY_BE_NULL));
 	zend_string_release(property_active_name);
 
