@@ -1,7 +1,7 @@
 [[
   {
     "name": "wordpress.request",
-    "service": "wordpress_59_test_app",
+    "service": "wordpress_55_test_app",
     "resource": "GET /simple_view",
     "trace_id": 0,
     "span_id": 1,
@@ -115,7 +115,7 @@
      },
      {
        "name": "create_initial_taxonomies",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "create_initial_taxonomies",
        "trace_id": 0,
        "span_id": 7,
@@ -129,7 +129,7 @@
      },
      {
        "name": "create_initial_post_types",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "create_initial_post_types",
        "trace_id": 0,
        "span_id": 8,
@@ -143,7 +143,7 @@
      },
      {
        "name": "load_plugin",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "datadog (plugin)",
        "trace_id": 0,
        "span_id": 9,
@@ -156,7 +156,7 @@
      },
      {
        "name": "action",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "plugins_loaded (hook)",
        "trace_id": 0,
        "span_id": 10,
@@ -169,7 +169,7 @@
      },
         {
           "name": "wp_maybe_load_widgets",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "wp_maybe_load_widgets",
           "trace_id": 0,
           "span_id": 21,
@@ -183,7 +183,7 @@
         },
         {
           "name": "wp_maybe_load_embeds",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "wp_maybe_load_embeds",
           "trace_id": 0,
           "span_id": 22,
@@ -197,7 +197,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "_wp_add_additional_image_sizes (callback)",
           "trace_id": 0,
           "span_id": 23,
@@ -211,7 +211,7 @@
         },
         {
           "name": "_wp_customize_include",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "_wp_customize_include",
           "trace_id": 0,
           "span_id": 24,
@@ -225,7 +225,7 @@
         },
      {
        "name": "action",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "setup_theme (hook)",
        "trace_id": 0,
        "span_id": 11,
@@ -238,7 +238,7 @@
      },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "create_initial_theme_features (callback)",
           "trace_id": 0,
           "span_id": 25,
@@ -273,7 +273,7 @@
      },
      {
        "name": "load_theme",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "Twentytwenty (theme)",
        "trace_id": 0,
        "span_id": 13,
@@ -286,7 +286,7 @@
      },
      {
        "name": "action",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "after_setup_theme (hook)",
        "trace_id": 0,
        "span_id": 14,
@@ -299,7 +299,7 @@
      },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "twentytwenty_theme_support (callback)",
           "trace_id": 0,
           "span_id": 26,
@@ -313,7 +313,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "twentytwenty_block_editor_settings (callback)",
           "trace_id": 0,
           "span_id": 27,
@@ -327,7 +327,7 @@
         },
      {
        "name": "WP.init",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "WP.init",
        "trace_id": 0,
        "span_id": 15,
@@ -339,7 +339,7 @@
      },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "kses_init (callback)",
           "trace_id": 0,
           "span_id": 28,
@@ -353,7 +353,7 @@
         },
      {
        "name": "action",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "init (hook)",
        "trace_id": 0,
        "span_id": 16,
@@ -366,7 +366,7 @@
      },
         {
           "name": "create_initial_post_types",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "create_initial_post_types",
           "trace_id": 0,
           "span_id": 29,
@@ -378,7 +378,7 @@
         },
         {
           "name": "create_initial_taxonomies",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "create_initial_taxonomies",
           "trace_id": 0,
           "span_id": 30,
@@ -390,7 +390,7 @@
         },
         {
           "name": "wp_widgets_init",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "wp_widgets_init",
           "trace_id": 0,
           "span_id": 31,
@@ -404,7 +404,7 @@
         },
            {
              "name": "WP_Widget_Factory._register_widgets",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "WP_Widget_Factory._register_widgets",
              "trace_id": 0,
              "span_id": 73,
@@ -437,7 +437,7 @@
               },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "smilies_init (callback)",
           "trace_id": 0,
           "span_id": 32,
@@ -451,7 +451,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "wp_init_targeted_link_rel_filters (callback)",
           "trace_id": 0,
           "span_id": 33,
@@ -465,7 +465,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "_register_core_block_patterns_and_categories (callback)",
           "trace_id": 0,
           "span_id": 34,
@@ -479,7 +479,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "wp_cron (callback)",
           "trace_id": 0,
           "span_id": 35,
@@ -493,7 +493,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "wp_schedule_delete_old_privacy_export_files (callback)",
           "trace_id": 0,
           "span_id": 36,
@@ -507,7 +507,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "_show_post_preview (callback)",
           "trace_id": 0,
           "span_id": 37,
@@ -521,7 +521,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "rest_api_init (callback)",
           "trace_id": 0,
           "span_id": 38,
@@ -535,7 +535,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "wp_sitemaps_get_server (callback)",
           "trace_id": 0,
           "span_id": 39,
@@ -549,7 +549,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "wp_schedule_update_checks (callback)",
           "trace_id": 0,
           "span_id": 40,
@@ -563,7 +563,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_archives (callback)",
           "trace_id": 0,
           "span_id": 41,
@@ -577,7 +577,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_block (callback)",
           "trace_id": 0,
           "span_id": 42,
@@ -591,7 +591,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_calendar (callback)",
           "trace_id": 0,
           "span_id": 43,
@@ -605,7 +605,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_categories (callback)",
           "trace_id": 0,
           "span_id": 44,
@@ -619,7 +619,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_latest_comments (callback)",
           "trace_id": 0,
           "span_id": 45,
@@ -633,7 +633,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_latest_posts (callback)",
           "trace_id": 0,
           "span_id": 46,
@@ -647,7 +647,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_rss (callback)",
           "trace_id": 0,
           "span_id": 47,
@@ -661,7 +661,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_search (callback)",
           "trace_id": 0,
           "span_id": 48,
@@ -675,7 +675,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_shortcode (callback)",
           "trace_id": 0,
           "span_id": 49,
@@ -689,7 +689,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_social_link (callback)",
           "trace_id": 0,
           "span_id": 50,
@@ -703,7 +703,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_block_core_tag_cloud (callback)",
           "trace_id": 0,
           "span_id": 51,
@@ -717,7 +717,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "register_core_block_types_from_metadata (callback)",
           "trace_id": 0,
           "span_id": 52,
@@ -731,7 +731,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "twentytwenty_menus (callback)",
           "trace_id": 0,
           "span_id": 53,
@@ -745,7 +745,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "twentytwenty_classic_editor_styles (callback)",
           "trace_id": 0,
           "span_id": 54,
@@ -759,7 +759,7 @@
         },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "check_theme_switched (callback)",
           "trace_id": 0,
           "span_id": 55,
@@ -794,7 +794,7 @@
            },
      {
        "name": "action",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "wp_loaded (hook)",
        "trace_id": 0,
        "span_id": 17,
@@ -807,7 +807,7 @@
      },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "_custom_header_background_just_in_time (callback)",
           "trace_id": 0,
           "span_id": 56,
@@ -821,7 +821,7 @@
         },
      {
        "name": "WP.main",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "WP.main",
        "trace_id": 0,
        "span_id": 18,
@@ -833,7 +833,7 @@
      },
         {
           "name": "WP.init",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "WP.init",
           "trace_id": 0,
           "span_id": 57,
@@ -845,7 +845,7 @@
         },
         {
           "name": "WP.parse_request",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "WP.parse_request",
           "trace_id": 0,
           "span_id": 58,
@@ -878,7 +878,7 @@
            },
         {
           "name": "WP.send_headers",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "WP.send_headers",
           "trace_id": 0,
           "span_id": 59,
@@ -890,7 +890,7 @@
         },
         {
           "name": "WP.query_posts",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "WP.query_posts",
           "trace_id": 0,
           "span_id": 60,
@@ -965,7 +965,7 @@
            },
         {
           "name": "WP.handle_404",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "WP.handle_404",
           "trace_id": 0,
           "span_id": 61,
@@ -977,7 +977,7 @@
         },
         {
           "name": "WP.register_globals",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "WP.register_globals",
           "trace_id": 0,
           "span_id": 62,
@@ -989,7 +989,7 @@
         },
         {
           "name": "action",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "wp (hook)",
           "trace_id": 0,
           "span_id": 63,
@@ -1002,7 +1002,7 @@
         },
      {
        "name": "load_template_loader",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "load_template_loader",
        "trace_id": 0,
        "span_id": 19,
@@ -1014,7 +1014,7 @@
      },
         {
           "name": "action",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "template_redirect (hook)",
           "trace_id": 0,
           "span_id": 64,
@@ -1027,7 +1027,7 @@
         },
            {
              "name": "callback",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "_wp_admin_bar_init (callback)",
              "trace_id": 0,
              "span_id": 79,
@@ -1041,7 +1041,7 @@
            },
            {
              "name": "callback",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "wp_old_slug_redirect (callback)",
              "trace_id": 0,
              "span_id": 80,
@@ -1055,7 +1055,7 @@
            },
            {
              "name": "callback",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "redirect_canonical (callback)",
              "trace_id": 0,
              "span_id": 81,
@@ -1069,7 +1069,7 @@
            },
            {
              "name": "callback",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "WP_Sitemaps::render_sitemaps (callback)",
              "trace_id": 0,
              "span_id": 82,
@@ -1083,7 +1083,7 @@
            },
            {
              "name": "callback",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "rest_output_link_header (callback)",
              "trace_id": 0,
              "span_id": 83,
@@ -1097,7 +1097,7 @@
            },
            {
              "name": "callback",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "wp_shortlink_header (callback)",
              "trace_id": 0,
              "span_id": 84,
@@ -1111,7 +1111,7 @@
            },
            {
              "name": "callback",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "wp_redirect_admin_locations (callback)",
              "trace_id": 0,
              "span_id": 85,
@@ -1125,7 +1125,7 @@
            },
         {
           "name": "template",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "single (type)",
           "trace_id": 0,
           "span_id": 65,
@@ -1138,7 +1138,7 @@
         },
         {
           "name": "template",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "singular (type)",
           "trace_id": 0,
           "span_id": 66,
@@ -1152,7 +1152,7 @@
         },
         {
           "name": "get_header",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "get_header",
           "trace_id": 0,
           "span_id": 67,
@@ -1164,7 +1164,7 @@
         },
            {
              "name": "load_template",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "header (template)",
              "trace_id": 0,
              "span_id": 86,
@@ -1178,7 +1178,7 @@
            },
               {
                 "name": "action",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "wp_head (hook)",
                 "trace_id": 0,
                 "span_id": 95,
@@ -1191,7 +1191,7 @@
               },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "_wp_render_title_tag (callback)",
                    "trace_id": 0,
                    "span_id": 108,
@@ -1205,7 +1205,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_enqueue_scripts (callback)",
                    "trace_id": 0,
                    "span_id": 109,
@@ -1219,7 +1219,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "noindex (callback)",
                    "trace_id": 0,
                    "span_id": 110,
@@ -1233,7 +1233,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_post_preview_js (callback)",
                    "trace_id": 0,
                    "span_id": 111,
@@ -1247,7 +1247,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_resource_hints (callback)",
                    "trace_id": 0,
                    "span_id": 112,
@@ -1261,7 +1261,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "feed_links (callback)",
                    "trace_id": 0,
                    "span_id": 113,
@@ -1275,7 +1275,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "feed_links_extra (callback)",
                    "trace_id": 0,
                    "span_id": 114,
@@ -1289,7 +1289,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "print_emoji_detection_script (callback)",
                    "trace_id": 0,
                    "span_id": 115,
@@ -1303,7 +1303,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_print_styles (callback)",
                    "trace_id": 0,
                    "span_id": 116,
@@ -1317,7 +1317,7 @@
                  },
                  {
                    "name": "wp_print_head_scripts",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_print_head_scripts",
                    "trace_id": 0,
                    "span_id": 117,
@@ -1331,7 +1331,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "rest_output_link_wp_head (callback)",
                    "trace_id": 0,
                    "span_id": 118,
@@ -1345,7 +1345,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "rsd_link (callback)",
                    "trace_id": 0,
                    "span_id": 119,
@@ -1359,7 +1359,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wlwmanifest_link (callback)",
                    "trace_id": 0,
                    "span_id": 120,
@@ -1373,7 +1373,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "adjacent_posts_rel_link_wp_head (callback)",
                    "trace_id": 0,
                    "span_id": 121,
@@ -1450,7 +1450,7 @@
                     },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "locale_stylesheet (callback)",
                    "trace_id": 0,
                    "span_id": 122,
@@ -1464,7 +1464,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_generator (callback)",
                    "trace_id": 0,
                    "span_id": 123,
@@ -1478,7 +1478,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "rel_canonical (callback)",
                    "trace_id": 0,
                    "span_id": 124,
@@ -1492,7 +1492,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_shortlink_wp_head (callback)",
                    "trace_id": 0,
                    "span_id": 125,
@@ -1506,7 +1506,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "_custom_logo_header_styles (callback)",
                    "trace_id": 0,
                    "span_id": 126,
@@ -1520,7 +1520,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_oembed_add_discovery_links (callback)",
                    "trace_id": 0,
                    "span_id": 127,
@@ -1534,7 +1534,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_oembed_add_host_js (callback)",
                    "trace_id": 0,
                    "span_id": 128,
@@ -1548,7 +1548,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "twentytwenty_no_js_class (callback)",
                    "trace_id": 0,
                    "span_id": 129,
@@ -1562,7 +1562,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "WP_Widget_Recent_Comments::recent_comments_style (callback)",
                    "trace_id": 0,
                    "span_id": 130,
@@ -1576,7 +1576,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "_custom_background_cb (callback)",
                    "trace_id": 0,
                    "span_id": 131,
@@ -1590,7 +1590,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_site_icon (callback)",
                    "trace_id": 0,
                    "span_id": 132,
@@ -1604,7 +1604,7 @@
                  },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_custom_css_cb (callback)",
                    "trace_id": 0,
                    "span_id": 133,
@@ -1618,7 +1618,7 @@
                  },
               {
                 "name": "body_class",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "body_class",
                 "trace_id": 0,
                 "span_id": 96,
@@ -1630,7 +1630,7 @@
               },
               {
                 "name": "callback",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "wp_admin_bar_render (callback)",
                 "trace_id": 0,
                 "span_id": 97,
@@ -1665,7 +1665,7 @@
               },
         {
           "name": "the_post",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "the_post",
           "trace_id": 0,
           "span_id": 68,
@@ -1719,7 +1719,7 @@
            },
         {
           "name": "load_template",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "content (template)",
           "trace_id": 0,
           "span_id": 69,
@@ -1733,7 +1733,7 @@
         },
            {
              "name": "the_content",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "the_content",
              "trace_id": 0,
              "span_id": 89,
@@ -1746,7 +1746,7 @@
            },
               {
                 "name": "block",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "core/paragraph (block)",
                 "trace_id": 0,
                 "span_id": 99,
@@ -1759,7 +1759,7 @@
               },
            {
              "name": "comments_template",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "comments_template",
              "trace_id": 0,
              "span_id": 90,
@@ -1792,7 +1792,7 @@
               },
         {
           "name": "load_template",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "footer-menus-widgets (template)",
           "trace_id": 0,
           "span_id": 70,
@@ -1806,7 +1806,7 @@
         },
            {
              "name": "dynamic_sidebar",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "sidebar-1",
              "trace_id": 0,
              "span_id": 91,
@@ -1818,7 +1818,7 @@
            },
               {
                 "name": "widget",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "Search (widget)",
                 "trace_id": 0,
                 "span_id": 101,
@@ -1831,7 +1831,7 @@
               },
               {
                 "name": "widget",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "Recent Posts (widget)",
                 "trace_id": 0,
                 "span_id": 102,
@@ -1907,7 +1907,7 @@
                  },
               {
                 "name": "widget",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "Recent Comments (widget)",
                 "trace_id": 0,
                 "span_id": 103,
@@ -1983,7 +1983,7 @@
                  },
            {
              "name": "dynamic_sidebar",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "sidebar-2",
              "trace_id": 0,
              "span_id": 92,
@@ -1995,7 +1995,7 @@
            },
               {
                 "name": "widget",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "Archives (widget)",
                 "trace_id": 0,
                 "span_id": 104,
@@ -2029,7 +2029,7 @@
                  },
               {
                 "name": "widget",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "Categories (widget)",
                 "trace_id": 0,
                 "span_id": 105,
@@ -2084,7 +2084,7 @@
                  },
               {
                 "name": "widget",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "Meta (widget)",
                 "trace_id": 0,
                 "span_id": 106,
@@ -2097,7 +2097,7 @@
               },
         {
           "name": "get_footer",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "get_footer",
           "trace_id": 0,
           "span_id": 71,
@@ -2109,7 +2109,7 @@
         },
            {
              "name": "load_template",
-             "service": "wordpress_59_test_app",
+             "service": "wordpress_55_test_app",
              "resource": "footer (template)",
              "trace_id": 0,
              "span_id": 93,
@@ -2123,7 +2123,7 @@
            },
               {
                 "name": "action",
-                "service": "wordpress_59_test_app",
+                "service": "wordpress_55_test_app",
                 "resource": "wp_footer (hook)",
                 "trace_id": 0,
                 "span_id": 107,
@@ -2136,7 +2136,7 @@
               },
                  {
                    "name": "callback",
-                   "service": "wordpress_59_test_app",
+                   "service": "wordpress_55_test_app",
                    "resource": "wp_print_footer_scripts (callback)",
                    "trace_id": 0,
                    "span_id": 143,
@@ -2150,7 +2150,7 @@
                  },
      {
        "name": "action",
-       "service": "wordpress_59_test_app",
+       "service": "wordpress_55_test_app",
        "resource": "shutdown (hook)",
        "trace_id": 0,
        "span_id": 20,
@@ -2163,7 +2163,7 @@
      },
         {
           "name": "callback",
-          "service": "wordpress_59_test_app",
+          "service": "wordpress_55_test_app",
           "resource": "wp_ob_end_flush_all (callback)",
           "trace_id": 0,
           "span_id": 72,
