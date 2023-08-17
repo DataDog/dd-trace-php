@@ -259,7 +259,7 @@ class LaminasIntegration extends Integration
                 if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                     $rootSpan->resource = "$controller@$action $routeName";
                 }
-                $rootSpan->meta[Tag::HTTP_ROUTE] = $routeName;
+                $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
             }
         );
