@@ -213,6 +213,14 @@ set_trace_id_from_span_id:
             Z_TRY_ADDREF_P(origin);
             zend_hash_str_add_new(meta, ZEND_STRL("_dd.origin"), origin);
         }
+
+        if (get_DD_APM_TRACING_ENABLED()) {
+            zval status;
+            zend_string *false_zstr = zend_string_init("0", sizeof("0") - 1, 0);
+            ZVAL_STR_COPY(&status, false_zstr);
+            zend_string_release(false_zstr);
+            zend_hash_str_add_new(meta, ZEND_STRL("_dd.apm.enabled"), &status);
+        }
     }
 
     span->root = DDTRACE_G(active_stack)->root_span;
