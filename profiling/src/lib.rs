@@ -189,7 +189,7 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
  * mechanisms like std::sync::Once::call_once may not be suitable.
  * Be careful out there!
  */
-extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
+extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     /* When developing the extension, it's useful to see log messages that
      * occur before the user can configure the log level. However, if we
      * initialized the logger here unconditionally then they'd have no way to
@@ -198,7 +198,7 @@ extern "C" fn minit(r#type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     {
         logging::log_init(LevelFilter::Trace);
-        trace!("MINIT({}, {})", r#type, module_number);
+        trace!("MINIT({_type}, {module_number})");
     }
 
     #[cfg(target_vendor = "apple")]
@@ -376,9 +376,9 @@ extern "C" fn activate() {
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
  * using it for catastrophic errors only.
  */
-extern "C" fn rinit(r#type: c_int, module_number: c_int) -> ZendResult {
+extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
-    trace!("RINIT({}, {})", r#type, module_number);
+    trace!("RINIT({_type}, {_module_number})");
 
     /* At the moment, logging is truly global, so init it exactly once whether
      * profiling is enabled or not.
@@ -634,9 +634,9 @@ fn detect_uri_from_config(
     AgentEndpoint::default()
 }
 
-extern "C" fn rshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
+extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
-    trace!("RSHUTDOWN({}, {})", r#type, module_number);
+    trace!("RSHUTDOWN({_type}, {_module_number})");
 
     #[cfg(php_run_time_cache)]
     {
@@ -694,12 +694,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             b"Experimental CPU Time Profiling Enabled\0".as_ptr(),
             if locals.profiling_experimental_cpu_time_enabled {
                 yes
+            } else if locals.profiling_enabled {
+                no
             } else {
-                if locals.profiling_enabled {
-                    no
-                } else {
-                    no_all
-                }
+                no_all
             },
         );
 
@@ -712,12 +710,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                         yes
                     } else if zend::ddog_php_jit_enabled() {
                         b"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.\0"
+                    } else if locals.profiling_enabled {
+                        no
                     } else {
-                        if locals.profiling_enabled {
-                            no
-                        } else {
-                            no_all
-                        }
+                        no_all
                     }
                 );
             } else {
@@ -736,12 +732,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                     b"Experimental Timeline Enabled\0".as_ptr(),
                     if locals.profiling_experimental_timeline_enabled {
                         yes
+                    } else if locals.profiling_enabled {
+                        no
                     } else {
-                        if locals.profiling_enabled {
-                            no
-                        } else {
-                            no_all
-                        }
+                        no_all
                     },
                 );
             } else {
@@ -758,12 +752,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             b"Endpoint Collection Enabled\0".as_ptr(),
             if locals.profiling_endpoint_collection_enabled {
                 yes
+            } else if locals.profiling_enabled {
+                no
             } else {
-                if locals.profiling_enabled {
-                    no
-                } else {
-                    no_all
-                }
+                no_all
             },
         );
 
@@ -806,9 +798,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
     });
 }
 
-extern "C" fn mshutdown(r#type: c_int, module_number: c_int) -> ZendResult {
+extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
-    trace!("MSHUTDOWN({}, {})", r#type, module_number);
+    trace!("MSHUTDOWN({_type}, {_module_number})");
 
     unsafe { bindings::zai_config_mshutdown() };
 
@@ -930,7 +922,7 @@ fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe { profiler.collect_time(execute_data, interrupt_count, locals.deref()) };
+            profiler.collect_time(execute_data, interrupt_count, locals.deref());
         }
     });
 }

@@ -63,7 +63,7 @@ pub struct ZendFrame {
 /// Namespaces are part of the class_name or function_name respectively.
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
-pub unsafe fn extract_function_name(func: &zend_function) -> Option<String> {
+pub fn extract_function_name(func: &zend_function) -> Option<String> {
     let method_name: &[u8] = func.name().unwrap_or(b"");
 
     /* The top of the stack seems to reasonably often not have a function, but
@@ -141,7 +141,7 @@ unsafe fn handle_file_cache_slot(
 }
 
 #[cfg(php_run_time_cache)]
-unsafe fn handle_function_cache_slot(
+fn handle_function_cache_slot(
     func: &zend_function,
     string_table: &mut StringTable,
     cache_slots: &mut [usize; 2],
@@ -290,7 +290,7 @@ pub fn collect_stack_sample(
         if #[cfg(php_run_time_cache)] {
             CACHED_STRINGS.with(|cell| {
                 let mut string_table = cell.borrow_mut();
-                collect_stack_sample_helper(top_execute_data, &mut *string_table)
+                collect_stack_sample_helper(top_execute_data, &mut string_table)
             })
         } else {
             collect_stack_sample_helper(top_execute_data)
