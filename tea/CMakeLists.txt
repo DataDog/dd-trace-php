@@ -12,6 +12,8 @@ include(GNUInstallDirs)
 find_package(PhpConfig REQUIRED)
 set(TEA_PHP_VERNUM ${PhpConfig_VERNUM})
 
+# Note, on Mac you need to build PHP with --enable-embed=static and make sure
+# that libphp.so does not exist at all, as that gets preferred over the .a.
 find_library(
   PHP_LIB
   # Before PHP 8 the lib was named, 'libphp<version>.so'

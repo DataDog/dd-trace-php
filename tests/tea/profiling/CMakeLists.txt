@@ -1,6 +1,6 @@
 add_library(tea-profiling SHARED profiling.cc profiling.h)
 set_target_properties(tea-profiling PROPERTIES PREFIX "")
-target_link_libraries(tea-profiling PUBLIC Tea::PHP datadog-php-stack-sample
+target_link_libraries(tea-profiling PUBLIC Tea::Php datadog-php-stack-sample
                                            datadog_php_string_view)
 
 add_executable(tea-profiling-interrupt-test
