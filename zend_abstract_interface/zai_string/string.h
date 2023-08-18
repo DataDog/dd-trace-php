@@ -11,9 +11,6 @@
 #include <stddef.h>
 #include <string.h>
 
-// never write, only read
-extern char *ZAI_STRING_EMPTY_PTR;
-
 /**
  * Represents a non-owning view of a string.
  *
