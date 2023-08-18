@@ -6,7 +6,7 @@ target_include_directories(
 
 target_compile_features(zai_json PUBLIC c_std_99)
 
-target_link_libraries(zai_json PUBLIC "${PHP_LIB}" dl)
+target_link_libraries(zai_json PUBLIC Tea::Php dl)
 
 set_target_properties(zai_json PROPERTIES EXPORT_NAME Json
                                             VERSION ${PROJECT_VERSION})

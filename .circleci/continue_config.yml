@@ -1915,7 +1915,6 @@ jobs:
                 -DCMAKE_INSTALL_PREFIX=/opt/tea/${phpBuild} \
                 -DCMAKE_BUILD_TYPE=Debug \
                 -DBUILD_TEA_TESTING=ON \
-                -DPHP_CONFIG=$(which php-config) \
                 ~/datadog/tea
               make -j all
               make test

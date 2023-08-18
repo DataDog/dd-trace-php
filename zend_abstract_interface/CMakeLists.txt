@@ -1,10 +1,13 @@
-# Need CMake 3.18 for using 'REQUIRED' with find_library().
-cmake_minimum_required(VERSION 3.18)
+# Need CMake 3.19 for Tea.
+cmake_minimum_required(VERSION 3.19)
 
 project(
   zend-abstract-interface
   VERSION 0.1.0
   LANGUAGES C)
+
+# Get our FindPhpConfig helper.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake/Modules")
 
 option(BUILD_ZAI_TESTING "Enable tests" OFF)
 if(${BUILD_ZAI_TESTING})
@@ -35,60 +38,25 @@ include(GNUInstallDirs)
 
 add_library(zai_zend_abstract_interface INTERFACE)
 
-# Get the PHP prefix path from php-config
-execute_process(
-  COMMAND ${PHP_CONFIG} --prefix
-  OUTPUT_VARIABLE PHP_PREFIX_PATH
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  RESULT_VARIABLE ret)
+find_package(PhpConfig REQUIRED)
 
-if(NOT ret EQUAL "0")
-  message(
-    FATAL_ERROR
-      "Failed to execute 'php-config'. Check that PHP_CONFIG is set to the 'php-config' executable."
-  )
-endif()
-
-find_library(
-  PHP_LIB
-  # Before PHP 8 the lib was named, 'libphp<version>.so'
-  NAMES php php7 php5
-  PATHS "${PHP_PREFIX_PATH}/lib"
-  NO_DEFAULT_PATH
-  # 'REQUIRED' added in cmake v3.18
-  REQUIRED)
-
-include_directories(
-  "${PHP_PREFIX_PATH}/include/php/" "${PHP_PREFIX_PATH}/include/php/TSRM"
-  "${PHP_PREFIX_PATH}/include/php/Zend" "${PHP_PREFIX_PATH}/include/php/ext"
-  "${PHP_PREFIX_PATH}/include/php/main")
-
-#[[ Get the PHP version number from php-config. This is used to compile the
-    version-specific source files.
-]]
-execute_process(
-  COMMAND ${PHP_CONFIG} --vernum
-  OUTPUT_VARIABLE PHP_VERSION_ID
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  RESULT_VARIABLE ret)
-
-if(NOT ret EQUAL "0")
-  message(FATAL_ERROR "Failed to get the PHP version number from 'php-config'.")
-endif()
-
-if(PHP_VERSION_ID LESS "70000")
+if(PhpConfig_VERNUM LESS "70000")
   set(PHP_VERSION_DIRECTORY "php5")
-elseif(PHP_VERSION_ID LESS "80000")
+elseif(PhpConfig_VERNUM LESS "80000")
   set(PHP_VERSION_DIRECTORY "php7")
-elseif(PHP_VERSION_ID LESS "90000")
+elseif(PhpConfig_VERNUM LESS "90000")
   set(PHP_VERSION_DIRECTORY "php8")
 else()
-  message(FATAL_ERROR "Unsupported PHP version '${PHP_VERSION_ID}'.")
+  message(FATAL_ERROR "Unsupported PHP version '${PhpConfig_VERNUM}'.")
 endif()
 
 find_package(Tea 0.1.0 REQUIRED)
 if(NOT TARGET Tea::Tea)
   message(FATAL_ERROR "TEA is required but not found")
+endif()
+
+if(NOT TARGET Tea::Php)
+  message(FATAL_ERROR "TEA is required but Tea::Php not found")
 endif()
 
 add_subdirectory(env)
