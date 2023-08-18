@@ -1,4 +1,4 @@
-if(PHP_VERSION_ID LESS "80200" AND PHP_VERSION_ID GREATER "79999")
+if(PhpConfig_VERNUM LESS "80200" AND PhpConfig_VERNUM GREATER "79999")
   add_library(zai_interceptor "${PHP_VERSION_DIRECTORY}/interceptor.c"
                               "${PHP_VERSION_DIRECTORY}/resolver_pre-8_2.c")
 else()
