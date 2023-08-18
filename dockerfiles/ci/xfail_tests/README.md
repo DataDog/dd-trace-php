@@ -161,6 +161,12 @@ ddtrace affects the order of destructor execution due to creating span stacks et
 
 Observer tests trace all functions, including dd setup. Exclude these from being observed.
 
+## `ext/standard/tests/network/syslog_null_byte.phpt`, `ext/standard/tests/network/syslog_new_line.phpt`
+
+Both of them have a additional `PHPT: DIGEST-MD5 common mech free` in the output which is not expected in the test. This line originates from `libdigestmd5.so` which is shipped as part of `libsasl2-modules` in Debian. We are currently running those tests on Debian Buster which is stuck on Version 2.1.27 of that package, while the "fix" is in 2.1.28 version of the Debian package.
+
+See also: https://github.com/DataDog/dd-trace-php/pull/2218
+
 ## SKIP\_ONLINE\_TESTS
 
 The env var `SKIP_ONLINE_TESTS` is set so that in newer PHP versions, we skip
