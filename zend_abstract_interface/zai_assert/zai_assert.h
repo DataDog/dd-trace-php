@@ -37,11 +37,13 @@
 
 // __has_builtin will get defined by zend_portability.h if it doesn't exist.
 #if __has_builtin(__builtin_assume)
+// At the time of writing, this is clang-only.
 #define ZAI_ASSUME(cond) __builtin_assume(cond)
+#elif defined(__GCC__)
+// GCC has had these builtins a long, long time. Not guarding them.
+#define ZAI_ASSUME(cond) \
+    (__builtin_expect(!(cond), 0) ? __builtin_unreachable() : true)
 #else
-// __builtin_assume is not on GCC. We could make this work with other tricks,
-// but the easiest ones are statements, not expressions, so they don't work
-// here, as we need to evaluate to an expression.
 #define ZAI_ASSUME(cond) true
 #endif
 
