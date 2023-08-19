@@ -52,13 +52,13 @@ DD_CONFIGURATION
 #undef CALIASES
 #undef CONFIG
 
-static bool dd_parse_dbm_mode(zai_string_view value, zval *decoded_value, bool persistent) {
+static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persistent) {
     UNUSED(persistent);
-    if (zai_string_equals_literal_ci(value, "disabled")) {
+    if (zai_str_eq_ci_cstr(value, "disabled")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_DISABLED);
-    } else if (zai_string_equals_literal_ci(value, "service")) {
+    } else if (zai_str_eq_ci_cstr(value, "service")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_SERVICE);
-    } else if (zai_string_equals_literal_ci(value, "full")) {
+    } else if (zai_str_eq_ci_cstr(value, "full")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_FULL);
     } else {
         return false;
@@ -72,7 +72,7 @@ static bool dd_parse_dbm_mode(zai_string_view value, zval *decoded_value, bool p
 
 #define CUSTOM(...) CUSTOM
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
-#define CALIASES(...) ((zai_string_view[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
+#define CALIASES(...) ((zai_str[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
 #define CONFIG(type, name, ...) ZAI_CONFIG_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
 #define CALIAS(type, name, ...) ZAI_CONFIG_ALIASED_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
 static zai_config_entry config_entries[] = {DD_CONFIGURATION};
@@ -89,7 +89,7 @@ static void dd_copy_tolower(char *restrict dst, const char *restrict src) {
     }
 }
 
-static void dd_ini_env_to_ini_name(const zai_string_view env_name, zai_config_name *ini_name) {
+static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_name) {
     if (env_name.len + DD_TO_DATADOG_INC >= ZAI_CONFIG_NAME_BUFSIZ) {
         assert(false && "Expanded env name length is larger than the INI name buffer");
         return;

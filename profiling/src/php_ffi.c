@@ -123,7 +123,7 @@ void datadog_php_profiling_install_internal_function_handler(
     }
 }
 
-void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_view view,
+void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
                                                       bool persistent) {
     ZEND_ASSERT(dest);
 
@@ -150,10 +150,10 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
  * empty strings will be converted into a string view to a static empty
  * string (single byte of null, len of 0).
  */
-zai_string_view ddog_php_prof_zend_string_view(zend_string *zstr) {
+zai_str ddog_php_prof_zend_string_view(zend_string *zstr) {
     return (!zstr || ZSTR_LEN(zstr) == 0)
-        ? ZAI_STRING_EMPTY
-        : ZAI_STRING_FROM_ZSTR(zstr);
+        ? ZAI_STR_EMPTY
+        : ZAI_STR_FROM_ZSTR(zstr);
 }
 
 void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,

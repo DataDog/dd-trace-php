@@ -33,12 +33,12 @@ typedef struct {
 /* }}} */
 
 /* {{{ zai_hook_install may be executed after minit and during request */
-zend_long zai_hook_install(zai_string_view scope, zai_string_view function,
+zend_long zai_hook_install(zai_str scope, zai_str function,
         zai_hook_begin begin, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic); /* }}} */
 
 /* {{{ zai_hook_install_generator may be executed after minit and during request */
-zend_long zai_hook_install_generator(zai_string_view scope, zai_string_view function,
+zend_long zai_hook_install_generator(zai_str scope, zai_str function,
         zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic); /* }}} */
 
@@ -59,7 +59,7 @@ zend_long zai_hook_install_resolved_generator(zend_function *function,
         zai_hook_aux aux, size_t dynamic); /* }}} */
 
 /* {{{ zai_hook_remove removes a hook from the request local hook tables. It does not touch static hook tables. */
-bool zai_hook_remove(zai_string_view scope, zai_string_view function, zend_long index);
+bool zai_hook_remove(zai_str scope, zai_str function, zend_long index);
 bool zai_hook_remove_resolved(zai_install_address function_address, zend_long index); /* }}} */
 
 /* {{{ zai_hook_memory_t structure is passed between
@@ -118,12 +118,12 @@ typedef struct {
         uint32_t iter;
     } iterator;
 } zai_hook_iterator;
-zai_hook_iterator zai_hook_iterate_installed(zai_string_view scope, zai_string_view function);
+zai_hook_iterator zai_hook_iterate_installed(zai_str scope, zai_str function);
 zai_hook_iterator zai_hook_iterate_resolved(zend_function *function);
 void zai_hook_iterator_advance(zai_hook_iterator *iterator);
 void zai_hook_iterator_free(zai_hook_iterator *iterator);
 
-uint32_t zai_hook_count_installed(zai_string_view scope, zai_string_view function);
+uint32_t zai_hook_count_installed(zai_str scope, zai_str function);
 uint32_t zai_hook_count_resolved(zend_function *function);
 
 /* {{{ */

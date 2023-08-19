@@ -98,7 +98,7 @@ namespace DDTrace {
         /**
          * @var string The unique identifier of the span
          */
-        public readonly string $id = "";
+        public readonly string $id;
 
         /**
          * @var SpanLink[] $spanLinks An array of span links
@@ -115,7 +115,7 @@ namespace DDTrace {
         /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
-        public readonly SpanData|null $parent = null;
+        public readonly SpanData|null $parent;
 
         /**
          * @var SpanStack The span's stack trace
@@ -150,14 +150,14 @@ namespace DDTrace {
      * 'switch_stack' functions. 'create_stack' creates a new SpanStack whose parent is the currently active stack,
      * while 'switch_stack' switches the active span.
      */
-    readonly class SpanStack {
+    class SpanStack {
         /**
          * @var SpanStack|null The parent stack, or 'null' if there is none
          */
-        public readonly SpanStack|null $parent = null;
+        public readonly SpanStack|null $parent;
 
         /**
-         * @var SpanData The active span
+         * @var SpanData|null The active span
          */
         public SpanData|null $active = null;
     }

@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 /// A non-owning, not necessarily null terminated, not utf-8 encoded, borrowed
 /// string. Must satisfy the requirements of [core::slice::from_raw_parts],
 /// notably it must not use the nul pointer even when the length is 0.
-/// Keep this representation in sync with zai_string_view.
+/// Keep this representation in sync with zai_str.
 #[repr(C)]
 pub struct StringView<'a> {
     len: libc::size_t,

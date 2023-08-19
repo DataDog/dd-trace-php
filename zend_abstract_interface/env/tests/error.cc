@@ -12,7 +12,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/error", "NULL name", {
     REQUIRE_UNSETENV("FOO");
 
     ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_string_view name = ZAI_STRL_VIEW("FOO");
+    zai_str name = ZAI_STRL("FOO");
     name.ptr = NULL;
     zai_env_result res = zai_getenv(name, buf);
 

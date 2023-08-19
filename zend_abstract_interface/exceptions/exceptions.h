@@ -5,6 +5,7 @@
 // dummy comment here to prevent clang format fixer from reordering includes here
 #include <Zend/zend_exceptions.h>
 #include <symbols/symbols.h>
+#include <zai_string/string.h>
 
 static inline zend_class_entry *zai_get_exception_base(zend_object *object) {
     assert(instanceof_function(object->ce, zend_ce_throwable));
@@ -19,7 +20,7 @@ static inline zval *zai_exception_read_property(zend_object *object, const char 
 
     ZVAL_OBJ(&zv, object);
 
-    zval *property = zai_symbol_lookup_property_literal(ZAI_SYMBOL_SCOPE_OBJECT, &zv, pn, pnl);
+    zval *property = zai_symbol_lookup_property(ZAI_SYMBOL_SCOPE_OBJECT, &zv, ZAI_STR_NEW(pn, pnl));
 
     if (!property) {
         return &EG(uninitialized_zval);
@@ -34,7 +35,7 @@ static inline zval *zai_exception_read_property(zend_object *object, zend_string
 
     ZVAL_OBJ(&zv, object);
 
-    zval *property = zai_symbol_lookup_property_literal(ZAI_SYMBOL_SCOPE_OBJECT, &zv, ZSTR_VAL(name), ZSTR_LEN(name));
+    zval *property = zai_symbol_lookup_property(ZAI_SYMBOL_SCOPE_OBJECT, &zv, ZAI_STR_FROM_ZSTR(name));
 
     if (!property) {
         return &EG(uninitialized_zval);

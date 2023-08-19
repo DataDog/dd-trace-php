@@ -23,7 +23,7 @@ static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute
 
     ddog_CharSlice composer_path = dd_zend_string_to_CharSlice(execute_data->func->op_array.filename);
     if (ddtrace_detect_composer_installed_json(&dd_sidecar, dd_telemetry_instance_id, &DDTRACE_G(telemetry_queue_id), composer_path)) {
-        zai_hook_remove(ZAI_STRING_EMPTY, ZAI_STRING_EMPTY, dd_composer_hook_id);
+        zai_hook_remove(ZAI_STR_EMPTY, ZAI_STR_EMPTY, dd_composer_hook_id);
     }
     return true;
 }
@@ -52,7 +52,7 @@ void ddtrace_telemetry_setup(void) {
     ddog_sidecar_session_config_setAgentUrl(&dd_sidecar, session_id, (ddog_CharSlice){ .ptr = agent_url, .len = strlen(agent_url) });
     free(agent_url);
 
-    dd_composer_hook_id = zai_hook_install(ZAI_STRING_EMPTY, ZAI_STRING_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
+    dd_composer_hook_id = zai_hook_install(ZAI_STR_EMPTY, ZAI_STR_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
 }
 
 void ddtrace_telemetry_shutdown(void) {

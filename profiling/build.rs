@@ -186,8 +186,8 @@ fn generate_bindings(php_config_includes: &str, fibers: bool) {
         .header("../ext/handlers_api.h")
         .clang_arg("-I../zend_abstract_interface")
         // Block some zend items that we'll provide manual definitions for
-        .blocklist_item("zai_string_view_s")
-        .blocklist_item("zai_string_view")
+        .blocklist_item("zai_str_s")
+        .blocklist_item("zai_str")
         .blocklist_item("zai_config_entry_s")
         .blocklist_item("zai_config_memoized_entry_s")
         .blocklist_item("zend_bool")

@@ -3,8 +3,8 @@
 #include <php.h>
 #include <zai_assert/zai_assert.h>
 
-zai_header_result zai_read_header(zai_string_view uppercase_header_name, zend_string **header_value) {
-    if (!zai_string_stuffed(uppercase_header_name) || !header_value) return ZAI_HEADER_ERROR;
+zai_header_result zai_read_header(zai_str uppercase_header_name, zend_string **header_value) {
+    if (zai_str_is_empty(uppercase_header_name) || !header_value) return ZAI_HEADER_ERROR;
 
     zai_assert_is_upper(uppercase_header_name.ptr, "Header names must be uppercase.");
 
