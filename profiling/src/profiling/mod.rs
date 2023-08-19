@@ -17,7 +17,7 @@ use crate::{AgentEndpoint, RequestLocals, CLOCKS, TAGS};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
-use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
+use datadog_profiling::profile::api::{Function, Location, Mapping, Period, Sample};
 use log::{debug, error, info, trace, warn};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -339,16 +339,15 @@ impl TimeCollector {
 
         for frame in &message.value.frames {
             let location = Location {
-                lines: vec![Line {
-                    function: Function {
-                        name: frame.function.as_ref(),
-                        system_name: "",
-                        filename: frame.file.as_deref().unwrap_or(""),
-                        start_line: 0,
-                    },
-                    line: frame.line as i64,
-                }],
-                ..Default::default()
+                mapping: Mapping::default(),
+                function: Function {
+                    name: frame.function.as_ref(),
+                    system_name: "",
+                    filename: frame.file.as_deref().unwrap_or(""),
+                    start_line: 0,
+                },
+                address: 0,
+                line: frame.line as i64,
             };
 
             locations.push(location);
