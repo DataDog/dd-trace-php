@@ -634,7 +634,7 @@ impl Profiler {
                     if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
                         labels.push(Label {
                             key: "end_timestamp_ns",
-                            value: LabelValue::Num(now.as_nanos() as i64, Some("nanoseconds")),
+                            value: LabelValue::Num(now.as_nanos() as i64, None),
                         });
                     }
                 }
@@ -775,7 +775,7 @@ impl Profiler {
         });
         labels.push(Label {
             key: "end_timestamp_ns",
-            value: LabelValue::Num(now, Some("nanoseconds")),
+            value: LabelValue::Num(now, None),
         });
 
         let n_labels = labels.len();
@@ -832,7 +832,7 @@ impl Profiler {
         });
         labels.push(Label {
             key: "end_timestamp_ns",
-            value: LabelValue::Num(now, Some("nanoseconds")),
+            value: LabelValue::Num(now, None),
         });
 
         #[cfg(php_gc_status)]
