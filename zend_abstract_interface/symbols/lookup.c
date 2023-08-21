@@ -121,14 +121,7 @@ static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t 
 
         case ZAI_SYMBOL_SCOPE_NAMESPACE: {
             zai_string key = zai_symbol_lookup_key(scope, name, true);
-
-            if (key.len > 0) {
-                result = zai_symbol_lookup_table(
-                    EG(class_table),
-                    zai_string_as_str(&key),
-                    false, true);
-            }
-
+            result = zai_symbol_lookup_table(EG(class_table),zai_string_as_str(&key),false, true);
             zai_string_dtor(&key);
         } break;
 
