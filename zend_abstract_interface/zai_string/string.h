@@ -1,35 +1,50 @@
 #ifndef ZAI_STRING_H
 #define ZAI_STRING_H
 
+// Include this before standard headers, or you may get strange errors like:
+// error: unknown type name 'siginfo_t'
+#include <Zend/zend.h>
+
+#include <zai_assert/zai_assert.h>
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
-
-#include <Zend/zend.h>
 
 /**
  * Represents a non-owning view of a string.
  *
  * When initializing the struct, use one of the initialization macros or
- * functions. Do not initialize the struct directly e.g. `{0, null}`.
- *
- * todo: move .ptr to come before .len to match ddtrace_string and Rust and
- *       ensure it's never null.
+ * functions. Do not initialize the struct directly e.g. `{"", 0}`.
  */
 typedef struct zai_str_s {
-    size_t len;
     const char *ptr;
+    size_t len;
 } zai_str;
 
-/** Use if data is known to be non-null, use zai_str_new otherwise. */
-#define ZAI_STR_NEW(data, size)   \
-    (zai_str) {.len = (size), .ptr = (data)}
+/** Private, you probably want to use ZAI_STR_NEW or zai_str_new. */
+#define ZAI_STR_FROM_RAW_PARTS(data, size) \
+    (zai_str) {.ptr = (data), .len = (size)}
+
+/**
+ * ZAI_STR_NEW creates a zai_str from the given pointer and length. Use if the
+ * pointer is known to be non-null, use zai_str_new otherwise.
+ */
+#if ZEND_DEBUG
+#define ZAI_STR_NEW(data, size) \
+    ZAI_STR_FROM_RAW_PARTS( \
+        ZAI_ASSERT((data) != NULL) ? (data) : NULL, \
+        (size))
+#else
+#define ZAI_STR_NEW(data, size) \
+    ZAI_STR_FROM_RAW_PARTS((data), (size))
+#endif
 
 #define ZAI_STRL(literal) \
-    ZAI_STR_NEW("" literal, sizeof(literal) - 1) \
+    ZAI_STR_FROM_RAW_PARTS("" literal, sizeof(literal) - 1)
 
 #define ZAI_STR_EMPTY \
-    ZAI_STR_NEW("", 0)
+    ZAI_STR_FROM_RAW_PARTS("", 0)
 
 /** Use if cstr is known to be non-null, use zai_str_from_cstr otherwise. */
 #define ZAI_STR_FROM_CSTR(cstr)  \
@@ -46,7 +61,7 @@ typedef struct zai_str_s {
  * If the pointer is known to be non-null, use ZAI_STR_NEW directly.
  */
 static inline zai_str zai_str_new(const char *ptr, size_t len) {
-    return ptr ? ZAI_STR_NEW(ptr, len) : ZAI_STR_EMPTY;
+    return ptr ? ZAI_STR_FROM_RAW_PARTS(ptr, len) : ZAI_STR_EMPTY;
 }
 
 /**
@@ -71,16 +86,21 @@ static inline zai_str zai_str_from_zstr(zend_string *zstr) {
 
 /** Returns whether the string is empty. */
 static inline bool zai_str_is_empty(zai_str self) {
-    return self.len == 0 || self.ptr == NULL;
+    ZEND_ASSERT(self.ptr != NULL);
+    return self.len == 0;
 }
 
 static inline bool zai_str_eq(zai_str a, zai_str b) {
-    return a.len == b.len && (b.len == 0 || memcmp(a.ptr, b.ptr, b.len) == 0);
+    ZEND_ASSERT(a.ptr != NULL);
+    ZEND_ASSERT(b.ptr != NULL);
+    return a.len == b.len && memcmp(a.ptr, b.ptr, b.len) == 0;
 }
 
 static inline bool zai_str_eq_ci_cstr(zai_str s, const char *str) {
+    ZEND_ASSERT(s.ptr != NULL);
+    ZEND_ASSERT(str != NULL);
     size_t len = strlen(str);
-    return s.len == len && (len == 0 || strncasecmp(s.ptr, str, strlen(str)) == 0);
+    return s.len == len && strncasecmp(s.ptr, str, len) == 0;
 }
 
 /** Represents an optional string view. Please treat this as opaque. */
@@ -137,8 +157,13 @@ static inline bool zai_option_str_is_none(zai_option_str self) {
  */
 static inline
 bool zai_option_str_get(zai_option_str self, zai_str *view) {
-    zai_str value = {.len = self.len, .ptr = self.ptr};
+    // The .ptr may be null here, but if it is, then zai_option_str_is_some()
+    // will return false, and the ill-formed zai_str won't be assigned.
+    // Doing it in this order made slightly better assembly, and a ZEND_ASSERT
+    // guards this on debug builds in case of a mistake.
+    zai_str value = ZAI_STR_FROM_RAW_PARTS(self.ptr, self.len);
     *view = zai_option_str_is_some(self) ? value : ZAI_STR_EMPTY;
+    ZEND_ASSERT(view->ptr != NULL);
     return self.ptr;
 }
 

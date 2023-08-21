@@ -41,8 +41,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("headers", "reading undefined header value", {
 
 TEA_TEST_CASE("headers", "erroneous read_header input", {
     zend_string *header;
-    REQUIRE(zai_read_header({ 1, nullptr }, &header) == ZAI_HEADER_ERROR);
-    REQUIRE(zai_read_header({ 0, "" }, &header) == ZAI_HEADER_ERROR);
+    REQUIRE(zai_read_header(ZAI_STR_EMPTY, &header) == ZAI_HEADER_ERROR);
     REQUIRE(zai_read_header_literal("abc", nullptr) == ZAI_HEADER_ERROR);
 })
 

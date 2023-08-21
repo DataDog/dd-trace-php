@@ -69,6 +69,7 @@ fn php_config_vernum() -> u64 {
 }
 
 const ZAI_H_FILES: &[&str] = &[
+    "../zend_abstract_interface/zai_assert/zai_assert.h",
     "../zend_abstract_interface/zai_string/string.h",
     "../zend_abstract_interface/config/config.h",
     "../zend_abstract_interface/config/config_decode.h",
