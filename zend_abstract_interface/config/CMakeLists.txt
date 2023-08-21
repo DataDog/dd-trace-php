@@ -6,7 +6,7 @@ target_include_directories(
 
 target_compile_features(zai_config PUBLIC c_std_99)
 
-target_link_libraries(zai_config PUBLIC Tea::Php Zai::Json Zai::Env)
+target_link_libraries(zai_config PUBLIC Tea::Php Zai::Json Zai::Env Zai::String)
 
 set_target_properties(zai_config PROPERTIES EXPORT_NAME Config
                                             VERSION ${PROJECT_VERSION})

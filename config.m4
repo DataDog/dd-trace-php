@@ -169,6 +169,7 @@ if test "$PHP_DDTRACE" != "no"; then
     zend_abstract_interface/symbols/lookup.c \
     zend_abstract_interface/symbols/call.c \
     zend_abstract_interface/uri_normalization/uri_normalization.c \
+    zend_abstract_interface/zai_string/string.c \
   "
 
   PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
