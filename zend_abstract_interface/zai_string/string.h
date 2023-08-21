@@ -241,7 +241,7 @@ inline zai_string zai_string_concat3(zai_str first, zai_str second, zai_str thir
  * Destroys the contents of the string. It is considered to be uninitialized
  * after this call.
  */
-static inline void zai_string_dtor(zai_string *string) {
+static inline void zai_string_destroy(zai_string *string) {
     if (EXPECTED(string->ptr != ZAI_STRING_EMPTY_PTR)) {
         pefree(string->ptr, true);
         // Because this project runs asan builds, we don't re-assign the

@@ -44,7 +44,7 @@ TEA_TEST_CASE("zai_string/strings", "zai_string_concat3 empty first and second",
 
     REQUIRE(zai_str_eq(third, zai_string_as_str(&result)));
 
-    zai_string_dtor(&result);
+    zai_string_destroy(&result);
 })
 
 TEA_TEST_CASE("zai_string/strings", "zai_string_concat3 all full", {
@@ -57,5 +57,5 @@ TEA_TEST_CASE("zai_string/strings", "zai_string_concat3 all full", {
     zai_str expected = ZAI_STRL("Datadog\\Test\\str");
     REQUIRE(zai_str_eq(expected, zai_string_as_str(&result)));
 
-    zai_string_dtor(&result);
+    zai_string_destroy(&result);
 })

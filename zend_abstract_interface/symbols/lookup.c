@@ -122,7 +122,7 @@ static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t 
         case ZAI_SYMBOL_SCOPE_NAMESPACE: {
             zai_string key = zai_symbol_lookup_key(scope, name, true);
             result = zai_symbol_lookup_table(EG(class_table),zai_string_as_str(&key),false, true);
-            zai_string_dtor(&key);
+            zai_string_destroy(&key);
         } break;
 
         default:
@@ -165,7 +165,7 @@ static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t 
         key.ptr == name->ptr ? zai_symbol_lookup_clean(key) : key,
         scope_type != ZAI_SYMBOL_SCOPE_NAMESPACE, true);
 
-    zai_string_dtor(&tmpkey);
+    zai_string_destroy(&tmpkey);
 
     return function;
 }
@@ -184,7 +184,7 @@ static inline zval* lookup_constant_global(zai_symbol_scope_t scope_type, void *
         key.ptr == name->ptr ? zai_symbol_lookup_clean(key) : key,
         false, true);
 
-    zai_string_dtor(&tmpkey);
+    zai_string_destroy(&tmpkey);
 
     if (!constant) {
         return NULL;
