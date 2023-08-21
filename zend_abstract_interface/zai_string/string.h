@@ -82,7 +82,7 @@ static inline zai_str zai_str_from_cstr(const char *cstr) {
  *
  * If the pointer is known to be non-null, use ZAI_STR_FROM_ZSTR directly.
  */
-static inline zai_str zai_str_from_zstr(zend_string *zstr) {
+inline zai_str zai_str_from_zstr(zend_string *zstr) {
     return zstr ? ZAI_STR_FROM_ZSTR(zstr) : ZAI_STR_EMPTY;
 }
 
