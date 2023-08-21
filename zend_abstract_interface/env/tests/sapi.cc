@@ -47,6 +47,7 @@ TEA_SAPI_GETENV_FUNCTION(tea_sapi_getenv_null) { return NULL; }
 TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set", {
     tea_sapi_module.getenv = tea_sapi_getenv_null;
 },{
+    REQUIRE_UNSETENV("FOO");
     ZAI_ENV_BUFFER_INIT(buf, 64);
     zai_env_result res = zai_getenv_literal("FOO", buf);
 
@@ -100,7 +101,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "rinit non-empty string", {
 })
 
 TEA_TEST_CASE_WITH_TAGS_WITH_PROLOGUE("env/host", "rinit non-empty string", "[adopted][env/sapi]", {
-    REQUIRE(tea_sapi_module.getenv == NULL);
+    tea_sapi_module.getenv = NULL;
 
     zai_rinit_last_res = ZAI_ENV_ERROR;
     zai_rinit_str_buf[0] = '\0';
