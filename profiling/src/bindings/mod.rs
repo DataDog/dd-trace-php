@@ -451,7 +451,7 @@ impl TryFrom<&mut zval> for String {
 /// A non-owning, not necessarily null terminated, not necessarily utf-8
 /// encoded, borrowed string.
 /// It must satisfy the requirements of [core::slice::from_raw_parts], notably
-/// it must not use the nul pointer even when the length is 0.
+/// it must not use the null pointer even when the length is 0.
 /// Keep this representation in sync with zai_str.
 #[repr(C)]
 pub struct ZaiStr<'a> {
