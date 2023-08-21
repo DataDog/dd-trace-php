@@ -207,7 +207,7 @@ static inline zai_str zai_string_as_str(const zai_string *string) {
     return str;
 }
 
-static inline zai_string zai_string_ctor(zai_str str) {
+static inline zai_string zai_string_from_str(zai_str str) {
     if (str.len == 0) {
         return ZAI_STRING_EMPTY;
     }
