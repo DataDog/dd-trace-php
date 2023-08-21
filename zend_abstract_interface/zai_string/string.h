@@ -213,7 +213,7 @@ static inline zai_string zai_string_ctor(zai_str str) {
     }
 
     // plus 1 for the null byte
-    char *bytes = (char *)__zend_malloc(str.len + 1);
+    char *bytes = (char *)pemalloc(str.len + 1, true);
     memcpy(bytes, str.ptr, str.len);
     bytes[str.len] = '\0';
     return (zai_string) {.ptr = bytes, .len = str.len};
@@ -227,7 +227,7 @@ inline zai_string zai_string_concat3(zai_str first, zai_str second, zai_str thir
     }
 
     // plus 1 for the null byte
-    char *bytes = (char *)pemalloc(len + 1, 1);
+    char *bytes = (char *)pemalloc(len + 1, true);
 
     memcpy(bytes, first.ptr, first.len);
     memcpy(bytes + first.len, second.ptr, second.len);
@@ -243,7 +243,7 @@ inline zai_string zai_string_concat3(zai_str first, zai_str second, zai_str thir
  */
 static inline void zai_string_dtor(zai_string *string) {
     if (EXPECTED(string->ptr != ZAI_STRING_EMPTY_PTR)) {
-        pefree(string->ptr, 1);
+        pefree(string->ptr, true);
         // Because this project runs asan builds, we don't re-assign the
         // pointer to ZAI_STRING_EMPTY_PTR or similar because we want the
         // analyzer to complain if this gets used in some way after free.
