@@ -58,6 +58,12 @@ void debug_str_helper(std::string &res, const ddwaf_object &p)
         }
         res += '}';
         break;
+    case DDWAF_OBJ_FLOAT:
+        res += std::to_string(p.f64);
+        break;
+    case DDWAF_OBJ_NULL:
+        res += "<null>";
+        break;
     }
 }
 } // namespace

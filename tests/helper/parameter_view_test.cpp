@@ -142,7 +142,7 @@ TEST(ParameterViewTest, FromStringObject)
 TEST(ParameterViewTest, FromUint64Object)
 {
     ddwaf_object obj;
-    ddwaf_object_unsigned_force(&obj, std::numeric_limits<uint64_t>::max());
+    ddwaf_object_unsigned(&obj, std::numeric_limits<uint64_t>::max());
 
     parameter_view pv(obj);
     EXPECT_EQ(pv.type(), parameter_type::uint64);
@@ -166,7 +166,7 @@ TEST(ParameterViewTest, FromUint64Object)
 TEST(ParameterViewTest, FromInt64Object)
 {
     ddwaf_object obj;
-    ddwaf_object_signed_force(&obj, std::numeric_limits<int64_t>::min());
+    ddwaf_object_signed(&obj, std::numeric_limits<int64_t>::min());
 
     parameter_view pv(obj);
     EXPECT_EQ(pv.type(), parameter_type::int64);
