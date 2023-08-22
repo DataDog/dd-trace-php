@@ -187,30 +187,43 @@ class WordPressComponent
         ini_set('datadog.trace.spans_limit', $spansLimit);
     }
 
+    public static function setBlockAttrs(SpanData $span, array $innerBlocks, string $prefix = 'wp.inner_block')
+    {
+        foreach ($innerBlocks as $block) {
+            $blockName = preg_replace('/[^a-zA-Z0-9]/', '_', $block['blockName']);
+            foreach ($block['attrs'] as $attr => $value) {
+                if (is_string($value) || is_int($value) || is_bool($value)) {
+                    $attr = strtolower($attr);
+                    $span->meta["$prefix.$blockName.attr.$attr"] = $value;
+                }
+            }
+
+            WordPressComponent::setBlockAttrs($span, $block['innerBlocks'], "$prefix.$blockName");
+        }
+    }
+
     public function load(WordPressIntegration $integration)
     {
-        $rootSpan = \DDTrace\root_span();
-        if (!$rootSpan) {
-            return Integration::NOT_LOADED;
-        }
-
-        // Overwrite the default web integration
-        $integration->addTraceAnalyticsIfEnabled($rootSpan);
-        $rootSpan->name = 'wordpress.request';
-        $rootSpan->service = $integration->getServiceName();
-        $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-        if ('cli' !== PHP_SAPI) {
-            $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
-            $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
-            if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
-            }
-        }
-
         // File loading
         hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
             WordPressComponent::allowQueryParamsInResourceName();
+
+            // Overwrite the default web integration
+            $rootSpan = \DDTrace\root_span();
+            if ($rootSpan) {
+                $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                $rootSpan->name = 'wordpress.request';
+                $rootSpan->service = $integration->getServiceName();
+                $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                if ('cli' !== PHP_SAPI) {
+                    $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
+                    $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
+                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                        $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+                    }
+                }
+            }
 
             if (defined('ABSPATH') && defined('WPINC')) { // Just for a matter of safety :)
                 $templateLoader = ABSPATH . WPINC . '/template-loader.php';
@@ -445,28 +458,31 @@ class WordPressComponent
         // Blocks
         trace_function(
             'render_block',
-            function (SpanData $span, $args, $retval) use ($integration) {
-                // Some blocks are literally empty. We could even consider dropping the span in this case.
+            function (SpanData $span, $args) use ($integration) {
+                if (strlen($args[0]['blockName']) === 0) {
+                    return false;
+                }
+
                 WordPressComponent::setCommonTags(
                     $integration,
                     $span,
                     'block',
-                    isset($args[0]['blockName']) ? "{$args[0]['blockName']} (block)" : null
+                    "{$args[0]['blockName']} (block)"
                 );
 
-                if (isset($args[0]['blockName'])) {
-                    $span->meta['wp.block_name'] = $args[0]['blockName'];
-                }
+                $span->meta['wp.block_name'] = $args[0]['blockName'];
 
                 if (isset($args[0]['attrs'])) {
                     $attrs = $args[0]['attrs'];
-                    // See https://developer.wordpress.org/themes/block-themes/templates-and-template-parts/#block-c5fa39a2-a27d-4bd2-98d0-dc6249a0801a
-                    foreach (['slug', 'theme', 'area', 'tagName'] as $attr) {
-                        if (isset($attrs[$attr])) {
-                            $span->meta["wp.template_part.$attr"] = $attrs[$attr];
+                    foreach ($attrs as $attr => $value) {
+                        if (is_string($value) || is_int($value)) {
+                            $attr = strtolower($attr);
+                            $span->meta["wp.attr.$attr"] = $value;
                         }
                     }
                 }
+
+                WordPressComponent::setBlockAttrs($span, $args[0]['innerBlocks']);
             }
         );
 
