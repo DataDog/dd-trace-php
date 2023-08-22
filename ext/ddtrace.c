@@ -1577,17 +1577,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
             ddtrace_coms_synchronous_flush(timeout);
             RETVAL_TRUE;
-        } else if (params_count == 2 && FUNCTION_NAME_MATCHES("root_span_add_tag")) {
-            zval *tag = ZVAL_VARARG_PARAM(params, 0);
-            zval *value = ZVAL_VARARG_PARAM(params, 1);
-            if (Z_TYPE_P(tag) == IS_STRING && Z_TYPE_P(value) == IS_STRING) {
-                Z_TRY_ADDREF_P(value);
-                bool success = ddtrace_root_span_add_tag(Z_STR_P(tag), value);
-                if (!success) {
-                    zval_ptr_dtor(value);
-                }
-                RETURN_BOOL(success);
-            }
         }
     }
 }
