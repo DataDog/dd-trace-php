@@ -50,6 +50,16 @@
                     "create-lockfile": false
                 }
             },
+            "gd": {
+                "scenario-options": {
+                    "create-lockfile": false
+                },
+                "scripts": {
+                    "pre-autoload-dump": [
+                        ""
+                    ]
+                }
+            },
             "guzzle5": {
                 "require": {
                     "guzzlehttp/guzzle": "~5.0"

@@ -1020,6 +1020,12 @@ test_web_cakephp_28: global_test_run_dependencies
 	$(call run_tests,--testsuite=cakephp-28-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests,--testsuite=codeigniter-22-test)
+test_web_drupal_89: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_8_9 update --ignore-platform-reqs
+	$(call run_tests,tests/Integrations/Drupal/V8_9)
+test_web_drupal_95: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_9_5 update --ignore-platform-reqs
+	$(call run_tests,tests/Integrations/Drupal/V9_5)
 test_web_laminas_14: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_1_4 update
 	$(call run_tests,tests/Integrations/Laminas/V1_4)

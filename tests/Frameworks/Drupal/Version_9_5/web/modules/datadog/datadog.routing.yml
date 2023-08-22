@@ -1,0 +1,26 @@
+simple:
+  path: '/simple'
+  defaults:
+    _title: 'Simple'
+    _controller: '\Drupal\datadog\Controller\CommonSpecsController::simple'
+  requirements:
+    _permission: 'access content'
+    _user_is_logged_in: 'TRUE'
+
+simple_view:
+  path: '/simple_view'
+  defaults:
+    _title: 'Simple View'
+    _controller: '\Drupal\datadog\Controller\CommonSpecsController::simple_view'
+  requirements:
+    _permission: 'access content'
+    _user_is_logged_in: 'TRUE'
+
+error:
+  path: '/error'
+  defaults:
+    _title: 'Error'
+    _controller: '\Drupal\datadog\Controller\CommonSpecsController::error'
+  requirements:
+    _permission: 'access content'
+    _user_is_logged_in: 'TRUE'
