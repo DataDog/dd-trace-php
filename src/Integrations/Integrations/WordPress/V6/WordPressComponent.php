@@ -459,7 +459,8 @@ class WordPressComponent
         trace_function(
             'render_block',
             function (SpanData $span, $args) use ($integration) {
-                if (strlen($args[0]['blockName']) === 0) {
+                $blockName = $args[0]['blockName'];
+                if (strlen($blockName) === 0) {
                     return false;
                 }
 
@@ -467,10 +468,10 @@ class WordPressComponent
                     $integration,
                     $span,
                     'block',
-                    "{$args[0]['blockName']} (block)"
+                    "$blockName (block)"
                 );
 
-                $span->meta['wp.block_name'] = $args[0]['blockName'];
+                $span->meta['wp.block_name'] = $blockName;
 
                 if (isset($args[0]['attrs'])) {
                     $attrs = $args[0]['attrs'];
@@ -483,6 +484,17 @@ class WordPressComponent
                 }
 
                 WordPressComponent::setBlockAttrs($span, $args[0]['innerBlocks']);
+
+                // https://developer.wordpress.org/block-editor/reference-guides/block-api/block-registration/#block-name
+                $namespaceName = explode('/', $blockName)[0];
+                if ($namespaceName !== 'core') {
+                    $themeName = wp_get_theme()->get('Name');
+                    if (strtolower($namespaceName) === strtolower($themeName)) {
+                        $span->meta['wp.theme'] = $themeName;
+                    } else {
+                        $span->meta['wp.plugin'] = $namespaceName;
+                    }
+                }
             }
         );
 
