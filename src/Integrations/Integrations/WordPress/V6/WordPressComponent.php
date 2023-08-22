@@ -460,7 +460,7 @@ class WordPressComponent
             'render_block',
             function (SpanData $span, $args) use ($integration) {
                 $blockName = $args[0]['blockName'];
-                if (strlen($blockName) === 0) {
+                if (!$blockName || strlen($blockName) === 0) {
                     return false;
                 }
 
