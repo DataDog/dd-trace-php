@@ -1919,7 +1919,6 @@ jobs:
                 -DCMAKE_INSTALL_PREFIX=/opt/tea/${phpBuild} \
                 -DCMAKE_BUILD_TYPE=Debug \
                 -DBUILD_TEA_TESTING=ON \
-                -DPHP_CONFIG=$(which php-config) \
                 ~/datadog/tea
               make -j all
               make test
@@ -1946,7 +1945,7 @@ jobs:
                 ${toolchain} \
                 -DCMAKE_BUILD_TYPE=Debug \
                 -DBUILD_ZAI_TESTING=ON \
-                -DPHP_CONFIG=$(which php-config) \
+                -DPhpConfig_ROOT=$(php-config --prefix) \
                 ~/datadog/zend_abstract_interface
               make -j all
               make test
@@ -1965,7 +1964,7 @@ jobs:
               -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_ZAI_TESTING=ON \
-              -DPHP_CONFIG=$(which php-config) \
+              -DPhpConfig_ROOT=$(php-config --prefix) \
               ~/datadog/zend_abstract_interface
             make -j all
             make test
@@ -2036,7 +2035,7 @@ jobs:
               -DCMAKE_INSTALL_PREFIX=/opt/tea/nts \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_TEA_TESTING=ON \
-              -DPHP_CONFIG=$(which php-config) \
+              -DPhpConfig_ROOT=$(php-config --prefix) \
               ~/datadog/tea
             make -j all
             make install
@@ -2080,7 +2079,7 @@ jobs:
             cmake \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_ZAI_TESTING=ON \
-              -DPHP_CONFIG=$(which php-config) \
+              -DPhpConfig_ROOT=$(php-config --prefix) \
               -DRUN_SHARED_EXTS_TESTS=1 \
               ~/datadog/zend_abstract_interface
             make -j all
@@ -3402,14 +3401,14 @@ workflows:
           requires: [ 'package extension' ]
           name: "Parametric tests"
           build: |
-            cd system-tests/parametric
+            cd system-tests
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
             sudo apt-get install -y python-is-python3
-            pip install wheel && pip install -r requirements.txt
+            ./build.sh -i runner 
           run: |
-            cd system-tests/parametric
+            cd system-tests
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
-            CLIENTS_ENABLED=php ./run.sh
+            TEST_LIBRARY=php ./run.sh PARAMETRIC
 
   build:
     when: << pipeline.parameters.build >>

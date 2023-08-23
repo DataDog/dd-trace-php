@@ -21,7 +21,7 @@ extern "C" {
         uint32_t u;
     } zai_hook_test_fixed_t;
 
-    zai_str zai_hook_test_nonexistent = {.len = sizeof("zai_hook_test_nonexistent")-1, .ptr = "zai_hook_test_nonexistent"};
+    zai_str zai_hook_test_nonexistent = ZAI_STRL("zai_hook_test_nonexistent");
 
     static zai_hook_test_fixed_t zai_hook_test_fixed_first = {42};
     static zai_hook_test_fixed_t zai_hook_test_fixed_second = {42};

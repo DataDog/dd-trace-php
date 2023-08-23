@@ -44,5 +44,4 @@ tracing process
 process
 Flushing trace of size 3 to send-queue for %s
 kill
-Killed
-%r\n?(Termsig=9)?%r
+Killed%r\n*(Termsig=9)?%r

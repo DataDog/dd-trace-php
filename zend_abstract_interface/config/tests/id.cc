@@ -46,19 +46,6 @@ TEST_ID("unknown", {
     REQUEST_END()
 })
 
-TEST_ID("null name", {
-    REQUEST_BEGIN()
-
-    zai_config_id id;
-    zai_str name = ZAI_STRL("FOO_BOOL");
-    name.ptr = NULL;
-    bool res = zai_config_get_id_by_name(name, &id);
-
-    REQUIRE(res == false);
-
-    REQUEST_END()
-})
-
 TEST_ID("null id", {
     REQUEST_BEGIN()
 

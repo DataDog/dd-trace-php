@@ -1,8 +1,12 @@
 #ifndef HAVE_TEA_COMMON_H
 #define HAVE_TEA_COMMON_H
 
-#include <assert.h>
+// Include very first, as it defines things like _GNU_SOURCE. Without it, there
+// are warnings like this:
+// warning: implicit declaration of function ‘memrchr’; did you mean ‘memchr’?
 #include <main/php.h>
+
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>

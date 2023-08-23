@@ -163,7 +163,7 @@ build_tea:
 			-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
 			-DCMAKE_BUILD_TYPE=Debug \
 			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
-			-DPHP_CONFIG=$(shell which php-config) \
+			-DPhpConfig_ROOT=$(shell php-config --prefix) \
 			$(if $(ASAN), -DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake) \
 		$(PROJECT_ROOT)/tea; \
 		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built; \
@@ -193,7 +193,7 @@ build_tea_coverage:
 			-DCMAKE_BUILD_TYPE=Debug \
 			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
 			-DCMAKE_C_FLAGS="-O0 --coverage" \
-			-DPHP_CONFIG=$(shell which php-config) \
+			-DPhpConfig_ROOT=$(shell php-config --prefix) \
 		$(PROJECT_ROOT)/tea; \
 		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built.coverage; \
 	)
@@ -220,7 +220,7 @@ build_zai: install_tea
 		cd $(ZAI_BUILD_DIR); \
 		CMAKE_PREFIX_PATH=/opt/catch2 \
 		Tea_ROOT=$(TEA_INSTALL_DIR) \
-		cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON $(if $(ASAN), -DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake) -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
+		cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON $(if $(ASAN), -DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake) -DPhpConfig_ROOT=$(shell php-config --prefix) $(PROJECT_ROOT)/zend_abstract_interface; \
 		$(MAKE) $(MAKEFLAGS); \
 	)
 
@@ -233,7 +233,7 @@ build_zai_coverage: install_tea_coverage
 	cd $(ZAI_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 \
 	Tea_ROOT=$(TEA_INSTALL_DIR) \
-	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DBUILD_ZAI_TESTING=ON -DPHP_CONFIG=$(shell which php-config) $(PROJECT_ROOT)/zend_abstract_interface; \
+	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(shell php-config --prefix) $(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
