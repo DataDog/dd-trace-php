@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Integrations\WordPress\V4;
+namespace DDTrace\Integrations\WordPress\V1;
 
 use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
