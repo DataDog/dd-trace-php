@@ -1261,15 +1261,23 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         array_init(&metrics_zv);
         zend_string *str_key;
         zval *val;
+        bool is_appsec_span = false;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARR_P(metrics), str_key, val) {
             if (str_key) {
+                if (!is_appsec_span && !get_DD_APM_TRACING_ENABLED() && strcmp("_dd.appsec.enabled", ZSTR_VAL(str_key)) == 0) {
+                    is_appsec_span = true;
+                }
                 add_assoc_double(&metrics_zv, ZSTR_VAL(str_key), zval_get_double(val));
             }
         }
         ZEND_HASH_FOREACH_END();
-        metrics = zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("metrics"), &metrics_zv);
-    } else {
-        metrics = NULL;
+        if (get_DD_APM_TRACING_ENABLED() || is_appsec_span) {
+            metrics = zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("metrics"), &metrics_zv);
+        } else {
+            zval empty_array;
+            array_init(&empty_array);
+            metrics = zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("metrics"), &empty_array);
+        }
     }
 
     if (top_level_span && get_DD_TRACE_MEASURE_COMPILE_TIME()) {
