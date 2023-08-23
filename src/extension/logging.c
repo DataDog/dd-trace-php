@@ -482,7 +482,7 @@ const char *nonnull _strerror_r(int err, char *nonnull buf, size_t buflen)
 }
 
 bool dd_parse_log_level(
-    zai_string_view value, zval *nonnull decoded_value, bool persistent)
+    zai_str value, zval *nonnull decoded_value, bool persistent)
 {
     UNUSED(persistent);
     if (!value.len) {

@@ -83,7 +83,9 @@ string(17) "ddtrace_basic.php"
 string(12) "appsec_tests"
 string(3) "cli"
 string(%d) "%d"
-array(1) {
+array(2) {
+  ["runtime-id"]=>
+  string(%d) %s
   ["ddappsec"]=>
   string(4) "true"
 }
@@ -98,6 +100,7 @@ sent trace id is the same as \DDTrace\trace_id(): yes
 tags:
 Array
 (
+    [runtime-id] => %s
     [ddappsec] => true
     [_dd.p.dm] => -1
 )

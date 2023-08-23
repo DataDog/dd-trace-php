@@ -22,6 +22,7 @@ print_r(root_span_get_meta());
 root_span_get_meta():
 Array
 (
+    [runtime-id] => %s
     [appsec.events.users.login.failure.usr.id] => 85e37758-0b85-11ee-be56-0242ac120002
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.auto.mode] => safe

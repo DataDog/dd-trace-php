@@ -22,6 +22,7 @@ print_r(root_span_get_meta());
 root_span_get_meta():
 Array
 (
+    [runtime-id] => %s
     [appsec.events.users.login.failure.usr.id] => Admin
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.sdk] => true

@@ -1157,7 +1157,7 @@ static bool _set_appsec_enabled(zval *metrics_zv)
 }
 
 bool dd_parse_automated_user_events_tracking(
-    zai_string_view value, zval *nonnull decoded_value, bool persistent)
+    zai_str value, zval *nonnull decoded_value, bool persistent)
 {
     if (!value.len) {
         return false;

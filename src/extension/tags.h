@@ -29,4 +29,4 @@ void dd_tags_set_event_user_id(zend_string *nonnull zstr);
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr);
 
 bool dd_parse_automated_user_events_tracking(
-    zai_string_view value, zval *nonnull decoded_value, bool persistent);
+    zai_str value, zval *nonnull decoded_value, bool persistent);

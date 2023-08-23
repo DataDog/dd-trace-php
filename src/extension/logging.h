@@ -40,7 +40,7 @@ void dd_log_shutdown(void);
 const char *nonnull _strerror_r(int err, char *nonnull buf, size_t buflen);
 
 bool dd_parse_log_level(
-    zai_string_view value, zval *nonnull decoded_value, bool persistent);
+    zai_str value, zval *nonnull decoded_value, bool persistent);
 
 void _mlog_relay(dd_log_level_t level, const char *nonnull format,
     const char *nonnull file, const char *nonnull function, int line, ...)

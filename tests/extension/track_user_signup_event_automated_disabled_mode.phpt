@@ -28,4 +28,5 @@ print_r(root_span_get_meta());
 root_span_get_meta():
 Array
 (
+    [runtime-id] => %s
 )

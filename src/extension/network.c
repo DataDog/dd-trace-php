@@ -4,6 +4,9 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
+// In some cases it seems as though php.h already defines GNU_SOURCE
+#include <php.h>
+
 #ifndef _GNU_SOURCE
 #    define _GNU_SOURCE
 #endif

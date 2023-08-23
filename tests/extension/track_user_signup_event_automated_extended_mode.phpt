@@ -22,6 +22,7 @@ print_r(root_span_get_meta());
 root_span_get_meta():
 Array
 (
+    [runtime-id] => %s
     [usr.id] => 1234
     [_dd.appsec.events.users.signup.auto.mode] => extended
     [appsec.events.users.signup.email] => some@email.com

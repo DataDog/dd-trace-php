@@ -73,6 +73,7 @@ Array
     [_dd.runtime_family] => php
     [after] => root_span
     [before] => root_span
+    [runtime-id] => %s
 )
 metrics:
 Array

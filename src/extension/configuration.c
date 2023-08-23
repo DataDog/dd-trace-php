@@ -74,23 +74,23 @@ DD_CONFIGURATION
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 
 static bool _parse_uint(
-    zai_string_view value, zval *nonnull decoded_value, long long max);
+    zai_str value, zval *nonnull decoded_value, long long max);
 
 static bool _parse_uint32(
-    zai_string_view value, zval *nonnull decoded_value, bool persistent)
+    zai_str value, zval *nonnull decoded_value, bool persistent)
 {
     UNUSED(persistent);
     return _parse_uint(value, decoded_value, UINT32_MAX);
 }
 static bool _parse_uint64(
-    zai_string_view value, zval *nonnull decoded_value, bool persistent)
+    zai_str value, zval *nonnull decoded_value, bool persistent)
 {
     UNUSED(persistent);
     return _parse_uint(value, decoded_value, LONG_MAX);
 }
 
 static bool _parse_list(
-    zai_string_view value, zval *nonnull decoded_value, bool persistent)
+    zai_str value, zval *nonnull decoded_value, bool persistent)
 {
     zval tmp;
     ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
@@ -134,8 +134,7 @@ static bool _parse_list(
 #define CUSTOM(...) CUSTOM
 // NOLINTNEXTLINE(bugprone-macro-parentheses)
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
-#define CALIASES(...)                                                          \
-    ((zai_string_view[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
+#define CALIASES(...) ((zai_str[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
 #define CONFIG(type, name, ...)                                                \
     ZAI_CONFIG_ENTRY(DDAPPSEC_CONFIG_##name, name, type, __VA_ARGS__),
 #define CALIAS(type, name, ...)                                                \
@@ -147,7 +146,7 @@ static zai_config_entry config_entries[] = {DD_CONFIGURATION};
 bool runtime_config_first_init = false;
 
 static bool _parse_uint(
-    zai_string_view value, zval *nonnull decoded_value, long long max)
+    zai_str value, zval *nonnull decoded_value, long long max)
 {
     char *endptr = NULL;
     const int base = 10;
@@ -178,7 +177,7 @@ static void _copy_tolower(char *restrict dst, const char *restrict src)
 }
 
 static void dd_ini_env_to_ini_name(
-    const zai_string_view env_name, zai_config_name *nonnull ini_name)
+    const zai_str env_name, zai_config_name *nonnull ini_name)
 {
     if (env_name.len + DD_TO_DATADOG_INC >= ZAI_CONFIG_NAME_BUFSIZ) {
         assert(false &&

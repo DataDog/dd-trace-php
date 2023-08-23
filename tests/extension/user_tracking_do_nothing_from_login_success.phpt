@@ -45,6 +45,7 @@ string(5) "Admin"
 root_span_get_meta():
 Array
 (
+    [runtime-id] => %s
     [usr.id] => Admin
     [_dd.appsec.events.users.login.success.sdk] => true
     [appsec.events.users.login.success.track] => true

@@ -23,5 +23,5 @@ void dd_ip_extraction_rshutdown(void);
 // guarantees cannot be forged
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server);
 bool dd_parse_client_ip_header_config(
-    zai_string_view value, zval *nonnull decoded_value, bool persistent);
+    zai_str value, zval *nonnull decoded_value, bool persistent);
 zend_string *nullable dd_ip_extraction_get_ip();

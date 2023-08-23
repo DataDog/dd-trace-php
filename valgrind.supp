@@ -120,6 +120,25 @@
 {
    <leak from zai interceptor>
    Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:zai_hook_activate
+   fun:zm_activate_ddtrace
+   ...
+}
+
+{
+   <leak from zai interceptor>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:zai_hook_rinit
+   fun:ddtrace_activate
+   ...
+}
+{
+   <leak from zai interceptor>
+   Memcheck:Leak
    match-leak-kinds: possible
    ...
    fun:zai_hook_resolve_class
@@ -137,3 +156,31 @@
    fun:zai_interceptor_compile_file
    ...
 }
+{
+   <leak from tracer>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:dd_initialize_request
+   fun:zm_activate_ddtrace
+}
+{
+   <local ubuntu install leak>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:php_load_extension
+   ...
+}
+{
+   <leak of unknown nature>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:__zend_malloc
+   fun:zend_compile
+   fun:compile_file
+   fun:zend_e
+   fun:php_request_startup
+}
+

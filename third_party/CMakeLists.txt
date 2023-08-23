@@ -60,10 +60,30 @@ if(DD_APPSEC_BUILD_EXTENSION)
         message(FATAL_ERROR "Error executing ${PHP_CONFIG} --includes: ${PHP_CONFIG_INCLUDES_ERR}")
     endif()
 
+    add_library(Tea STATIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/ddtrace/tea/src/error.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/ddtrace/tea/src/exceptions.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/ddtrace/tea/src/extension.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/ddtrace/tea/src/frame.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/ddtrace/tea/src/ini.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/ddtrace/tea/src/io.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/ddtrace/tea/src/sapi.c)
+
+    target_include_directories(Tea
+      PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ddtrace/tea/>
+             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ddtrace/tea/include>)
+    target_compile_options(Tea PRIVATE ${PHP_INCLUDES})
+
+    add_library(Tea::Tea ALIAS Tea)
+
+    add_library(tea-libphp INTERFACE)
+    add_library(Tea::Php ALIAS tea-libphp)
+
     set(ZAI_MODULES json env config)
     add_library(zai_zend_abstract_interface INTERFACE)
     target_include_directories(zai_zend_abstract_interface INTERFACE ${ZAI_INCLUDES})
     add_subdirectory(ddtrace/zend_abstract_interface/zai_string)
+    add_subdirectory(ddtrace/zend_abstract_interface/zai_assert)
     foreach(module json env config)
         set(module_name "zai_${module}")
         add_subdirectory(ddtrace/zend_abstract_interface/${module})
