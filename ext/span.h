@@ -112,7 +112,7 @@ ddtrace_span_data *ddtrace_active_span(void);
 ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong invocation, zend_execute_data *execute_data);
 void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
 
-// Note that these functionsa are used externally by the appsec extension.
+// Note that these functions are used externally by the appsec extension.
 DDTRACE_PUBLIC zval *ddtrace_root_span_get_meta(void);
 DDTRACE_PUBLIC zval *ddtrace_root_span_get_metrics(void);
 
