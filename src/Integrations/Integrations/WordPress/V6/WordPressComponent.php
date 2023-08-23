@@ -187,21 +187,6 @@ class WordPressComponent
         ini_set('datadog.trace.spans_limit', $spansLimit);
     }
 
-    public static function setBlockAttrs(SpanData $span, array $innerBlocks, string $prefix = 'wordpress.inner_block')
-    {
-        foreach ($innerBlocks as $block) {
-            $blockName = preg_replace('/[^a-zA-Z0-9]/', '_', $block['blockName']);
-            foreach ($block['attrs'] as $attr => $value) {
-                if (is_string($value) || is_int($value) || is_bool($value)) {
-                    $attr = strtolower($attr);
-                    $span->meta["$prefix.$blockName.attr.$attr"] = $value;
-                }
-            }
-
-            WordPressComponent::setBlockAttrs($span, $block['innerBlocks'], "$prefix.$blockName");
-        }
-    }
-
     public function load(WordPressIntegration $integration)
     {
         // File loading
@@ -490,7 +475,7 @@ class WordPressComponent
                             $span->meta["wordpress.block.attr.$attr"] = json_encode($value);
                         }
                         // Note: Purposefully ignoring objects because of the unpredictability nature of their
-                        // __toString() implementation, if any. Note that in reality, there shouldn't be any objects in
+                        // __toString() implementation, if any. In reality, there shouldn't be any objects in
                         // the attributes anyway.
                     }
 
@@ -504,6 +489,8 @@ class WordPressComponent
                             $span->meta['wordpress.plugin'] = $namespaceName;
                         }
                     }
+
+                    return true;
                 }
             ]
         );
@@ -596,7 +583,6 @@ class WordPressComponent
             );
         }
 
-        $service = $integration->getServiceName();
         static $plugin_loading_funcs = [
             'wp_get_active_and_valid_plugins',
             'wp_get_active_network_plugins',
