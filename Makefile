@@ -702,6 +702,7 @@ TEST_INTEGRATIONS_74 := \
 TEST_WEB_74 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_drupal_89 \
 	test_web_laminas_14 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \

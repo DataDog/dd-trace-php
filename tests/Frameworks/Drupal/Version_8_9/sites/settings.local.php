@@ -88,7 +88,7 @@ $config['system.performance']['js']['preprocess'] = FALSE;
  *
  * Only use this setting once the site has been installed.
  */
-# $settings['cache']['bins']['page'] = 'cache.backend.null';
+$settings['cache']['bins']['page'] = 'cache.backend.null';
 
 /**
  * Disable Dynamic Page Cache.
@@ -97,7 +97,7 @@ $config['system.performance']['js']['preprocess'] = FALSE;
  * cacheability metadata is present (and hence the expected behavior). However,
  * in the early stages of development, you may want to disable it.
  */
-# $settings['cache']['bins']['dynamic_page_cache'] = 'cache.backend.null';
+$settings['cache']['bins']['dynamic_page_cache'] = 'cache.backend.null';
 
 /**
  * Allow test modules and themes to be installed.
@@ -106,7 +106,7 @@ $config['system.performance']['js']['preprocess'] = FALSE;
  * During development it can be useful to install test extensions for debugging
  * purposes.
  */
-# $settings['extension_discovery_scan_tests'] = TRUE;
+$settings['extension_discovery_scan_tests'] = TRUE;
 
 /**
  * Enable access to rebuild.php.

@@ -10,17 +10,17 @@ use Drupal\Core\Controller\ControllerBase;
 class DatadogController extends ControllerBase {
 
     public function simple() {
-        return "simple";
+        // https://www.drupal.org/project/drupal/issues/2559491
+        return [
+            '#markup' => 'simple',
+        ];
     }
 
     public function simpleView() {
-
-        $build['content'] = [
-            '#type' => 'item',
-            '#markup' => $this->t('Simple View'),
+        return [
+            '#theme' => 'datadog',
+            '#test_var' => $this->t('Simple View'),
         ];
-
-        return $build;
     }
 
     public function error() {
