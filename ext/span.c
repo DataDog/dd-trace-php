@@ -362,17 +362,32 @@ void ddtrace_push_root_span(void) {
     GC_DELREF(&span->std);
 }
 
-DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
+DDTRACE_PUBLIC zval *ddtrace_root_span_get_meta(void)
+{
     if (!DDTRACE_G(active_stack)) {
-        return false;
+        return NULL;
     }
 
     ddtrace_span_data *root_span = DDTRACE_G(active_stack)->root_span;
     if (root_span == NULL) {
-        return false;
+        return NULL;
     }
 
-    return zend_hash_add(ddtrace_spandata_property_meta(root_span), tag, value) != NULL;
+    return ddtrace_spandata_property_meta_zval(root_span);
+}
+
+DDTRACE_PUBLIC zval *ddtrace_root_span_get_metrics(void)
+{
+    if (!DDTRACE_G(active_stack)) {
+        return NULL;
+    }
+
+    ddtrace_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    if (root_span == NULL) {
+        return NULL;
+    }
+
+    return ddtrace_spandata_property_metrics_zval(root_span);
 }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
