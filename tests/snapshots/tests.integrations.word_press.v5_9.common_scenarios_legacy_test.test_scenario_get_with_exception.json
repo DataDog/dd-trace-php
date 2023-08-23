@@ -5,7 +5,7 @@
     "resource": "GET /error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 3116845812473827848,
+    "parent_id": 13239102393275368025,
     "type": "web",
     "error": 1,
     "meta": {
@@ -17,7 +17,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
-      "runtime-id": "0620c54b-2544-42fb-9e07-eb329cda0e5c",
+      "runtime-id": "37ac3b3a-349e-47b8-91b6-924b1abbbd25",
       "span.kind": "server"
     },
     "metrics": {

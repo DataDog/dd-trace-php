@@ -5,7 +5,7 @@
     "resource": "GET /error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 17193513158384005394,
+    "parent_id": 5903754045475109089,
     "type": "web",
     "error": 1,
     "meta": {
@@ -17,7 +17,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
-      "runtime-id": "0c8ccd11-7945-4cf4-b7b5-eaa6a20d09b9",
+      "runtime-id": "500b19ab-e36c-4cbc-a9dd-f15015a52ccf",
       "span.kind": "server",
       "usr.id": "0"
     },
@@ -151,7 +151,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.plugin": "datadog"
+         "wordpress.plugin": "datadog"
        }
      },
      {
@@ -164,7 +164,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "plugins_loaded"
+         "wordpress.hook": "plugins_loaded"
        }
      },
         {
@@ -213,7 +213,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "setup_theme"
+         "wordpress.hook": "setup_theme"
        }
      },
      {
@@ -247,7 +247,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.theme": "Twentytwenty"
+         "wordpress.theme": "Twentytwenty"
        }
      },
      {
@@ -260,7 +260,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "after_setup_theme"
+         "wordpress.hook": "after_setup_theme"
        }
      },
      {
@@ -285,7 +285,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "init"
+         "wordpress.hook": "init"
        }
      },
         {
@@ -427,7 +427,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "wp_loaded"
+         "wordpress.hook": "wp_loaded"
        }
      },
      {
@@ -505,6 +505,6 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "shutdown"
+         "wordpress.hook": "shutdown"
        }
      }]]

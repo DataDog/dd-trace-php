@@ -5,7 +5,7 @@
     "resource": "GET /simple_view",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 16601105443135034956,
+    "parent_id": 8549288142567688443,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple_view?key=value&<redacted>",
-      "runtime-id": "7185eb9b-e423-4f87-b55b-93bebeb4da6d",
+      "runtime-id": "c1971c1f-c171-4612-ba42-df98413a59df",
       "span.kind": "server",
       "usr.id": "0"
     },
@@ -147,7 +147,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.plugin": "datadog"
+         "wordpress.plugin": "datadog"
        }
      },
      {
@@ -160,7 +160,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "plugins_loaded"
+         "wordpress.hook": "plugins_loaded"
        }
      },
         {
@@ -209,7 +209,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "setup_theme"
+         "wordpress.hook": "setup_theme"
        }
      },
      {
@@ -243,7 +243,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.theme": "Twentytwenty"
+         "wordpress.theme": "Twentytwenty"
        }
      },
      {
@@ -256,7 +256,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "after_setup_theme"
+         "wordpress.hook": "after_setup_theme"
        }
      },
      {
@@ -281,7 +281,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "init"
+         "wordpress.hook": "init"
        }
      },
         {
@@ -423,7 +423,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "wp_loaded"
+         "wordpress.hook": "wp_loaded"
        }
      },
      {
@@ -604,7 +604,7 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.hook": "wp"
+            "wordpress.hook": "wp"
           }
         },
      {
@@ -629,7 +629,7 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.hook": "template_redirect"
+            "wordpress.hook": "template_redirect"
           }
         },
         {
@@ -642,7 +642,7 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.template_type": "single"
+            "wordpress.template_type": "single"
           }
         },
            {
@@ -697,8 +697,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.template_type": "singular",
-            "wp.theme": "Twenty Twenty"
+            "wordpress.template_type": "singular",
+            "wordpress.theme": "Twenty Twenty"
           }
         },
            {
@@ -744,8 +744,8 @@
              "type": "web",
              "meta": {
                "component": "wordpress",
-               "wp.template_part": "header",
-               "wp.theme": "Twenty Twenty"
+               "wordpress.template_part": "header",
+               "wordpress.theme": "Twenty Twenty"
              }
            },
               {
@@ -758,7 +758,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.hook": "wp_head"
+                  "wordpress.hook": "wp_head"
                 }
               },
                  {
@@ -1038,8 +1038,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.template_part": "content",
-            "wp.theme": "Twenty Twenty"
+            "wordpress.template_part": "content",
+            "wordpress.theme": "Twenty Twenty"
           }
         },
            {
@@ -1052,7 +1052,7 @@
              "type": "web",
              "meta": {
                "component": "wordpress",
-               "wp.post.id": "5"
+               "wordpress.post.id": "5"
              }
            },
               {
@@ -1065,7 +1065,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.block_name": "core/paragraph"
+                  "wordpress.block.name": "core/paragraph"
                 }
               },
            {
@@ -1111,8 +1111,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.template_part": "footer-menus-widgets",
-            "wp.theme": "Twenty Twenty"
+            "wordpress.template_part": "footer-menus-widgets",
+            "wordpress.theme": "Twenty Twenty"
           }
         },
            {
@@ -1137,7 +1137,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Search"
+                  "wordpress.widget": "Search"
                 }
               },
               {
@@ -1150,7 +1150,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Recent Posts"
+                  "wordpress.widget": "Recent Posts"
                 }
               },
                  {
@@ -1226,7 +1226,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Recent Comments"
+                  "wordpress.widget": "Recent Comments"
                 }
               },
                  {
@@ -1314,7 +1314,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Archives"
+                  "wordpress.widget": "Archives"
                 }
               },
                  {
@@ -1348,7 +1348,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Categories"
+                  "wordpress.widget": "Categories"
                 }
               },
                  {
@@ -1403,7 +1403,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Meta"
+                  "wordpress.widget": "Meta"
                 }
               },
         {
@@ -1428,8 +1428,8 @@
              "type": "web",
              "meta": {
                "component": "wordpress",
-               "wp.template_part": "footer",
-               "wp.theme": "Twenty Twenty"
+               "wordpress.template_part": "footer",
+               "wordpress.theme": "Twenty Twenty"
              }
            },
               {
@@ -1463,7 +1463,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.hook": "wp_footer"
+                  "wordpress.hook": "wp_footer"
                 }
               },
      {
@@ -1476,6 +1476,6 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "shutdown"
+         "wordpress.hook": "shutdown"
        }
      }]]

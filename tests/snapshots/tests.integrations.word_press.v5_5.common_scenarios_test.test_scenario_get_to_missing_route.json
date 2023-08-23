@@ -5,7 +5,7 @@
     "resource": "GET /does_not_exist",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 4056432056905386120,
+    "parent_id": 4536844318343104219,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "404",
       "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
-      "runtime-id": "9f139b6b-ad9b-47a4-b026-238e0cd54ea6",
+      "runtime-id": "b5e7ee20-5ea1-486f-a770-c17a3b60636e",
       "span.kind": "server",
       "usr.id": "0"
     },
@@ -147,7 +147,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.plugin": "datadog"
+         "wordpress.plugin": "datadog"
        }
      },
      {
@@ -160,7 +160,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "plugins_loaded"
+         "wordpress.hook": "plugins_loaded"
        }
      },
         {
@@ -209,7 +209,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "setup_theme"
+         "wordpress.hook": "setup_theme"
        }
      },
      {
@@ -243,7 +243,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.theme": "Twentytwenty"
+         "wordpress.theme": "Twentytwenty"
        }
      },
      {
@@ -256,7 +256,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "after_setup_theme"
+         "wordpress.hook": "after_setup_theme"
        }
      },
      {
@@ -281,7 +281,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "init"
+         "wordpress.hook": "init"
        }
      },
         {
@@ -384,7 +384,7 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "wp_loaded"
+         "wordpress.hook": "wp_loaded"
        }
      },
      {
@@ -523,7 +523,7 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.hook": "wp"
+            "wordpress.hook": "wp"
           }
         },
      {
@@ -548,7 +548,7 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.hook": "template_redirect"
+            "wordpress.hook": "template_redirect"
           }
         },
            {
@@ -603,8 +603,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.template_type": "404",
-            "wp.theme": "Twenty Twenty"
+            "wordpress.template_type": "404",
+            "wordpress.theme": "Twenty Twenty"
           }
         },
         {
@@ -629,8 +629,8 @@
              "type": "web",
              "meta": {
                "component": "wordpress",
-               "wp.template_part": "header",
-               "wp.theme": "Twenty Twenty"
+               "wordpress.template_part": "header",
+               "wordpress.theme": "Twenty Twenty"
              }
            },
               {
@@ -643,7 +643,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.hook": "wp_head"
+                  "wordpress.hook": "wp_head"
                 }
               },
                  {
@@ -701,8 +701,8 @@
           "type": "web",
           "meta": {
             "component": "wordpress",
-            "wp.template_part": "footer-menus-widgets",
-            "wp.theme": "Twenty Twenty"
+            "wordpress.template_part": "footer-menus-widgets",
+            "wordpress.theme": "Twenty Twenty"
           }
         },
            {
@@ -727,7 +727,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Search"
+                  "wordpress.widget": "Search"
                 }
               },
               {
@@ -740,7 +740,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Recent Posts"
+                  "wordpress.widget": "Recent Posts"
                 }
               },
                  {
@@ -837,7 +837,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Recent Comments"
+                  "wordpress.widget": "Recent Comments"
                 }
               },
                  {
@@ -925,7 +925,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Archives"
+                  "wordpress.widget": "Archives"
                 }
               },
                  {
@@ -959,7 +959,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Categories"
+                  "wordpress.widget": "Categories"
                 }
               },
                  {
@@ -1014,7 +1014,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.widget": "Meta"
+                  "wordpress.widget": "Meta"
                 }
               },
         {
@@ -1039,8 +1039,8 @@
              "type": "web",
              "meta": {
                "component": "wordpress",
-               "wp.template_part": "footer",
-               "wp.theme": "Twenty Twenty"
+               "wordpress.template_part": "footer",
+               "wordpress.theme": "Twenty Twenty"
              }
            },
               {
@@ -1053,7 +1053,7 @@
                 "type": "web",
                 "meta": {
                   "component": "wordpress",
-                  "wp.hook": "wp_footer"
+                  "wordpress.hook": "wp_footer"
                 }
               },
      {
@@ -1066,6 +1066,6 @@
        "type": "web",
        "meta": {
          "component": "wordpress",
-         "wp.hook": "shutdown"
+         "wordpress.hook": "shutdown"
        }
      }]]

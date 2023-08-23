@@ -5,7 +5,7 @@
     "resource": "GET /simple_view",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 8857871325985691477,
+    "parent_id": 729478495814728347,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple_view?key=value&<redacted>",
-      "runtime-id": "428dc730-8980-4ebd-bdbd-82af66398be8",
+      "runtime-id": "dccda1ae-615d-4300-bae1-1ba83e60ac15",
       "span.kind": "server"
     },
     "metrics": {
