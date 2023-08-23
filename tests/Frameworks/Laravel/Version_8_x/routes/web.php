@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('simple', [CommonSpecsController::class, 'simple'])->name('simple_route');
 Route::get('simple_view', [CommonSpecsController::class, 'simple_view']);
+Route::get('dynamic_route/{param01}/static/{param02?}', [CommonSpecsController::class, 'dynamicRoute']);
 Route::get('error', [CommonSpecsController::class, 'error']);
 Route::get('eloquent/get', [EloquentTestController::class, 'get']);
 Route::get('eloquent/insert', [EloquentTestController::class, 'insert']);

@@ -62,12 +62,9 @@ impl AllocationProfilingStats {
         self.next_sample = AllocationProfilingStats::next_sampling_interval();
 
         REQUEST_LOCALS.with(|cell| {
-            // Panic: there might already be a mutable reference to `REQUEST_LOCALS`
-            let locals = cell.try_borrow();
-            if locals.is_err() {
+            let Ok(locals) = cell.try_borrow() else {
                 return;
-            }
-            let locals = locals.unwrap();
+            };
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.

@@ -1042,7 +1042,8 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     // handle dropped spans
     if (span->parent) {
         ddtrace_span_data *parent = span->parent;
-        while (ddtrace_span_is_dropped(parent)) {
+        // Ensure the parent id is the root span if everything else was dropped
+        while (parent->parent && ddtrace_span_is_dropped(parent)) {
             parent = parent->parent;
         }
         span->parent_id = parent->span_id;
