@@ -91,7 +91,7 @@
            {
              "name": "PDO.exec",
              "service": "pdo",
-             "resource": "SET sql_mode = 'ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,ONLY_FULL_GROUP_BY'",
+             "resource": "SET sql_mode = 'ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,ONLY_FULL_GROUP_BY,NO_AUTO_CREATE_USER'",
              "trace_id": 0,
              "span_id": 45,
              "parent_id": 35,
