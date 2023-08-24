@@ -7,8 +7,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    public $drupalRoot = __DIR__ . '/../../../Frameworks/Drupal/Version_8_9';
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Drupal/Version_8_9/index.php';

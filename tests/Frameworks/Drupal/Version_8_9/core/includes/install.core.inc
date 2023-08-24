@@ -203,7 +203,7 @@ function install_state_defaults() {
     // TRUE when there are valid config directories.
     'config_verified' => FALSE,
     // TRUE when there is a valid database connection.
-    'database_verified' => TRUE,
+    'database_verified' => FALSE,
     // TRUE when a valid settings.php exists (containing both database
     // connection information and config directory names).
     'settings_verified' => FALSE,
