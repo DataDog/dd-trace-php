@@ -5,7 +5,7 @@
     "resource": "error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 4527406091339732157,
+    "parent_id": 1576358650581230301,
     "type": "web",
     "error": 1,
     "meta": {
@@ -17,7 +17,7 @@
       "http.method": "GET",
       "http.status_code": "500",
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
-      "runtime-id": "15926beb-bb91-4587-bab4-2a11c4c0eb45",
+      "runtime-id": "10088970-54eb-4544-a10a-a57a039e8819",
       "span.kind": "server",
       "symfony.route.name": "error"
     },
@@ -1291,7 +1291,7 @@
            {
              "name": "PDO.prepare",
              "service": "pdo",
-             "resource": "SELECT name, route FROM router WHERE name IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6, :names__7, :names__8, :names__9, :names__10, :names__11, :names__12, :names__13, :names__14, :names__15, :names__16, :names__17, :names__18, :names__19, :names__20, :names__21, :names__22, :names__23, :names__24, :names__25, :names__26, :names__27, :names__28, :names__29, :names__30, :names__31, :names__32, :names__33, :names__34, :names__35, :names__36, :names__37, :names__38, :names__39, :names__40, :names__41, :names__42, :names__43, :names__44, :names__45, :names__46, :names__47, :names__48, :names__49 )",
+             "resource": "SELECT name, route FROM router WHERE name IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6, :names__7, :names__8, :names__9, :names__10, :names__11, :names__12, :names__13, :names__14, :names__15, :names__16, :names__17, :names__18, :names__19, :names__20, :names__21, :names__22, :names__23, :names__24, :names__25, :names__26, :names__27, :names__28, :names__29, :names__30, :names__31, :names__32, :names__33, :names__34, :names__35, :names__36, :names__37, :names__38, :names__39, :names__40, :names__41, :names__42, :names__43, :names__44, :names__45, :names__46, :names__47, :names__48 )",
              "trace_id": 0,
              "span_id": 66,
              "parent_id": 6,
@@ -1311,7 +1311,7 @@
            {
              "name": "PDOStatement.execute",
              "service": "pdo",
-             "resource": "SELECT name, route FROM router WHERE name IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6, :names__7, :names__8, :names__9, :names__10, :names__11, :names__12, :names__13, :names__14, :names__15, :names__16, :names__17, :names__18, :names__19, :names__20, :names__21, :names__22, :names__23, :names__24, :names__25, :names__26, :names__27, :names__28, :names__29, :names__30, :names__31, :names__32, :names__33, :names__34, :names__35, :names__36, :names__37, :names__38, :names__39, :names__40, :names__41, :names__42, :names__43, :names__44, :names__45, :names__46, :names__47, :names__48, :names__49 )",
+             "resource": "SELECT name, route FROM router WHERE name IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6, :names__7, :names__8, :names__9, :names__10, :names__11, :names__12, :names__13, :names__14, :names__15, :names__16, :names__17, :names__18, :names__19, :names__20, :names__21, :names__22, :names__23, :names__24, :names__25, :names__26, :names__27, :names__28, :names__29, :names__30, :names__31, :names__32, :names__33, :names__34, :names__35, :names__36, :names__37, :names__38, :names__39, :names__40, :names__41, :names__42, :names__43, :names__44, :names__45, :names__46, :names__47, :names__48 )",
              "trace_id": 0,
              "span_id": 67,
              "parent_id": 6,
