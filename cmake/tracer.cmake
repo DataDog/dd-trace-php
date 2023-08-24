@@ -41,7 +41,7 @@ if(DD_APPSEC_BUILD_TRACER)
 else()
     include(ExternalProject)
     ExternalProject_Add(proj_tracer
-        URL     https://github.com/DataDog/dd-trace-php/releases/download/${DD_APPSEC_TRACER_VERSION}/datadog-php-tracer-${DD_APPSEC_TRACER_VERSION}.x86_64.tar.gz
+        URL https://output.circle-artifacts.com/output/job/434c6010-da34-4df5-9ce9-1531bb0e60f8/artifacts/0/datadog-php-tracer-0.90.0+36ed038a4beff76c7a4cdeac002a02d4060eaadb.x86_64.tar.gz
         PREFIX  proj_tracer_release
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""

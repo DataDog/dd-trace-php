@@ -1,6 +1,6 @@
 FROM debian@sha256:08db48d59c0a91afb802ebafc921be3154e200c452e4d0b19634b426b03e0e25 AS toolchain
 RUN apt-get update && \
-	apt-get install -y curl xz-utils make file lld clang git patchelf gcc libgcc-s1 sed autoconf libcurl4-openssl-dev wget libssl-dev wget
+	apt-get install -y curl xz-utils make file lld clang git patchelf gcc libgcc-s1 sed autoconf libcurl4-openssl-dev wget libssl-dev wget libxml2
 
 RUN ln -s /bin/sed /usr/bin/sed
 RUN mkdir /build
