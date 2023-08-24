@@ -1,0 +1,48 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the mysql module.
+ */
+
+use Drupal\Core\Database\Database;
+
+/**
+ * Implements hook_requirements().
+ */
+function mysql_requirements($phase) {
+  $requirements = [];
+
+  if ($phase === 'runtime') {
+    // Test with MySql databases.
+    if (Database::isActiveConnection()) {
+      $connection = Database::getConnection();
+      // Only show requirements when MySQL is the default database connection.
+      if (!($connection->driver() === 'mysql' && $connection->getProvider() === 'mysql')) {
+        return [];
+      }
+
+      $query = 'SELECT @@SESSION.tx_isolation';
+      // The database variable "tx_isolation" has been removed in MySQL v8.0.3 and
+      // has been replaced by "transaction_isolation".
+      // @see https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_tx_isolation
+      // @see https://dev.mysql.com/doc/refman/8.0/en/added-deprecated-removed.html
+      if (!$connection->isMariaDb() && version_compare($connection->version(), '8.0.2-AnyName', '>')) {
+        $query = 'SELECT @@SESSION.transaction_isolation';
+      }
+
+      $isolation_level = $connection->query($query)->fetchField();
+
+      $requirements['mysql_transaction_level'] = [
+        'title' => t('Database Isolation Level'),
+        'severity' => $isolation_level === 'READ-COMMITTED' ? REQUIREMENT_OK : REQUIREMENT_WARNING,
+        'value' => $isolation_level,
+        'description' => t('For the best performance and to minimize locking issues, the READ-COMMITTED transaction isolation level is recommended. See the <a href=":performance_doc">setting MySQL transaction isolation level</a> page for more information.', [
+          ':performance_doc' => 'https://www.drupal.org/docs/system-requirements/setting-the-mysql-transaction-isolation-level',
+        ]),
+      ];
+    }
+  }
+
+  return $requirements;
+}
