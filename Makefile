@@ -1022,6 +1022,7 @@ test_web_cakephp_28: global_test_run_dependencies
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests,--testsuite=codeigniter-22-test)
 test_web_drupal_89: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_8_9/core update --ignore-platform-reqs
 	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_8_9 update --ignore-platform-reqs
 	$(call run_tests,tests/Integrations/Drupal/V8_9)
 test_web_drupal_95: global_test_run_dependencies
