@@ -1,8 +1,6 @@
 --TEST--
 overrideArguments() works with JIT (Issue #2174)
 --SKIPIF--
-<?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
-<?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 <?php if (PHP_VERSION_ID < 80000) die('skip: JIT is only on PHP 8'); ?>
 --INI--
 opcache.enable=1
