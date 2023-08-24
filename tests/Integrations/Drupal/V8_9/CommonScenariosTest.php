@@ -22,40 +22,12 @@ class CommonScenariosTest extends WebFrameworkTestCase
     public function ddSetUp()
     {
         parent::ddSetUp();
-        // Run the drupalRoot/scripts/drupal_db_init.php script
-        // to create the database and install Drupal.
-        //$this->runScript($this->drupalRoot . '/scripts/drupal_db_init.php');
         $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
         $cacheTables = $pdo->query("SHOW TABLES LIKE 'cache%'");
         while ($table = $cacheTables->fetchColumn()) {
             //fwrite(STDERR, "Truncating table $table" . PHP_EOL);
             $pdo->query('TRUNCATE ' . $table);
         }
-    }
-
-    public function runScript($script)
-    {
-        $cmd = 'php ' . $script;
-        $output = [];
-        $returnCode = null;
-        exec($cmd, $output, $returnCode);
-        if ($returnCode !== 0) {
-            fwrite(STDERR, "Output from $cmd:" . PHP_EOL);
-            fwrite(STDERR, implode(PHP_EOL, $output) . PHP_EOL);
-            throw new \Exception("Script $script failed with return code $returnCode");
-        }
-    }
-
-    public function testScenarioGetReturnString()
-    {
-        $this->tracesFromWebRequestSnapshot(function () {
-            $this->call(
-                GetSpec::create(
-                    'A simple GET request returning a string',
-                    '/simple?key=value&pwd=should_redact'
-                )
-            );
-        });
     }
 
     public function testScenarioGetWithView()

@@ -8,14 +8,6 @@ use Drupal\Core\Controller\ControllerBase;
  * Returns responses for datadog routes.
  */
 class DatadogController extends ControllerBase {
-
-    public function simple() {
-        // https://www.drupal.org/project/drupal/issues/2559491
-        return [
-            '#markup' => 'simple',
-        ];
-    }
-
     public function simpleView() {
         return [
             '#theme' => 'datadog',

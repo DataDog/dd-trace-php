@@ -1,11 +1,3 @@
-simple:
-  path: '/simple'
-  defaults:
-    _title: 'Simple'
-    _controller: '\Drupal\datadog\Controller\DatadogController::simple'
-  requirements:
-    _access: 'TRUE'
-
 simple_view:
   path: '/simple_view'
   defaults:
