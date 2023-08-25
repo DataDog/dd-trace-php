@@ -2,8 +2,10 @@
 
 namespace Drupal\Core\Cache;
 
-class NullBackendFactory implements CacheFactoryInterface {
+use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 
+class NullBackendFactory implements CacheFactoryInterface {
+    use ContainerAwareTrait;
   /**
    * {@inheritdoc}
    */
