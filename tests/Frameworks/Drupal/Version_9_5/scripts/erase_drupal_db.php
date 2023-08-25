@@ -30,7 +30,7 @@ $pdo->query('DROP TABLE IF EXISTS semaphore');
 $pdo->query('DROP TABLE IF EXISTS sequences');
 $pdo->query('DROP TABLE IF EXISTS sessions');
 $pdo->query('DROP TABLE IF EXISTS user__roles');
-$pdo->query('DROP TABLE IF EXISTS users');
+//$pdo->query('DROP TABLE IF EXISTS users');
 $pdo->query('DROP TABLE IF EXISTS users_data');
 $pdo->query('DROP TABLE IF EXISTS users_field_data');
 $pdo->query('DROP TABLE IF EXISTS watchdog');
