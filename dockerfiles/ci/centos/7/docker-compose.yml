@@ -84,8 +84,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.1"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.1.15.tar.gz
-        phpSha256Hash: 4035236180efac535ff4f22db9ef3195672f31e3e0aa88f89c38ac0715beca3b
+        phpTarGzUrl: https://www.php.net/distributions/php-8.1.22.tar.gz
+        phpSha256Hash: f5140e94b139b4adec4b29c337537b7b6f1ef023197eb32be909e724e3da157a
     image: 'datadog/dd-trace-ci:php-8.1_centos-7'
 
   php-8.2:
@@ -95,8 +95,6 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.2"
-        # Avoiding PHP 8.2.2-8.2.3, which have a crash in fibers:
-        # https://github.com/php/php-src/commit/95016138a54b3352a0988878cd71c2ebe7cdeca5
-        phpTarGzUrl: https://www.php.net/distributions/php-8.2.1.tar.gz
-        phpSha256Hash: 6d7b1b8feb14fd1c65a2bc9d0f72c75589a61a946566cf9c3bf9536a5530b635
+        phpTarGzUrl: https://www.php.net/distributions/php-8.2.8.tar.gz
+        phpSha256Hash: 6419b74e9b675c8d5a1afd2788c4d7996a19bbe2be409716ccb2067897af9df1
     image: 'datadog/dd-trace-ci:php-8.2_centos-7'

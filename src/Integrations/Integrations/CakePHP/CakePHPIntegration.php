@@ -39,24 +39,31 @@ class CakePHPIntegration extends Integration
             return self::NOT_AVAILABLE;
         }
 
-        $rootSpan = \DDTrace\root_span();
-        if (!$rootSpan) {
-            return self::NOT_LOADED;
-        }
+        $integration->rootSpan = null;
 
-        $integration->appName = \ddtrace_config_app_name(CakePHPIntegration::NAME);
-        $integration->rootSpan = $rootSpan;
-        $integration->addTraceAnalyticsIfEnabled($integration->rootSpan);
-        $integration->rootSpan->service = $integration->appName;
-        if ('cli' === PHP_SAPI) {
-            $integration->rootSpan->name = 'cakephp.console';
-            $integration->rootSpan->resource =
-                !empty($_SERVER['argv'][1]) ? 'cake_console ' . $_SERVER['argv'][1] : 'cake_console';
-        } else {
-            $integration->rootSpan->name = 'cakephp.request';
-            $integration->rootSpan->meta[Tag::SPAN_KIND] = 'server';
-        }
-        $integration->rootSpan->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
+        $setRootSpanInfoFn = function () use ($integration) {
+            $rootSpan = \DDTrace\root_span();
+            if ($rootSpan === null) {
+                return;
+            }
+
+            $integration->appName = \ddtrace_config_app_name(CakePHPIntegration::NAME);
+            $integration->rootSpan = $rootSpan;
+            $integration->addTraceAnalyticsIfEnabled($integration->rootSpan);
+            $integration->rootSpan->service = $integration->appName;
+            if ('cli' === PHP_SAPI) {
+                $integration->rootSpan->name = 'cakephp.console';
+                $integration->rootSpan->resource =
+                    !empty($_SERVER['argv'][1]) ? 'cake_console ' . $_SERVER['argv'][1] : 'cake_console';
+            } else {
+                $integration->rootSpan->name = 'cakephp.request';
+                $integration->rootSpan->meta[Tag::SPAN_KIND] = 'server';
+            }
+            $integration->rootSpan->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
+        };
+
+        \DDTrace\hook_method('App', 'init', $setRootSpanInfoFn);
+        \DDTrace\hook_method('Dispatcher', '__construct', $setRootSpanInfoFn);
 
         \DDTrace\trace_method(
             'Controller',

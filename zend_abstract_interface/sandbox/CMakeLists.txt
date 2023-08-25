@@ -6,7 +6,7 @@ target_include_directories(zai_sandbox PUBLIC
 
 target_compile_features(zai_sandbox PUBLIC c_std_99)
 
-target_link_libraries(zai_sandbox PUBLIC "${PHP_LIB}")
+target_link_libraries(zai_sandbox PUBLIC Tea::Php)
 
 set_target_properties(zai_sandbox PROPERTIES
                                   EXPORT_NAME Sandbox

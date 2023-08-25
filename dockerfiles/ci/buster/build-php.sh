@@ -80,6 +80,7 @@ make -j "$((`nproc`+1))" || true
 if ! [[ -f ext/phar/phar.phar ]] && [[ ${INSTALL_VERSION} == *asan* ]]; then
   # Cross-compilation with asan and qemu will fail with a segfault instead. Handle this.
   sed -ir 's/TEST_PHP_EXECUTABLE_RES =.*/TEST_PHP_EXECUTABLE_RES = 1/' Makefile
+  mkdir -p ext/phar/
   touch ext/phar/phar.phar
   # ensure compilation finishes, then back up php
   make || true;

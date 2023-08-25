@@ -36,6 +36,13 @@ zend_result zend_call_function_wrapper(zend_fcall_info *fci, zend_fcall_info_cac
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
 static zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data) {
+    // Although the tracer being present should always cause an observer to be
+    // present, if zai is used from another extension, like say the profiler,
+    // then this may not be set.
+    if (zend_observer_fcall_op_array_extension < 0) {
+        return NULL;
+    }
+
     zend_execute_data fake_ex[2]; // 2 to have some space for observer temps
     zend_function dummy_observable_func;
     dummy_observable_func.type = ZEND_INTERNAL_FUNCTION;

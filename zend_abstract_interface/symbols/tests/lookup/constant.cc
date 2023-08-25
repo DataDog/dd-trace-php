@@ -7,48 +7,48 @@ extern "C" {
 #include <cstring>
 
 TEA_TEST_CASE("symbol/lookup/constant", "global, exists", {
-    zai_string_view name = ZAI_STRL_VIEW("PHP_VERSION");
-    zai_string_view mixed = ZAI_STRL_VIEW("Php_Version");
+    zai_str name = ZAI_STRL("PHP_VERSION");
+    zai_str mixed = ZAI_STRL("Php_Version");
 
     REQUIRE(zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &name));
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &mixed));
 })
 
 TEA_TEST_CASE("symbol/lookup/constant", "global, does not exist", {
-    zai_string_view name = ZAI_STRL_VIEW("NO_SUCH_CONSTANT");
-    zai_string_view mixed = ZAI_STRL_VIEW("No_Such_Constant");
+    zai_str name = ZAI_STRL("NO_SUCH_CONSTANT");
+    zai_str mixed = ZAI_STRL("No_Such_Constant");
 
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &name));
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &mixed));
 })
 
 TEA_TEST_CASE("symbol/lookup/constant", "root ns, exists", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\");
-    zai_string_view name = ZAI_STRL_VIEW("PHP_VERSION");
-    zai_string_view mixed = ZAI_STRL_VIEW("Php_Version");
+    zai_str ns   = ZAI_STRL("\\");
+    zai_str name = ZAI_STRL("PHP_VERSION");
+    zai_str mixed = ZAI_STRL("Php_Version");
 
     REQUIRE(zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &name));
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &mixed));
 })
 
 TEA_TEST_CASE("symbol/lookup/constant", "root ns fqn, exists", {
-    zai_string_view name = ZAI_STRL_VIEW("\\PHP_VERSION");
+    zai_str name = ZAI_STRL("\\PHP_VERSION");
 
     REQUIRE(zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &name));
 })
 
 TEA_TEST_CASE("symbol/lookup/constant", "root ns, does not exist", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\");
-    zai_string_view name  = ZAI_STRL_VIEW("NO_SUCH_CONSTANT");
-    zai_string_view mixed = ZAI_STRL_VIEW("No_Such_Constant");
+    zai_str ns   = ZAI_STRL("\\");
+    zai_str name  = ZAI_STRL("NO_SUCH_CONSTANT");
+    zai_str mixed = ZAI_STRL("No_Such_Constant");
 
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &name));
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &mixed));
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/constant", "ns, exists", "./stubs/lookup/constant/Stub.php", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view name = ZAI_STRL_VIEW("DD_TRACE_TESTING");
+    zai_str ns   = ZAI_STRL("\\DDTraceTesting");
+    zai_str name = ZAI_STRL("DD_TRACE_TESTING");
 
     zval *constant = (zval*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &name);
 
@@ -58,16 +58,16 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/constant", "ns, exists", "./stubs/lookup/
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/constant", "ns, does not exists", "./stubs/lookup/constant/Stub.php", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view name = ZAI_STRL_VIEW("DD_TEST_CONSTANT_DOES_NOT_EXIST");
+    zai_str ns   = ZAI_STRL("\\DDTraceTesting");
+    zai_str name = ZAI_STRL("DD_TEST_CONSTANT_DOES_NOT_EXIST");
 
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_CONSTANT, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &name));
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/constant", "class, exists", "./stubs/lookup/constant/Stub.php", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn   = ZAI_STRL_VIEW("Stub");
-    zai_string_view name = ZAI_STRL_VIEW("DD_TRACE_TESTING");
+    zai_str ns   = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn   = ZAI_STRL("Stub");
+    zai_str name = ZAI_STRL("DD_TRACE_TESTING");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -79,9 +79,9 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/constant", "class, exists", "./stubs/look
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/constant", "class, does not exist", "./stubs/lookup/constant/Stub.php", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn   = ZAI_STRL_VIEW("Stub");
-    zai_string_view name = ZAI_STRL_VIEW("DD_TRACE_TESTING_DOES_NOT_EXIST");
+    zai_str ns   = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn   = ZAI_STRL("Stub");
+    zai_str name = ZAI_STRL("DD_TRACE_TESTING_DOES_NOT_EXIST");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -89,9 +89,9 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/constant", "class, does not exist", "./st
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/constant", "object, exists", "./stubs/lookup/constant/Stub.php", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn   = ZAI_STRL_VIEW("Stub");
-    zai_string_view name = ZAI_STRL_VIEW("DD_TRACE_TESTING");
+    zai_str ns   = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn   = ZAI_STRL("Stub");
+    zai_str name = ZAI_STRL("DD_TRACE_TESTING");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 
@@ -108,9 +108,9 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/constant", "object, exists", "./stubs/loo
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/constant", "object, does not exist", "./stubs/lookup/constant/Stub.php", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view cn   = ZAI_STRL_VIEW("Stub");
-    zai_string_view name = ZAI_STRL_VIEW("DD_TRACE_TESTING_DOES_NOT_EXIST");
+    zai_str ns   = ZAI_STRL("\\DDTraceTesting");
+    zai_str cn   = ZAI_STRL("Stub");
+    zai_str name = ZAI_STRL("DD_TRACE_TESTING_DOES_NOT_EXIST");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &cn);
 

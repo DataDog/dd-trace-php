@@ -1,8 +1,8 @@
 use crate::bindings::zai_config_type::*;
 use crate::bindings::{
     datadog_php_profiling_copy_string_view_into_zval, zai_config_entry, zai_config_get_value,
-    zai_config_minit, zai_config_name, zai_config_system_ini_change, zend_long, zval,
-    ZaiStringView, IS_LONG, ZAI_CONFIG_ENTRIES_COUNT_MAX,
+    zai_config_minit, zai_config_name, zai_config_system_ini_change, zend_long, zval, ZaiStr,
+    IS_LONG, ZAI_CONFIG_ENTRIES_COUNT_MAX,
 };
 pub use datadog_profiling::exporter::Uri;
 use libc::c_char;
@@ -64,7 +64,7 @@ impl Display for AgentEndpoint {
     }
 }
 
-unsafe extern "C" fn env_to_ini_name(env_name: ZaiStringView, ini_name: *mut zai_config_name) {
+unsafe extern "C" fn env_to_ini_name(env_name: ZaiStr, ini_name: *mut zai_config_name) {
     assert!(!ini_name.is_null());
     let ini_name = &mut *ini_name;
 
@@ -157,7 +157,7 @@ pub(crate) enum ConfigId {
 use ConfigId::*;
 
 impl ConfigId {
-    const fn env_var_name(&self) -> ZaiStringView {
+    const fn env_var_name(&self) -> ZaiStr {
         let bytes: &'static [u8] = match self {
             ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
@@ -181,7 +181,7 @@ impl ConfigId {
         };
 
         // Safety: all these byte strings are [CStr::from_bytes_with_nul_unchecked] compatible.
-        unsafe { ZaiStringView::literal(bytes) }
+        unsafe { ZaiStr::literal(bytes) }
     }
 }
 
@@ -313,7 +313,7 @@ pub(crate) unsafe fn profiling_log_level() -> LevelFilter {
 }
 
 unsafe extern "C" fn parse_level_filter(
-    value: ZaiStringView,
+    value: ZaiStr,
     decoded_value: *mut zval,
     _persistent: bool,
 ) -> bool {
@@ -345,7 +345,7 @@ unsafe extern "C" fn parse_level_filter(
 }
 
 unsafe extern "C" fn parse_utf8_string(
-    value: ZaiStringView,
+    value: ZaiStr,
     decoded_value: *mut zval,
     persistent: bool,
 ) -> bool {
@@ -355,7 +355,7 @@ unsafe extern "C" fn parse_utf8_string(
 
     match value.into_utf8() {
         Ok(utf8) => {
-            let view = ZaiStringView::from(utf8);
+            let view = ZaiStr::from(utf8);
             datadog_php_profiling_copy_string_view_into_zval(decoded_value, view, persistent);
             true
         }
@@ -368,14 +368,11 @@ unsafe extern "C" fn parse_utf8_string(
 
 pub(crate) fn minit(module_number: libc::c_int) {
     unsafe {
-        const CPU_TIME_ALIASES: &[ZaiStringView] = unsafe {
-            &[ZaiStringView::literal(
-                b"DD_PROFILING_EXPERIMENTAL_CPU_ENABLED\0",
-            )]
-        };
+        const CPU_TIME_ALIASES: &[ZaiStr] =
+            unsafe { &[ZaiStr::literal(b"DD_PROFILING_EXPERIMENTAL_CPU_ENABLED\0")] };
 
-        const ALLOCATION_ALIASES: &[ZaiStringView] = unsafe {
-            &[ZaiStringView::literal(
+        const ALLOCATION_ALIASES: &[ZaiStr] = unsafe {
+            &[ZaiStr::literal(
                 b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0",
             )]
         };
@@ -388,7 +385,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingEnabled),
                     name: ProfilingEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStringView::literal(b"1\0"),
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
@@ -398,7 +395,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingEndpointCollectionEnabled),
                     name: ProfilingEndpointCollectionEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStringView::literal(b"1\0"),
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
@@ -408,7 +405,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingExperimentalCpuTimeEnabled),
                     name: ProfilingExperimentalCpuTimeEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStringView::literal(b"1\0"),
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: CPU_TIME_ALIASES.as_ptr(),
                     aliases_count: CPU_TIME_ALIASES.len() as u8,
                     ini_change: None,
@@ -418,7 +415,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingAllocationEnabled),
                     name: ProfilingAllocationEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStringView::literal(b"1\0"),
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: ALLOCATION_ALIASES.as_ptr(),
                     aliases_count: ALLOCATION_ALIASES.len() as u8,
                     ini_change: None,
@@ -428,7 +425,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingExperimentalTimelineEnabled),
                     name: ProfilingExperimentalTimelineEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStringView::literal(b"0\0"),
+                    default_encoded_value: ZaiStr::literal(b"0\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
@@ -438,7 +435,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingLogLevel),
                     name: ProfilingLogLevel.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM, // store it as an int
-                    default_encoded_value: ZaiStringView::literal(b"off\0"),
+                    default_encoded_value: ZaiStr::literal(b"off\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
@@ -448,7 +445,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(ProfilingOutputPprof),
                     name: ProfilingOutputPprof.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStringView::new(),
+                    default_encoded_value: ZaiStr::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
@@ -458,7 +455,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(AgentHost),
                     name: AgentHost.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStringView::new(),
+                    default_encoded_value: ZaiStr::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
@@ -468,7 +465,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(Env),
                     name: Env.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStringView::new(),
+                    default_encoded_value: ZaiStr::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
@@ -478,7 +475,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(Service),
                     name: Service.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStringView::new(),
+                    default_encoded_value: ZaiStr::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
@@ -488,7 +485,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(Tags),
                     name: Tags.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_MAP,
-                    default_encoded_value: ZaiStringView::new(),
+                    default_encoded_value: ZaiStr::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
@@ -498,7 +495,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(TraceAgentPort),
                     name: TraceAgentPort.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_INT,
-                    default_encoded_value: ZaiStringView::literal(b"0\0"),
+                    default_encoded_value: ZaiStr::literal(b"0\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
@@ -508,7 +505,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(TraceAgentUrl),
                     name: TraceAgentUrl.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING, // TYPE?
-                    default_encoded_value: ZaiStringView::new(),
+                    default_encoded_value: ZaiStr::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
@@ -518,7 +515,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute(Version),
                     name: Version.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStringView::new(),
+                    default_encoded_value: ZaiStr::new(),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
@@ -583,7 +580,7 @@ mod tests {
 
         for (env_name, expected_ini_name) in cases {
             unsafe {
-                let env = ZaiStringView::literal(env_name);
+                let env = ZaiStr::literal(env_name);
                 let mut ini = MaybeUninit::uninit();
                 env_to_ini_name(env, ini.as_mut_ptr());
                 let ini = ini.assume_init();

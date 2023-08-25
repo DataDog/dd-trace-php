@@ -7,20 +7,20 @@
 #undef INTEGRATION
 
 #define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
-    dd_hook_method_and_unhook_on_first_call(ZAI_STRL_VIEW(class), ZAI_STRL_VIEW(fname), \
-                          ZAI_STRL_VIEW(integration_name), (ddtrace_integration_name)-1, false)
+    dd_hook_method_and_unhook_on_first_call(ZAI_STRL(class), ZAI_STRL(fname), \
+                          ZAI_STRL(integration_name), (ddtrace_integration_name)-1, false)
 
 #define DD_SET_UP_DEFERRED_LOADING_BY_METHOD(name, Class, fname, integration)                                \
-    dd_set_up_deferred_loading_by_method(name, ZAI_STRL_VIEW(Class), ZAI_STRL_VIEW(fname), \
-                                         ZAI_STRL_VIEW(integration), false)
+    dd_set_up_deferred_loading_by_method(name, ZAI_STRL(Class), ZAI_STRL(fname), \
+                                         ZAI_STRL(integration), false)
 
 #define DD_SET_UP_DEFERRED_LOADING_BY_METHOD_POST(name, Class, fname, integration)                                \
-    dd_set_up_deferred_loading_by_method(name, ZAI_STRL_VIEW(Class), ZAI_STRL_VIEW(fname), \
-                                         ZAI_STRL_VIEW(integration), true)
+    dd_set_up_deferred_loading_by_method(name, ZAI_STRL(Class), ZAI_STRL(fname), \
+                                         ZAI_STRL(integration), true)
 
 #define DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(name, fname, integration)                           \
-    dd_set_up_deferred_loading_by_method(name, ZAI_STRING_EMPTY, ZAI_STRL_VIEW(fname), \
-                                         ZAI_STRL_VIEW(integration), false)
+    dd_set_up_deferred_loading_by_method(name, ZAI_STR_EMPTY, ZAI_STRL(fname), \
+                                         ZAI_STRL(integration), false)
 
 #define INTEGRATION(id, lcname, ...)                                    \
     {                                                                  \
@@ -46,8 +46,8 @@ void ddtrace_integrations_mshutdown(void) { zend_hash_destroy(&_dd_string_to_int
 typedef struct {
     ddtrace_integration_name name;
     zend_string *classname;
-    zai_string_view scope;
-    zai_string_view function;
+    zai_str scope;
+    zai_str function;
     zend_long id;
 } dd_integration_aux;
 
@@ -75,9 +75,9 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
         bool success;
         zval *thisp = getThis();
         if (thisp) {
-            success = zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 2, &integration, thisp);
+            success = zai_symbol_call_global(ZAI_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 2, &integration, thisp);
         } else {
-            success = zai_symbol_call_literal(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
+            success = zai_symbol_call_global(ZAI_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
         }
 
         if (UNEXPECTED(!success)) {
@@ -101,7 +101,7 @@ static bool dd_invoke_integration_loader_and_unhook_prehook(zend_ulong invocatio
     return true;
 }
 
-static void dd_hook_method_and_unhook_on_first_call(zai_string_view Class, zai_string_view method, zai_string_view callback, ddtrace_integration_name name, bool posthook) {
+static void dd_hook_method_and_unhook_on_first_call(zai_str Class, zai_str method, zai_str callback, ddtrace_integration_name name, bool posthook) {
     dd_integration_aux *aux = malloc(sizeof(*aux));
     aux->name = name;
     aux->classname = zend_string_init(callback.ptr, callback.len, 1);
@@ -132,8 +132,8 @@ static void dd_load_test_integrations(void) {
     // DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
 }
 
-static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, zai_string_view Class,
-                                                 zai_string_view method, zai_string_view integration, bool posthook) {
+static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, zai_str Class,
+                                                 zai_str method, zai_str integration, bool posthook) {
     // We unconditionally install our hooks. We skip it on hit.
     dd_hook_method_and_unhook_on_first_call(Class, method, integration, name, posthook);
 }

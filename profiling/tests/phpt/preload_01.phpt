@@ -1,5 +1,5 @@
 --TEST--
-Profiling should only be enabled after preloading has happened
+[profiling] Profiling should only be enabled after preloading has happened
 --DESCRIPTION--
 This is a special case for when PHP-FPM running as non-root user and preloading
 is enabled. In this case, PHP will do preloading in the php-fpm: master process
@@ -30,12 +30,16 @@ opcache.preload={PWD}/preload_01_preload.php
 opcache.preload_user=root
 --FILE--
 <?php
+/*
+ * this `usleep()` makes sure profiling will start and take a sample. This is because
+ * we need to make sure that the "Started with an upload period ..." message
+ * comes after the "preloading" output from the preloading script.
+ */
+usleep(11000);
 echo "Done.", PHP_EOL;
 ?>
 --EXPECTREGEX--
-.* zend_post_startup_cb hasn't happened yet; not enabling profiler.
+.*zend_post_startup_cb hasn't happened yet; not enabling profiler.
 preloading
-.* Started with an upload period of [0-9]+ seconds and approximate wall-time period of [0-9]+ milliseconds.
-Done.
-.* Stopping profiler.
-.*
+.*Started with an upload period of [0-9]+ seconds and approximate wall-time period of [0-9]+ milliseconds.
+.*Done.*

@@ -14,6 +14,15 @@ endif()
 find_program(
   PhpConfig_EXECUTABLE
   NAMES php-config
+        # Debian has php-config's named like these
+        php-config7.0
+        php-config7.1
+        php-config7.2
+        php-config7.3
+        php-config7.4
+        php-config8.0
+        php-config8.1
+        php-config8.2
   HINTS ${PhpConfig_ROOT} # not quoted! Need it to expand to a list.
 )
 

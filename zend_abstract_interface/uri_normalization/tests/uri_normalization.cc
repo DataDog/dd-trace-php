@@ -110,7 +110,7 @@ TEST_URI_NORMALIZATION("pattern mapping & fragment regexes: working with full UR
     { __VA_ARGS__ }                                   \
     zend_string *res =                             \
         zai_filter_query_string(                      \
-            ZAI_STRL_VIEW(query_string),              \
+            ZAI_STRL(query_string),              \
             Z_ARRVAL(whitelist), regex);              \
                                                       \
     REQUIRE(zend_string_equals_literal(res, output)); \

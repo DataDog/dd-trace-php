@@ -112,8 +112,9 @@ ddtrace_span_data *ddtrace_active_span(void);
 ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong invocation, zend_execute_data *execute_data);
 void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
 
-// Note that this function is used externally by the appsec extension.
-DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value);
+// Note that these functions are used externally by the appsec extension.
+DDTRACE_PUBLIC zval *ddtrace_root_span_get_meta(void);
+DDTRACE_PUBLIC zval *ddtrace_root_span_get_metrics(void);
 
 void dd_trace_stop_span_time(ddtrace_span_data *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end);

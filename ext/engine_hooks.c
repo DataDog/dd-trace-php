@@ -19,8 +19,8 @@ static void _compile_mshutdown(void);
 void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
 
 void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
-                                        zai_string_view span_type,
-                                        zai_string_view resource) = NULL;
+                                        zai_str span_type,
+                                        zai_str resource) = NULL;
 
 void (*profiling_interrupt_function)(zend_execute_data *) = NULL;
 

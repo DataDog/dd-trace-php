@@ -1,6 +1,7 @@
 --TEST--
 Test internal functions are hooked within JIT
 --SKIPIF--
+<?php if (!file_exists(ini_get("extension_dir") . "/opcache.so")) die('skip: opcache.so does not exist in extension_dir'); ?>
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 <?php if (PHP_VERSION_ID < 80000) die('skip: JIT is only on PHP 8'); ?>

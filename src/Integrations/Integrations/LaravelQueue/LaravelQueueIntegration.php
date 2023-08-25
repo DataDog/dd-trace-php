@@ -17,7 +17,6 @@ use function DDTrace\logs_correlation_trace_id;
 use function DDTrace\remove_hook;
 use function DDTrace\set_distributed_tracing_context;
 use function DDTrace\start_trace_span;
-use function DDTrace\trace_id;
 use function DDTrace\trace_method;
 use function DDTrace\install_hook;
 use function DDTrace\hook_method;
@@ -45,6 +44,25 @@ class LaravelQueueIntegration extends Integration
     public function init()
     {
         $integration = $this;
+
+        \DDTrace\hook_method(
+            'Illuminate\Queue\Worker',
+            'kill',
+            function () {
+                // span.c:ddtrace_close_all_open_spans() -> ensure the span is closed rather than dropped
+                ini_set('datadog.autofinish_spans', '1');
+
+                dd_trace_close_all_spans_and_flush();
+                dd_trace_synchronous_flush(1);
+
+                if (
+                    dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE")
+                    && dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                ) {
+                    set_distributed_tracing_context("0", "0");
+                }
+            }
+        );
 
         trace_method(
             'Illuminate\Queue\Worker',
@@ -109,12 +127,30 @@ class LaravelQueueIntegration extends Integration
             ]
         );
 
+        hook_method(
+            'Illuminate\Queue\Worker',
+            'maxAttemptsExceededException',
+            null,
+            function ($worker, $scope, $args, $retval) use ($integration) {
+                if (($rootSpan = \DDTrace\root_span()) !== null) {
+                    $integration->setError($rootSpan, $retval);
+                }
+            }
+        );
+
         trace_method(
             'Illuminate\Queue\Jobs\Job',
             'fire',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes($span, 'laravel.queue.fire', 'process', $this, $exception);
-            }
+            [
+                'prehook' => function (SpanData $span, $args, $retval) use ($integration) {
+                    $integration->setSpanAttributes($span, 'laravel.queue.fire', 'process', $this);
+                },
+                'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration) {
+                    if ($exception) {
+                        $integration->setError($span, $exception);
+                    }
+                }
+            ]
         );
 
         if (PHP_MAJOR_VERSION > 5) {

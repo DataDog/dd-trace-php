@@ -123,7 +123,7 @@ void datadog_php_profiling_install_internal_function_handler(
     }
 }
 
-void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_string_view view,
+void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
                                                       bool persistent) {
     ZEND_ASSERT(dest);
 
@@ -150,10 +150,10 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
  * empty strings will be converted into a string view to a static empty
  * string (single byte of null, len of 0).
  */
-zai_string_view ddog_php_prof_zend_string_view(zend_string *zstr) {
+zai_str ddog_php_prof_zend_string_view(zend_string *zstr) {
     return (!zstr || ZSTR_LEN(zstr) == 0)
-        ? ZAI_STRING_EMPTY
-        : ZAI_STRING_FROM_ZSTR(zstr);
+        ? ZAI_STR_EMPTY
+        : ZAI_STR_FROM_ZSTR(zstr);
 }
 
 void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
@@ -172,13 +172,27 @@ zend_execute_data* ddog_php_prof_get_current_execute_data() {
     return EG(current_execute_data);
 }
 
+#if CFG_FIBERS // defined by build.rs
+zend_fiber* ddog_php_prof_get_active_fiber()
+{
+    return EG(active_fiber);
+}
+
+zend_fiber* ddog_php_prof_get_active_fiber_test()
+{
+    return NULL;
+}
+#endif
+
 #if CFG_RUN_TIME_CACHE // defined by build.rs
 static int ddog_php_prof_run_time_cache_handle = -1;
 #endif
 
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 #if CFG_RUN_TIME_CACHE // defined by build.rs
-    // Grab 2, one for function name and one for filename.
+    // Grab 1 slot for the full module|class::method name.
+    // Grab 1 slot for caching filename, as it turns out the utf-8 validity
+    // check is worth caching.
 #if PHP_VERSION_ID < 80200
     ddog_php_prof_run_time_cache_handle =
         zend_get_op_array_extension_handle(module_name);
@@ -221,10 +235,7 @@ static bool has_invalid_run_time_cache(zend_function const *func) {
 #endif
 
 uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
-#if CFG_STACK_WALKING_TESTS
-    return NULL;
-#endif
-#if CFG_RUN_TIME_CACHE
+#if CFG_RUN_TIME_CACHE && !CFG_STACK_WALKING_TESTS
     if (UNEXPECTED(has_invalid_run_time_cache(func))) return NULL;
 
 #if PHP_VERSION_ID < 80200
@@ -243,6 +254,7 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
     return cache_addr + ddog_php_prof_run_time_cache_handle;
 
 #else
+    (void)func;
     /* It's possible to work on PHP 7.4 as well, but there are opcache bugs
      * that weren't truly fixed until PHP 8:
      * https://github.com/php/php-src/pull/5871
@@ -399,3 +411,36 @@ bool ddog_php_jit_enabled() {
     }
     return jit;
 }
+
+
+#if PHP_VERSION_ID < 70200
+#define zend_parse_parameters_none_throw() \
+    (EXPECTED(ZEND_NUM_ARGS() == 0) ? SUCCESS : zend_parse_parameters_throw(ZEND_NUM_ARGS(), ""))
+#endif
+
+#if CFG_TRIGGER_TIME_SAMPLE
+// Provided by Rust.
+void ddog_php_prof_trigger_time_sample(void);
+
+static ZEND_FUNCTION(Datadog_Profiling_trigger_time_sample) {
+    zend_parse_parameters_none_throw();
+    ddog_php_prof_trigger_time_sample();
+    RETURN_NULL();
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_Datadog_Profiling_trigger_time_sample, 0, 0, 0)
+ZEND_END_ARG_INFO()
+#endif
+
+static const zend_function_entry functions[] = {
+#if CFG_TRIGGER_TIME_SAMPLE
+    ZEND_NS_NAMED_FE(
+        "Datadog\\Profiling",
+        trigger_time_sample,
+        ZEND_FN(Datadog_Profiling_trigger_time_sample),
+        arginfo_Datadog_Profiling_trigger_time_sample
+    )
+#endif
+    ZEND_FE_END
+};
+const zend_function_entry* ddog_php_prof_functions = functions;

@@ -1,57 +1,15 @@
 //! Definitions for interacting with the profiler from a C API, such as the
 //! ddtrace extension.
 
-use crate::bindings::zend_execute_data;
+use crate::bindings::{zend_execute_data, ZaiStr};
 use crate::runtime_id;
 use std::borrow::Cow;
-use std::fmt::{Display, Formatter};
-use std::marker::PhantomData;
-
-/// A non-owning, not necessarily null terminated, not utf-8 encoded, borrowed
-/// string. Must satisfy the requirements of [core::slice::from_raw_parts],
-/// notably it must not use the nul pointer even when the length is 0.
-/// Keep this representation in sync with zai_string_view.
-#[repr(C)]
-pub struct StringView<'a> {
-    len: libc::size_t,
-    ptr: *const libc::c_char,
-    // The PhantomData says this acts like a reference to a [u8], even though
-    // it doesn't actually have one.
-    _marker: PhantomData<&'a [u8]>,
-}
-
-impl<'a> From<&'a [u8]> for StringView<'a> {
-    fn from(value: &'a [u8]) -> Self {
-        Self {
-            len: value.len(),
-            ptr: value.as_ptr() as *const libc::c_char,
-            _marker: Default::default(),
-        }
-    }
-}
-
-impl<'a> StringView<'a> {
-    pub fn as_slice(&self) -> &'a [u8] {
-        // Safety: StringView's are required to uphold these invariants.
-        unsafe { core::slice::from_raw_parts(self.ptr as *const u8, self.len) }
-    }
-
-    pub fn to_string_lossy(&self) -> Cow<'a, str> {
-        String::from_utf8_lossy(self.as_slice())
-    }
-}
-
-impl<'a> Display for StringView<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.to_string_lossy())
-    }
-}
 
 #[no_mangle]
 pub extern "C" fn datadog_profiling_notify_trace_finished(
     local_root_span_id: u64,
-    span_type: StringView,
-    resource: StringView,
+    span_type: ZaiStr,
+    resource: ZaiStr,
 ) {
     crate::notify_trace_finished(
         local_root_span_id,
@@ -78,6 +36,23 @@ pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
     Uuid::from(runtime_id())
 }
 
+#[cfg(feature = "trigger_time_sample")]
+#[no_mangle]
+extern "C" fn ddog_php_prof_trigger_time_sample() {
+    use std::sync::atomic::Ordering;
+    super::REQUEST_LOCALS.with(|cell| {
+        if let Ok(locals) = cell.try_borrow() {
+            if locals.profiling_enabled {
+                // Safety: only vm interrupts are stored there, or possibly null (edges only).
+                if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
+                    locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
+                    vm_interrupt.store(true, Ordering::SeqCst);
+                }
+            }
+        }
+    })
+}
+
 /// Gathers a time sample if the configured period has elapsed. Used by the
 /// tracer to handle pending profiler interrupts before calling a tracing
 /// closure from an internal function hook; if this isn't done then the
@@ -98,8 +73,8 @@ mod tests {
     #[test]
     fn test_string_view() {
         let slice: &[u8] = b"datadog \xF0\x9F\x90\xB6";
-        let string_view: StringView = StringView::from(slice);
-        assert_eq!(slice, string_view.as_slice());
+        let string_view = ZaiStr::from(slice);
+        assert_eq!(slice, string_view.as_bytes());
 
         let expected = "datadog 🐶";
         let actual = string_view.to_string_lossy();
@@ -108,7 +83,7 @@ mod tests {
             _ => panic!("Expected a borrowed string, got: {:?}", actual),
         };
 
-        let actual = string_view.to_string();
+        let actual = string_view.into_string();
         assert_eq!(expected, actual)
     }
 }

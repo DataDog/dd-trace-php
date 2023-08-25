@@ -98,7 +98,7 @@ namespace DDTrace {
         /**
          * @var string The unique identifier of the span
          */
-        public readonly string $id = "";
+        public readonly string $id;
 
         /**
          * @var SpanLink[] $spanLinks An array of span links
@@ -115,7 +115,7 @@ namespace DDTrace {
         /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
-        public readonly SpanData|null $parent = null;
+        public readonly SpanData|null $parent;
 
         /**
          * @var SpanStack The span's stack trace
@@ -150,14 +150,14 @@ namespace DDTrace {
      * 'switch_stack' functions. 'create_stack' creates a new SpanStack whose parent is the currently active stack,
      * while 'switch_stack' switches the active span.
      */
-    readonly class SpanStack {
+    class SpanStack {
         /**
          * @var SpanStack|null The parent stack, or 'null' if there is none
          */
-        public readonly SpanStack|null $parent = null;
+        public readonly SpanStack|null $parent;
 
         /**
-         * @var SpanData The active span
+         * @var SpanData|null The active span
          */
         public SpanData|null $active = null;
     }
@@ -819,6 +819,13 @@ namespace {
     function dd_trace_peek_span_id(): string {}
 
     /**
+     * Force-finish all spans and force-send finished traces to the agent. Note that this function drops (resp. closes)
+     * all currently open spans if DD_AUTOFINISH_SPANS is set to 'false' (resp. 'true'). Dropped spans are not sent to
+     * the agent.
+     */
+    function dd_trace_close_all_spans_and_flush(): void {}
+
+    /**
      * @alias DDTrace_trace_function
      */
     function dd_trace_function(string $functionName, \Closure|array|null $tracingClosureOrConfigArray): bool {}
@@ -840,6 +847,13 @@ namespace {
      * @return bool 'true' if the un-tracing process was successful, else 'false'
      */
     function dd_untrace(string $functionName, string $className = null): bool {}
+
+    /**
+     * Blocking-call synchronously flushing all spans to the agent
+     *
+     * @param int $timeout Timeout in milliseconds to wait for the flush to complete
+     */
+    function dd_trace_synchronous_flush(int $timeout): void {}
 
     /**
      * @deprecated

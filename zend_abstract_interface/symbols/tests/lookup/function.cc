@@ -7,61 +7,61 @@ extern "C" {
 #include <cstring>
 
 TEA_TEST_CASE("symbol/lookup/function", "global, exists", {
-    zai_string_view lower = ZAI_STRL_VIEW("strlen");
-    zai_string_view mixed = ZAI_STRL_VIEW("strLen");
+    zai_str lower = ZAI_STRL("strlen");
+    zai_str mixed = ZAI_STRL("strLen");
 
     REQUIRE(zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &lower));
     REQUIRE(zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &mixed));
 })
 
 TEA_TEST_CASE("symbol/lookup/function", "global, does not exist", {
-    zai_string_view lower = ZAI_STRL_VIEW("nosuchfunction");
-    zai_string_view mixed = ZAI_STRL_VIEW("NoSuchFunction");
+    zai_str lower = ZAI_STRL("nosuchfunction");
+    zai_str mixed = ZAI_STRL("NoSuchFunction");
 
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &lower));
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &mixed));
 })
 
 TEA_TEST_CASE("symbol/lookup/function", "root ns, exists", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\");
-    zai_string_view lower = ZAI_STRL_VIEW("strlen");
-    zai_string_view mixed = ZAI_STRL_VIEW("strLen");
+    zai_str ns   = ZAI_STRL("\\");
+    zai_str lower = ZAI_STRL("strlen");
+    zai_str mixed = ZAI_STRL("strLen");
 
     REQUIRE(zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &lower));
     REQUIRE(zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &mixed));
 })
 
 TEA_TEST_CASE("symbol/lookup/function", "root ns fqcn, exists", {
-    zai_string_view name = ZAI_STRL_VIEW("\\strlen");
+    zai_str name = ZAI_STRL("\\strlen");
 
     REQUIRE(zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &name));
 })
 
 TEA_TEST_CASE("symbol/lookup/function", "root ns, does not exist", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\");
-    zai_string_view lower = ZAI_STRL_VIEW("nosuchfunction");
-    zai_string_view mixed = ZAI_STRL_VIEW("NoSuchFunction");
+    zai_str ns   = ZAI_STRL("\\");
+    zai_str lower = ZAI_STRL("nosuchfunction");
+    zai_str mixed = ZAI_STRL("NoSuchFunction");
 
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &lower));
     REQUIRE(!zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &mixed));
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "ns, exists", "./stubs/lookup/function/Stub.php", {
-    zai_string_view ns   = ZAI_STRL_VIEW("\\DDTraceTesting");
-    zai_string_view name = ZAI_STRL_VIEW("StubFunction");
+    zai_str ns   = ZAI_STRL("\\DDTraceTesting");
+    zai_str name = ZAI_STRL("StubFunction");
 
     REQUIRE(zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, &name));
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "ns fqcn, exists", "./stubs/lookup/function/Stub.php", {
-    zai_string_view name = ZAI_STRL_VIEW("\\DDTraceTesting\\StubFunction");
+    zai_str name = ZAI_STRL("\\DDTraceTesting\\StubFunction");
 
     REQUIRE(zai_symbol_lookup(ZAI_SYMBOL_TYPE_FUNCTION, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &name));
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "class method exists, public", "./stubs/lookup/function/Stub.php", {
-    zai_string_view scope = ZAI_STRL_VIEW("\\DDTraceTesting\\Stub");
-    zai_string_view method = ZAI_STRL_VIEW("existsPublic");
+    zai_str scope = ZAI_STRL("\\DDTraceTesting\\Stub");
+    zai_str method = ZAI_STRL("existsPublic");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &scope);
 
@@ -69,8 +69,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "class method exists, public",
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "class method exists, protected", "./stubs/lookup/function/Stub.php", {
-    zai_string_view scope = ZAI_STRL_VIEW("\\DDTraceTesting\\Stub");
-    zai_string_view method = ZAI_STRL_VIEW("existsProtected");
+    zai_str scope = ZAI_STRL("\\DDTraceTesting\\Stub");
+    zai_str method = ZAI_STRL("existsProtected");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &scope);
 
@@ -78,8 +78,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "class method exists, protecte
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "class method exists, private", "./stubs/lookup/function/Stub.php", {
-    zai_string_view scope = ZAI_STRL_VIEW("\\DDTraceTesting\\Stub");
-    zai_string_view method = ZAI_STRL_VIEW("existsPrivate");
+    zai_str scope = ZAI_STRL("\\DDTraceTesting\\Stub");
+    zai_str method = ZAI_STRL("existsPrivate");
 
     zend_class_entry *ce = (zend_class_entry*) zai_symbol_lookup(ZAI_SYMBOL_TYPE_CLASS, ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &scope);
 
@@ -87,8 +87,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "class method exists, private"
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "object method exists, public", "./stubs/lookup/function/Stub.php", {
-    zai_string_view scope = ZAI_STRL_VIEW("\\DDTraceTesting\\Stub");
-    zai_string_view method = ZAI_STRL_VIEW("existsPublic");
+    zai_str scope = ZAI_STRL("\\DDTraceTesting\\Stub");
+    zai_str method = ZAI_STRL("existsPublic");
 
     zval object;
 
@@ -102,8 +102,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "object method exists, public"
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "object method exists, protected", "./stubs/lookup/function/Stub.php", {
-    zai_string_view scope = ZAI_STRL_VIEW("\\DDTraceTesting\\Stub");
-    zai_string_view method = ZAI_STRL_VIEW("existsProtected");
+    zai_str scope = ZAI_STRL("\\DDTraceTesting\\Stub");
+    zai_str method = ZAI_STRL("existsProtected");
 
     zval object;
 
@@ -117,8 +117,8 @@ TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "object method exists, protect
 })
 
 TEA_TEST_CASE_WITH_STUB("symbol/lookup/function", "object method exists, private", "./stubs/lookup/function/Stub.php", {
-    zai_string_view scope = ZAI_STRL_VIEW("\\DDTraceTesting\\Stub");
-    zai_string_view method = ZAI_STRL_VIEW("existsPrivate");
+    zai_str scope = ZAI_STRL("\\DDTraceTesting\\Stub");
+    zai_str method = ZAI_STRL("existsPrivate");
 
     zval object;
 

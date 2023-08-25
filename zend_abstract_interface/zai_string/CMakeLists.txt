@@ -6,7 +6,7 @@ target_include_directories(zai_string INTERFACE
 
 target_compile_features(zai_string INTERFACE c_std_99)
 
-target_link_libraries(zai_string INTERFACE "${PHP_LIB}")
+target_link_libraries(zai_string INTERFACE Tea::Php Zai::Assert)
 
 add_library(Zai::string ALIAS zai_string)
 

@@ -35,8 +35,8 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
-                                               zai_string_view span_type,
-                                               zai_string_view resource);
+                                               zai_str span_type,
+                                               zai_str resource);
 
 #define MAX_ID_BUFSIZ 40  // 3.4e^38 = 39 chars + 1 terminator
 #define KEY_TRACE_ID "trace_id"
@@ -581,7 +581,7 @@ static zend_string *dd_build_req_url() {
     if (question_mark) {
         uri_len = question_mark - uri;
         query_string = zai_filter_query_string(
-            (zai_string_view){.len = strlen(uri) - uri_len - 1, .ptr = question_mark + 1},
+            ZAI_STR_NEW(question_mark + 1, strlen(uri) - uri_len - 1),
             get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED(), get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
     } else {
         uri_len = strlen(uri);
@@ -664,7 +664,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
                 const char *query_str = dd_get_query_string();
                 if (query_str) {
                     query_string =
-                        zai_filter_query_string((zai_string_view){.len = strlen(query_str), .ptr = query_str},
+                        zai_filter_query_string(ZAI_STR_FROM_CSTR(query_str),
                                                 get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED(),
                                                 get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
                 }
@@ -1042,7 +1042,8 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     // handle dropped spans
     if (span->parent) {
         ddtrace_span_data *parent = span->parent;
-        while (ddtrace_span_is_dropped(parent)) {
+        // Ensure the parent id is the root span if everything else was dropped
+        while (parent->parent && ddtrace_span_is_dropped(parent)) {
             parent = parent->parent;
         }
         span->parent_id = parent->span_id;
@@ -1114,10 +1115,10 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
 
     // Notify profiling for Endpoint Profiling.
     if (profiling_notify_trace_finished && top_level_span && Z_TYPE(prop_resource_as_string) == IS_STRING) {
-        zai_string_view type = Z_TYPE(prop_type_as_string) == IS_STRING
-                               ? ZAI_STRING_FROM_ZSTR(Z_STR(prop_type_as_string))
-                               : ZAI_STRL_VIEW("custom");
-        zai_string_view resource = ZAI_STRING_FROM_ZSTR(Z_STR(prop_resource_as_string));
+        zai_str type = Z_TYPE(prop_type_as_string) == IS_STRING
+                               ? ZAI_STR_FROM_ZSTR(Z_STR(prop_type_as_string))
+                               : ZAI_STRL("custom");
+        zai_str resource = ZAI_STR_FROM_ZSTR(Z_STR(prop_resource_as_string));
         LOG(Warn, "Notifying profiler of finished local root span.");
         profiling_notify_trace_finished(span->span_id, type, resource);
     }
