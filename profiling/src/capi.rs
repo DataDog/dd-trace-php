@@ -3,7 +3,6 @@
 
 use crate::bindings::{zend_execute_data, ZaiStr};
 use crate::runtime_id;
-use std::borrow::Cow;
 
 #[no_mangle]
 pub extern "C" fn datadog_profiling_notify_trace_finished(
@@ -69,6 +68,7 @@ pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend_e
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::borrow::Cow;
 
     #[test]
     fn test_string_view() {

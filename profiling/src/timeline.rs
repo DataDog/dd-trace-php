@@ -1,5 +1,5 @@
 use crate::bindings as zend;
-use crate::zend::{ddog_php_prof_zend_string_view, zend_get_executed_filename_ex};
+use crate::zend::{zai_str_from_zstr, zend_get_executed_filename_ex};
 use crate::{PROFILER, REQUEST_LOCALS};
 use libc::c_char;
 use log::{error, trace};
@@ -74,8 +74,7 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
             return op_array;
         }
 
-        let filename =
-            ddog_php_prof_zend_string_view(zend_get_executed_filename_ex().as_mut()).into_string();
+        let filename = zai_str_from_zstr(zend_get_executed_filename_ex().as_mut()).into_string();
 
         let line = zend::zend_get_executed_lineno();
 
@@ -148,7 +147,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         // for example "/var/www/html/../vendor/foo/bar.php" while during stack walking we get
         // "/var/html/vendor/foo/bar.php". This makes sure it is the exact same string we'd
         // collect in stack walking and therefore we are fully utilizing the pprof string table
-        let filename = ddog_php_prof_zend_string_view((*op_array).filename.as_mut()).into_string();
+        let filename = zai_str_from_zstr((*op_array).filename.as_mut()).into_string();
 
         trace!(
             "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",

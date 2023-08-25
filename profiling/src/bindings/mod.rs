@@ -84,12 +84,11 @@ impl _zend_function {
     /// Returns a slice to the zend_string's data if it's present and not
     /// empty; otherwise returns None.
     fn zend_string_to_optional_bytes(zstr: Option<&mut zend_string>) -> Option<&[u8]> {
-        /* Safety: ddog_php_prof_zend_string_view can be called with
-         * any valid zend_string pointer, and the tailing .into_bytes() will
-         * be safe as the former will always return a view with a non-null
-         * pointer.
+        /* Safety: zai_str_from_zstr can be called with any valid zend_string
+         * pointer, and the tailing .into_bytes() will be safe as the former
+         * will always return a view with a non-null pointer.
          */
-        let bytes = unsafe { ddog_php_prof_zend_string_view(zstr).into_bytes() };
+        let bytes = unsafe { zai_str_from_zstr(zstr) }.into_bytes();
         if bytes.is_empty() {
             None
         } else {
@@ -290,7 +289,7 @@ extern "C" {
     /// Converts the `zstr` into a `zai_str`. A None as well as empty
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
-    pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_str;
+    pub fn zai_str_from_zstr(zstr: Option<&mut zend_string>) -> zai_str;
 
     /// Registers the run_time_cache slot with the engine. Must be done in
     /// module init or extension startup.
@@ -439,8 +438,7 @@ impl TryFrom<&mut zval> for String {
             }
 
             // Safety: checked the pointer wasn't null above.
-            let str =
-                unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()).into_string() };
+            let str = unsafe { zai_str_from_zstr(zval.value.str_.as_mut()) }.into_string();
             Ok(str)
         } else {
             Err(StringError::Type(r#type))
