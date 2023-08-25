@@ -39,5 +39,5 @@ if (file_exists($app_root . '/' . $site_path . '/settings.local.php')) {
   - `make test_web_drupal_89`
   - `make test_web_drupal_95`
   - `...`
-- Modify all `cache.backend.*` in `core.services.yml` to use `class: Drupal\Core\Cache\NullBackendFactory`
+- Modify all `cache.*` in `core.services.yml` to use `class: Drupal\Core\Cache\NullBackendFactory`
   - If still flaky, use the `development` environment in `index.php` and the other drupal test framework's `settings.local.php` & `services.yml` (disable caching)

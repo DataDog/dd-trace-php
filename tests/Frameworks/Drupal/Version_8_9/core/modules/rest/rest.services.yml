@@ -3,7 +3,7 @@ services:
     class: Drupal\rest\Plugin\Type\ResourcePluginManager
     arguments: ['@container.namespaces', '@cache.discovery', '@module_handler']
   cache.rest:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin }
     factory: cache_factory:get

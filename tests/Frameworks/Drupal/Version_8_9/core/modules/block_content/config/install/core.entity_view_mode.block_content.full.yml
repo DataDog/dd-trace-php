@@ -6,4 +6,4 @@ dependencies:
 id: block_content.full
 label: Full
 targetEntityType: block_content
-cache: true
+cache: false

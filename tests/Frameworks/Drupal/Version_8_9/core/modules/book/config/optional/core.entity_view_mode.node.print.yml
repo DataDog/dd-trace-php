@@ -9,4 +9,4 @@ dependencies:
 id: node.print
 label: Print
 targetEntityType: node
-cache: true
+cache: false

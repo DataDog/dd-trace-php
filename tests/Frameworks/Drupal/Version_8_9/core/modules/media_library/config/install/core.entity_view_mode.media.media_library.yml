@@ -9,4 +9,4 @@ dependencies:
 id: media.media_library
 label: 'Media library'
 targetEntityType: media
-cache: true
+cache: false

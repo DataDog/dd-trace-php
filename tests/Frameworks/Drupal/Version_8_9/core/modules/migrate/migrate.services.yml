@@ -4,7 +4,7 @@ services:
     tags:
       - { name: event_subscriber }
   cache.migrate:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin }
     factory: cache_factory:get
@@ -22,7 +22,7 @@ services:
     class: Drupal\migrate\Plugin\MigratePluginManager
     arguments: [id_map, '@container.namespaces', '@cache.discovery', '@module_handler']
   cache.discovery_migration:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin }
     factory: cache_factory:get

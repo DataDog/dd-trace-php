@@ -6,4 +6,4 @@ dependencies:
 id: node.search_index
 label: 'Search index'
 targetEntityType: node
-cache: true
+cache: false

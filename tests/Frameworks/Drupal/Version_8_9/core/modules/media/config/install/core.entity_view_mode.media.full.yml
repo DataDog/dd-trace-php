@@ -6,4 +6,4 @@ dependencies:
 id: media.full
 label: 'Full content'
 targetEntityType: media
-cache: true
+cache: false

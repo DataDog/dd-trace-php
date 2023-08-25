@@ -75,7 +75,7 @@ parameters:
     #
     # Not recommended in production environments
     # @default true
-    cache: true
+    cache: false
   renderer.config:
     # Renderer required cache contexts:
     #

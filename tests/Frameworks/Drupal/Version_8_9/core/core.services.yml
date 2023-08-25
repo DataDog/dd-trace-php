@@ -7,7 +7,7 @@ parameters:
   twig.config:
     debug: false
     auto_reload: null
-    cache: true
+    cache: false
   renderer.config:
     required_cache_contexts: ['languages:language_interface', 'theme', 'user.permissions']
     auto_placeholder_conditions:
@@ -209,55 +209,55 @@ services:
     class: Drupal\Core\Cache\NullBackendFactory
   # A special cache bin that does not persist beyond the length of the request.
   cache.static:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin, default_backend: cache.backend.memory }
     factory: cache_factory:get
     arguments: [static]
   cache.bootstrap:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin, default_backend: cache.backend.chainedfast }
     factory: cache_factory:get
     arguments: [bootstrap]
   cache.config:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin, default_backend: cache.backend.chainedfast }
     factory: cache_factory:get
     arguments: [config]
   cache.default:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin }
     factory: cache_factory:get
     arguments: [default]
   cache.entity:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin }
     factory: cache_factory:get
     arguments: [entity]
   cache.menu:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin }
     factory: cache_factory:get
     arguments: [menu]
   cache.render:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin }
     factory: cache_factory:get
     arguments: [render]
   cache.data:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin }
     factory: cache_factory:get
     arguments: [data]
   cache.discovery:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin, default_backend: cache.backend.chainedfast }
     factory: cache_factory:get

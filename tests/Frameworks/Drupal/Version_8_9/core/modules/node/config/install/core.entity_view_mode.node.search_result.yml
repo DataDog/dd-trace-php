@@ -6,4 +6,4 @@ dependencies:
 id: node.search_result
 label: 'Search result highlighting input'
 targetEntityType: node
-cache: true
+cache: false

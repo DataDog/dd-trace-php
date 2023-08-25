@@ -6,4 +6,4 @@ dependencies:
 id: node.card
 label: Card
 targetEntityType: node
-cache: true
+cache: false

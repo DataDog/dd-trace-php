@@ -6,4 +6,4 @@ dependencies:
 id: workspace.deploy
 label: Deploy
 targetEntityType: workspace
-cache: true
+cache: false

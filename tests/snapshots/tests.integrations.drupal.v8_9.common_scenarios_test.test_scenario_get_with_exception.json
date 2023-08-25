@@ -5,7 +5,7 @@
     "resource": "error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 9734747951208304415,
+    "parent_id": 3084404129356749978,
     "type": "web",
     "error": 1,
     "meta": {
@@ -17,7 +17,7 @@
       "http.method": "GET",
       "http.status_code": "500",
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
-      "runtime-id": "855ce604-8b76-4f17-877c-2c00ba1e43e7",
+      "runtime-id": "7c5a56da-ffda-4034-a7c9-c27c97793dba",
       "span.kind": "server",
       "symfony.route.name": "error"
     },

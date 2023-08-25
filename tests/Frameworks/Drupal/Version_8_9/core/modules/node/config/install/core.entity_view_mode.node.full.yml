@@ -6,4 +6,4 @@ dependencies:
 id: node.full
 label: 'Full content'
 targetEntityType: node
-cache: true
+cache: false

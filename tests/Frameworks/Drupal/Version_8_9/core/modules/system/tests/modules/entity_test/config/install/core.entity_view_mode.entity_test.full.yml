@@ -1,7 +1,7 @@
 id: entity_test.full
 label: Full
 status: false
-cache: true
+cache: false
 targetEntityType: entity_test
 dependencies:
   module:

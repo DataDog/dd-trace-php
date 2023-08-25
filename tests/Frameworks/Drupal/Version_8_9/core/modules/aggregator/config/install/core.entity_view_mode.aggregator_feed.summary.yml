@@ -6,4 +6,4 @@ dependencies:
 id: aggregator_feed.summary
 label: Summary
 targetEntityType: aggregator_feed
-cache: true
+cache: false

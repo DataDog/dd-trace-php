@@ -120,7 +120,7 @@ services:
 
   # Cache.
   cache.jsonapi_memory:
-    class: Drupal\Core\Cache\MemoryCache\MemoryCache
+    class: Drupal\Core\Cache\NullBackendFactory
     public: false
 
   # A chained cache with an in-memory cache as the first layer and a database-
@@ -129,13 +129,13 @@ services:
   # request. The second layer (by default a database) is necessary to avoid
   # recomputing the ResourceType value objects on every request.
   cache.jsonapi_resource_types:
-    class: Drupal\Core\Cache\BackendChain
+    class: Drupal\Core\Cache\NullBackendFactory
     calls:
       - [appendBackend, ['@cache.jsonapi_memory']]
       - [appendBackend, ['@cache.default']]
     tags: [{ name: cache.bin }]
   cache.jsonapi_normalizations:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin }
     factory: cache_factory:get

@@ -1,6 +1,6 @@
 services:
   cache.toolbar:
-    class: Drupal\Core\Cache\CacheBackendInterface
+    class: Drupal\Core\Cache\NullBackendFactory
     tags:
       - { name: cache.bin }
     factory: cache_factory:get
