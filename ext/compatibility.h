@@ -167,6 +167,16 @@ static zend_always_inline bool zend_parse_arg_obj(zval *arg, zend_object **dest,
 typedef ZEND_RESULT_CODE zend_result;
 
 #define RETURN_THROWS RETURN_NULL
+
+/* For regular arrays (non-persistent, storing zvals). */
+static zend_always_inline void zend_array_release(zend_array *array)
+{
+    if (!(GC_FLAGS(array) & IS_ARRAY_IMMUTABLE)) {
+        if (GC_DELREF(array) == 0) {
+            zend_array_destroy(array);
+        }
+    }
+}
 #endif
 
 #if PHP_VERSION_ID < 70400

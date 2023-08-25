@@ -915,7 +915,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     if (DDTRACE_G(agent_rate_by_service)) {
-        zend_array_destroy(DDTRACE_G(agent_rate_by_service));
+        zend_array_release(DDTRACE_G(agent_rate_by_service));
         DDTRACE_G(agent_rate_by_service) = NULL;
     }
 

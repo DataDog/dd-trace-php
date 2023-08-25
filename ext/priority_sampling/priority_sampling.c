@@ -22,7 +22,7 @@ void ddtrace_try_read_agent_rate(void) {
                 zval *rules = zend_hash_str_find(Z_ARR(json), ZEND_STRL("rate_by_service"));
                 if (rules && Z_TYPE_P(rules) == IS_ARRAY) {
                     if (DDTRACE_G(agent_rate_by_service)) {
-                        zend_array_destroy(DDTRACE_G(agent_rate_by_service));
+                        zend_array_release(DDTRACE_G(agent_rate_by_service));
                     }
 
                     Z_TRY_ADDREF_P(rules);
