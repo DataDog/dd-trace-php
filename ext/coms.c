@@ -164,7 +164,7 @@ bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_stack_size, size_t
 
     ddog_Option_VecU8 writer_result = ddog_create_agent_remote_config_writer(&dd_agent_config_writer, &ddtrace_coms_agent_config_handle);
     if (writer_result.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
-        ddtrace_bgs_logf("error crating config writer: %.*s", (int)writer_result.some.len, writer_result.some.ptr);
+        ddtrace_bgs_logf("error creating config writer: %.*s", (int)writer_result.some.len, writer_result.some.ptr);
         ddog_MaybeError_drop(writer_result);
         return false;
     }
