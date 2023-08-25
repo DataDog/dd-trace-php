@@ -490,7 +490,7 @@ class SymfonyIntegration extends Integration
                 }
             }
         ];
-        if ($integration->frameworkPrefix === DrupalIntegration::NAME) {
+        if (($rootSpan = \DDTrace\root_span()) && strpos($rootSpan->name, DrupalIntegration::NAME) !== false) {
             \DDTrace\trace_method(
                 'Drupal\Component\EventDispatcher\ContainerAwareEventDispatcher',
                 'dispatch',
