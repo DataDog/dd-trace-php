@@ -490,16 +490,20 @@ class SymfonyIntegration extends Integration
                 }
             }
         ];
-        \DDTrace\trace_method(
-            'Symfony\Component\EventDispatcher\EventDispatcherInterface',
-            'dispatch',
-            $eventDispatcherTracer
-        );
-        \DDTrace\trace_method(
-            'Symfony\Contracts\EventDispatcher\EventDispatcherInterface',
-            'dispatch',
-            $eventDispatcherTracer
-        );
+        if ($integration->frameworkPrefix === DrupalIntegration::NAME) {
+            \DDTrace\trace_method(
+                'Drupal\Component\EventDispatcher\ContainerAwareEventDispatcher',
+                'dispatch',
+                $eventDispatcherTracer
+            );
+        } else {
+            \DDTrace\trace_method(
+                'Symfony\Component\EventDispatcher\EventDispatcher',
+                'dispatch',
+                $eventDispatcherTracer
+            );
+        }
+
 
 
         // Handling exceptions
