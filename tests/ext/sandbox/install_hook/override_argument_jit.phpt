@@ -1,6 +1,7 @@
 --TEST--
 overrideArguments() works with JIT (Issue #2174)
 --SKIPIF--
+<?php if (!file_exists(ini_get("extension_dir") . "/opcache.so")) die('skip: opcache.so does not exist in extension_dir'); ?>
 <?php if (PHP_VERSION_ID < 80000) die('skip: JIT is only on PHP 8'); ?>
 --INI--
 opcache.enable=1
