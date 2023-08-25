@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Symfony;
 
 use DDTrace\Integrations\Drupal\DrupalIntegration;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -44,7 +43,7 @@ class SymfonyIntegration extends Integration
      */
     public function init()
     {
-        Logger::get()->debug("Initializing Symfony's integration");
+        $integration = $this;
 
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
@@ -261,7 +260,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Console\Command\Command',
             '__construct',
             null,
-            function ($This, $scope) use (&$symfonyCommandsIntegrated) {
+            function ($This, $scope) use (&$symfonyCommandsIntegrated, $integration) {
                 if (isset($symfonyCommandsIntegrated[$scope])) {
                     return;
                 }
@@ -275,13 +274,21 @@ class SymfonyIntegration extends Integration
                      * - https://symfony.com/doc/current/components/console/events.html.
                      */
                     'recurse' => true,
-                    'prehook' => function (SpanData $span) use ($scope) {
+                    'prehook' => function (SpanData $span) use ($scope, $integration) {
                         if (\DDTrace\root_span() === $span) {
                             return false;
                         }
+
+                        $namespace = \get_class($this);
+                        if (strpos($namespace, DrupalIntegration::NAME) !== false) {
+                            $integration->frameworkPrefix = DrupalIntegration::NAME;
+                        } else {
+                            $integration->frameworkPrefix = SymfonyIntegration::NAME;
+                        }
+
                         $span->name = 'symfony.console.command.run';
                         $span->resource = $this->getName() ?: $span->name;
-                        $span->service = \ddtrace_config_app_name('symfony');
+                        $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
                         $span->type = Type::CLI;
                         $span->meta['symfony.console.command.class'] = $scope;
                         $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
@@ -313,7 +320,6 @@ class SymfonyIntegration extends Integration
 
     public function loadSymfony($integration)
     {
-        Logger::get()->debug("calling loadSymfony()");
         /* Move this to its own integration
         $doctrineRepositories = [];
         \DDTrace\hook_method(
@@ -369,7 +375,6 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
             function (SpanData $span, $args, $response) use ($integration) {
-                Logger::get()->debug("HttpKernel::handle posthook");
                 /** @var Request $request */
                 list($request) = $args;
 
@@ -411,17 +416,14 @@ class SymfonyIntegration extends Integration
             [
                 'recurse' => true,
                 'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
-                    Logger::get()->debug("EventDispatcherInterface::dispatch prehook");
                     if (!isset($args[0])) {
                         return false;
                     }
                     if (\is_object($args[0])) {
-                        Logger::get()->debug("EventDispatcherInterface::dispatch prehook is_object");
                         // dispatch($event, string $eventName = null)
                         $event = $args[0];
                         $eventName = isset($args[1]) && \is_string($args[1]) ? $args[1] : \get_class($event);
                     } elseif (\is_string($args[0])) {
-                        Logger::get()->debug("EventDispatcherInterface::dispatch prehook is_string");
                         // dispatch($eventName, Event $event = null)
                         $eventName = $args[0];
                         $event = isset($args[1]) && \is_object($args[1]) ? $args[1] : null;
@@ -429,8 +431,6 @@ class SymfonyIntegration extends Integration
                         // Invalid API usage
                         return false;
                     }
-
-                    Logger::get()->debug("EventDispatcherInterface::dispatch prehook eventName: $eventName");
 
                     // trace the container itself
                     if ($eventName === 'kernel.controller' && \method_exists($event, 'getController')) {
@@ -486,7 +486,7 @@ class SymfonyIntegration extends Integration
         // Handling exceptions
         $exceptionHandlingTracer = function (SpanData $span, $args, $retval) use ($integration) {
             $span->name = $span->resource = 'symfony.kernel.handleException';
-            $span->service = \ddtrace_config_app_name('symfony');
+            $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
             $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
             if (!(isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500)) {
                 $integration->setError($integration->symfonyRequestSpan, $args[0]);
@@ -498,9 +498,9 @@ class SymfonyIntegration extends Integration
         \DDTrace\trace_method('Symfony\Component\HttpKernel\HttpKernel', 'handleThrowable', $exceptionHandlingTracer);
 
         // Tracing templating engines
-        $traceRender = function (SpanData $span, $args) {
+        $traceRender = function (SpanData $span, $args) use ($integration) {
             $span->name = 'symfony.templating.render';
-            $span->service = \ddtrace_config_app_name('symfony');
+            $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
             $span->type = Type::WEB_SERVLET;
 
             $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);

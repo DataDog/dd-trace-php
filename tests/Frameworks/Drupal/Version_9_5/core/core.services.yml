@@ -207,23 +207,23 @@ services:
       - { name: cache_tags_invalidator}
       - { name: backend_overridable }
   cache.backend.chainedfast:
-    class: Drupal\Core\Cache\ChainedFastBackendFactory
+    class: Drupal\Core\Cache\NullBackendFactory
     arguments: ['@settings']
     calls:
       - [setContainer, ['@service_container']]
   cache.backend.database:
-    class: Drupal\Core\Cache\DatabaseBackendFactory
+    class: Drupal\Core\Cache\NullBackendFactory
     arguments: ['@database', '@cache_tags.invalidator.checksum', '@settings']
     tags:
       - { name: backend_overridable }
   cache.backend.apcu:
-    class: Drupal\Core\Cache\ApcuBackendFactory
+    class: Drupal\Core\Cache\NullBackendFactory
     arguments: ['%app.root%', '%site.path%', '@cache_tags.invalidator.checksum']
   cache.backend.php:
-    class: Drupal\Core\Cache\PhpBackendFactory
+    class: Drupal\Core\Cache\NullBackendFactory
     arguments: ['@cache_tags.invalidator.checksum']
   cache.backend.memory:
-    class: Drupal\Core\Cache\MemoryBackendFactory
+    class: Drupal\Core\Cache\NullBackendFactory
   # A special cache bin that does not persist beyond the length of the request.
   cache.static:
     class: Drupal\Core\Cache\CacheBackendInterface

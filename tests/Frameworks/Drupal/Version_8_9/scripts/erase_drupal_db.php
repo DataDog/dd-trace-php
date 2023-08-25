@@ -4,7 +4,7 @@ $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
 
 $pdo->query('DROP TABLE IF EXISTS cache_bootstrap');
 $pdo->query('DROP TABLE IF EXISTS cache_config');
-$pdo->query('DROP TABLE IF EXISTS cache_container');
+$pdo->query('TRUNCATE cache_container');  // Drupal doesn't like us dropping this table (PDOException)
 $pdo->query('DROP TABLE IF EXISTS cache_data');
 $pdo->query('DROP TABLE IF EXISTS cache_default');
 $pdo->query('DROP TABLE IF EXISTS cache_discovery');

@@ -328,7 +328,7 @@ $settings['hash_salt'] = '';
  * After finishing the upgrade, be sure to open this file again and change the
  * TRUE back to a FALSE!
  */
-$settings['update_free_access'] = TRUE;
+$settings['update_free_access'] = FALSE;
 
 /**
  * External access proxy settings:
@@ -806,8 +806,8 @@ $settings['migrate_node_migrate_type_classic'] = FALSE;
  *
  * Keep this code block at the end of this file to take full effect.
  */
-
-if (file_exists($app_root . '/' . $site_path . '/settings.local.php')) {
-    include $app_root . '/' . $site_path . '/settings.local.php';
-}
-
+#
+# if (file_exists($app_root . '/' . $site_path . '/settings.local.php')) {
+#     include $app_root . '/' . $site_path . '/settings.local.php';
+# }
+$config['automated_cron.settings']['interval'] = 0;

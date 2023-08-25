@@ -5,19 +5,19 @@
     "resource": "error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 8336133154145767709,
+    "parent_id": 8421186720037586415,
     "type": "web",
     "error": 1,
     "meta": {
       "_dd.p.dm": "-1",
       "component": "drupal",
       "error.message": "Controller error",
-      "error.stack": "#0 [internal function]: Drupal\\datadog\\Controller\\DatadogController->error()\n#1 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(123): call_user_func_array(Array, Array)\n#2 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/Render/Renderer.php(580): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->Drupal\\Core\\EventSubscriber\\{closure}()\n#3 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(124): Drupal\\Core\\Render\\Renderer->executeInRenderContext(Object(Drupal\\Core\\Render\\RenderContext), Object(Closure))\n#4 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(97): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->wrapControllerExecutionInRenderContext(Array, Array)\n#5 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/vendor/symfony/http-kernel/HttpKernel.php(169): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->Drupal\\Core\\EventSubscriber\\{closure}()\n#6 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/vendor/symfony/http-kernel/HttpKernel.php(81): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw(Object(Symfony\\Component\\HttpFoundation\\Request), 1)\n#7 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/Session.php(58): Symfony\\Component\\HttpKernel\\HttpKernel->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#8 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/KernelPreHandle.php(48): Drupal\\Core\\StackMiddleware\\Session->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#9 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(191): Drupal\\Core\\StackMiddleware\\KernelPreHandle->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#10 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(128): Drupal\\page_cache\\StackMiddleware\\PageCache->fetch(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#11 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(82): Drupal\\page_cache\\StackMiddleware\\PageCache->lookup(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#12 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/ReverseProxyMiddleware.php(48): Drupal\\page_cache\\StackMiddleware\\PageCache->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#13 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/NegotiationMiddleware.php(51): Drupal\\Core\\StackMiddleware\\ReverseProxyMiddleware->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#14 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/vendor/stack/builder/src/Stack/StackedHttpKernel.php(23): Drupal\\Core\\StackMiddleware\\NegotiationMiddleware->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#15 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/DrupalKernel.php(718): Stack\\StackedHttpKernel->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#16 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/index.php(19): Drupal\\Core\\DrupalKernel->handle(Object(Symfony\\Component\\HttpFoundation\\Request))\n#17 {main}",
+      "error.stack": "#0 [internal function]: Drupal\\datadog\\Controller\\DatadogController->error()\n#1 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(123): call_user_func_array(Array, Array)\n#2 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/Render/Renderer.php(580): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->Drupal\\Core\\EventSubscriber\\{closure}()\n#3 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(124): Drupal\\Core\\Render\\Renderer->executeInRenderContext(Object(Drupal\\Core\\Render\\RenderContext), Object(Closure))\n#4 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(97): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->wrapControllerExecutionInRenderContext(Array, Array)\n#5 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/vendor/symfony/http-kernel/HttpKernel.php(169): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->Drupal\\Core\\EventSubscriber\\{closure}()\n#6 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/vendor/symfony/http-kernel/HttpKernel.php(81): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw(Object(Symfony\\Component\\HttpFoundation\\Request), 1)\n#7 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/Session.php(58): Symfony\\Component\\HttpKernel\\HttpKernel->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#8 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/KernelPreHandle.php(48): Drupal\\Core\\StackMiddleware\\Session->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#9 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(191): Drupal\\Core\\StackMiddleware\\KernelPreHandle->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#10 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(128): Drupal\\page_cache\\StackMiddleware\\PageCache->fetch(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#11 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(82): Drupal\\page_cache\\StackMiddleware\\PageCache->lookup(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#12 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/ReverseProxyMiddleware.php(48): Drupal\\page_cache\\StackMiddleware\\PageCache->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#13 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/NegotiationMiddleware.php(51): Drupal\\Core\\StackMiddleware\\ReverseProxyMiddleware->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#14 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/vendor/stack/builder/src/Stack/StackedHttpKernel.php(23): Drupal\\Core\\StackMiddleware\\NegotiationMiddleware->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#15 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/DrupalKernel.php(718): Stack\\StackedHttpKernel->handle(Object(Symfony\\Component\\HttpFoundation\\Request), 1, true)\n#16 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/index.php(19): Drupal\\Core\\DrupalKernel->handle(Object(Symfony\\Component\\HttpFoundation\\Request))\n#17 {main}",
       "error.type": "Exception",
       "http.method": "GET",
       "http.status_code": "500",
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
-      "runtime-id": "57c2f22f-16b5-44aa-bd02-54b3ffb1c173",
+      "runtime-id": "462ebfe1-94b6-424c-8ec6-0f3bde921779",
       "span.kind": "server",
       "symfony.route.action": "Drupal\\datadog\\Controller\\DatadogController@error",
       "symfony.route.name": "error"
@@ -335,7 +335,7 @@
         {
           "name": "PDO.prepare",
           "service": "pdo",
-          "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_page\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
+          "resource": "INSERT INTO \"watchdog\" (\"uid\", \"type\", \"message\", \"variables\", \"severity\", \"link\", \"location\", \"referer\", \"hostname\", \"timestamp\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6, :db_insert_placeholder_7, :db_insert_placeholder_8, :db_insert_placeholder_9)",
           "trace_id": 0,
           "span_id": 5,
           "parent_id": 2,
@@ -355,7 +355,7 @@
         {
           "name": "PDOStatement.execute",
           "service": "pdo",
-          "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_page\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
+          "resource": "INSERT INTO \"watchdog\" (\"uid\", \"type\", \"message\", \"variables\", \"severity\", \"link\", \"location\", \"referer\", \"hostname\", \"timestamp\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6, :db_insert_placeholder_7, :db_insert_placeholder_8, :db_insert_placeholder_9)",
           "trace_id": 0,
           "span_id": 6,
           "parent_id": 2,
@@ -372,7 +372,7 @@
             "span.kind": "client"
           },
           "metrics": {
-            "db.row_count": 0.0
+            "db.row_count": 1.0
           }
         },
         {
@@ -402,7 +402,7 @@
               {
                 "name": "PDO.prepare",
                 "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_config\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
+                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
                 "trace_id": 0,
                 "span_id": 26,
                 "parent_id": 21,
@@ -422,95 +422,9 @@
               {
                 "name": "PDOStatement.execute",
                 "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_config\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
+                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
                 "trace_id": 0,
                 "span_id": 27,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_config\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 28,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_config\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 29,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 30,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 31,
                 "parent_id": 21,
                 "type": "sql",
                 "meta": {
@@ -531,7 +445,93 @@
               {
                 "name": "PDO.prepare",
                 "service": "pdo",
-                "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
+                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
+                "trace_id": 0,
+                "span_id": 28,
+                "parent_id": 21,
+                "type": "sql",
+                "meta": {
+                  "component": "pdo",
+                  "db.charset": "utf8mb4",
+                  "db.engine": "mysql",
+                  "db.name": "test",
+                  "db.system": "mysql",
+                  "db.user": "test",
+                  "out.host": "mysql_integration",
+                  "out.port": "3306",
+                  "span.kind": "client"
+                }
+              },
+              {
+                "name": "PDOStatement.execute",
+                "service": "pdo",
+                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
+                "trace_id": 0,
+                "span_id": 29,
+                "parent_id": 21,
+                "type": "sql",
+                "meta": {
+                  "component": "pdo",
+                  "db.charset": "utf8mb4",
+                  "db.engine": "mysql",
+                  "db.name": "test",
+                  "db.system": "mysql",
+                  "db.user": "test",
+                  "out.host": "mysql_integration",
+                  "out.port": "3306",
+                  "span.kind": "client"
+                },
+                "metrics": {
+                  "db.row_count": 1.0
+                }
+              },
+              {
+                "name": "PDO.prepare",
+                "service": "pdo",
+                "resource": "SELECT \"base_table\".\"id\" AS \"id\", \"base_table\".\"path\" AS \"path\", \"base_table\".\"alias\" AS \"alias\", \"base_table\".\"langcode\" AS \"langcode\"\nFROM\n\"path_alias\" \"base_table\"\nWHERE (\"base_table\".\"status\" = :db_condition_placeholder_0) AND (\"base_table\".\"alias\" LIKE :db_condition_placeholder_1 ESCAPE '\\\\') AND (\"base_table\".\"langcode\" IN (:db_condition_placeholder_2, :db_condition_placeholder_3))\nORDER BY \"base_table\".\"langcode\" ASC, \"base_table\".\"id\" DESC",
+                "trace_id": 0,
+                "span_id": 30,
+                "parent_id": 21,
+                "type": "sql",
+                "meta": {
+                  "component": "pdo",
+                  "db.charset": "utf8mb4",
+                  "db.engine": "mysql",
+                  "db.name": "test",
+                  "db.system": "mysql",
+                  "db.user": "test",
+                  "out.host": "mysql_integration",
+                  "out.port": "3306",
+                  "span.kind": "client"
+                }
+              },
+              {
+                "name": "PDOStatement.execute",
+                "service": "pdo",
+                "resource": "SELECT \"base_table\".\"id\" AS \"id\", \"base_table\".\"path\" AS \"path\", \"base_table\".\"alias\" AS \"alias\", \"base_table\".\"langcode\" AS \"langcode\"\nFROM\n\"path_alias\" \"base_table\"\nWHERE (\"base_table\".\"status\" = :db_condition_placeholder_0) AND (\"base_table\".\"alias\" LIKE :db_condition_placeholder_1 ESCAPE '\\\\') AND (\"base_table\".\"langcode\" IN (:db_condition_placeholder_2, :db_condition_placeholder_3))\nORDER BY \"base_table\".\"langcode\" ASC, \"base_table\".\"id\" DESC",
+                "trace_id": 0,
+                "span_id": 31,
+                "parent_id": 21,
+                "type": "sql",
+                "meta": {
+                  "component": "pdo",
+                  "db.charset": "utf8mb4",
+                  "db.engine": "mysql",
+                  "db.name": "test",
+                  "db.system": "mysql",
+                  "db.user": "test",
+                  "out.host": "mysql_integration",
+                  "out.port": "3306",
+                  "span.kind": "client"
+                },
+                "metrics": {
+                  "db.row_count": 0.0
+                }
+              },
+              {
+                "name": "PDO.prepare",
+                "service": "pdo",
+                "resource": "SELECT \"name\", \"route\", \"fit\" FROM \"router\" WHERE \"pattern_outline\" IN ( :patterns__0 ) AND \"number_parts\" >= :count_parts",
                 "trace_id": 0,
                 "span_id": 32,
                 "parent_id": 21,
@@ -551,7 +551,7 @@
               {
                 "name": "PDOStatement.execute",
                 "service": "pdo",
-                "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
+                "resource": "SELECT \"name\", \"route\", \"fit\" FROM \"router\" WHERE \"pattern_outline\" IN ( :patterns__0 ) AND \"number_parts\" >= :count_parts",
                 "trace_id": 0,
                 "span_id": 33,
                 "parent_id": 21,
@@ -574,7 +574,7 @@
               {
                 "name": "PDO.prepare",
                 "service": "pdo",
-                "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
+                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
                 "trace_id": 0,
                 "span_id": 34,
                 "parent_id": 21,
@@ -594,7 +594,7 @@
               {
                 "name": "PDOStatement.execute",
                 "service": "pdo",
-                "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
+                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
                 "trace_id": 0,
                 "span_id": 35,
                 "parent_id": 21,
@@ -611,13 +611,13 @@
                   "span.kind": "client"
                 },
                 "metrics": {
-                  "db.row_count": 1.0
+                  "db.row_count": 0.0
                 }
               },
               {
                 "name": "PDO.prepare",
                 "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_config\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
+                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
                 "trace_id": 0,
                 "span_id": 36,
                 "parent_id": 21,
@@ -637,7 +637,7 @@
               {
                 "name": "PDOStatement.execute",
                 "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_config\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
+                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
                 "trace_id": 0,
                 "span_id": 37,
                 "parent_id": 21,
@@ -654,13 +654,13 @@
                   "span.kind": "client"
                 },
                 "metrics": {
-                  "db.row_count": 0.0
+                  "db.row_count": 1.0
                 }
               },
               {
                 "name": "PDO.prepare",
                 "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
+                "resource": "SELECT \"name\", \"route\" FROM \"router\" WHERE \"name\" IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6, :names__7, :names__8, :names__9, :names__10, :names__11, :names__12, :names__13, :names__14, :names__15, :names__16, :names__17, :names__18, :names__19, :names__20, :names__21, :names__22, :names__23, :names__24, :names__25, :names__26, :names__27, :names__28, :names__29, :names__30, :names__31, :names__32, :names__33, :names__34, :names__35, :names__36, :names__37, :names__38, :names__39, :names__40, :names__41, :names__42, :names__43, :names__44, :names__45, :names__46, :names__47, :names__48 )",
                 "trace_id": 0,
                 "span_id": 38,
                 "parent_id": 21,
@@ -680,7 +680,7 @@
               {
                 "name": "PDOStatement.execute",
                 "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
+                "resource": "SELECT \"name\", \"route\" FROM \"router\" WHERE \"name\" IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6, :names__7, :names__8, :names__9, :names__10, :names__11, :names__12, :names__13, :names__14, :names__15, :names__16, :names__17, :names__18, :names__19, :names__20, :names__21, :names__22, :names__23, :names__24, :names__25, :names__26, :names__27, :names__28, :names__29, :names__30, :names__31, :names__32, :names__33, :names__34, :names__35, :names__36, :names__37, :names__38, :names__39, :names__40, :names__41, :names__42, :names__43, :names__44, :names__45, :names__46, :names__47, :names__48 )",
                 "trace_id": 0,
                 "span_id": 39,
                 "parent_id": 21,
@@ -697,781 +697,7 @@
                   "span.kind": "client"
                 },
                 "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 40,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 41,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 42,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 43,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 2.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_data\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 44,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_data\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 45,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"base_table\".\"id\" AS \"id\", \"base_table\".\"path\" AS \"path\", \"base_table\".\"alias\" AS \"alias\", \"base_table\".\"langcode\" AS \"langcode\"\nFROM\n\"path_alias\" \"base_table\"\nWHERE (\"base_table\".\"status\" = :db_condition_placeholder_0) AND (\"base_table\".\"alias\" LIKE :db_condition_placeholder_1 ESCAPE '\\\\') AND (\"base_table\".\"langcode\" IN (:db_condition_placeholder_2, :db_condition_placeholder_3))\nORDER BY \"base_table\".\"langcode\" ASC, \"base_table\".\"id\" DESC",
-                "trace_id": 0,
-                "span_id": 46,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"base_table\".\"id\" AS \"id\", \"base_table\".\"path\" AS \"path\", \"base_table\".\"alias\" AS \"alias\", \"base_table\".\"langcode\" AS \"langcode\"\nFROM\n\"path_alias\" \"base_table\"\nWHERE (\"base_table\".\"status\" = :db_condition_placeholder_0) AND (\"base_table\".\"alias\" LIKE :db_condition_placeholder_1 ESCAPE '\\\\') AND (\"base_table\".\"langcode\" IN (:db_condition_placeholder_2, :db_condition_placeholder_3))\nORDER BY \"base_table\".\"langcode\" ASC, \"base_table\".\"id\" DESC",
-                "trace_id": 0,
-                "span_id": 47,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"route\", \"fit\" FROM \"router\" WHERE \"pattern_outline\" IN ( :patterns__0 ) AND \"number_parts\" >= :count_parts",
-                "trace_id": 0,
-                "span_id": 48,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"route\", \"fit\" FROM \"router\" WHERE \"pattern_outline\" IN ( :patterns__0 ) AND \"number_parts\" >= :count_parts",
-                "trace_id": 0,
-                "span_id": 49,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"tag\", \"invalidations\" FROM \"cachetags\" WHERE \"tag\" IN ( :tags__0 )",
-                "trace_id": 0,
-                "span_id": 50,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"tag\", \"invalidations\" FROM \"cachetags\" WHERE \"tag\" IN ( :tags__0 )",
-                "trace_id": 0,
-                "span_id": 51,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_data\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 52,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_data\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 53,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 54,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 55,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_dynamic_page_cache\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 56,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_dynamic_page_cache\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 57,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_bootstrap\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 58,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_bootstrap\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 59,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_bootstrap\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 60,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_bootstrap\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 61,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 62,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 63,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"tag\", \"invalidations\" FROM \"cachetags\" WHERE \"tag\" IN ( :tags__0 )",
-                "trace_id": 0,
-                "span_id": 64,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"tag\", \"invalidations\" FROM \"cachetags\" WHERE \"tag\" IN ( :tags__0 )",
-                "trace_id": 0,
-                "span_id": 65,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_bootstrap\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 66,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_bootstrap\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 67,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_bootstrap\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 68,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_bootstrap\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 69,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_data\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 70,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_data\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                "trace_id": 0,
-                "span_id": 71,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"route\" FROM \"router\" WHERE \"name\" IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6, :names__7, :names__8, :names__9, :names__10, :names__11, :names__12, :names__13, :names__14, :names__15, :names__16, :names__17, :names__18, :names__19, :names__20, :names__21, :names__22, :names__23, :names__24, :names__25, :names__26, :names__27, :names__28, :names__29, :names__30, :names__31, :names__32, :names__33, :names__34, :names__35, :names__36, :names__37, :names__38, :names__39, :names__40, :names__41, :names__42, :names__43, :names__44, :names__45, :names__46, :names__47, :names__48 )",
-                "trace_id": 0,
-                "span_id": 72,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"route\" FROM \"router\" WHERE \"name\" IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6, :names__7, :names__8, :names__9, :names__10, :names__11, :names__12, :names__13, :names__14, :names__15, :names__16, :names__17, :names__18, :names__19, :names__20, :names__21, :names__22, :names__23, :names__24, :names__25, :names__26, :names__27, :names__28, :names__29, :names__30, :names__31, :names__32, :names__33, :names__34, :names__35, :names__36, :names__37, :names__38, :names__39, :names__40, :names__41, :names__42, :names__43, :names__44, :names__45, :names__46, :names__47, :names__48 )",
-                "trace_id": 0,
-                "span_id": 73,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
                   "db.row_count": 49.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_data\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 74,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "INSERT INTO \"cache_data\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                "trace_id": 0,
-                "span_id": 75,
-                "parent_id": 21,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
                 }
               },
            {
@@ -1509,8 +735,8 @@
              "error": 1,
              "meta": {
                "component": "symfony",
-               "error.message": "Thrown Exception (500): Controller error in /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/modules/datadog/src/Controller/DatadogController.php:19",
-               "error.stack": "#0 [internal function]: Drupal\\datadog\\Controller\\DatadogController->error()\n#1 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(123): call_user_func_array()\n#2 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/Render/Renderer.php(580): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->Drupal\\Core\\EventSubscriber\\{closure}()\n#3 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(124): Drupal\\Core\\Render\\Renderer->executeInRenderContext()\n#4 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(97): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->wrapControllerExecutionInRenderContext()\n#5 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/vendor/symfony/http-kernel/HttpKernel.php(169): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->Drupal\\Core\\EventSubscriber\\{closure}()\n#6 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/vendor/symfony/http-kernel/HttpKernel.php(81): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#7 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/Session.php(58): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#8 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/KernelPreHandle.php(48): Drupal\\Core\\StackMiddleware\\Session->handle()\n#9 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(191): Drupal\\Core\\StackMiddleware\\KernelPreHandle->handle()\n#10 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(128): Drupal\\page_cache\\StackMiddleware\\PageCache->fetch()\n#11 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(82): Drupal\\page_cache\\StackMiddleware\\PageCache->lookup()\n#12 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/ReverseProxyMiddleware.php(48): Drupal\\page_cache\\StackMiddleware\\PageCache->handle()\n#13 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/NegotiationMiddleware.php(51): Drupal\\Core\\StackMiddleware\\ReverseProxyMiddleware->handle()\n#14 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/vendor/stack/builder/src/Stack/StackedHttpKernel.php(23): Drupal\\Core\\StackMiddleware\\NegotiationMiddleware->handle()\n#15 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/DrupalKernel.php(718): Stack\\StackedHttpKernel->handle()\n#16 /home/circleci/datadog/tests/Frameworks/Drupal/Version_9_5/index.php(19): Drupal\\Core\\DrupalKernel->handle()\n#17 {main}",
+               "error.message": "Thrown Exception (500): Controller error in /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/modules/datadog/src/Controller/DatadogController.php:19",
+               "error.stack": "#0 [internal function]: Drupal\\datadog\\Controller\\DatadogController->error()\n#1 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(123): call_user_func_array()\n#2 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/Render/Renderer.php(580): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->Drupal\\Core\\EventSubscriber\\{closure}()\n#3 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(124): Drupal\\Core\\Render\\Renderer->executeInRenderContext()\n#4 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/EventSubscriber/EarlyRenderingControllerWrapperSubscriber.php(97): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->wrapControllerExecutionInRenderContext()\n#5 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/vendor/symfony/http-kernel/HttpKernel.php(169): Drupal\\Core\\EventSubscriber\\EarlyRenderingControllerWrapperSubscriber->Drupal\\Core\\EventSubscriber\\{closure}()\n#6 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/vendor/symfony/http-kernel/HttpKernel.php(81): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#7 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/Session.php(58): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#8 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/KernelPreHandle.php(48): Drupal\\Core\\StackMiddleware\\Session->handle()\n#9 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(191): Drupal\\Core\\StackMiddleware\\KernelPreHandle->handle()\n#10 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(128): Drupal\\page_cache\\StackMiddleware\\PageCache->fetch()\n#11 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/modules/page_cache/src/StackMiddleware/PageCache.php(82): Drupal\\page_cache\\StackMiddleware\\PageCache->lookup()\n#12 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/ReverseProxyMiddleware.php(48): Drupal\\page_cache\\StackMiddleware\\PageCache->handle()\n#13 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/StackMiddleware/NegotiationMiddleware.php(51): Drupal\\Core\\StackMiddleware\\ReverseProxyMiddleware->handle()\n#14 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/vendor/stack/builder/src/Stack/StackedHttpKernel.php(23): Drupal\\Core\\StackMiddleware\\NegotiationMiddleware->handle()\n#15 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/core/lib/Drupal/Core/DrupalKernel.php(718): Stack\\StackedHttpKernel->handle()\n#16 /home/circleci/app/tests/Frameworks/Drupal/Version_9_5/index.php(19): Drupal\\Core\\DrupalKernel->handle()\n#17 {main}",
                "error.type": "Exception"
              }
            },
@@ -1531,7 +757,7 @@
                 "service": "test_drupal_95",
                 "resource": "symfony.kernel.exception",
                 "trace_id": 0,
-                "span_id": 76,
+                "span_id": 40,
                 "parent_id": 25,
                 "type": "web",
                 "meta": {
@@ -1543,8 +769,8 @@
                    "service": "pdo",
                    "resource": "INSERT INTO \"watchdog\" (\"uid\", \"type\", \"message\", \"variables\", \"severity\", \"link\", \"location\", \"referer\", \"hostname\", \"timestamp\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6, :db_insert_placeholder_7, :db_insert_placeholder_8, :db_insert_placeholder_9)",
                    "trace_id": 0,
-                   "span_id": 79,
-                   "parent_id": 76,
+                   "span_id": 43,
+                   "parent_id": 40,
                    "type": "sql",
                    "meta": {
                      "component": "pdo",
@@ -1563,8 +789,8 @@
                    "service": "pdo",
                    "resource": "INSERT INTO \"watchdog\" (\"uid\", \"type\", \"message\", \"variables\", \"severity\", \"link\", \"location\", \"referer\", \"hostname\", \"timestamp\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6, :db_insert_placeholder_7, :db_insert_placeholder_8, :db_insert_placeholder_9)",
                    "trace_id": 0,
-                   "span_id": 80,
-                   "parent_id": 76,
+                   "span_id": 44,
+                   "parent_id": 40,
                    "type": "sql",
                    "meta": {
                      "component": "pdo",
@@ -1584,53 +810,10 @@
                  {
                    "name": "PDO.prepare",
                    "service": "pdo",
-                   "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_config\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                   "trace_id": 0,
-                   "span_id": 81,
-                   "parent_id": 76,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   }
-                 },
-                 {
-                   "name": "PDOStatement.execute",
-                   "service": "pdo",
-                   "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_config\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                   "trace_id": 0,
-                   "span_id": 82,
-                   "parent_id": 76,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   },
-                   "metrics": {
-                     "db.row_count": 0.0
-                   }
-                 },
-                 {
-                   "name": "PDO.prepare",
-                   "service": "pdo",
                    "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
                    "trace_id": 0,
-                   "span_id": 83,
-                   "parent_id": 76,
+                   "span_id": 45,
+                   "parent_id": 40,
                    "type": "sql",
                    "meta": {
                      "component": "pdo",
@@ -1649,8 +832,8 @@
                    "service": "pdo",
                    "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
                    "trace_id": 0,
-                   "span_id": 84,
-                   "parent_id": 76,
+                   "span_id": 46,
+                   "parent_id": 40,
                    "type": "sql",
                    "meta": {
                      "component": "pdo",
@@ -1665,92 +848,6 @@
                    },
                    "metrics": {
                      "db.row_count": 1.0
-                   }
-                 },
-                 {
-                   "name": "PDO.prepare",
-                   "service": "pdo",
-                   "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                   "trace_id": 0,
-                   "span_id": 85,
-                   "parent_id": 76,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   }
-                 },
-                 {
-                   "name": "PDOStatement.execute",
-                   "service": "pdo",
-                   "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                   "trace_id": 0,
-                   "span_id": 86,
-                   "parent_id": 76,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   },
-                   "metrics": {
-                     "db.row_count": 1.0
-                   }
-                 },
-                 {
-                   "name": "PDO.prepare",
-                   "service": "pdo",
-                   "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                   "trace_id": 0,
-                   "span_id": 87,
-                   "parent_id": 76,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   }
-                 },
-                 {
-                   "name": "PDOStatement.execute",
-                   "service": "pdo",
-                   "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                   "trace_id": 0,
-                   "span_id": 88,
-                   "parent_id": 76,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   },
-                   "metrics": {
-                     "db.row_count": 2.0
                    }
                  },
               {
@@ -1758,7 +855,7 @@
                 "service": "test_drupal_95",
                 "resource": "symfony.kernel.response",
                 "trace_id": 0,
-                "span_id": 77,
+                "span_id": 41,
                 "parent_id": 25,
                 "type": "web",
                 "meta": {
@@ -1768,53 +865,10 @@
                  {
                    "name": "PDO.prepare",
                    "service": "pdo",
-                   "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_config\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                   "trace_id": 0,
-                   "span_id": 89,
-                   "parent_id": 77,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   }
-                 },
-                 {
-                   "name": "PDOStatement.execute",
-                   "service": "pdo",
-                   "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_config\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-                   "trace_id": 0,
-                   "span_id": 90,
-                   "parent_id": 77,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   },
-                   "metrics": {
-                     "db.row_count": 0.0
-                   }
-                 },
-                 {
-                   "name": "PDO.prepare",
-                   "service": "pdo",
                    "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
                    "trace_id": 0,
-                   "span_id": 91,
-                   "parent_id": 77,
+                   "span_id": 47,
+                   "parent_id": 41,
                    "type": "sql",
                    "meta": {
                      "component": "pdo",
@@ -1833,8 +887,8 @@
                    "service": "pdo",
                    "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
                    "trace_id": 0,
-                   "span_id": 92,
-                   "parent_id": 77,
+                   "span_id": 48,
+                   "parent_id": 41,
                    "type": "sql",
                    "meta": {
                      "component": "pdo",
@@ -1849,92 +903,6 @@
                    },
                    "metrics": {
                      "db.row_count": 1.0
-                   }
-                 },
-                 {
-                   "name": "PDO.prepare",
-                   "service": "pdo",
-                   "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                   "trace_id": 0,
-                   "span_id": 93,
-                   "parent_id": 77,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   }
-                 },
-                 {
-                   "name": "PDOStatement.execute",
-                   "service": "pdo",
-                   "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                   "trace_id": 0,
-                   "span_id": 94,
-                   "parent_id": 77,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   },
-                   "metrics": {
-                     "db.row_count": 1.0
-                   }
-                 },
-                 {
-                   "name": "PDO.prepare",
-                   "service": "pdo",
-                   "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                   "trace_id": 0,
-                   "span_id": 95,
-                   "parent_id": 77,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   }
-                 },
-                 {
-                   "name": "PDOStatement.execute",
-                   "service": "pdo",
-                   "resource": "INSERT INTO \"cache_config\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-                   "trace_id": 0,
-                   "span_id": 96,
-                   "parent_id": 77,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   },
-                   "metrics": {
-                     "db.row_count": 2.0
                    }
                  },
               {
@@ -1942,7 +910,7 @@
                 "service": "test_drupal_95",
                 "resource": "symfony.kernel.finish_request",
                 "trace_id": 0,
-                "span_id": 78,
+                "span_id": 42,
                 "parent_id": 25,
                 "type": "web",
                 "meta": {
