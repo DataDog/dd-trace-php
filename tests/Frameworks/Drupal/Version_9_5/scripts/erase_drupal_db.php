@@ -4,8 +4,7 @@ $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
 
 $pdo->query('DROP TABLE IF EXISTS cache_bootstrap');
 $pdo->query('DROP TABLE IF EXISTS cache_config');
-$pdo->query('TRUNCATE cache_config');  // Drupal doesn't like us dropping this table (PDOException)
-$pdo->query('DROP TABLE IF cache_container');
+$pdo->query('DROP TABLE IF EXISTS cache_container');  // Drupal doesn't like us dropping this table (PDOException)
 $pdo->query('DROP TABLE IF EXISTS cache_data');
 $pdo->query('DROP TABLE IF EXISTS cache_default');
 $pdo->query('DROP TABLE IF EXISTS cache_discovery');
@@ -27,7 +26,7 @@ $pdo->query('DROP TABLE IF EXISTS path_alias');
 $pdo->query('DROP TABLE IF EXISTS path_alias_revision');
 $pdo->query('DROP TABLE IF EXISTS queue');
 $pdo->query('DROP TABLE IF EXISTS router');
-$pdo->query('TRUNCATE semaphore');
+$pdo->query('DROP TABLE IF EXISTS semaphore');
 $pdo->query('DROP TABLE IF EXISTS sequences');
 $pdo->query('DROP TABLE IF EXISTS sessions');
 $pdo->query('DROP TABLE IF EXISTS user__roles');

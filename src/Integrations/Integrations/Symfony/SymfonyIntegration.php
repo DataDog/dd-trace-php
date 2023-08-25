@@ -410,51 +410,36 @@ class SymfonyIntegration extends Integration
          * Since the arguments passed to the tracing closure on PHP 7 are mutable,
          * the closure must be run _before_ the original call via 'prehook'.
         */
-        \DDTrace\trace_method(
-            'Symfony\Contracts\EventDispatcher\EventDispatcherInterface',
-            'dispatch',
-            [
-                'recurse' => true,
-                'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
-                    if (!isset($args[0])) {
-                        return false;
-                    }
-                    if (\is_object($args[0])) {
-                        // dispatch($event, string $eventName = null)
-                        $event = $args[0];
-                        $eventName = isset($args[1]) && \is_string($args[1]) ? $args[1] : \get_class($event);
-                    } elseif (\is_string($args[0])) {
-                        // dispatch($eventName, Event $event = null)
-                        $eventName = $args[0];
-                        $event = isset($args[1]) && \is_object($args[1]) ? $args[1] : null;
-                    } else {
-                        // Invalid API usage
-                        return false;
-                    }
+        $eventDispatcherTracer = [
+            'recurse' => true,
+            'prehook' => function (SpanData $span, $args) use ($integration, &$injectedActionInfo) {
+                if (!isset($args[0])) {
+                    return false;
+                }
+                if (\is_object($args[0])) {
+                    // dispatch($event, string $eventName = null)
+                    $event = $args[0];
+                    $eventName = isset($args[1]) && \is_string($args[1]) ? $args[1] : \get_class($event);
+                } elseif (\is_string($args[0])) {
+                    // dispatch($eventName, Event $event = null)
+                    $eventName = $args[0];
+                    $event = isset($args[1]) && \is_object($args[1]) ? $args[1] : null;
+                } else {
+                    // Invalid API usage
+                    return false;
+                }
 
-                    // trace the container itself
-                    if ($eventName === 'kernel.controller' && \method_exists($event, 'getController')) {
-                        $controller = $event->getController();
-                        if (!($controller instanceof \Closure)) {
-                            if (\is_callable($controller, false, $controllerName) && $controllerName !== null) {
-                                if (\strpos($controllerName, '::') > 0) {
-                                    list($class, $method) = \explode('::', $controllerName);
-                                    if (isset($class, $method)) {
-                                        \DDTrace\trace_method(
-                                            $class,
-                                            $method,
-                                            function (SpanData $span) use ($controllerName, $integration) {
-                                                $span->name = 'symfony.controller';
-                                                $span->resource = $controllerName;
-                                                $span->type = Type::WEB_SERVLET;
-                                                $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
-                                                $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-                                            }
-                                        );
-                                    }
-                                } else {
-                                    \DDTrace\trace_function(
-                                        $controllerName,
+                // trace the container itself
+                if ($eventName === 'kernel.controller' && \method_exists($event, 'getController')) {
+                    $controller = $event->getController();
+                    if (!($controller instanceof \Closure)) {
+                        if (\is_callable($controller, false, $controllerName) && $controllerName !== null) {
+                            if (\strpos($controllerName, '::') > 0) {
+                                list($class, $method) = \explode('::', $controllerName);
+                                if (isset($class, $method)) {
+                                    \DDTrace\trace_method(
+                                        $class,
+                                        $method,
                                         function (SpanData $span) use ($controllerName, $integration) {
                                             $span->name = 'symfony.controller';
                                             $span->resource = $controllerName;
@@ -464,24 +449,46 @@ class SymfonyIntegration extends Integration
                                         }
                                     );
                                 }
+                            } else {
+                                \DDTrace\trace_function(
+                                    $controllerName,
+                                    function (SpanData $span) use ($controllerName, $integration) {
+                                        $span->name = 'symfony.controller';
+                                        $span->resource = $controllerName;
+                                        $span->type = Type::WEB_SERVLET;
+                                        $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
+                                        $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                                    }
+                                );
                             }
                         }
                     }
+                }
 
-                    $span->name = $span->resource = 'symfony.' . $eventName;
-                    $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
-                    $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-                    if ($event === null) {
-                        return;
-                    }
-                    if (!$injectedActionInfo) {
-                        if ($integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan)) {
-                            $injectedActionInfo = true;
-                        }
+                $span->name = $span->resource = 'symfony.' . $eventName;
+                $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
+                $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                if ($event === null) {
+                    return;
+                }
+                if (!$injectedActionInfo) {
+                    if ($integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan)) {
+                        $injectedActionInfo = true;
                     }
                 }
-            ]
+            }
+        ];
+        \DDTrace\trace_method(
+            'Symfony\Component\EventDispatcher\EventDispatcherInterface',
+            'dispatch',
+            $eventDispatcherTracer
         );
+        \DDTrace\trace_method(
+            'Symfony\Contracts\EventDispatcher\EventDispatcherInterface',
+            'dispatch',
+            $eventDispatcherTracer
+        );
+
 
         // Handling exceptions
         $exceptionHandlingTracer = function (SpanData $span, $args, $retval) use ($integration) {

@@ -5,7 +5,7 @@
     "resource": "simple_view",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 3693262489029205339,
+    "parent_id": 13037317668815122919,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple_view",
-      "runtime-id": "f3a0092b-84ea-43c2-8a63-7e2159f52410",
+      "runtime-id": "1075cdfb-537e-44a8-a97c-9260bd220921",
       "span.kind": "server",
       "symfony.route.action": "Drupal\\datadog\\Controller\\DatadogController@simpleView",
       "symfony.route.name": "simple_view"
@@ -47,336 +47,12 @@
             "component": "drupal"
           }
         },
-           {
-             "name": "PDO.__construct",
-             "service": "pdo",
-             "resource": "PDO.__construct",
-             "trace_id": 0,
-             "span_id": 20,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             }
-           },
-           {
-             "name": "PDO.exec",
-             "service": "pdo",
-             "resource": "SET NAMES utf8mb4",
-             "trace_id": 0,
-             "span_id": 21,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             },
-             "metrics": {
-               "db.row_count": 0.0
-             }
-           },
-           {
-             "name": "PDO.exec",
-             "service": "pdo",
-             "resource": "SET sql_mode = 'ANSI,TRADITIONAL'",
-             "trace_id": 0,
-             "span_id": 22,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             },
-             "metrics": {
-               "db.row_count": 0.0
-             }
-           },
-           {
-             "name": "PDO.prepare",
-             "service": "pdo",
-             "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_container\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-             "trace_id": 0,
-             "span_id": 23,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             }
-           },
-           {
-             "name": "PDOStatement.execute",
-             "service": "pdo",
-             "resource": "SELECT \"cid\", \"data\", \"created\", \"expire\", \"serialized\", \"tags\", \"checksum\" FROM \"cache_container\" WHERE \"cid\" IN ( :cids__0 ) ORDER BY \"cid\"",
-             "trace_id": 0,
-             "span_id": 24,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             },
-             "metrics": {
-               "db.row_count": 0.0
-             }
-           },
-           {
-             "name": "PDO.prepare",
-             "service": "pdo",
-             "resource": "SELECT \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" = :name",
-             "trace_id": 0,
-             "span_id": 25,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             }
-           },
-           {
-             "name": "PDOStatement.execute",
-             "service": "pdo",
-             "resource": "SELECT \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" = :name",
-             "trace_id": 0,
-             "span_id": 26,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             },
-             "metrics": {
-               "db.row_count": 1.0
-             }
-           },
-           {
-             "name": "PDO.prepare",
-             "service": "pdo",
-             "resource": "SELECT \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" = :name",
-             "trace_id": 0,
-             "span_id": 27,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             }
-           },
-           {
-             "name": "PDOStatement.execute",
-             "service": "pdo",
-             "resource": "SELECT \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" = :name",
-             "trace_id": 0,
-             "span_id": 28,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             },
-             "metrics": {
-               "db.row_count": 1.0
-             }
-           },
-           {
-             "name": "PDO.prepare",
-             "service": "pdo",
-             "resource": "SELECT \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" = :name",
-             "trace_id": 0,
-             "span_id": 29,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             }
-           },
-           {
-             "name": "PDOStatement.execute",
-             "service": "pdo",
-             "resource": "SELECT \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" = :name",
-             "trace_id": 0,
-             "span_id": 30,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             },
-             "metrics": {
-               "db.row_count": 1.0
-             }
-           },
-           {
-             "name": "PDO.prepare",
-             "service": "pdo",
-             "resource": "INSERT INTO \"cache_container\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-             "trace_id": 0,
-             "span_id": 31,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             }
-           },
-           {
-             "name": "PDOStatement.execute",
-             "service": "pdo",
-             "resource": "INSERT INTO \"cache_container\" (\"cid\", \"expire\", \"created\", \"tags\", \"checksum\", \"data\", \"serialized\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6) ON DUPLICATE KEY UPDATE \"cid\" = VALUES(\"cid\"), \"expire\" = VALUES(\"expire\"), \"created\" = VALUES(\"created\"), \"tags\" = VALUES(\"tags\"), \"checksum\" = VALUES(\"checksum\"), \"data\" = VALUES(\"data\"), \"serialized\" = VALUES(\"serialized\")",
-             "trace_id": 0,
-             "span_id": 32,
-             "parent_id": 4,
-             "type": "sql",
-             "meta": {
-               "component": "pdo",
-               "db.charset": "utf8mb4",
-               "db.engine": "mysql",
-               "db.name": "test",
-               "db.system": "mysql",
-               "db.user": "test",
-               "out.host": "mysql_integration",
-               "out.port": "3306",
-               "span.kind": "client"
-             },
-             "metrics": {
-               "db.row_count": 1.0
-             }
-           },
-        {
-          "name": "PDO.prepare",
-          "service": "pdo",
-          "resource": "INSERT INTO \"watchdog\" (\"uid\", \"type\", \"message\", \"variables\", \"severity\", \"link\", \"location\", \"referer\", \"hostname\", \"timestamp\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6, :db_insert_placeholder_7, :db_insert_placeholder_8, :db_insert_placeholder_9)",
-          "trace_id": 0,
-          "span_id": 5,
-          "parent_id": 2,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          }
-        },
-        {
-          "name": "PDOStatement.execute",
-          "service": "pdo",
-          "resource": "INSERT INTO \"watchdog\" (\"uid\", \"type\", \"message\", \"variables\", \"severity\", \"link\", \"location\", \"referer\", \"hostname\", \"timestamp\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5, :db_insert_placeholder_6, :db_insert_placeholder_7, :db_insert_placeholder_8, :db_insert_placeholder_9)",
-          "trace_id": 0,
-          "span_id": 6,
-          "parent_id": 2,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          },
-          "metrics": {
-            "db.row_count": 1.0
-          }
-        },
         {
           "name": "symfony.kernel.handle",
           "service": "test_drupal_95",
           "resource": "symfony.kernel.handle",
           "trace_id": 0,
-          "span_id": 7,
+          "span_id": 5,
           "parent_id": 2,
           "type": "web",
           "meta": {
@@ -388,321 +64,20 @@
              "service": "test_drupal_95",
              "resource": "symfony.kernel.request",
              "trace_id": 0,
-             "span_id": 33,
-             "parent_id": 7,
+             "span_id": 6,
+             "parent_id": 5,
              "type": "web",
              "meta": {
                "component": "symfony"
              }
            },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 40,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 41,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 42,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 43,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"base_table\".\"id\" AS \"id\", \"base_table\".\"path\" AS \"path\", \"base_table\".\"alias\" AS \"alias\", \"base_table\".\"langcode\" AS \"langcode\"\nFROM\n\"path_alias\" \"base_table\"\nWHERE (\"base_table\".\"status\" = :db_condition_placeholder_0) AND (\"base_table\".\"alias\" LIKE :db_condition_placeholder_1 ESCAPE '\\\\') AND (\"base_table\".\"langcode\" IN (:db_condition_placeholder_2, :db_condition_placeholder_3))\nORDER BY \"base_table\".\"langcode\" ASC, \"base_table\".\"id\" DESC",
-                "trace_id": 0,
-                "span_id": 44,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"base_table\".\"id\" AS \"id\", \"base_table\".\"path\" AS \"path\", \"base_table\".\"alias\" AS \"alias\", \"base_table\".\"langcode\" AS \"langcode\"\nFROM\n\"path_alias\" \"base_table\"\nWHERE (\"base_table\".\"status\" = :db_condition_placeholder_0) AND (\"base_table\".\"alias\" LIKE :db_condition_placeholder_1 ESCAPE '\\\\') AND (\"base_table\".\"langcode\" IN (:db_condition_placeholder_2, :db_condition_placeholder_3))\nORDER BY \"base_table\".\"langcode\" ASC, \"base_table\".\"id\" DESC",
-                "trace_id": 0,
-                "span_id": 45,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"route\", \"fit\" FROM \"router\" WHERE \"pattern_outline\" IN ( :patterns__0 ) AND \"number_parts\" >= :count_parts",
-                "trace_id": 0,
-                "span_id": 46,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"route\", \"fit\" FROM \"router\" WHERE \"pattern_outline\" IN ( :patterns__0 ) AND \"number_parts\" >= :count_parts",
-                "trace_id": 0,
-                "span_id": 47,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 48,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 49,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 50,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 51,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"route\" FROM \"router\" WHERE \"name\" IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6, :names__7, :names__8, :names__9, :names__10, :names__11, :names__12, :names__13, :names__14, :names__15, :names__16, :names__17, :names__18, :names__19, :names__20, :names__21, :names__22, :names__23, :names__24, :names__25, :names__26, :names__27, :names__28, :names__29, :names__30, :names__31, :names__32, :names__33, :names__34, :names__35, :names__36, :names__37, :names__38, :names__39, :names__40, :names__41, :names__42, :names__43, :names__44, :names__45, :names__46, :names__47, :names__48 )",
-                "trace_id": 0,
-                "span_id": 52,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"route\" FROM \"router\" WHERE \"name\" IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6, :names__7, :names__8, :names__9, :names__10, :names__11, :names__12, :names__13, :names__14, :names__15, :names__16, :names__17, :names__18, :names__19, :names__20, :names__21, :names__22, :names__23, :names__24, :names__25, :names__26, :names__27, :names__28, :names__29, :names__30, :names__31, :names__32, :names__33, :names__34, :names__35, :names__36, :names__37, :names__38, :names__39, :names__40, :names__41, :names__42, :names__43, :names__44, :names__45, :names__46, :names__47, :names__48 )",
-                "trace_id": 0,
-                "span_id": 53,
-                "parent_id": 33,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 49.0
-                }
-              },
            {
              "name": "symfony.kernel.controller",
              "service": "test_drupal_95",
              "resource": "symfony.kernel.controller",
              "trace_id": 0,
-             "span_id": 34,
-             "parent_id": 7,
+             "span_id": 7,
+             "parent_id": 5,
              "type": "web",
              "meta": {
                "component": "symfony"
@@ -713,8 +88,8 @@
              "service": "test_drupal_95",
              "resource": "symfony.kernel.controller_arguments",
              "trace_id": 0,
-             "span_id": 35,
-             "parent_id": 7,
+             "span_id": 8,
+             "parent_id": 5,
              "type": "web",
              "meta": {
                "component": "symfony"
@@ -725,8 +100,8 @@
              "service": "test_drupal_95",
              "resource": "Drupal\\datadog\\Controller\\DatadogController::simpleView",
              "trace_id": 0,
-             "span_id": 36,
-             "parent_id": 7,
+             "span_id": 9,
+             "parent_id": 5,
              "type": "web",
              "meta": {
                "component": "symfony"
@@ -737,8 +112,8 @@
              "service": "test_drupal_95",
              "resource": "symfony.kernel.view",
              "trace_id": 0,
-             "span_id": 37,
-             "parent_id": 7,
+             "span_id": 10,
+             "parent_id": 5,
              "type": "web",
              "meta": {
                "component": "symfony"
@@ -749,746 +124,26 @@
                 "service": "test_drupal_95",
                 "resource": "symfony.render.page_display_variant.select",
                 "trace_id": 0,
-                "span_id": 54,
-                "parent_id": 37,
+                "span_id": 13,
+                "parent_id": 10,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
                 }
               },
               {
-                "name": "drupal.hook.entity_type_build",
-                "service": "test_drupal_95",
-                "resource": "drupal.hook.entity_type_build",
-                "trace_id": 0,
-                "span_id": 55,
-                "parent_id": 37,
-                "type": "web",
-                "meta": {
-                  "component": "drupal",
-                  "drupal.function": "system_entity_type_build",
-                  "drupal.hook": "entity_type_build",
-                  "drupal.module": "system"
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 56,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 57,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 58,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 59,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 60,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 61,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 62,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 63,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "drupal.hook.theme",
-                "service": "test_drupal_95",
-                "resource": "drupal.hook.theme",
-                "trace_id": 0,
-                "span_id": 64,
-                "parent_id": 37,
-                "type": "web",
-                "meta": {
-                  "component": "drupal",
-                  "drupal.function": "block_theme",
-                  "drupal.hook": "theme",
-                  "drupal.module": "block"
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "INSERT INTO \"semaphore\" (\"name\", \"value\", \"expire\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2)",
-                "trace_id": 0,
-                "span_id": 65,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "INSERT INTO \"semaphore\" (\"name\", \"value\", \"expire\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2)",
-                "trace_id": 0,
-                "span_id": 66,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "DELETE FROM \"semaphore\" \nWHERE (\"name\" = :db_condition_placeholder_0) AND (\"value\" = :db_condition_placeholder_1)",
-                "trace_id": 0,
-                "span_id": 67,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "DELETE FROM \"semaphore\" \nWHERE (\"name\" = :db_condition_placeholder_0) AND (\"value\" = :db_condition_placeholder_1)",
-                "trace_id": 0,
-                "span_id": 68,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
                 "name": "drupal.template.render",
                 "service": "test_drupal_95",
                 "resource": "drupal.template.render",
                 "trace_id": 0,
-                "span_id": 69,
-                "parent_id": 37,
+                "span_id": 14,
+                "parent_id": 10,
                 "type": "web",
                 "meta": {
                   "component": "drupal",
                   "drupal.template": "modules/datadog/templates/datadog.html.twig",
-                  "drupal.theme_engine": "twig",
-                  "drupal.theme_name": "stark"
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 70,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 71,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6 )",
-                "trace_id": 0,
-                "span_id": 72,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0, :names__1, :names__2, :names__3, :names__4, :names__5, :names__6 )",
-                "trace_id": 0,
-                "span_id": 73,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 7.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"config\".\"name\" AS \"name\"\nFROM\n\"config\" \"config\"\nWHERE (\"collection\" = :db_condition_placeholder_0) AND (\"name\" LIKE :db_condition_placeholder_1 ESCAPE '\\\\')\nORDER BY \"collection\" ASC, \"name\" ASC",
-                "trace_id": 0,
-                "span_id": 74,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"config\".\"name\" AS \"name\"\nFROM\n\"config\" \"config\"\nWHERE (\"collection\" = :db_condition_placeholder_0) AND (\"name\" LIKE :db_condition_placeholder_1 ESCAPE '\\\\')\nORDER BY \"collection\" ASC, \"name\" ASC",
-                "trace_id": 0,
-                "span_id": 75,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 5.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0, :names__1, :names__2, :names__3, :names__4 )",
-                "trace_id": 0,
-                "span_id": 76,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0, :names__1, :names__2, :names__3, :names__4 )",
-                "trace_id": 0,
-                "span_id": 77,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 5.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 78,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 79,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "drupal.hook.page_attachments",
-                "service": "test_drupal_95",
-                "resource": "drupal.hook.page_attachments",
-                "trace_id": 0,
-                "span_id": 80,
-                "parent_id": 37,
-                "type": "web",
-                "meta": {
-                  "component": "drupal",
-                  "drupal.function": "system_page_attachments",
-                  "drupal.hook": "page_attachments",
-                  "drupal.module": "system"
-                }
-              },
-                 {
-                   "name": "PDO.prepare",
-                   "service": "pdo",
-                   "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                   "trace_id": 0,
-                   "span_id": 98,
-                   "parent_id": 80,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   }
-                 },
-                 {
-                   "name": "PDOStatement.execute",
-                   "service": "pdo",
-                   "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                   "trace_id": 0,
-                   "span_id": 99,
-                   "parent_id": 80,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   },
-                   "metrics": {
-                     "db.row_count": 1.0
-                   }
-                 },
-                 {
-                   "name": "PDO.prepare",
-                   "service": "pdo",
-                   "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                   "trace_id": 0,
-                   "span_id": 100,
-                   "parent_id": 80,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   }
-                 },
-                 {
-                   "name": "PDOStatement.execute",
-                   "service": "pdo",
-                   "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                   "trace_id": 0,
-                   "span_id": 101,
-                   "parent_id": 80,
-                   "type": "sql",
-                   "meta": {
-                     "component": "pdo",
-                     "db.charset": "utf8mb4",
-                     "db.engine": "mysql",
-                     "db.name": "test",
-                     "db.system": "mysql",
-                     "db.user": "test",
-                     "out.host": "mysql_integration",
-                     "out.port": "3306",
-                     "span.kind": "client"
-                   },
-                   "metrics": {
-                     "db.row_count": 0.0
-                   }
-                 },
-              {
-                "name": "drupal.hook.page_top",
-                "service": "test_drupal_95",
-                "resource": "drupal.hook.page_top",
-                "trace_id": 0,
-                "span_id": 81,
-                "parent_id": 37,
-                "type": "web",
-                "meta": {
-                  "component": "drupal",
-                  "drupal.function": "block_page_top",
-                  "drupal.hook": "page_top",
-                  "drupal.module": "block"
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 82,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 83,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 84,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"data\" FROM \"config\" WHERE \"collection\" = :collection AND \"name\" IN ( :names__0 )",
-                "trace_id": 0,
-                "span_id": 85,
-                "parent_id": 37,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "drupal.hook.theme_suggestions_html",
-                "service": "test_drupal_95",
-                "resource": "drupal.hook.theme_suggestions_html",
-                "trace_id": 0,
-                "span_id": 86,
-                "parent_id": 37,
-                "type": "web",
-                "meta": {
-                  "component": "drupal",
-                  "drupal.function": "system_theme_suggestions_html",
-                  "drupal.hook": "theme_suggestions_html",
-                  "drupal.module": "system"
+                  "drupal.theme.engine": "twig",
+                  "drupal.theme.name": "stark"
                 }
               },
               {
@@ -1496,132 +151,44 @@
                 "service": "test_drupal_95",
                 "resource": "drupal.template.render",
                 "trace_id": 0,
-                "span_id": 87,
-                "parent_id": 37,
+                "span_id": 15,
+                "parent_id": 10,
                 "type": "web",
                 "meta": {
                   "component": "drupal",
                   "drupal.template": "core/modules/system/templates/html.html.twig",
-                  "drupal.theme_engine": "twig",
-                  "drupal.theme_name": "stark"
+                  "drupal.theme.engine": "twig",
+                  "drupal.theme.name": "stark"
                 }
               },
-                 {
-                   "name": "drupal.hook.theme_suggestions_page",
-                   "service": "test_drupal_95",
-                   "resource": "drupal.hook.theme_suggestions_page",
-                   "trace_id": 0,
-                   "span_id": 102,
-                   "parent_id": 87,
-                   "type": "web",
-                   "meta": {
-                     "component": "drupal",
-                     "drupal.function": "system_theme_suggestions_page",
-                     "drupal.hook": "theme_suggestions_page",
-                     "drupal.module": "system"
-                   }
-                 },
                  {
                    "name": "drupal.template.render",
                    "service": "test_drupal_95",
                    "resource": "drupal.template.render",
                    "trace_id": 0,
-                   "span_id": 103,
-                   "parent_id": 87,
+                   "span_id": 16,
+                   "parent_id": 15,
                    "type": "web",
                    "meta": {
                      "component": "drupal",
                      "drupal.template": "core/modules/system/templates/page.html.twig",
-                     "drupal.theme_engine": "twig",
-                     "drupal.theme_name": "stark"
+                     "drupal.theme.engine": "twig",
+                     "drupal.theme.name": "stark"
                    }
                  },
-                    {
-                      "name": "PDO.prepare",
-                      "service": "pdo",
-                      "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                      "trace_id": 0,
-                      "span_id": 105,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      }
-                    },
-                    {
-                      "name": "PDOStatement.execute",
-                      "service": "pdo",
-                      "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                      "trace_id": 0,
-                      "span_id": 106,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      },
-                      "metrics": {
-                        "db.row_count": 1.0
-                      }
-                    },
-                    {
-                      "name": "drupal.hook.theme_suggestions_block",
-                      "service": "test_drupal_95",
-                      "resource": "drupal.hook.theme_suggestions_block",
-                      "trace_id": 0,
-                      "span_id": 107,
-                      "parent_id": 103,
-                      "type": "web",
-                      "meta": {
-                        "component": "drupal",
-                        "drupal.function": "block_theme_suggestions_block",
-                        "drupal.hook": "theme_suggestions_block",
-                        "drupal.module": "block"
-                      }
-                    },
                     {
                       "name": "drupal.template.render",
                       "service": "test_drupal_95",
                       "resource": "drupal.template.render",
                       "trace_id": 0,
-                      "span_id": 108,
-                      "parent_id": 103,
+                      "span_id": 18,
+                      "parent_id": 16,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
                         "drupal.template": "core/modules/system/templates/block--system-branding-block.html.twig",
-                        "drupal.theme_engine": "twig",
-                        "drupal.theme_name": "stark"
-                      }
-                    },
-                    {
-                      "name": "drupal.hook.theme_suggestions_region",
-                      "service": "test_drupal_95",
-                      "resource": "drupal.hook.theme_suggestions_region",
-                      "trace_id": 0,
-                      "span_id": 109,
-                      "parent_id": 103,
-                      "type": "web",
-                      "meta": {
-                        "component": "drupal",
-                        "drupal.function": "system_theme_suggestions_region",
-                        "drupal.hook": "theme_suggestions_region",
-                        "drupal.module": "system"
+                        "drupal.theme.engine": "twig",
+                        "drupal.theme.name": "stark"
                       }
                     },
                     {
@@ -1629,29 +196,14 @@
                       "service": "test_drupal_95",
                       "resource": "drupal.template.render",
                       "trace_id": 0,
-                      "span_id": 110,
-                      "parent_id": 103,
+                      "span_id": 19,
+                      "parent_id": 16,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
                         "drupal.template": "core/modules/system/templates/region.html.twig",
-                        "drupal.theme_engine": "twig",
-                        "drupal.theme_name": "stark"
-                      }
-                    },
-                    {
-                      "name": "drupal.hook.theme_suggestions_block",
-                      "service": "test_drupal_95",
-                      "resource": "drupal.hook.theme_suggestions_block",
-                      "trace_id": 0,
-                      "span_id": 111,
-                      "parent_id": 103,
-                      "type": "web",
-                      "meta": {
-                        "component": "drupal",
-                        "drupal.function": "block_theme_suggestions_block",
-                        "drupal.hook": "theme_suggestions_block",
-                        "drupal.module": "block"
+                        "drupal.theme.engine": "twig",
+                        "drupal.theme.name": "stark"
                       }
                     },
                     {
@@ -1659,29 +211,14 @@
                       "service": "test_drupal_95",
                       "resource": "drupal.template.render",
                       "trace_id": 0,
-                      "span_id": 112,
-                      "parent_id": 103,
+                      "span_id": 20,
+                      "parent_id": 16,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
                         "drupal.template": "core/modules/system/templates/block--system-messages-block.html.twig",
-                        "drupal.theme_engine": "twig",
-                        "drupal.theme_name": "stark"
-                      }
-                    },
-                    {
-                      "name": "drupal.hook.theme_suggestions_region",
-                      "service": "test_drupal_95",
-                      "resource": "drupal.hook.theme_suggestions_region",
-                      "trace_id": 0,
-                      "span_id": 113,
-                      "parent_id": 103,
-                      "type": "web",
-                      "meta": {
-                        "component": "drupal",
-                        "drupal.function": "system_theme_suggestions_region",
-                        "drupal.hook": "theme_suggestions_region",
-                        "drupal.module": "system"
+                        "drupal.theme.engine": "twig",
+                        "drupal.theme.name": "stark"
                       }
                     },
                     {
@@ -1689,29 +226,14 @@
                       "service": "test_drupal_95",
                       "resource": "drupal.template.render",
                       "trace_id": 0,
-                      "span_id": 114,
-                      "parent_id": 103,
+                      "span_id": 21,
+                      "parent_id": 16,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
                         "drupal.template": "core/modules/system/templates/region.html.twig",
-                        "drupal.theme_engine": "twig",
-                        "drupal.theme_name": "stark"
-                      }
-                    },
-                    {
-                      "name": "drupal.hook.theme_suggestions_block",
-                      "service": "test_drupal_95",
-                      "resource": "drupal.hook.theme_suggestions_block",
-                      "trace_id": 0,
-                      "span_id": 115,
-                      "parent_id": 103,
-                      "type": "web",
-                      "meta": {
-                        "component": "drupal",
-                        "drupal.function": "block_theme_suggestions_block",
-                        "drupal.hook": "theme_suggestions_block",
-                        "drupal.module": "block"
+                        "drupal.theme.engine": "twig",
+                        "drupal.theme.name": "stark"
                       }
                     },
                     {
@@ -1719,14 +241,14 @@
                       "service": "test_drupal_95",
                       "resource": "drupal.template.render",
                       "trace_id": 0,
-                      "span_id": 116,
-                      "parent_id": 103,
+                      "span_id": 22,
+                      "parent_id": 16,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
                         "drupal.template": "core/modules/block/templates/block.html.twig",
-                        "drupal.theme_engine": "twig",
-                        "drupal.theme_name": "stark"
+                        "drupal.theme.engine": "twig",
+                        "drupal.theme.name": "stark"
                       }
                     },
                        {
@@ -1734,29 +256,29 @@
                          "service": "test_drupal_95",
                          "resource": "drupal.template.render",
                          "trace_id": 0,
-                         "span_id": 137,
-                         "parent_id": 116,
+                         "span_id": 25,
+                         "parent_id": 22,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
                            "drupal.template": "core/modules/system/templates/page-title.html.twig",
-                           "drupal.theme_engine": "twig",
-                           "drupal.theme_name": "stark"
+                           "drupal.theme.engine": "twig",
+                           "drupal.theme.name": "stark"
                          }
                        },
                     {
-                      "name": "drupal.hook.theme_suggestions_region",
+                      "name": "drupal.template.render",
                       "service": "test_drupal_95",
-                      "resource": "drupal.hook.theme_suggestions_region",
+                      "resource": "drupal.template.render",
                       "trace_id": 0,
-                      "span_id": 117,
-                      "parent_id": 103,
+                      "span_id": 23,
+                      "parent_id": 16,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
-                        "drupal.function": "system_theme_suggestions_region",
-                        "drupal.hook": "theme_suggestions_region",
-                        "drupal.module": "system"
+                        "drupal.template": "core/modules/system/templates/region.html.twig",
+                        "drupal.theme.engine": "twig",
+                        "drupal.theme.name": "stark"
                       }
                     },
                     {
@@ -1764,388 +286,14 @@
                       "service": "test_drupal_95",
                       "resource": "drupal.template.render",
                       "trace_id": 0,
-                      "span_id": 118,
-                      "parent_id": 103,
+                      "span_id": 24,
+                      "parent_id": 16,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
                         "drupal.template": "core/modules/system/templates/region.html.twig",
-                        "drupal.theme_engine": "twig",
-                        "drupal.theme_name": "stark"
-                      }
-                    },
-                    {
-                      "name": "PDO.prepare",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".\"menu_name\" AS \"menu_name\", \"menu_tree\".\"route_name\" AS \"route_name\", \"menu_tree\".\"route_parameters\" AS \"route_parameters\", \"menu_tree\".\"url\" AS \"url\", \"menu_tree\".\"title\" AS \"title\", \"menu_tree\".\"description\" AS \"description\", \"menu_tree\".\"parent\" AS \"parent\", \"menu_tree\".\"weight\" AS \"weight\", \"menu_tree\".\"options\" AS \"options\", \"menu_tree\".\"expanded\" AS \"expanded\", \"menu_tree\".\"enabled\" AS \"enabled\", \"menu_tree\".\"provider\" AS \"provider\", \"menu_tree\".\"metadata\" AS \"metadata\", \"menu_tree\".\"class\" AS \"class\", \"menu_tree\".\"form_class\" AS \"form_class\", \"menu_tree\".\"id\" AS \"id\"\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"route_name\" = :db_condition_placeholder_0) AND (\"route_param_key\" = :db_condition_placeholder_1) AND (\"menu_name\" = :db_condition_placeholder_2)\nORDER BY \"depth\" ASC, \"weight\" ASC, \"id\" ASC",
-                      "trace_id": 0,
-                      "span_id": 119,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      }
-                    },
-                    {
-                      "name": "PDOStatement.execute",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".\"menu_name\" AS \"menu_name\", \"menu_tree\".\"route_name\" AS \"route_name\", \"menu_tree\".\"route_parameters\" AS \"route_parameters\", \"menu_tree\".\"url\" AS \"url\", \"menu_tree\".\"title\" AS \"title\", \"menu_tree\".\"description\" AS \"description\", \"menu_tree\".\"parent\" AS \"parent\", \"menu_tree\".\"weight\" AS \"weight\", \"menu_tree\".\"options\" AS \"options\", \"menu_tree\".\"expanded\" AS \"expanded\", \"menu_tree\".\"enabled\" AS \"enabled\", \"menu_tree\".\"provider\" AS \"provider\", \"menu_tree\".\"metadata\" AS \"metadata\", \"menu_tree\".\"class\" AS \"class\", \"menu_tree\".\"form_class\" AS \"form_class\", \"menu_tree\".\"id\" AS \"id\"\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"route_name\" = :db_condition_placeholder_0) AND (\"route_param_key\" = :db_condition_placeholder_1) AND (\"menu_name\" = :db_condition_placeholder_2)\nORDER BY \"depth\" ASC, \"weight\" ASC, \"id\" ASC",
-                      "trace_id": 0,
-                      "span_id": 120,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      },
-                      "metrics": {
-                        "db.row_count": 0.0
-                      }
-                    },
-                    {
-                      "name": "PDO.prepare",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".\"id\" AS \"id\"\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"menu_name\" = :db_condition_placeholder_0) AND (\"expanded\" = :db_condition_placeholder_1) AND (\"has_children\" = :db_condition_placeholder_2) AND (\"enabled\" = :db_condition_placeholder_3) AND (\"parent\" IN (:db_condition_placeholder_4)) AND (\"id\" NOT IN (:db_condition_placeholder_5))",
-                      "trace_id": 0,
-                      "span_id": 121,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      }
-                    },
-                    {
-                      "name": "PDOStatement.execute",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".\"id\" AS \"id\"\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"menu_name\" = :db_condition_placeholder_0) AND (\"expanded\" = :db_condition_placeholder_1) AND (\"has_children\" = :db_condition_placeholder_2) AND (\"enabled\" = :db_condition_placeholder_3) AND (\"parent\" IN (:db_condition_placeholder_4)) AND (\"id\" NOT IN (:db_condition_placeholder_5))",
-                      "trace_id": 0,
-                      "span_id": 122,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      },
-                      "metrics": {
-                        "db.row_count": 0.0
-                      }
-                    },
-                    {
-                      "name": "PDO.prepare",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".*\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"menu_name\" = :db_condition_placeholder_0) AND (\"parent\" IN (:db_condition_placeholder_1))\nORDER BY \"p1\" ASC, \"p2\" ASC, \"p3\" ASC, \"p4\" ASC, \"p5\" ASC, \"p6\" ASC, \"p7\" ASC, \"p8\" ASC, \"p9\" ASC",
-                      "trace_id": 0,
-                      "span_id": 123,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      }
-                    },
-                    {
-                      "name": "PDOStatement.execute",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".*\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"menu_name\" = :db_condition_placeholder_0) AND (\"parent\" IN (:db_condition_placeholder_1))\nORDER BY \"p1\" ASC, \"p2\" ASC, \"p3\" ASC, \"p4\" ASC, \"p5\" ASC, \"p6\" ASC, \"p7\" ASC, \"p8\" ASC, \"p9\" ASC",
-                      "trace_id": 0,
-                      "span_id": 124,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      },
-                      "metrics": {
-                        "db.row_count": 2.0
-                      }
-                    },
-                    {
-                      "name": "PDO.prepare",
-                      "service": "pdo",
-                      "resource": "SELECT \"config\".\"name\" AS \"name\"\nFROM\n\"config\" \"config\"\nWHERE (\"collection\" = :db_condition_placeholder_0) AND (\"name\" LIKE :db_condition_placeholder_1 ESCAPE '\\\\')\nORDER BY \"collection\" ASC, \"name\" ASC",
-                      "trace_id": 0,
-                      "span_id": 125,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      }
-                    },
-                    {
-                      "name": "PDOStatement.execute",
-                      "service": "pdo",
-                      "resource": "SELECT \"config\".\"name\" AS \"name\"\nFROM\n\"config\" \"config\"\nWHERE (\"collection\" = :db_condition_placeholder_0) AND (\"name\" LIKE :db_condition_placeholder_1 ESCAPE '\\\\')\nORDER BY \"collection\" ASC, \"name\" ASC",
-                      "trace_id": 0,
-                      "span_id": 126,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      },
-                      "metrics": {
-                        "db.row_count": 0.0
-                      }
-                    },
-                    {
-                      "name": "PDO.prepare",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".\"menu_name\" AS \"menu_name\", \"menu_tree\".\"route_name\" AS \"route_name\", \"menu_tree\".\"route_parameters\" AS \"route_parameters\", \"menu_tree\".\"url\" AS \"url\", \"menu_tree\".\"title\" AS \"title\", \"menu_tree\".\"description\" AS \"description\", \"menu_tree\".\"parent\" AS \"parent\", \"menu_tree\".\"weight\" AS \"weight\", \"menu_tree\".\"options\" AS \"options\", \"menu_tree\".\"expanded\" AS \"expanded\", \"menu_tree\".\"enabled\" AS \"enabled\", \"menu_tree\".\"provider\" AS \"provider\", \"menu_tree\".\"metadata\" AS \"metadata\", \"menu_tree\".\"class\" AS \"class\", \"menu_tree\".\"form_class\" AS \"form_class\", \"menu_tree\".\"id\" AS \"id\"\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"route_name\" = :db_condition_placeholder_0) AND (\"route_param_key\" = :db_condition_placeholder_1) AND (\"menu_name\" = :db_condition_placeholder_2)\nORDER BY \"depth\" ASC, \"weight\" ASC, \"id\" ASC",
-                      "trace_id": 0,
-                      "span_id": 127,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      }
-                    },
-                    {
-                      "name": "PDOStatement.execute",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".\"menu_name\" AS \"menu_name\", \"menu_tree\".\"route_name\" AS \"route_name\", \"menu_tree\".\"route_parameters\" AS \"route_parameters\", \"menu_tree\".\"url\" AS \"url\", \"menu_tree\".\"title\" AS \"title\", \"menu_tree\".\"description\" AS \"description\", \"menu_tree\".\"parent\" AS \"parent\", \"menu_tree\".\"weight\" AS \"weight\", \"menu_tree\".\"options\" AS \"options\", \"menu_tree\".\"expanded\" AS \"expanded\", \"menu_tree\".\"enabled\" AS \"enabled\", \"menu_tree\".\"provider\" AS \"provider\", \"menu_tree\".\"metadata\" AS \"metadata\", \"menu_tree\".\"class\" AS \"class\", \"menu_tree\".\"form_class\" AS \"form_class\", \"menu_tree\".\"id\" AS \"id\"\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"route_name\" = :db_condition_placeholder_0) AND (\"route_param_key\" = :db_condition_placeholder_1) AND (\"menu_name\" = :db_condition_placeholder_2)\nORDER BY \"depth\" ASC, \"weight\" ASC, \"id\" ASC",
-                      "trace_id": 0,
-                      "span_id": 128,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      },
-                      "metrics": {
-                        "db.row_count": 0.0
-                      }
-                    },
-                    {
-                      "name": "PDO.prepare",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".\"id\" AS \"id\"\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"menu_name\" = :db_condition_placeholder_0) AND (\"expanded\" = :db_condition_placeholder_1) AND (\"has_children\" = :db_condition_placeholder_2) AND (\"enabled\" = :db_condition_placeholder_3) AND (\"parent\" IN (:db_condition_placeholder_4)) AND (\"id\" NOT IN (:db_condition_placeholder_5))",
-                      "trace_id": 0,
-                      "span_id": 129,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      }
-                    },
-                    {
-                      "name": "PDOStatement.execute",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".\"id\" AS \"id\"\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"menu_name\" = :db_condition_placeholder_0) AND (\"expanded\" = :db_condition_placeholder_1) AND (\"has_children\" = :db_condition_placeholder_2) AND (\"enabled\" = :db_condition_placeholder_3) AND (\"parent\" IN (:db_condition_placeholder_4)) AND (\"id\" NOT IN (:db_condition_placeholder_5))",
-                      "trace_id": 0,
-                      "span_id": 130,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      },
-                      "metrics": {
-                        "db.row_count": 0.0
-                      }
-                    },
-                    {
-                      "name": "PDO.prepare",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".*\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"menu_name\" = :db_condition_placeholder_0) AND (\"parent\" IN (:db_condition_placeholder_1))\nORDER BY \"p1\" ASC, \"p2\" ASC, \"p3\" ASC, \"p4\" ASC, \"p5\" ASC, \"p6\" ASC, \"p7\" ASC, \"p8\" ASC, \"p9\" ASC",
-                      "trace_id": 0,
-                      "span_id": 131,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      }
-                    },
-                    {
-                      "name": "PDOStatement.execute",
-                      "service": "pdo",
-                      "resource": "SELECT \"menu_tree\".*\nFROM\n\"menu_tree\" \"menu_tree\"\nWHERE (\"menu_name\" = :db_condition_placeholder_0) AND (\"parent\" IN (:db_condition_placeholder_1))\nORDER BY \"p1\" ASC, \"p2\" ASC, \"p3\" ASC, \"p4\" ASC, \"p5\" ASC, \"p6\" ASC, \"p7\" ASC, \"p8\" ASC, \"p9\" ASC",
-                      "trace_id": 0,
-                      "span_id": 132,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      },
-                      "metrics": {
-                        "db.row_count": 1.0
-                      }
-                    },
-                    {
-                      "name": "PDO.prepare",
-                      "service": "pdo",
-                      "resource": "SELECT \"name\", \"route\" FROM \"router\" WHERE \"name\" IN ( :names__0 )",
-                      "trace_id": 0,
-                      "span_id": 133,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      }
-                    },
-                    {
-                      "name": "PDOStatement.execute",
-                      "service": "pdo",
-                      "resource": "SELECT \"name\", \"route\" FROM \"router\" WHERE \"name\" IN ( :names__0 )",
-                      "trace_id": 0,
-                      "span_id": 134,
-                      "parent_id": 103,
-                      "type": "sql",
-                      "meta": {
-                        "component": "pdo",
-                        "db.charset": "utf8mb4",
-                        "db.engine": "mysql",
-                        "db.name": "test",
-                        "db.system": "mysql",
-                        "db.user": "test",
-                        "out.host": "mysql_integration",
-                        "out.port": "3306",
-                        "span.kind": "client"
-                      },
-                      "metrics": {
-                        "db.row_count": 1.0
-                      }
-                    },
-                    {
-                      "name": "drupal.hook.theme_suggestions_region",
-                      "service": "test_drupal_95",
-                      "resource": "drupal.hook.theme_suggestions_region",
-                      "trace_id": 0,
-                      "span_id": 135,
-                      "parent_id": 103,
-                      "type": "web",
-                      "meta": {
-                        "component": "drupal",
-                        "drupal.function": "system_theme_suggestions_region",
-                        "drupal.hook": "theme_suggestions_region",
-                        "drupal.module": "system"
-                      }
-                    },
-                    {
-                      "name": "drupal.template.render",
-                      "service": "test_drupal_95",
-                      "resource": "drupal.template.render",
-                      "trace_id": 0,
-                      "span_id": 136,
-                      "parent_id": 103,
-                      "type": "web",
-                      "meta": {
-                        "component": "drupal",
-                        "drupal.template": "core/modules/system/templates/region.html.twig",
-                        "drupal.theme_engine": "twig",
-                        "drupal.theme_name": "stark"
+                        "drupal.theme.engine": "twig",
+                        "drupal.theme.name": "stark"
                       }
                     },
                  {
@@ -2153,14 +301,14 @@
                    "service": "test_drupal_95",
                    "resource": "drupal.template.render",
                    "trace_id": 0,
-                   "span_id": 104,
-                   "parent_id": 87,
+                   "span_id": 17,
+                   "parent_id": 15,
                    "type": "web",
                    "meta": {
                      "component": "drupal",
                      "drupal.template": "core/modules/system/templates/off-canvas-page-wrapper.html.twig",
-                     "drupal.theme_engine": "twig",
-                     "drupal.theme_name": "stark"
+                     "drupal.theme.engine": "twig",
+                     "drupal.theme.name": "stark"
                    }
                  },
            {
@@ -2168,235 +316,20 @@
              "service": "test_drupal_95",
              "resource": "symfony.kernel.response",
              "trace_id": 0,
-             "span_id": 38,
-             "parent_id": 7,
+             "span_id": 11,
+             "parent_id": 5,
              "type": "web",
              "meta": {
                "component": "symfony"
              }
            },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 88,
-                "parent_id": 38,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 89,
-                "parent_id": 38,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT 1 AS \"expression\"\nFROM\n\"key_value\" \"key_value\"\nWHERE (\"name\" = :db_condition_placeholder_0) AND (\"collection\" = :db_condition_placeholder_1)",
-                "trace_id": 0,
-                "span_id": 90,
-                "parent_id": 38,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT 1 AS \"expression\"\nFROM\n\"key_value\" \"key_value\"\nWHERE (\"name\" = :db_condition_placeholder_0) AND (\"collection\" = :db_condition_placeholder_1)",
-                "trace_id": 0,
-                "span_id": 91,
-                "parent_id": 38,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "INSERT INTO \"key_value\" (\"name\", \"collection\", \"value\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2)",
-                "trace_id": 0,
-                "span_id": 92,
-                "parent_id": 38,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "INSERT INTO \"key_value\" (\"name\", \"collection\", \"value\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2)",
-                "trace_id": 0,
-                "span_id": 93,
-                "parent_id": 38,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 94,
-                "parent_id": 38,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 95,
-                "parent_id": 38,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 1.0
-                }
-              },
-              {
-                "name": "PDO.prepare",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 96,
-                "parent_id": 38,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                }
-              },
-              {
-                "name": "PDOStatement.execute",
-                "service": "pdo",
-                "resource": "SELECT \"name\", \"value\" FROM \"key_value\" WHERE \"name\" IN ( :keys__0 ) AND \"collection\" = :collection",
-                "trace_id": 0,
-                "span_id": 97,
-                "parent_id": 38,
-                "type": "sql",
-                "meta": {
-                  "component": "pdo",
-                  "db.charset": "utf8mb4",
-                  "db.engine": "mysql",
-                  "db.name": "test",
-                  "db.system": "mysql",
-                  "db.user": "test",
-                  "out.host": "mysql_integration",
-                  "out.port": "3306",
-                  "span.kind": "client"
-                },
-                "metrics": {
-                  "db.row_count": 0.0
-                }
-              },
            {
              "name": "symfony.kernel.finish_request",
              "service": "test_drupal_95",
              "resource": "symfony.kernel.finish_request",
              "trace_id": 0,
-             "span_id": 39,
-             "parent_id": 7,
+             "span_id": 12,
+             "parent_id": 5,
              "type": "web",
              "meta": {
                "component": "symfony"
@@ -2413,262 +346,4 @@
        "meta": {
          "component": "symfony"
        }
-     },
-        {
-          "name": "PDO.prepare",
-          "service": "pdo",
-          "resource": "INSERT INTO \"semaphore\" (\"name\", \"value\", \"expire\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2)",
-          "trace_id": 0,
-          "span_id": 8,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          }
-        },
-        {
-          "name": "PDOStatement.execute",
-          "service": "pdo",
-          "resource": "INSERT INTO \"semaphore\" (\"name\", \"value\", \"expire\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2)",
-          "trace_id": 0,
-          "span_id": 9,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          },
-          "metrics": {
-            "db.row_count": 1.0
-          }
-        },
-        {
-          "name": "PDO.prepare",
-          "service": "pdo",
-          "resource": "DELETE FROM \"semaphore\" \nWHERE (\"name\" = :db_condition_placeholder_0) AND (\"value\" = :db_condition_placeholder_1)",
-          "trace_id": 0,
-          "span_id": 10,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          }
-        },
-        {
-          "name": "PDOStatement.execute",
-          "service": "pdo",
-          "resource": "DELETE FROM \"semaphore\" \nWHERE (\"name\" = :db_condition_placeholder_0) AND (\"value\" = :db_condition_placeholder_1)",
-          "trace_id": 0,
-          "span_id": 11,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          },
-          "metrics": {
-            "db.row_count": 1.0
-          }
-        },
-        {
-          "name": "PDO.prepare",
-          "service": "pdo",
-          "resource": "INSERT INTO \"semaphore\" (\"name\", \"value\", \"expire\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2)",
-          "trace_id": 0,
-          "span_id": 12,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          }
-        },
-        {
-          "name": "PDOStatement.execute",
-          "service": "pdo",
-          "resource": "INSERT INTO \"semaphore\" (\"name\", \"value\", \"expire\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2)",
-          "trace_id": 0,
-          "span_id": 13,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          },
-          "metrics": {
-            "db.row_count": 1.0
-          }
-        },
-        {
-          "name": "PDO.prepare",
-          "service": "pdo",
-          "resource": "DELETE FROM \"semaphore\" \nWHERE (\"name\" = :db_condition_placeholder_0) AND (\"value\" = :db_condition_placeholder_1)",
-          "trace_id": 0,
-          "span_id": 14,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          }
-        },
-        {
-          "name": "PDOStatement.execute",
-          "service": "pdo",
-          "resource": "DELETE FROM \"semaphore\" \nWHERE (\"name\" = :db_condition_placeholder_0) AND (\"value\" = :db_condition_placeholder_1)",
-          "trace_id": 0,
-          "span_id": 15,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          },
-          "metrics": {
-            "db.row_count": 1.0
-          }
-        },
-        {
-          "name": "PDO.prepare",
-          "service": "pdo",
-          "resource": "INSERT INTO \"semaphore\" (\"name\", \"value\", \"expire\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2)",
-          "trace_id": 0,
-          "span_id": 16,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          }
-        },
-        {
-          "name": "PDOStatement.execute",
-          "service": "pdo",
-          "resource": "INSERT INTO \"semaphore\" (\"name\", \"value\", \"expire\") VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2)",
-          "trace_id": 0,
-          "span_id": 17,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          },
-          "metrics": {
-            "db.row_count": 1.0
-          }
-        },
-        {
-          "name": "PDO.prepare",
-          "service": "pdo",
-          "resource": "DELETE FROM \"semaphore\" \nWHERE (\"name\" = :db_condition_placeholder_0) AND (\"value\" = :db_condition_placeholder_1)",
-          "trace_id": 0,
-          "span_id": 18,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          }
-        },
-        {
-          "name": "PDOStatement.execute",
-          "service": "pdo",
-          "resource": "DELETE FROM \"semaphore\" \nWHERE (\"name\" = :db_condition_placeholder_0) AND (\"value\" = :db_condition_placeholder_1)",
-          "trace_id": 0,
-          "span_id": 19,
-          "parent_id": 3,
-          "type": "sql",
-          "meta": {
-            "component": "pdo",
-            "db.charset": "utf8mb4",
-            "db.engine": "mysql",
-            "db.name": "test",
-            "db.system": "mysql",
-            "db.user": "test",
-            "out.host": "mysql_integration",
-            "out.port": "3306",
-            "span.kind": "client"
-          },
-          "metrics": {
-            "db.row_count": 1.0
-          }
-        }]]
+     }]]

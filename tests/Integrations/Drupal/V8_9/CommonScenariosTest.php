@@ -14,7 +14,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     protected static function getEnvs()
     {
-        return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_drupal_89']);
+        return array_merge(parent::getEnvs(), [
+            'DD_SERVICE' => 'test_drupal_89',
+            'DD_TRACE_PDO_ENABLED' => 'false'
+        ]);
     }
 
     public function ddSetUp()

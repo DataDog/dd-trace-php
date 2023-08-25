@@ -63,47 +63,29 @@ class DrupalIntegration extends Integration
             ]
         );
 
-        // Views Metrics
-        trace_method(
-            'Drupal\views\ViewExecutable',
-            'execute',
-            function (SpanData $span, $args, $retval) {
-                // TODO: Create a new span as a metric workaround
-                $span->name = 'drupal.view.execute';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('drupal');
-                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
-                if (method_exists($this->storage, 'label')) {
-                    $label = $this->storage->label();
-                    if (is_string($label)) {
-                        $span->meta['drupal.view'] = $label;
-                    }
-                }
-            }
-        );
-
-        // Cache Metrics (Cache hit/miss)
+        // Cache Metrics (Cache hit/miss) - TBC
         /*
         hook_method(
             'Drupal\Core\Cache\CacheBackendInterface',
             'getMultiple',
             function ($cacheBackend, $scope, $args) {
-                $nCids = count($args[0]);
+                $candidates = count($args[0]);
             },
             function ($cacheBackend, $scope, $args, $retval) {
-                $nCids = count($args[0]); // &cids parameter is modified by reference to match the cache hits
+                $hits = count($args[0]); // the &cids parameter is modified by reference to match the cache hits
             }
         );
         */
 
         // Module and Hook Metrics
+        /*
         hook_method(
             'Drupal\Core\Extension\ModuleHandler',
             'invokeAllWith',
             function ($moduleHandler, $scope, $args) {
-                /** @var string $hook */
+                // @var string $hook
                 $hook = $args[0];
-                /** @var callable $callback */
+                // @var callable $callback
                 $callback = $args[1];
 
                 install_hook(
@@ -117,7 +99,7 @@ class DrupalIntegration extends Integration
                         install_hook(
                             $functionName,
                             function (HookData $fnHookData) use ($hook, $module, $functionName) {
-                                // TODO: Create a span as a metric workaround
+                                // Create a span as a metric workaround
                                 $span = $fnHookData->span();
                                 $span->name = 'drupal.hook.' . $hook;
                                 $span->type = Type::WEB_SERVLET;
@@ -137,18 +119,21 @@ class DrupalIntegration extends Integration
                 );
             }
         );
+        */
 
+        // View Metrics
+        /*
         install_hook(
             'Drupal\views\ViewExecutable::execute',
             function (HookData $hook) {
-                // TODO: Create a span as a metric workaround
+                // Create a span as a metric workaround
                 $span = $hook->span();
                 $span->name = 'drupal.view.execute';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('drupal');
                 $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
 
-                /** @var \Drupal\views\Entity\View $storage */
+                // @var \Drupal\views\Entity\View $storage
                 $storage = $this->storage;
 
                 if (method_exists($storage, 'label')) {
@@ -159,33 +144,19 @@ class DrupalIntegration extends Integration
                 }
             }
         );
-
-
-        /*
-        trace_method(
-            'Drupal\big_pipe\Render\BigPipe',
-            'renderPlaceholder',
-            function (SpanData $span, $args) {
-                $span->name = 'drupal.placeholder.render';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('drupal');
-                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
-            }
-        );
         */
 
         $themeEngines = [];
         hook_method(
             'Drupal\Core\Theme\ThemeManager',
             'render',
-            function ($themeManager, $scope, $args) use (&$themeEngines) {
+            function ($themeManager) use (&$themeEngines) {
                 $renderFunction = 'twig_render_template'; // Default
 
                 $activeTheme = $themeManager->getActiveTheme();
                 $themeName = $activeTheme->getName();
-                Logger::get()->debug("ThemeManager::render themeName: $themeName");
                 $themeEngine = $activeTheme->getEngine();
-                Logger::get()->debug("ThemeManager::render themeEngine: $themeEngine");
+
                 // The theme engine may use a different extension and a different renderer
                 if (isset($themeEngine) && function_exists("{$themeEngine}_render_template")) {
                     $renderFunction = "{$themeEngine}_render_template";
@@ -195,7 +166,6 @@ class DrupalIntegration extends Integration
 
                 if (!isset($themeEngines[$themeEngine])) { // Install hook only once per theme engine
                     $themeEngines[$themeEngine] = true;
-                    Logger::get()->debug("ThemeManager::render install_hook on $renderFunction");
                     trace_function(
                         $renderFunction,
                         [
@@ -206,17 +176,12 @@ class DrupalIntegration extends Integration
                                 $span->type = Type::WEB_SERVLET;
                                 $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
 
-                                $templateFile = $args[0];
-                                if (isset($templateFile)) {
-                                    $span->meta['drupal.template'] = $templateFile;
-                                    $span->meta['drupal.theme_name'] = $themeName;
-                                    $span->meta['drupal.theme_engine'] = $themeEngine;
-                                }
+                                $span->meta['drupal.template'] = $args[0];
+                                $span->meta['drupal.theme.name'] = $themeName;
+                                $span->meta['drupal.theme.engine'] = $themeEngine;
                             }
                         ]
                     );
-                } else {
-                    Logger::get()->debug("ThemeManager::render hook already installed on $renderFunction");
                 }
             }
         );
