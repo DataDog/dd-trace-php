@@ -25,11 +25,13 @@
 	"scripts": {
 		"post-install-cmd": [
 			"php artisan clear-compiled",
-			"php artisan optimize"
+			"php artisan optimize",
+			"php artisan migrate:fresh --force"
 		],
 		"post-update-cmd": [
 			"php artisan clear-compiled",
-			"php artisan optimize"
+			"php artisan optimize",
+			"php artisan migrate:fresh --force"
 		],
 		"post-create-project-cmd": [
 			"php artisan key:generate"
