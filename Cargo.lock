@@ -531,32 +531,6 @@ dependencies = [
 
 [[package]]
 name = "criterion"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7c76e09c1aae2bc52b3d2f29e13c6572553b30c4aa1b8a49fd70de6412654cb"
-dependencies = [
- "anes",
- "atty",
- "cast",
- "ciborium",
- "clap 3.2.25",
- "criterion-plot",
- "itertools",
- "lazy_static",
- "num-traits",
- "oorandom",
- "plotters",
- "rayon",
- "regex",
- "serde",
- "serde_derive",
- "serde_json",
- "tinytemplate",
- "walkdir",
-]
-
-[[package]]
-name = "criterion"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2b12d017a929603d80db1831cd3a24082f8137ce19c69e6447f54f5fc8d692f"
@@ -583,11 +557,11 @@ dependencies = [
 
 [[package]]
 name = "criterion-perf-events"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37a5379f1ceab88909ae1765858b6ca117acc8166d7f4cdca6cfc4bc4646124d"
+checksum = "902f0b181e1f7a7865e224df9cff57f164c3d95ad8dfcb81f692faa5087c2f17"
 dependencies = [
- "criterion 0.4.0",
+ "criterion",
  "perfcnt",
 ]
 
@@ -671,7 +645,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bytes",
- "criterion 0.5.1",
+ "criterion",
  "datadog-ipc-macros",
  "futures",
  "glibc_version",
@@ -713,11 +687,11 @@ dependencies = [
  "cc",
  "cfg-if",
  "cpu-time",
- "criterion 0.4.0",
+ "criterion",
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-profiling",
- "ddcommon 3.0.0 (git+https://github.com/DataDog/libdatadog?tag=v3.0.0)",
+ "ddcommon 4.0.0",
  "env_logger",
  "indexmap 2.0.0",
  "lazy_static",
@@ -733,14 +707,14 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "3.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v3.0.0#76654afea6476b6209448bd16ec47124f594e5d5"
+version = "4.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v4.0.0#a07180585a39b0e0baeb858d20efb8d7b57f17c4"
 dependencies = [
  "anyhow",
  "bitmaps",
  "bytes",
  "chrono",
- "ddcommon 3.0.0 (git+https://github.com/DataDog/libdatadog?tag=v3.0.0)",
+ "ddcommon 4.0.0",
  "derivative",
  "futures",
  "futures-core",
@@ -898,14 +872,15 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "3.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v3.0.0#76654afea6476b6209448bd16ec47124f594e5d5"
+version = "4.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v4.0.0#a07180585a39b0e0baeb858d20efb8d7b57f17c4"
 dependencies = [
  "anyhow",
  "futures",
  "futures-core",
  "futures-util",
  "hex",
+ "http",
  "hyper",
  "hyper-rustls",
  "lazy_static",
