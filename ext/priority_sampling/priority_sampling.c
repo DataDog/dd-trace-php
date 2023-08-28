@@ -1,6 +1,6 @@
 #include "priority_sampling.h"
 
-#include <mt19937-64.h>
+#include <vendor/mt19937/mt19937-64.h>
 
 #include <uri_normalization/uri_normalization.h>
 #include <json/json.h>

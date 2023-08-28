@@ -1,7 +1,7 @@
 version: '3.6'
 
 x-aliases:
-  - &base_php_service
+  - &linux_php_service
       ulimits:
         core: 99999999999
       working_dir: '/home/circleci/app'
@@ -43,37 +43,61 @@ x-aliases:
         - seccomp:unconfined
       # Privileged is requires to run some pcntl tests locally.
       # privileged: true
+      
+  - &windows_php_service
+      volumes:
+        - .:C:\Users\ContainerAdministrator\app
+        - .composer:C:\Users\ContainerAdministrator\.composer
+      depends_on:
+        - windows-request-replayer
+        - windows-httpbin_integration
+      environment:
+        - DDAGENT_HOSTNAME=ddagent_integration
+        - HTTPBIN_HOSTNAME=httpbin_integration
+        - COMPOSER_MEMORY_LIMIT=-1
+        - PHP_IDE_CONFIG=serverName=docker
+        - DD_TRACE_DOCKER_DEBUG
+        - DATADOG_HAVE_DEV_ENV=1
 
 services:
   # --- Alpine (Legacy) ---
-  '7.0-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.0-debug' }
-  '7.1-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-debug' }
-  '7.2-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-debug' }
-  '7.3-alpine': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-debug' }
-  '7.4-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
+  '7.0-alpine': { <<: *linux_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.0-debug' }
+  '7.1-alpine': { <<: *linux_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-debug' }
+  '7.2-alpine': { <<: *linux_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-debug' }
+  '7.3-alpine': { <<: *linux_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-debug' }
+  '7.4-alpine': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
   # --- Alpine ---
-  '8.0-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
+  '8.0-alpine': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
   # --- Buster ---
-  '7.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_buster' }
-  '7.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_buster' }
-  '7.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_buster' }
-  '7.3-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_buster' }
-  '7.4-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_buster' }
-  '7.4-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext' }
-  '8.0-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
-  '8.0-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
-  '8.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
-  '8.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.2_buster' }
-  'php-master-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
-  # --- CentOS 6 ---
-  '7.0-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }
-  '7.1-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-7' }
-  '7.2-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_centos-7' }
-  '7.3-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-7' }
-  '7.4-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_centos-7' }
-  '8.0-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-7' }
-  '8.1-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_centos-7' }
-  '8.2-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.2_centos-7' }
+  '7.0-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_buster' }
+  '7.1-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_buster' }
+  '7.2-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.2_buster' }
+  '7.3-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.3_buster' }
+  '7.4-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4_buster' }
+  '7.4-buster-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext' }
+  '8.0-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
+  '8.0-buster-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
+  '8.1-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
+  '8.2-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_buster' }
+  'php-master-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
+  # --- CentOS 7 ---
+  '7.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }
+  '7.1-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-7' }
+  '7.2-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.2_centos-7' }
+  '7.3-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-7' }
+  '7.4-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4_centos-7' }
+  '8.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-7' }
+  '8.1-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_centos-7' }
+  '8.2-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_centos-7' }
+  # --- Windows ---
+  '7.0-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.0_windows' }
+  '7.1-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.1_windows' }
+  '7.2-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.2_windows' }
+  '7.3-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.3_windows' }
+  '7.4-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.4_windows' }
+  '8.0-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.0_windows' }
+  '8.1-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.1_windows' }
+  '8.2-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.2_windows' }
 
   rabbitmq_integration:
     image: rabbitmq:3.8.9-alpine # 3.8.9 is the latest version that supports Erlang 20
@@ -189,6 +213,25 @@ services:
       - SNAPSHOT_CI=0
       - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.process_id
       - ENABLED_CHECKS=trace_stall,trace_peer_service,trace_dd_service
+
+
+  windows-request-replayer:
+    image: datadog/dd-trace-ci:php-request-replayer-2.0-windows
+    ports:
+      - "8766:80"
+    networks:
+      default:
+        aliases:
+          - request-replayer
+
+  windows-httpbin_integration:
+    image: datadog/dd-trace-ci:httpbin-windows
+    ports:
+      - "8765:80"
+    networks:
+      default:
+        aliases:
+          - httpbin_integration
 
 volumes:
   agent-socket:

@@ -26,7 +26,7 @@ typedef struct zai_str_s {
 
 /** Private, you probably want to use ZAI_STR_NEW or zai_str_new. */
 #define ZAI_STR_FROM_RAW_PARTS(data, size) \
-    (zai_str) {.ptr = (data), .len = (size)}
+    {.ptr = (data), .len = (size)}
 
 /**
  * ZAI_STR_NEW creates a zai_str from the given pointer and length. Use if the
@@ -63,7 +63,10 @@ typedef struct zai_str_s {
  * If the pointer is known to be non-null, use ZAI_STR_NEW directly.
  */
 static inline zai_str zai_str_new(const char *ptr, size_t len) {
-    return ptr ? ZAI_STR_FROM_RAW_PARTS(ptr, len) : ZAI_STR_EMPTY;
+    if (ptr) {
+        return (zai_str)ZAI_STR_FROM_RAW_PARTS(ptr, len);
+    }
+    return (zai_str)ZAI_STR_EMPTY;
 }
 
 /**
@@ -73,7 +76,10 @@ static inline zai_str zai_str_new(const char *ptr, size_t len) {
  * If the pointer is known to be non-null, use ZAI_STR_FROM_CSTR directly.
  */
 static inline zai_str zai_str_from_cstr(const char *cstr) {
-    return cstr ? ZAI_STR_FROM_CSTR(cstr) : ZAI_STR_EMPTY;
+    if (cstr) {
+        return (zai_str)ZAI_STR_FROM_CSTR(cstr);
+    }
+    return (zai_str)ZAI_STR_EMPTY;
 }
 
 /**
@@ -83,7 +89,10 @@ static inline zai_str zai_str_from_cstr(const char *cstr) {
  * If the pointer is known to be non-null, use ZAI_STR_FROM_ZSTR directly.
  */
 inline zai_str zai_str_from_zstr(zend_string *zstr) {
-    return zstr ? ZAI_STR_FROM_ZSTR(zstr) : ZAI_STR_EMPTY;
+    if (zstr) {
+        return (zai_str)ZAI_STR_FROM_ZSTR(zstr);
+    }
+    return (zai_str)ZAI_STR_EMPTY;
 }
 
 /** Returns whether the string is empty. */
@@ -167,7 +176,7 @@ bool zai_option_str_get(zai_option_str self, zai_str *view) {
     // Doing it in this order made slightly better assembly, and a ZEND_ASSERT
     // guards this on debug builds in case of a mistake.
     zai_str value = ZAI_STR_FROM_RAW_PARTS(self.ptr, self.len);
-    *view = zai_option_str_is_some(self) ? value : ZAI_STR_EMPTY;
+    *view = zai_option_str_is_some(self) ? value : (zai_str)ZAI_STR_EMPTY;
     ZEND_ASSERT(view->ptr != NULL);
     return self.ptr;
 }
@@ -194,13 +203,15 @@ typedef struct zai_string_s {
 } zai_string;
 
 #define ZAI_STRING_EMPTY \
-    (zai_string) {.ptr = ZAI_STRING_EMPTY_PTR, .len = 0}
+    {.ptr = ZAI_STRING_EMPTY_PTR, .len = 0}
 
 /**
  * Creates a zai_str view of the zai_string. Make sure the zai_str does not
  * outlive the zai_string.
  */
+#ifndef _WIN32
 __attribute__((pure))
+#endif
 static inline zai_str zai_string_as_str(const zai_string *string) {
     zai_str str;
     memcpy(&str, string, sizeof(zai_str));
@@ -209,7 +220,7 @@ static inline zai_str zai_string_as_str(const zai_string *string) {
 
 static inline zai_string zai_string_from_str(zai_str str) {
     if (str.len == 0) {
-        return ZAI_STRING_EMPTY;
+        return (zai_string)ZAI_STRING_EMPTY;
     }
 
     // plus 1 for the null byte
@@ -223,7 +234,7 @@ inline zai_string zai_string_concat3(zai_str first, zai_str second, zai_str thir
     size_t len = first.len + second.len + third.len;
 
     if (len == 0) {
-        return ZAI_STRING_EMPTY;
+        return (zai_string)ZAI_STRING_EMPTY;
     }
 
     // plus 1 for the null byte

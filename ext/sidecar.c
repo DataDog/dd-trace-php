@@ -1,6 +1,6 @@
 #include "ddtrace.h"
+#include "auto_flush.h"
 #include "configuration.h"
-#include "coms.h"
 #include "logging.h"
 #include <components-rs/ddtrace.h>
 #include "sidecar.h"
@@ -20,11 +20,6 @@ static void ddtrace_set_sidecar_globals(void) {
 }
 
 static bool dd_sidecar_connection_init(void) {
-    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&ddtrace_sidecar, get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()))) {
-        ddtrace_sidecar = NULL;
-        return false;
-    }
-
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
         ddtrace_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
     } else {
@@ -32,8 +27,15 @@ static bool dd_sidecar_connection_init(void) {
         ddtrace_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
         free(agent_url);
     }
+
     if (!ddtrace_endpoint) {
-        ddog_sidecar_transport_drop(ddtrace_sidecar);
+        ddtrace_sidecar = NULL;
+        return false;
+    }
+
+    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&ddtrace_sidecar, get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()))) {
+        ddog_endpoint_drop(ddtrace_endpoint);
+        ddtrace_endpoint = NULL;
         ddtrace_sidecar = NULL;
         return false;
     }
@@ -73,8 +75,10 @@ void ddtrace_sidecar_shutdown(void) {
     if (ddtrace_sidecar_instance_id) {
         ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
     }
-    if (ddtrace_sidecar) {
+    if (ddtrace_endpoint) {
         ddog_endpoint_drop(ddtrace_endpoint);
+    }
+    if (ddtrace_sidecar) {
         ddog_sidecar_transport_drop(ddtrace_sidecar);
     }
 }

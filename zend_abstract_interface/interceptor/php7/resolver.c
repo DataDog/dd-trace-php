@@ -90,7 +90,11 @@ static zend_op_array *zai_interceptor_compile_string(zval *source_string, char *
     return op_array;
 }
 
-static void (*prev_class_alias)(INTERNAL_FUNCTION_PARAMETERS);
+#if PHP_VERSION_ID < 70200
+typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
+#endif
+
+static zif_handler prev_class_alias;
 PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
     prev_class_alias(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     if (Z_TYPE_P(return_value) == IS_TRUE) {

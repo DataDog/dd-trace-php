@@ -2,7 +2,15 @@
 
 function dd_get_php_cgi()
 {
-    $executable = getenv('TEST_PHP_CGI_EXECUTABLE') ?: getenv('TEST_PHP_EXECUTABLE') . '-cgi';
+    $executable = getenv('TEST_PHP_CGI_EXECUTABLE');
+    if (!$executable) {
+        $executable = getenv('TEST_PHP_EXECUTABLE');
+        if (@substr($executable, -4) === ".exe") {
+            $executable = substr($executable, -4) . "-cgi.exe";
+        } else {
+            $executable .= '-cgi';
+        }
+    }
     if (file_exists($executable) && is_executable($executable)) {
         $args = getenv('TEST_PHP_ARGS');
         return $args ? "$executable $args" : "$executable";
@@ -24,14 +32,14 @@ function dd_get_startup_logs(array $args = [], array $env = [])
     putenv("REQUEST_METHOD");
 
     $argList = implode(' ', $args);
-    $envVars = implode(' ', $env);
     $cgi = dd_get_php_cgi();
-    $cmd = $envVars . ' ' . $cgi . ' ' . getenv("TEST_PHP_EXTRA_ARGS") . ' ' . $argList . ' -v 2>&1';
-    exec($cmd, $o);
+    $cmd = $cgi . ' ' . getenv("TEST_PHP_EXTRA_ARGS") . ' ' . $argList . ' -v 2>&1';
+    $proc = proc_open($cmd, [["pipe", "r"], ["pipe", "w"], ["pipe", "w"]], $pipes, null, $env);
+    $o = stream_get_contents($pipes[1]);
 
     $target = 'DATADOG TRACER CONFIGURATION - ';
     $json = '';
-    foreach ($o as $line) {
+    foreach (explode("\n", $o) as $line) {
         $pos = strpos($line, $target);
         if ($pos !== false) {
             $json = substr($line, $pos + strlen($target));
@@ -41,7 +49,7 @@ function dd_get_startup_logs(array $args = [], array $env = [])
 
     if (!$json) {
         echo $cmd . PHP_EOL;
-        echo 'No JSON found: (' . implode('; ', $o) . ')' . PHP_EOL;
+        echo 'No JSON found: (' . str_replace($o, "\n", '; ') . ')' . PHP_EOL;
         return [];
     }
     $logs = json_decode($json, true);

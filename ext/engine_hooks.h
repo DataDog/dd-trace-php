@@ -96,7 +96,7 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup) {
 PHP_FUNCTION(ddtrace_internal_function_handler);
 
 #define DDTRACE_ERROR_CB_PARAMETERS \
-    int orig_type, const char *error_filename, const uint error_lineno, const char *format, va_list args
+    int orig_type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args
 
 #define DDTRACE_ERROR_CB_PARAM_PASSTHRU orig_type, error_filename, error_lineno, format, args
 #else

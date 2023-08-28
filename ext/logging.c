@@ -1,9 +1,13 @@
 #include "logging.h"
 
-#include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#ifndef _WIN32
+#include <stdatomic.h>
+#else
+#include <components/atomic_win32_polyfill.h>
+#endif
 
 #include "configuration.h"
 #include <main/SAPI.h>
@@ -12,7 +16,7 @@ static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
     return (ddog_CharSlice){ .len = str->len, .ptr = str->val };
 }
 
-atomic_uintptr_t php_ini_error_log;
+_Atomic(uintptr_t) php_ini_error_log;
 
 void ddtrace_bgs_log_minit(void) { atomic_store(&php_ini_error_log, (uintptr_t)NULL); }
 
@@ -78,7 +82,7 @@ static void ddtrace_log_callback(ddog_Log log, ddog_CharSlice msg) {
 
     char *message = (char*)msg.ptr;
     if (msg.ptr[msg.len]) {
-        message = strndup(msg.ptr, msg.len);
+        message = zend_strndup(msg.ptr, msg.len);
         php_log_err(message);
         free(message);
     } else {

@@ -11,7 +11,16 @@ use ddtelemetry_ffi::{try_c, MaybeError};
 use spawn_worker::LibDependency;
 use std::error::Error;
 use std::path::Path;
-use std::{fs, io};
+use std::fs;
+
+#[cfg(windows)]
+macro_rules! windowsify_path {
+    ($lit:literal) => (const_str::replace!($lit, "/", "\\"))
+}
+#[cfg(unix)]
+macro_rules! windowsify_path {
+    ($lit:literal) => ($lit)
+}
 
 #[must_use]
 #[no_mangle]
@@ -22,8 +31,8 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
     path: CharSlice,
 ) -> bool {
     let pathstr = unsafe { path.to_utf8_lossy() };
-    if let Some(index) = pathstr.rfind("/vendor/autoload.php") {
-        let path = format!("{}{}", &pathstr[..index], "/vendor/composer/installed.json");
+    if let Some(index) = pathstr.rfind(windowsify_path!("/vendor/autoload.php")) {
+        let path = format!("{}{}", &pathstr[..index], windowsify_path!("/vendor/composer/installed.json"));
         if parse_composer_installed_json(transport, instance_id, queue_id, path).is_ok() {
             return true;
         }
@@ -62,14 +71,14 @@ fn parse_composer_installed_json(
 const MOCK_PHP: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/mock_php.shared_lib"));
 
 #[cfg(php_shared_build)]
-fn run_sidecar(mut cfg: config::Config) -> io::Result<SidecarTransport> {
+fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     cfg.library_dependencies
         .push(LibDependency::Binary(MOCK_PHP));
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 #[cfg(not(php_shared_build))]
-fn run_sidecar(cfg: config::Config) -> io::Result<SidecarTransport> {
+fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 

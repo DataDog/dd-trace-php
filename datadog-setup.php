@@ -33,6 +33,12 @@ const RELEASE_VERSION = '@release_version@';
 define('RELEASE_URL_PREFIX', (getenv('DD_TEST_INSTALLER_REPO') ?: "https://github.com/DataDog/dd-trace-php") . "/releases/download/" . RELEASE_VERSION . "/");
 // phpcs:enable Generic.Files.LineLength.TooLong
 
+define('IS_WINDOWS', strncasecmp(PHP_OS, "WIN", 3) == 0);
+define('EXTENSION_PREFIX', IS_WINDOWS ? "php_" : "");
+define('EXTENSION_SUFFIX', IS_WINDOWS ? "dll" : "so");
+
+define('DEFAULT_INSTALL_DIR', IS_WINDOWS ? getenv('ProgramW6432') . '\Datadog\PHP Tracer' : '/opt/datadog');
+
 /**
  * The number of items to shift off `get_ini_settings` for config commands.
  */
@@ -67,6 +73,7 @@ function main()
 
 function print_help()
 {
+    $installdir = DEFAULT_INSTALL_DIR;
     echo <<<EOD
 
 Usage:
@@ -83,7 +90,7 @@ Options:
     --php-bin all|<path to php> Install the library to the specified binary or
                                 all php binaries in standard search paths. The
                                 option can be provided multiple times.
-    --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
+    --install-dir <path>        Install to a specific directory. Default: '$installdir'
     --uninstall                 Uninstall the library from the specified binaries.
     --enable-appsec             Enable the application security monitoring module.
     --enable-profiling          Enable the profiling module.
@@ -116,6 +123,7 @@ class IniRecord
     {
         // phpcs:disable Generic.Files.LineLength.TooLong
         echo "$this->setting = $this->currentValue; default: $this->defaultValue, binary: $this->binary, INI file: $this->iniFile\n";
+        // phpcs:disable Generic.Files.LineLength.TooLong
     }
 }
 
@@ -432,7 +440,7 @@ function update_ini_setting($setting, $iniFile, $promoteComment)
 function install($options)
 {
     $architecture = get_architecture();
-    $platform = "$architecture-linux-" . (is_alpine() ? 'musl' : 'gnu');
+    $platform = "$architecture-" . (IS_WINDOWS ? "windows" : "linux-" . (is_alpine() ? 'musl' : 'gnu'));
 
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');
@@ -459,14 +467,16 @@ function install($options)
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
-    execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
+    execute_or_exit("Cannot create directory '$tmpDir'", "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($tmpDir));
     register_shutdown_function(function () use ($tmpDir) {
-        execute_or_exit("Cannot remove temporary directory '$tmpDir'", "rm -rf " . escapeshellarg($tmpDir));
+        execute_or_exit("Cannot remove temporary directory '$tmpDir'", (IS_WINDOWS ? "rd /s /q " : "rm -rf ") . escapeshellarg($tmpDir));
     });
-    execute_or_exit(
-        "Cannot clean '$tmpDir'",
-        "rm -rf " . escapeshellarg($tmpDir) . "/* "
-    );
+    if (!IS_WINDOWS) {
+        execute_or_exit(
+            "Cannot clean '$tmpDir'",
+            "rm -rf " . escapeshellarg($tmpDir) . "/* "
+        );
+    }
 
     // Retrieve and extract the archive to a tmp location
     if (isset($options[OPT_FILE])) {
@@ -492,11 +502,11 @@ function install($options)
     // copying sources to the final destination
     execute_or_exit(
         "Cannot create directory '$installDirSourcesDir'",
-        "mkdir -p " . escapeshellarg($installDirSourcesDir)
+        "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($installDirSourcesDir)
     );
     execute_or_exit(
         "Cannot copy files from '$tmpBridgeDir' to '$installDirSourcesDir'",
-        "cp -r " . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirSourcesDir)
+        (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirSourcesDir)
     );
     echo "Installed required source files to '$installDir'\n";
 
@@ -504,11 +514,11 @@ function install($options)
     if (file_exists($tmpArchiveAppsecRoot)) {
         execute_or_exit(
             "Cannot copy files from '$tmpArchiveAppsecBin' to '$installDir'",
-            "cp -rf " . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
+            (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -rf ") . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
         );
         execute_or_exit(
             "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
-            "cp -r " . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
+            (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
         );
     }
     $appSecRulesPath = $installDir . '/etc/recommended.json';
@@ -550,32 +560,35 @@ function install($options)
             $extensionSuffix .= '-zts';
         }
 
+        $extDir = $phpProperties[EXTENSION_DIR];
+
         // Trace
-        $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so";
+        $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/"
+            . EXTENSION_PREFIX . "ddtrace$extensionSuffix." . EXTENSION_SUFFIX;
         if (!file_exists($extensionRealPath)) {
             print_error_and_exit(substr($extensionSuffix ?: '-nts', 1) . ' builds of PHP are currently not supported');
         }
 
-        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
+        $extensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddtrace.' . EXTENSION_SUFFIX;
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
         // Profiling
-        // phpcs:disable Generic.Files.LineLength.TooLong
-        $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/datadog-profiling$extensionSuffix.so";
-        // phpcs:enable Generic.Files.LineLength.TooLong
+        $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/"
+            . EXTENSION_PREFIX . "datadog-profiling$extensionSuffix." . EXTENSION_SUFFIX;
         $shouldInstallProfiling = file_exists($profilingExtensionRealPath);
 
         if ($shouldInstallProfiling) {
-            $profilingExtensionDestination = $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so';
+            $profilingExtensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'datadog-profiling.' . EXTENSION_SUFFIX;
             safe_copy_extension($profilingExtensionRealPath, $profilingExtensionDestination);
         }
 
         // Appsec
-        $appsecExtensionRealPath = "{$tmpArchiveAppsecRoot}/ext/{$extensionVersion}/ddappsec{$extensionSuffix}.so";
+        $appsecExtensionRealPath = "{$tmpArchiveAppsecRoot}/ext/{$extensionVersion}/"
+            . EXTENSION_PREFIX . "ddappsec{$extensionSuffix}." . EXTENSION_SUFFIX;
         $shouldInstallAppsec = file_exists($appsecExtensionRealPath);
 
         if ($shouldInstallAppsec) {
-            $appsecExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddappsec.so';
+            $appsecExtensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX;
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
         }
         $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
@@ -583,11 +596,13 @@ function install($options)
         $iniFilePaths = find_main_ini_files($phpProperties);
 
         foreach ($iniFilePaths as $iniFilePath) {
+            $replacements = [];
+
             if (!file_exists($iniFilePath)) {
                 $iniDir = dirname($iniFilePath);
                 execute_or_exit(
                     "Cannot create directory '$iniDir'",
-                    "mkdir -p " . escapeshellarg($iniDir)
+                    "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($iniDir)
                 );
 
                 if (false === file_put_contents($iniFilePath, '')) {
@@ -601,53 +616,26 @@ function install($options)
                     echo " which is a symlink to '$iniFilePath'";
                 }
                 echo "\n";
-                // phpcs:disable Generic.Files.LineLength.TooLong
-                execute_or_exit(
-                    'Impossible to replace the deprecated ddtrace.request_init_hook parameter with the new name.',
-                    "sed -i 's|ddtrace.request_init_hook|datadog.trace.request_init_hook|g' "
-                    . escapeshellarg($iniFilePath)
-                );
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = '"
-                    . escapeshellarg($installDirWrapperPath)
-                    . "'@g' " . escapeshellarg($iniFilePath)
-                );
-                // phpcs:enable Generic.Files.LineLength.TooLong
 
-                /* In order to support upgrading from legacy installation method to new installation method, we replace
-                 * "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing `;`, hence not
-                 * automatically re-activating the extension if the user had commented it out.
-                 */
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@ \?;\? \?extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
-                    . escapeshellarg($iniFilePath)
-                );
-
-
-                // Support upgrading from the C based zend_extension.
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@zend_extension \?= \?.*datadog-profiling.*\(.*\)@extension = datadog-profiling.so@g' "
-                    . escapeshellarg($iniFilePath)
-                );
+                $replacements += [
+                    // Old name is deprecated
+                    '(ddtrace\.request_init_hook)' => 'datadog.trace.request_init_hook',
+                    '((datadog\.trace\.request_init_hook)\s*=\s*.*)' => "$1 = $installDirWrapperPath",
+                    /* In order to support upgrading from legacy installation method to new installation method, we
+                     * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
+                     * `;`, hence not automatically re-activating the extension if the user had commented it out.
+                     */
+                    '(^\s*;\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace." . EXTENSION_SUFFIX,
+                    // Support upgrading from the C based zend_extension.
+                    '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling." . EXTENSION_SUFFIX,
+                ];
             }
-
-            add_missing_ini_settings(
-                $iniFilePath,
-                get_ini_settings($installDirWrapperPath, $appSecHelperPath, $appSecRulesPath)
-            );
 
             // Enabling profiling
             if (is_truthy($options[OPT_ENABLE_PROFILING])) {
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 if ($shouldInstallProfiling) {
-                    execute_or_exit(
-                        'Impossible to update the INI settings file.',
-                        "sed -i 's@ \?; \?extension \?= \?datadog-profiling.so@extension = datadog-profiling.so@g' "
-                        . escapeshellarg($iniFilePath)
-                    );
+                    $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling." . EXTENSION_SUFFIX;
                 } else {
                     $enableProfiling = OPT_ENABLE_PROFILING;
                     print_error_and_exit(
@@ -661,47 +649,18 @@ function install($options)
 
             // phpcs:disable Generic.Files.LineLength.TooLong
             if ($shouldInstallAppsec) {
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
-                    . escapeshellarg($iniFilePath)
-                );
-
-                // Update helper path
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@datadog.appsec.helper_path \?= \?.*@datadog.appsec.helper_path = " . $appSecHelperPath . "@g' "
-                    . escapeshellarg($iniFilePath)
-                );
-
-                // Update and comment rules path
-                $rulesPathRegex = $options[OPT_INSTALL_DIR] . "/[0-9\.]*/etc/recommended.json";
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@^[ ;]*datadog.appsec.rules \?= \?" . $rulesPathRegex . "@;datadog.appsec.rules = " . $appSecRulesPath . "@g' "
-                    . escapeshellarg($iniFilePath)
-                );
-
-                if (is_truthy($options[OPT_ENABLE_APPSEC])) {
-                    execute_or_exit(
-                        'Impossible to update the INI settings file.',
-                        "sed -i 's@;\? \?datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
-                        . escapeshellarg($iniFilePath)
-                    );
-                } else {
-                    execute_or_exit(
-                        'Impossible to update the INI settings file.',
-                        "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = Off@g' "
-                        . escapeshellarg($iniFilePath)
-                    );
-                }
+                $rulesPathRegex = preg_quote($options[OPT_INSTALL_DIR]) . "/[0-9\.]*/etc/recommended.json";
+                $replacements += [
+                    '(^\s*;\s*extension\s*=\s*.*ddappsec.*)m' => "extension = ddappsec." . EXTENSION_SUFFIX,
+                    // Update helper path
+                    '(datadog.appsec.helper_path\s*=.*)' => "datadog.appsec.helper_path = $appSecHelperPath",
+                    // Update and comment rules path
+                    '(^[\s;]*datadog.appsec.rules\s*=\s*' . $rulesPathRegex . ')m' => "; datadog.appsec.rules = " . $appSecRulesPath,
+                    '(^[\s;]*datadog.appsec.enabled\s*=.*)m' => 'datadog.appsec.enabled = ' . (is_truthy($options[OPT_ENABLE_APPSEC]) ? 'On' : 'Off'),
+                ];
             } else {
                 // Ensure AppSec isn't loaded if not compatible
-                execute_or_exit(
-                    'Impossible to update the INI settings file.',
-                    "sed -i 's@extension \?= \?ddappsec.so@;extension = ddappsec.so@g' "
-                    . escapeshellarg($iniFilePath)
-                );
+                $replacements['(^[\s;]*extension\s*=\s*.*ddappsec.*)m'] = "; extension = ddappsec." . EXTENSION_SUFFIX;
 
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     $enableAppsec = OPT_ENABLE_APPSEC;
@@ -710,6 +669,13 @@ function install($options)
                     );
                 }
             }
+
+            add_missing_ini_settings(
+                $iniFilePath,
+                get_ini_settings($installDirWrapperPath, $appSecHelperPath, $appSecRulesPath),
+                $replacements
+            );
+
             // phpcs:enable Generic.Files.LineLength.TooLong
 
             echo "Installation to '$binaryForLog' was successful\n";
@@ -876,13 +842,13 @@ function uninstall($options)
         $phpProperties = ini_values($fullPath);
 
         $extensionDestinations = [
-            $phpProperties[EXTENSION_DIR] . '/ddtrace.so',
-            $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so',
-            $phpProperties[EXTENSION_DIR] . '/ddappsec.so',
+            $phpProperties[EXTENSION_DIR] . '/' . EXTENSION_PREFIX . 'ddtrace.' . EXTENSION_SUFFIX,
+            $phpProperties[EXTENSION_DIR] . '/' . EXTENSION_PREFIX . 'datadog-profiling.' . EXTENSION_SUFFIX,
+            $phpProperties[EXTENSION_DIR] . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX,
         ];
 
+        $iniFileName = '98-ddtrace.ini';
         if (isset($phpProperties[INI_SCANDIR])) {
-            $iniFileName = '98-ddtrace.ini';
             $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
 
             if (strpos('/cli/conf.d', $phpProperties[INI_SCANDIR]) >= 0) {
@@ -917,15 +883,15 @@ function uninstall($options)
                 $iniFilePath = readlink($iniFilePath);
             }
             if (file_exists($iniFilePath)) {
-                execute_or_exit(
-                    "Impossible to disable PHP modules from '$iniFilePath'. You can disable them manually.",
-                    "sed -i 's@^extension \?=@;extension =@g' " . escapeshellarg($iniFilePath)
-                );
-                execute_or_exit(
-                    "Impossible to disable Zend modules from '$iniFilePath'. You can disable them manually.",
-                    "sed -i 's@^zend_extension \?=@;zend_extension =@g' " . escapeshellarg($iniFilePath)
-                );
-                echo "Disabled all modules in INI file '$iniFilePath'. "
+                $isDatadogIni = basename($iniFilePath) == $iniFileName;
+                modify_ini_file($iniFilePath, function ($iniFileContents) use ($isDatadogIni) {
+                    // if it's not our own ini, we need to match for datadog extensions specifically
+                    if ($isDatadogIni) {
+                        return preg_replace("(^\s*?(zend_)?extension\s*=)m", "; $0", $iniFileContents);
+                    }
+                    return preg_replace("(^\s*?(zend_)?extension\s*=(?=.*(ddtrace|datadog-profiling|ddappsec)))m", "; $0", $iniFileContents);
+                });
+                echo "Disabled all" . ($isDatadogIni ? "" : " Datadog") . " modules in INI file '$iniFilePath'. "
                     . "The file has not been removed to preserve custom settings.\n";
             }
         }
@@ -1038,6 +1004,11 @@ function search_for_working_ldconfig()
  */
 function check_library_prerequisite_or_exit($requiredLibrary)
 {
+    if (IS_WINDOWS) {
+        // No particular requirements here
+        return;
+    }
+
     if (is_alpine()) {
         $lastLine = execute_or_exit(
             "Error while searching for library '$requiredLibrary'.",
@@ -1065,14 +1036,9 @@ function check_library_prerequisite_or_exit($requiredLibrary)
  */
 function check_php_ext_prerequisite_or_exit($binary, $extName)
 {
-    $lastLine = execute_or_exit(
-        "Cannot retrieve extensions list",
-        // '|| true' is necessary because grep exits with 1 if the pattern was not found.
-        "$binary -m | grep '$extName' || true"
-    );
+    $extensions = shell_exec("$binary -m");
 
-
-    if (empty($lastLine)) {
+    if (!in_array($extName, array_map("trim", explode("\n", $extensions)))) {
         print_error_and_exit("Required PHP extension '$extName' not found.\n");
     }
 }
@@ -1082,6 +1048,10 @@ function check_php_ext_prerequisite_or_exit($binary, $extName)
  */
 function is_alpine()
 {
+    if (IS_WINDOWS) {
+        return false;
+    }
+
     $osInfoFile = '/etc/os-release';
     // if /etc/os-release is not readable then assume it's not alpine.
     if (!is_readable($osInfoFile)) {
@@ -1097,6 +1067,10 @@ function is_alpine()
  */
 function get_architecture()
 {
+    if (IS_WINDOWS) {
+        return "x86_64";
+    }
+
     return execute_or_exit(
         "Cannot detect host architecture (uname -m)",
         "uname -m"
@@ -1243,7 +1217,7 @@ function parse_validate_user_options()
 
     $normalizedOptions[OPT_INSTALL_DIR] = isset($options[OPT_INSTALL_DIR])
         ? rtrim($options[OPT_INSTALL_DIR], '/')
-        : '/opt/datadog';
+        : DEFAULT_INSTALL_DIR;
     $normalizedOptions[OPT_INSTALL_DIR] = $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
 
     $normalizedOptions[OPT_ENABLE_APPSEC] = isset($options[OPT_ENABLE_APPSEC]);
@@ -1402,7 +1376,7 @@ function download($url, $destination)
     }
 
     // file_get_contents
-    if (is_truthy(ini_get('allow_url_fopen'))) {
+    if (is_truthy(ini_get('allow_url_fopen')) && extension_loaded('openssl')) {
         if (false === file_put_contents($destination, file_get_contents($url))) {
             print_error_and_exit("Error while downloading the installable archive from $url\n");
         }
@@ -1414,8 +1388,10 @@ function download($url, $destination)
     echo "Error: Cannot download the installable archive.\n";
     echo "  One of the following prerequisites must be satisfied:\n";
     echo "    - PHP ext-curl extension is installed\n";
-    echo "    - curl CLI command is available\n";
-    echo "    - the INI setting 'allow_url_fopen=1'\n";
+    if (!IS_WINDOWS) {
+        echo "    - curl CLI command is available\n";
+    }
+    echo "    - the INI setting 'allow_url_fopen=1' and the ext-openssl extension is installed\n";
 
     exit(1);
 }
@@ -1509,45 +1485,62 @@ function search_php_binaries($prefix = '')
     }
 
     // Then we search in known possible locations for popular installable paths on different systems.
-    $standardPaths = [
-        $prefix . '/usr/bin',
-        $prefix . '/usr/sbin',
-        $prefix . '/usr/local/bin',
-        $prefix . '/usr/local/sbin',
-    ];
-
-    $remiSafePaths = array_map(function ($phpVersion) use ($prefix) {
-        list($major, $minor) = explode('.', $phpVersion);
-        /* php is installed to /usr/bin/php{$major}{$minor} so we do not need to do anything special, while php-fpm
-         * is installed to /opt/remi/php{$major}{$minor}/root/usr/sbin and it needs to be added to the searched
-         * locations.
-         */
-        return "{$prefix}/opt/remi/php{$major}{$minor}/root/usr/sbin";
-    }, get_supported_php_versions());
-
-    $pleskPaths = array_map(function ($phpVersion) use ($prefix) {
-        return "/opt/plesk/php/$phpVersion/bin";
-    }, get_supported_php_versions());
-
-    $escapedSearchLocations = implode(
-        ' ',
-        array_map('escapeshellarg', array_merge($standardPaths, $remiSafePaths, $pleskPaths))
-    );
-    $escapedCommandNamesForFind = implode(
-        ' -o ',
-        array_map(
-            function ($cmd) {
-                return '-name ' . escapeshellarg($cmd);
-            },
-            $allPossibleCommands
-        )
-    );
-
     $pathsFound = [];
-    exec(
-        "find -L $escapedSearchLocations -type f \( $escapedCommandNamesForFind \) 2>/dev/null",
-        $pathsFound
-    );
+    if (IS_WINDOWS) {
+        $standardPaths = array_unique([
+            dirname(PHP_BINARY),
+            PHP_BINDIR,
+            'C:\\php',
+        ]);
+
+        foreach ($standardPaths as $standardPath) {
+            foreach ($allPossibleCommands as $command) {
+                $resolvedPath = $standardPath . '\\' . $command;
+                if (file_exists($resolvedPath)) {
+                    $pathsFound[$command] = $resolvedPath;
+                }
+            }
+        }
+    } else {
+        $standardPaths = [
+            $prefix . '/usr/bin',
+            $prefix . '/usr/sbin',
+            $prefix . '/usr/local/bin',
+            $prefix . '/usr/local/sbin',
+        ];
+
+        $remiSafePaths = array_map(function ($phpVersion) use ($prefix) {
+            list($major, $minor) = explode('.', $phpVersion);
+            /* php is installed to /usr/bin/php{$major}{$minor} so we do not need to do anything special, while php-fpm
+             * is installed to /opt/remi/php{$major}{$minor}/root/usr/sbin and it needs to be added to the searched
+             * locations.
+             */
+            return "{$prefix}/opt/remi/php{$major}{$minor}/root/usr/sbin";
+        }, get_supported_php_versions());
+
+        $pleskPaths = array_map(function ($phpVersion) use ($prefix) {
+            return "/opt/plesk/php/$phpVersion/bin";
+        }, get_supported_php_versions());
+
+        $escapedSearchLocations = implode(
+            ' ',
+            array_map('escapeshellarg', array_merge($standardPaths, $remiSafePaths, $pleskPaths))
+        );
+        $escapedCommandNamesForFind = implode(
+            ' -o ',
+            array_map(
+                function ($cmd) {
+                    return '-name ' . escapeshellarg($cmd);
+                },
+                $allPossibleCommands
+            )
+        );
+
+        exec(
+            "find -L $escapedSearchLocations -type f \( $escapedCommandNamesForFind \) 2>/dev/null",
+            $pathsFound
+        );
+    }
 
     foreach ($pathsFound as $path) {
         $resolved = realpath($path);
@@ -1575,10 +1568,19 @@ function search_php_binaries($prefix = '')
  */
 function resolve_command_full_path($command)
 {
-    $path = exec("command -v " . escapeshellarg($command));
-    if (empty($path)) {
-        // command is not defined
-        return false;
+    if (IS_WINDOWS) {
+        $path = shell_exec("where " . escapeshellarg($command) . " 2>NUL");
+        if ($path === null) {
+            // command is not defined
+            return false;
+        }
+        $path = ltrim($path, "\r\n");
+    } else {
+        $path = exec("command -v " . escapeshellarg($command));
+        if (empty($path)) {
+            // command is not defined
+            return false;
+        }
     }
 
     // Resolving symlinks
@@ -1605,6 +1607,12 @@ function build_known_command_names_matrix()
         );
     }
 
+    if (IS_WINDOWS) {
+        foreach ($results as &$result) {
+            $result .= ".exe";
+        }
+    }
+
     return array_unique($results);
 }
 
@@ -1613,45 +1621,69 @@ function build_known_command_names_matrix()
  *
  * @param string $iniFilePath
  */
-function add_missing_ini_settings($iniFilePath, $settings)
+function add_missing_ini_settings($iniFilePath, $settings, $replacements)
 {
+    modify_ini_file($iniFilePath, function ($iniFileContent) use ($settings, $replacements) {
+        $formattedMissingProperties = '';
+
+        // Replace twice, so that some replacements can take effect on newly inserted missing inis too
+        // As well as missing ini detection must not find legacy names which we replace
+        foreach ($replacements as $from => $to) {
+            $iniFileContent = preg_replace($from, $to, $iniFileContent);
+        }
+
+        foreach ($settings as $setting) {
+            // The extension setting is not unique, so make sure we check that the
+            // right extension setting is available.
+            $settingRegex = '/' . str_replace('.', '\.', $setting['name']) . '\s?=\s?';
+            if ($setting['name'] === 'extension' || $setting['name'] == 'zend_extension') {
+                $settingRegex .= str_replace('.', '\.', $setting['default']);
+            }
+            $settingRegex .= '/';
+
+            $settingMightExist = 1 === preg_match($settingRegex, $iniFileContent);
+
+            if ($settingMightExist) {
+                continue;
+            }
+
+            // Formatting the setting to be added.
+            $description = is_string($setting['description'])
+                ? '; ' . $setting['description']
+                : implode(
+                    "\n",
+                    array_map(
+                        function ($line) {
+                            return '; ' . $line;
+                        },
+                        $setting['description']
+                    )
+                );
+            $setting = ($setting['commented'] ? ';' : '') . $setting['name'] . ' = ' . $setting['default'];
+            $formattedMissingProperties .= "\n$description\n$setting\n";
+        }
+
+        $iniFileContent .= $formattedMissingProperties;
+
+        foreach ($replacements as $from => $to) {
+            $iniFileContent = preg_replace($from, $to, $iniFileContent);
+        }
+
+        return $iniFileContent;
+    });
+}
+
+/**
+ * Changes a given ini file
+ */
+function modify_ini_file($iniFilePath, $callback) {
     $iniFileContent = file_get_contents($iniFilePath);
-    $formattedMissingProperties = '';
 
-    foreach ($settings as $setting) {
-        // The extension setting is not unique, so make sure we check that the
-        // right extension setting is available.
-        $settingRegex = '/' . str_replace('.', '\.', $setting['name']) . '\s?=\s?';
-        if ($setting['name'] === 'extension' || $setting['name'] == 'zend_extension') {
-            $settingRegex .= str_replace('.', '\.', $setting['default']);
-        }
-        $settingRegex .= '/';
+    $newIniFileContent = $callback($iniFileContent);
 
-        $settingMightExist = 1 === preg_match($settingRegex, $iniFileContent);
-
-        if ($settingMightExist) {
-            continue;
-        }
-
-        // Formatting the setting to be added.
-        $description = is_string($setting['description'])
-            ? '; ' . $setting['description']
-            : implode(
-                "\n",
-                array_map(
-                    function ($line) {
-                        return '; ' . $line;
-                    },
-                    $setting['description']
-                )
-            );
-        $setting = ($setting['commented'] ? ';' : '') . $setting['name'] . ' = ' . $setting['default'];
-        $formattedMissingProperties .= "\n$description\n$setting\n";
-    }
-
-    if ($formattedMissingProperties !== '') {
-        if (false === file_put_contents($iniFilePath, $iniFileContent . $formattedMissingProperties)) {
-            print_error_and_exit("Cannot add additional settings to the INI file $iniFilePath");
+    if ($iniFileContent !== $newIniFileContent) {
+        if (false === file_put_contents($iniFilePath, $newIniFileContent)) {
+            print_error_and_exit("Cannot change the settings of the INI file $iniFilePath");
         }
     }
 }
@@ -1710,19 +1742,19 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
     return [
         [
             'name' => 'extension',
-            'default' => 'ddtrace.so',
+            'default' => 'ddtrace' . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
             'commented' => false,
             'description' => 'Enables or disables tracing (set by the installer, do not change it)',
         ],
         [
             'name' => 'extension',
-            'default' => 'datadog-profiling.so',
+            'default' => 'datadog-profiling' . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
             'commented' => true,
             'description' => 'Enables the profiling module',
         ],
         [
             'name' => 'extension',
-            'default' => 'ddappsec.so',
+            'default' => 'ddappsec' . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
             'commented' => false,
             'description' => 'Enables the appsec module',
         ],

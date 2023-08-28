@@ -36,7 +36,7 @@ for ($i = 0; $i < 10; ++$i) {
 }
 echo "$droppedCount dropped out of 10\n";
 
-usleep(100000);
+usleep(130000);
 
 DDTrace\start_span();
 DDTrace\close_span();

@@ -5,6 +5,7 @@
 #include "circuit_breaker.h"
 #include "logging.h"
 #include <components/log/log.h>
+#include <zai_string/string.h>
 
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
@@ -16,9 +17,15 @@
 #define APPLY_NAME_EXPAND(count) APPLY_##count
 #define APPLY_NAME(count) APPLY_NAME_EXPAND(count)
 #define APPLY_COUNT(_0, _1, _2, _3, _4, N, ...) N
+#if defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL
+#define EXPAND(...) __VA_ARGS__
+#define APPLY_N(macro, ...) APPLY_NAME(EXPAND(APPLY_COUNT(0, ##__VA_ARGS__, 4, 3, 2, 1, 0)))EXPAND((macro, ##__VA_ARGS__))
+#else
 #define APPLY_N(macro, ...) APPLY_NAME(APPLY_COUNT(0, ##__VA_ARGS__, 4, 3, 2, 1, 0))(macro, ##__VA_ARGS__)
+#endif
 
-// static assert name lengths, number of configs and number of aliases
+// static assert name lengths, number of configs and number of aliases (Visual Studio 2017 and older do not support _Static_assert)
+#ifndef _WIN32
 #define CALIAS CONFIG
 #define CONFIG(...) 1,
 #define NUMBER_OF_CONFIGURATIONS sizeof((uint8_t[]){DD_CONFIGURATION})
@@ -51,6 +58,7 @@ DD_CONFIGURATION
 #undef CALIAS
 #undef CALIASES
 #undef CONFIG
+#endif
 
 static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persistent) {
     UNUSED(persistent);
@@ -67,14 +75,29 @@ static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persisten
     return true;
 }
 
+#define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
+
+#ifndef _WIN32
 // Allow for partially defined struct initialization here
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#else
+#define CONFIG(...)
+#define CALIASES(...) {APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)}
+#define CALIAS(type, name, default, aliases, ...) const zai_str dd_config_aliases_##name[] = aliases;
+DD_CONFIGURATION
+#undef CALIAS
+#undef CONFIG
+#endif
 
 #define CUSTOM(...) CUSTOM
-#define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
+#define EXPAND_CALL(macro, args) macro args // I hate the "traditional" MSVC preprocessor
+#define CONFIG(type, name, ...) EXPAND_CALL(ZAI_CONFIG_ENTRY, (DDTRACE_CONFIG_##name, name, type, __VA_ARGS__)),
+#ifndef _WIN32
 #define CALIASES(...) ((zai_str[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
-#define CONFIG(type, name, ...) ZAI_CONFIG_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
 #define CALIAS(type, name, ...) ZAI_CONFIG_ALIASED_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
+#else
+#define CALIAS(type, name, default, aliases, ...) ZAI_CONFIG_ALIASED_ENTRY(DDTRACE_CONFIG_##name, name, type, default, dd_config_aliases_##name, ##__VA_ARGS__),
+#endif
 static zai_config_entry config_entries[] = {DD_CONFIGURATION};
 #undef CALIAS
 #undef CONFIG
@@ -83,6 +106,9 @@ bool runtime_config_first_init = false;
 
 static char dd_tolower_ascii(char c) { return c >= 'A' && c <= 'Z' ? c - ('A' - 'a') : c; }
 
+#if defined(_WIN32) && PHP_VERSION_ID < 80000 && !defined(restrict)
+#define restrict
+#endif
 static void dd_copy_tolower(char *restrict dst, const char *restrict src) {
     while (*src) {
         *(dst++) = dd_tolower_ascii(*(src++));

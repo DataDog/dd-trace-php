@@ -1,3 +1,4 @@
+// Note: Not included on Windows
 #include "signals.h"
 
 #ifdef HAVE_CONFIG_H

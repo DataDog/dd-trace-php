@@ -361,7 +361,10 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     def->active = false;
     def->allow_recursion = allow_recursion;
 
-    zai_str class_str = method ? ZAI_STR_FROM_ZSTR(class_name) : ZAI_STR_EMPTY;
+    zai_str class_str = ZAI_STR_EMPTY;
+    if (method) {
+        class_str = (zai_str)ZAI_STR_FROM_ZSTR(class_name);
+    }
     zai_str func_str = ZAI_STR_FROM_ZSTR(method_name);
 
     uint32_t hook_limit = get_DD_TRACE_HOOK_LIMIT();
@@ -404,7 +407,10 @@ PHP_FUNCTION(dd_untrace) {
          RETURN_FALSE;
     });
 
-    zai_str class_str = class_name ? ZAI_STR_FROM_ZSTR(class_name) : ZAI_STR_EMPTY;
+    zai_str class_str = ZAI_STR_EMPTY;
+    if (class_name) {
+        class_str = (zai_str)ZAI_STR_FROM_ZSTR(class_name);
+    }
     zai_str func_str = ZAI_STR_FROM_ZSTR(method_name);
 
     zai_hook_iterator it;

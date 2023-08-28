@@ -4,7 +4,7 @@
 #include <main/php_version.h>
 #include <Zend/zend_compile.h>
 
-#ifdef __x86_64__
+#if __x86_64__ || defined(_WIN64)
 #define ZAI_JIT_BLACKLIST_ACTIVE PHP_VERSION_ID >= 80000
 #elif defined(__aarch64__)
 #define ZAI_JIT_BLACKLIST_ACTIVE PHP_VERSION_ID >= 80100

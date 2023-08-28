@@ -1,3 +1,4 @@
+// Note: Not included on Windows
 #include "comms_php.h"
 
 #include "coms.h"

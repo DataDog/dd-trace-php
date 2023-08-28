@@ -8,14 +8,13 @@
  */
 #ifdef DDTRACE_STATIC
 #  define DDTRACE_PUBLIC
-#  define DDTRACE_LOCAL
 #else
 #  ifndef DDTRACE_PUBLIC
-#    define DDTRACE_PUBLIC __attribute__((visibility("default")))
-#  endif
-
-#  ifndef DDTRACE_LOCAL
-#    define DDTRACE_LOCAL __attribute__((visibility("hidden")))
+#    ifndef _WIN32
+#      define DDTRACE_PUBLIC __attribute__((visibility("default")))
+#    else
+#      define DDTRACE_PUBLIC __declspec(dllexport)
+#    endif
 #  endif
 #endif
 

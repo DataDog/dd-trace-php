@@ -77,13 +77,9 @@ uint32_t ddtrace_coms_test_msgpack_consumer(void);
 /* }}} */
 
 /* exposed for diagnostics {{{ */
-char *ddtrace_agent_url(void);
 void ddtrace_curl_set_hostname(CURL *curl);
 void ddtrace_curl_set_timeout(CURL *curl);
 void ddtrace_curl_set_connect_timeout(CURL *curl);
-
-// Maybe extract that somewhere else
-char *ddtrace_agent_url(void);
 /* }}} */
 
 extern struct ddog_ShmHandle *ddtrace_coms_agent_config_handle;

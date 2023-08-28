@@ -61,8 +61,8 @@ else
 fi
 
 # extension=... in the INI file should be commented out
-assert_file_contains "${ini_dir}/98-ddtrace.ini" ";extension = ddtrace.so"
-assert_file_contains "${ini_dir}/98-ddtrace.ini" ";extension = datadog-profiling.so"
+assert_file_contains "${ini_dir}/98-ddtrace.ini" "; extension = ddtrace.so"
+assert_file_contains "${ini_dir}/98-ddtrace.ini" "; extension = datadog-profiling.so"
 if [ -n "$appsec" ]; then
-  assert_file_contains "${ini_dir}/98-ddtrace.ini" ";extension = ddappsec.so"
+  assert_file_contains "${ini_dir}/98-ddtrace.ini" "; extension = ddappsec.so"
 fi

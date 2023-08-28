@@ -484,8 +484,11 @@ static zend_long zai_hook_request_install(zai_hook_t *hook) {
     }
 
     zend_class_entry *ce = NULL;
-    zai_str scope = hook->scope ? ZAI_STR_FROM_ZSTR(hook->scope) : ZAI_STR_EMPTY;
-    zend_function *function = zai_hook_lookup_function(scope, ZAI_STR_FROM_ZSTR(hook->function), &ce);
+    zai_str scope = ZAI_STR_EMPTY;
+    if (hook->scope) {
+        scope = (zai_str)ZAI_STR_FROM_ZSTR(hook->scope);
+    }
+    zend_function *function = zai_hook_lookup_function(scope, (zai_str)ZAI_STR_FROM_ZSTR(hook->function), &ce);
     if (function) {
         hook->resolved_scope = ce;
         hook->is_abstract = (function->common.fn_flags & ZEND_ACC_ABSTRACT) != 0;
@@ -902,11 +905,11 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
                 memory->dynamic = erealloc(memory->dynamic, new_dynamic_size);
             }
             // Create some space for zai_hook_info entries in between, and some new dynamic memory at the end
-            memmove(memory->dynamic + new_hook_info_size, memory->dynamic + hook_info_size, dynamic_size - hook_info_size);
+            memmove((char *)memory->dynamic + new_hook_info_size, (char *)memory->dynamic + hook_info_size, dynamic_size - hook_info_size);
             if (new_dynamic_size > dynamic_size) {
                 // and ensure the new dynamic memory is zeroed
                 size_t hook_info_size_delta = new_hook_info_size - hook_info_size;
-                memset(memory->dynamic + dynamic_size + hook_info_size_delta, 0, new_dynamic_size - dynamic_size - hook_info_size_delta);
+                memset((char *)memory->dynamic + dynamic_size + hook_info_size_delta, 0, new_dynamic_size - dynamic_size - hook_info_size_delta);
                 dynamic_size = new_dynamic_size;
             }
             hook_info_size = new_hook_info_size;
@@ -921,7 +924,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
 
         EG(ht_iterators)[ht_iter].pos = pos;
 
-        if (!hook->begin(memory->invocation, ex, hook->aux.data, memory->dynamic + dynamic_offset)) {
+        if (!hook->begin(memory->invocation, ex, hook->aux.data, (char *)memory->dynamic + dynamic_offset)) {
             zend_hash_iterator_del(ht_iter);
 
             memory->hook_count = (zend_ulong)hook_num;
@@ -957,7 +960,7 @@ void zai_hook_generator_resumption(zend_execute_data *ex, zval *sent, zai_hook_m
             continue;
         }
 
-        hook->generator_resume(memory->invocation, ex, sent, hook->aux.data, memory->dynamic + hook_info->dynamic_offset);
+        hook->generator_resume(memory->invocation, ex, sent, hook->aux.data, (char *)memory->dynamic + hook_info->dynamic_offset);
     }
 } /* }}} */
 
@@ -969,7 +972,7 @@ void zai_hook_generator_yielded(zend_execute_data *ex, zval *key, zval *yielded,
             continue;
         }
 
-        hook->generator_yield(memory->invocation, ex, key, yielded, hook->aux.data, memory->dynamic + hook_info->dynamic_offset);
+        hook->generator_yield(memory->invocation, ex, key, yielded, hook->aux.data, (char *)memory->dynamic + hook_info->dynamic_offset);
     }
 } /* }}} */
 
@@ -984,7 +987,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
         zai_hook_t *hook = hook_info->hook;
 
         if (hook->end) {
-            hook->end(memory->invocation, ex, rv, hook->aux.data, memory->dynamic + hook_info->dynamic_offset);
+            hook->end(memory->invocation, ex, rv, hook->aux.data, (char *)memory->dynamic + hook_info->dynamic_offset);
         }
 
         if (!--hook->refcount) {
@@ -996,7 +999,7 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
                 if (Z_TYPE_INFO_P(hook_zv) == ZAI_IS_SHARED_HOOK_PTR) {
                     // lookup primary by name
                     zend_class_entry *ce = NULL;
-                    zend_function *origin_func = zai_hook_lookup_function(ZAI_STR_FROM_ZSTR(hook->scope), ZAI_STR_FROM_ZSTR(hook->function), &ce);
+                    zend_function *origin_func = zai_hook_lookup_function((zai_str)ZAI_STR_FROM_ZSTR(hook->scope), (zai_str)ZAI_STR_FROM_ZSTR(hook->function), &ce);
                     zai_hook_table_find(&zai_hook_resolved, zai_hook_install_address(origin_func), (void**)&hooks);
                     zai_hook_remove_abstract_recursive(hooks, ce, hook->function, (zend_ulong)-hook->id);
                     address = zai_hook_install_address(hooks->resolved);

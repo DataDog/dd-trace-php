@@ -87,7 +87,7 @@ static zend_op_array *zai_interceptor_compile_string(zend_string *source_string,
     return op_array;
 }
 
-static void (*prev_class_alias)(INTERNAL_FUNCTION_PARAMETERS);
+static zif_handler prev_class_alias;
 PHP_FUNCTION(zai_interceptor_resolve_after_class_alias) {
     prev_class_alias(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     if (Z_TYPE_P(return_value) == IS_TRUE) {
