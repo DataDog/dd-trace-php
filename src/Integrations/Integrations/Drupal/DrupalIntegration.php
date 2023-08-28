@@ -47,6 +47,18 @@ class DrupalIntegration extends Integration
             ]
         );
 
+        $stackedHttpKernelTracer = function (SpanData $span) {
+            $span->name = 'drupal.httpkernel.stacked.handle';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = \ddtrace_config_app_name('drupal');
+            $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+        };
+
+        // Drupal 9-
+        trace_method('Stack\StackedHttpKernel', 'handle', $stackedHttpKernelTracer);
+        // Drupal 10+
+        trace_method('Drupal\Core\StackMiddleware\StackedHttpKernel', 'handle', $stackedHttpKernelTracer);
+
         trace_method(
             'Drupal\Core\DrupalKernel',
             'boot',
