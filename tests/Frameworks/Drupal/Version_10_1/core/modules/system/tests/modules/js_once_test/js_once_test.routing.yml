@@ -1,0 +1,7 @@
+js_once_test:
+  path: '/js_once_test'
+  defaults:
+    _controller: '\Drupal\js_once_test\Controller\JsOnceTestController::onceTest'
+    _title: 'OnceTest'
+  requirements:
+    _access: 'TRUE'

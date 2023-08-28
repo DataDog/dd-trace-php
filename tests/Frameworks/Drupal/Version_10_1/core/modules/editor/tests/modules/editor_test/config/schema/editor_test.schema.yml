@@ -1,0 +1,21 @@
+# Schema for the configuration files of the Editor test module.
+
+editor.settings.unicorn:
+  type: mapping
+  label: 'Unicorn settings'
+  mapping:
+    ponies_too:
+      type: boolean
+      label: 'Ponies too'
+
+editor.settings.trex:
+  type: mapping
+  label: 'T-Rex settings'
+  mapping:
+    stumpy_arms:
+      type: boolean
+      label: 'Stumpy arms'
+
+field.field_settings.editor_test_text_long:
+  label: 'Filter test text (formatted, long) settings'
+  type: field.field_settings.text

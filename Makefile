@@ -806,6 +806,7 @@ TEST_WEB_81 := \
 	test_metrics \
 	test_web_codeigniter_22 \
 	test_web_drupal_95 \
+	test_web_drupal_101 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_lumen_81 \
@@ -847,6 +848,7 @@ TEST_WEB_82 := \
 	test_metrics \
 	test_web_codeigniter_22 \
 	test_web_drupal_95 \
+	test_web_drupal_101 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_lumen_81 \
@@ -1037,6 +1039,10 @@ test_web_drupal_95: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_9_5/core update --ignore-platform-reqs
 	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_9_5 update --ignore-platform-reqs
 	$(call run_tests,tests/Integrations/Drupal/V9_5)
+test_web_drupal_101: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_10_1/core update --ignore-platform-reqs
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_10_1 update --ignore-platform-reqs
+	$(call run_tests,tests/Integrations/Drupal/V10_1)
 test_web_laminas_14: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_1_4 update
 	$(call run_tests,tests/Integrations/Laminas/V1_4)
