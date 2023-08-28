@@ -1,8 +1,12 @@
 #ifndef DD_CIRCUIT_BREAKER_H
 #define DD_CIRCUIT_BREAKER_H
 
-#include <stdatomic.h>
 #include <stdint.h>
+#ifndef _WIN32
+#include <stdatomic.h>
+#else
+#include <components/atomic_win32_polyfill.h>
+#endif
 
 #include "ext/version.h"
 
@@ -15,9 +19,11 @@ typedef struct dd_trace_circuit_breaker_t {
 } dd_trace_circuit_breaker_t;
 
 #define DD_TRACE_CIRCUIT_BREAKER_OPENED (1 << 0)
-#define DD_TRACE_CIRCUIT_BREAKER_SHMEM_KEY ("/dd_trace_shmem_" PHP_DDTRACE_VERSION)
+#define DD_TRACE_CIRCUIT_BREAKER_SHMEM_KEY "/dd_trace_shmem_" PHP_DDTRACE_VERSION
 #define DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES 3
 #define DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC 5000
+
+void dd_tracer_circuit_breaker_mshutdown();
 
 void dd_tracer_circuit_breaker_register_error();
 void dd_tracer_circuit_breaker_register_success();

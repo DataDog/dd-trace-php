@@ -79,6 +79,7 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
         { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
 
 typedef void zend_type;
+typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
 
 #include <Zend/zend_smart_str.h>
 static inline void smart_str_append_printf(smart_str *dest, const char *format, ...) {
@@ -145,6 +146,10 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define ZEND_THIS (&EX(This))
 
 #define Z_PROP_FLAG_P(z) Z_EXTRA_P(z)
+
+#define DD_PARAM_ERROR_CODE error_code
+#else
+#define DD_PARAM_ERROR_CODE _error_code
 #endif
 
 #if PHP_VERSION_ID < 80000
@@ -211,12 +216,6 @@ static zend_always_inline bool zend_parse_arg_obj(zval *arg, zend_object **dest,
     }
     return 1;
 }
-
-#if PHP_VERSION_ID < 70400
-#define DD_PARAM_ERROR_CODE error_code
-#else
-#define DD_PARAM_ERROR_CODE _error_code
-#endif
 
 #define Z_PARAM_OBJ_EX2(dest, check_null, deref, separate) \
         DD_PARAM_PROLOGUE(deref, separate); \

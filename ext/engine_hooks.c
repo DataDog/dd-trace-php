@@ -5,9 +5,19 @@
 
 #include "ddtrace.h"
 #include <components/log/log.h>
+#include "zend_hrtime.h"
 #include "span.h"
 #include "zend_extensions.h"
 #include <zai_string/string.h>
+
+#ifdef PHP_WIN32
+#include "win32/param.h"
+#include "win32/winutil.h"
+#define GET_DL_ERROR()	php_win_err()
+#else
+#include <sys/param.h>
+#define GET_DL_ERROR()	DL_ERROR()
+#endif
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -18,9 +28,10 @@ static void _compile_mshutdown(void);
 
 void (*ddtrace_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
 
-void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
+typedef void (*profiling_notify_trace_finished_t)(uint64_t local_root_span_id,
                                         zai_str span_type,
-                                        zai_str resource) = NULL;
+                                        zai_str resource);
+profiling_notify_trace_finished_t profiling_notify_trace_finished = NULL;
 
 void (*profiling_interrupt_function)(zend_execute_data *) = NULL;
 
@@ -30,15 +41,15 @@ void dd_search_for_profiling_symbols(void *arg) {
     if (extension->name && strcmp(extension->name, "datadog-profiling") == 0) {
         DL_HANDLE handle = extension->handle;
 
-        profiling_interrupt_function = DL_FETCH_SYMBOL(handle, "datadog_profiling_interrupt_function");
+        profiling_interrupt_function = (void(*)(zend_execute_data *))DL_FETCH_SYMBOL(handle, "datadog_profiling_interrupt_function");
         if (UNEXPECTED(!profiling_interrupt_function)) {
             LOG(Warn, "[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n", "datadog_profiling_interrupt_function",
-                               DL_ERROR());
+                               GET_DL_ERROR());
         }
 
-        profiling_notify_trace_finished = DL_FETCH_SYMBOL(handle, "datadog_profiling_notify_trace_finished");
+        profiling_notify_trace_finished = (profiling_notify_trace_finished_t)DL_FETCH_SYMBOL(handle, "datadog_profiling_notify_trace_finished");
         if (UNEXPECTED(!profiling_notify_trace_finished)) {
-            LOG(Warn, "[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n", extension->version, DL_ERROR());
+            LOG(Warn, "[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n", extension->version, GET_DL_ERROR());
         }
     }
 }
@@ -62,19 +73,11 @@ void ddtrace_engine_hooks_mshutdown(void) {
     _compile_mshutdown();
 }
 
-static uint64_t _get_microseconds() {
-    struct timespec time;
-    if (clock_gettime(CLOCK_MONOTONIC, &time) == 0) {
-        return time.tv_sec * 1000000U + time.tv_nsec / 1000U;
-    }
-    return 0U;
-}
-
 static zend_op_array *_dd_compile_file(zend_file_handle *file_handle, int type) {
     zend_op_array *res;
-    uint64_t start = _get_microseconds();
+    uint64_t start = zend_hrtime();
     res = _prev_compile_file(file_handle, type);
-    DDTRACE_G(compile_time_microseconds) += (int64_t)(_get_microseconds() - start);
+    DDTRACE_G(compile_time_microseconds) += (int64_t)(zend_hrtime() - start);
     return res;
 }
 

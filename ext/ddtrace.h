@@ -1,9 +1,12 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
-#include <dogstatsd_client/client.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <components-rs/ddtrace.h>
+
+#ifndef _WIN32
+#include <dogstatsd_client/client.h>
+#endif
 
 #include "ext/version.h"
 #include "compatibility.h"
@@ -19,8 +22,10 @@ typedef struct ddtrace_span_data ddtrace_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 typedef struct ddtrace_span_link ddtrace_span_link;
 
+#ifndef _WIN32
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"  // useful compiler does not like the struct hack
+#endif
 static inline zval *ddtrace_spandata_property_name(ddtrace_span_data *span) {
     return OBJ_PROP_NUM((zend_object *)span, 0);
 }
@@ -74,7 +79,9 @@ static inline zval *ddtrace_spandata_property_peerServiceSources_zval(ddtrace_sp
 static inline zend_array *ddtrace_spandata_property_peer_service_sources(ddtrace_span_data *span) {
     return ddtrace_spandata_property_force_array(ddtrace_spandata_property_peerServiceSources_zval(span));
 }
+#ifndef _WIN32
 #pragma GCC diagnostic pop
+#endif
 
 bool ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace
@@ -120,7 +127,9 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_array tracestate_unknown_dd_keys;
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
+#ifndef _WIN32
     dogstatsd_client dogstatsd_client;
+#endif
     zend_bool in_shutdown;
 
     zend_long default_priority_sampling;

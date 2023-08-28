@@ -1,7 +1,9 @@
 #include "auto_flush.h"
 
+#ifndef _WIN32
 #include "comms_php.h"
 #include "coms.h"
+#endif
 #include "ddtrace_string.h"
 #include "configuration.h"
 #include <components/log/log.h>
@@ -82,6 +84,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                zend_hash_num_elements(Z_ARR(trace)));
         }
     } else {
+#ifndef _WIN32
         if (ddtrace_serialize_simple_array_into_c_string(&traces, &payload, &size)) {
             if (size > limit) {
                 LOG(Error, "Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", size, limit);
@@ -98,7 +101,9 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
             }
 
             free(payload);
-        } else {
+        } else
+#endif
+        {
             success = false;
         }
     }
@@ -112,4 +117,56 @@ DDTRACE_PUBLIC void ddtrace_close_all_spans_and_flush()
 {
     ddtrace_close_all_open_spans(true);
     ddtrace_flush_tracer(true, true);
+}
+
+#define HOST_V6_FORMAT_STR "http://[%s]:%u"
+#define HOST_V4_FORMAT_STR "http://%s:%u"
+#define DEFAULT_UDS_PATH "/var/run/datadog/apm.socket"
+
+char *ddtrace_agent_url(void) {
+    zend_string *url = get_global_DD_TRACE_AGENT_URL();
+    if (ZSTR_LEN(url) > 0) {
+        char *dup = zend_strndup(ZSTR_VAL(url), ZSTR_LEN(url) + 1);
+
+        // mess around with backslashes to support our test cases providing something like "file://C:\dir\test.out"
+        const char *fileprefix = "file://";
+        if (strncmp(ZSTR_VAL(url), fileprefix, strlen(fileprefix)) == 0 && strchr(ZSTR_VAL(url), '\\')) {
+            for (size_t i = strlen(fileprefix); i < ZSTR_LEN(url); ++i) {
+                if (dup[i] == '\\') {
+                    dup[i] = '/';
+                }
+            }
+        }
+
+        return dup;
+    }
+
+    zend_string *hostname = get_global_DD_AGENT_HOST();
+    if (ZSTR_LEN(hostname) > 7 && strncmp(ZSTR_VAL(hostname), "unix://", 7) == 0) {
+        return zend_strndup(ZSTR_VAL(hostname), ZSTR_LEN(hostname));
+    }
+
+    if (ZSTR_LEN(hostname) > 0) {
+        bool isIPv6 = memchr(ZSTR_VAL(hostname), ':', ZSTR_LEN(hostname));
+
+        int64_t port = get_global_DD_TRACE_AGENT_PORT();
+        if (port <= 0 || port > 65535) {
+            port = 8126;
+        }
+        char *formatted_url;
+        asprintf(&formatted_url, isIPv6 ? HOST_V6_FORMAT_STR : HOST_V4_FORMAT_STR, ZSTR_VAL(hostname), (uint32_t)port);
+        return formatted_url;
+    }
+
+    if (access(DEFAULT_UDS_PATH, F_OK) == SUCCESS) {
+        return zend_strndup(ZEND_STRL("unix://" DEFAULT_UDS_PATH));
+    }
+
+    int64_t port = get_global_DD_TRACE_AGENT_PORT();
+    if (port <= 0 || port > 65535) {
+        port = 8126;
+    }
+    char *formatted_url;
+    asprintf(&formatted_url, HOST_V4_FORMAT_STR, "localhost", (uint32_t)port);
+    return formatted_url;
 }

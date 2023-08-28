@@ -1,5 +1,7 @@
 --TEST--
 background sender happy path
+--SKIPIF--
+<?php if (PHP_OS_FAMILY === 'Windows') die('skip: There is no background sender on Windows'); ?>
 --FILE--
 <?php
 

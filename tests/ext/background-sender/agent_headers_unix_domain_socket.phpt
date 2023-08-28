@@ -2,6 +2,7 @@
 HTTP headers are sent to the Agent from the background sender over an unix domain socket
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php if (PHP_OS_FAMILY === 'Windows') die('skip: There are no unix sockets on Windows'); ?>
 --ENV--
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_URL=unix:///tmp/ddtrace-agent-test.socket

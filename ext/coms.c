@@ -1,3 +1,4 @@
+// Note: Not included on Windows
 #include <SAPI.h>
 #include <curl/curl.h>
 #include <errno.h>
@@ -27,6 +28,7 @@
 #include <sys/syscall.h>
 #endif
 
+#include "auto_flush.h"
 #include "compatibility.h"
 #include "configuration.h"
 #include "ddshared.h"
@@ -663,9 +665,6 @@ static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
 }
 
 #define TRACE_PATH_STR "/v0.4/traces"
-#define HOST_V6_FORMAT_STR "http://[%s]:%u"
-#define HOST_V4_FORMAT_STR "http://%s:%u"
-#define DEFAULT_UDS_PATH "/var/run/datadog/apm.socket"
 
 static struct curl_slist *dd_agent_curl_headers = NULL;
 
@@ -730,42 +729,6 @@ void ddtrace_curl_set_timeout(CURL *curl) {
 void ddtrace_curl_set_connect_timeout(CURL *curl) {
     long timeout = _dd_max_long(get_global_DD_TRACE_BGS_CONNECT_TIMEOUT(), get_global_DD_TRACE_AGENT_CONNECT_TIMEOUT());
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
-}
-
-char *ddtrace_agent_url(void) {
-    zend_string *url = get_global_DD_TRACE_AGENT_URL();
-    if (ZSTR_LEN(url) > 0) {
-        return zend_strndup(ZSTR_VAL(url), ZSTR_LEN(url));
-    }
-
-    zend_string *hostname = get_global_DD_AGENT_HOST();
-    if (ZSTR_LEN(hostname) > 7 && strncmp(ZSTR_VAL(hostname), "unix://", 7) == 0) {
-        return zend_strndup(ZSTR_VAL(hostname), ZSTR_LEN(hostname));
-    }
-
-    if (ZSTR_LEN(hostname) > 0) {
-        bool isIPv6 = memchr(ZSTR_VAL(hostname), ':', ZSTR_LEN(hostname));
-
-        int64_t port = get_global_DD_TRACE_AGENT_PORT();
-        if (port <= 0 || port > 65535) {
-            port = 8126;
-        }
-        char *formatted_url;
-        asprintf(&formatted_url, isIPv6 ? HOST_V6_FORMAT_STR : HOST_V4_FORMAT_STR, ZSTR_VAL(hostname), (uint32_t)port);
-        return formatted_url;
-    }
-
-    if (access(DEFAULT_UDS_PATH, F_OK) == SUCCESS) {
-        return zend_strndup(ZEND_STRL("unix://" DEFAULT_UDS_PATH));
-    }
-
-    int64_t port = get_global_DD_TRACE_AGENT_PORT();
-    if (port <= 0 || port > 65535) {
-        port = 8126;
-    }
-    char *formatted_url;
-    asprintf(&formatted_url, HOST_V4_FORMAT_STR, "localhost", (uint32_t)port);
-    return formatted_url;
 }
 
 void ddtrace_curl_set_hostname(CURL *curl) {

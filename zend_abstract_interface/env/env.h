@@ -61,9 +61,8 @@ typedef struct zai_env_buffer_s {
  * and 'buf.ptr' will be an empty string; e.g. this API does not attempt to
  * truncate the value to accommodate the buffer size.
  */
-zai_env_result __attribute__((warn_unused_result))
-zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit);
-static inline __attribute__((warn_unused_result)) zai_env_result zai_getenv(zai_str name, zai_env_buffer buf) {
+zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit);
+static inline zai_env_result zai_getenv(zai_str name, zai_env_buffer buf) {
     return zai_getenv_ex(name, buf, false);
 }
 

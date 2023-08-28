@@ -4,12 +4,13 @@
 // This api is used by both the tracer and profiler.
 
 #include <php.h>
+#include "compatibility.h"
 
 typedef struct datadog_php_zif_handler_s {
     const char *name;
     size_t name_len;
-    void (**old_handler)(INTERNAL_FUNCTION_PARAMETERS);
-    void (*new_handler)(INTERNAL_FUNCTION_PARAMETERS);
+    zif_handler *old_handler;
+    zif_handler new_handler;
 } datadog_php_zif_handler;
 
 /**

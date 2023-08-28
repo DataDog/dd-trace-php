@@ -53,7 +53,9 @@
 #endif
 
 // Ignore warnings that we convert to errors for ddtrace
+#ifndef _WIN32
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
 
 
 #if MPACK_DEBUG

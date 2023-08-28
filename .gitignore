@@ -21,6 +21,9 @@ configure
 coverage/
 /configure.*
 /config.*
+!config.m4
+!config.w32
+ddtrace.def
 *.la
 *.lo
 *.o

@@ -11,7 +11,7 @@ DD_TRACE_AUTOFINISH_SPANS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_AGENT_HOST=
 --INI--
-datadog.trace.agent_url=file://{PWD}/config-telemetry.out
+datadog.trace.agent_url="file://{PWD}/config-telemetry.out"
 --FILE--
 <?php
 
@@ -55,7 +55,7 @@ Array
     [0] => Array
         (
             [name] => trace.agent_url
-            [value] => file:///%s/config-telemetry.out
+            [value] => file://%s/config-telemetry.out
             [origin] => EnvVar
         )
 

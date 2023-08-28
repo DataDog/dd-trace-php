@@ -3,14 +3,22 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef _WIN32
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
+#else
+#define _AMD64_ // Avoid target architecture issues
+#include <tchar.h>
+#include <minwindef.h>
+#include <minwinbase.h>
+#endif
+#include "zend_hrtime.h"
 
 #include "configuration.h"
 #include "macros.h"
+#include "random.h"
 
 dd_trace_circuit_breaker_t *dd_trace_circuit_breaker = NULL;
 dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {0};
@@ -24,8 +32,13 @@ static void handle_prepare_error(const char *call_name) {
     }
 }
 
+#ifdef _WIN32
+TCHAR dd_shmem_name[] = TEXT("Local\\" DD_TRACE_CIRCUIT_BREAKER_SHMEM_KEY);
+#endif
+
 static void prepare_cb() {
     if (!dd_trace_circuit_breaker) {
+#ifndef _WIN32
         int shm_fd = shm_open(DD_TRACE_CIRCUIT_BREAKER_SHMEM_KEY, O_CREAT | O_RDWR, 0666);
         if (shm_fd < 0) {
             handle_prepare_error("shm_open");
@@ -54,16 +67,26 @@ static void prepare_cb() {
 
             return;
         }
+#else
+        HANDLE file_mapping = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(dd_trace_circuit_breaker_t), dd_shmem_name);
+        if (!file_mapping) {
+            handle_prepare_error("CreateFileMapping");
+            return;
+        }
+        dd_trace_circuit_breaker_t *shared_breaker = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(dd_trace_circuit_breaker_t));
+        if (!shared_breaker) {
+            handle_prepare_error("MapViewOfFile");
+            CloseHandle(file_mapping);
+            return;
+        }
+#endif
 
         dd_trace_circuit_breaker = shared_breaker;
     }
 }
 
 static uint64_t current_timestamp_monotonic_usec() {
-    struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-
-    return t.tv_sec * 1000 * 1000 + t.tv_nsec / 1000;
+    return zend_hrtime() / 1000;
 }
 
 uint32_t dd_tracer_circuit_breaker_can_try(void) {

@@ -5,7 +5,11 @@
 #include <ext/standard/basic_functions.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_generators.h>
+#ifndef _WIN32
 #include <pthread.h>
+#else
+#include <components/pthread_polyfill.h>
+#endif
 
 #if PHP_VERSION_ID < 70100
 static ZEND_FUNCTION(pass)

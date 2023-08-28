@@ -3,7 +3,7 @@ Request init hook ignores fatal errors
 --ENV--
 DD_TRACE_DEBUG=1
 --INI--
-ddtrace.request_init_hook={PWD}/raises_fatal_error.php
+ddtrace.request_init_hook="{PWD}/raises_fatal_error.php"
 --FILE--
 <?php
 echo "Request start" . PHP_EOL;

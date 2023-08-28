@@ -119,7 +119,7 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     free(stack);
 }
 #else
-static inline void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, zai_interceptor_frame_memory *frame_memory) {
+static inline void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, zai_frame_memory *frame_memory) {
     zai_hook_finish(execute_data, retval, &frame_memory->hook_data);
 }
 #endif

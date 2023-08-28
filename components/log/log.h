@@ -3,7 +3,11 @@
 
 #include "../../components-rs/ddtrace.h"
 
+#ifndef _WIN32
 extern __thread ddog_Log _ddog_log_source_value;
+#else
+extern __declspec(thread) ddog_Log _ddog_log_source_value;
+#endif
 void ddog_logf(ddog_Log source, const char *format, ...);
 void _ddog_log_source(const char *format, ...);
 

@@ -21,7 +21,7 @@ lazy_static = "1.4"
 uuid = { version = "1.0", features = ["v4"] }
 paste = "1"
 tempfile = {version = "3.3"}
-
+const-str = "0.5.6"
 
 [build-dependencies]
 cbindgen = "0.24"

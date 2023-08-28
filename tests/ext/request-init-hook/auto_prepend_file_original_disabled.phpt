@@ -7,8 +7,8 @@ output as the other test and can be updated.
 --ENV--
 DD_TRACE_ENABLED=0
 --INI--
-auto_prepend_file={PWD}/auto_prepend_file.inc
-ddtrace.request_init_hook={PWD}/../includes/request_init_hook.inc
+auto_prepend_file="{PWD}/auto_prepend_file.inc"
+ddtrace.request_init_hook="{PWD}/../includes/request_init_hook.inc"
 --FILE--
 <?php
 echo 'Done.' . PHP_EOL;

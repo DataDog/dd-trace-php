@@ -21,8 +21,8 @@ dd_dump_spans();
 test
 test
 spans(\DDTrace\SpanData) (2) {
-  %s/testinclude.inc (trace_file.php, %s/install_hook/testinclude.inc, cli)
+  %stestinclude.inc (trace_file.php, %sinstall_hook%ctestinclude.inc, cli)
     _dd.p.dm => -1
-  %s/testinclude.inc (trace_file.php, %s/install_hook/testinclude.inc, cli)
+  %stestinclude.inc (trace_file.php, %sinstall_hook%ctestinclude.inc, cli)
     _dd.p.dm => -1
 }

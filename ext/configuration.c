@@ -5,6 +5,7 @@
 #include "circuit_breaker.h"
 #include "logging.h"
 #include <components/log/log.h>
+#include <zai_string/string.h>
 
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
@@ -67,14 +68,28 @@ static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persisten
     return true;
 }
 
+#define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
+
+#ifndef _WIN32
 // Allow for partially defined struct initialization here
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#else
+#define CONFIG(...)
+#define CALIASES(...) {APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)}
+#define CALIAS(type, name, default, aliases, ...) const zai_str dd_config_aliases_##name[] = aliases;
+DD_CONFIGURATION
+#undef CALIAS
+#undef CONFIG
+#endif
 
 #define CUSTOM(...) CUSTOM
-#define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
-#define CALIASES(...) ((zai_str[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
 #define CONFIG(type, name, ...) ZAI_CONFIG_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
+#ifndef _WIN32
+#define CALIASES(...) ((zai_str[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
 #define CALIAS(type, name, ...) ZAI_CONFIG_ALIASED_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
+#else
+#define CALIAS(type, name, default, aliases, ...) ZAI_CONFIG_ALIASED_ENTRY(DDTRACE_CONFIG_##name, name, type, default, dd_config_aliases_##name, ##__VA_ARGS__),
+#endif
 static zai_config_entry config_entries[] = {DD_CONFIGURATION};
 #undef CALIAS
 #undef CONFIG
