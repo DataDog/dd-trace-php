@@ -98,6 +98,7 @@ fn build_zend_php_ffis(
         "../zend_abstract_interface/config/config_runtime.c",
         "../zend_abstract_interface/env/env.c",
         "../zend_abstract_interface/json/json.c",
+        "../zend_abstract_interface/zai_string/string.c",
     ];
 
     for file in zai_c_files.iter().chain(ZAI_H_FILES.iter()) {

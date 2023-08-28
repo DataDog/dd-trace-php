@@ -1,9 +1,10 @@
 #ifndef ZAI_ENV_H
 #define ZAI_ENV_H
 
+#include <zai_string/string.h>
+
 #include <stdbool.h>
 #include <stddef.h>
-#include <zai_string/string.h>
 
 /* The upper-bounds limit on the buffer size to hold the value of an arbitrary
  * environment variable.

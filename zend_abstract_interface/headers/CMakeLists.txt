@@ -6,7 +6,7 @@ target_include_directories(zai_headers PUBLIC
 
 target_compile_features(zai_headers PUBLIC c_std_99)
 
-target_link_libraries(zai_headers PUBLIC Tea::Php)
+target_link_libraries(zai_headers PUBLIC Tea::Php Zai::String)
 
 set_target_properties(zai_headers PROPERTIES
                                   EXPORT_NAME headers
