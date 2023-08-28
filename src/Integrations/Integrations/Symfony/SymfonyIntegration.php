@@ -11,7 +11,6 @@ use DDTrace\Util\Normalizer;
 use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
-use function DDTrace\hook_method;
 
 class SymfonyIntegration extends Integration
 {
@@ -367,7 +366,7 @@ class SymfonyIntegration extends Integration
          */
 
         \DDTrace\hook_method(
-            'Symfony\Component\HttpKernel\HttpKernel',
+            'Symfony\Component\HttpKernel\HttpKernelInterface',
             '__construct',
             function () use ($integration) {
                 if (strpos(\DDTrace\root_span()->name, DrupalIntegration::NAME) !== false) {
@@ -377,7 +376,7 @@ class SymfonyIntegration extends Integration
         );
 
         \DDTrace\trace_method(
-            'Symfony\Component\HttpKernel\HttpKernel',
+            'Symfony\Component\HttpKernel\HttpKernelInterface',
             'handle',
             function (SpanData $span, $args, $response) use ($integration) {
                 /** @var Request $request */
