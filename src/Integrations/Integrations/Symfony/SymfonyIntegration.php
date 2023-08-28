@@ -369,14 +369,15 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\HttpKernel\HttpKernel',
             '__construct',
             function () use ($integration) {
-                if (strpos(\DDTrace\root_span()->name, DrupalIntegration::NAME) !== false) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan && strpos($rootSpan->name, DrupalIntegration::NAME) !== false) {
                     $integration->frameworkPrefix = DrupalIntegration::NAME;
                 }
             }
         );
 
         \DDTrace\trace_method(
-            'Symfony\Component\HttpKernel\HttpKernelInterface',
+            'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
             function (SpanData $span, $args, $response) use ($integration) {
                 /** @var Request $request */
