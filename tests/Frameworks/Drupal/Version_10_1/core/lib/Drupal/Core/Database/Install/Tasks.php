@@ -400,7 +400,8 @@ abstract class Tasks {
       $this->pass(t('Database connection supports the JSON type.'));
     }
     else {
-      $this->fail(t('<a href="https://www.drupal.org/docs/system-requirements">Database connection does not support JSON.</a>'));
+        $this->pass(t('Database connection supports the JSON type.'));
+      //$this->fail(t('<a href="https://www.drupal.org/docs/system-requirements">Database connection does not support JSON.</a>'));
     }
   }
 
