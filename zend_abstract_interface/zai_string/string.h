@@ -11,6 +11,8 @@
 #include <stddef.h>
 #include <string.h>
 
+extern char *ZAI_STRING_EMPTY_PTR;
+
 /**
  * Represents a non-owning view of a string.
  *
@@ -44,7 +46,7 @@ typedef struct zai_str_s {
     ZAI_STR_FROM_RAW_PARTS("" literal, sizeof(literal) - 1)
 
 #define ZAI_STR_EMPTY \
-    ZAI_STR_FROM_RAW_PARTS("", 0)
+    ZAI_STR_FROM_RAW_PARTS(ZAI_STRING_EMPTY_PTR, 0)
 
 /** Use if cstr is known to be non-null, use zai_str_from_cstr otherwise. */
 #define ZAI_STR_FROM_CSTR(cstr)  \
@@ -80,7 +82,7 @@ static inline zai_str zai_str_from_cstr(const char *cstr) {
  *
  * If the pointer is known to be non-null, use ZAI_STR_FROM_ZSTR directly.
  */
-static inline zai_str zai_str_from_zstr(zend_string *zstr) {
+inline zai_str zai_str_from_zstr(zend_string *zstr) {
     return zstr ? ZAI_STR_FROM_ZSTR(zstr) : ZAI_STR_EMPTY;
 }
 
@@ -100,7 +102,7 @@ static inline bool zai_str_eq_ci_cstr(zai_str s, const char *str) {
     ZEND_ASSERT(s.ptr != NULL);
     ZEND_ASSERT(str != NULL);
     size_t len = strlen(str);
-    return s.len == len && strncasecmp(s.ptr, str, len) == 0;
+    return s.len == len && zend_binary_strncasecmp(s.ptr, s.len, str, len, len) == 0;
 }
 
 /** Represents an optional string view. Please treat this as opaque. */
@@ -134,7 +136,10 @@ zai_option_str zai_option_str_from_raw_parts(const char *ptr, size_t len) {
  */
 static inline
 zai_option_str zai_option_str_from_str(zai_str str) {
-    return (zai_option_str) {.ptr = str.len ? str.ptr : "", .len = str.len};
+    return (zai_option_str) {
+        .ptr = str.len ? str.ptr : ZAI_STRING_EMPTY_PTR,
+        .len = str.len,
+    };
 }
 
 /** Returns true if the option holds a value. */
@@ -165,6 +170,84 @@ bool zai_option_str_get(zai_option_str self, zai_str *view) {
     *view = zai_option_str_is_some(self) ? value : ZAI_STR_EMPTY;
     ZEND_ASSERT(view->ptr != NULL);
     return self.ptr;
+}
+
+/**
+ * Represents a owned string.
+ *
+ * When initializing the struct, use one of the initialization macros or
+ * functions. Do not initialize the struct directly.
+ *
+ * It is currently guaranteed that zai_string has the same layout as zai_str.
+ * This makes it safe to memcpy a zai_string into a zai_str. However, you
+ * shouldn't re-interpret a zai_string as a zai_str, because you are likely to
+ * commit an aliasing violation.
+ */
+typedef struct zai_string_s {
+    /**
+     * Guaranteed to hold .len + 1 bytes. The byte at self.ptr[self.len] is
+     * guaranteed to be a null character, but after initialization, this last
+     * byte must only be read, never written.
+     */
+    char *ptr;
+    size_t len;
+} zai_string;
+
+#define ZAI_STRING_EMPTY \
+    (zai_string) {.ptr = ZAI_STRING_EMPTY_PTR, .len = 0}
+
+/**
+ * Creates a zai_str view of the zai_string. Make sure the zai_str does not
+ * outlive the zai_string.
+ */
+__attribute__((pure))
+static inline zai_str zai_string_as_str(const zai_string *string) {
+    zai_str str;
+    memcpy(&str, string, sizeof(zai_str));
+    return str;
+}
+
+static inline zai_string zai_string_from_str(zai_str str) {
+    if (str.len == 0) {
+        return ZAI_STRING_EMPTY;
+    }
+
+    // plus 1 for the null byte
+    char *bytes = (char *)pemalloc(str.len + 1, true);
+    memcpy(bytes, str.ptr, str.len);
+    bytes[str.len] = '\0';
+    return (zai_string) {.ptr = bytes, .len = str.len};
+}
+
+inline zai_string zai_string_concat3(zai_str first, zai_str second, zai_str third) {
+    size_t len = first.len + second.len + third.len;
+
+    if (len == 0) {
+        return ZAI_STRING_EMPTY;
+    }
+
+    // plus 1 for the null byte
+    char *bytes = (char *)pemalloc(len + 1, true);
+
+    memcpy(bytes, first.ptr, first.len);
+    memcpy(bytes + first.len, second.ptr, second.len);
+    memcpy(bytes + first.len + second.len, third.ptr, third.len);
+
+    bytes[len] = '\0';
+    return (zai_string) {.ptr = bytes, .len = len};
+}
+
+/**
+ * Destroys the contents of the string. It is considered to be uninitialized
+ * after this call.
+ */
+static inline void zai_string_destroy(zai_string *string) {
+    if (EXPECTED(string->ptr != ZAI_STRING_EMPTY_PTR)) {
+        pefree(string->ptr, true);
+        // Because this project runs asan builds, we don't re-assign the
+        // pointer to ZAI_STRING_EMPTY_PTR or similar because we want the
+        // analyzer to complain if this gets used in some way after free.
+    }
 }
 
 #endif  // ZAI_STRING_H

@@ -77,41 +77,19 @@ static inline zai_str zai_symbol_lookup_clean(zai_str view) {
     return ZAI_STR_NEW(view.ptr + 1, view.len - 1);
 }
 
-static inline zai_str zai_symbol_lookup_key(zai_str *namespace, zai_str *name, bool lower) {
-    zai_str rv;
-    zai_str vns     = zai_symbol_lookup_clean(*namespace);
-    zai_str vn      = zai_symbol_lookup_clean(*name);
+static zai_string zai_symbol_lookup_key(zai_str *namespace, zai_str *name, bool lower) {
+    zai_str vns         = zai_symbol_lookup_clean(*namespace);
+    zai_str separator   = vns.len ? ZAI_STRL("\\") : ZAI_STR_EMPTY;
+    zai_str vn          = zai_symbol_lookup_clean(*name);
+    zai_string rv       = zai_string_concat3(vns, separator, vn);
 
-    char *result = NULL;
-#define CHAR_AT(n) (result[n])
-    if (vns.len) {
-        rv.len = vns.len + vn.len + 1;
-        result = pemalloc(rv.len + 1, 1);
-
-        memcpy(&CHAR_AT(0), vns.ptr, vns.len);
-
-        for (uint32_t c = 0; c < vns.len; c++) {
-            CHAR_AT(c) = tolower(CHAR_AT(c));
-        }
-
-        CHAR_AT(vns.len) = '\\';
-        memcpy(&CHAR_AT(vns.len + 1), vn.ptr, vn.len);
-    } else {
-        rv.len = vn.len;
-        result = pemalloc(rv.len + 1, 1);
-
-        memcpy(&CHAR_AT(0), vn.ptr, vn.len);
+    // Namespaces are never case-sensitive, so they are always lowered, even
+    // if `lower == false`, but do not lowercase the name segment unless
+    // `lower == true`.
+    size_t len = vns.len + separator.len + (lower ? vn.len : 0);
+    for (size_t c = 0; c < len; c++) {
+        rv.ptr[c] = tolower(rv.ptr[c]);
     }
-
-    if (lower) {
-        for (uint32_t c = vns.len; c < rv.len; c++) {
-            CHAR_AT(c) = tolower(CHAR_AT(c));
-        }
-    }
-
-    CHAR_AT(rv.len) = 0;
-#undef CHAR_AT
-    rv.ptr = result;
 
     return rv;
 }
@@ -142,16 +120,9 @@ static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t 
         } break;
 
         case ZAI_SYMBOL_SCOPE_NAMESPACE: {
-            zai_str key = zai_symbol_lookup_key(scope, name, true);
-
-            if (key.ptr) {
-                result = zai_symbol_lookup_table(
-                    EG(class_table),
-                    key,
-                    false, true);
-
-                pefree((char*) key.ptr, 1);
-            }
+            zai_string key = zai_symbol_lookup_key(scope, name, true);
+            result = zai_symbol_lookup_table(EG(class_table),zai_string_as_str(&key),false, true);
+            zai_string_destroy(&key);
         } break;
 
         default:
@@ -164,6 +135,7 @@ static inline zend_class_entry *zai_symbol_lookup_class_impl(zai_symbol_scope_t 
 static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t scope_type, void *scope, zai_str *name) {
     HashTable *table = NULL;
     zai_str key = *name;
+    zai_string tmpkey = ZAI_STRING_EMPTY;
 
     switch (scope_type) {
         case ZAI_SYMBOL_SCOPE_CLASS:
@@ -175,7 +147,8 @@ static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t 
             break;
 
         case ZAI_SYMBOL_SCOPE_NAMESPACE:
-            key = zai_symbol_lookup_key(scope, name, true);
+            tmpkey = zai_symbol_lookup_key(scope, name, true);
+            key = zai_string_as_str(&tmpkey);
             /* intentional fall through */
 
         case ZAI_SYMBOL_SCOPE_GLOBAL:
@@ -192,18 +165,18 @@ static inline zend_function *zai_symbol_lookup_function_impl(zai_symbol_scope_t 
         key.ptr == name->ptr ? zai_symbol_lookup_clean(key) : key,
         scope_type != ZAI_SYMBOL_SCOPE_NAMESPACE, true);
 
-    if (key.ptr != name->ptr) {
-        pefree((char*) key.ptr, 1);
-    }
+    zai_string_destroy(&tmpkey);
 
     return function;
 }
 
 static inline zval* lookup_constant_global(zai_symbol_scope_t scope_type, void *scope, zai_str *name) {
     zai_str key = *name;
+    zai_string tmpkey = ZAI_STRING_EMPTY;
 
     if (scope_type == ZAI_SYMBOL_SCOPE_NAMESPACE) {
-        key = zai_symbol_lookup_key(scope, name, false);
+        tmpkey = zai_symbol_lookup_key(scope, name, false);
+        key = zai_string_as_str(&tmpkey);
     }
 
     zend_constant *constant = zai_symbol_lookup_table(
@@ -211,9 +184,7 @@ static inline zval* lookup_constant_global(zai_symbol_scope_t scope_type, void *
         key.ptr == name->ptr ? zai_symbol_lookup_clean(key) : key,
         false, true);
 
-    if (key.ptr != name->ptr) {
-        pefree((char*) key.ptr, 1);
-    }
+    zai_string_destroy(&tmpkey);
 
     if (!constant) {
         return NULL;
