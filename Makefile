@@ -496,7 +496,6 @@ TEST_WEB_70 := \
 	test_metrics \
 	test_web_cakephp_28 \
 	test_web_codeigniter_22 \
-	test_web_drupal_89 \
 	test_web_laravel_42 \
 	test_web_lumen_52 \
 	test_web_nette_24 \
@@ -540,7 +539,6 @@ TEST_WEB_71 := \
 	test_metrics \
 	test_web_cakephp_28 \
 	test_web_codeigniter_22 \
-	test_web_drupal_89 \
 	test_web_laravel_42 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
