@@ -184,13 +184,7 @@ class PDOIntegration extends Integration
                     $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 }
                 if ($retval === true) {
-                    try {
-                        $span->metrics[Tag::DB_ROW_COUNT] = $this->rowCount();
-                    } catch (\Exception $e) {
-                        // Ignore exception thrown by rowCount() method.
-                        // Drupal PDOStatement::rowCount() method throws an exception if the query is not a SELECT.
-                        // TODO: Check the instance of '$this' instead of doing this try/catch.
-                    }
+                    $span->metrics[Tag::DB_ROW_COUNT] = $this->rowCount();
                 }
                 PDOIntegration::setCommonSpanInfo($this, $span);
                 $integration->addTraceAnalyticsIfEnabled($span);

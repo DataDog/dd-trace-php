@@ -164,7 +164,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'cakephp';
             $excluded[] = 'codeigniter';
             $excluded[] = 'curl';
-            $excluded[] = 'drupal';
             $excluded[] = 'elasticsearch';
             $excluded[] = 'eloquent';
             $excluded[] = 'guzzle';
