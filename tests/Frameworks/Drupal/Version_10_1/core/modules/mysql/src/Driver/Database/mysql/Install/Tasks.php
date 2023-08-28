@@ -19,7 +19,7 @@ class Tasks extends InstallTasks {
    * 5.7.8 is the minimum version that supports the JSON datatype.
    * @see https://dev.mysql.com/doc/refman/5.7/en/json.html
    */
-  const MYSQL_MINIMUM_VERSION = '5.7.8';
+  const MYSQL_MINIMUM_VERSION = '5.6.47';
 
   /**
    * Minimum required MariaDB version.
