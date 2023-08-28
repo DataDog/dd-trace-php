@@ -2,15 +2,12 @@
 
 namespace DDTrace\Integrations\Drupal;
 
-use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use function DDTrace\hook_method;
-use function DDTrace\install_hook;
-use function DDTrace\remove_hook;
+use function DDTrace\set_user;
 use function DDTrace\trace_function;
 use function DDTrace\trace_method;
 
@@ -197,6 +194,31 @@ class DrupalIntegration extends Integration
             }
         );
 
+        hook_method(
+            'Drupal\Core\Session\AccountProxy',
+            'setAccount',
+            function ($This, $scope, $args) {
+                if (!\DDTrace\root_span()) {
+                    return;
+                }
+
+                $account = $args[0];
+                if ($account instanceof \Drupal\Core\Session\AccountInterface) {
+                    $metadata = [
+                        'login' => $account->getAccountName(),
+                        'username' => $account->getDisplayName(),
+                        'email' => $account->getEmail(),
+                        'last_access' => $account->getLastAccessedTime(),
+                    ];
+
+                    $metadata = array_filter($metadata, function ($value) {
+                        return !empty($value);
+                    });
+
+                    set_user($account->id(), $metadata);
+                }
+            }
+        );
 
         return Integration::LOADED;
     }
