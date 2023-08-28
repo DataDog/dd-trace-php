@@ -25,6 +25,8 @@ class DrupalIntegration extends Integration
 
     public function init()
     {
+        ini_set('datadog.trace.spans_limit', max(1500, ini_get('datadog.trace.spans_limit')));
+
         trace_method(
             'Drupal\Core\DrupalKernel',
             'handle',
