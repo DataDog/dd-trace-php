@@ -366,7 +366,7 @@ class SymfonyIntegration extends Integration
          */
 
         \DDTrace\hook_method(
-            'Symfony\Component\HttpKernel\HttpKernelInterface',
+            'Symfony\Component\HttpKernel\HttpKernel',
             '__construct',
             function () use ($integration) {
                 if (strpos(\DDTrace\root_span()->name, DrupalIntegration::NAME) !== false) {
@@ -489,19 +489,16 @@ class SymfonyIntegration extends Integration
                 }
             }
         ];
-        if (($rootSpan = \DDTrace\root_span()) && strpos($rootSpan->name, DrupalIntegration::NAME) !== false) {
-            \DDTrace\trace_method(
-                'Drupal\Component\EventDispatcher\ContainerAwareEventDispatcher',
-                'dispatch',
-                $eventDispatcherTracer
-            );
-        } else {
-            \DDTrace\trace_method(
-                'Symfony\Component\EventDispatcher\EventDispatcher',
-                'dispatch',
-                $eventDispatcherTracer
-            );
-        }
+        \DDTrace\trace_method(
+            'Drupal\Component\EventDispatcher\ContainerAwareEventDispatcher',
+            'dispatch',
+            $eventDispatcherTracer
+        );
+        \DDTrace\trace_method(
+            'Symfony\Component\EventDispatcher\EventDispatcher',
+            'dispatch',
+            $eventDispatcherTracer
+        );
 
 
 
