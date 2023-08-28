@@ -16,7 +16,6 @@ ENV DEVLIBS \
     libmemcached-dev \
     libonig-dev \
     libpq-dev \
-    libpng-dev \
     libsodium-dev \
     libsqlite3-dev \
     libssl-dev \

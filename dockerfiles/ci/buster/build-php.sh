@@ -43,7 +43,6 @@ ${PHP_SRC_DIR}/configure \
         --enable-pcntl \
         --enable-sockets \
         $(if [[ ${PHP_VERSION_ID} -le 73 ]]; then echo --enable-zip; fi) \
-        $(if [[ ${PHP_VERSION_ID} -ge 74]]; then echo --enable-gd; else echo --with-gd; fi) \
         --with-curl \
         $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-ffi; fi) \
         --with-libedit \

@@ -27,7 +27,6 @@ sharedConfig="
     --enable-pcntl \
     --enable-phpdbg \
     --enable-sockets \
-    $(if [[ ${phpVersion} -ge 74 ]]; then echo --enable-gd; else echo --with-gd; fi) \
     --with-curl \
     --with-ffi \
     --with-fpm-user=www-data \
