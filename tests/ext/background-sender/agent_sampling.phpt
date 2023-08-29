@@ -1,0 +1,55 @@
+--TEST--
+The background sender informs about changes to the agent sample rate
+--SKIPIF--
+<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+--ENV--
+DD_TRACE_DEBUG=1
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
+DD_TRACE_AGENT_FLUSH_INTERVAL=333
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_AUTO_FLUSH_ENABLED=1
+--FILE--
+<?php
+include __DIR__ . '/../includes/request_replayer.inc';
+
+$rr = new RequestReplayer();
+$get_sampling = function() use ($rr) {
+    return json_decode($rr->replayRequest()["body"], true)[0][0]["metrics"]["_sampling_priority_v1"];
+};
+
+$rr->setResponse(["rate_by_service" => ["service:,env:" => 0]]);
+
+\DDTrace\start_span();
+\DDTrace\close_span();
+
+$rr->waitForFlush();
+
+echo "Initial sampling: {$get_sampling()}\n";
+
+$rr->setResponse(["rate_by_service" => ["service:,env:" => 0, "service:foo,env:none" => 1]]);
+
+\DDTrace\start_span();
+\DDTrace\close_span();
+
+$rr->waitForFlush();
+echo "Generic sampling: {$get_sampling()}\n";
+
+$s = \DDTrace\start_span();
+$s->service = "foo";
+$s->meta["env"] = "none";
+\DDTrace\close_span();
+
+$rr->waitForFlush();
+echo "Specific sampling: {$get_sampling()}\n";
+
+?>
+--EXPECTF--
+Flushing trace of size 1 to send-queue for http://request-replayer:80
+Initial sampling: 1
+Flushing trace of size 1 to send-queue for http://request-replayer:80
+Generic sampling: 0
+Flushing trace of size 1 to send-queue for http://request-replayer:80
+Specific sampling: 1
+No finished traces to be sent to the agent

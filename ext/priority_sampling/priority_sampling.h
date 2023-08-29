@@ -23,4 +23,6 @@ void ddtrace_set_prioritySampling_on_root(zend_long priority, enum dd_sampling_m
 zend_long ddtrace_fetch_prioritySampling_from_span(ddtrace_span_data *root_span);
 zend_long ddtrace_fetch_prioritySampling_from_root(void);
 
+void ddtrace_try_read_agent_rate(void);
+
 #endif  // DDTRACE_PRIORITY_SAMPLING_H

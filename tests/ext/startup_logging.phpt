@@ -27,7 +27,7 @@ enabled_cli: %s
 agent_url: "%s"
 debug: true
 analytics_enabled: false
-sample_rate: 1
+sample_rate: -1
 sampling_rules: []
 tags: []
 service_mapping: []

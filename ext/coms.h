@@ -86,4 +86,6 @@ void ddtrace_curl_set_connect_timeout(CURL *curl);
 char *ddtrace_agent_url(void);
 /* }}} */
 
+extern struct ddog_ShmHandle *ddtrace_coms_agent_config_handle;
+
 #endif  // DD_COMS_H

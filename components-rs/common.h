@@ -40,6 +40,8 @@
 #  define DDOG_CHECK_RETURN
 #endif
 
+typedef struct ddog_Endpoint ddog_Endpoint;
+
 typedef struct ddog_Tag ddog_Tag;
 
 /**
@@ -113,7 +115,7 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_DEFAULT,
 } ddog_ConfigurationOrigin;
 
-typedef struct ddog_BlockingTransport_TelemetryInterfaceResponse__TelemetryInterfaceRequest ddog_BlockingTransport_TelemetryInterfaceResponse__TelemetryInterfaceRequest;
+typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest;
 
 typedef struct ddog_InstanceId ddog_InstanceId;
 
@@ -122,7 +124,7 @@ typedef struct ddog_TelemetryActionsBuffer ddog_TelemetryActionsBuffer;
 typedef struct ddog_Log {
   uint32_t bits;
 } ddog_Log;
-typedef struct ddog_BlockingTransport_TelemetryInterfaceResponse__TelemetryInterfaceRequest ddog_TelemetryTransport;
+typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_SidecarTransport;
 
 typedef enum ddog_Option_VecU8_Tag {
   DDOG_OPTION_VEC_U8_SOME_VEC_U8,
@@ -164,6 +166,12 @@ typedef struct ddog_Option_Bool {
   };
 } ddog_Option_Bool;
 
+typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
+
+typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
+
+typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
+
 /**
  * PlatformHandle contains a valid reference counted FileDescriptor and associated Type information
  * allowing safe transfer and sharing of file handles across processes, and threads
@@ -172,9 +180,22 @@ typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
 
 typedef struct ddog_RuntimeMeta ddog_RuntimeMeta;
 
+typedef struct ddog_ShmHandle ddog_ShmHandle;
+
 typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;
 } ddog_NativeFile;
+
+typedef struct ddog_TracerHeaderTags {
+  ddog_CharSlice lang;
+  ddog_CharSlice lang_version;
+  ddog_CharSlice lang_interpreter;
+  ddog_CharSlice lang_vendor;
+  ddog_CharSlice tracer_version;
+  ddog_CharSlice container_id;
+  bool client_computed_top_level;
+  bool client_computed_stats;
+} ddog_TracerHeaderTags;
 
 /**
  * # Safety
@@ -189,6 +210,17 @@ void ddog_Error_drop(struct ddog_Error *error);
  * Only pass null or a valid reference to a `ddog_Error`.
  */
 ddog_CharSlice ddog_Error_message(const struct ddog_Error *error);
+
+DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_url(ddog_CharSlice url);
+
+DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_api_key(ddog_CharSlice api_key);
+
+DDOG_CHECK_RETURN
+struct ddog_Error *ddog_endpoint_from_api_key_and_site(ddog_CharSlice api_key,
+                                                       ddog_CharSlice site,
+                                                       struct ddog_Endpoint **endpoint);
+
+void ddog_endpoint_drop(struct ddog_Endpoint*);
 
 DDOG_CHECK_RETURN struct ddog_Vec_Tag ddog_Vec_Tag_new(void);
 

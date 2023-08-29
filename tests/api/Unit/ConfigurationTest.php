@@ -328,7 +328,7 @@ EOD;
     /**
      * @dataProvider dataProviderTestTraceSampleRate
      * @param mixed $envs
-     * @param array $expected
+     * @param float $expected
      */
     public function testTraceSampleRate($envs, $expected)
     {
@@ -336,7 +336,7 @@ EOD;
             $this->putEnvAndReloadConfig([$env]);
         }
 
-        $this->assertSame($expected, Configuration::get()->getSamplingRate());
+        $this->assertEquals($expected, Configuration::get()->getSamplingRate());
     }
 
     public function dataProviderTestTraceSampleRate()
@@ -352,11 +352,12 @@ EOD;
                 ],
                 0.7,
             ],
+            // i.e. default sample rate: will be 1 then
             'DD_TRACE_SAMPLE_RATE has a minimum of 0.0' => [
                 [
                     'DD_TRACE_SAMPLE_RATE=-0.1',
                 ],
-                0.0,
+                1,
             ],
             'DD_TRACE_SAMPLE_RATE has a maximum of 1.0' => [
                 [
