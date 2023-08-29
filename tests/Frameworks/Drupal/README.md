@@ -1,6 +1,14 @@
-- Replace `REQUIREMENT_ERROR` by `REQUIREMENT_WARNING` in any *.install file requiring `gd`, or comment out the requirement
-  - The `--ignore-platform-reqs` matters when running `composer update` since Drupal otherwise requires `gd`
-- Modify `Drupal\Core\Command\InstallCommand::install` (lib) for `mysql` to be used instead of `sqlite` by default with the snippet below on the `install_settings_form` key
+# Drupal Test Framework Set-up Procedure
+
+This guide provides step-by-step instructions to set up the Drupal Test Framework for your project. Follow these procedures to ensure a smooth testing environment and accurate test results.
+
+## Adjust `REQUIREMENT_ERROR` in `*.install Files
+
+Replace instances of `REQUIREMENT_ERROR` with `REQUIREMENT_WARNING` in any `*.install` files that require the `gd` library. Alternatively, you can comment out the requirement altogether. Note that using `--ignore-platform-reqs` during composer update is crucial to prevent Drupal from mandating the `gd library.
+
+## Configure Default Database Driver
+
+Modify the library `/Drupal/Core/Command/InstallCommand::install` for the `mysql` driver to be the default instead of `sqlite`. Insert the following code snippet into the `install_settings_form` key of your configuration:
 ```php
 'install_settings_form' => [
     'driver' => 'mysql',
@@ -13,19 +21,38 @@
         ],
     ]
 ```
-- Use the `erase_drupal_db.php` script and run it in the post-update-cmd section of the root `composer.json`
-- Remove the cache dependencies from `minimal.info.yml`
-- Use the custom datadog modules (`modules/`) and add it as a dependency in `text.info.yml` (`- datadog`) for it to be loaded and enabled
-- In the Makefile, the `test_web_drupal_XX` should do a `composer update` on the root of the framework's dir + in the /core dir
-- Modify `Drupal\mysql\Driver\Database\mysql\Install\Tasks::MYSQL_MINIMUM_VERSION` to `5.6.47` (the MySQL version the CI is using...)
 
-**If generating the snapshots without the SQL spans, then this should be enough. Else, consider the following:**
-- Modify all `cache.*` in `core.services.yml` to use `class: Drupal\Core\Cache\NullBackendFactory`
-  - If still flaky, use the `development` environment in `index.php` and the other drupal test framework's `settings.local.php` & `services.yml` (disable caching)
+## Adjust MySQL Version
+
+Modify the MySQL version in the `Drupal\mysql\Driver\Database\mysql\Install\Tasks::MYSQL_MINIMUM_VERSION` to `5.6.47`. This is the MySQL version that the CI is using.
+
+## Utilize `erase_drupal_db.php` Script
+
+Integrate the `erase_drupal_db.php` script by running it in the `post-update-cmd` section of the root `composer.json.
+
+## Remove Cache Dependencies
+
+Remove cache dependencies from the `minimal.info.yml file.
+
+## Integrate Custom Datadog Modules
+
+Incorporate the custom Datadog modules located in the `modules/` directory. Add this module as dependency in the `text.info.yml` file (i.e., `- datadog`). This ensures proper loading and activation of the modules.
+
+## Modify `Makefile`
+
+The `test_web_drupal_XX` should perform a `composer update` on the root of the framework's directory and in the `/core` directory.
+
+## (Optional) Additional Steps for Generating Snapshots with SQL Spans
+
+If generating snapshots with SQL spans, consider the following additional steps:
+
+- Update all instances of `cache.*` in the `core.services.yml` file to use class: `Drupal\Core\Cache\NullBackendFactory`
+- If flakiness persists, use the `development` environment in `index.php` and copy the other Drupal test framework's `settings.local.php` and `services.yml` files (disable caching)
 - Uncomment the following block at the end of `default.settings.php`:
 ```php
 if (file_exists($app_root . '/' . $site_path . '/settings.local.php')) {
 include $app_root . '/' . $site_path . '/settings.local.php';
 }
 ```
-- Look at Version 8.9's test framework for `settings.local.php`, and `services.yml`
+
+Note that these final steps may not ensure it is completely flake-free, but it should help.
