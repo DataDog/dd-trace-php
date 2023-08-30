@@ -7,7 +7,6 @@ use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables;
 
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
@@ -98,7 +97,7 @@ class LaravelIntegration extends Integration
             'bootstrapWith',
             function ($app) use ($integration) {
                 if (empty($integration->serviceName)) {
-                    $app->make(LoadEnvironmentVariables::class)->bootstrap($app);
+                    $app->make('Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables')->bootstrap($app);
                     $configPath = realpath($app->configPath());
                     if (file_exists($configPath . '/app.php')) {
                         $config = require $configPath . '/app.php';
