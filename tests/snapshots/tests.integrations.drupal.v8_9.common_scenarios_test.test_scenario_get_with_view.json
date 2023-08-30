@@ -5,7 +5,7 @@
     "resource": "simple_view",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 15906835432643249519,
+    "parent_id": 15693863472526997934,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple_view",
-      "runtime-id": "07b59f3d-34de-49e6-8fbb-4eb638e66c1a",
+      "runtime-id": "87e5dba9-1cdc-4a50-b096-a276fec745e6",
       "span.kind": "server",
       "symfony.route.action": "Drupal\\datadog\\Controller\\DatadogController@simpleView",
       "symfony.route.name": "simple_view"
@@ -40,7 +40,7 @@
           "service": "test_drupal_89",
           "resource": "drupal.kernel.boot",
           "trace_id": 0,
-          "span_id": 4,
+          "span_id": 5,
           "parent_id": 2,
           "type": "web",
           "meta": {
@@ -48,11 +48,11 @@
           }
         },
         {
-          "name": "drupal.httpkernel.stacked.handle",
+          "name": "drupal.httpkernel.handle",
           "service": "test_drupal_89",
-          "resource": "drupal.httpkernel.stacked.handle",
+          "resource": "drupal.httpkernel.handle",
           "trace_id": 0,
-          "span_id": 5,
+          "span_id": 6,
           "parent_id": 2,
           "type": "web",
           "meta": {
@@ -64,8 +64,8 @@
              "service": "test_drupal_89",
              "resource": "symfony.kernel.handle",
              "trace_id": 0,
-             "span_id": 6,
-             "parent_id": 5,
+             "span_id": 7,
+             "parent_id": 6,
              "type": "web",
              "meta": {
                "component": "symfony"
@@ -76,8 +76,8 @@
                 "service": "test_drupal_89",
                 "resource": "symfony.kernel.request",
                 "trace_id": 0,
-                "span_id": 7,
-                "parent_id": 6,
+                "span_id": 8,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
@@ -88,8 +88,8 @@
                 "service": "test_drupal_89",
                 "resource": "symfony.kernel.controller",
                 "trace_id": 0,
-                "span_id": 8,
-                "parent_id": 6,
+                "span_id": 9,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
@@ -100,8 +100,8 @@
                 "service": "test_drupal_89",
                 "resource": "symfony.kernel.controller_arguments",
                 "trace_id": 0,
-                "span_id": 9,
-                "parent_id": 6,
+                "span_id": 10,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
@@ -112,8 +112,8 @@
                 "service": "test_drupal_89",
                 "resource": "Drupal\\datadog\\Controller\\DatadogController::simpleView",
                 "trace_id": 0,
-                "span_id": 10,
-                "parent_id": 6,
+                "span_id": 11,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
@@ -124,8 +124,8 @@
                 "service": "test_drupal_89",
                 "resource": "symfony.kernel.view",
                 "trace_id": 0,
-                "span_id": 11,
-                "parent_id": 6,
+                "span_id": 12,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
@@ -136,20 +136,20 @@
                    "service": "test_drupal_89",
                    "resource": "symfony.render.page_display_variant.select",
                    "trace_id": 0,
-                   "span_id": 14,
-                   "parent_id": 11,
+                   "span_id": 15,
+                   "parent_id": 12,
                    "type": "web",
                    "meta": {
                      "component": "symfony"
                    }
                  },
                  {
-                   "name": "drupal.template.render",
+                   "name": "drupal.theme.render",
                    "service": "test_drupal_89",
-                   "resource": "drupal.template.render",
+                   "resource": "drupal.theme.render",
                    "trace_id": 0,
-                   "span_id": 15,
-                   "parent_id": 11,
+                   "span_id": 16,
+                   "parent_id": 12,
                    "type": "web",
                    "meta": {
                      "component": "drupal",
@@ -159,12 +159,12 @@
                    }
                  },
                  {
-                   "name": "drupal.template.render",
+                   "name": "drupal.theme.render",
                    "service": "test_drupal_89",
-                   "resource": "drupal.template.render",
+                   "resource": "drupal.theme.render",
                    "trace_id": 0,
-                   "span_id": 16,
-                   "parent_id": 11,
+                   "span_id": 17,
+                   "parent_id": 12,
                    "type": "web",
                    "meta": {
                      "component": "drupal",
@@ -174,12 +174,12 @@
                    }
                  },
                     {
-                      "name": "drupal.template.render",
+                      "name": "drupal.theme.render",
                       "service": "test_drupal_89",
-                      "resource": "drupal.template.render",
+                      "resource": "drupal.theme.render",
                       "trace_id": 0,
-                      "span_id": 17,
-                      "parent_id": 16,
+                      "span_id": 18,
+                      "parent_id": 17,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
@@ -189,12 +189,12 @@
                       }
                     },
                        {
-                         "name": "drupal.template.render",
+                         "name": "drupal.theme.render",
                          "service": "test_drupal_89",
-                         "resource": "drupal.template.render",
+                         "resource": "drupal.theme.render",
                          "trace_id": 0,
-                         "span_id": 19,
-                         "parent_id": 17,
+                         "span_id": 20,
+                         "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
@@ -204,12 +204,12 @@
                          }
                        },
                        {
-                         "name": "drupal.template.render",
+                         "name": "drupal.theme.render",
                          "service": "test_drupal_89",
-                         "resource": "drupal.template.render",
+                         "resource": "drupal.theme.render",
                          "trace_id": 0,
-                         "span_id": 20,
-                         "parent_id": 17,
+                         "span_id": 21,
+                         "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
@@ -219,12 +219,12 @@
                          }
                        },
                        {
-                         "name": "drupal.template.render",
+                         "name": "drupal.theme.render",
                          "service": "test_drupal_89",
-                         "resource": "drupal.template.render",
+                         "resource": "drupal.theme.render",
                          "trace_id": 0,
-                         "span_id": 21,
-                         "parent_id": 17,
+                         "span_id": 22,
+                         "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
@@ -234,12 +234,12 @@
                          }
                        },
                        {
-                         "name": "drupal.template.render",
+                         "name": "drupal.theme.render",
                          "service": "test_drupal_89",
-                         "resource": "drupal.template.render",
+                         "resource": "drupal.theme.render",
                          "trace_id": 0,
-                         "span_id": 22,
-                         "parent_id": 17,
+                         "span_id": 23,
+                         "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
@@ -249,12 +249,12 @@
                          }
                        },
                        {
-                         "name": "drupal.template.render",
+                         "name": "drupal.theme.render",
                          "service": "test_drupal_89",
-                         "resource": "drupal.template.render",
+                         "resource": "drupal.theme.render",
                          "trace_id": 0,
-                         "span_id": 23,
-                         "parent_id": 17,
+                         "span_id": 24,
+                         "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
@@ -264,12 +264,12 @@
                          }
                        },
                           {
-                            "name": "drupal.template.render",
+                            "name": "drupal.theme.render",
                             "service": "test_drupal_89",
-                            "resource": "drupal.template.render",
+                            "resource": "drupal.theme.render",
                             "trace_id": 0,
-                            "span_id": 26,
-                            "parent_id": 23,
+                            "span_id": 27,
+                            "parent_id": 24,
                             "type": "web",
                             "meta": {
                               "component": "drupal",
@@ -279,12 +279,12 @@
                             }
                           },
                        {
-                         "name": "drupal.template.render",
+                         "name": "drupal.theme.render",
                          "service": "test_drupal_89",
-                         "resource": "drupal.template.render",
+                         "resource": "drupal.theme.render",
                          "trace_id": 0,
-                         "span_id": 24,
-                         "parent_id": 17,
+                         "span_id": 25,
+                         "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
@@ -294,12 +294,12 @@
                          }
                        },
                        {
-                         "name": "drupal.template.render",
+                         "name": "drupal.theme.render",
                          "service": "test_drupal_89",
-                         "resource": "drupal.template.render",
+                         "resource": "drupal.theme.render",
                          "trace_id": 0,
-                         "span_id": 25,
-                         "parent_id": 17,
+                         "span_id": 26,
+                         "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
@@ -309,12 +309,12 @@
                          }
                        },
                     {
-                      "name": "drupal.template.render",
+                      "name": "drupal.theme.render",
                       "service": "test_drupal_89",
-                      "resource": "drupal.template.render",
+                      "resource": "drupal.theme.render",
                       "trace_id": 0,
-                      "span_id": 18,
-                      "parent_id": 16,
+                      "span_id": 19,
+                      "parent_id": 17,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
@@ -328,8 +328,8 @@
                 "service": "test_drupal_89",
                 "resource": "symfony.kernel.response",
                 "trace_id": 0,
-                "span_id": 12,
-                "parent_id": 6,
+                "span_id": 13,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
@@ -340,19 +340,31 @@
                 "service": "test_drupal_89",
                 "resource": "symfony.kernel.finish_request",
                 "trace_id": 0,
-                "span_id": 13,
-                "parent_id": 6,
+                "span_id": 14,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
                 }
               },
      {
+       "name": "symfony.response.send",
+       "service": "test_drupal_89",
+       "resource": "symfony.response.send",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "drupal"
+       }
+     },
+     {
        "name": "symfony.kernel.terminate",
        "service": "test_drupal_89",
        "resource": "symfony.kernel.terminate",
        "trace_id": 0,
-       "span_id": 3,
+       "span_id": 4,
        "parent_id": 1,
        "type": "web",
        "meta": {

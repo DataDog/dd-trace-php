@@ -2,13 +2,15 @@
 
 namespace DDTrace\Integrations\Drupal;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use function DDTrace\hook_method;
+use function DDTrace\install_hook;
+use function DDTrace\remove_hook;
 use function DDTrace\set_user;
-use function DDTrace\trace_function;
 use function DDTrace\trace_method;
 
 class DrupalIntegration extends Integration
@@ -25,13 +27,15 @@ class DrupalIntegration extends Integration
 
     public function init()
     {
-        ini_set('datadog.trace.spans_limit', max(2000, ini_get('datadog.trace.spans_limit')));
+        ini_set('datadog.trace.spans_limit', max(1500, ini_get('datadog.trace.spans_limit')));
 
         trace_method(
             'Drupal\Core\DrupalKernel',
             'handle',
             [
                 'prehook' => function (SpanData $span) {
+                    // A pre-hook is used here to ensure that the root span name is set before the symfony integration
+                    // checks for it.
                     $service = \ddtrace_config_app_name('drupal');
 
                     $rootSpan = \DDTrace\root_span();
@@ -50,12 +54,14 @@ class DrupalIntegration extends Integration
         );
 
         $stackedHttpKernelTracer = function (SpanData $span) {
-            $span->name = 'drupal.httpkernel.stacked.handle';
+            $span->name = 'drupal.httpkernel.handle';
             $span->type = Type::WEB_SERVLET;
             $span->service = \ddtrace_config_app_name('drupal');
             $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
         };
-
+        // See Drupal\Core\DependencyInjection\Compiler\StackedKernelPass
+        // If a middleware is tagged with 'responder' => true, then the underlying middleware and the HTTP kernel
+        // are flagged as 'lazy', meaning Symfony\Component\HttpKernel\HttpKernel::handle() may not be called.
         // Drupal 9-
         trace_method('Stack\StackedHttpKernel', 'handle', $stackedHttpKernelTracer);
         // Drupal 10+
@@ -157,44 +163,47 @@ class DrupalIntegration extends Integration
         );
         */
 
-        $themeEngines = [];
-        hook_method(
+        trace_method(
             'Drupal\Core\Theme\ThemeManager',
             'render',
-            function ($themeManager) use (&$themeEngines) {
-                $renderFunction = 'twig_render_template'; // Default
+            [
+                'recurse' => true,
+                'prehook' => function (SpanData $span) {
+                    $span->name = 'drupal.theme.render';
+                    $span->service = \ddtrace_config_app_name('drupal');
+                    $span->type = Type::WEB_SERVLET;
+                    $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
 
-                $activeTheme = $themeManager->getActiveTheme();
-                $themeName = $activeTheme->getName();
-                $themeEngine = $activeTheme->getEngine();
+                    /** @var \Drupal\Core\Theme\ThemeManager $themeManager */
+                    $themeManager = $this;
 
-                // The theme engine may use a different extension and a different renderer
-                if (isset($themeEngine) && function_exists("{$themeEngine}_render_template")) {
-                    $renderFunction = "{$themeEngine}_render_template";
-                } else {
-                    $themeEngine = 'twig'; // Default
+                    $activeTheme = $themeManager->getActiveTheme();
+                    $themeName = $activeTheme->getName();
+                    $themeEngine = $activeTheme->getEngine();
+
+                    if (!empty($themeName)) {
+                        $span->meta['drupal.theme.name'] = $themeName;
+                    }
+
+                    if (!empty($themeEngine)) {
+                        $span->meta['drupal.theme.engine'] = $themeEngine;
+                        if (function_exists("{$themeEngine}_render_template")) {
+                            $renderFunction = "{$themeEngine}_render_template";
+
+                            // The theme engine may use a different extension and a different renderer
+                            // Moreover, Drupal can use different themes in the same application
+                            // The render function will always be called during the ThemeManager::render call
+                            install_hook(
+                                $renderFunction,
+                                function (HookData $hook) use ($span) {
+                                    $span->meta['drupal.template'] = $hook->args[0];
+                                    remove_hook($hook->id);
+                                }
+                            );
+                        }
+                    }
                 }
-
-                if (!isset($themeEngines[$themeEngine])) { // Install hook only once per theme engine
-                    $themeEngines[$themeEngine] = true;
-                    trace_function(
-                        $renderFunction,
-                        [
-                            'recurse' => true,
-                            'posthook' =>  function (SpanData $span, $args) use ($themeName, $themeEngine) {
-                                $span->name = 'drupal.template.render';
-                                $span->service = \ddtrace_config_app_name('drupal');
-                                $span->type = Type::WEB_SERVLET;
-                                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
-
-                                $span->meta['drupal.template'] = $args[0];
-                                $span->meta['drupal.theme.name'] = $themeName;
-                                $span->meta['drupal.theme.engine'] = $themeEngine;
-                            }
-                        ]
-                    );
-                }
-            }
+            ]
         );
 
         trace_method(
@@ -222,7 +231,6 @@ class DrupalIntegration extends Integration
                         'login' => $account->getAccountName(),
                         'username' => $account->getDisplayName(),
                         'email' => $account->getEmail(),
-                        'last_access' => $account->getLastAccessedTime(),
                     ];
 
                     $metadata = array_filter($metadata, function ($value) {

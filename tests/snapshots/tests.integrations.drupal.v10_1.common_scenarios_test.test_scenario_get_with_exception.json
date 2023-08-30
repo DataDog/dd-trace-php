@@ -5,7 +5,7 @@
     "resource": "error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 563226885176954595,
+    "parent_id": 6151883824129251537,
     "type": "web",
     "error": 1,
     "meta": {
@@ -17,7 +17,7 @@
       "http.method": "GET",
       "http.status_code": "500",
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
-      "runtime-id": "0ceff45b-6e74-4154-ab48-c570f79c8473",
+      "runtime-id": "b8cfaced-231e-45be-8aab-7f280dc7647f",
       "span.kind": "server",
       "symfony.route.action": "Drupal\\datadog\\Controller\\DatadogController@error",
       "symfony.route.name": "error"
@@ -44,7 +44,7 @@
           "service": "test_drupal_101",
           "resource": "drupal.kernel.boot",
           "trace_id": 0,
-          "span_id": 4,
+          "span_id": 5,
           "parent_id": 2,
           "type": "web",
           "meta": {
@@ -52,11 +52,11 @@
           }
         },
         {
-          "name": "drupal.httpkernel.stacked.handle",
+          "name": "drupal.httpkernel.handle",
           "service": "test_drupal_101",
-          "resource": "drupal.httpkernel.stacked.handle",
+          "resource": "drupal.httpkernel.handle",
           "trace_id": 0,
-          "span_id": 5,
+          "span_id": 6,
           "parent_id": 2,
           "type": "web",
           "meta": {
@@ -68,8 +68,8 @@
              "service": "test_drupal_101",
              "resource": "symfony.kernel.handle",
              "trace_id": 0,
-             "span_id": 6,
-             "parent_id": 5,
+             "span_id": 7,
+             "parent_id": 6,
              "type": "web",
              "meta": {
                "component": "symfony"
@@ -80,8 +80,8 @@
                 "service": "test_drupal_101",
                 "resource": "symfony.kernel.request",
                 "trace_id": 0,
-                "span_id": 7,
-                "parent_id": 6,
+                "span_id": 8,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
@@ -92,8 +92,8 @@
                 "service": "test_drupal_101",
                 "resource": "symfony.kernel.controller",
                 "trace_id": 0,
-                "span_id": 8,
-                "parent_id": 6,
+                "span_id": 9,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
@@ -104,8 +104,8 @@
                 "service": "test_drupal_101",
                 "resource": "symfony.kernel.controller_arguments",
                 "trace_id": 0,
-                "span_id": 9,
-                "parent_id": 6,
+                "span_id": 10,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
@@ -116,8 +116,8 @@
                 "service": "test_drupal_101",
                 "resource": "Drupal\\datadog\\Controller\\DatadogController::error",
                 "trace_id": 0,
-                "span_id": 10,
-                "parent_id": 6,
+                "span_id": 11,
+                "parent_id": 7,
                 "type": "web",
                 "error": 1,
                 "meta": {
@@ -132,8 +132,8 @@
                 "service": "test_drupal_101",
                 "resource": "symfony.kernel.handleException",
                 "trace_id": 0,
-                "span_id": 11,
-                "parent_id": 6,
+                "span_id": 12,
+                "parent_id": 7,
                 "type": "web",
                 "meta": {
                   "component": "symfony"
@@ -144,8 +144,8 @@
                    "service": "test_drupal_101",
                    "resource": "symfony.kernel.exception",
                    "trace_id": 0,
-                   "span_id": 12,
-                   "parent_id": 11,
+                   "span_id": 13,
+                   "parent_id": 12,
                    "type": "web",
                    "meta": {
                      "component": "symfony"
@@ -156,8 +156,8 @@
                    "service": "test_drupal_101",
                    "resource": "symfony.kernel.response",
                    "trace_id": 0,
-                   "span_id": 13,
-                   "parent_id": 11,
+                   "span_id": 14,
+                   "parent_id": 12,
                    "type": "web",
                    "meta": {
                      "component": "symfony"
@@ -168,19 +168,31 @@
                    "service": "test_drupal_101",
                    "resource": "symfony.kernel.finish_request",
                    "trace_id": 0,
-                   "span_id": 14,
-                   "parent_id": 11,
+                   "span_id": 15,
+                   "parent_id": 12,
                    "type": "web",
                    "meta": {
                      "component": "symfony"
                    }
                  },
      {
+       "name": "symfony.response.send",
+       "service": "test_drupal_101",
+       "resource": "symfony.response.send",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "drupal"
+       }
+     },
+     {
        "name": "symfony.kernel.terminate",
        "service": "test_drupal_101",
        "resource": "symfony.kernel.terminate",
        "trace_id": 0,
-       "span_id": 3,
+       "span_id": 4,
        "parent_id": 1,
        "type": "web",
        "meta": {
