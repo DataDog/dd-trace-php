@@ -198,10 +198,10 @@ class DrupalIntegration extends Integration
         );
 
         trace_method(
-            'Drupal\big_pipe\Render\BigPipeResponse',
-            'sendContent',
+            'Symfony\Component\HttpFoundation\Response',
+            'send',
             function (SpanData $span) {
-                $span->name = 'drupal.response.send';
+                $span->name = 'symfony.response.send';
                 $span->service = \ddtrace_config_app_name('drupal');
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
