@@ -68,12 +68,15 @@ class LaravelIntegration extends Integration
             ini_set("datadog.trace.generate_root_span", 0);
         }
 
-        $handleTracer = function ($operationName, $resourceName) use ($integration) {
-            return function (SpanData $span, $args, $response) use ($integration, $operationName, $resourceName) {
-                $span->name = $operationName;
+
+        \DDTrace\trace_method(
+            'Illuminate\Foundation\Application',
+            'handle',
+            function (SpanData $span, $args, $response) use ($integration) {
+                $span->name = 'laravel.application.handle';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
-                $span->resource = $resourceName;
+                $span->resource = 'Illuminate\Foundation\Application@handle';
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
                 $rootSpan = \DDTrace\root_span();
@@ -81,23 +84,14 @@ class LaravelIntegration extends Integration
                 // Overwriting the default web integration
                 $rootSpan->name = 'laravel.request';
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
-                if (is_int($response)) {
-                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response;
-                } elseif (\method_exists($response, 'getStatusCode')) {
+                if (\method_exists($response, 'getStatusCode')) {
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
                 $rootSpan->service = $integration->getServiceName();
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-            };
-        };
-        // Laravel 4
-        \DDTrace\trace_method('Illuminate\Foundation\Application', 'handle', $handleTracer('laravel.application.handle', 'Illuminate\Foundation\Application@handle'));
-        // Laravel 5+ || See bootstrap/app.php
-        //\DDTrace\trace_method('Illuminate\Foundation\Http\Kernel', 'handle', $handleTracer('laravel.kernel.handle', 'Illuminate\Foundation\Http\Kernel@handle'));
-        \DDTrace\trace_method('App\Http\Kernel', 'handle', $handleTracer('laravel.kernel.handle', 'Illuminate\Foundation\Http\Kernel@handle'));
-        //\DDTrace\trace_method('Illuminate\Foundation\Console\Kernel', 'handle', $handleTracer('laravel.kernel.handle', 'Illuminate\Foundation\Console\Kernel@handle'));
-        \DDTrace\trace_method('App\Console\Kernel', 'handle', $handleTracer('laravel.kernel.handle', 'Illuminate\Foundation\Console\Kernel@handle'));
+            }
+        );
 
         \DDTrace\hook_method(
             'Illuminate\Contracts\Foundation\Application',
@@ -112,32 +106,6 @@ class LaravelIntegration extends Integration
                     }
                 }
             }
-        );
-
-        \DDTrace\trace_method(
-            'Illuminate\Contracts\Http\Kernel',
-            'bootstrap',
-            [
-                'posthook' => function (SpanData $span) use ($integration) {
-                    $span->name = 'laravel.kernel.bootstrap';
-                    $span->type = Type::WEB_SERVLET;
-                    $span->service = $integration->getServiceName();
-                    $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-                }
-            ]
-        );
-
-        \DDTrace\trace_method(
-            'Illuminate\Contracts\Console\Kernel',
-            'bootstrap',
-            [
-                'posthook' => function (SpanData $span) use ($integration) {
-                    $span->name = 'laravel.kernel.bootstrap';
-                    $span->type = Type::WEB_SERVLET;
-                    $span->service = $integration->getServiceName();
-                    $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-                }
-            ]
         );
 
         \DDTrace\hook_method(
@@ -182,27 +150,11 @@ class LaravelIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\Routing\Route',
             'run',
-            [
-                'recurse' => true,
-                'posthook' => function (SpanData $span) use ($integration) {
-                    $span->name = 'laravel.action';
-                    $span->type = Type::WEB_SERVLET;
-                    $span->service = $integration->getServiceName();
-                    $span->resource = $this->uri;
-                    $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-                }
-            ]
-        );
-
-        // TODO: Trace middlewares ?
-
-        \DDTrace\trace_method(
-            'Illuminate\Routing\Router',
-            'prepareResponse',
-            function (SpanData $span, $args) use ($integration) {
-                $span->name = 'laravel.route.response';
+            function (SpanData $span) use ($integration) {
+                $span->name = 'laravel.action';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
+                $span->resource = $this->uri;
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
         );
@@ -290,20 +242,6 @@ class LaravelIntegration extends Integration
             ]
         );
 
-        // Trace route dispatch
-        \DDTrace\trace_method(
-            'Illuminate\Routing\Router',
-            'dispatch',
-            [
-                'prehook' => function (SpanData $span, $args) use ($integration) {
-                    $span->name = 'laravel.route.dispatch';
-                    $span->type = Type::WEB_SERVLET;
-                    $span->service = $integration->getServiceName();
-                    $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-                }
-            ]
-        );
-
         \DDTrace\trace_method('Illuminate\View\View', 'render', function (SpanData $span) use ($integration) {
             $span->name = 'laravel.view.render';
             $span->type = Type::WEB_SERVLET;
@@ -373,19 +311,6 @@ class LaravelIntegration extends Integration
                 unset($rootSpan->meta[Tag::SPAN_KIND]);
                 $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
-        );
-
-        \DDTrace\trace_method(
-            'Illuminate\Console\Application',
-            'run',
-            [
-                'prehook' => function (SpanData $span) use ($integration) {
-                    $span->name = 'laravel.artisan.run';
-                    $span->type = Type::WEB_SERVLET;
-                    $span->service = $integration->getServiceName();
-                    $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
-                }
-            ]
         );
 
         // renderException is since Symfony 4.4, use "renderThrowable()" instead
