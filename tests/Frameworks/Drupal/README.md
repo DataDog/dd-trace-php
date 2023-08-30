@@ -2,9 +2,9 @@
 
 This guide provides step-by-step instructions to set up the Drupal Test Framework for your project. Follow these procedures to ensure a smooth testing environment and accurate test results.
 
-## Adjust `REQUIREMENT_ERROR` in `*.install Files
+## Adjust `REQUIREMENT_ERROR` in `*.install` Files
 
-Replace instances of `REQUIREMENT_ERROR` with `REQUIREMENT_WARNING` in any `*.install` files that require the `gd` library. Alternatively, you can comment out the requirement altogether. Note that using `--ignore-platform-reqs` during composer update is crucial to prevent Drupal from mandating the `gd library.
+Replace instances of `REQUIREMENT_ERROR` with `REQUIREMENT_WARNING` in any `*.install` files that require the `gd` library. Alternatively, you can comment out the requirement altogether. Note that using `--ignore-platform-reqs` during composer update is crucial to prevent Drupal from mandating the `gd` library.
 
 ## Configure Default Database Driver
 
@@ -28,7 +28,7 @@ Modify the MySQL version in the `Drupal\mysql\Driver\Database\mysql\Install\Task
 
 ## Utilize `erase_drupal_db.php` Script
 
-Integrate the `erase_drupal_db.php` script by running it in the `post-update-cmd` section of the root `composer.json.
+Integrate the `erase_drupal_db.php` script by running it in the `post-update-cmd` section of the root `composer.json`.
 
 ## Remove Cache Dependencies
 
