@@ -20,7 +20,7 @@ class LaravelIntegration extends Integration
     /**
      * @var string
      */
-    private $serviceName;
+    public $serviceName;
 
     /**
      * @return string The integration name.
@@ -89,6 +89,21 @@ class LaravelIntegration extends Integration
                 $rootSpan->service = $integration->getServiceName();
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Illuminate\Contracts\Foundation\Application',
+            'bootstrapWith',
+            function ($app) use ($integration) {
+                if (empty($integration->serviceName)) {
+                    $app->make('Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables')->bootstrap($app);
+                    $configPath = realpath($app->configPath());
+                    if (file_exists($configPath . '/app.php')) {
+                        $config = require $configPath . '/app.php';
+                        $integration->serviceName = $config['name'];
+                    }
+                }
             }
         );
 
