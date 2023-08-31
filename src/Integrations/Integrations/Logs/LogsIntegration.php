@@ -82,7 +82,7 @@ class LogsIntegration extends Integration
         $placeholders = LogsIntegration::getPlaceholders();
 
         foreach ($placeholders as $placeholder => $value) {
-            if (empty(strpos($message, $placeholder) !== false)) {
+            if (strpos($message, $placeholder) !== false) {
                 return true;
             }
         }
