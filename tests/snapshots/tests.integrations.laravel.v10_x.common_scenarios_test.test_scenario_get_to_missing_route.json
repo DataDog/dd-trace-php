@@ -5,7 +5,7 @@
     "resource": "GET /does_not_exist",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 11739551520384326543,
+    "parent_id": 14129963437362525601,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "404",
       "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
-      "runtime-id": "b04e7d2b-7204-4635-857b-c61e91ae87ee"
+      "runtime-id": "7d30f6b3-b54b-493c-9fae-9df2336e5e60"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -21,30 +21,39 @@
   },
      {
        "name": "laravel.event.handle",
-       "service": "web.request",
-       "resource": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
        "trace_id": 0,
        "span_id": 2,
        "parent_id": 1,
-       "type": "web"
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
      },
      {
        "name": "laravel.event.handle",
-       "service": "web.request",
-       "resource": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
        "trace_id": 0,
        "span_id": 3,
        "parent_id": 1,
-       "type": "web"
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
      },
      {
        "name": "laravel.event.handle",
-       "service": "web.request",
-       "resource": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
        "trace_id": 0,
        "span_id": 4,
        "parent_id": 1,
-       "type": "web"
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
      },
      {
        "name": "laravel.event.handle",
@@ -217,7 +226,7 @@
         {
           "name": "laravel.view",
           "service": "laravel_test_app",
-          "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
+          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
           "trace_id": 0,
           "span_id": 20,
           "parent_id": 17,

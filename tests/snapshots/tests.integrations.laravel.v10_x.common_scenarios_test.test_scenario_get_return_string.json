@@ -5,7 +5,7 @@
     "resource": "App\\Http\\Controllers\\CommonSpecsController@simple simple_route",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 8491358118607524129,
+    "parent_id": 7967735399278252096,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -16,7 +16,7 @@
       "http.url": "http://localhost:9999/simple?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple",
       "laravel.route.name": "simple_route",
-      "runtime-id": "3fc98e2c-4527-45ac-9ba0-8bfc9ab0f8bc",
+      "runtime-id": "7d30f6b3-b54b-493c-9fae-9df2336e5e60",
       "span.kind": "server"
     },
     "metrics": {
@@ -25,30 +25,39 @@
   },
      {
        "name": "laravel.event.handle",
-       "service": "web.request",
-       "resource": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
        "trace_id": 0,
        "span_id": 2,
        "parent_id": 1,
-       "type": "web"
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
      },
      {
        "name": "laravel.event.handle",
-       "service": "web.request",
-       "resource": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
        "trace_id": 0,
        "span_id": 3,
        "parent_id": 1,
-       "type": "web"
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
      },
      {
        "name": "laravel.event.handle",
-       "service": "web.request",
-       "resource": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
        "trace_id": 0,
        "span_id": 4,
        "parent_id": 1,
-       "type": "web"
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
      },
      {
        "name": "laravel.event.handle",

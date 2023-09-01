@@ -5,7 +5,7 @@
     "resource": "App\\Http\\Controllers\\CommonSpecsController@simple_view unnamed_route",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 11720177175267996757,
+    "parent_id": 13117872174029770129,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -16,7 +16,7 @@
       "http.url": "http://localhost:9999/simple_view?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple_view",
       "laravel.route.name": "unnamed_route",
-      "runtime-id": "3fc98e2c-4527-45ac-9ba0-8bfc9ab0f8bc",
+      "runtime-id": "029b3dea-06d6-49ca-b2b3-3e3c3810a826",
       "span.kind": "server"
     },
     "metrics": {
@@ -25,30 +25,39 @@
   },
      {
        "name": "laravel.event.handle",
-       "service": "web.request",
-       "resource": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
        "trace_id": 0,
        "span_id": 2,
        "parent_id": 1,
-       "type": "web"
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
      },
      {
        "name": "laravel.event.handle",
-       "service": "web.request",
-       "resource": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
        "trace_id": 0,
        "span_id": 3,
        "parent_id": 1,
-       "type": "web"
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
      },
      {
        "name": "laravel.event.handle",
-       "service": "web.request",
-       "resource": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
        "trace_id": 0,
        "span_id": 4,
        "parent_id": 1,
-       "type": "web"
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
      },
      {
        "name": "laravel.event.handle",
@@ -257,7 +266,7 @@
         {
           "name": "laravel.view",
           "service": "laravel_test_app",
-          "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_10_x/resources/views/simple_view.blade.php",
+          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_10_x/resources/views/simple_view.blade.php",
           "trace_id": 0,
           "span_id": 26,
           "parent_id": 19,
