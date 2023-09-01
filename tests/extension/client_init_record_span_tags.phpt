@@ -85,6 +85,7 @@ tags:
 Array
 (
     [_dd.appsec.json] => {"triggers":[{"found":"attack"},{"another":"attack"},{"yet another":"attack"}]}
+    [_dd.p.dm] => -1
     [_dd.runtime_family] => php
     [appsec.event] => true
     [http.method] => GET
@@ -101,9 +102,10 @@ metrics:
 Array
 (
     [%s] => %d
-    [_sampling_priority_v1] => 2
     [metric_1] => 2
     [metric_2] => 10
     [_dd.appsec.enabled] => 1
+    [_dd.rule_psr] => 1
+    [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %f
 )

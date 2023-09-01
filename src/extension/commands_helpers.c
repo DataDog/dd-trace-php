@@ -443,11 +443,18 @@ dd_result dd_command_proc_resp_verd_span_data(
     }
 
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    if (mpack_node_array_length(root) >= 5) {
-        mpack_node_t meta = mpack_node_array_at(root, 3);
-        dd_command_process_meta(meta);
+    mpack_node_t force_keep = mpack_node_array_at(root, 3);
+    if (mpack_node_type(force_keep) == mpack_type_bool &&
+        mpack_node_bool(force_keep)) {
+        dd_tags_set_sampling_priority();
+    }
 
-        mpack_node_t metrics = mpack_node_array_at(root, 4);
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    if (mpack_node_array_length(root) >= 6) {
+        mpack_node_t meta = mpack_node_array_at(root, 4);
+        dd_command_process_meta(meta);
+        // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+        mpack_node_t metrics = mpack_node_array_at(root, 5);
         dd_command_process_metrics(metrics);
     }
 
@@ -481,20 +488,24 @@ static void _set_appsec_span_data(mpack_node_t node)
     }
 }
 
-bool dd_command_process_meta(mpack_node_t root)
+void dd_command_process_meta(mpack_node_t root)
 {
+    if (mpack_node_type(root) != mpack_type_map) {
+        return;
+    }
     size_t count = mpack_node_map_count(root);
+
     for (size_t i = 0; i < count; i++) {
         mpack_node_t key = mpack_node_map_key_at(root, i);
         mpack_node_t value = mpack_node_map_value_at(root, i);
 
         if (mpack_node_type(key) != mpack_type_str) {
             mlog(dd_log_warning, "Failed to add tags: invalid type for key");
-            return false;
+            return;
         }
         if (mpack_node_type(value) != mpack_type_str) {
             mlog(dd_log_warning, "Failed to add tags: invalid type for value");
-            return false;
+            return;
         }
 
         const char *key_str = mpack_node_str(key);
@@ -509,17 +520,19 @@ bool dd_command_process_meta(mpack_node_t root)
         if (!res) {
             mlog(dd_log_warning, "Failed to add tag %.*s", (int)key_len,
                 key_str);
-            return false;
+            return;
         }
     }
-
-    return true;
 }
 
 bool dd_command_process_metrics(mpack_node_t root)
 {
     zval *metrics_zv = dd_trace_root_span_get_metrics();
     if (metrics_zv == NULL) {
+        return false;
+    }
+
+    if (mpack_node_type(root) != mpack_type_map) {
         return false;
     }
 

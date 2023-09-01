@@ -226,11 +226,7 @@ static void _process_meta_and_metrics(mpack_node_t root)
 {
     mpack_node_t meta = mpack_node_array_at(root, 3);
     if (mpack_node_map_count(meta) > 0) {
-        if (dd_command_process_meta(meta)) {
-            // If there are any meta tags and setting them succeeds
-            // we set the sampling priority
-            dd_tags_set_sampling_priority();
-        }
+        dd_command_process_meta(meta);
     }
 
     mpack_node_t metrics = mpack_node_array_at(root, 4);

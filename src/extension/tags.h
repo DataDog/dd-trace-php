@@ -20,7 +20,7 @@ void dd_tags_add_tags(void);
 void dd_tags_add_blocked(void);
 void dd_tags_rshutdown_testing(void);
 
-void dd_tags_set_sampling_priority(void);
+void dd_tags_set_sampling_priority();
 
 // Copies (or increases refcount) of zstr
 void dd_tags_set_event_user_id(zend_string *nonnull zstr);

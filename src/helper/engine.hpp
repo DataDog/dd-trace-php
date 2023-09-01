@@ -50,6 +50,7 @@ public:
         action_type type;
         std::unordered_map<std::string, std::string> parameters;
         std::vector<std::string> events;
+        bool force_keep;
     };
 
 protected:

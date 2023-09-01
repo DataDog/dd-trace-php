@@ -43,6 +43,7 @@ class Laravel8xTests {
       assert trace.meta."appsec.events.users.login.failure.track" == "true"
       assert trace.meta."_dd.appsec.events.users.login.failure.auto.mode" == "safe"
       assert trace.meta."appsec.events.users.login.failure.usr.exists" == "false"
+      assert trace.metrics._sampling_priority_v1 == 2.0d
     }
 
     @Test
@@ -56,6 +57,7 @@ class Laravel8xTests {
       assert trace.meta."usr.id" == "1"
       assert trace.meta."_dd.appsec.events.users.login.success.auto.mode" == "safe"
       assert trace.meta."appsec.events.users.login.success.track" == "true"
+      assert trace.metrics._sampling_priority_v1 == 2.0d
     }
 
 
@@ -70,5 +72,6 @@ class Laravel8xTests {
       assert trace.meta."usr.id" == "2"
       assert trace.meta."_dd.appsec.events.users.signup.auto.mode" == "safe"
       assert trace.meta."appsec.events.users.signup.track" == "true"
+      assert trace.metrics._sampling_priority_v1 == 2.0d
     }
 }

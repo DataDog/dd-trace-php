@@ -980,4 +980,53 @@ TEST(EngineTest, WafSubscriptorCustomRules)
     }
 }
 
+TEST(EngineTest, RateLimiterForceKeep)
+{
+    // Rate limit 0 allows all calls
+    int rate_limit = 0;
+    auto e{engine::create(rate_limit,
+        {{"redirect",
+            {engine::action_type::redirect, {{"url", "datadoghq.com"}}}}})};
+
+    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
+    EXPECT_CALL(*listener, call(_))
+        .WillRepeatedly(Return(subscriber::event{{}, {"redirect"}}));
+
+    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
+    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
+
+    e->subscribe(sub);
+
+    parameter p = parameter::map();
+    p.add("a", parameter::string("value"sv));
+    auto res = e->get_context().publish(std::move(p));
+    EXPECT_TRUE(res->force_keep);
+}
+
+TEST(EngineTest, RateLimiterDoNotForceKeep)
+{
+    // Lets set max 1 per second and do two calls
+    int rate_limit = 1;
+    auto e{engine::create(rate_limit,
+        {{"redirect",
+            {engine::action_type::redirect, {{"url", "datadoghq.com"}}}}})};
+
+    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
+    EXPECT_CALL(*listener, call(_))
+        .WillRepeatedly(Return(subscriber::event{{}, {"redirect"}}));
+
+    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
+    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
+
+    e->subscribe(sub);
+
+    parameter p = parameter::map();
+    p.add("a", parameter::string("value"sv));
+    auto res = e->get_context().publish(std::move(p));
+    parameter p2 = parameter::map();
+    p2.add("a", parameter::string("value"sv));
+    res = e->get_context().publish(std::move(p2));
+    EXPECT_FALSE(res->force_keep);
+}
+
 } // namespace dds

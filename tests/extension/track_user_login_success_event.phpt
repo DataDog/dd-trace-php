@@ -6,7 +6,7 @@ extension=ddtrace.so
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\{root_span_get_meta, root_span_get_metrics, rshutdown};
 use function datadog\appsec\track_user_login_success_event;
 include __DIR__ . '/inc/ddtrace_version.php';
 
@@ -19,8 +19,13 @@ track_user_login_success_event("Admin",
     "email" => "noneofyour@business.com"
 ]);
 
+rshutdown();
+
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
+
+echo "root_span_get_metrics():\n";
+print_r(root_span_get_metrics());
 ?>
 --EXPECTF--
 root_span_get_meta():
@@ -33,4 +38,12 @@ Array
     [appsec.events.users.login.success.value] => something
     [appsec.events.users.login.success.metadata] => some other metadata
     [appsec.events.users.login.success.email] => noneofyour@business.com
+    [_dd.runtime_family] => php
+)
+root_span_get_metrics():
+Array
+(
+    [%s] => %d
+    [_dd.appsec.enabled] => 1
+    [_sampling_priority_v1] => 2
 )

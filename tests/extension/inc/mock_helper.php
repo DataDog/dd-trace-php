@@ -204,19 +204,39 @@ function response($type, $message) {
     return [$type, $message];
 }
 
+function array_override($default, $override)
+{
+    foreach($default as $k => $v)
+    {
+        if(isset($override[$k])) {
+            $default[$k] = $override[$k];
+        }
+    }
+    return $default;
+}
+
 function response_client_init($message) {
     return response("client_init", $message);
 }
 
-function response_request_init($message) {
+function response_request_init($message, $mergeWithEmpty = true) {
+    if ($mergeWithEmpty) {
+        $message = array_override(['', [], [], false], $message);
+    }
     return response("request_init", $message);
 }
 
-function response_request_exec($message) {
+function response_request_exec($message, $mergeWithEmpty = true) {
+    if ($mergeWithEmpty) {
+        $message = array_override(['', [], [], false], $message);
+    }
     return response("request_exec", $message);
 }
 
-function response_request_shutdown($message) {
+function response_request_shutdown($message, $mergeWithEmpty = true) {
+    if ($mergeWithEmpty) {
+        $message = array_override(['', [], [], false, [], []], $message);
+    }
     return response("request_shutdown", $message);
 }
 

@@ -53,6 +53,7 @@ class Symfony62Tests {
 
      assert trace.meta."_dd.appsec.events.users.login.success.auto.mode" == "safe"
      assert trace.meta."appsec.events.users.login.success.track" == "true"
+     assert trace.metrics._sampling_priority_v1 == 2.0d
     }
 
     @Test
@@ -73,6 +74,7 @@ class Symfony62Tests {
       assert trace.meta."appsec.events.users.login.failure.track" == 'true'
       assert trace.meta."_dd.appsec.events.users.login.failure.auto.mode" == 'safe'
       assert trace.meta."appsec.events.users.login.failure.usr.exists" == 'false'
+      assert trace.metrics._sampling_priority_v1 == 2.0d
     }
 
     @Test
@@ -92,5 +94,6 @@ class Symfony62Tests {
               }
       assert trace.meta."_dd.appsec.events.users.signup.auto.mode" == "safe"
       assert trace.meta."appsec.events.users.signup.track" == "true"
+      assert trace.metrics._sampling_priority_v1 == 2.0d
     }
 }

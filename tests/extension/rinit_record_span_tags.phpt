@@ -31,7 +31,7 @@ $helper = Helper::createInitedRun([
     response_list(response_request_init(['record', [], ['{"found":"attack"}','{"another":"attack"}']])),
     response_list(
      response_request_shutdown(
-          ['record', [], ['{"yet another":"attack"}'], ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]]
+          ['record', [], ['{"yet another":"attack"}'], false, ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]]
      )
     ),
 ], ['continuous' => true]);
@@ -80,6 +80,7 @@ tags:
 Array
 (
     [_dd.appsec.json] => {"triggers":[{"found":"attack"},{"another":"attack"},{"yet another":"attack"}]}
+    [_dd.p.dm] => -1
     [_dd.runtime_family] => php
     [appsec.event] => true
     [http.method] => GET
@@ -97,6 +98,7 @@ Array
     [%s] => %d
     [rshutdown_metric] => 2.1
     [_dd.appsec.enabled] => 1
-    [_sampling_priority_v1] => 2
+    [_dd.rule_psr] => 1
+    [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %f
 )

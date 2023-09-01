@@ -115,6 +115,7 @@ static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
 static THREAD_LOCAL_ON_ZTS bool _blocked;
+static THREAD_LOCAL_ON_ZTS bool _force_keep;
 
 static void _init_relevant_headers(void);
 static zend_string *_concat_json_fragments(void);
@@ -300,6 +301,7 @@ void dd_tags_rinit()
     // Just in case...
     _event_user_id = NULL;
     _blocked = false;
+    _force_keep = false;
 }
 
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
@@ -337,6 +339,13 @@ void dd_tags_add_tags()
     // tag _dd.runtime_family
     _set_runtime_family();
 
+    // metric _sampling_priority_v1
+    if (metrics_zv && _force_keep) {
+        _set_sampling_priority(metrics_zv);
+        mlog(dd_log_debug, "Added/updated metric %s",
+            DD_METRIC_SAMPLING_PRIORITY);
+    }
+
     if (zend_llist_count(&_appsec_json_frags) == 0) {
         _add_basic_ancillary_tags();
         return;
@@ -368,13 +377,6 @@ void dd_tags_add_tags()
     if (!_add_all_ancillary_tags()) {
         return;
     }
-
-    // metric _sampling_priority_v1
-    if (metrics_zv) {
-        _set_sampling_priority(metrics_zv);
-        mlog(dd_log_debug, "Added/updated metric %s",
-            DD_METRIC_SAMPLING_PRIORITY);
-    }
 }
 
 void dd_tags_add_blocked() { _blocked = true; }
@@ -386,13 +388,7 @@ void dd_tags_rshutdown_testing()
     dd_tags_rshutdown();
 }
 
-void dd_tags_set_sampling_priority()
-{
-    zval *metrics_zv = dd_trace_root_span_get_metrics();
-    if (metrics_zv) {
-        _set_sampling_priority(metrics_zv);
-    }
-}
+void dd_tags_set_sampling_priority() { _force_keep = true; }
 
 static void _zend_string_release_indirect(void *s)
 {
@@ -940,6 +936,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
     // appsec.events.users.login.success.track = true
     _add_custom_event_keyval(
         meta_ht, _dd_signup_event, _track_zstr, _true_zstr, true, override);
+
+    dd_tags_set_sampling_priority();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)

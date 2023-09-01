@@ -12,7 +12,7 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
     response_list(response_request_init(['record', new ArrayObject(), ['{"found":"attack"}','{"another":"attack"}']])),
-    response_list(response_request_shutdown(['block', new ArrayObject(), ['{"yet another":"attack"}']]))
+    response_list(response_request_shutdown(['block', new ArrayObject(), ['{"yet another":"attack"}'], true]))
 ], ['continuous' => false]);
 
 rinit();

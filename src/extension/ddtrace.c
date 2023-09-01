@@ -297,6 +297,18 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta) // NOLINT
     }
 }
 
+static PHP_FUNCTION(datadog_appsec_testing_root_span_get_metrics) // NOLINT
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    zval *metrics_zv = dd_trace_root_span_get_metrics();
+    if (metrics_zv) {
+        RETURN_ZVAL(metrics_zv, 1 /* copy */, 0 /* no destroy original */);
+    }
+}
+
 // clang-format off
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(void_ret_bool_arginfo, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -313,6 +325,7 @@ static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "ddtrace_rshutdown", PHP_FN(datadog_appsec_testing_ddtrace_rshutdown), void_ret_bool_arginfo, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_tag", PHP_FN(datadog_appsec_testing_root_span_add_tag), arginfo_root_span_add_tag, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta", PHP_FN(datadog_appsec_testing_root_span_get_meta), void_ret_nullable_array, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_metrics", PHP_FN(datadog_appsec_testing_root_span_get_metrics), void_ret_nullable_array, 0)
     PHP_FE_END
 };
 // clang-format on

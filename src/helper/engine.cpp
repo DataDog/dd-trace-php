@@ -94,9 +94,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
         }
     }
 
-    // Technically we could avoid processing any data if the limiter prevents
-    // us from sending the event back to the extension.
-    if (event_actions.empty() && (event_data.empty() || !limiter_.allow())) {
+    if (event_actions.empty() && event_data.empty()) {
         return std::nullopt;
     }
 
@@ -114,6 +112,8 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
             }
         }
     }
+
+    res.force_keep = limiter_.allow();
 
     return res;
 }

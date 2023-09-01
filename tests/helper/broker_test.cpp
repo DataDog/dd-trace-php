@@ -120,7 +120,7 @@ TEST(BrokerTest, SendRequestInit)
     packer.pack_array(1);             // Array of messages
     packer.pack_array(2);             // First message
     pack_str(packer, "request_init"); // Type
-    packer.pack_array(3);
+    packer.pack_array(4);
     pack_str(packer, "block");
     packer.pack_map(2);
     pack_str(packer, "type");
@@ -130,6 +130,7 @@ TEST(BrokerTest, SendRequestInit)
     packer.pack_array(2);
     pack_str(packer, "one");
     pack_str(packer, "two");
+    packer.pack_true(); // Force_keep
 
     const auto &expected_data = ss.str();
 
@@ -144,6 +145,7 @@ TEST(BrokerTest, SendRequestInit)
     response->verdict = "block";
     response->triggers = {"one", "two"};
     response->parameters = {{"status_code", "403"}, {"type", "auto"}};
+    response->force_keep = true;
 
     std::vector<std::shared_ptr<network::base_response>> messages;
     messages.push_back(response);
@@ -164,7 +166,7 @@ TEST(BrokerTest, SendRequestShutdown)
     packer.pack_array(1);                 // Array of messages
     packer.pack_array(2);                 // First message
     pack_str(packer, "request_shutdown"); // Type
-    packer.pack_array(5);
+    packer.pack_array(6);
     pack_str(packer, "block");
     packer.pack_map(2);
     pack_str(packer, "type");
@@ -174,6 +176,7 @@ TEST(BrokerTest, SendRequestShutdown)
     packer.pack_array(2);
     pack_str(packer, "one");
     pack_str(packer, "two");
+    packer.pack_true(); // Force keep
     packer.pack_map(0);
     packer.pack_map(0);
     const auto &expected_data = ss.str();
@@ -189,6 +192,52 @@ TEST(BrokerTest, SendRequestShutdown)
     response->verdict = "block";
     response->triggers = {"one", "two"};
     response->parameters = {{"status_code", "403"}, {"type", "auto"}};
+    response->force_keep = true;
+
+    std::vector<std::shared_ptr<network::base_response>> messages;
+    messages.push_back(response);
+
+    EXPECT_TRUE(broker.send(messages));
+
+    EXPECT_STREQ(h.code, "dds");
+    EXPECT_STREQ(expected_data.c_str(), buffer.c_str());
+}
+
+TEST(BrokerTest, SendRequestExec)
+{
+    mock::socket *socket = new mock::socket();
+    network::broker broker{std::unique_ptr<mock::socket>(socket)};
+
+    std::stringstream ss;
+    msgpack::packer<std::stringstream> packer(ss);
+    packer.pack_array(1);             // Array of messages
+    packer.pack_array(2);             // First message
+    pack_str(packer, "request_exec"); // Type
+    packer.pack_array(4);
+    pack_str(packer, "block");
+    packer.pack_map(2);
+    pack_str(packer, "type");
+    pack_str(packer, "auto");
+    pack_str(packer, "status_code");
+    pack_str(packer, "403");
+    packer.pack_array(2);
+    pack_str(packer, "one");
+    pack_str(packer, "two");
+    packer.pack_true(); // Force keep
+    const auto &expected_data = ss.str();
+
+    network::header_t h;
+    std::string buffer;
+
+    EXPECT_CALL(*socket, send(_, _))
+        .WillOnce(DoAll(SaveHeader(&h), Return(sizeof(network::header_t))))
+        .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
+
+    auto response = std::make_shared<network::request_exec::response>();
+    response->verdict = "block";
+    response->triggers = {"one", "two"};
+    response->parameters = {{"status_code", "403"}, {"type", "auto"}};
+    response->force_keep = true;
 
     std::vector<std::shared_ptr<network::base_response>> messages;
     messages.push_back(response);
