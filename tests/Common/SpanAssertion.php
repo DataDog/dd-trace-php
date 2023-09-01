@@ -47,14 +47,16 @@ final class SpanAssertion
 
     /**
      * @param string $name
-     * @param null $resource
+     * @param null|string $resource
      * @param bool $error
+     * @param null|string $service
      * @return SpanAssertion
      */
-    public static function exists($name, $resource = null, $error = false)
+    public static function exists($name, $resource = null, $error = false, $service = null)
     {
         return SpanAssertion::forOperation($name, $error, true)
-            ->resource($resource);
+            ->resource($resource)
+            ->service($service);
     }
 
     /**
