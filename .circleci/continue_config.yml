@@ -1055,7 +1055,7 @@ jobs:
           steps:
             - run:
                 name: Updating composer to v2
-                command: sudo composer self-update --2 --no-interaction
+                command: sudo composer self-update 2.5.6 --no-interaction
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
@@ -1203,7 +1203,7 @@ jobs:
           steps:
             - run:
                 name: Updating composer to v2
-                command: sudo composer self-update --2 --no-interaction
+                command: sudo composer self-update 2.5.6 --no-interaction
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - install_extension:
