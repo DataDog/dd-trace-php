@@ -1,5 +1,6 @@
 [workspace]
 members = ["components-rs", "profiling"]
+resolver = "2"
 
 [profile.dev]
 debug = 2 # full debug info
