@@ -2,7 +2,6 @@ name: Check snapshots
 
 on:
   - pull_request
-  - push
 
 jobs:
   check-snapshots:
@@ -18,15 +17,9 @@ jobs:
         with:
           dotnet-version: '7.0.101'
 
-      - name: Get Pull Request Number
-        id: pr
-        run: echo "::set-output name=pull_request_number::$(gh pr view --json number -q .number || echo "")"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: "Check Snapshots"
         run: ./github-actions-helpers/build.sh SummaryOfSnapshotChanges
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          PullRequestNumber: "${{ steps.pr.outputs.pull_request_number }}"
+          PullRequestNumber: "${{ github.event.pull_request.number }}"
           TargetBranch: "${{ github.base_ref }}"
