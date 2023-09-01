@@ -469,7 +469,6 @@ TEST_EXTRA_INI ?=
 ### DDTrace tests ###
 TESTS_ROOT = ./tests
 COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
-COMPOSER_UPDATE = update --no-audit
 COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
@@ -888,10 +887,10 @@ $(COMPOSER_PHP_LOCK):
 
 $(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json $(COMPOSER_PHP_LOCK)
 	$(Q) find "$(TESTS_ROOT)" -maxdepth 1 -name 'composer.lock*' -not -wholename "$(COMPOSER_PHP_LOCK)" -delete
-	$(COMPOSER_TESTS) $(COMPOSER_UPDATE)
+	$(COMPOSER_TESTS) update
 
 composer_tests_update:
-	$(COMPOSER_TESTS) $(COMPOSER_UPDATE)
+	$(COMPOSER_TESTS) update
 
 global_test_run_dependencies: install_all $(TESTS_ROOT)/composer.lock
 
@@ -1016,81 +1015,81 @@ test_integrations_predis1: global_test_run_dependencies
 	$(MAKE) test_scenario_predis1
 	$(call run_tests,tests/Integrations/Predis)
 test_integrations_roadrunner: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Roadrunner/Version_2 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Roadrunner/Version_2 update
 	$(call run_tests,tests/Integrations/Roadrunner/V2)
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests,tests/Integrations/SQLSRV)
 test_web_cakephp_28: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/CakePHP/Version_2_8 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/CakePHP/Version_2_8 update
 	$(call run_tests,--testsuite=cakephp-28-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests,--testsuite=codeigniter-22-test)
 test_web_laminas_14: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_1_4 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_1_4 update
 	$(call run_tests,tests/Integrations/Laminas/V1_4)
 test_web_laminas_20: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_2_0 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_2_0 update
 	$(call run_tests,tests/Integrations/Laminas/V2_0)
 test_web_laravel_42: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_4_2 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_4_2 update
 	php tests/Frameworks/Laravel/Version_4_2/artisan optimize
 	$(call run_tests,tests/Integrations/Laravel/V4)
 test_web_laravel_57: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_7 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_7 update
 	$(call run_tests,tests/Integrations/Laravel/V5_7)
 test_web_laravel_58: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_8 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_8 update
 	$(call run_tests,--testsuite=laravel-58-test)
 test_web_laravel_8x: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_8_x $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_8_x update
 	$(call run_tests,--testsuite=laravel-8x-test)
 test_web_laravel_9x: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_9_x $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_9_x update
 	$(call run_tests,--testsuite=laravel-9x-test)
 test_web_laravel_10x: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_10_x $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_10_x update
 	$(call run_tests,--testsuite=laravel-10x-test)
 test_web_lumen_52: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 update
 	$(call run_tests,tests/Integrations/Lumen/V5_2)
 test_web_lumen_56: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_6 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_6 update
 	$(call run_tests,tests/Integrations/Lumen/V5_6)
 test_web_lumen_58: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_8 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_8 update
 	$(call run_tests,tests/Integrations/Lumen/V5_8)
 test_web_lumen_81: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_8_1 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_8_1 update
 	$(call run_tests,tests/Integrations/Lumen/V8_1)
 test_web_lumen_90: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_9_0 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_9_0 update
 	$(call run_tests,tests/Integrations/Lumen/V9_0)
 test_web_lumen_100: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_10_0 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_10_0 update
 	$(call run_tests,tests/Integrations/Lumen/V10_0)
 test_web_slim_312: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_3_12 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_3_12 update
 	$(call run_tests,--testsuite=slim-312-test)
 test_web_slim_4: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_4 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_4 update
 	$(call run_tests,--testsuite=slim-4-test)
 test_web_symfony_23: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_3 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_3 update
 	$(call run_tests,tests/Integrations/Symfony/V2_3)
 test_web_symfony_28: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_8 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_8 update
 	$(call run_tests,tests/Integrations/Symfony/V2_8)
 test_web_symfony_30: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_0 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_0 update
 	php tests/Frameworks/Symfony/Version_3_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V3_0)
 test_web_symfony_33: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_3 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_3 update
 	php tests/Frameworks/Symfony/Version_3_3/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V3_3)
 test_web_symfony_34: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_4 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_4 update
 	php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V3_4)
 test_web_symfony_40: global_test_run_dependencies
@@ -1100,11 +1099,11 @@ test_web_symfony_40: global_test_run_dependencies
 	php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V4_0)
 test_web_symfony_42: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_2 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_2 update
 	php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V4_2)
 test_web_symfony_44: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_4 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_4 update
 	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,--testsuite=symfony-44-test)
 test_web_symfony_50: global_test_run_dependencies
@@ -1112,15 +1111,15 @@ test_web_symfony_50: global_test_run_dependencies
 	php tests/Frameworks/Symfony/Version_5_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V5_0)
 test_web_symfony_51: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_1 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_1 update
 	php tests/Frameworks/Symfony/Version_5_1/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V5_1)
 test_web_symfony_52: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_2 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_2 update
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,--testsuite=symfony-52-test)
 test_web_symfony_62: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_6_2 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_6_2 update
 	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,--testsuite=symfony-62-test)
 
@@ -1131,20 +1130,20 @@ test_web_wordpress_55: global_test_run_dependencies
 test_web_wordpress_59: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/WordPress/V5_9)
 test_web_yii_2: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0 update
 	$(call run_tests,tests/Integrations/Yii/V2_0)
 test_web_nette_24: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Nette/Version_2_4 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Nette/Version_2_4 update
 	$(call run_tests,tests/Integrations/Nette/V2_4)
 test_web_nette_30: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Nette/Version_3_0 $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Nette/Version_3_0 update
 	$(call run_tests,tests/Integrations/Nette/V3_0)
 test_web_zend_1: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/ZendFramework/V1)
 test_web_zend_1_21: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/ZendFramework/V1_21)
 test_web_custom: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Custom/Version_Autoloaded $(COMPOSER_UPDATE)
+	$(COMPOSER) --working-dir=tests/Frameworks/Custom/Version_Autoloaded update
 	$(call run_tests,--testsuite=custom-framework-autoloading-test)
 
 test_scenario_%:
@@ -1161,7 +1160,7 @@ test_internal_api_randomized: $(SO_FILE)
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) php -n -ddatadog.trace.cli_enabled=1 -d extension=$(SO_FILE) tests/internal-api-stress-test.php 2> >(grep -A 1000 ==============)
 
 composer.lock: composer.json
-	$(Q) $(COMPOSER) $(COMPOSER_UPDATE)
+	$(Q) $(COMPOSER) update
 
 .PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all cbindgen
