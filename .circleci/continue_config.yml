@@ -1091,6 +1091,9 @@ jobs:
       xfail_list:
         type: string
         default: none
+      parallel_workers: # Only available for PHP 7.4+
+        type: boolean
+        default: false
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -1143,7 +1146,8 @@ jobs:
               -p /usr/local/bin/php \
               --show-diff \
               -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php
+              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php \
+              $(if [[ "<<parameters.parallel_workers>>" == "true" ]]; then echo -j5; fi)
       - run:
           command: |
             cd /usr/local/src/php
@@ -3620,21 +3624,25 @@ workflows:
           name: "PHP 82 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.2.list
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
+          parallel_workers: true
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 81 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.1.list
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
+          parallel_workers: true
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 80 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.0.list
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          parallel_workers: true
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 74 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.4.list
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          parallel_workers: true
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 73 language tests"

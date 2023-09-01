@@ -74,6 +74,13 @@ class HookData {
      * @return bool 'true' on success, otherwise 'false'
      */
     public function overrideReturnValue(mixed $value): bool;
+
+    /**
+     * The name of the file where the function/method call was made from.
+     *
+     * @return string The file name, or an empty string if the file name is not available.
+     */
+    public function getSourceFile(): string;
 }
 
 /**

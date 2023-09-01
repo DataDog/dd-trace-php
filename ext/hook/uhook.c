@@ -720,6 +720,23 @@ ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
     RETURN_TRUE;
 }
 
+ZEND_METHOD(DDTrace_HookData, getSourceFile) {
+    (void)return_value;
+
+    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+    zend_execute_data *hook_execute_data = hookData->execute_data;
+    zend_execute_data *prev = NULL;
+    if (hook_execute_data) {
+        prev = hook_execute_data->prev_execute_data;
+    }
+
+    if (prev && prev->func->type == ZEND_USER_FUNCTION && prev->func->op_array.filename) {
+        RETURN_STR_COPY(prev->func->op_array.filename);
+    } else {
+        RETURN_EMPTY_STRING();
+    }
+}
+
 void zai_uhook_rinit() {
     zend_hash_init(&DDTRACE_G(uhook_active_hooks), 8, NULL, NULL, 0);
     zend_hash_init(&DDTRACE_G(uhook_closure_hooks), 8, NULL, NULL, 0);

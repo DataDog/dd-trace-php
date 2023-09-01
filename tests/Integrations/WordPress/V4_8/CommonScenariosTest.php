@@ -5,9 +5,10 @@ namespace DDTrace\Tests\Integrations\WordPress\V4_8;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-final class CommonScenariosTest extends WebFrameworkTestCase
+class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
@@ -25,261 +26,43 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'wordpress_test_app',
+            'DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION' => '1'
         ]);
     }
 
-    /**
-     * @dataProvider provideSpecs
-     * @param RequestSpec $spec
-     * @param array $spanExpectations
-     * @throws \Exception
-     */
-    public function testScenario(RequestSpec $spec, array $spanExpectations)
+    public function testScenarioGetReturnString()
     {
-        $traces = $this->tracesFromWebRequest(function () use ($spec) {
-            $this->call($spec);
+        $this->tracesFromWebRequestSnapshot(function () {
+            $this->call(
+                GetSpec::create(
+                    'A simple GET request returning a string',
+                    '/simple?key=value&pwd=should_redact'
+                )
+            );
         });
-
-        $this->assertFlameGraph($traces, $spanExpectations);
     }
 
-    public function provideSpecs()
+    public function testScenarioGetWithView()
     {
-        $children = [
-            SpanAssertion::exists(
-                'wpdb.query',
-                "SELECT option_value FROM wp_options WHERE option_name = 'WPLANG' LIMIT 1"
-            )->withChildren([
-                SpanAssertion::exists('mysqli_query'),
-            ]),
-            SpanAssertion::exists(
-                'wpdb.query',
-                "SELECT option_value FROM wp_options WHERE option_name = 'theme_switched' LIMIT 1"
-            )->withChildren([
-                SpanAssertion::exists('mysqli_query'),
-            ]),
-            SpanAssertion::exists('WP.init'),
-            SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
-            SpanAssertion::exists('create_initial_taxonomies'),
-            SpanAssertion::exists('create_initial_post_types'),
-            SpanAssertion::exists('_wp_customize_include'),
-            SpanAssertion::exists('wp_maybe_load_embeds'),
-            SpanAssertion::exists('wp_maybe_load_widgets'),
-            SpanAssertion::exists('create_initial_post_types'),
-            SpanAssertion::exists('create_initial_taxonomies'),
-            SpanAssertion::exists('WP.main')->withChildren([
-                SpanAssertion::exists('WP.init'),
-                SpanAssertion::exists('WP.parse_request')->withChildren([
-                    SpanAssertion::exists(
-                        'wpdb.query',
-                        "SELECT ID, post_name, post_parent, post_type
-                        FROM wp_posts
-                        WHERE post_name IN ('simple')
-                        AND post_type IN ('page','attachment')"
-                    )->withChildren([
-                        SpanAssertion::exists('mysqli_query'),
-                    ]),
-                ]),
-            ]),
-            SpanAssertion::exists('wpdb.query')
-                ->withChildren([
-                    SpanAssertion::exists('mysqli_query'),
-                ]),
-            SpanAssertion::exists('wpdb.__construct')->withChildren([
-                SpanAssertion::exists('mysqli_query'),
-                SpanAssertion::exists('mysqli_query'),
-                SpanAssertion::exists('mysqli_query'),
-                SpanAssertion::exists('mysqli_real_connect'),
-            ]),
-        ];
+        $this->tracesFromWebRequestSnapshot(function () {
+            $this->call(
+                GetSpec::create(
+                    'A simple GET request with a view',
+                    '/simple_view?key=value&pwd=should_redact'
+                )
+            );
+        });
+    }
 
-        return $this->buildDataProvider(
-            [
-                'A simple GET request returning a string' => [
-                    SpanAssertion::build(
-                        'wordpress.request',
-                        'wordpress_test_app',
-                        'web',
-                        'GET /simple'
-                    )->withExactTags([
-                        'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
-                        'http.status_code' => '200',
-                        Tag::SPAN_KIND => "server",
-                        Tag::COMPONENT => "wordpress",
-                    ])->withChildren($children),
-                ],
-                'A simple GET request with a view' => [
-                    SpanAssertion::build(
-                        'wordpress.request',
-                        'wordpress_test_app',
-                        'web',
-                        'GET /simple_view'
-                    )->withExactTags([
-                        'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
-                        'http.status_code' => '200',
-                        Tag::SPAN_KIND => "server",
-                        Tag::COMPONENT => "wordpress",
-                    ])->withChildren([
-                        SpanAssertion::exists('WP.init'),
-                        SpanAssertion::exists('WP.main')
-                            ->withChildren([
-                                SpanAssertion::exists('WP.init'),
-                                SpanAssertion::exists('WP.register_globals'),
-                                SpanAssertion::exists('WP.handle_404'),
-                                SpanAssertion::exists('WP.query_posts')
-                                    ->withChildren([
-                                        SpanAssertion::exists('wpdb.query')
-                                            ->withChildren([
-                                                SpanAssertion::exists('mysqli_query'),
-                                            ]),
-                                        SpanAssertion::exists('wpdb.query')
-                                            ->withChildren([
-                                                SpanAssertion::exists('mysqli_query'),
-                                            ]),
-                                    ]),
-                                SpanAssertion::exists('WP.send_headers'),
-                                SpanAssertion::exists('WP.parse_request')
-                                    ->withChildren([
-                                        SpanAssertion::exists('wpdb.query')
-                                            ->withChildren([
-                                                SpanAssertion::exists('mysqli_query'),
-                                            ]),
-                                        SpanAssertion::exists('wpdb.query')
-                                            ->withChildren([
-                                                SpanAssertion::exists('mysqli_query'),
-                                            ]),
-                                    ]),
-                            ]),
-                        SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
-                        SpanAssertion::exists('_wp_customize_include'),
-                        SpanAssertion::exists('create_initial_taxonomies'),
-                        SpanAssertion::exists('create_initial_post_types'),
-                        SpanAssertion::exists('create_initial_post_types'),
-                        SpanAssertion::exists('create_initial_taxonomies'),
-                        SpanAssertion::exists('get_footer')
-                            ->withChildren([
-                                SpanAssertion::exists('load_template')
-                                    ->withChildren([
-                                        SpanAssertion::exists('wp_print_footer_scripts'),
-                                    ]),
-                            ]),
-                        SpanAssertion::exists('load_template'),
-                        SpanAssertion::exists('get_header')
-                            ->withChildren([
-                                SpanAssertion::exists('load_template')
-                                    ->withChildren([
-                                        SpanAssertion::exists('the_custom_header_markup'),
-                                        SpanAssertion::exists('body_class')
-                                            ->withChildren([
-                                                SpanAssertion::exists('wpdb.query')
-                                                    ->withChildren([
-                                                        SpanAssertion::exists('mysqli_query'),
-                                                    ]),
-                                            ]),
-                                        SpanAssertion::exists('wp_head')
-                                            ->withChildren([
-                                                SpanAssertion::exists('wp_print_head_scripts')
-                                                    ->withChildren([
-                                                        SpanAssertion::exists('wpdb.query')
-                                                            ->withChildren([
-                                                                SpanAssertion::exists('mysqli_query'),
-                                                            ]),
-                                                    ]),
-                                            ]),
-                                    ]),
-                            ]),
-                        SpanAssertion::exists('wp_maybe_load_embeds'),
-                        SpanAssertion::exists('wp_maybe_load_widgets'),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
-                        SpanAssertion::exists('wpdb.__construct')->withChildren([
-                            SpanAssertion::exists('mysqli_query'),
-                            SpanAssertion::exists('mysqli_query'),
-                            SpanAssertion::exists('mysqli_query'),
-                            SpanAssertion::exists('mysqli_real_connect'),
-                        ]),
-                    ]),
-                ],
-                'A GET request with an exception' => [
-                    SpanAssertion::build(
-                        'wordpress.request',
-                        'wordpress_test_app',
-                        'web',
-                        'GET /error'
-                    )->withExactTags([
-                        'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
-                        // WordPress doesn't appear to automatically set the proper error code
-                        'http.status_code' => '200',
-                        Tag::SPAN_KIND => "server",
-                        Tag::COMPONENT => "wordpress",
-                    ])
-                    ->setError("Exception", "Uncaught Exception: Oops! in %s:%d")
-                    ->withExistingTagsNames(['error.stack'])
-                    ->withChildren([
-                        SpanAssertion::exists('WP.main')
-                            // There's no way to propagate this to the root span in userland yet
-                            ->setError('Exception', 'Oops!')
-                            ->withChildren([
-                                SpanAssertion::exists('WP.parse_request')
-                                    ->withChildren([
-                                        SpanAssertion::exists('wpdb.query')
-                                            ->withChildren([
-                                                SpanAssertion::exists('mysqli_query'),
-                                            ]),
-                                    ]),
-                                SpanAssertion::exists('WP.init'),
-                            ]),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
-                        SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
-                        SpanAssertion::exists('create_initial_taxonomies'),
-                        SpanAssertion::exists('create_initial_post_types'),
-                        SpanAssertion::exists('WP.init'),
-                        SpanAssertion::exists('_wp_customize_include'),
-                        SpanAssertion::exists('wp_maybe_load_embeds'),
-                        SpanAssertion::exists('wp_maybe_load_widgets'),
-                        SpanAssertion::exists('create_initial_post_types'),
-                        SpanAssertion::exists('create_initial_taxonomies'),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
-                        SpanAssertion::exists('wpdb.__construct')->withChildren([
-                            SpanAssertion::exists('mysqli_query'),
-                            SpanAssertion::exists('mysqli_query'),
-                            SpanAssertion::exists('mysqli_query'),
-                            SpanAssertion::exists('mysqli_real_connect'),
-                        ]),
-                    ]),
-                ],
-            ]
-        );
+    public function testScenarioGetWithException()
+    {
+        $this->tracesFromWebRequestSnapshot(function () {
+            $this->call(
+                GetSpec::create(
+                    'A GET request with an exception',
+                    '/error?key=value&pwd=should_redact'
+                )->expectStatusCode(200)
+            );
+        });
     }
 }
