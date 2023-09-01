@@ -763,7 +763,6 @@ TEST_WEB_80 := \
 	test_web_laravel_9x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
-	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
 	test_web_symfony_44 \
@@ -804,7 +803,6 @@ TEST_WEB_81 := \
 	test_web_laravel_10x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
-	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
 	test_web_symfony_52 \
