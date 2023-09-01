@@ -750,7 +750,7 @@ dependencies = [
  "datadog-trace-normalization",
  "datadog-trace-protobuf",
  "datadog-trace-utils",
- "ddcommon 3.0.0",
+ "ddcommon 4.0.0",
  "ddtelemetry",
  "futures",
  "hashbrown 0.12.3",
@@ -787,7 +787,7 @@ dependencies = [
  "datadog-ipc",
  "datadog-sidecar",
  "datadog-trace-utils",
- "ddcommon 3.0.0",
+ "ddcommon 4.0.0",
  "ddcommon-ffi",
  "ddtelemetry",
  "ddtelemetry-ffi",
@@ -833,7 +833,7 @@ dependencies = [
  "anyhow",
  "datadog-trace-normalization",
  "datadog-trace-protobuf",
- "ddcommon 3.0.0",
+ "ddcommon 4.0.0",
  "flate2",
  "futures",
  "hyper",
@@ -848,13 +848,14 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
  "anyhow",
  "futures",
  "futures-core",
  "futures-util",
  "hex",
+ "http",
  "hyper",
  "hyper-rustls",
  "indexmap 1.9.3",
@@ -896,19 +897,19 @@ dependencies = [
 
 [[package]]
 name = "ddcommon-ffi"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
  "anyhow",
- "ddcommon 3.0.0",
+ "ddcommon 4.0.0",
  "hyper",
 ]
 
 [[package]]
 name = "ddtelemetry"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
  "anyhow",
- "ddcommon 3.0.0",
+ "ddcommon 4.0.0",
  "futures",
  "hashbrown 0.12.3",
  "http",
@@ -929,9 +930,9 @@ dependencies = [
 
 [[package]]
 name = "ddtelemetry-ffi"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
- "ddcommon 3.0.0",
+ "ddcommon 4.0.0",
  "ddcommon-ffi",
  "ddtelemetry",
  "libc 0.2.147",
@@ -948,7 +949,7 @@ dependencies = [
  "cc_utils",
  "datadog-sidecar",
  "datadog-sidecar-ffi",
- "ddcommon 3.0.0",
+ "ddcommon 4.0.0",
  "ddcommon-ffi",
  "ddtelemetry",
  "ddtelemetry-ffi",
