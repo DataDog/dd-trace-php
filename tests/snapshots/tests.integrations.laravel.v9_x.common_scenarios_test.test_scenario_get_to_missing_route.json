@@ -226,7 +226,7 @@
         {
           "name": "laravel.view",
           "service": "laravel_test_app",
-          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_9_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
+          "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_9_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
           "trace_id": 0,
           "span_id": 20,
           "parent_id": 17,

@@ -254,7 +254,7 @@
         {
           "name": "laravel.view",
           "service": "laravel_test_app",
-          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_9_x/resources/views/simple_view.blade.php",
+          "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_9_x/resources/views/simple_view.blade.php",
           "trace_id": 0,
           "span_id": 22,
           "parent_id": 18,
