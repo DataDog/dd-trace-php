@@ -18,9 +18,14 @@ jobs:
         with:
           dotnet-version: '7.0.101'
 
+      - uses: jwalton/gh-find-current-pr@v1
+        id: findPr
+        with:
+          state: all
+
       - name: "Check Snapshots"
         run: ./github-actions-helpers/build.sh SummaryOfSnapshotChanges
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          PullRequestNumber: "${{ github.event.pull_request.number }}"
+          PullRequestNumber: "${{ steps.findPr.outputs.pr }}"
           TargetBranch: "${{ github.base_ref }}"
