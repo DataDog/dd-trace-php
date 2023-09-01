@@ -166,7 +166,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_TRACE_PROPAGATE_USER_ID_DEFAULT, "false")                                                  \
     CONFIG(CUSTOM(INT), DD_DBM_PROPAGATION_MODE, "disabled", .parser = dd_parse_dbm_mode)                      \
     CONFIG(SET, DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS, "")                                                      \
-    CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "true")                                                          \
+    CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "false")                                                          \
     CONFIG(BOOL, DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION, "false")                                              \
     DD_INTEGRATIONS
 

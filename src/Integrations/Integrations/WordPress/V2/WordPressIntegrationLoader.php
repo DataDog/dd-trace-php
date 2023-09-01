@@ -186,9 +186,12 @@ class WordPressIntegrationLoader
 
     public static function setSpansLimit()
     {
-        // Safety measure - Adds 10 spans / plugin (arbitrary)
+        // Safety measure
+        // - Adds 25 spans / plugin (arbitrary)
+        // - Adds 50 spans per additional action (arbitrary)
         $pluginCount = count(wp_get_active_and_valid_plugins());
-        $spansLimit = 1000 + ($pluginCount * 10);
+        $additionalActionCount = count(dd_trace_env_config("DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS"));
+        $spansLimit = 1000 + ($pluginCount * 25) + ($additionalActionCount * 50);
 
         $currentLimit = ini_get('datadog.trace.spans_limit');
         $spansLimit = max($spansLimit, $currentLimit);
