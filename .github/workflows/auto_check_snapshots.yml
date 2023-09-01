@@ -2,6 +2,7 @@ name: Check snapshots
 
 on:
   - pull_request
+  - push
 
 jobs:
   check-snapshots:
