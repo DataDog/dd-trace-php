@@ -95,6 +95,7 @@ trait SnapshotTestTrait
                 if ($traces && count($traces) === $numExpectedTraces) {
                     return;
                 }
+
                 usleep(100000); // 100ms
             } catch (\Exception $e) {
                 // ignore
