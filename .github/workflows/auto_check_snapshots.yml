@@ -18,14 +18,15 @@ jobs:
         with:
           dotnet-version: '7.0.101'
 
-      - uses: jwalton/gh-find-current-pr@v1
-        id: findPr
-        with:
-          state: all
+      - name: Get Pull Request Number
+        id: pr
+        run: echo "::set-output name=pull_request_number::$(gh pr view --json number -q .number || echo "")"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Check Snapshots"
         run: ./github-actions-helpers/build.sh SummaryOfSnapshotChanges
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          PullRequestNumber: "${{ steps.findPr.outputs.pr }}"
+          PullRequestNumber: "${{ steps.pr.outputs.pull_request_number }}"
           TargetBranch: "${{ github.base_ref }}"
