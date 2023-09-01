@@ -760,6 +760,7 @@ TEST_WEB_80 := \
 	test_web_laminas_14 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
+	test_web_laravel_9x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_nette_24 \
@@ -800,6 +801,8 @@ TEST_WEB_81 := \
 	test_web_codeigniter_22 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
+	test_web_laravel_9x \
+	test_web_laravel_10x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_nette_24 \
@@ -840,6 +843,8 @@ TEST_WEB_82 := \
 	test_web_codeigniter_22 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
+	test_web_laravel_9x \
+	test_web_laravel_10x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
@@ -1039,6 +1044,12 @@ test_web_laravel_58: global_test_run_dependencies
 test_web_laravel_8x: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_8_x update
 	$(call run_tests,--testsuite=laravel-8x-test)
+test_web_laravel_9x: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_9_x update
+	$(call run_tests,--testsuite=laravel-9x-test)
+test_web_laravel_10x: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_10_x update
+	$(call run_tests,--testsuite=laravel-10x-test)
 test_web_lumen_52: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 update
 	$(call run_tests,tests/Integrations/Lumen/V5_2)
