@@ -1,5 +1,17 @@
 # Datadog AppSec for PHP Release
 
+### v0.13.0
+
+#### Additions
+- ([#290](https://github.com/DataDog/dd-appsec-php/pull/290)) Send events even when limiter does not force manual keep
+
+#### Miscellaneous Changes
+- ([#286](https://github.com/DataDog/dd-appsec-php/pull/286)) Add codeowners
+- ([#285](https://github.com/DataDog/dd-appsec-php/pull/285))([#292](https://github.com/DataDog/dd-appsec-php/pull/292)) Update WAF to 1.13.1
+- ([#288](https://github.com/DataDog/dd-appsec-php/pull/288)) Update tracer to 0.90.0 and use new public functions for span access
+- ([#289](https://github.com/DataDog/dd-appsec-php/pull/289)) Fix package build
+- ([#291](https://github.com/DataDog/dd-appsec-php/pull/291)) Update ruleset to 1.7.2
+
 ### v0.12.0
 
 #### Additions
