@@ -133,7 +133,7 @@ aliases:
   - &STEP_COMPOSER_SELF_UPDATE
     run:
       name: Upgrading composer
-      command: sudo composer self-update --2 --no-interaction
+      command: sudo composer self-update --no-interaction
 
   - &STEP_COMPOSER_UPDATE
     run:
@@ -989,7 +989,7 @@ jobs:
           steps:
             - run:
                 name: Updating composer to v2
-                command: sudo composer self-update --2 --no-interaction
+                command: sudo composer self-update 2.5.6 --no-interaction
       - install_extension
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
