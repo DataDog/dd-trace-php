@@ -470,6 +470,7 @@ TEST_EXTRA_INI ?=
 TESTS_ROOT = ./tests
 COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
 COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
+# 5 is the exit code created when the post-install audit fails
 COMPOSER_UPDATE = update || [ $$? -eq 5 ]
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
