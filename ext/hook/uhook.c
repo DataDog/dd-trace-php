@@ -658,7 +658,7 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
 
     // If we'd remove args, we'd need to re-evaluate potential RECV_INIT opcodes, to get their default values, or outright throw a TypeError
     // Guard against that for now instead of manually re-evaluating RECV_INIT opcodes.
-    if (ZEND_USER_CODE(func->type) && MIN(func->common.num_args, passed_args) > zend_hash_num_elements(args)) {
+    if (ZEND_USER_CODE(func->type) && hookData->execute_data->opline > func->op_array.opcodes + zend_hash_num_elements(args)) {
         LOG_LINE_ONCE(Error, "Can't pass less args to an untyped function than originally passed (minus extra args)");
         RETURN_FALSE;
     }
