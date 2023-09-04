@@ -34,7 +34,7 @@ aliases:
     name: elasticsearch7_integration
     environment:
       - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - ES_JAVA_OPTS=-Xms1.5g -Xmx1.5g
 
   - &IMAGE_DOCKER_HTTPBIN
     image: kong/httpbin
@@ -200,10 +200,10 @@ aliases:
           echo "APM Test Agent is not running and was not used for testing. No checks failed."
           exit 0
         fi
-        
+
         RESPONSE=$(curl -s -w "\n%{http_code}" -o response.txt http://test-agent:9126/test/trace_check/failures)
         RESPONSE_CODE=$(echo "$RESPONSE" | awk 'END {print $NF}')
-            
+
         if [[ $RESPONSE_CODE -eq 200 ]]; then
           echo "All APM Test Agent Check Traces returned successful! (HTTP 200)"
           echo "APM Test Agent Check Traces Summary Results:"
@@ -3404,7 +3404,7 @@ workflows:
             cd system-tests
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
             sudo apt-get install -y python-is-python3
-            ./build.sh -i runner 
+            ./build.sh -i runner
           run: |
             cd system-tests
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
