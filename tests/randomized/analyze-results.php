@@ -146,8 +146,15 @@ function analyze_cli($tmpScenariosFolder)
             continue;
         }
 
+        $diffs = [];
+        for ($i = 1; $i < count($values); $i++) {
+            $diffs[] = abs($values[$i] - $values[$i - 1]) / $values[$i - 1];
+        }
+        $averageDiff = array_sum($diffs) / count($diffs);
+        fwrite(STDERR, "Slope: $slope, intercept: $intercept, averageDiff: $averageDiff\n");
+        fwrite(STDERR, "Slope / intercept: " . ($slope / $intercept) . "\n");
         // We must accept a 0.1% slope as elastic search has small increases even when tracer is not loaded.
-        if (abs($slope) > ($intercept * 0.001)) {
+        if (abs($averageDiff) > 0.001) {
             $leaksResults[] = $identifier;
             continue;
         }
