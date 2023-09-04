@@ -5,6 +5,5 @@
 // NOTE: flags should be boolean values and are converted while generating the file to the proper value.
 const INIS = [
     'opcache.enable' => [false],
-    'opcache.jit_buffer_size' => ['256M'],
     'extension' => ['datadog-profiling.so'],
 ];
