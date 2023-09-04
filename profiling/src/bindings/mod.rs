@@ -87,7 +87,7 @@ pub struct ZendString {
 
 impl _zend_object {
     pub fn name(&self) -> String {
-        unsafe { ddog_php_prof_zend_string_view((*self.ce).name.as_mut()).to_string() }
+        unsafe { zai_str_from_zstr((*self.ce).name.as_mut()).into_string() }
     }
 }
 
