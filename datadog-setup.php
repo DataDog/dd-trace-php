@@ -595,7 +595,12 @@ function install($options)
                 }
                 echo "Created INI file '$iniFilePath'\n";
             } else {
-                echo "Updating existing INI file '$iniFilePath'\n";
+                echo "Updating existing INI file '$iniFilePath'";
+                if (is_link($iniFilePath)) {
+                    $iniFilePath = readlink($iniFilePath);
+                    echo " which is a symlink to '$iniFilePath'";
+                }
+                echo "\n";
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
                     'Impossible to replace the deprecated ddtrace.request_init_hook parameter with the new name.',
@@ -908,6 +913,9 @@ function uninstall($options)
          *  2) remove ddtrace.so
          */
         foreach ($iniFilePaths as $iniFilePath) {
+            if (is_link($iniFilePath)) {
+                $iniFilePath = readlink($iniFilePath);
+            }
             if (file_exists($iniFilePath)) {
                 execute_or_exit(
                     "Impossible to disable PHP modules from '$iniFilePath'. You can disable them manually.",
