@@ -19,6 +19,7 @@
 #else
 #include <interceptor/php8/interceptor.h>
 #endif
+#include <jit_utils/jit_blacklist.h>
 #include <php.h>
 #include <php_ini.h>
 #include <pthread.h>
@@ -647,6 +648,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     zai_uhook_minit(module_number);
 #if PHP_VERSION_ID >= 80000
     zai_interceptor_minit();
+#endif
+#if ZAI_JIT_BLACKLIST_ACTIVE
+    zai_jit_minit();
 #endif
 #if PHP_VERSION_ID >= 80100
     ddtrace_setup_fiber_observers();

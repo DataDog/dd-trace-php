@@ -75,7 +75,7 @@ This release adds an enhanced WordPress integration, which can be enabled throug
 - (Legacy OpenTracing API) Check if the active span has a parent #2177
 - Handle killed workers and change root span initialization in the integrations #2176
 - fix: add Symfony command's exception to the root span #2194
-- Fix #2174: Can't pass less args to an untyped function than originally passed #2227
+- Fix #2174: Can't pass less args to an untyped function than originally passed #2227, #2243
 - Fix #2232: Add Cargo.lock to pecl #2233
 - fix: wrong service name on some laravel.event.handle spans #2235
 - fix: PHP7 compatibility in logs correlation #2236

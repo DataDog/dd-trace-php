@@ -15,6 +15,7 @@
 
 #include "uhook.h"
 #include "../ddtrace.h"
+#include <jit_utils/jit_blacklist.h>
 #include <exceptions/exceptions.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -662,6 +663,20 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
         LOG_LINE_ONCE(Error, "Can't pass less args to an untyped function than originally passed (minus extra args)");
         RETURN_FALSE;
     }
+
+#if ZAI_JIT_BLACKLIST_ACTIVE
+    // The tracing JIT will make assumptions about the refcounting and default args. Avoid it.
+    // Long-winded explanation: the tracing JIT traces the amount of args passed. When there's one arg passed, but the function has two, of which one is optional,
+    // then the tracing JIT may, when inlining the function, just assign the variable - after our begin handler was executed -, just assuming the variable has not been set.
+    // This will then - obviously - override our value and unconditionally set the value to the default argument, which is bad.
+    // There's no way around that, we're forced to blacklist that function completely from JIT.
+    if (ZEND_USER_CODE(func->type)) {
+        // Note: this isn't perfect, and hooks wishing to override args must do so unconditionally, even if the args are not changed.
+        // Otherwise, if overrideArguments was not called on the first time this function was traced, the JIT will have successfully traced the function
+        // and inserted its evil code and there's no going back then.
+        zai_jit_blacklist_function_inlining(&func->op_array);
+    }
+#endif
 
     // When observers are executed, moving extra args behind the last temporary already happened
     zval *arg = ZEND_CALL_VAR_NUM(hookData->execute_data, 0), *last_arg = ZEND_USER_CODE(func->type) ? arg + func->common.num_args : ((void *)~0);
