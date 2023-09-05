@@ -8,7 +8,6 @@ export DD_TRACE_ENABLED=true
 #export DD_TRACE_DEBUG=true
 export DD_TRACE_GENERATE_ROOT_SPAN=true
 export DD_TRACE_CLI_ENABLED=true
-export DD_SERVICE=appsec_tests
 export DD_TRACE_AGENT_PORT=18126
 
 CMAKE_BINARY_DIR="$1"

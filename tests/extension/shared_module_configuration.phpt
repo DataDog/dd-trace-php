@@ -4,6 +4,7 @@ Verify configuration can be shared across dd extensions
 extension=ddtrace.so
 --ENV--
 DD_ENV=prod
+DD_SERVICE=appsec_tests
 DD_TRACE_CLIENT_IP_HEADER_DISABLED=true
 --FILE--
 <?php

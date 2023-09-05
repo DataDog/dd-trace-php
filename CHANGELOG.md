@@ -1,5 +1,9 @@
 # Datadog AppSec for PHP Release
 
+### v0.13.1
+#### Fixes
+- ([#293](https://github.com/DataDog/dd-appsec-php/pull/293)) Fix service name alias configuration
+
 ### v0.13.0
 
 #### Additions

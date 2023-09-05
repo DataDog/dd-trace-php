@@ -3,6 +3,7 @@ ddtrace integration — basic test
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_AUTOFINISH_SPANS=1
+DD_SERVICE=appsec_tests
 --SKIPIF--
 <?php
 // on CI, the 5 minute timeout is sometimes exceeded

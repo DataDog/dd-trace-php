@@ -49,7 +49,7 @@ extern bool runtime_config_first_init;
     SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                                            \
     CONFIG(CUSTOM(SET), DD_EXTRA_SERVICES, "", .parser = _parse_list)                                                                  \
     CONFIG(STRING, DD_APPSEC_HELPER_EXTRA_ARGS, "")                                                                                   \
-    CONFIG(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                                       \
+    CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                                       \
     CONFIG(STRING, DD_ENV, "")                                                                                                        \
     CONFIG(STRING, DD_VERSION, "")                                                                                                    \
     CONFIG(CUSTOM(STRING), DD_TRACE_CLIENT_IP_HEADER, "", .parser = dd_parse_client_ip_header_config)                                 \
