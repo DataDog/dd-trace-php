@@ -41,7 +41,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'http.route' => '/simple',
+                        'http.route' => 'simple',
                         TAG::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'laravel',
                     ])
