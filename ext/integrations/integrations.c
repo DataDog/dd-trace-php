@@ -192,6 +192,8 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LUMEN, "Laravel\\Lumen\\Application", "__construct",
                                          "DDTrace\\Integrations\\Lumen\\LumenIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MAGENTO, "Magento\\Framework\\App\\Bootstrap", "__construct",
+                                         "DDTrace\\Integrations\\Magento\\MagentoIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHE, "Memcache", "connect",
                                          "DDTrace\\Integrations\\Memcache\\MemcacheIntegration");
