@@ -48,7 +48,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/not-implemented',
                         'http.status_code' => '501',
-                        'http.route' => '/not-implemented',
+                        'http.route' => 'not-implemented',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])
@@ -108,7 +108,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/unauthorized',
                         'http.status_code' => '403',
-                        'http.route' => '/unauthorized',
+                        'http.route' => 'unauthorized',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])
