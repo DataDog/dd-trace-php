@@ -69,7 +69,7 @@ This release adds an enhanced WordPress integration, which can be enabled throug
 - Enhance the WordPress Integration #2126
 - Implement agent sampling #2223
 - Add Laravel 9.X & 10.X tests #2237
-- Add http.route to laravel #2204
+- Add http.route to laravel #2204 #2241
 
 ### Fixed
 - (Legacy OpenTracing API) Check if the active span has a parent #2177
