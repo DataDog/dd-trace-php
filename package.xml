@@ -118,7 +118,7 @@ This release reduces CPU overhead to collect stacks, and also reduces overhead w
 - style(profiler): use let-else syntax #2216
 - build(profiling): bump dependencies including libdatadog v4.0.0 #2228
 
-## Application Security Management (0.13.0)
+## Application Security Management (0.13.1)
 
 ### Added
 - Add trusted IPs capability DataDog/dd-appsec-php#279
@@ -126,6 +126,7 @@ This release reduces CPU overhead to collect stacks, and also reduces overhead w
 
 ### Fixed
 - Ensure ddtrace is also enabled DataDog/dd-appsec-php#281
+- Fix service name alias configuration DataDog/dd-appsec-php#293
 
 ### Internal changes
 - Add automated login events integration test for Laravel and Symfony DataDog/dd-appsec-php#270
