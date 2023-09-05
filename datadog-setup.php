@@ -599,12 +599,12 @@ function install($options)
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
                     'Impossible to replace the deprecated ddtrace.request_init_hook parameter with the new name.',
-                    "sed -i 's|ddtrace.request_init_hook|datadog.trace.request_init_hook|g' "
+                    "sed -i --follow-symlinks 's|ddtrace.request_init_hook|datadog.trace.request_init_hook|g' "
                     . escapeshellarg($iniFilePath)
                 );
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = '"
+                    "sed -i --follow-symlinks 's@datadog\.trace\.request_init_hook \?= \?\(.*\)@datadog.trace.request_init_hook = '"
                     . escapeshellarg($installDirWrapperPath)
                     . "'@g' " . escapeshellarg($iniFilePath)
                 );
@@ -616,7 +616,7 @@ function install($options)
                  */
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@ \?;\? \?extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
+                    "sed -i --follow-symlinks 's@ \?;\? \?extension \?= \?.*ddtrace.*\(.*\)@extension = ddtrace.so@g' "
                     . escapeshellarg($iniFilePath)
                 );
 
@@ -624,7 +624,7 @@ function install($options)
                 // Support upgrading from the C based zend_extension.
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@zend_extension \?= \?.*datadog-profiling.*\(.*\)@extension = datadog-profiling.so@g' "
+                    "sed -i --follow-symlinks 's@zend_extension \?= \?.*datadog-profiling.*\(.*\)@extension = datadog-profiling.so@g' "
                     . escapeshellarg($iniFilePath)
                 );
             }
@@ -640,7 +640,7 @@ function install($options)
                 if ($shouldInstallProfiling) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
-                        "sed -i 's@ \?; \?extension \?= \?datadog-profiling.so@extension = datadog-profiling.so@g' "
+                        "sed -i --follow-symlinks 's@ \?; \?extension \?= \?datadog-profiling.so@extension = datadog-profiling.so@g' "
                         . escapeshellarg($iniFilePath)
                     );
                 } else {
@@ -658,14 +658,14 @@ function install($options)
             if ($shouldInstallAppsec) {
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
+                    "sed -i --follow-symlinks 's@ \?; \?extension \?= \?ddappsec.so@extension = ddappsec.so@g' "
                     . escapeshellarg($iniFilePath)
                 );
 
                 // Update helper path
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@datadog.appsec.helper_path \?= \?.*@datadog.appsec.helper_path = " . $appSecHelperPath . "@g' "
+                    "sed -i --follow-symlinks 's@datadog.appsec.helper_path \?= \?.*@datadog.appsec.helper_path = " . $appSecHelperPath . "@g' "
                     . escapeshellarg($iniFilePath)
                 );
 
@@ -673,20 +673,20 @@ function install($options)
                 $rulesPathRegex = $options[OPT_INSTALL_DIR] . "/[0-9\.]*/etc/recommended.json";
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@^[ ;]*datadog.appsec.rules \?= \?" . $rulesPathRegex . "@;datadog.appsec.rules = " . $appSecRulesPath . "@g' "
+                    "sed -i --follow-symlinks 's@^[ ;]*datadog.appsec.rules \?= \?" . $rulesPathRegex . "@;datadog.appsec.rules = " . $appSecRulesPath . "@g' "
                     . escapeshellarg($iniFilePath)
                 );
 
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
-                        "sed -i 's@;\? \?datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
+                        "sed -i --follow-symlinks 's@;\? \?datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = On@g' "
                         . escapeshellarg($iniFilePath)
                     );
                 } else {
                     execute_or_exit(
                         'Impossible to update the INI settings file.',
-                        "sed -i 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = Off@g' "
+                        "sed -i --follow-symlinks 's@datadog.appsec.enabled \?=.*$\?@datadog.appsec.enabled = Off@g' "
                         . escapeshellarg($iniFilePath)
                     );
                 }
@@ -694,7 +694,7 @@ function install($options)
                 // Ensure AppSec isn't loaded if not compatible
                 execute_or_exit(
                     'Impossible to update the INI settings file.',
-                    "sed -i 's@extension \?= \?ddappsec.so@;extension = ddappsec.so@g' "
+                    "sed -i --follow-symlinks 's@extension \?= \?ddappsec.so@;extension = ddappsec.so@g' "
                     . escapeshellarg($iniFilePath)
                 );
 
@@ -911,11 +911,11 @@ function uninstall($options)
             if (file_exists($iniFilePath)) {
                 execute_or_exit(
                     "Impossible to disable PHP modules from '$iniFilePath'. You can disable them manually.",
-                    "sed -i 's@^extension \?=@;extension =@g' " . escapeshellarg($iniFilePath)
+                    "sed -i --follow-symlinks 's@^extension \?=@;extension =@g' " . escapeshellarg($iniFilePath)
                 );
                 execute_or_exit(
                     "Impossible to disable Zend modules from '$iniFilePath'. You can disable them manually.",
-                    "sed -i 's@^zend_extension \?=@;zend_extension =@g' " . escapeshellarg($iniFilePath)
+                    "sed -i --follow-symlinks 's@^zend_extension \?=@;zend_extension =@g' " . escapeshellarg($iniFilePath)
                 );
                 echo "Disabled all modules in INI file '$iniFilePath'. "
                     . "The file has not been removed to preserve custom settings.\n";
