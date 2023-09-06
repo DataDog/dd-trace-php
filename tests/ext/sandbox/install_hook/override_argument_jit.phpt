@@ -3,7 +3,7 @@ overrideArguments() works with JIT (Issue #2174)
 --SKIPIF--
 <?php if (!file_exists(ini_get("extension_dir") . "/opcache.so")) die('skip: opcache.so does not exist in extension_dir'); ?>
 <?php if (PHP_VERSION_ID < 80000) die('skip: JIT is only on PHP 8'); ?>
-<?php if (PHP_VERSION_ID == 80000 && getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip: On php 8.0 we use heuristics to match the pointer. Valgrind does not have a pointer layout matching our assumptions and will gracefully fail the test.'); ?>
+<?php if (PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100 && getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip: On php 8.0 we use heuristics to match the pointer. Valgrind does not have a pointer layout matching our assumptions and will gracefully fail the test.'); ?>
 --INI--
 opcache.enable=1
 opcache.enable_cli = 1
