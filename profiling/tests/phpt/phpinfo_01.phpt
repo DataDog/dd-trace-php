@@ -1,5 +1,5 @@
 --TEST--
-[profiling] test profiler's extension info
+[profiling] test profiler's extension info with disabled profiling
 --DESCRIPTION--
 The profiler's phpinfo section contains important debugging information. This
 test verifies that certain information is present.
