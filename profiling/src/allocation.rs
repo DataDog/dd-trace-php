@@ -1,5 +1,5 @@
 use crate::bindings as zend;
-use crate::PHP_VERSION_STRUCTURED;
+use crate::PHP_VERSION_ID;
 use crate::PROFILER;
 use crate::PROFILER_NAME;
 use crate::REQUEST_LOCALS;
@@ -94,8 +94,8 @@ lazy_static! {
     /// A fix was introduced in PHP Version 8.1.21 and 8.2.8 with
     /// https://github.com/php/php-src/pull/11380
     static ref CHECK_FOR_ENABLED_JIT: bool = {
-        if let Some((major, minor, patch)) = *PHP_VERSION_STRUCTURED {
-            if major == 8 && ((minor == 0) || (minor == 1 && patch < 21) || (minor == 2 && patch < 8)) {
+        if let Some(version) = *PHP_VERSION_ID {
+            if (version >= 80000 && version <= 80099) || (version >= 80100 && version < 80121) || (version >= 80200 && version < 80208) {
                 return true;
             }
         }

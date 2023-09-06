@@ -83,19 +83,21 @@ lazy_static! {
             .expect("Reflection's zend_module_entry to be found and contain a valid string")
     };
 
-    static ref PHP_VERSION_STRUCTURED: Option<(u32, u32, u32)> = {
-        let mut iter = PHP_VERSION.split('.').fuse();
+    static ref PHP_VERSION_ID: Option<u32> = {
+        cfg_if::cfg_if! {
+            if #[cfg(php_has_php_version_id_fn)] {
+                return Some(unsafe {zend::php_version_id()});
+            } else {
+                let mut iter = PHP_VERSION.split('.').fuse();
 
-        let major = iter.next()?.parse().ok()?;
-        let minor = iter.next()?.parse().ok()?;
-        let patch = iter
-            .next()?
-            .split(|c: char| !c.is_numeric())
-            .next()?
-            .parse()
-            .ok()?;
+                let major = iter.next()?.parse::<u32>().ok()?;
+                let minor = iter.next()?.parse::<u32>().ok()?;
+                let patch_part = iter.next()?;
+                let patch: u32 = patch_part.chars().take_while(|c| c.is_numeric()).collect::<String>().parse().ok()?;
 
-        Some((major, minor, patch))
+                return Some(major * 10000 + minor * 100 + patch);
+            }
+        }
     };
 
     /// The Server API the profiler is running under.
