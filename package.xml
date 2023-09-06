@@ -81,6 +81,7 @@ This release adds an enhanced WordPress integration, which can be enabled throug
 - fix: PHP7 compatibility in logs correlation #2236
 - Store library_dependencies in memfd, referenced via /proc/self/fd/X DataDog/libdatadog#221
 - fix `datadog-setup.php` when INI file is a symlink #2242
+- update webpki and other dependencies #2247
 
 ### Internal Changes
 - Add log levels #2158
