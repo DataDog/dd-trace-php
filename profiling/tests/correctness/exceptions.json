@@ -1,0 +1,23 @@
+{
+    "test_name": "php_exception",
+    "stacks": [
+        {
+            "profile-type": "exception-samples",
+            "stack-content": [
+                {
+                    "regular_expression": "<?php;FooBar\\throwAndCatch;",
+                    "percent": 100,
+                    "error_margin": 100,
+                    "labels": [
+                        {
+                            "key": "exception type",
+                            "values": [
+                                "FooBar\\Exception"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
