@@ -1,7 +1,9 @@
 use crate::bindings as zend;
+use crate::PHP_VERSION_STRUCTURED;
 use crate::PROFILER;
 use crate::PROFILER_NAME;
 use crate::REQUEST_LOCALS;
+use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, error, trace, warn};
 use once_cell::sync::OnceCell;
@@ -85,6 +87,22 @@ thread_local! {
     static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats::new());
 }
 
+lazy_static! {
+    /// PHP Versions 8.0, 8.1.0 - 8.1.20 and 8.2.0 - 8.2.7 have a bug that triggers when JIT is
+    /// active that might make `EG(current_execute_data)` a dangling pointer, so we'd crash when
+    /// collecting the stack trace. See: https://github.com/DataDog/dd-trace-php/pull/2088
+    /// A fix was introduced in PHP Version 8.1.21 and 8.2.8 with
+    /// https://github.com/php/php-src/pull/11380
+    static ref CHECK_FOR_ENABLED_JIT: bool = {
+        if let Some((major, minor, patch)) = *PHP_VERSION_STRUCTURED {
+            if major == 8 && ((minor == 0) || (minor == 1 && patch < 21) || (minor == 2 && patch < 8)) {
+                return true;
+            }
+        }
+        false
+    };
+}
+
 pub fn allocation_profiling_rinit() {
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
@@ -100,14 +118,16 @@ pub fn allocation_profiling_rinit() {
         return;
     }
 
-    let jit = JIT_ENABLED.get_or_init(|| unsafe { zend::ddog_php_jit_enabled() });
-    if *jit {
-        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT. See https://github.com/DataDog/dd-trace-php/pull/2088");
-        REQUEST_LOCALS.with(|cell| {
-            let mut locals = cell.borrow_mut();
-            locals.profiling_allocation_enabled = false;
-        });
-        return;
+    if *CHECK_FOR_ENABLED_JIT {
+        let jit = JIT_ENABLED.get_or_init(|| unsafe { zend::ddog_php_jit_enabled() });
+        if *jit {
+            error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
+            REQUEST_LOCALS.with(|cell| {
+                let mut locals = cell.borrow_mut();
+                locals.profiling_allocation_enabled = false;
+            });
+            return;
+        }
     }
 
     if !is_zend_mm() {

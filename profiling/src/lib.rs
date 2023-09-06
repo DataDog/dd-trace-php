@@ -83,6 +83,21 @@ lazy_static! {
             .expect("Reflection's zend_module_entry to be found and contain a valid string")
     };
 
+    static ref PHP_VERSION_STRUCTURED: Option<(u32, u32, u32)> = {
+        let mut iter = PHP_VERSION.split('.').fuse();
+
+        let major = iter.next()?.parse().ok()?;
+        let minor = iter.next()?.parse().ok()?;
+        let patch = iter
+            .next()?
+            .split(|c: char| !c.is_numeric())
+            .next()?
+            .parse()
+            .ok()?;
+
+        Some((major, minor, patch))
+    };
+
     /// The Server API the profiler is running under.
     static ref SAPI: Sapi = {
         // Safety: sapi_module is initialized before minit and there should be
