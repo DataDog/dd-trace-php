@@ -1240,4 +1240,30 @@ mod tests {
         );
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
     }
+
+    #[test]
+    #[cfg(feature = "exception_profiling")]
+    fn profiler_prepare_sample_message_works_cpu_time_and_expceptions() {
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_experimental_cpu_time_enabled = true;
+        locals.profiling_experimental_exception_enabled = true;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType::new("sample", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-time", "nanoseconds"),
+                ValueType::new("exception-samples", "count"),
+            ]
+        );
+        assert_eq!(message.value.sample_values, vec![10, 20, 30, 70]);
+    }
 }
