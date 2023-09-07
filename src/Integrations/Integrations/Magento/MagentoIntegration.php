@@ -217,13 +217,11 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Framework\App\FrontController',
             'processRequest',
-            function (SpanData $span, $args, $action) {
+            function (SpanData $span, $args) {
                 $span->name = 'magento.process.request';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
-
-                $span->meta['magento.action'] = get_class($action);
             }
         );
 
@@ -353,64 +351,6 @@ class MagentoIntegration extends Integration
                 $span->resource = get_class($this);
             }
         );
-
-        trace_method(
-            'Magento\Framework\View\Result\Page',
-            'renderPage',
-            function (SpanData $span) {
-                $span->name = 'magento.page.render';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('magento');
-                $span->meta[Tag::COMPONENT] = 'magento';
-            }
-        );
-
-        trace_method(
-            'Magento\Framework\View\LayoutInterface',
-            'getOutput',
-            function (SpanData $span) {
-                $span->name = 'magento.layout.output';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('magento');
-                $span->meta[Tag::COMPONENT] = 'magento';
-            }
-        );
-
-        trace_method(
-            'Magento\Framework\View\Element\AbstractBlock',
-            'toHtml',
-            function (SpanData $span) {
-                $span->name = 'magento.render.block';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('magento');
-                $span->meta[Tag::COMPONENT] = 'magento';
-
-                $moduleName = $this->getModuleName();
-                $blockName = $this->getNameInLayout();
-                $span->resource = "{$moduleName}:{$blockName}";
-
-                $span->meta['magento.block.module'] = $moduleName;
-                $span->meta['magento.block.name'] = $blockName;
-
-                $cacheKey = $this->getCacheKey();
-                $cacheLifetime = $this->getCacheLifetime();
-                $span->meta['magento.block.cachekey'] = $cacheKey;
-                $span->meta['magento.block.cachelifetime'] = $cacheLifetime;
-            }
-        );
-
-        trace_method(
-            'Magento\Framework\View\Page\Config',
-            'build',
-            function (SpanData $span) {
-                $span->name = 'magento.page.config.build';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('magento');
-                $span->meta[Tag::COMPONENT] = 'magento';
-            }
-        );
-
-        // TODO: Metrics on Magento\Framework\Event\ManagerInterface::dispatch
 
         return Integration::LOADED;
     }
