@@ -88,7 +88,7 @@ const NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT: bool =
 
 fn allocation_profiling_needs_disabled_for_jit(version: u32) -> bool {
     // see https://github.com/php/php-src/pull/11380
-    (version >= 80000 && version < 80121) || (version >= 80200 && version < 80208)
+    (80000..80121).contains(&version) || (80200..80208).contains(&version)
 }
 
 lazy_static! {
@@ -372,5 +372,28 @@ fn is_zend_mm() -> bool {
     #[cfg(php8)]
     {
         unsafe { zend::is_zend_mm() }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_versions_that_allocation_profiling_needs_disabled_with_active_jit() {
+        // versions that need disabled allocation profiling with active jit
+        assert!(allocation_profiling_needs_disabled_for_jit(80000));
+        assert!(allocation_profiling_needs_disabled_for_jit(80100));
+        assert!(allocation_profiling_needs_disabled_for_jit(80120));
+        assert!(allocation_profiling_needs_disabled_for_jit(80200));
+        assert!(allocation_profiling_needs_disabled_for_jit(80207));
+
+        // versions that DO NOT need disabled allocation profiling with active jit
+        assert!(!allocation_profiling_needs_disabled_for_jit(70421));
+        assert!(!allocation_profiling_needs_disabled_for_jit(80121));
+        assert!(!allocation_profiling_needs_disabled_for_jit(80122));
+        assert!(!allocation_profiling_needs_disabled_for_jit(80208));
+        assert!(!allocation_profiling_needs_disabled_for_jit(80209));
+        assert!(!allocation_profiling_needs_disabled_for_jit(80300));
     }
 }

@@ -14,8 +14,11 @@ mod allocation;
 #[cfg(feature = "timeline")]
 mod timeline;
 
+#[cfg(not(php_has_php_version_id_fn))]
+use bindings::zend_long;
+
 use bindings as zend;
-use bindings::{sapi_globals, zend_long, ZendExtension, ZendResult};
+use bindings::{sapi_globals, ZendExtension, ZendResult};
 use clocks::*;
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
@@ -186,6 +189,7 @@ unsafe fn set_run_time_php_version_id() -> anyhow::Result<()> {
     cfg_if::cfg_if! {
         if #[cfg(php_has_php_version_id_fn)] {
             PHP_VERSION_ID = zend::php_version_id();
+            Ok(())
         } else {
             let vernum = b"PHP_VERSION_ID";
             let vernum_zvp = zend::zend_get_constant_str(
