@@ -378,7 +378,7 @@ class MagentoIntegration extends Integration
             }
         );
 
-        trace_method(
+        /*trace_method(
             'Magento\Framework\View\Result\Page',
             'renderPage',
             function (SpanData $span) {
@@ -387,9 +387,9 @@ class MagentoIntegration extends Integration
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
             }
-        );
+        );*/
 
-        trace_method(
+        /*trace_method(
             'Magento\Framework\View\LayoutInterface',
             'getOutput',
             function (SpanData $span) {
@@ -398,7 +398,7 @@ class MagentoIntegration extends Integration
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
             }
-        );
+        );*/
 
         trace_method(
             'Magento\Framework\View\Element\AbstractBlock',
@@ -409,7 +409,7 @@ class MagentoIntegration extends Integration
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
 
-                $moduleName = $this->getModuleName();
+                $moduleName = $this->getModuleName() ?: 'Magento_Core'; // A core block has no module name
                 $blockName = $this->getNameInLayout();
                 $span->resource = "{$moduleName}:{$blockName}";
 
@@ -490,6 +490,17 @@ class MagentoIntegration extends Integration
                     $class = get_class($this);
                 }
                 $span->resource = $class;
+            }
+        );
+
+        trace_method(
+            'Magento\Framework\View\LayoutInterface\BuilderInterface',
+            'build',
+            function (SpanData $span) {
+                $span->name = 'magento.layout.build';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = \ddtrace_config_app_name('magento');
+                $span->meta['Tag::COMPOENNT'] = 'magento';
             }
         );
 
