@@ -77,12 +77,17 @@ if(DD_APPSEC_BUILD_EXTENSION)
     add_library(Tea::Tea ALIAS Tea)
 
     add_library(tea-libphp INTERFACE)
+    target_compile_options(tea-libphp INTERFACE ${PHP_INCLUDES})
     add_library(Tea::Php ALIAS tea-libphp)
 
     set(ZAI_MODULES json env config)
     add_library(zai_zend_abstract_interface INTERFACE)
     target_include_directories(zai_zend_abstract_interface INTERFACE ${ZAI_INCLUDES})
+
     add_subdirectory(ddtrace/zend_abstract_interface/zai_string)
+    set_target_properties(zai_string PROPERTIES POSITION_INDEPENDENT_CODE 1)
+    target_compile_options(zai_string PRIVATE ${PHP_INCLUDES})
+
     add_subdirectory(ddtrace/zend_abstract_interface/zai_assert)
     foreach(module json env config)
         set(module_name "zai_${module}")

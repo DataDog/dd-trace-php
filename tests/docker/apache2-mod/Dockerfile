@@ -9,12 +9,8 @@ RUN apt-get update && apt-get install -y \
 	&& rm -rf /var/lib/apt/lists/*
 
 ARG TRACER_VERSION
-#RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \
-    #PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-version $TRACER_VERSION --php-bin all
-
-RUN curl -Lf -o /tmp/dd-library.tar.gz https://output.circle-artifacts.com/output/job/434c6010-da34-4df5-9ce9-1531bb0e60f8/artifacts/0/datadog-php-tracer-0.90.0+36ed038a4beff76c7a4cdeac002a02d4060eaadb.x86_64.tar.gz && \
-    curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \
-    PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --php-bin all --no-appsec --tracer-file /tmp/dd-library.tar.gz
+RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \
+    PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-version $TRACER_VERSION --php-bin all
 
 #RUN curl -Lf -o /tmp/ddtrace.tar.gz https://github.com/DataDog/dd-trace-php/archive/$TRACER_VERSION.tar.gz && \
 #	mkdir /tmp/ddtrace-build/ && cd /tmp/ddtrace-build && \
@@ -43,6 +39,8 @@ RUN if echo $VARIANT | grep -q zts; \
 	fi
 RUN if ! { echo $VARIANT | grep -q zts; }; then a2dismod mpm_event; a2enmod mpm_prefork; fi
 RUN a2enmod php
+
+RUN chmod a+rx /root
 
 ENV DD_TRACE_ENABLED=true
 ENV DD_TRACE_GENERATE_ROOT_SPAN=true
