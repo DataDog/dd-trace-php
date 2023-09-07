@@ -5,7 +5,7 @@
             "profile-type": "exception-samples",
             "stack-content": [
                 {
-                    "regular_expression": "<?php;FooBar\\throwAndCatch;",
+                    "regular_expression": "<\\?php;FooBar\\\\throwAndCatch",
                     "percent": 100,
                     "error_margin": 100,
                     "labels": [
