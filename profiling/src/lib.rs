@@ -15,7 +15,7 @@ mod allocation;
 mod timeline;
 
 use bindings as zend;
-use bindings::{sapi_globals, ZendExtension, ZendResult};
+use bindings::{sapi_globals, zend_long, ZendExtension, ZendResult};
 use clocks::*;
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
@@ -55,6 +55,10 @@ static PROFILER_NAME_CSTR: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
 
+/// Version ID of PHP at run-time, not the version it was built against at
+/// compile-time. Its value is overwritten during minit.
+static mut PHP_VERSION_ID: u32 = zend::PHP_VERSION_ID;
+
 lazy_static! {
     static ref LAZY_STATICS_TAGS: Vec<Tag> = {
         vec![
@@ -81,23 +85,6 @@ lazy_static! {
         let module_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"Reflection\0") };
         get_module_version(module_name)
             .expect("Reflection's zend_module_entry to be found and contain a valid string")
-    };
-
-    static ref PHP_VERSION_ID: Option<u32> = {
-        cfg_if::cfg_if! {
-            if #[cfg(php_has_php_version_id_fn)] {
-                return Some(unsafe {zend::php_version_id()});
-            } else {
-                let mut iter = PHP_VERSION.split('.').fuse();
-
-                let major = iter.next()?.parse::<u32>().ok()?;
-                let minor = iter.next()?.parse::<u32>().ok()?;
-                let patch_part = iter.next()?;
-                let patch: u32 = patch_part.chars().take_while(|c| c.is_numeric()).collect::<String>().parse().ok()?;
-
-                return Some(major * 10000 + minor * 100 + patch);
-            }
-        }
     };
 
     /// The Server API the profiler is running under.
@@ -193,6 +180,37 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
     unsafe extern "C" fn(execute_data: *mut zend::zend_execute_data, return_value: *mut zend::zval),
 > = MaybeUninit::uninit();
 
+/// # Safety
+/// Only call during minit/startup phase.
+unsafe fn set_run_time_php_version_id() -> anyhow::Result<()> {
+    cfg_if::cfg_if! {
+        if #[cfg(php_has_php_version_id_fn)] {
+            PHP_VERSION_ID = zend::php_version_id();
+        } else {
+            let vernum = b"PHP_VERSION_ID";
+            let vernum_zvp = zend::zend_get_constant_str(
+                vernum.as_ptr() as *const c_char,
+                vernum.len()
+            );
+            // SAFETY: if the pointer returned by zend_get_constant_str is not
+            // null, then it points to a valid zval.
+            let Some(vernum_zv) = vernum_zvp.as_mut() else {
+                anyhow::bail!("zend_get_constant_str returned null")
+            };
+            let vernum_long = match zend_long::try_from(vernum_zv) {
+                Ok(x) => x,
+                Err(err) => {
+                    anyhow::bail!("zend_get_constant_str(\"PHP_VERSION_ID\", ...) failed: unexpected zval type {err}");
+                }
+            };
+            let vernum_u32 = u32::try_from(vernum_long)?;
+            // SAFETY: during minit, there shouldn't be any threads.
+            PHP_VERSION_ID = vernum_u32;
+            Ok(())
+        }
+    }
+}
+
 /* Important note on the PHP lifecycle:
  * Based on how some SAPIs work and the documentation, one might expect that
  * MINIT is called once per process, but this is only sort-of true. Some SAPIs
@@ -232,6 +250,11 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
          * support forking, load this at the beginning:
          * let _ = ddcommon::connector::load_root_certs();
          */
+    }
+
+    // SAFETY: calling during minit as required.
+    if let Err(err) = unsafe { set_run_time_php_version_id() } {
+        panic!("error getting PHP_VERSION_ID at run-time: {err:#}");
     }
 
     config::minit(module_number);

@@ -299,14 +299,11 @@ pub(crate) unsafe fn trace_agent_url() -> Option<Cow<'static, str>> {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_log_level() -> LevelFilter {
-    let value: Result<zend_long, u8> = get_value(ProfilingLogLevel).try_into();
-    match value {
+    match zend_long::try_from(get_value(ProfilingLogLevel)) {
         // If this is an lval, then we know we can transmute it because the parser worked.
-        Ok(enabled) => transmute(enabled),
-        Err(zval_type) => {
-            warn!(
-                "zval of type {} encountered when calling config::profiling_log_level(), expected type int ({})",
-                zval_type, IS_LONG);
+        Ok(enabled) => transmute(enabled as usize),
+        Err(err) => {
+            warn!("config::profiling_log_level() failed: {err}");
             LevelFilter::Off // the default is off
         }
     }
@@ -334,7 +331,7 @@ unsafe extern "C" fn parse_level_filter(
             match parsed_level {
                 Ok(filter) => {
                     decoded_value.value.lval = filter as zend_long;
-                    decoded_value.u1.type_info = IS_LONG;
+                    decoded_value.u1.type_info = IS_LONG as u32;
                     true
                 }
                 _ => false,

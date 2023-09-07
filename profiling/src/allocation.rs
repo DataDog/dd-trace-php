@@ -1,12 +1,10 @@
 use crate::bindings as zend;
-use crate::PHP_VERSION_ID;
 use crate::PROFILER;
 use crate::PROFILER_NAME;
 use crate::REQUEST_LOCALS;
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, error, trace, warn};
-use once_cell::sync::OnceCell;
 use std::cell::RefCell;
 use std::ffi::CStr;
 
@@ -15,8 +13,6 @@ use rand_distr::{Distribution, Poisson};
 use crate::bindings::{
     datadog_php_install_handler, datadog_php_zif_handler, ddog_php_prof_copy_long_into_zval,
 };
-
-static JIT_ENABLED: OnceCell<bool> = OnceCell::new();
 
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
@@ -87,20 +83,16 @@ thread_local! {
     static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats::new());
 }
 
+const NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT: bool =
+    zend::PHP_VERSION_ID >= 80000 && zend::PHP_VERSION_ID < 80300;
+
+fn allocation_profiling_needs_disabled_for_jit(version: u32) -> bool {
+    // see https://github.com/php/php-src/pull/11380
+    (version >= 80000 && version < 80121) || (version >= 80200 && version < 80208)
+}
+
 lazy_static! {
-    /// PHP Versions 8.0, 8.1.0 - 8.1.20 and 8.2.0 - 8.2.7 have a bug that triggers when JIT is
-    /// active that might make `EG(current_execute_data)` a dangling pointer, so we'd crash when
-    /// collecting the stack trace. See: https://github.com/DataDog/dd-trace-php/pull/2088
-    /// A fix was introduced in PHP Version 8.1.21 and 8.2.8 with
-    /// https://github.com/php/php-src/pull/11380
-    static ref CHECK_FOR_ENABLED_JIT: bool = {
-        if let Some(version) = *PHP_VERSION_ID {
-            if (version >= 80000 && version <= 80099) || (version >= 80100 && version < 80121) || (version >= 80200 && version < 80208) {
-                return true;
-            }
-        }
-        false
-    };
+    static ref JIT_ENABLED: bool = unsafe { zend::ddog_php_jit_enabled() };
 }
 
 pub fn allocation_profiling_rinit() {
@@ -118,16 +110,16 @@ pub fn allocation_profiling_rinit() {
         return;
     }
 
-    if *CHECK_FOR_ENABLED_JIT {
-        let jit = JIT_ENABLED.get_or_init(|| unsafe { zend::ddog_php_jit_enabled() });
-        if *jit {
-            error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
-            REQUEST_LOCALS.with(|cell| {
-                let mut locals = cell.borrow_mut();
-                locals.profiling_allocation_enabled = false;
-            });
-            return;
-        }
+    if NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
+        && allocation_profiling_needs_disabled_for_jit(unsafe { crate::PHP_VERSION_ID })
+        && *JIT_ENABLED
+    {
+        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
+        REQUEST_LOCALS.with(|cell| {
+            let mut locals = cell.borrow_mut();
+            locals.profiling_allocation_enabled = false;
+        });
+        return;
     }
 
     if !is_zend_mm() {

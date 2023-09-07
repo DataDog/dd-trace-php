@@ -1,3 +1,4 @@
+use bindgen::callbacks::IntKind;
 use std::collections::HashSet;
 use std::env;
 use std::path::Path;
@@ -154,6 +155,18 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
             bindgen::callbacks::MacroParsingBehavior::Ignore
         } else {
             bindgen::callbacks::MacroParsingBehavior::Default
+        }
+    }
+
+    fn int_macro(&self, name: &str, _value: i64) -> Option<IntKind> {
+        match name {
+            "IS_UNDEF" | "IS_NULL" | "IS_FALSE" | "IS_TRUE" | "IS_LONG" | "IS_DOUBLE"
+            | "IS_STRING" | "IS_ARRAY" | "IS_OBJECT" | "IS_RESOURCE" | "IS_REFERENCE"
+            | "_IS_BOOL" => Some(IntKind::U8),
+
+            // None means whatever it would have been without this hook
+            // (likely u32).
+            _ => None,
         }
     }
 }
