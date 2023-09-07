@@ -36,7 +36,7 @@ jobs:
           cd profiling
           version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
           curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"
-          cargo rustc --features="trigger_time_sample" --features="exception_profiling" --release --crate-type=cdylib
+          cargo rustc --features="trigger_time_sample" --release --crate-type=cdylib
 
       - name: Cache build dependencies
         uses: actions/cache/save@v3
