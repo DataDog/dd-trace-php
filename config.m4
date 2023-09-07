@@ -114,6 +114,7 @@ if test "$PHP_DDTRACE" != "no"; then
     EXTRA_ZAI_SOURCES="\
       zend_abstract_interface/interceptor/php8/interceptor.c \
       zend_abstract_interface/interceptor/php8/resolver$ZAI_RESOLVER_SUFFIX.c \
+      zend_abstract_interface/jit_utils/jit_blacklist.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
     "
   fi
@@ -233,6 +234,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor/php7])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor/php8])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/jit_utils])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/json])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php7])

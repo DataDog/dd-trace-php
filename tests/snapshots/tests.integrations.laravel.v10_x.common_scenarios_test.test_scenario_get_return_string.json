@@ -11,7 +11,7 @@
       "_dd.p.dm": "-1",
       "component": "laravel",
       "http.method": "GET",
-      "http.route": "/simple",
+      "http.route": "simple",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple",

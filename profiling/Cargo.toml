@@ -1,6 +1,6 @@
 [package]
 name = "datadog-php-profiling"
-version = "0.90.0"
+version = "0.91.0"
 edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.64"
@@ -18,8 +18,8 @@ bumpalo = { version = "3.12", features = ["collections"] }
 cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v3.0.0" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v3.0.0" }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v4.0.0" }
+ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v4.0.0" }
 env_logger = { version = "0.10" }
 indexmap = { version = "2.0.0" }
 lazy_static = { version = "1.4" }
@@ -33,10 +33,10 @@ rand_distr = { version = "0.4.3" }
 uuid = { version = "1.0", features = ["v4"] }
 
 [dev-dependencies]
-criterion = { version = "0.4" }
+criterion = { version = "0.5.1" }
 
 [target.'cfg(target_arch = "x86_64")'.dev-dependencies]
-criterion-perf-events = "0.3"
+criterion-perf-events = "0.4.0"
 perfcnt = "0.8.0"
 
 [[bench]]

@@ -42,7 +42,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/unnamed-route',
                         'http.status_code' => '200',
-                        'http.route' => '/unnamed-route',
+                        'http.route' => 'unnamed-route',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])
@@ -90,7 +90,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/unnamed-route',
                         'http.status_code' => '200',
-                        'http.route' => '/unnamed-route',
+                        'http.route' => 'unnamed-route',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])
