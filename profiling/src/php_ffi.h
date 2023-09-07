@@ -7,6 +7,7 @@
 #include <Zend/zend_globals_macros.h>
 #include <Zend/zend_modules.h>
 #include <Zend/zend_alloc.h>
+#include <main/php_main.h>
 #include <php.h>
 #include <stdbool.h>
 #include <stddef.h>

@@ -2,9 +2,9 @@ use crate::bindings as zend;
 use crate::PROFILER;
 use crate::PROFILER_NAME;
 use crate::REQUEST_LOCALS;
+use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, error, trace, warn};
-use once_cell::sync::OnceCell;
 use std::cell::RefCell;
 use std::ffi::CStr;
 
@@ -13,8 +13,6 @@ use rand_distr::{Distribution, Poisson};
 use crate::bindings::{
     datadog_php_install_handler, datadog_php_zif_handler, ddog_php_prof_copy_long_into_zval,
 };
-
-static JIT_ENABLED: OnceCell<bool> = OnceCell::new();
 
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
@@ -85,6 +83,18 @@ thread_local! {
     static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats::new());
 }
 
+const NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT: bool =
+    zend::PHP_VERSION_ID >= 80000 && zend::PHP_VERSION_ID < 80300;
+
+fn allocation_profiling_needs_disabled_for_jit(version: u32) -> bool {
+    // see https://github.com/php/php-src/pull/11380
+    (80000..80121).contains(&version) || (80200..80208).contains(&version)
+}
+
+lazy_static! {
+    static ref JIT_ENABLED: bool = unsafe { zend::ddog_php_jit_enabled() };
+}
+
 pub fn allocation_profiling_rinit() {
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
@@ -100,9 +110,11 @@ pub fn allocation_profiling_rinit() {
         return;
     }
 
-    let jit = JIT_ENABLED.get_or_init(|| unsafe { zend::ddog_php_jit_enabled() });
-    if *jit {
-        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT. See https://github.com/DataDog/dd-trace-php/pull/2088");
+    if NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
+        && allocation_profiling_needs_disabled_for_jit(unsafe { crate::PHP_VERSION_ID })
+        && *JIT_ENABLED
+    {
+        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
         REQUEST_LOCALS.with(|cell| {
             let mut locals = cell.borrow_mut();
             locals.profiling_allocation_enabled = false;
@@ -360,5 +372,28 @@ fn is_zend_mm() -> bool {
     #[cfg(php8)]
     {
         unsafe { zend::is_zend_mm() }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_versions_that_allocation_profiling_needs_disabled_with_active_jit() {
+        // versions that need disabled allocation profiling with active jit
+        assert!(allocation_profiling_needs_disabled_for_jit(80000));
+        assert!(allocation_profiling_needs_disabled_for_jit(80100));
+        assert!(allocation_profiling_needs_disabled_for_jit(80120));
+        assert!(allocation_profiling_needs_disabled_for_jit(80200));
+        assert!(allocation_profiling_needs_disabled_for_jit(80207));
+
+        // versions that DO NOT need disabled allocation profiling with active jit
+        assert!(!allocation_profiling_needs_disabled_for_jit(70421));
+        assert!(!allocation_profiling_needs_disabled_for_jit(80121));
+        assert!(!allocation_profiling_needs_disabled_for_jit(80122));
+        assert!(!allocation_profiling_needs_disabled_for_jit(80208));
+        assert!(!allocation_profiling_needs_disabled_for_jit(80209));
+        assert!(!allocation_profiling_needs_disabled_for_jit(80300));
     }
 }

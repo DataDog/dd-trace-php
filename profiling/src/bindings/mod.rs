@@ -375,7 +375,7 @@ impl<'a> TryFrom<&'a mut zval> for &'a mut zend_long {
 
     fn try_from(zval: &'a mut zval) -> Result<Self, Self::Error> {
         let r#type = unsafe { zval.u1.v.type_ };
-        if r#type as u32 == IS_LONG {
+        if r#type == IS_LONG {
             Ok(unsafe { &mut zval.value.lval })
         } else {
             Err(r#type)
@@ -388,7 +388,7 @@ impl TryFrom<&mut zval> for zend_long {
 
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
         let r#type = unsafe { zval.u1.v.type_ };
-        if r#type as u32 == IS_LONG {
+        if r#type == IS_LONG {
             Ok(unsafe { zval.value.lval })
         } else {
             Err(r#type)
@@ -409,9 +409,9 @@ impl TryFrom<&mut zval> for bool {
 
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
         let r#type = unsafe { zval.u1.v.type_ };
-        if r#type == (IS_FALSE as u8) {
+        if r#type == IS_FALSE {
             Ok(false)
-        } else if r#type == (IS_TRUE as u8) {
+        } else if r#type == IS_TRUE {
             Ok(true)
         } else {
             Err(r#type)
@@ -424,14 +424,13 @@ pub enum StringError {
     Type(u8), // Type didn't match.
 }
 
-/// Until we have safely abstracted zend_string*'s in Rust, we need to copy
-/// the String. This also means we can ensure UTF-8 through lossy conversion.
+/// Since we're making a String, do lossy-conversion as necessary.
 impl TryFrom<&mut zval> for String {
     type Error = StringError;
 
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
         let r#type = unsafe { zval.u1.v.type_ };
-        if r#type == (IS_STRING as u8) {
+        if r#type == IS_STRING {
             // This shouldn't happen, very bad, something screwed up.
             if unsafe { zval.value.str_.is_null() } {
                 return Err(StringError::Null);
