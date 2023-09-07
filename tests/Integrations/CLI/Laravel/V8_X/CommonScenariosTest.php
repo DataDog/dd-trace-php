@@ -22,6 +22,8 @@ class CommonScenariosTest extends CLITestCase
 
     public function testCommandWithNoArguments()
     {
+        $this->retrieveDumpedData();
+
         $traces = $this->getTracesFromCommand();
 
         $this->assertFlameGraph($traces, [

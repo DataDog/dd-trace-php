@@ -1,0 +1,55 @@
+{
+    "test_name": "php_timeline",
+    "stacks": [
+        {
+            "profile-type": "timeline",
+            "stack-content": [
+                {
+                    "regular_expression": "^\\[gc\\]$",
+                    "percent": 100,
+                    "error_margin": 100,
+                    "labels": [
+                        {
+                            "key": "gc reason",
+                            "values": [
+                                "induced"
+                            ]
+                        },
+                        {
+                            "key": "event",
+                            "values": [
+                                "gc"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "regular_expression": "^\\[require\\]$",
+                    "percent": 100,
+                    "error_margin": 100,
+                    "labels": [
+                        {
+                            "key": "event",
+                            "values": [
+                                "compilation"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "regular_expression": "^\\[include\\]$",
+                    "percent": 100,
+                    "error_margin": 100,
+                    "labels": [
+                        {
+                            "key": "event",
+                            "values": [
+                                "compilation"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

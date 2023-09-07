@@ -46,14 +46,105 @@
 #define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, _4, _5, ARITY, ...) UNUSED_##ARITY
 #define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 5, 4, 3, 2, 1)(__VA_ARGS__)
 
-#if PHP_VERSION_ID < 80200
-#define ZEND_ACC_READONLY_CLASS 0
+#define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
+#define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
+
+#if PHP_VERSION_ID < 70100
+#define IS_VOID 0
+#define MAY_BE_NULL 0
+#define MAY_BE_STRING 0
+#define MAY_BE_ARRAY 0
+
+#define Z_EXTRA_P(z) Z_NEXT_P(z)
 #endif
 
 #if PHP_VERSION_ID < 70200
+#define ZEND_ACC_FAKE_CLOSURE ZEND_ACC_INTERFACE
+
+#define zend_strpprintf strpprintf
+#define zend_vstrpprintf vstrpprintf
+
+static zend_always_inline zend_string *zend_string_init_interned(const char *str, size_t len, int persistent) {
+    return zend_new_interned_string(zend_string_init(str, len, persistent));
+}
+
+#undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
+#define ZEND_ARG_VARIADIC_TYPE_INFO(pass_by_ref, name, type_hint, allow_null) ZEND_ARG_INFO(pass_by_ref, name)
+
+#define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
+    static const zend_internal_arg_info name[] = { \
+        { (const char*)(zend_uintptr_t)(required_num_args), NULL, (type) == IS_FALSE ? _IS_BOOL : (type), return_reference, allow_null, 0 },
+#define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, return_reference, required_num_args, class_name, allow_null) \
+    static const zend_internal_arg_info name[] = { \
+        { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
+
+typedef void zend_type;
+
+#include <Zend/zend_smart_str.h>
+static inline void smart_str_append_printf(smart_str *dest, const char *format, ...) {
+    va_list arg;
+    va_start(arg, format);
+    zend_string *str = vstrpprintf(0, format, arg);
+    va_end(arg);
+    smart_str_append(dest, str);
+    zend_string_release(str);
+}
+
+static inline zend_string *php_base64_encode_str(const zend_string *str) {
+    return php_base64_encode((const unsigned char*)(ZSTR_VAL(str)), ZSTR_LEN(str));
+}
+
 #define DD_PARAM_PROLOGUE(deref, separate) Z_PARAM_PROLOGUE(deref)
 #else
 #define DD_PARAM_PROLOGUE Z_PARAM_PROLOGUE
+#endif
+
+#if PHP_VERSION_ID < 70300
+#define GC_ADDREF(x) (++GC_REFCOUNT(x))
+#define GC_DELREF(x) (--GC_REFCOUNT(x))
+#define GC_SET_REFCOUNT(x, rc) (GC_REFCOUNT(x) = rc)
+
+#define GC_IMMUTABLE (1 << 5)
+#define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
+#define GC_DEL_FLAGS(c, flag) GC_FLAGS(c) &= ~(flag)
+
+static inline HashTable *zend_new_array(uint32_t nSize) {
+    HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
+    zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
+    return ht;
+}
+
+#define DD_ZVAL_EMPTY_ARRAY(z) do {       \
+        zval *__z = (z);                  \
+        Z_ARR_P(__z) = zend_new_array(0); \
+        Z_TYPE_INFO_P(__z) = IS_ARRAY;    \
+    } while (0)
+#define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
+
+#define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
+#define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)
+#define Z_UNPROTECT_RECURSION_P(zv) (--Z_OBJPROP_P(zv)->u.v.nApplyCount)
+
+#define ZEND_CLOSURE_OBJECT(op_array) \
+    ((zend_object*)((char*)(op_array) - sizeof(zend_object)))
+
+// make ZEND_STRL work
+#undef zend_hash_str_update
+#define zend_hash_str_update(...) _zend_hash_str_update(__VA_ARGS__ ZEND_FILE_LINE_CC)
+#undef zend_hash_str_update_ind
+#define zend_hash_str_update_ind(...) _zend_hash_str_update_ind(__VA_ARGS__ ZEND_FILE_LINE_CC)
+#undef zend_hash_str_add
+#define zend_hash_str_add(...) _zend_hash_str_add(__VA_ARGS__ ZEND_FILE_LINE_CC)
+#undef zend_hash_str_add_new
+#define zend_hash_str_add_new(...) _zend_hash_str_add_new(__VA_ARGS__ ZEND_FILE_LINE_CC)
+
+#define smart_str_free_ex(str, persistent) smart_str_free(str)
+#endif
+
+#if PHP_VERSION_ID < 70400
+#define ZEND_THIS (&EX(This))
+
+#define Z_PROP_FLAG_P(z) Z_EXTRA_P(z)
 #endif
 
 #if PHP_VERSION_ID < 80000
@@ -167,97 +258,16 @@ static zend_always_inline bool zend_parse_arg_obj(zval *arg, zend_object **dest,
 typedef ZEND_RESULT_CODE zend_result;
 
 #define RETURN_THROWS RETURN_NULL
-#endif
 
-#if PHP_VERSION_ID < 70400
-#define ZEND_THIS (&EX(This))
-
-#define Z_PROP_FLAG_P(z) Z_EXTRA_P(z)
-#endif
-
-#if PHP_VERSION_ID < 70300
-#define GC_ADDREF(x) (++GC_REFCOUNT(x))
-#define GC_DELREF(x) (--GC_REFCOUNT(x))
-#define GC_SET_REFCOUNT(x, rc) (GC_REFCOUNT(x) = rc)
-
-#define GC_IMMUTABLE (1 << 5)
-#define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
-#define GC_DEL_FLAGS(c, flag) GC_FLAGS(c) &= ~(flag)
-
-static inline HashTable *zend_new_array(uint32_t nSize) {
-    HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
-    zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
-    return ht;
+/* For regular arrays (non-persistent, storing zvals). */
+static zend_always_inline void zend_array_release(zend_array *array)
+{
+    if (!(GC_FLAGS(array) & IS_ARRAY_IMMUTABLE)) {
+        if (GC_DELREF(array) == 0) {
+            zend_array_destroy(array);
+        }
+    }
 }
-
-#define DD_ZVAL_EMPTY_ARRAY(z) do {       \
-        zval *__z = (z);                  \
-        Z_ARR_P(__z) = zend_new_array(0); \
-        Z_TYPE_INFO_P(__z) = IS_ARRAY;    \
-    } while (0)
-#define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
-
-#define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
-#define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)
-#define Z_UNPROTECT_RECURSION_P(zv) (--Z_OBJPROP_P(zv)->u.v.nApplyCount)
-
-#define ZEND_CLOSURE_OBJECT(op_array) \
-    ((zend_object*)((char*)(op_array) - sizeof(zend_object)))
-
-// make ZEND_STRL work
-#undef zend_hash_str_update
-#define zend_hash_str_update(...) _zend_hash_str_update(__VA_ARGS__ ZEND_FILE_LINE_CC)
-#undef zend_hash_str_update_ind
-#define zend_hash_str_update_ind(...) _zend_hash_str_update_ind(__VA_ARGS__ ZEND_FILE_LINE_CC)
-#undef zend_hash_str_add
-#define zend_hash_str_add(...) _zend_hash_str_add(__VA_ARGS__ ZEND_FILE_LINE_CC)
-#undef zend_hash_str_add_new
-#define zend_hash_str_add_new(...) _zend_hash_str_add_new(__VA_ARGS__ ZEND_FILE_LINE_CC)
-#endif
-
-#define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
-#define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
-
-#if PHP_VERSION_ID < 70200
-#define ZEND_ACC_FAKE_CLOSURE ZEND_ACC_INTERFACE
-
-#define zend_strpprintf strpprintf
-#define zend_vstrpprintf vstrpprintf
-
-static zend_always_inline zend_string *zend_string_init_interned(const char *str, size_t len, int persistent) {
-    return zend_new_interned_string(zend_string_init(str, len, persistent));
-}
-
-#undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
-#define ZEND_ARG_VARIADIC_TYPE_INFO(pass_by_ref, name, type_hint, allow_null) ZEND_ARG_INFO(pass_by_ref, name)
-
-#define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
-    static const zend_internal_arg_info name[] = { \
-        { (const char*)(zend_uintptr_t)(required_num_args), NULL, (type) == IS_FALSE ? _IS_BOOL : (type), return_reference, allow_null, 0 },
-#define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, return_reference, required_num_args, class_name, allow_null) \
-    static const zend_internal_arg_info name[] = { \
-        { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
-
-typedef void zend_type;
-
-#include <Zend/zend_smart_str.h>
-static inline void smart_str_append_printf(smart_str *dest, const char *format, ...) {
-    va_list arg;
-    va_start(arg, format);
-    zend_string *str = vstrpprintf(0, format, arg);
-    va_end(arg);
-    smart_str_append(dest, str);
-    zend_string_release(str);
-}
-#endif
-
-#if PHP_VERSION_ID < 70100
-#define IS_VOID 0
-#define MAY_BE_NULL 0
-#define MAY_BE_STRING 0
-#define MAY_BE_ARRAY 0
-
-#define Z_EXTRA_P(z) Z_NEXT_P(z)
 #endif
 
 #if PHP_VERSION_ID < 80100
@@ -271,6 +281,8 @@ static inline void smart_str_append_printf(smart_str *dest, const char *format, 
 #endif
 
 #if PHP_VERSION_ID < 80200
+#define ZEND_ACC_READONLY_CLASS 0
+
 static zend_always_inline bool zend_string_equals_cstr(const zend_string *s1, const char *s2, size_t s2_length)
 {
     return ZSTR_LEN(s1) == s2_length && !memcmp(ZSTR_VAL(s1), s2, s2_length);
@@ -332,12 +344,6 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
 }
 
 #define zend_zval_value_name zend_zval_type_name
-#endif
-
-#if PHP_VERSION_ID < 70200
-static inline zend_string *php_base64_encode_str(const zend_string *str) {
-    return php_base64_encode((const unsigned char*)(ZSTR_VAL(str)), ZSTR_LEN(str));
-}
 #endif
 
 #endif  // DD_COMPATIBILITY_H

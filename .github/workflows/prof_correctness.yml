@@ -58,6 +58,8 @@ jobs:
           DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/time/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/time.php
           mkdir profiling/tests/correctness/strange_frames/
           DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/strange_frames/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/strange_frames.php
+          mkdir profiling/tests/correctness/timeline/
+          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/timeline/test.pprof DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED=1 php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/timeline.php
 
       - name: Check profiler correctness for allocations
         uses: Datadog/prof-correctness/analyze@main
@@ -76,3 +78,9 @@ jobs:
         with:
           expected_json: profiling/tests/correctness/strange_frames.json
           pprof_path: profiling/tests/correctness/strange_frames/
+
+      - name: Check profiler correctness for timeline
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/timeline.json
+          pprof_path: profiling/tests/correctness/timeline/

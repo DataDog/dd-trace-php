@@ -53,7 +53,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
-                        'http.route' => '/simple',
+                        'http.route' => 'simple',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])->withChildren([
@@ -67,22 +67,24 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
-                            'Illuminate\Foundation\ProviderRepository::load'
+                            'Illuminate\Foundation\ProviderRepository::load',
+                            null,
+                            'laravel_test_app'
                         ),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -97,7 +99,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
-                        'http.route' => '/simple_view',
+                        'http.route' => 'simple_view',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])->withChildren([
@@ -105,11 +107,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         ->withExactTags([
                             TAG::COMPONENT => 'laravel'
                         ])->withChildren([
-                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                         ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
-                            'Illuminate\Foundation\ProviderRepository::load'
+                            'Illuminate\Foundation\ProviderRepository::load',
+                            null,
+                            'laravel_test_app'
                         ),
                         SpanAssertion::build(
                             'laravel.view.render',
@@ -127,22 +131,22 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             )->withExactTags([
                                 TAG::COMPONENT => 'laravel'
                             ]),
-                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                         ]),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -157,7 +161,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
-                        'http.route' => '/error',
+                        'http.route' => 'error',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])->setError('Exception', 'Controller error', true)->withChildren([
@@ -165,31 +169,33 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('laravel.view.render')
                             ->withChildren([
                                 SpanAssertion::exists('laravel.view')->withChildren([
-                                    SpanAssertion::exists('laravel.event.handle'),
-                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                                 ]),
-                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                             ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
-                            'Illuminate\Foundation\ProviderRepository::load'
+                            'Illuminate\Foundation\ProviderRepository::load',
+                            null,
+                            'laravel_test_app'
                         ),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                     ]),
                 ],
                 'A GET request to a missing route' => [
@@ -204,20 +210,20 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::COMPONENT => 'laravel',
                         Tag::HTTP_STATUS_CODE => '404',
                     ])->withChildren([
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                         SpanAssertion::exists('laravel.provider.load'),
                         SpanAssertion::build(
                             'laravel.view.render',
@@ -227,7 +233,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         )->withExactTags([
                             TAG::COMPONENT => 'laravel'
                         ])->withChildren([
-                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                             SpanAssertion::build(
                                 'laravel.view',
                                 'laravel_test_app',
@@ -236,8 +242,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             )->withExactTags([
                                 TAG::COMPONENT => 'laravel'
                             ])->withChildren([
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle')
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app')
                             ])
                         ])
                     ])
@@ -254,7 +260,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/dynamic_route/dynamic01/static/dynamic02',
                         'http.status_code' => '200',
-                        'http.route' => '/dynamic_route/:param01/static/:param02?',
+                        'http.route' => 'dynamic_route/{param01}/static/{param02?}',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])->withChildren([
@@ -268,22 +274,24 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
-                            'Illuminate\Foundation\ProviderRepository::load'
+                            'Illuminate\Foundation\ProviderRepository::load',
+                            null,
+                            'laravel_test_app'
                         ),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                     ]),
                 ]
             ]

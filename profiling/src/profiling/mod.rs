@@ -17,7 +17,7 @@ use crate::{AgentEndpoint, RequestLocals, CLOCKS, TAGS};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::profile;
-use datadog_profiling::profile::api::{Function, Line, Location, Period, Sample};
+use datadog_profiling::profile::api::{Function, Location, Period, Sample};
 use log::{debug, error, info, trace, warn};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -339,16 +339,14 @@ impl TimeCollector {
 
         for frame in &message.value.frames {
             let location = Location {
-                lines: vec![Line {
-                    function: Function {
-                        name: frame.function.as_ref(),
-                        system_name: "",
-                        filename: frame.file.as_deref().unwrap_or(""),
-                        start_line: 0,
-                    },
-                    line: frame.line as i64,
-                }],
-                ..Default::default()
+                function: Function {
+                    name: frame.function.as_ref(),
+                    system_name: "",
+                    filename: frame.file.as_deref().unwrap_or(""),
+                    start_line: 0,
+                },
+                line: frame.line as i64,
+                ..Location::default()
             };
 
             locations.push(location);
@@ -634,7 +632,7 @@ impl Profiler {
                     if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
                         labels.push(Label {
                             key: "end_timestamp_ns",
-                            value: LabelValue::Num(now.as_nanos() as i64, Some("nanoseconds")),
+                            value: LabelValue::Num(now.as_nanos() as i64, None),
                         });
                     }
                 }
@@ -775,7 +773,7 @@ impl Profiler {
         });
         labels.push(Label {
             key: "end_timestamp_ns",
-            value: LabelValue::Num(now, Some("nanoseconds")),
+            value: LabelValue::Num(now, None),
         });
 
         let n_labels = labels.len();
@@ -832,7 +830,7 @@ impl Profiler {
         });
         labels.push(Label {
             key: "end_timestamp_ns",
-            value: LabelValue::Num(now, Some("nanoseconds")),
+            value: LabelValue::Num(now, None),
         });
 
         #[cfg(php_gc_status)]
@@ -1132,5 +1130,31 @@ mod tests {
             ]
         );
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 40, 50]);
+    }
+
+    #[test]
+    #[cfg(feature = "timeline")]
+    fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_experimental_cpu_time_enabled = true;
+        locals.profiling_experimental_timeline_enabled = true;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType::new("sample", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-time", "nanoseconds"),
+                ValueType::new("timeline", "nanoseconds"),
+            ]
+        );
+        assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
     }
 }

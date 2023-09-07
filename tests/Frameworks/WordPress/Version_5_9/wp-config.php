@@ -37,7 +37,7 @@ define( 'DB_CHARSET', 'utf8mb4' );
 /** The database collate type. Don't change this if in doubt. */
 define( 'DB_COLLATE', '' );
 
-define('DISABLE_WP_CRON', 'true');
+define( 'DISABLE_WP_CRON', true ); // disable cron
 
 /**#@+
  * Authentication unique keys and salts.

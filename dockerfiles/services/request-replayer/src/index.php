@@ -13,6 +13,7 @@ if ('cli-server' !== PHP_SAPI) {
 }
 
 define('REQUEST_LATEST_DUMP_FILE', getenv('REQUEST_LATEST_DUMP_FILE') ?: (sys_get_temp_dir() . '/dump.json'));
+define('REQUEST_NEXT_RESPONSE_FILE', getenv('REQUEST_NEXT_RESPONSE_FILE') ?: (sys_get_temp_dir() . '/response.json'));
 define('REQUEST_LOG_FILE', getenv('REQUEST_LOG_FILE') ?: (sys_get_temp_dir() . '/requests-log.txt'));
 
 function logRequest($message, $data = '')
@@ -49,7 +50,12 @@ switch ($_SERVER['REQUEST_URI']) {
         }
         unlink(REQUEST_LATEST_DUMP_FILE);
         unlink(REQUEST_LOG_FILE);
+        unlink(REQUEST_NEXT_RESPONSE_FILE);
         logRequest('Deleted request log');
+        break;
+    case '/next-response':
+        $raw = file_get_contents('php://input');
+        file_put_contents(REQUEST_NEXT_RESPONSE_FILE, $raw);
         break;
     default:
         $headers = getallheaders();
@@ -120,5 +126,10 @@ switch ($_SERVER['REQUEST_URI']) {
         file_put_contents(REQUEST_LATEST_DUMP_FILE, json_encode($tracesStack));
         file_put_contents(REQUEST_LOG_FILE, $newIncomingRequestJson . "\n", FILE_APPEND);
         logRequest('Logged new request', $newIncomingRequestJson);
+
+        if (file_exists(REQUEST_NEXT_RESPONSE_FILE)) {
+            readfile(REQUEST_NEXT_RESPONSE_FILE);
+            unlink(REQUEST_NEXT_RESPONSE_FILE);
+        }
         break;
 }

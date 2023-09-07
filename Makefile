@@ -22,7 +22,7 @@ RUST_DEBUG_SYMBOLS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
 PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.2/datadog-profiling.tar.gz
-APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.12.0/dd-appsec-php-0.12.0-amd64.tar.gz
+APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.13.1/dd-appsec-php-0.13.1-amd64.tar.gz
 
 INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
@@ -32,7 +32,7 @@ RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKE
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{ddcommon,ddcommon-ffi,ddtelemetry,ddtelemetry-ffi,ipc,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{ddcommon,ddcommon-ffi,ddtelemetry,ddtelemetry-ffi,ipc,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},trace-normalization,trace-obfuscation,trace-protobuf,trace-utils,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -431,7 +431,7 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \
-	FILES="$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES)"; \
+	FILES="$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
 packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz
@@ -508,6 +508,7 @@ TEST_WEB_70 := \
 	test_web_yii_2 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
+	test_web_wordpress_61 \
 	test_web_zend_1 \
 	test_web_custom
 
@@ -558,6 +559,7 @@ TEST_WEB_71 := \
 	test_web_yii_2 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
+	test_web_wordpress_61 \
 	test_web_zend_1 \
 	test_web_custom
 
@@ -614,6 +616,7 @@ TEST_WEB_72 := \
 	test_web_symfony_52 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
+	test_web_wordpress_61 \
 	test_web_yii_2 \
 	test_web_zend_1 \
 	test_web_custom
@@ -669,6 +672,7 @@ TEST_WEB_73 := \
 	test_web_symfony_52 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
+	test_web_wordpress_61 \
 	test_web_yii_2 \
 	test_web_zend_1 \
 	test_web_custom
@@ -727,6 +731,7 @@ TEST_WEB_74 := \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_wordpress_59 \
+	test_web_wordpress_61 \
 	test_web_yii_2 \
 	test_web_zend_1 \
 	test_web_custom
@@ -765,6 +770,7 @@ TEST_WEB_80 := \
 	test_web_laminas_14 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
+	test_web_laravel_9x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_nette_24 \
@@ -775,6 +781,7 @@ TEST_WEB_80 := \
 	test_web_symfony_51 \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
+	test_web_wordpress_61 \
 	test_web_yii_2 \
 	test_web_zend_1_21 \
 	test_web_custom
@@ -807,6 +814,8 @@ TEST_WEB_81 := \
 	test_web_drupal_101 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
+	test_web_laravel_9x \
+	test_web_laravel_10x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_nette_24 \
@@ -815,6 +824,7 @@ TEST_WEB_81 := \
 	test_web_slim_4 \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
+	test_web_wordpress_61 \
 	test_web_custom \
 	test_web_zend_1_21
 #	test_web_yii_2 \
@@ -849,6 +859,8 @@ TEST_WEB_82 := \
 	test_web_drupal_101 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
+	test_web_laravel_9x \
+	test_web_laravel_10x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
@@ -859,6 +871,7 @@ TEST_WEB_82 := \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_wordpress_59 \
+	test_web_wordpress_61 \
 	test_web_custom \
 	test_web_zend_1_21
 #	test_web_yii_2 \
@@ -1060,6 +1073,12 @@ test_web_laravel_58: global_test_run_dependencies
 test_web_laravel_8x: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_8_x update
 	$(call run_tests,--testsuite=laravel-8x-test)
+test_web_laravel_9x: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_9_x update
+	$(call run_tests,--testsuite=laravel-9x-test)
+test_web_laravel_10x: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_10_x update
+	$(call run_tests,--testsuite=laravel-10x-test)
 test_web_lumen_52: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 update
 	$(call run_tests,tests/Integrations/Lumen/V5_2)
@@ -1139,6 +1158,8 @@ test_web_wordpress_55: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/WordPress/V5_5)
 test_web_wordpress_59: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/WordPress/V5_9)
+test_web_wordpress_61: global_test_run_dependencies
+	$(call run_tests,tests/Integrations/WordPress/V6_1)
 test_web_yii_2: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0 update
 	$(call run_tests,tests/Integrations/Yii/V2_0)

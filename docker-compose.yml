@@ -36,6 +36,7 @@ x-aliases:
         - COMPOSER_MEMORY_LIMIT=-1
         - PHP_IDE_CONFIG=serverName=docker
         - DD_TRACE_DOCKER_DEBUG
+        - DATADOG_HAVE_DEV_ENV=1
       cap_add:
         - SYS_PTRACE
       security_opt:
@@ -82,7 +83,7 @@ services:
 
   mysql_integration:
     image: mysql/mysql-server:8.0
-    command: --default-authentication-plugin=mysql_native_password
+    command: --default-authentication-plugin=mysql_native_password --sql-mode="NO_ENGINE_SUBSTITUTION"
     ports:
       - "3306:3306"
     environment:
