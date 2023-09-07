@@ -1,0 +1,19 @@
+server {
+	listen 80 default_server;
+	listen [::]:80 default_server;
+
+	index index.php index.html;
+    server_name phpfpm.local;
+    error_log  /var/log/nginx/error.log;
+    access_log /var/log/nginx/access.log;
+    root /var/www/html;
+
+    location ~ \.php$ {
+        fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+        fastcgi_param HTTP_PROXY "";
+        fastcgi_param DD_SERVICE_NAME "some-name";
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_index index.php;
+        include fastcgi.conf;
+    }
+}

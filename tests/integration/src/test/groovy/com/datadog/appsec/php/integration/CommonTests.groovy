@@ -73,7 +73,7 @@ trait CommonTests {
 
     @Test
     void 'sanity check against non PHP endpoint'() {
-        def conn = container.createRequest('/')
+        def conn = container.createRequest('/example.html')
         conn.inputStream.withCloseable {
             assert conn.responseCode == 200
         }
