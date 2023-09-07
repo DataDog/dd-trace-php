@@ -55,7 +55,13 @@ class MagentoIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
-                $span->resource = get_class($this);
+
+                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
+                    $class = get_parent_class($this);
+                } else {
+                    $class = get_class($this);
+                }
+                $span->resource = $class;
 
                 $rootSpan = root_span();
                 $rootSpan->name = 'magento.request';
@@ -121,6 +127,13 @@ class MagentoIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
+
+                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
+                    $class = get_parent_class($this);
+                } else {
+                    $class = get_class($this);
+                }
+                $span->resource = $class;
             }
         );
 
@@ -223,7 +236,12 @@ class MagentoIntegration extends Integration
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
 
-                $span->meta['magento.action'] = get_class($action);
+                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
+                    $class = get_parent_class($this);
+                } else {
+                    $class = get_class($this);
+                }
+                $span->meta['magento.action'] = $class;
             }
         );
 
@@ -350,7 +368,13 @@ class MagentoIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
-                $span->resource = get_class($this);
+
+                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
+                    $class = get_parent_class($this);
+                } else {
+                    $class = get_class($this);
+                }
+                $span->resource = $class;
             }
         );
 
@@ -399,7 +423,7 @@ class MagentoIntegration extends Integration
             }
         );
 
-        trace_method(
+        /*trace_method(
             'Magento\Framework\View\Page\Config',
             'build',
             function (SpanData $span) {
@@ -407,6 +431,65 @@ class MagentoIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
+            }
+        );*/
+
+        /*trace_method(
+            'Magento\Framework\App\CacheInterface',
+            'load',
+            function (SpanData $span, $args) {
+                $span->name = 'magento.cache.load';
+                $span->type = Type::CACHE;
+                $span->service = \ddtrace_config_app_name('magento');
+                $span->meta[Tag::COMPONENT] = 'magento';
+
+                $span->meta['magento.cache.identifier'] = $args[0];
+            }
+        );*/
+
+        /*trace_method(
+            'Magento\Framework\App\CacheInterface',
+            'save',
+            function (SpanData $span, $args) {
+                $span->name = 'magento.cache.save';
+                $span->type = Type::CACHE;
+                $span->service = \ddtrace_config_app_name('magento');
+                $span->meta[Tag::COMPONENT] = 'magento';
+
+                $span->meta['magento.cache.identifier'] = $args[1];
+            }
+        );*/
+
+        // Redirections
+        trace_method(
+            'Magento\Framework\App\Response\RedirectInterface',
+            'redirect',
+            function (SpanData $span, $args) {
+                $span->name = 'magento.redirect';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = \ddtrace_config_app_name('magento');
+                $span->meta[Tag::COMPONENT] = 'magento';
+
+                $span->resource = $args[1];
+            }
+        );
+
+        // Controller execution
+        trace_method(
+            'Magento\Framework\App\ActionInterface',
+            'execute',
+            function (SpanData $span) {
+                $span->name = 'magento.controller.execute';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = \ddtrace_config_app_name('magento');
+                $span->meta[Tag::COMPONENT] = 'magento';
+
+                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
+                    $class = get_parent_class($this);
+                } else {
+                    $class = get_class($this);
+                }
+                $span->resource = $class;
             }
         );
 
