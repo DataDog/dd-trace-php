@@ -7,10 +7,12 @@ namespace FooBar {
 
     function throwAndCatch()
     {
-        try {
-            throw new Exception();
-        } catch (Exception $e) {
-            // I do not care ;-)
+        for ($i = 0; $i <= 10; $i++) {
+            try {
+                throw new Exception();
+            } catch (Exception $e) {
+                // I do not care ;-)
+            }
         }
     }
 }

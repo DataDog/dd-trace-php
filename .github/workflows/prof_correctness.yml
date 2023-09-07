@@ -51,6 +51,7 @@ jobs:
 
       - name: Run tests
         run: |
+          export DD_PROFILING_LOG_LEVEL=trace
           php -d extension=target/release/libdatadog_php_profiling.so -v
           mkdir profiling/tests/correctness/allocations/
           DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
