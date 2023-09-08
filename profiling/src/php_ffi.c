@@ -211,7 +211,7 @@ static bool has_invalid_run_time_cache(zend_function const *func) {
     // persisting the compiled file and puts a fake frame on the stack where the
     // runtime cache is not yet initialized.
 #if PHP_VERSION_ID < 80200
-    bool is_file_compile = func->op_array.run_time_cache__ptr == NULL;
+    bool is_file_compile = ZEND_MAP_PTR(func->op_array.run_time_cache) == NULL;
 #else
     bool is_file_compile = func->common.run_time_cache__ptr == NULL;
 #endif
