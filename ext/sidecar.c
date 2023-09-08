@@ -79,6 +79,7 @@ void ddtrace_sidecar_shutdown(void) {
     if (ddtrace_sidecar) {
         ddog_sidecar_transport_drop(ddtrace_sidecar);
     }
+    ddog_force_shutdown_runtime();
 }
 
 void ddtrace_reset_sidecar_globals(void) {
