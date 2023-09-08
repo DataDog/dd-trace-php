@@ -207,6 +207,15 @@ static bool has_invalid_run_time_cache(zend_function const *func) {
     if (UNEXPECTED(_ignore_run_time_cache) || UNEXPECTED(ddog_php_prof_run_time_cache_handle < 0))
         return true;
 
+    // during an `include()`/`require()` with enabled OPcache, OPcache is
+    // persisting the compiled file and puts a fake frame on the stack where the
+    // runtime cache is not yet initialized.
+#if PHP_VERSION_ID < 80200
+    bool is_file_compile = func->op_array.run_time_cache__ptr == NULL;
+#else
+    bool is_file_compile = func->common.run_time_cache__ptr == NULL;
+#endif
+
     // Trampolines use the extension slot for internal things.
     bool is_trampoline = func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE;
 
@@ -216,9 +225,9 @@ static bool has_invalid_run_time_cache(zend_function const *func) {
 
     // The bitwise-or is intentional. Branch prediction is not going to be great
     // on either of these, so reducing the number of branches is preferred.
-    return is_trampoline | is_internal;
+    return is_trampoline | is_internal | is_file_compile;
 #else
-    return is_trampoline;
+    return is_trampoline | is_file_compile;
 #endif
 }
 #endif
