@@ -707,6 +707,7 @@ impl Profiler {
     #[cfg(feature = "timeline")]
     pub fn collect_compile_string(
         &self,
+        now: i64,
         duration: i64,
         filename: String,
         line: u32,
@@ -722,6 +723,10 @@ impl Profiler {
         }
 
         labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
+        labels.push(Label {
+            key: "end_timestamp_ns",
+            value: LabelValue::Num(now, None),
+        });
         let n_labels = labels.len();
 
         match self.send_sample(Profiler::prepare_sample_message(
