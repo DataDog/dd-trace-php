@@ -47,6 +47,58 @@ class MagentoIntegration extends Integration
             }
         );
 
+        hook_method(
+            'Magento\Framework\App\StaticResource',
+            '__construct',
+            function ($staticResource, $scope, $args) {
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
+                $request = $args[2];
+                $path = $request->get('resource');
+                $rootSpan->meta['magento.static.path'] = $path;
+
+                $params = $staticResource->parsePath($path);
+                $area = $params['area'];
+                $theme = $params['theme'];
+                $locale = $params['locale'];
+                $file = $params['file'];
+
+                $rootSpan->meta['magento.static.area'] = $area;
+                $rootSpan->meta['magento.static.theme'] = $theme;
+                $rootSpan->meta['magento.static.locale'] = $locale;
+                $rootSpan->meta['magento.static.file'] = $file;
+            }
+        );
+
+        hook_method(
+            'Magento\Framework\App\StaticResource',
+            'parsePath',
+            null,
+            function ($staticResource, $scope, $args, $retval) {
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
+                $path = $args[0];
+                $params = $retval;
+
+                $area = $params['area'];
+                $theme = $params['theme'];
+                $locale = $params['locale'];
+                $file = $params['file'];
+
+                $rootSpan->meta['magento.static.path'] = $path;
+                $rootSpan->meta['magento.static.area'] = $area;
+                $rootSpan->meta['magento.static.theme'] = $theme;
+                $rootSpan->meta['magento.static.locale'] = $locale;
+                $rootSpan->meta['magento.static.file'] = $file;
+            }
+        );
+
         trace_method(
             'Magento\Framework\AppInterface',
             'launch',
@@ -56,18 +108,22 @@ class MagentoIntegration extends Integration
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
 
+                $rootSpan = root_span();
+                $rootSpan->name = 'magento.request';
+                $rootSpan->type = Type::WEB_SERVLET;
+                $rootSpan->service = \ddtrace_config_app_name('magento');
+                $rootSpan->meta[Tag::COMPONENT] = 'magento';
+
+                if ($this instanceof \Magento\Framework\App\StaticResource) {
+                    $rootSpan->resource = "static";
+                }
+
                 if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
                     $class = get_parent_class($this);
                 } else {
                     $class = get_class($this);
                 }
                 $span->resource = $class;
-
-                $rootSpan = root_span();
-                $rootSpan->name = 'magento.request';
-                $rootSpan->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('magento');
-                $rootSpan->meta[Tag::COMPONENT] = 'magento';
             }
         );
 
@@ -94,7 +150,7 @@ class MagentoIntegration extends Integration
 
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
-                    $rootSpan->resource = $span->resource = $module . '/' . $controller . '@' . $action;
+                    $rootSpan->resource = $span->resource = $module . '/' . $controller . '/' . $action;
                     $rootSpan->meta['magento.frontname'] = $frontName;
                     $rootSpan->meta['magento.routename'] = $routeName;
                 }
@@ -171,20 +227,41 @@ class MagentoIntegration extends Integration
         );*/
 
         // Media
+        hook_method(
+            'Magento\MediaStorage\App\Media',
+            '__construct',
+            function ($media, $scope, $args) {
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
+                $relativeFileName = $args[6];
+                $rootSpan->meta['magento.media.file'] = $relativeFileName;
+            }
+        );
+
         trace_method(
             'Magento\MediaStorage\App\Media',
             'launch',
             function (SpanData $span) {
-                $span->name = 'magento.media.launch';
+                $span->name = 'magento.launch';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
+                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
+                    $class = get_parent_class($this);
+                } else {
+                    $class = get_class($this);
+                }
+                $span->resource = $class;
 
                 $rootSpan = root_span();
-                $rootSpan->name = 'magento.media.request';
+                $rootSpan->name = 'magento.request';
                 $rootSpan->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('magento');
+                $rootSpan->service = \ddtrace_config_app_name('magento');
                 $rootSpan->meta[Tag::COMPONENT] = 'magento';
+                $rootSpan->resource = "media";
             }
         );
 
@@ -345,6 +422,22 @@ class MagentoIntegration extends Integration
         );
 
         trace_method(
+            'Magento\Framework\Event\ObserverInterface',
+            'execute',
+            function (SpanData $span, $args) {
+                $span->name = 'magento.event.execute';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = \ddtrace_config_app_name('magento');
+                $span->meta[Tag::COMPONENT] = 'magento';
+
+                $span->resource = get_class($this);
+                $observer = $args[0];
+                $span->meta['magento.event.name'] = $observer->getEventName();
+                $span->meta['magento.observer.name'] = $observer->getName();
+            }
+        );
+
+        trace_method(
             'Magento\Framework\App\AreaList',
             'getCodeByFrontName',
             function (SpanData $span, $args, $retval) {
@@ -501,6 +594,24 @@ class MagentoIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta['Tag::COMPOENNT'] = 'magento';
+            }
+        );
+
+        // Exception handling
+        $integration = $this;
+        hook_method(
+            'Magento\Framework\AppInterface',
+            'catchException',
+            null,
+            function ($http, $scope, $args, $retval) use ($integration) {
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
+                $integration->setError($rootSpan, $args[1]);
+
+                // TODO: See if the retval should be use to state whether it should be set on the root span :shrug:
             }
         );
 
