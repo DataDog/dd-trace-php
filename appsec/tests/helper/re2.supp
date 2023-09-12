@@ -1,0 +1,577 @@
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE6insertEi
+   fun:_ZN3re2L10AddToQueueEPNS_10SparseSetTIvEEi
+   fun:_ZN3re24Prog8OptimizeEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE12create_indexEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE6insertEi
+   fun:_ZN3re2L10AddToQueueEPNS_10SparseSetTIvEEi
+   fun:_ZN3re24Prog8OptimizeEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE6insertEi
+   fun:_ZN3re2L10AddToQueueEPNS_10SparseSetTIvEEi
+   fun:_ZN3re24Prog8OptimizeEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE12create_indexEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE6insertEi
+   fun:_ZN3re2L10AddToQueueEPNS_10SparseSetTIvEEi
+   fun:_ZN3re24Prog8OptimizeEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re211SparseArrayIiE11SetInternalEbiRKi
+   fun:_ZN3re211SparseArrayIiE7set_newEiRKi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re211SparseArrayIiE12create_indexEi
+   fun:_ZN3re211SparseArrayIiE11SetInternalEbiRKi
+   fun:_ZN3re211SparseArrayIiE7set_newEiRKi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re211SparseArrayIiE11SetInternalEbiRKi
+   fun:_ZN3re211SparseArrayIiE7set_newEiRKi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re211SparseArrayIiE12create_indexEi
+   fun:_ZN3re211SparseArrayIiE11SetInternalEbiRKi
+   fun:_ZN3re211SparseArrayIiE7set_newEiRKi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE12create_indexEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE12create_indexEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re24Prog14MarkSuccessorsEPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re24Prog13MarkDominatorEiPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re24Prog13MarkDominatorEiPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re24Prog8EmitListEiPNS_11SparseArrayIiEEPSt6vectorINS0_4InstESaIS5_EEPNS_10SparseSetTIvEEPS4_IiSaIiEE
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re24Prog8EmitListEiPNS_11SparseArrayIiEEPSt6vectorINS0_4InstESaIS5_EEPNS_10SparseSetTIvEEPS4_IiSaIiEE
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re24Prog8EmitListEiPNS_11SparseArrayIiEEPSt6vectorINS0_4InstESaIS5_EEPNS_10SparseSetTIvEEPS4_IiSaIiEE
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re24Prog8EmitListEiPNS_11SparseArrayIiEEPSt6vectorINS0_4InstESaIS5_EEPNS_10SparseSetTIvEEPS4_IiSaIiEE
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re2L4AddQEPNS_10SparseSetTIvEEi
+   fun:_ZN3re24Prog9IsOnePassEv
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE6insertEi
+   fun:_ZN3re2L4AddQEPNS_10SparseSetTIvEEi
+   fun:_ZN3re24Prog9IsOnePassEv
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re2L4AddQEPNS_10SparseSetTIvEEi
+   fun:_ZN3re24Prog9IsOnePassEv
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE6insertEi
+   fun:_ZN3re2L4AddQEPNS_10SparseSetTIvEEi
+   fun:_ZN3re24Prog9IsOnePassEv
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZSt11make_uniqueIN3re23RE2EJRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERNS1_7OptionsEEENSt9_MakeUniqIT_E15__single_objectEDpOT0_
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA19AnalyzeSearchHelperEPNS0_12SearchParamsEPNS0_9StartInfoEj
+   fun:_ZN3re23DFA13AnalyzeSearchEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re23DFA5Workq10insert_newEi
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA19AnalyzeSearchHelperEPNS0_12SearchParamsEPNS0_9StartInfoEj
+   fun:_ZN3re23DFA13AnalyzeSearchEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA19AnalyzeSearchHelperEPNS0_12SearchParamsEPNS0_9StartInfoEj
+   fun:_ZN3re23DFA13AnalyzeSearchEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re23DFA5Workq10insert_newEi
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA19AnalyzeSearchHelperEPNS0_12SearchParamsEPNS0_9StartInfoEj
+   fun:_ZN3re23DFA13AnalyzeSearchEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA14RunWorkqOnByteEPNS0_5WorkqES2_ijPb
+   fun:_ZN3re23DFA14RunStateOnByteEPNS0_5StateEi
+   fun:_ZN3re23DFA22RunStateOnByteUnlockedEPNS0_5StateEi
+   fun:_ZN3re23DFA17InlinedSearchLoopILb1ELb0ELb1EEEbPNS0_12SearchParamsE
+   fun:_ZN3re23DFA9SearchTFTEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA14FastSearchLoopEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA14RunWorkqOnByteEPNS0_5WorkqES2_ijPb
+   fun:_ZN3re23DFA14RunStateOnByteEPNS0_5StateEi
+   fun:_ZN3re23DFA22RunStateOnByteUnlockedEPNS0_5StateEi
+   fun:_ZN3re23DFA17InlinedSearchLoopILb1ELb0ELb1EEEbPNS0_12SearchParamsE
+   fun:_ZN3re23DFA9SearchTFTEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA14FastSearchLoopEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re23DFA5Workq4markEv
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA19AnalyzeSearchHelperEPNS0_12SearchParamsEPNS0_9StartInfoEj
+   fun:_ZN3re23DFA13AnalyzeSearchEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re23DFA5Workq4markEv
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA19AnalyzeSearchHelperEPNS0_12SearchParamsEPNS0_9StartInfoEj
+   fun:_ZN3re23DFA13AnalyzeSearchEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re23DFA5Workq4markEv
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA19AnalyzeSearchHelperEPNS0_12SearchParamsEPNS0_9StartInfoEj
+   fun:_ZN3re23DFA13AnalyzeSearchEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re23DFA5Workq4markEv
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA19AnalyzeSearchHelperEPNS0_12SearchParamsEPNS0_9StartInfoEj
+   fun:_ZN3re23DFA13AnalyzeSearchEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   fun:_ZNK3re23RE25MatchERKNS_11StringPieceEmmNS0_6AnchorEPS1_i
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   fun:_ZZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsEENKUlvE_clEv
+   fun:_ZSt13__invoke_implIvZN3re23RE24InitERKNS0_11StringPieceERKNS1_7OptionsEEUlvE_JEET_St14__invoke_otherOT0_DpOT1_
+   fun:_ZSt8__invokeIZN3re23RE24InitERKNS0_11StringPieceERKNS1_7OptionsEEUlvE_JEENSt15__invoke_resultIT_JDpT0_EE4typeEOSA_DpOSB_
+   fun:_ZZSt9call_onceIZN3re23RE24InitERKNS0_11StringPieceERKNS1_7OptionsEEUlvE_JEEvRSt9once_flagOT_DpOT0_ENKUlvE_clEv
+   fun:_ZZNSt9once_flag18_Prepare_executionC4IZSt9call_onceIZN3re23RE24InitERKNS3_11StringPieceERKNS4_7OptionsEEUlvE_JEEvRS_OT_DpOT0_EUlvE_EERSD_ENKUlvE_clEv
+   fun:_ZZNSt9once_flag18_Prepare_executionC4IZSt9call_onceIZN3re23RE24InitERKNS3_11StringPieceERKNS4_7OptionsEEUlvE_JEEvRS_OT_DpOT0_EUlvE_EERSD_ENUlvE_4_FUNEv
+   fun:__pthread_once_slow
+   fun:_ZL14__gthread_oncePiPFvvE
+   fun:_ZSt9call_onceIZN3re23RE24InitERKNS0_11StringPieceERKNS1_7OptionsEEUlvE_JEEvRSt9once_flagOT_DpOT0_
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+   fun:_ZN3re24Prog9SearchDFAERKNS_11StringPieceES3_NS0_6AnchorENS0_9MatchKindEPS1_PbPNS_10SparseSetTIvEE
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   fun:_ZN3re210SparseSetTIvE14InsertInternalEbi
+   fun:_ZN3re210SparseSetTIvE10insert_newEi
+   fun:_ZN3re23DFA5Workq4markEv
+   fun:_ZN3re23DFA10AddToQueueEPNS0_5WorkqEij
+   fun:_ZN3re23DFA14RunWorkqOnByteEPNS0_5WorkqES2_ijPb
+   fun:_ZN3re23DFA14RunStateOnByteEPNS0_5StateEi
+   fun:_ZN3re23DFA22RunStateOnByteUnlockedEPNS0_5StateEi
+   fun:_ZN3re23DFA17InlinedSearchLoopILb1ELb1ELb1EEEbPNS0_12SearchParamsE
+   fun:_ZN3re23DFA9SearchTTTEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA14FastSearchLoopEPNS0_12SearchParamsE
+   fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
+}

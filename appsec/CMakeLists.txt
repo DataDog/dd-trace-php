@@ -31,4 +31,10 @@ option(DD_APPSEC_ENABLE_PATCHELF_LIBC "Whether to remove dependency on libc.so (
 
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
 
-include("cmake/extension.cmake")
+if (DD_APPSEC_BUILD_EXTENSION)
+    include("cmake/extension.cmake")
+endif()
+
+if (DD_APPSEC_BUILD_HELPER)
+    include ("cmake/helper.cmake")
+endif()

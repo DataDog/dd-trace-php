@@ -1,5 +1,5 @@
 if(NOT DD_APPSEC_TRACER_EXT_FILE)
-    set(DD_APPSEC_TRACER_EXT_FILE skip)
+    set(DD_APPSEC_TRACER_EXT_FILE ${CMAKE_SOURCE_DIR}/../tmp/build_extension/modules/ddtrace.so)
 endif()
 
 add_custom_target(xtest-prepare

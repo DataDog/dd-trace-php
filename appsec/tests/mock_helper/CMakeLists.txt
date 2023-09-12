@@ -20,10 +20,6 @@ endif()
 hunter_add_package(RapidJSON)
 find_package(RapidJSON CONFIG REQUIRED)
 
-hunter_add_package(spdlog)
-find_package(spdlog CONFIG REQUIRED)
-
-
 add_executable(mock_helper
     mock_helper_main.cc mock_dd_agent.cc)
 set_property(TARGET mock_helper
@@ -41,7 +37,7 @@ target_link_libraries(mock_helper PRIVATE
     Boost::context
     ${BOOST_STACKTRACE_LINK}
     mpack
-    spdlog::spdlog
+    spdlog
     RapidJSON::rapidjson)
 
 # vim: set et:

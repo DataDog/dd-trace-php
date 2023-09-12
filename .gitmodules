@@ -5,3 +5,12 @@
 [submodule "appsec/third_party/mpack"]
 	path = appsec/third_party/mpack
 	url = https://github.com/ludocode/mpack.git
+[submodule "appsec/third_party/cpp-base64"]
+	path = appsec/third_party/cpp-base64
+	url = https://github.com/ReneNyffenegger/cpp-base64
+[submodule "appsec/third_party/msgpack-c"]
+	path = appsec/third_party/msgpack-c
+	url = https://github.com/msgpack/msgpack-c.git
+[submodule "appsec/third_party/libddwaf"]
+	path = appsec/third_party/libddwaf
+	url = https://github.com/DataDog/libddwaf.git
