@@ -86,7 +86,7 @@ pub struct ZendString {
 }
 
 impl _zend_object {
-    pub fn name(&self) -> String {
+    pub fn class_name(&self) -> String {
         unsafe { zai_str_from_zstr((*self.ce).name.as_mut()).into_string() }
     }
 }

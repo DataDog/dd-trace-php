@@ -114,9 +114,9 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
 
     if exception_profiling {
         #[cfg(php7)]
-        let exception_name = (*(*exception).value.obj).name();
+        let exception_name = (*(*exception).value.obj).class_name();
         #[cfg(php8)]
-        let exception_name = (*exception).name();
+        let exception_name = (*exception).class_name();
 
         EXCEPTION_PROFILING_STATS.with(|cell| {
             let mut exceptions = cell.borrow_mut();
