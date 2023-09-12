@@ -305,8 +305,8 @@ impl TimeCollector {
             let upscaling_info = UpscalingInfo::Proportional {
                 scale: EXCEPTION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
             };
-            let values_offset: Vec<usize> = vec![exception_samples_offset];
-            match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
+            let values_offset = [exception_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
                     warn!("Failed to add upscaling rule for exception samples, exception samples reported will be wrong: {err}")
