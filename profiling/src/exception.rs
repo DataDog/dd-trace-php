@@ -27,7 +27,7 @@ impl ExceptionProfilingStats {
     }
 
     fn next_sampling_interval() -> i64 {
-        Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64)
+        Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64)
             .unwrap()
             .sample(&mut rand::thread_rng()) as i64
     }
@@ -87,7 +87,7 @@ pub fn exception_profiling_rinit() {
         return;
     }
 
-    EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::Relaxed);
+    EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::SeqCst);
 
     trace!("Exception profiling enabled with sampling disance of {sampling_distance}");
 }

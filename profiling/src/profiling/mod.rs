@@ -303,7 +303,7 @@ impl TimeCollector {
         #[cfg(feature = "exception_profiling")]
         if let Some(exception_samples_offset) = exception_samples_offset {
             let upscaling_info = UpscalingInfo::Proportional {
-                scale: EXCEPTION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+                scale: EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
             };
             let values_offset = [exception_samples_offset];
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
