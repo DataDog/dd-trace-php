@@ -340,6 +340,36 @@ pub(crate) unsafe fn profiling_log_level() -> LevelFilter {
     }
 }
 
+/// Parses the exception sampling distance and makes sure it is ℤ+ (positive integer > 0)
+unsafe extern "C" fn parse_exception_sampling_distance_filter(
+    value: ZaiStr,
+    decoded_value: *mut zval,
+    _persistent: bool,
+) -> bool {
+    if value.is_empty() || decoded_value.is_null() {
+        return false;
+    }
+    let decoded_value = &mut *decoded_value;
+
+    match value.into_utf8() {
+        Ok(distance) => {
+            let parsed_distance: Result<i64, _> = distance.parse();
+            match parsed_distance {
+                Ok(value) => {
+                    if value <= 0 {
+                        return false;
+                    }
+                    decoded_value.value.lval = value as zend_long;
+                    decoded_value.u1.type_info = IS_LONG as u32;
+                    true
+                }
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
 unsafe extern "C" fn parse_level_filter(
     value: ZaiStr,
     decoded_value: *mut zval,
@@ -472,12 +502,12 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 zai_config_entry {
                     id: transmute(ProfilingExperimentalExceptionSamplingDistance),
                     name: ProfilingExperimentalExceptionSamplingDistance.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_INT,
+                    type_: ZAI_CONFIG_TYPE_CUSTOM,
                     default_encoded_value: ZaiStr::literal(b"100\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
-                    ini_change: None,
-                    parser: None,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: Some(parse_exception_sampling_distance_filter),
                 },
                 zai_config_entry {
                     id: transmute(ProfilingLogLevel),
