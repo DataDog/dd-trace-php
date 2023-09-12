@@ -291,8 +291,8 @@ impl TimeCollector {
                 count_value_offset: alloc_samples_offset,
                 sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
             };
-            let values_offset: Vec<usize> = vec![alloc_size_offset, alloc_samples_offset];
-            match profile.add_upscaling_rule(values_offset.as_slice(), "", "", upscaling_info) {
+            let values_offset = [alloc_size_offset, alloc_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
                     warn!("Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}")
