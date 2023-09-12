@@ -9,6 +9,7 @@ ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
 TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
 TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
 TEA_BUILD_TESTS = ON
+APPSEC_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_appsec
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS = -Wall -Wextra
@@ -152,6 +153,28 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
+
+build_appsec_ext: $(SO_FILE) clean_appsec_ext
+	$(Q) test -f $(APPSEC_BUILD_DIR)/.built || \
+	{ \
+		mkdir -p $(APPSEC_BUILD_DIR) ; \
+		cd $(APPSEC_BUILD_DIR) ; \
+		cmake \
+			-DCMAKE_BUILD_TYPE=Debug \
+			-DPhpConfig_ROOT=$(shell php-config --prefix) \
+			-DDD_APPSEC_TRACER_EXT_FILE=$(SO_FILE) \
+			$(PROJECT_ROOT)/appsec && \
+			$(MAKE) $(MAKEFLAGS) && touch $(APPSEC_BUILD_DIR)/.built ; \
+	}
+
+test_appsec_ext: build_appsec_ext
+	{ \
+		cd $(APPSEC_BUILD_DIR) ; \
+		make xtest ;\
+	}
+
+clean_appsec_ext:
+	rm -rf $(APPSEC_BUILD_DIR)
 
 build_tea:
 	$(Q) test -f $(TEA_BUILD_DIR)/.built || \

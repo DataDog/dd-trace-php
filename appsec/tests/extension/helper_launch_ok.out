@@ -1,0 +1,34 @@
+helper_mgr_acquire_conn run
+bool(true)
+
+Connected?
+bool(true)
+
+Contents of helper log:
+[2023-09-12 14:43:44.324] pre-exec: Going for second fork
+[2023-09-12 14:43:44.324] pre-exec: Intermediate process exiting
+[2023-09-12 14:43:44.324] pre-exec: About to call execv
+Checking open file descriptors
+* has file descriptor 0
+* has file descriptor 1
+* has file descriptor 2
+Checking procmask
+array (
+)
+Checking umask
+0
+Checking parent uid (should be 1)
+4770
+Checking process group id == pid (is a process group leader)
+OK
+Checking session id == pid (is a session leader)
+OK
+
+Checking socket id
+file descriptor is 8
+opened fd 8
+
+Accepting a connection:
+accepted a new connection
+read initial message from extension (size 871)
+read remaining data
