@@ -109,7 +109,11 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
             .unwrap_or(false)
     });
 
-    if exception_profiling {
+    // Up to PHP 7.1, when PHP propagated exceptions up the call stack, it would re-throw them.
+    // This process involved calling this hook for each stack frame or try...catch block it
+    // traversed. Fortunately, this behavior can be easily identified by checking for a NULL
+    // pointer.
+    if exception_profiling && !exception.is_null() {
         #[cfg(php7)]
         let exception_name = (*(*exception).value.obj).class_name();
         #[cfg(php8)]
