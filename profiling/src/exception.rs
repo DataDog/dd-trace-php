@@ -43,11 +43,8 @@ impl ExceptionProfilingStats {
 
         REQUEST_LOCALS.with(|cell| {
             // try to borrow and bail out if not successful
-            let locals = match cell.try_borrow() {
-                Ok(locals) => locals,
-                Err(_) => {
-                    return;
-                }
+            let Ok(locals) = cell.try_borrow() else {
+                return;
             };
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
