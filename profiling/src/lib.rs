@@ -830,7 +830,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                 zend::php_info_print_table_row(
                     2,
                     b"Experimental Exception Profiling Enabled\0".as_ptr(),
-                    b"Not available. The profiler was build without exception profiling support.\0"
+                    b"Not available. The profiler was built without exception profiling support.\0"
                 );
             }
         }
