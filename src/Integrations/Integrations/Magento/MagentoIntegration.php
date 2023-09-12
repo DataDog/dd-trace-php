@@ -2,13 +2,18 @@
 
 namespace DDTrace\Integrations\Magento;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
+use Magento\Framework\App\ObjectManager;
+use Magento\Framework\Interception\PluginListInterface;
 use function DDTrace\hook_method;
+use function DDTrace\install_hook;
+use function DDTrace\remove_hook;
 use function DDTrace\trace_method;
 use function DDTrace\root_span;
 
@@ -193,39 +198,6 @@ class MagentoIntegration extends Integration
             }
         );
 
-        // Events
-        /*trace_method(
-            'Magento\Framework\Event\Manager',
-            'dispatch',
-            function (SpanData $span, $args) {
-                $span->name = 'magento.event.dispatch';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('magento');
-                $span->meta[Tag::COMPONENT] = 'magento';
-
-                $eventName = $args[0];
-                $span->resource = $eventName;
-
-                if ($eventName === 'controller_front_send_response_before') {
-                    $eventParams = $args[1];
-                    if (array_key_exists('request', $eventParams)) {
-                        $request = $eventParams['request'];
-                        if ($request instanceof \Magento\Framework\App\Request\Http) {
-                            $frontName = $request->getFrontName();
-                            $routeName = $request->getRouteName();
-
-                            $rootSpan = root_span();
-                            $rootSpan->meta['magento.frontname'] = $frontName;
-                            $rootSpan->meta['magento.routename'] = $routeName;
-                            $span->meta['magento.frontname'] = $frontName;
-                            $span->meta['magento.routename'] = $routeName;
-
-                        }
-                    }
-                }
-            }
-        );*/
-
         // Media
         hook_method(
             'Magento\MediaStorage\App\Media',
@@ -342,7 +314,7 @@ class MagentoIntegration extends Integration
         );
 
         // Plugins
-        /*trace_method(
+        trace_method(
             'Magento\Framework\Interception\Interceptor',
             '___callPlugins',
             [
@@ -353,13 +325,122 @@ class MagentoIntegration extends Integration
                     $span->meta[Tag::COMPONENT] = 'magento';
 
                     $method = $args[0];
-                    $span->resource = $method;
+                    $span->resource = $method . ' (plugin)';
 
                     $pluginInfo = $args[2];
                     Logger::get()->debug("($method) pluginInfo: " . json_encode($pluginInfo));
+
+                    $pluginList = ObjectManager::getInstance()->get(PluginListInterface::class);
+                    $type = get_parent_class($this);
+                    $span->meta['magento.plugin.type'] = $type;
+                    $capMethod = ucfirst($method);
+                    // Install hooks
+                    if (isset($pluginInfo[\Magento\Framework\Interception\DefinitionInterface::LISTENER_BEFORE])) {
+                        // Call 'before' listeners
+                        foreach ($pluginInfo[\Magento\Framework\Interception\DefinitionInterface::LISTENER_BEFORE] as $code) {
+                            $pluginInstance = $pluginList->getPlugin($type, $code);
+                            if (!empty($pluginInstance)) {
+                                $pluginInstance = get_class($pluginInstance);
+                                $pluginMethod = 'before' . $capMethod;
+
+                                install_hook(
+                                    "$pluginInstance::$pluginMethod",
+                                    function (HookData $hook) use ($pluginInstance, $pluginMethod, $code) {
+                                        $span = $hook->span();
+                                        $span->name = 'magento.plugin.before';
+                                        $span->type = Type::WEB_SERVLET;
+                                        $span->service = \ddtrace_config_app_name('magento');
+                                        $span->meta[Tag::COMPONENT] = 'magento';
+                                        $span->resource = "$pluginInstance::$pluginMethod";
+
+                                        $span->meta['magento.plugin.code'] = $code;
+
+                                        remove_hook($hook->id);
+                                    }
+                                );
+                            } else {
+                                Logger::get()->debug("(Before) Plugin instance is null for code: $code");
+                            }
+                        }
+                    }
+
+                    if (isset($pluginInfo[\Magento\Framework\Interception\DefinitionInterface::LISTENER_AROUND])) {
+                        // Call 'around' listener
+                        $code = $pluginInfo[\Magento\Framework\Interception\DefinitionInterface::LISTENER_AROUND];
+                        $pluginList->getNext($type, $method, $code);
+                        $pluginInstance = $pluginList->getPlugin($type, $code);
+                        if (!empty($pluginInstance)) {
+                            $pluginInstance = get_class($pluginInstance);
+                            $pluginMethod = 'around' . $capMethod;
+
+                            install_hook(
+                                "$pluginInstance::$pluginMethod",
+                                function (HookData $hook) use ($pluginInstance, $pluginMethod, $code) {
+                                    $span = $hook->span();
+                                    $span->name = 'magento.plugin.around';
+                                    $span->type = Type::WEB_SERVLET;
+                                    $span->service = \ddtrace_config_app_name('magento');
+                                    $span->meta[Tag::COMPONENT] = 'magento';
+                                    $span->resource = "$pluginInstance::$pluginMethod";
+
+                                    $span->meta['magento.plugin.code'] = $code;
+
+                                    remove_hook($hook->id);
+                                }
+                            );
+                        } else {
+                            Logger::get()->debug("(Around) Plugin instance is null for code: $code");
+                        }
+                    } else {
+                        install_hook(
+                            "$type::$method",
+                            function (HookData $hook) use ($type, $method) {
+                                $span = $hook->span();
+                                $span->name = 'magento.plugin.original';
+                                $span->type = Type::WEB_SERVLET;
+                                $span->service = \ddtrace_config_app_name('magento');
+                                $span->meta[Tag::COMPONENT] = 'magento';
+                                $span->resource = "$type::$method";
+
+                                remove_hook($hook->id);
+                            }
+                        );
+                    }
+
+                    if (isset($pluginInfo[\Magento\Framework\Interception\DefinitionInterface::LISTENER_AFTER])) {
+                        // Call 'after' listeners
+                        foreach ($pluginInfo[\Magento\Framework\Interception\DefinitionInterface::LISTENER_AFTER] as $code) {
+                            Logger::get()->debug("Plugin code: $code");
+                            $pluginList->getNext($type, $method, $code);
+                            $pluginInstance = $pluginList->getPlugin($type, $code);
+                            Logger::get()->debug("Plugin instance " . (empty($pluginInstance) ? "is null" : "is not null"));
+                            if (!empty($pluginInstance)) {
+                                $pluginInstance = get_class($pluginInstance);
+                                $pluginMethod = 'after' . $capMethod;
+
+                                install_hook(
+                                    "$pluginInstance::$pluginMethod",
+                                    function (HookData $hook) use ($pluginInstance, $pluginMethod, $code) {
+                                        $span = $hook->span();
+                                        $span->name = 'magento.plugin.after';
+                                        $span->type = Type::WEB_SERVLET;
+                                        $span->service = \ddtrace_config_app_name('magento');
+                                        $span->meta[Tag::COMPONENT] = 'magento';
+                                        $span->resource = "$pluginInstance::$pluginMethod";
+
+                                        $span->meta['magento.plugin.code'] = $code;
+
+                                        remove_hook($hook->id);
+                                    }
+                                );
+                            } else {
+                                Logger::get()->debug("(After) Plugin instance is null for code: $code");
+                            }
+                        }
+                    }
                 }
             ]
-        );*/
+        );
 
         trace_method(
             'Magento\Framework\View\Element\Template',
@@ -431,9 +512,6 @@ class MagentoIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = 'magento';
 
                 $span->resource = get_class($this);
-                $observer = $args[0];
-                $span->meta['magento.event.name'] = $observer->getEventName();
-                $span->meta['magento.observer.name'] = $observer->getName();
             }
         );
 
@@ -513,6 +591,21 @@ class MagentoIntegration extends Integration
                 $cacheLifetime = $this->getCacheLifetime();
                 $span->meta['magento.block.cachekey'] = $cacheKey;
                 $span->meta['magento.block.cachelifetime'] = $cacheLifetime;
+
+                // If the block inherits \Magento\Framework\View\Element\Template, then it will have a template
+                if ($this instanceof \Magento\Framework\View\Element\Template) {
+                    $span->meta['magento.block.template'] = $this->getTemplate();
+                    $span->meta['magento.block.area'] = $this->getArea();
+                }
+
+                $span->meta['magento.block.id'] = $this->getData('block_id');
+
+                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
+                    $class = get_parent_class($this);
+                } else {
+                    $class = get_class($this);
+                }
+                $span->meta['magento.block.class'] = $class;
             }
         );
 
