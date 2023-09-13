@@ -26,6 +26,18 @@ class MagentoIntegration extends Integration
         return self::NAME;
     }
 
+    public function calculateEntropy(string $value)
+    {
+        $h = 0.0;
+        $size = strlen($value);
+        foreach (count_chars($value, 1) as $v) {
+            $p = $v / $size;
+            $h -= $p * log($p) / log(2);
+        }
+        return $h;
+    }
+
+
     public function init()
     {
         trace_method(
@@ -314,6 +326,7 @@ class MagentoIntegration extends Integration
         );
 
         // Plugins
+        /*
         trace_method(
             'Magento\Framework\Interception\Interceptor',
             '___callPlugins',
@@ -441,6 +454,7 @@ class MagentoIntegration extends Integration
                 }
             ]
         );
+        */
 
         trace_method(
             'Magento\Framework\View\Element\Template',
@@ -512,6 +526,12 @@ class MagentoIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = 'magento';
 
                 $span->resource = get_class($this);
+
+                // If this is an instance of \Magento\PageCache\Observer\ProcessLayoutRenderElement, then return false
+                // to prevent the original execute method from being called.
+                if ($this instanceof \Magento\PageCache\Observer\ProcessLayoutRenderElement) {
+                    return false;
+                }
             }
         );
 
@@ -571,10 +591,11 @@ class MagentoIntegration extends Integration
             }
         );*/
 
+        $integration = $this;
         trace_method(
             'Magento\Framework\View\Element\AbstractBlock',
             'toHtml',
-            function (SpanData $span) {
+            function (SpanData $span) use ($integration) {
                 $span->name = 'magento.render.block';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('magento');
@@ -606,6 +627,13 @@ class MagentoIntegration extends Integration
                     $class = get_class($this);
                 }
                 $span->meta['magento.block.class'] = $class;
+
+                // See Magento\Widget\Model\Widget\Instance::generateLayoutUpdateXml
+                if (strlen($blockName) === 32
+                    && $class === 'Magento\Cms\Block\Widget\Block'
+                    && $integration->calculateEntropy($blockName) > 4.0) {
+                    $span->resource = "$moduleName:<widget>";
+                }
             }
         );
 
