@@ -1,11 +1,11 @@
 [[
   {
     "name": "laravel.request",
-    "service": "laravel_test_app",
+    "service": "my_service",
     "resource": "App\\Http\\Controllers\\CommonSpecsController@error unnamed_route",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 6511211688590293592,
+    "parent_id": 5125842845560512575,
     "type": "web",
     "error": 1,
     "meta": {
@@ -20,7 +20,7 @@
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@error",
       "laravel.route.name": "unnamed_route",
-      "runtime-id": "029b3dea-06d6-49ca-b2b3-3e3c3810a826",
+      "runtime-id": "eea35813-af37-4c9a-9e17-f960bf660b54",
       "span.kind": "server"
     },
     "metrics": {
@@ -29,7 +29,7 @@
   },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
        "trace_id": 0,
        "span_id": 2,
@@ -41,7 +41,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
        "trace_id": 0,
        "span_id": 3,
@@ -53,7 +53,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
        "trace_id": 0,
        "span_id": 4,
@@ -65,7 +65,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
        "trace_id": 0,
        "span_id": 5,
@@ -77,7 +77,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
        "trace_id": 0,
        "span_id": 6,
@@ -89,7 +89,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
        "trace_id": 0,
        "span_id": 7,
@@ -101,7 +101,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
        "trace_id": 0,
        "span_id": 8,
@@ -113,7 +113,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
        "trace_id": 0,
        "span_id": 9,
@@ -125,7 +125,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
        "trace_id": 0,
        "span_id": 10,
@@ -137,7 +137,7 @@
      },
      {
        "name": "laravel.provider.load",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "Illuminate\\Foundation\\ProviderRepository::load",
        "trace_id": 0,
        "span_id": 11,
@@ -149,7 +149,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
        "trace_id": 0,
        "span_id": 12,
@@ -161,7 +161,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\BootProviders",
        "trace_id": 0,
        "span_id": 13,
@@ -173,7 +173,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\BootProviders",
        "trace_id": 0,
        "span_id": 14,
@@ -185,7 +185,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "Illuminate\\Routing\\Events\\Routing",
        "trace_id": 0,
        "span_id": 15,
@@ -197,7 +197,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "Illuminate\\Routing\\Events\\RouteMatched",
        "trace_id": 0,
        "span_id": 16,
@@ -209,7 +209,7 @@
      },
      {
        "name": "laravel.action",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "error",
        "trace_id": 0,
        "span_id": 17,
@@ -225,7 +225,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "Illuminate\\Log\\Events\\MessageLogged",
        "trace_id": 0,
        "span_id": 18,
@@ -237,7 +237,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "Illuminate\\Routing\\Events\\PreparingResponse",
        "trace_id": 0,
        "span_id": 19,
@@ -249,7 +249,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "Illuminate\\Routing\\Events\\ResponsePrepared",
        "trace_id": 0,
        "span_id": 20,
@@ -261,7 +261,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "laravel_test_app",
+       "service": "my_service",
        "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
        "trace_id": 0,
        "span_id": 21,

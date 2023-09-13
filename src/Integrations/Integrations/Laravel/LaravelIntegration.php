@@ -96,6 +96,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Contracts\Foundation\Application',
             'bootstrapWith',
             function ($app) use ($integration) {
+                $integration->serviceName = ddtrace_config_app_name();
                 if (empty($integration->serviceName)) {
                     $app->make('Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables')->bootstrap($app);
                     $configPath = realpath($app->configPath());
