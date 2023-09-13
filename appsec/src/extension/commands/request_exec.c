@@ -8,9 +8,6 @@
 #include "../commands_helpers.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
-#include "mpack-common.h"
-#include "mpack-node.h"
-#include "mpack-writer.h"
 #include <php.h>
 #include <zend_hash.h>
 #include <zend_types.h>
