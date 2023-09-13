@@ -413,10 +413,10 @@ impl TryFrom<&mut zval> for u32 {
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
         let r#type = unsafe { zval.u1.v.type_ };
         if r#type == IS_LONG {
-            return match u32::try_from(unsafe { zval.value.lval }) {
+            match u32::try_from(unsafe { zval.value.lval }) {
                 Err(_) => Err(r#type),
                 Ok(val) => Ok(val),
-            };
+            }
         } else {
             Err(r#type)
         }

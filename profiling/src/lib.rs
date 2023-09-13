@@ -440,6 +440,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         unsafe { bindings::zai_config_first_time_rinit() };
+        #[cfg(feature = "exception_profiling")]
+        exception::exception_profiling_first_rinit();
     });
 
     unsafe { bindings::zai_config_rinit() };
@@ -618,9 +620,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rinit();
-
-    #[cfg(feature = "exception_profiling")]
-    exception::exception_profiling_rinit();
 
     ZendResult::Success
 }
@@ -818,12 +817,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                     b"Experimental Exception Profiling Enabled\0".as_ptr(),
                     if locals.profiling_experimental_exception_enabled {
                         yes
+                    } else if locals.profiling_enabled {
+                        no
                     } else {
-                        if locals.profiling_enabled {
-                            no
-                        } else {
-                            no_all
-                        }
+                        no_all
                     },
                 );
             } else {

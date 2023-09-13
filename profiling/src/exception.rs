@@ -1,7 +1,7 @@
 use crate::bindings as zend;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
-use log::{error, trace};
+use log::{error, info};
 use std::cell::RefCell;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -34,7 +34,7 @@ impl ExceptionProfilingStats {
     }
 
     fn track_exception(&mut self, name: String) {
-        if self.next_sample.checked_sub(1) != None {
+        if self.next_sample.checked_sub(1).is_none() {
             return;
         }
 
@@ -71,24 +71,23 @@ pub fn exception_profiling_minit() {
     }
 }
 
-pub fn exception_profiling_rinit() {
-    let (exception_profiling, sampling_distance) = REQUEST_LOCALS.with(|cell| {
+/// This initializes the `EXCEPTION_PROFILING_INTERVAL` atomic on first RINIT with the value from
+/// the INI / ENV variable. We need to initialize here even when exception profiling is turned off,
+/// as it might get enabled via a per directory setting
+pub fn exception_profiling_first_rinit() {
+    let sampling_distance = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
-            Ok(locals) => (locals.profiling_experimental_exception_enabled, locals.profiling_experimental_exception_sampling_distance),
+            Ok(locals) => locals.profiling_experimental_exception_sampling_distance,
             Err(_err) => {
                 error!("Exception profiling was not initialized correctly due to a borrow error. Please report this to Datadog.");
-                (false, 0)
+                100
             }
         }
     });
 
-    if !exception_profiling {
-        return;
-    }
-
     EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::SeqCst);
 
-    trace!("Exception profiling enabled with sampling disance of {sampling_distance}");
+    info!("Exception profiling sampling disance initialized to {sampling_distance}");
 }
 
 pub fn exception_profiling_mshutdown() {
