@@ -8,6 +8,7 @@
         "ext-ctype": "*",
         "ext-iconv": "*",
         "doctrine/annotations": "^1.12",
+        "doctrine/dbal": "^2.13.1",
         "doctrine/doctrine-bundle": "^2.7",
         "doctrine/doctrine-migrations-bundle": "^3.1",
         "doctrine/orm": "^2.15",
