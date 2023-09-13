@@ -238,8 +238,8 @@ pub(crate) unsafe fn profiling_experimental_exception_enabled() -> bool {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_exception_sampling_distance() -> i64 {
-    get_int(ProfilingExperimentalExceptionSamplingDistance, 100)
+pub(crate) unsafe fn profiling_experimental_exception_sampling_distance() -> u32 {
+    get_uint32(ProfilingExperimentalExceptionSamplingDistance, 100)
 }
 
 /// # Safety
@@ -268,9 +268,9 @@ unsafe fn get_str(id: ConfigId) -> Option<Cow<'static, str>> {
     }
 }
 
-unsafe fn get_int(id: ConfigId, default: i64) -> i64 {
+unsafe fn get_uint32(id: ConfigId, default: u32) -> u32 {
     let value = get_value(id);
-    let num: Result<i64, _> = value.try_into();
+    let num: Result<u32, _> = value.try_into();
     match num {
         Ok(value) => value,
         Err(_err) => default,

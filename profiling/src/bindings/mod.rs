@@ -407,6 +407,30 @@ impl TryFrom<&mut zval> for zend_long {
     }
 }
 
+impl TryFrom<&mut zval> for u32 {
+    type Error = u8;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type == IS_LONG {
+            return match u32::try_from(unsafe { zval.value.lval }) {
+                Err(_) => Err(r#type),
+                Ok(val) => Ok(val),
+            };
+        } else {
+            Err(r#type)
+        }
+    }
+}
+
+impl TryFrom<zval> for u32 {
+    type Error = u8;
+
+    fn try_from(mut zval: zval) -> Result<Self, Self::Error> {
+        u32::try_from(&mut zval)
+    }
+}
+
 impl TryFrom<zval> for zend_long {
     type Error = u8;
 

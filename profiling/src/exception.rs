@@ -3,7 +3,7 @@ use crate::PROFILER;
 use crate::REQUEST_LOCALS;
 use log::{error, trace};
 use std::cell::RefCell;
-use std::sync::atomic::AtomicI64;
+use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 
 use rand_distr::{Distribution, Poisson};
@@ -12,11 +12,11 @@ use rand_distr::{Distribution, Poisson};
 static mut PREV_ZEND_THROW_EXCEPTION_HOOK: Option<zend::VmZendThrowExceptionHook> = None;
 
 /// take a sample every 100 exceptions
-pub static EXCEPTION_PROFILING_INTERVAL: AtomicI64 = AtomicI64::new(100);
+pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 = AtomicU32::new(100);
 
 pub struct ExceptionProfilingStats {
     /// number of exceptions until next sample collection
-    next_sample: i64,
+    next_sample: u32,
 }
 
 impl ExceptionProfilingStats {
@@ -26,16 +26,15 @@ impl ExceptionProfilingStats {
         }
     }
 
-    fn next_sampling_interval() -> i64 {
-        Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64)
+    fn next_sampling_interval() -> u32 {
+        // Panic: `unwrap()` only panics if lambda <= 0 and in the parser we ensure it is not
+        Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f32)
             .unwrap()
-            .sample(&mut rand::thread_rng()) as i64
+            .sample(&mut rand::thread_rng()) as u32
     }
 
     fn track_exception(&mut self, name: String) {
-        self.next_sample -= 1;
-
-        if self.next_sample > 0 {
+        if self.next_sample.checked_sub(1) != None {
             return;
         }
 

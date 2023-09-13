@@ -377,7 +377,7 @@ pub struct RequestLocals {
     pub profiling_allocation_enabled: bool,
     pub profiling_experimental_timeline_enabled: bool,
     pub profiling_experimental_exception_enabled: bool,
-    pub profiling_experimental_exception_sampling_distance: i64,
+    pub profiling_experimental_exception_sampling_distance: u32,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
     pub uri: Box<AgentEndpoint>,
