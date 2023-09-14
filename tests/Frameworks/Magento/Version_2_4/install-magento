@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+./bin/magento setup:install \
+    --base-url=http://localhost/ \
+    --backend-frontname=admin \
+     --language=en_US \
+     --timezone=America/Los_Angeles \
+     --currency=USD \
+     --db-host=mysql_integration \
+     --db-name=test \
+     --db-user=test \
+     --db-password=test \
+     --use-secure=0 \
+     --base-url-secure=0 \
+     --use-secure-admin=0 \
+     --admin-firstname=Admin \
+     --admin-lastname=Admin \
+     --admin-email=admin@admin.com \
+     --admin-user=admin \
+     --admin-password=Magento2

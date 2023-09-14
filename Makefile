@@ -1142,6 +1142,9 @@ test_web_wordpress_61: global_test_run_dependencies
 test_web_yii_2: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0 update
 	$(call run_tests,tests/Integrations/Yii/V2_0)
+test_web_magento_24: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Magento/Version_2_4 update --ignore-platform-reqs
+	$(call run_tests,tests/Integrations/Magento/V2_4)
 test_web_nette_24: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Nette/Version_2_4 update
 	$(call run_tests,tests/Integrations/Nette/V2_4)

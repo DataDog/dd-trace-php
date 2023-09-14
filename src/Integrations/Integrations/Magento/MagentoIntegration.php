@@ -467,11 +467,11 @@ class MagentoIntegration extends Integration
                     $span->service = \ddtrace_config_app_name('magento');
                     $span->meta[Tag::COMPONENT] = 'magento';
 
-                    $templateFile = $args[0];
-                    //$span->resource = $this->getRootDirectory()->getRelativePath($templateFile);
-                    $span->meta['template'] = $span->resource = $this->getTemplate();
-                    $span->meta['module'] = $this->getModuleName();
-                    $span->meta['area'] = $this->getArea();
+                    /** @var \Magento\Framework\View\Element\Template $template */
+                    $template = $this;
+                    $span->meta['template'] = $span->resource = $template->getTemplate();
+                    $span->meta['module'] = $template->getModuleName();
+                    $span->meta['area'] = $template->getArea();
                 }
             ]
         );
@@ -532,6 +532,8 @@ class MagentoIntegration extends Integration
                 if ($this instanceof \Magento\PageCache\Observer\ProcessLayoutRenderElement) {
                     return false;
                 }
+
+                return true;
             }
         );
 
@@ -601,30 +603,33 @@ class MagentoIntegration extends Integration
                 $span->service = \ddtrace_config_app_name('magento');
                 $span->meta[Tag::COMPONENT] = 'magento';
 
-                $moduleName = $this->getModuleName() ?: 'Magento_Core'; // A core block has no module name
-                $blockName = $this->getNameInLayout();
+                /** @var \Magento\Framework\View\Element\AbstractBlock $block */
+                $block = $this;
+
+                $moduleName = $block->getModuleName() ?: 'Magento_Core'; // A core block has no module name
+                $blockName = $block->getNameInLayout();
                 $span->resource = "{$moduleName}:{$blockName}";
 
                 $span->meta['magento.block.module'] = $moduleName;
                 $span->meta['magento.block.name'] = $blockName;
 
-                $cacheKey = $this->getCacheKey();
-                $cacheLifetime = $this->getCacheLifetime();
+                $cacheKey = $block->getCacheKey();
+                $cacheLifetime = $block->getCacheLifetime();
                 $span->meta['magento.block.cachekey'] = $cacheKey;
                 $span->meta['magento.block.cachelifetime'] = $cacheLifetime;
 
                 // If the block inherits \Magento\Framework\View\Element\Template, then it will have a template
-                if ($this instanceof \Magento\Framework\View\Element\Template) {
-                    $span->meta['magento.block.template'] = $this->getTemplate();
-                    $span->meta['magento.block.area'] = $this->getArea();
+                if ($block instanceof \Magento\Framework\View\Element\Template) {
+                    $span->meta['magento.block.template'] = $block->getTemplate();
+                    $span->meta['magento.block.area'] = $block->getArea();
                 }
 
-                $span->meta['magento.block.id'] = $this->getData('block_id');
+                $span->meta['magento.block.id'] = $block->getData('block_id');
 
-                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
-                    $class = get_parent_class($this);
+                if ($block instanceof \Magento\Framework\Interception\InterceptorInterface) {
+                    $class = get_parent_class($block);
                 } else {
-                    $class = get_class($this);
+                    $class = get_class($block);
                 }
                 $span->meta['magento.block.class'] = $class;
 
