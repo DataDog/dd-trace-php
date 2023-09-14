@@ -62,9 +62,9 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-## Profiling
+## Tracer
 ### Fixed
-- detect an uninitialized runtime cache #2250
+- fix: Use DD_SERVICE if available (Laravel) #2256
 ]]></notes>
     <contents>
         <dir name="/">
