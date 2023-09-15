@@ -1,6 +1,9 @@
-if(NOT DD_APPSEC_TRACER_EXT_FILE)
-    set(DD_APPSEC_TRACER_EXT_FILE ${CMAKE_SOURCE_DIR}/../tmp/build_extension/modules/ddtrace.so)
-endif()
+set(DD_APPSEC_TRACER_EXT_FILE ${CMAKE_SOURCE_DIR}/../tmp/build_extension/modules/ddtrace.so)
+
+add_custom_target(ddtrace
+    COMMAND make
+    BYPRODUCTS ${DD_APPSEC_TRACER_EXT_FILE}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../)
 
 add_custom_target(xtest-prepare
     COMMAND mkdir -p /tmp/appsec-ext-test)
@@ -16,6 +19,13 @@ add_custom_target(xtest
         ${CMAKE_SOURCE_DIR}/tests/extension/
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-add_dependencies(xtest xtest-prepare)
+if(DD_APPSEC_ENABLE_COVERAGE)
+    add_custom_command(TARGET xtest POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan
+        "To generate a coverage HTML report, run "
+        "gcovr -r ${CMAKE_SOURCE_DIR} --html --html-details -s -d -o coverage.html")
+endif()
+
+add_dependencies(xtest xtest-prepare ddtrace)
 
 add_subdirectory(tests/mock_helper EXCLUDE_FROM_ALL)
