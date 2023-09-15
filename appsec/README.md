@@ -66,7 +66,7 @@ First of all, it is required to initialize all submodules on the repository. If 
 git submodule update --init --recursive
 ````
 
-Once you have all the submodules initialized run:
+Once you have all the submodules initialized run the following commands in the appsec directory:
 
 ```
 mkdir build
