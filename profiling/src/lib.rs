@@ -399,7 +399,7 @@ thread_local! {
         profiling_experimental_cpu_time_enabled: true,
         profiling_allocation_enabled: true,
         profiling_experimental_timeline_enabled: true,
-        profiling_experimental_exception_enabled: true,
+        profiling_experimental_exception_enabled: false,
         profiling_experimental_exception_sampling_distance: 100,
         profiling_log_level: LevelFilter::Off,
         service: None,
