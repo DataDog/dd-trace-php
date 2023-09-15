@@ -3,6 +3,7 @@ configure_file(src/extension/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/extens
 find_package(PhpConfig REQUIRED)
 
 set(EXT_SOURCE_DIR src/extension)
+
 file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c)
 file(GLOB_RECURSE ZAI_SOURCE ../zend_abstract_interface/config/*.c
  ../zend_abstract_interface/json/*.c ../zend_abstract_interface/env/*.c

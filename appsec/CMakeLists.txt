@@ -11,14 +11,12 @@ HunterGate(
 
 project(ddappsec VERSION 0.91.0)
 
-include(CheckCCompilerFlag)
-include(CheckCXXCompilerFlag)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 cmake_policy(SET CMP0083 NEW) # make PIE executables when PIC property is set
 
 option(DD_APPSEC_BUILD_HELPER "Whether to builder the helper" ON)
@@ -33,4 +31,15 @@ endif()
 
 if (DD_APPSEC_BUILD_HELPER)
     include ("cmake/helper.cmake")
+endif()
+
+include(cmake/clang-tidy.cmake)
+include(cmake/clang-format.cmake)
+
+# When you enable this option. The file cmake/local.cmake will be included as part of the build.
+# The file cmake/local.cmake is ignored by git. Feel free to add anything you need to support
+# your local build. One example this is used for is to tell Clion where to find PHP Sources
+option(DD_APPSEC_LOCAL_CONFIGURATIONS "Whether to include the local.cmake file content as part of the build process" OFF)
+if(DD_APPSEC_LOCAL_CONFIGURATIONS)
+    include(cmake/local.cmake)
 endif()
