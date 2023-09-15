@@ -8,27 +8,16 @@ MPack is a C implementation of an encoder and decoder for the [MessagePack](http
  * [Extensively documented](http://ludocode.github.io/mpack/)
  * [Extremely fast](https://github.com/ludocode/schemaless-benchmarks#speed---desktop-pc)
 
-The core of MPack contains a buffered reader and writer, and a tree-style parser that decodes into a tree of dynamically typed nodes. Helper functions can be enabled to read values of expected type, to work with files, to allocate strings automatically, to check UTF-8 encoding, and more.
+The core of MPack contains a buffered reader and writer, and a tree-style parser that decodes into a tree of dynamically typed nodes. Helper functions can be enabled to read values of expected type, to work with files, to grow buffers or allocate strings automatically, to check UTF-8 encoding, and more.
 
 The MPack code is small enough to be embedded directly into your codebase. Simply download the [amalgamation package](https://github.com/ludocode/mpack/releases) and add `mpack.h` and `mpack.c` to your project.
 
-The MPack featureset can be customized at compile-time to set which features, components and debug checks are compiled, and what dependencies are available.
+MPack supports all modern compilers, all desktop and smartphone OSes, WebAssembly, [inside the Linux kernel](https://github.com/ludocode/mpack-linux-kernel), and even 8-bit microcontrollers such as Arduino. The MPack featureset can be customized at compile-time to set which features, components and debug checks are compiled, and what dependencies are available.
 
 ## Build Status
 
-[travis-home]: https://travis-ci.org/
-[travis-mpack]: https://travis-ci.org/ludocode/mpack/branches
-[appveyor-home]: https://ci.appveyor.com/
-[appveyor-mpack-master]: https://ci.appveyor.com/project/ludocode/mpack/branch/master
-[appveyor-mpack-develop]: https://ci.appveyor.com/project/ludocode/mpack/branch/develop
-[coveralls-home]: https://coveralls.io/
-[coveralls-mpack-master]: https://coveralls.io/github/ludocode/mpack?branch=master
-[coveralls-mpack-develop]: https://coveralls.io/github/ludocode/mpack?branch=develop
-
-<!-- we use some deprecated HTML attributes here to get these stupid badges to line up properly -->
-| [Travis-CI][travis-home] | [AppVeyor][appveyor-home] | [Coveralls.io][coveralls-home] |
-| :-------: | :----------: | :----------: |
-| [<img src="https://travis-ci.org/ludocode/mpack.svg?branch=develop" alt="Build Status" align="top" vspace="4">][travis-mpack] | [<img src="https://ci.appveyor.com/api/projects/status/tux06aefpqq83k30/branch/develop?svg=true" alt="Build Status" align="top" vspace="4">][appveyor-mpack-develop] | [<img src="https://coveralls.io/repos/ludocode/mpack/badge.svg?branch=develop&service=github" alt="Build Status" align="top" vspace="4">][coveralls-mpack-develop] |
+[![Unit Tests](https://github.com/ludocode/mpack/workflows/Unit%20Tests/badge.svg)](https://github.com/ludocode/mpack/actions?query=workflow%3A%22Unit+Tests%22)
+[![Coverage](https://coveralls.io/repos/ludocode/mpack/badge.svg?branch=develop&service=github)](https://coveralls.io/github/ludocode/mpack?branch=develop)
 
 ## The Node API
 
@@ -54,7 +43,7 @@ if (mpack_tree_destroy(&tree) != mpack_ok) {
 
 Note that no additional error handling is needed in the above code. If the file is missing or corrupt, if map keys are missing or if nodes are not in the expected types, special "nil" nodes and false/zero values are returned and the tree is placed in an error state. An error check is only needed before using the data.
 
-The above example decodes into allocated pages of nodes. A fixed node pool can be provided to the parser instead in memory-constrained environments. For maximum performance and minimal memory usage, the [Expect API](docs/expect.md) can be used to parse data of a predefined schema.
+The above example allocates nodes automatically. A fixed node pool can be provided to the parser instead in memory-constrained environments. For maximum performance and minimal memory usage, the [Expect API](docs/expect.md) can be used to parse data of a predefined schema.
 
 ## The Write API
 
@@ -68,12 +57,12 @@ mpack_writer_t writer;
 mpack_writer_init_growable(&writer, &data, &size);
 
 // write the example on the msgpack homepage
-mpack_start_map(&writer, 2);
+mpack_build_map(&writer);
 mpack_write_cstr(&writer, "compact");
 mpack_write_bool(&writer, true);
 mpack_write_cstr(&writer, "schema");
 mpack_write_uint(&writer, 0);
-mpack_finish_map(&writer);
+mpack_complete_map(&writer);
 
 // finish writing
 if (mpack_writer_destroy(&writer) != mpack_ok) {
@@ -86,11 +75,11 @@ do_something_with_data(data, size);
 free(data);
 ```
 
-In the above example, we encode to a growable memory buffer. The writer can instead write to a pre-allocated or stack-allocated buffer, avoiding the need for memory allocation. The writer can also be provided with a flush function (such as a file or socket write function) to call when the buffer is full or when writing is done.
+In the above example, we encode to a growable memory buffer. The writer can instead write to a pre-allocated or stack-allocated buffer (with up-front sizes for compound types), avoiding the need for memory allocation. The writer can also be provided with a flush function (such as a file or socket write function) to call when the buffer is full or when writing is done.
 
-If any error occurs, the writer is placed in an error state. The writer will flag an error if too much data is written, if the wrong number of elements are written, if the data could not be flushed, etc. No additional error handling is needed in the above code; any subsequent writes are ignored when the writer is in an error state, so you don't need to check every write for errors.
+If any error occurs, the writer is placed in an error state. The writer will flag an error if too much data is written, if the wrong number of elements are written, if an allocation failure occurs, if the data could not be flushed, etc. No additional error handling is needed in the above code; any subsequent writes are ignored when the writer is in an error state, so you don't need to check every write for errors.
 
-Note in particular that in debug mode, the `mpack_finish_map()` call above ensures that two key/value pairs were actually written as claimed, something that other MessagePack C/C++ libraries may not do.
+The above example uses `mpack_build_map()` to automatically determine the number of key-value pairs contained. If you know up-front the number of elements needed, you can pass it to `mpack_start_map()` instead. In that case the corresponding `mpack_finish_map()` will assert in debug mode that the expected number of elements were actually written, which is something that other MessagePack C/C++ libraries may not do.
 
 ## Comparison With Other Parsers
 
@@ -99,23 +88,22 @@ MPack is rich in features while maintaining very high performance and a small co
 [mpack]: https://github.com/ludocode/mpack
 [msgpack-c]: https://github.com/msgpack/msgpack-c
 [cmp]: https://github.com/camgunz/cmp
+[cwpack]: https://github.com/clwi/CWPack
 
-|    | [MPack][mpack]<br>(v0.8) | [msgpack-c][msgpack-c]<br>(v1.3.0) | [CMP][cmp]<br>(v14) |
-|:------------------------------------|:---:|:---:|:---:|
-| No libc requirement                 | ✓   |     | ✓   |
-| Growable memory writer              | ✓   | ✓   |     |
-| File I/O helpers                    | ✓   | ✓   |     |
-| Tree parser                         | ✓   | ✓   |     |
-| Propagating errors                  | ✓   |     | ✓   |
-| Compound size tracking              | ✓   |     |     |
-| Incremental parser                  | ✓   |     | ✓   |
-| Incremental range/match helpers     | ✓   |     |     |
-| Tree stream parser                  | ✓   | ✓   |     |
-| UTF-8 verification                  | ✓   |     |     |
+|    | [MPack][mpack]<br>(v1.1) | [msgpack-c][msgpack-c]<br>(v3.3.0) | [CMP][cmp]<br>(v19) | [CWPack][cwpack]<br>(v1.3.1) |
+|:------------------------------------|:---:|:---:|:---:|:---:|
+| No libc requirement                 | ✓   |     | ✓   | ✓   |
+| Growable memory writer              | ✓   | ✓   |     | ✓\* |
+| File I/O helpers                    | ✓   | ✓   |     | ✓\* |
+| Stateful error handling             | ✓   |     | ✓   |     |
+| Incremental parser                  | ✓   |     | ✓   | ✓   |
+| Tree stream parser                  | ✓   | ✓   |     |     |
+| Compound size tracking              | ✓   |     |     |     |
+| Automatic compound size             | ✓   |     |     |     |
 
 A larger feature comparison table is available [here](docs/features.md) which includes descriptions of the various entries in the table.
 
-[This benchmarking suite](https://github.com/ludocode/schemaless-benchmarks) compares the performance of MPack to other implementations of schemaless serialization formats. MPack outperforms all JSON and MessagePack libraries, and in some tests MPack is several times faster than [RapidJSON](https://github.com/miloyip/rapidjson) for equivalent data.
+[This benchmarking suite](https://github.com/ludocode/schemaless-benchmarks) compares the performance of MPack to other implementations of schemaless serialization formats. MPack outperforms all JSON and MessagePack libraries (except [CWPack][cwpack]), and in some tests MPack is several times faster than [RapidJSON](https://github.com/miloyip/rapidjson) for equivalent data.
 
 ## Why Not Just Use JSON?
 
@@ -133,12 +121,8 @@ The above issues greatly increase the complexity of the decoder. Full-featured J
 
 While the space inefficiencies of JSON can be partially mitigated through minification and compression, the performance inefficiencies cannot. More importantly, if you are minifying and compressing the data, then why use a human-readable format in the first place?
 
-## Running the Unit Tests
+## Testing MPack
 
 The MPack build process does not build MPack into a library; it is used to build and run the unit tests. You do not need to build MPack or the unit testing suite to use MPack.
 
-On Linux, the test suite uses SCons and requires Valgrind, and can be run in the repository or in the amalgamation package. Run `scons` to build and run the test suite in full debug configuration.
-
-On Windows, there is a Visual Studio solution, and on OS X, there is an Xcode project for building and running the test suite.
-
-You can also build and run the test suite in all supported configurations, which is what the continuous integration server will build and run. If you are on 64-bit, you will need support for cross-compiling to 32-bit, and running 32-bit binaries with 64-bit Valgrind. On Ubuntu, you'll need `libc6-dbg:i386`. On Arch you'll need `gcc-multilib` or `lib32-clang`, and `valgrind-multilib`. Use `scons all=1 -j16` (or some appropriate thread count) to build and run all tests.
+See [test/README.md](test/README.md) for information on how to test MPack.
