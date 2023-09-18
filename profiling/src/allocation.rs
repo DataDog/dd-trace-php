@@ -25,6 +25,9 @@ static mut PREV_CUSTOM_MM_REALLOC: Option<zend::VmMmCustomReallocFn> = None;
 /// The engine's previous custom free function, if there is one.
 static mut PREV_CUSTOM_MM_FREE: Option<zend::VmMmCustomFreeFn> = None;
 
+/// The heap installed in ZendMM at the time we install our custom handlers
+static mut HEAP: Option<*mut zend::_zend_mm_heap> = None;
+
 pub fn allocation_profiling_minit() {
     unsafe { zend::ddog_php_opcache_init_handle() };
 }
@@ -122,12 +125,17 @@ pub fn allocation_profiling_rinit() {
         return;
     }
 
+    unsafe {
+        HEAP = Some(zend::zend_mm_get_heap());
+    }
+
     if !is_zend_mm() {
         // Neighboring custom memory handlers found
         debug!("Found another extension using the ZendMM custom handler hook");
         unsafe {
             zend::zend_mm_get_custom_handlers(
-                zend::zend_mm_get_heap(),
+                // Safety: `unwrap()` is safe here, as `HEAP` is initialized just above
+                HEAP.unwrap(),
                 &mut PREV_CUSTOM_MM_ALLOC,
                 &mut PREV_CUSTOM_MM_FREE,
                 &mut PREV_CUSTOM_MM_REALLOC,
@@ -147,7 +155,8 @@ pub fn allocation_profiling_rinit() {
     // install our custom handler to ZendMM
     unsafe {
         zend::ddog_php_prof_zend_mm_set_custom_handlers(
-            zend::zend_mm_get_heap(),
+            // Safety: `unwrap()` is safe here, as `HEAP` is initialized just above
+            HEAP.unwrap(),
             Some(alloc_profiling_malloc),
             Some(alloc_profiling_free),
             Some(alloc_profiling_realloc),
@@ -180,7 +189,8 @@ pub fn allocation_profiling_rshutdown() {
     let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
     unsafe {
         zend::zend_mm_get_custom_handlers(
-            zend::zend_mm_get_heap(),
+            // Safety: `unwrap()` is safe here, as `HEAP` is initialized in `RINIT`
+            HEAP.unwrap(),
             &mut custom_mm_malloc,
             &mut custom_mm_free,
             &mut custom_mm_realloc,
@@ -207,7 +217,8 @@ pub fn allocation_profiling_rshutdown() {
         // This is the happy path (restore previously installed custom handlers)!
         unsafe {
             zend::ddog_php_prof_zend_mm_set_custom_handlers(
-                zend::zend_mm_get_heap(),
+                // Safety: `unwrap()` is safe here, as `HEAP` is initialized in `RINIT`
+                HEAP.unwrap(),
                 PREV_CUSTOM_MM_ALLOC,
                 PREV_CUSTOM_MM_FREE,
                 PREV_CUSTOM_MM_REALLOC,
