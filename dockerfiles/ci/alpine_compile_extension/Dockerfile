@@ -19,6 +19,9 @@ RUN set -eux; \
         oniguruma-dev
 
 # Profiling deps
+# Minimum: libclang. Nice-to-have: full toolchain including linker to play
+# with cross-language link-time optimization. Needs to match rustc -Vv's llvm
+# version.
 RUN apk add --no-cache llvm16-libs clang16-dev lld llvm16
 RUN apk add --no-cache rust-stdlib
 RUN apk add --no-cache cargo
