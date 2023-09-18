@@ -59,7 +59,7 @@ ${PHP_SRC_DIR}/configure \
         --with-pdo-sqlite \
         --with-pear \
         --with-readline \
-        --with-sodium \
+        $(if [[ ${PHP_VERSION_ID} -ge 72 ]]; then echo --with-sodium; fi) \
         --with-xsl \
         $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-zip; fi) \
         --with-zlib \
