@@ -1763,6 +1763,18 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'description' => 'Enable the allocation profile type.',
         ],
         [
+            'name' => 'datadog.profiling.experimental_exception_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enable the exception profile type.',
+        ],
+        [
+            'name' => 'datadog.profiling.experimental_exception_sampling_distance',
+            'default' => '100',
+            'commented' => true,
+            'description' => 'Sampling distance for exception profiling (the higher the distance, the fewer samples are created).',
+        ],
+        [
             'name' => 'datadog.profiling.log_level',
             'default' => 'off',
             'commented' => true,
