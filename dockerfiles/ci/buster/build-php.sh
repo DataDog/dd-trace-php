@@ -36,13 +36,17 @@ ${PHP_SRC_DIR}/configure \
         --without-pear \
     ; else echo \
         --disable-phpdbg \
+        --enable-bcmath \
         --enable-ftp \
+        --enable-intl \
         --enable-mbstring \
         --enable-opcache \
         $(if [[ ${PHP_VERSION_ID} -ge 80 ]]; then echo --enable-zend-test=shared; fi) \
         --enable-pcntl \
+        --enable-soap \
         --enable-sockets \
         $(if [[ ${PHP_VERSION_ID} -le 73 ]]; then echo --enable-zip; fi) \
+        $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --enable-gd; else echo --with-gd; fi) \
         --with-curl \
         $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-ffi; fi) \
         --with-libedit \
@@ -55,6 +59,8 @@ ${PHP_SRC_DIR}/configure \
         --with-pdo-sqlite \
         --with-pear \
         --with-readline \
+        --with-sodium \
+        --with-xsl \
         $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-zip; fi) \
         --with-zlib \
     ; fi) \

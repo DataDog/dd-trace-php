@@ -16,10 +16,12 @@ ENV DEVLIBS \
     libmemcached-dev \
     libonig-dev \
     libpq-dev \
+    libpng-dev \
     libsodium-dev \
     libsqlite3-dev \
     libssl-dev \
     libxml2-dev \
+    libxslt1-dev \
     libzip-dev \
     zlib1g-dev \
     libasan5 \
