@@ -11,6 +11,9 @@ mod string_table;
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
 
+#[cfg(feature = "exception_profiling")]
+mod exception;
+
 #[cfg(feature = "timeline")]
 mod timeline;
 
@@ -345,6 +348,9 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "timeline")]
     timeline::timeline_minit();
 
+    #[cfg(feature = "exception_profiling")]
+    exception::exception_profiling_minit();
+
     ZendResult::Success
 }
 
@@ -370,6 +376,8 @@ pub struct RequestLocals {
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
     pub profiling_experimental_timeline_enabled: bool,
+    pub profiling_experimental_exception_enabled: bool,
+    pub profiling_experimental_exception_sampling_distance: u32,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
     pub uri: Box<AgentEndpoint>,
@@ -391,6 +399,8 @@ thread_local! {
         profiling_experimental_cpu_time_enabled: true,
         profiling_allocation_enabled: true,
         profiling_experimental_timeline_enabled: true,
+        profiling_experimental_exception_enabled: false,
+        profiling_experimental_exception_sampling_distance: 100,
         profiling_log_level: LevelFilter::Off,
         service: None,
         uri: Box::<AgentEndpoint>::default(),
@@ -430,6 +440,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         unsafe { bindings::zai_config_first_time_rinit() };
+        #[cfg(feature = "exception_profiling")]
+        exception::exception_profiling_first_rinit();
     });
 
     unsafe { bindings::zai_config_rinit() };
@@ -441,6 +453,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         profiling_experimental_cpu_time_enabled,
         profiling_allocation_enabled,
         profiling_experimental_timeline_enabled,
+        profiling_experimental_exception_enabled,
+        profiling_experimental_exception_sampling_distance,
         log_level,
         output_pprof,
     ) = unsafe {
@@ -451,6 +465,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             profiling_enabled && config::profiling_experimental_cpu_time_enabled(),
             profiling_enabled && config::profiling_allocation_enabled(),
             profiling_enabled && config::profiling_experimental_timeline_enabled(),
+            profiling_enabled && config::profiling_experimental_exception_enabled(),
+            config::profiling_experimental_exception_sampling_distance(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
         )
@@ -468,6 +484,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
         locals.profiling_allocation_enabled = profiling_allocation_enabled;
         locals.profiling_experimental_timeline_enabled = profiling_experimental_timeline_enabled;
+        locals.profiling_experimental_exception_enabled = profiling_experimental_exception_enabled;
+        locals.profiling_experimental_exception_sampling_distance =
+            profiling_experimental_exception_sampling_distance;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
@@ -791,6 +810,28 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             }
         }
 
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "exception_profiling")] {
+                zend::php_info_print_table_row(
+                    2,
+                    b"Experimental Exception Profiling Enabled\0".as_ptr(),
+                    if locals.profiling_experimental_exception_enabled {
+                        yes
+                    } else if locals.profiling_enabled {
+                        no
+                    } else {
+                        no_all
+                    },
+                );
+            } else {
+                zend::php_info_print_table_row(
+                    2,
+                    b"Experimental Exception Profiling Enabled\0".as_ptr(),
+                    b"Not available. The profiler was built without exception profiling support.\0"
+                );
+            }
+        }
+
         zend::php_info_print_table_row(
             2,
             b"Endpoint Collection Enabled\0".as_ptr(),
@@ -852,6 +893,9 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     if let Some(profiler) = profiler.as_mut() {
         profiler.stop(Duration::from_secs(1));
     }
+
+    #[cfg(feature = "exception_profiling")]
+    exception::exception_profiling_mshutdown();
 
     ZendResult::Success
 }
