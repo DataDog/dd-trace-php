@@ -67,6 +67,15 @@ TEST(WafTest, InitWithInvalidRules)
     EXPECT_EQ(metrics[tag::event_rules_failed], 4.0);
 }
 
+TEST(WafTest, DefaultProcessorsAndScanners)
+{
+    engine_settings cs;
+    cs.rules_file = create_sample_rules_ok();
+    auto ruleset = engine_ruleset::from_path(cs.rules_file);
+    EXPECT_TRUE(ruleset.get_document().HasMember("processors"));
+    EXPECT_TRUE(ruleset.get_document().HasMember("scanners"));
+}
+
 TEST(WafTest, RunWithInvalidParam)
 {
     std::map<std::string_view, std::string> meta;
