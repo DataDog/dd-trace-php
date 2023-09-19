@@ -248,6 +248,7 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
         zai_str value_view = ZAI_STR_FROM_ZSTR(existing->value);
         if (!zai_str_eq(current_value, value_view)) {
             zval decoded;
+            ZVAL_NULL(&decoded);
             // This should never fail, ideally, as all usages should validate the same way, but at least not crash, just don't accept the value then
             if (zai_config_decode_value(value_view, memoized->type, memoized->parser, &decoded, 1)) {
                 zai_config_dtor_pzval(&memoized->decoded_value);

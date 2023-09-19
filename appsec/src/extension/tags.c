@@ -1181,6 +1181,7 @@ bool dd_parse_automated_user_events_tracking(
         ZVAL_STR(decoded_value, zend_string_alloc(value.len, persistent));
         char *out = Z_STRVAL_P(decoded_value);
         memcpy(out, value.ptr, value.len);
+        out[value.len] = '\0';
     }
 
     return result;
