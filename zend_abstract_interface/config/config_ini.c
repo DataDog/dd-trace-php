@@ -174,7 +174,9 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     zval new_zv;
     ZVAL_UNDEF(&new_zv);
 
-    if (!zai_config_decode_value(value_view, memoized->type, memoized->parser, &new_zv, /* persistent */ stage != PHP_INI_STAGE_RUNTIME)) {
+    bool global_stage = stage != PHP_INI_STAGE_RUNTIME && stage != PHP_INI_STAGE_HTACCESS;
+
+    if (!zai_config_decode_value(value_view, memoized->type, memoized->parser, &new_zv, /* persistent */ global_stage)) {
         // TODO Log decoding error
 
         return FAILURE;
@@ -182,7 +184,7 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
 
     /* Ignore calls that happen before runtime (e.g. the default INI values on MINIT). System values are obtained on
      * first-time RINIT. */
-    if (stage != PHP_INI_STAGE_RUNTIME) {
+    if (global_stage) {
         zai_config_dtor_pzval(&new_zv);
         return SUCCESS;
     }
@@ -248,6 +250,7 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
         zai_str value_view = ZAI_STR_FROM_ZSTR(existing->value);
         if (!zai_str_eq(current_value, value_view)) {
             zval decoded;
+            ZVAL_UNDEF(&decoded);
             // This should never fail, ideally, as all usages should validate the same way, but at least not crash, just don't accept the value then
             if (zai_config_decode_value(value_view, memoized->type, memoized->parser, &decoded, 1)) {
                 zai_config_dtor_pzval(&memoized->decoded_value);
@@ -401,6 +404,7 @@ void zai_config_ini_rinit(void) {
             }
         }
 
+        // explicitly ensure that changed handlers are called for any configs not identical to global default config
         if (env_to_ini_name) {
             for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
                 zend_ini_entry *ini = memoized->ini_entries[name_index];
