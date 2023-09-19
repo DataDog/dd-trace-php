@@ -226,6 +226,9 @@ pub fn allocation_profiling_rshutdown() {
         }
         trace!("Memory allocation profiling shutdown gracefully.");
     }
+    unsafe {
+        HEAP = None;
+    }
 }
 
 pub fn allocation_profiling_startup() {
