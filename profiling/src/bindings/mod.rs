@@ -33,6 +33,11 @@ pub type VmZendCompileString =
 pub type VmZendCompileString =
     unsafe extern "C" fn(*mut _zval_struct, *mut c_char) -> *mut _zend_op_array;
 
+#[cfg(all(feature = "exception_profiling", php7))]
+pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zval);
+#[cfg(all(feature = "exception_profiling", php8))]
+pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zend_object);
+
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
 #[cfg(feature = "allocation_profiling")]
@@ -78,6 +83,12 @@ impl From<c_int> for ZendResult {
 #[repr(C)]
 pub struct ZendString {
     _opaque: [u8; 0],
+}
+
+impl _zend_object {
+    pub fn class_name(&self) -> String {
+        unsafe { zai_str_from_zstr((*self.ce).name.as_mut()).into_string() }
+    }
 }
 
 impl _zend_function {
@@ -393,6 +404,30 @@ impl TryFrom<&mut zval> for zend_long {
         } else {
             Err(r#type)
         }
+    }
+}
+
+impl TryFrom<&mut zval> for u32 {
+    type Error = u8;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type == IS_LONG {
+            match u32::try_from(unsafe { zval.value.lval }) {
+                Err(_) => Err(r#type),
+                Ok(val) => Ok(val),
+            }
+        } else {
+            Err(r#type)
+        }
+    }
+}
+
+impl TryFrom<zval> for u32 {
+    type Error = u8;
+
+    fn try_from(mut zval: zval) -> Result<Self, Self::Error> {
+        u32::try_from(&mut zval)
     }
 }
 
