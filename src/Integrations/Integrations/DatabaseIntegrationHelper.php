@@ -43,9 +43,8 @@ class DatabaseIntegrationHelper
                 $propagationMode = \DDTrace\DBM_PROPAGATION_SERVICE;
             }
 
-            $databaseService = isset($hook->span()->meta['peer.service'])
-                ? $hook->span()->meta['peer.service']
-                : $hook->span()->service;
+            $span = $hook->span();
+            $databaseService = $span->meta['peer.service'] ?? $span->service;
 
             $query = self::propagateViaSqlComments($hook->args[$argNum], $databaseService, $propagationMode);
             $hook->args[$argNum] = $query;
