@@ -26,7 +26,7 @@ class Elasticsearch implements ClientInterface
     /**
      * Elasticsearch Client instances
      *
-     * @var \Elasticsearch\Client[]
+     * @var \Elastic\Elasticsearch\Client[]
      */
     private $client;
 
@@ -49,7 +49,7 @@ class Elasticsearch implements ClientInterface
      * Initialize Elasticsearch 7 Client
      *
      * @param array $options
-     * @param \Elasticsearch\Client|null $elasticsearchClient
+     * @param \Elastic\Elasticsearch\Client|null $elasticsearchClient
      * @param array $fieldsMappingPreprocessors
      * @param DynamicTemplatesProvider|null $dynamicTemplatesProvider
      * @throws LocalizedException
@@ -69,7 +69,7 @@ class Elasticsearch implements ClientInterface
             );
         }
         // phpstan:ignore
-        if ($elasticsearchClient instanceof \Elasticsearch\Client) {
+        if ($elasticsearchClient instanceof \Elastic\Elasticsearch\Client) {
             $this->client[getmypid()] = $elasticsearchClient;
         }
         $this->clientOptions = $options;
@@ -92,14 +92,14 @@ class Elasticsearch implements ClientInterface
     /**
      * Get Elasticsearch 7 Client
      *
-     * @return \Elasticsearch\Client
+     * @return \Elastic\Elasticsearch\Client
      */
-    private function getElasticsearchClient(): \Elasticsearch\Client
+    private function getElasticsearchClient(): \Elastic\Elasticsearch\Client
     {
         $pid = getmypid();
         if (!isset($this->client[$pid])) {
             $config = $this->buildESConfig($this->clientOptions);
-            $this->client[$pid] = \Elasticsearch\ClientBuilder::fromConfig($config, true);
+            $this->client[$pid] = \Elastic\Elasticsearch\ClientBuilder::fromConfig($config, true);
         }
         return $this->client[$pid];
     }
@@ -116,7 +116,7 @@ class Elasticsearch implements ClientInterface
                 ->ping(['client' => ['timeout' => $this->clientOptions['timeout']]]);
         }
 
-        return $this->pingResult;
+        return $this->pingResult !== null;
     }
 
     /**

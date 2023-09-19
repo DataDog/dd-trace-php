@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-./bin/magento setup:install \
+php -d memory_limit=1G ./bin/magento setup:install \
     --base-url=http://localhost/ \
     --backend-frontname=admin \
      --language=en_US \
@@ -17,4 +17,6 @@
      --admin-lastname=Admin \
      --admin-email=admin@admin.com \
      --admin-user=admin \
-     --admin-password=Magento2
+     --admin-password=Magento2 \
+     --elasticsearch-host=elasticsearch7_integration \
+     --search-engine=elasticsearch7
