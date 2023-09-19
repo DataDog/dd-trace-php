@@ -1,6 +1,6 @@
 <?php
 
-namespace CustomElement\Datadog\Controller\SimpleView;
+namespace CustomElement\Datadog\Controller\Simple;
 
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\HttpGetActionInterface;

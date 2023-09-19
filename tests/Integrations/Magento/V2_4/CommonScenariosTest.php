@@ -16,6 +16,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'APP_NAME' => 'magento_test_app',
+            'DD_TRACE_PDO_ENABLED' => 'false'
         ]);
     }
 
@@ -25,7 +26,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             $this->call(
                 GetSpec::create(
                     'A simple GET request returning a string',
-                    '/simple?key=value&pwd=should_redact'
+                    '/datadog/simple/index?key=value&pwd=should_redact'
                 )
             );
         });
@@ -37,7 +38,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             $this->call(
                 GetSpec::create(
                     'A simple GET request with a view',
-                    '/simple_view?key=value&pwd=should_redact'
+                    '/datadog/simpleview/index?key=value&pwd=should_redact'
                 )
             );
         });
@@ -49,7 +50,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             $this->call(
                 GetSpec::create(
                     'A GET request with an exception',
-                    '/error?key=value&pwd=should_redact'
+                    '/datadog/error/index?key=value&pwd=should_redact'
                 )->expectStatusCode(500)
             );
         });
