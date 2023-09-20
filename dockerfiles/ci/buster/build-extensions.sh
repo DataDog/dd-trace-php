@@ -101,9 +101,6 @@ else
 
   yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini;
   pecl install ast$AST_VERSION; echo "extension=ast.so" >> ${iniDir}/ast.ini;
-  if [[ $PHP_VERSION_ID -eq 70 ]]; then
-    pecl install intl; echo "extension=intl.so" >> ${iniDir}/intl.ini;
-  fi
   if [[ $PHP_VERSION_ID -ge 71 && $PHP_VERSION_ID -le 80 ]]; then
     yes '' | pecl install mcrypt$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -1.0.0; fi); echo "extension=mcrypt.so" >> ${iniDir}/mcrypt.ini;
   fi

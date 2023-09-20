@@ -38,7 +38,7 @@ ${PHP_SRC_DIR}/configure \
         --disable-phpdbg \
         --enable-bcmath \
         --enable-ftp \
-        $(if [[ ${PHP_VERSION_ID} -neq 70 ]]; then echo --enable-intl; fi) \
+        $(if [[ ${PHP_VERSION_ID} -ge 71 ]]; then echo --enable-intl; fi) \
         --enable-mbstring \
         --enable-opcache \
         $(if [[ ${PHP_VERSION_ID} -ge 80 ]]; then echo --enable-zend-test=shared; fi) \
@@ -47,8 +47,8 @@ ${PHP_SRC_DIR}/configure \
         --enable-sockets \
         $(if [[ ${PHP_VERSION_ID} -le 73 ]]; then echo --enable-zip; fi) \
         $(if [[ ${PHP_VERSION_ID} -ge 74 ]];
-          then echo --enable-gd;# --with-jpeg=/usr/include/ --with-png=/usr/include/ --with-webp=/usr/include/ --with-freetype=/usr/include/;
-           else echo --with-gd;# --with-jpeg-dir=/usr/include/ --with-png-dir=/usr/include/ --with-webp-dir=/usr/include/ --with-freetype-dir=/usr/include/;
+          then echo --enable-gd --with-jpeg --with-freetype --with-webp;
+          else echo --with-gd --with-png-dir --with-jpeg-dir=/usr/include/;
         fi) \
         --with-curl \
         $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-ffi; fi) \
