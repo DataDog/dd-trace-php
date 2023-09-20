@@ -970,6 +970,10 @@ bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
         return Z_TYPE_P(new_value) == IS_FALSE;  // no changing to enabled allowed if globally disabled
     }
 
+    if (!DDTRACE_G(active_stack)) {
+        return true; // We must not do anything early in RINIT before the necessary structures are initialized at all
+    }
+
     if (Z_TYPE_P(old_value) == IS_FALSE) {
         dd_initialize_request();
     } else if (!DDTRACE_G(disable)) {  // if this is true, the request has not been initialized at all
