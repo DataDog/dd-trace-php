@@ -23,6 +23,8 @@ class SqlVersionProvider
 
     public const MYSQL_5_7_VERSION = '5.7.';
 
+    public const MYSQL_5_6_VERSION = '5.6.';
+
     public const MARIA_DB_10_VERSION = '10.';
 
     public const MARIA_DB_10_4_VERSION = '10.4.';
