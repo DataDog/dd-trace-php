@@ -373,7 +373,8 @@ static void zai_hook_resolve_hooks_entry(zai_hooks_entry *hooks, zend_function *
 static inline zai_hooks_entry *zai_hook_resolved_ensure_hooks_entry(zend_function *resolved, zend_class_entry *ce);
 static inline void zai_hook_handle_internal_duplicate_function(zai_hooks_entry *hooks, zend_class_entry *ce, zend_function *function) {
     // Internal functions duplicated onto userland classes share their run_time_cache with their parent function
-    bool is_internal_duplicate = !ZEND_USER_CODE(function->type) && (function->common.fn_flags & ZEND_ACC_ARENA_ALLOCATED) && function->common.scope != ce;
+    // This may also happen for leaf functions without code, ignore it here
+    bool is_internal_duplicate = !ZEND_USER_CODE(function->type) && (function->common.fn_flags & ZEND_ACC_ARENA_ALLOCATED) && function->common.scope != ce && ce->parent;
     if (is_internal_duplicate) {
         // Hence we need to ensure that each top-level internal function is responsible for its run-time cache.
         // We achieve that by refcounting on top of the anyway checked nNumOfElements.
