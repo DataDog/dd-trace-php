@@ -1,0 +1,33 @@
+{
+    "name": "magento/module-catalog-rule-configurable",
+    "description": "N/A",
+    "type": "magento2-module",
+    "license": [
+        "OSL-3.0",
+        "AFL-3.0"
+    ],
+    "config": {
+        "sort-packages": true
+    },
+    "version": "100.3.6",
+    "require": {
+        "php": "~7.3.0||~7.4.0",
+        "magento/framework": "102.0.*",
+        "magento/magento-composer-installer": "*",
+        "magento/module-catalog": "103.0.*",
+        "magento/module-catalog-rule": "101.1.*",
+        "magento/module-configurable-product": "100.3.*"
+    },
+    "suggest": {
+        "magento/module-catalog-rule": "101.1.*"
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "Magento\\CatalogRuleConfigurable\\": ""
+        }
+    }
+}
+

@@ -19,4 +19,5 @@ php -d memory_limit=1G ./bin/magento setup:install \
      --admin-user=admin \
      --admin-password=Magento2 \
      --elasticsearch-host=elasticsearch7_integration \
-     --search-engine=elasticsearch7
+     --search-engine=elasticsearch7 \
+     --cleanup-database
