@@ -43,7 +43,10 @@ class DatabaseIntegrationHelper
                 $propagationMode = \DDTrace\DBM_PROPAGATION_SERVICE;
             }
 
-            $query = self::propagateViaSqlComments($hook->args[$argNum], $hook->span()->service, $propagationMode);
+            $span = $hook->span();
+            $databaseService = $span->meta['peer.service'] ?? $span->service;
+
+            $query = self::propagateViaSqlComments($hook->args[$argNum], $databaseService, $propagationMode);
             $hook->args[$argNum] = $query;
             $hook->overrideArguments($hook->args);
             $hook->span()->meta["_dd.dbm_trace_injected"] = "true";
