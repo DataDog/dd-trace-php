@@ -131,7 +131,7 @@ static dd_result _pack_command(
 
     // Engine settings
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    mpack_start_map(w, 5);
+    mpack_start_map(w, 6);
     {
         dd_mpack_write_lstr(w, "rules_file");
         const char *rules_file = ZSTR_VAL(get_global_DD_APPSEC_RULES());
@@ -157,6 +157,17 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, "obfuscator_value_regex");
     dd_mpack_write_nullable_cstr(
         w, ZSTR_VAL(get_global_DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP()));
+
+    dd_mpack_write_lstr(w, "schema_extraction");
+    mpack_start_map(w, 2);
+
+    dd_mpack_write_lstr(w, "enabled");
+    mpack_write_bool(w, get_global_DD_EXPERIMENTAL_API_SECURITY_ENABLED());
+
+    dd_mpack_write_lstr(w, "sample_rate");
+    mpack_write(w, get_global_DD_API_SECURITY_REQUEST_SAMPLE_RATE());
+
+    mpack_finish_map(w);
 
     mpack_finish_map(w);
 

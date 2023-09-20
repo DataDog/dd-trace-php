@@ -46,8 +46,8 @@ TEST(RemoteConfigAsmDdAggregator, RemoveConfig)
     EXPECT_STREQ("blk-001-001", first.FindMember("id")->value.GetString());
     EXPECT_TRUE(doc.HasMember(
         "processors")); // When going to default, it adds processors
-    EXPECT_TRUE(doc.HasMember(
-        "scanners")); // When going to default, it adds scanners
+    EXPECT_TRUE(
+        doc.HasMember("scanners")); // When going to default, it adds scanners
 }
 
 TEST(RemoteConfigAsmDdAggregator, AddConfigInvalidBase64Content)
