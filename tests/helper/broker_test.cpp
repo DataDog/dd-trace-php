@@ -375,11 +375,25 @@ TEST(BrokerTest, RecvRequestInit)
     packer.pack_array(2);
     pack_str(packer, "request_init");
     packer.pack_array(1);
-    packer.pack_map(2);
+    packer.pack_map(3);
     pack_str(packer, "server.request.query");
     pack_str(packer, "Arachni");
     pack_str(packer, "server.request.uri");
     pack_str(packer, "arachni.com");
+    pack_str(packer, "server.request.headers.no_cookies");
+    packer.pack_map(6);
+    pack_str(packer, "float_key");
+    packer.pack_double(123.456);
+    pack_str(packer, "true_key");
+    packer.pack_true();
+    pack_str(packer, "false_key");
+    packer.pack_false();
+    pack_str(packer, "negative_integer_key");
+    packer.pack_int(-123);
+    pack_str(packer, "positive_integer_key");
+    packer.pack_int(456);
+    pack_str(packer, "nil_key");
+    packer.pack_nil();
     const std::string &expected_data = ss.str();
 
     network::header_t h{"dds", (uint32_t)expected_data.size()};
@@ -395,11 +409,18 @@ TEST(BrokerTest, RecvRequestInit)
     auto &command = request.as<network::request_init>();
     parameter_view pv(command.data);
     EXPECT_TRUE(pv.is_map());
-    EXPECT_EQ(pv.size(), 2);
+    EXPECT_EQ(pv.size(), 3);
     EXPECT_STREQ(pv[0].key().data(), "server.request.query");
     EXPECT_STREQ(std::string_view(pv[0]).data(), "Arachni");
     EXPECT_STREQ(pv[1].key().data(), "server.request.uri");
     EXPECT_STREQ(std::string_view(pv[1]).data(), "arachni.com");
+    EXPECT_STREQ(pv[2].key().data(), "server.request.headers.no_cookies");
+    EXPECT_FLOAT_EQ(ddwaf_object_get_float(pv[2][0]), 123.456);
+    EXPECT_TRUE(ddwaf_object_get_bool(pv[2][1]));
+    EXPECT_FALSE(ddwaf_object_get_bool(pv[2][2]));
+    EXPECT_FLOAT_EQ(ddwaf_object_get_signed(pv[2][3]), -123);
+    EXPECT_FLOAT_EQ(ddwaf_object_get_unsigned(pv[2][4]), 456);
+    EXPECT_EQ(ddwaf_object_type(pv[2][5]), DDWAF_OBJ_NULL);
 }
 
 TEST(BrokerTest, RecvRequestInitOverLimits)
