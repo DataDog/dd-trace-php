@@ -16,14 +16,20 @@ ENV DEVLIBS \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \
+    libfreetype6-dev \
+    libicu-dev \
+    libjpeg-dev \
     libmcrypt-dev \
     libmemcached-dev \
     libonig-dev \
     libpq-dev \
+    libpng-dev \
     libsodium-dev \
     libsqlite3-dev \
     libssl-dev \
+    libwebp-dev \
     libxml2-dev \
+    libxslt1-dev \
     libzip-dev \
     zlib1g-dev \
     libasan5 \

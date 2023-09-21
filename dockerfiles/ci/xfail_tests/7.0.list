@@ -109,6 +109,7 @@ ext/date/tests/date_timestamp_set_nullparam2.phpt
 ext/date/tests/test-parse-from-format.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
 ext/ftp/tests
+ext/gd/tests/bug70976.phpt
 ext/json/tests/bug45791.phpt
 ext/json/tests/pass001.phpt
 ext/mbstring/tests/zend_multibyte-01.phpt
@@ -191,6 +192,7 @@ ext/simplexml/tests/bug69491.phpt
 ext/simplexml/tests/bug72971.phpt
 ext/simplexml/tests/bug72971_2.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/soap/tests/bugs/bug28751.phpt
 ext/sockets/tests/socket_connect_params.phpt
 ext/sockets/tests/socket_create_listen-nobind.phpt
 ext/sockets/tests/socket_create_pair.phpt
@@ -326,6 +328,7 @@ ext/standard/tests/serialize/bug70219_1.phpt
 ext/standard/tests/serialize/serialization_objects_007.phpt
 ext/standard/tests/streams/proc_open_bug69900.phpt
 ext/standard/tests/strings/implode1.phpt
+ext/xsl/tests/bug33853.phpt
 ext/zip/tests/bug38943.phpt
 ext/zip/tests/bug38943_2.phpt
 sapi/cli/tests/upload_2G.phpt
