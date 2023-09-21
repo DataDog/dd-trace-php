@@ -82,7 +82,7 @@ class IntegrationsLoader
             $this->integrations[LumenIntegration::NAME] =
                 '\DDTrace\Integrations\Lumen\LumenIntegration';
             $this->integrations[MagentoIntegration::NAME] =
-                '\DDTrace\Integrations\Memcached\MagentoIntegration';
+                '\DDTrace\Integrations\Magento\MagentoIntegration';
             $this->integrations[MemcachedIntegration::NAME] =
                 '\DDTrace\Integrations\Memcached\MemcachedIntegration';
             $this->integrations[MongoIntegration::NAME] =
