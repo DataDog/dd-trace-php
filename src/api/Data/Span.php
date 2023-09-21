@@ -34,6 +34,8 @@ abstract class Span implements SpanInterface
      */
     protected $internalSpan;
 
+    private $baseServiceSet = false;
+
     public function &__get($name)
     {
         if ($name == "operationName") {
@@ -56,12 +58,25 @@ abstract class Span implements SpanInterface
             $name = "name";
         } elseif ($name == "tags") {
             $name = "meta";
+        } elseif ($name == "service") {
+            addBaseServiceIfNeeded($value);
         }
+
         return $this->internalSpan->$name = $value;
     }
 
     public function __isset($name)
     {
         return $this->__get($name) !== null;
+    }
+
+    protected function addBaseServiceIfNeeded($newValue)
+    {
+        if ($this->baseServiceSet || strtolower($this->internalSpan->service) == strtolower($newValue)) {
+            return;
+        }
+
+        $this->internalSpan->meta["_dd.base_service"] = $this->internalSpan->service;
+        $this->baseServiceSet = true;
     }
 }
