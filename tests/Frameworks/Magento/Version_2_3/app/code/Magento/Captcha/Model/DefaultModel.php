@@ -117,7 +117,11 @@ class DefaultModel extends \Zend\Captcha\Image implements \Magento\Captcha\Model
         Random $randomMath = null,
         ?UserContextInterface $userContext = null
     ) {
-        parent::__construct();
+        try {
+            parent::__construct();
+        } catch (\Exception $e) {
+            // Ignore exception if GD library is not installed
+        }
         $this->session = $session;
         $this->captchaData = $captchaData;
         $this->resLogFactory = $resLogFactory;
