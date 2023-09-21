@@ -22,49 +22,61 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetReturnString()
     {
-        $this->tracesFromWebRequestSnapshot(function () {
-            $this->call(
-                GetSpec::create(
-                    'A simple GET request returning a string',
-                    '/datadog/simple/index?key=value&pwd=should_redact'
-                )
-            );
-        });
+        $this->tracesFromWebRequestSnapshot(
+            function () {
+                $this->call(
+                    GetSpec::create(
+                        'A simple GET request returning a string',
+                        '/datadog/simple/index?key=value&pwd=should_redact'
+                    )
+                );
+            },
+            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'magento.block.cache_key']
+        );
     }
 
     public function testScenarioGetWithView()
     {
-        $this->tracesFromWebRequestSnapshot(function () {
-            $this->call(
-                GetSpec::create(
-                    'A simple GET request with a view',
-                    '/datadog/simpleview/index?key=value&pwd=should_redact'
-                )
-            );
-        });
+        $this->tracesFromWebRequestSnapshot(
+            function () {
+                $this->call(
+                    GetSpec::create(
+                        'A simple GET request with a view',
+                        '/datadog/simpleview/index?key=value&pwd=should_redact'
+                    )
+                );
+            },
+            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'magento.block.cache_key']
+        );
     }
 
     public function testScenarioGetWithException()
     {
-        $this->tracesFromWebRequestSnapshot(function () {
-            $this->call(
-                GetSpec::create(
-                    'A GET request with an exception',
-                    '/datadog/error/index?key=value&pwd=should_redact'
-                )->expectStatusCode(500)
-            );
-        });
+        $this->tracesFromWebRequestSnapshot(
+            function () {
+                $this->call(
+                    GetSpec::create(
+                        'A GET request with an exception',
+                        '/datadog/error/index?key=value&pwd=should_redact'
+                    )->expectStatusCode(500)
+                );
+            },
+            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'magento.block.cache_key']
+        );
     }
 
     public function testScenarioGetToMissingRoute()
     {
-        $this->tracesFromWebRequestSnapshot(function () {
-            $this->call(
-                GetSpec::create(
-                    'A GET request to a missing route',
-                    '/does_not_exist?key=value&pwd=should_redact'
-                )->expectStatusCode(404)
-            );
-        });
+        $this->tracesFromWebRequestSnapshot(
+            function () {
+                $this->call(
+                    GetSpec::create(
+                        'A GET request to a missing route',
+                        '/does_not_exist?key=value&pwd=should_redact'
+                    )->expectStatusCode(404)
+                );
+            },
+            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'magento.block.cache_key']
+        );
     }
 }
