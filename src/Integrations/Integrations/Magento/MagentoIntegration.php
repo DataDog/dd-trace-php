@@ -122,7 +122,9 @@ class MagentoIntegration extends Integration
                 $rootSpan->service = \ddtrace_config_app_name('magento');
                 $rootSpan->meta[Tag::COMPONENT] = 'magento';
 
-                if ($this instanceof \Magento\Framework\App\StaticResource) {
+                if ($this instanceof \Magento\Framework\App\StaticResource
+                    && dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")
+                ) {
                     $rootSpan->resource = "static";
                 }
 
@@ -154,11 +156,17 @@ class MagentoIntegration extends Integration
                 $routeName = $request->getRouteName();
 
                 $rootSpan = root_span();
-                if ($rootSpan !== null) {
+                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                     $rootSpan->resource = $span->resource = $module . '/' . $controller . '/' . $action;
-                    $rootSpan->meta['magento.frontname'] = $frontName;
-                    $rootSpan->meta['magento.route'] = $routeName;
                 }
+                $rootSpan->meta['magento.frontname'] = $frontName;
+                $rootSpan->meta['magento.route'] = $routeName;
+
+                $span->meta['magento.module'] = $module;
+                $span->meta['magento.controller'] = $controller;
+                $span->meta['magento.action'] = $action;
+                $span->meta['magento.frontname'] = $frontName;
+                $span->meta['magento.route'] = $routeName;
             }
         );
 
@@ -228,7 +236,9 @@ class MagentoIntegration extends Integration
                 $rootSpan->type = Type::WEB_SERVLET;
                 $rootSpan->service = \ddtrace_config_app_name('magento');
                 $rootSpan->meta[Tag::COMPONENT] = 'magento';
-                $rootSpan->resource = "media";
+                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                    $rootSpan->resource = "media";
+                }
             }
         );
 
