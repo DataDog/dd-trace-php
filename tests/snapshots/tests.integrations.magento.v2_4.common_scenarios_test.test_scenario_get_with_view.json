@@ -5,7 +5,7 @@
     "resource": "datadog/simpleview/index",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 5902433615767688422,
+    "parent_id": 1816200989479553119,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -16,7 +16,7 @@
       "magento.cached": "false",
       "magento.frontname": "datadog",
       "magento.route": "datadog",
-      "runtime-id": "a19d02d8-45b3-4a96-b559-9fb4f4b31bb4"
+      "runtime-id": "3518743c-72cc-4cfa-8bb4-3d3715d457f9"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -231,7 +231,12 @@
                 "parent_id": 12,
                 "type": "web",
                 "meta": {
-                  "component": "magento"
+                  "component": "magento",
+                  "magento.action": "index",
+                  "magento.controller": "simpleview",
+                  "magento.frontname": "datadog",
+                  "magento.module": "datadog",
+                  "magento.route": "datadog"
                 }
               },
                  {
@@ -1783,7 +1788,7 @@
              "meta": {
                "component": "magento",
                "magento.block.area": "frontend",
-               "magento.block.cache_key": "BLOCK_29288815a7b9dee47b84c5b3d0786fcaf11f8bf21f89644d84a39d46de807539",
+               "magento.block.cache_key": "BLOCK_f33b8f869a804074f5c019ac7b0d534ce9fc8b6de3c0ab1f4ee89c7913b70b34",
                "magento.block.class": "Magento\\Theme\\Block\\Html\\Footer",
                "magento.block.module": "Magento_Theme",
                "magento.block.name": "absolute_footer",
@@ -1816,7 +1821,7 @@
              "meta": {
                "component": "magento",
                "magento.block.area": "frontend",
-               "magento.block.cache_key": "BLOCK_34df744c9a977f9e2f983caa692823df5c68f782701cf260c6fc722c9aeb48f4",
+               "magento.block.cache_key": "BLOCK_ba54d2d4ee2877582ed298dbb6532a07f962485fd213fadb0cd4c18ff1d48cbd",
                "magento.block.class": "Magento\\Theme\\Block\\Html\\Footer",
                "magento.block.module": "Magento_Theme",
                "magento.block.name": "copyright",

@@ -5,7 +5,7 @@
     "resource": "cms/noroute/index",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 3151225199969681424,
+    "parent_id": 64652095655572936,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -16,7 +16,7 @@
       "magento.cached": "false",
       "magento.frontname": "does_not_exist",
       "magento.route": "cms",
-      "runtime-id": "edf01ea0-6d59-463b-a9e6-3ff71e6ed5f2"
+      "runtime-id": "3518743c-72cc-4cfa-8bb4-3d3715d457f9"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -388,7 +388,12 @@
                 "parent_id": 15,
                 "type": "web",
                 "meta": {
-                  "component": "magento"
+                  "component": "magento",
+                  "magento.action": "index",
+                  "magento.controller": "noroute",
+                  "magento.frontname": "does_not_exist",
+                  "magento.module": "cms",
+                  "magento.route": "cms"
                 }
               },
                  {
@@ -1970,7 +1975,7 @@
              "meta": {
                "component": "magento",
                "magento.block.area": "frontend",
-               "magento.block.cache_key": "BLOCK_29288815a7b9dee47b84c5b3d0786fcaf11f8bf21f89644d84a39d46de807539",
+               "magento.block.cache_key": "BLOCK_f33b8f869a804074f5c019ac7b0d534ce9fc8b6de3c0ab1f4ee89c7913b70b34",
                "magento.block.class": "Magento\\Theme\\Block\\Html\\Footer",
                "magento.block.module": "Magento_Theme",
                "magento.block.name": "absolute_footer",
@@ -1988,7 +1993,7 @@
              "meta": {
                "component": "magento",
                "magento.block.area": "frontend",
-               "magento.block.cache_key": "BLOCK_34df744c9a977f9e2f983caa692823df5c68f782701cf260c6fc722c9aeb48f4",
+               "magento.block.cache_key": "BLOCK_ba54d2d4ee2877582ed298dbb6532a07f962485fd213fadb0cd4c18ff1d48cbd",
                "magento.block.class": "Magento\\Theme\\Block\\Html\\Footer",
                "magento.block.module": "Magento_Theme",
                "magento.block.name": "copyright",

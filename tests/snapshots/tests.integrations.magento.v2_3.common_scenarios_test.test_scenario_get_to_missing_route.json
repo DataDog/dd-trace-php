@@ -5,7 +5,7 @@
     "resource": "cms/noroute/index",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 15376139508242313303,
+    "parent_id": 9378749009035560194,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -16,7 +16,7 @@
       "magento.cached": "false",
       "magento.frontname": "does_not_exist",
       "magento.route": "cms",
-      "runtime-id": "c325e736-4250-4bda-b1fb-7465b302d062"
+      "runtime-id": "44074cfc-81e2-4aab-878c-cae5948bff44"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -184,7 +184,12 @@
                 "parent_id": 15,
                 "type": "web",
                 "meta": {
-                  "component": "magento"
+                  "component": "magento",
+                  "magento.action": "index",
+                  "magento.controller": "noroute",
+                  "magento.frontname": "does_not_exist",
+                  "magento.module": "cms",
+                  "magento.route": "cms"
                 }
               },
                  {

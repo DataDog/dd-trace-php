@@ -5,7 +5,7 @@
     "resource": "datadog/simple/index",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 11673549564592491304,
+    "parent_id": 11724387083724742444,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -16,7 +16,7 @@
       "magento.cached": "false",
       "magento.frontname": "datadog",
       "magento.route": "datadog",
-      "runtime-id": "bf4e20ef-ffd4-4a44-876d-164b11e80b72"
+      "runtime-id": "245bf8d8-4c19-42f9-9a8a-24a65dd665f9"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -231,7 +231,12 @@
                 "parent_id": 12,
                 "type": "web",
                 "meta": {
-                  "component": "magento"
+                  "component": "magento",
+                  "magento.action": "index",
+                  "magento.controller": "simple",
+                  "magento.frontname": "datadog",
+                  "magento.module": "datadog",
+                  "magento.route": "datadog"
                 }
               },
                  {
