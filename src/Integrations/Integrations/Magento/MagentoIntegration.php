@@ -541,7 +541,7 @@ class MagentoIntegration extends Integration
                 $cacheLifetime = $block->getCacheLifetime();
                 $span->meta['magento.block.cache_key'] = $cacheKey; // A cache key is generated even if the block is not cached
 
-                if ($$cacheLifetime !== null) {
+                if ($cacheLifetime !== null) {
                     $span->meta['magento.block.cache_lifetime'] = $cacheLifetime;
                 }
 
