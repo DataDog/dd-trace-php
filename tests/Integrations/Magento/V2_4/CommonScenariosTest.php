@@ -31,7 +31,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )
                 );
             },
-            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'magento.block.cache_key']
+            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta.magento.block.cache_key']
         );
     }
 
@@ -46,7 +46,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )
                 );
             },
-            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'magento.block.cache_key']
+            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta.magento.block.cache_key']
         );
     }
 
@@ -61,7 +61,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )->expectStatusCode(500)
                 );
             },
-            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'magento.block.cache_key']
+            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta.magento.block.cache_key']
         );
     }
 
@@ -76,7 +76,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )->expectStatusCode(404)
                 );
             },
-            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'magento.block.cache_key']
+            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta.magento.block.cache_key']
         );
     }
 }
