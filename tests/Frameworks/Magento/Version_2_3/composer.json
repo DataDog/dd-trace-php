@@ -359,12 +359,12 @@
     },
     "scripts": {
         "post-update-cmd": [
-            "find var generated vendor pub/static pub/media app/etc -type f -exec chmod g+w {} +\n",
-            "find var generated vendor pub/static pub/media app/etc -type d -exec chmod g+ws {} +\n",
-            "chmod u+x bin/magento",
-            "chmod u+x install-magento",
+            "sudo find var generated vendor pub/static pub/media app/etc -type f -exec chmod g+w {} +\n",
+            "sudo find var generated vendor pub/static pub/media app/etc -type d -exec chmod g+ws {} +\n",
+            "sudo chmod u+x bin/magento",
+            "sudo chmod u+x install-magento",
             "sudo ./install-magento",
-            "chmod -R 777 var generated pub/static pub/media"
+            "sudo chmod -R 777 var generated pub/static pub/media"
         ]
     }
 }
