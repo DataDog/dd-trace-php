@@ -63,7 +63,7 @@ class LaravelIntegration extends Integration
         $integration = $this;
 
         if (dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE") && $this->isArtisanQueueCommand()) {
-            ini_set("datadog.trace.auto_flush", 1);
+            ini_set("datadog.trace.auto_flush_enabled", 1);
             ini_set("datadog.trace.generate_root_span", 0);
         }
 
@@ -96,6 +96,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Contracts\Foundation\Application',
             'bootstrapWith',
             function ($app) use ($integration) {
+                $integration->serviceName = ddtrace_config_app_name();
                 if (empty($integration->serviceName)) {
                     $app->make('Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables')->bootstrap($app);
                     $configPath = realpath($app->configPath());

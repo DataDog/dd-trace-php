@@ -66,11 +66,12 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
         #[cfg(not(php_zend_compile_string_has_position))]
         let op_array = prev(source_string, filename);
         let duration = start.elapsed();
+        let now = SystemTime::now().duration_since(UNIX_EPOCH);
 
         // eval() failed
         // TODO we might collect this event anyway and label it accordingly in a later stage of
         // this feature
-        if op_array.is_null() {
+        if op_array.is_null() || now.is_err() {
             return op_array;
         }
 
@@ -90,6 +91,8 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 profiler.collect_compile_string(
+                    // Safety: checked for `is_err()` above
+                    now.unwrap().as_nanos() as i64,
                     duration.as_nanos() as i64,
                     filename,
                     line,

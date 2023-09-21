@@ -1,5 +1,5 @@
 --TEST--
-[profiling] test profiler's extension info
+[profiling] test profiler's extension info with disabled profiling
 --DESCRIPTION--
 The profiler's phpinfo section contains important debugging information. This
 test verifies that certain information is present.
@@ -13,6 +13,7 @@ DD_PROFILING_ENABLED=no
 DD_PROFILING_LOG_LEVEL=info
 DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=yes
 DD_PROFILING_ALLOCATION_ENABLED=yes
+DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=no
 DD_SERVICE=datadog-profiling-phpt
 DD_ENV=dev
 DD_VERSION=13
@@ -48,6 +49,7 @@ $sections = [
     ["Profiling Enabled", "false"],
     ["Experimental CPU Time Profiling Enabled", "false (profiling disabled)"],
     ["Allocation Profiling Enabled", "false (profiling disabled)"],
+    ["Experimental Exception Profiling Enabled", "false (profiling disabled)"],
     ["Endpoint Collection Enabled", "false (profiling disabled)"],
     ["Profiling Log Level", "info"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],

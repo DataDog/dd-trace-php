@@ -13,6 +13,7 @@ DD_PROFILING_ENABLED=yes
 DD_PROFILING_LOG_LEVEL=off
 DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
 DD_PROFILING_ALLOCATION_ENABLED=no
+DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=no
 DD_SERVICE=datadog-profiling-phpt
 DD_ENV=dev
 DD_VERSION=13
@@ -48,6 +49,7 @@ $sections = [
     ["Profiling Enabled", "true"],
     ["Experimental CPU Time Profiling Enabled", "false"],
     ["Allocation Profiling Enabled", "false"],
+    ["Experimental Exception Profiling Enabled", "false"],
     ["Endpoint Collection Enabled", "true"],
     ["Profiling Log Level", "off"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],
