@@ -2,18 +2,13 @@
 
 namespace DDTrace\Integrations\Magento;
 
-use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-use Magento\Framework\App\ObjectManager;
-use Magento\Framework\Interception\PluginListInterface;
+use Magento\Framework\Interception\InterceptorInterface;
 use function DDTrace\hook_method;
-use function DDTrace\install_hook;
-use function DDTrace\remove_hook;
 use function DDTrace\trace_method;
 use function DDTrace\root_span;
 
@@ -46,6 +41,15 @@ class MagentoIntegration extends Integration
 
         if ($resource !== null) {
             $span->resource = $resource;
+        }
+    }
+
+    public static function getRealClass(object $class): string
+    {
+        if ($class instanceof InterceptorInterface) {
+            return get_parent_class($class);
+        } else {
+            return get_class($class);
         }
     }
 
@@ -114,7 +118,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\AppInterface',
             'launch',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.launch');
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.launch', MagentoIntegration::getRealClass($this));
 
                 $rootSpan = root_span();
                 $rootSpan->name = 'magento.request';
@@ -127,13 +131,6 @@ class MagentoIntegration extends Integration
                 ) {
                     $rootSpan->resource = "static";
                 }
-
-                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
-                    $class = get_parent_class($this);
-                } else {
-                    $class = get_class($this);
-                }
-                $span->resource = $class;
             }
         );
 
@@ -192,14 +189,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\FrontControllerInterface',
             'dispatch',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.dispatch');
-
-                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
-                    $class = get_parent_class($this);
-                } else {
-                    $class = get_class($this);
-                }
-                $span->resource = $class;
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.dispatch', MagentoIntegration::getRealClass($this));
             }
         );
 
@@ -222,14 +212,7 @@ class MagentoIntegration extends Integration
             'Magento\MediaStorage\App\Media',
             'launch',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.launch');
-
-                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
-                    $class = get_parent_class($this);
-                } else {
-                    $class = get_class($this);
-                }
-                $span->resource = $class;
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.launch', MagentoIntegration::getRealClass($this));
 
                 $rootSpan = root_span();
                 $rootSpan->name = 'magento.request';
@@ -271,14 +254,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\FrontController',
             'processRequest',
             function (SpanData $span, $args, $action) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.process.request');
-
-                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
-                    $class = get_parent_class($this);
-                } else {
-                    $class = get_class($this);
-                }
-                $span->resource = $class;
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.process.request', MagentoIntegration::getRealClass($this));
             }
         );
 
@@ -514,14 +490,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\Controller\ResultInterface',
             'renderResult',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.result.render');
-
-                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
-                    $class = get_parent_class($this);
-                } else {
-                    $class = get_class($this);
-                }
-                $span->resource = $class;
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.result.render', MagentoIntegration::getRealClass($this));
             }
         );
 
@@ -559,12 +528,7 @@ class MagentoIntegration extends Integration
                     $span->meta['magento.block.area'] = $block->getArea();
                 }
 
-                if ($block instanceof \Magento\Framework\Interception\InterceptorInterface) {
-                    $class = get_parent_class($block);
-                } else {
-                    $class = get_class($block);
-                }
-                $span->meta['magento.block.class'] = $class;
+                $span->meta['magento.block.class'] = MagentoIntegration::getRealClass($block);
 
                 // See Magento\Widget\Model\Widget\Instance::generateLayoutUpdateXml
                 if (strlen($blockName) === 32
@@ -580,14 +544,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\ActionInterface',
             'execute',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.controller.execute');
-
-                if ($this instanceof \Magento\Framework\Interception\InterceptorInterface) {
-                    $class = get_parent_class($this);
-                } else {
-                    $class = get_class($this);
-                }
-                $span->resource = $class;
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.controller.execute', MagentoIntegration::getRealClass($this));
             }
         );
 
