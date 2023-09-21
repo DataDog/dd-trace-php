@@ -495,13 +495,18 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Framework\App\AreaList',
             'getCodeByFrontName',
-            function (SpanData $span, $args, $retval) {
+            function (SpanData $span, $args, $area) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.area.get');
 
-                $span->resource = "{$args[0]}:{$retval}";
+                $frontName = $args[0]; // It WILL either be frontend or adminhtml
+                $span->meta['magento.frontname'] = $frontName;
 
-                $span->meta['magento.frontname'] = $args[0];
-                $span->meta['magento.area'] = $retval;
+                if (empty($area)) {
+                    $span->resource = $frontName;
+                } else {
+                    $span->resource = "$frontName:$area";
+                    $span->meta['magento.area'] = $area;
+                }
             }
         );
 
