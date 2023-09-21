@@ -53,9 +53,25 @@ class MagentoIntegration extends Integration
         }
     }
 
+    /**
+     * @param $path
+     * @param SpanData $rootSpan
+     * @param $params
+     * @return void
+     */
+    public static function setStaticInfoToRootSpan(SpanData $rootSpan, $path, $params): void
+    {
+        $rootSpan->meta['magento.static.path'] = $path;
+        $rootSpan->meta['magento.static.area'] = $params['area'];
+        $rootSpan->meta['magento.static.theme'] = $params['theme'];
+        $rootSpan->meta['magento.static.locale'] = $params['locale'];
+        $rootSpan->meta['magento.static.file'] = $params['file'];
+    }
+
 
     public function init()
     {
+        // Bootstrap
         trace_method(
             'Magento\Framework\App\Bootstrap',
             '__construct',
@@ -72,6 +88,25 @@ class MagentoIntegration extends Integration
             }
         );
 
+        trace_method(
+            'Magento\Framework\App\AreaList',
+            'getCodeByFrontName',
+            function (SpanData $span, $args, $area) {
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.area.get');
+
+                $frontName = $args[0]; // It WILL either be frontend or adminhtml
+                $span->meta['magento.frontname'] = $frontName;
+
+                if (empty($area)) {
+                    $span->resource = $frontName;
+                } else {
+                    $span->resource = "$frontName:$area";
+                    $span->meta['magento.area'] = $area;
+                }
+            }
+        );
+
+        // Static resources
         hook_method(
             'Magento\Framework\App\StaticResource',
             '__construct',
@@ -84,12 +119,7 @@ class MagentoIntegration extends Integration
                 $request = $args[2];
                 $path = $request->get('resource');
                 $params = $staticResource->parsePath($path);
-
-                $rootSpan->meta['magento.static.path'] = $path;
-                $rootSpan->meta['magento.static.area'] = $params['area'];
-                $rootSpan->meta['magento.static.theme'] = $params['theme'];
-                $rootSpan->meta['magento.static.locale'] = $params['locale'];
-                $rootSpan->meta['magento.static.file'] = $params['file'];
+                MagentoIntegration::setStaticInfoToRootSpan($rootSpan, $path, $params);
             }
         );
 
@@ -105,15 +135,39 @@ class MagentoIntegration extends Integration
 
                 $path = $args[0];
                 $params = $retval;
-
-                $rootSpan->meta['magento.static.path'] = $path;
-                $rootSpan->meta['magento.static.area'] = $params['area'];
-                $rootSpan->meta['magento.static.theme'] = $params['theme'];
-                $rootSpan->meta['magento.static.locale'] = $params['locale'];
-                $rootSpan->meta['magento.static.file'] = $params['file'];
+                MagentoIntegration::setStaticInfoToRootSpan($rootSpan, $path, $params);
             }
         );
 
+        // Media resources
+        hook_method(
+            'Magento\MediaStorage\App\Media',
+            '__construct',
+            function ($media, $scope, $args) {
+                $rootSpan = root_span();
+                if ($rootSpan !== null) {
+                    $rootSpan->meta['magento.media.file'] = $args[6];
+                }
+            }
+        );
+
+        trace_method(
+            'Magento\MediaStorage\App\Media',
+            'launch',
+            function (SpanData $span) {
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.launch', MagentoIntegration::getRealClass($this));
+
+                $rootSpan = root_span();
+                MagentoIntegration::setCommonSpanInfo(
+                    $rootSpan,
+                    'magento.request',
+                    dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING") ? "media" : null
+                );
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+            }
+        );
+
+        // Request Handling
         trace_method(
             'Magento\Framework\AppInterface',
             'launch',
@@ -121,16 +175,15 @@ class MagentoIntegration extends Integration
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.launch', MagentoIntegration::getRealClass($this));
 
                 $rootSpan = root_span();
-                $rootSpan->name = 'magento.request';
-                $rootSpan->type = Type::WEB_SERVLET;
-                $rootSpan->service = \ddtrace_config_app_name('magento');
-                $rootSpan->meta[Tag::COMPONENT] = 'magento';
-
-                if ($this instanceof \Magento\Framework\App\StaticResource
+                MagentoIntegration::setCommonSpanInfo(
+                    $rootSpan,
+                    'magento.request',
+                    $this instanceof \Magento\Framework\App\StaticResource
                     && dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")
-                ) {
-                    $rootSpan->resource = "static";
-                }
+                        ? "static"
+                        : null
+                );
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
         );
 
@@ -173,14 +226,9 @@ class MagentoIntegration extends Integration
             null,
             function ($kernel, $scope, $args, $retval) {
                 $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
-
-                if ($retval instanceof \Magento\Framework\App\Response\Http) {
-                    $rootSpan->meta['magento.cached'] = "true";
-                } else {
-                    $rootSpan->meta['magento.cached'] = "false";
+                if ($rootSpan !== null) {
+                    $rootSpan->meta['magento.cached'] = $retval instanceof \Magento\Framework\App\Response\Http
+                        ? "true" : "false";
                 }
             }
         );
@@ -190,38 +238,6 @@ class MagentoIntegration extends Integration
             'dispatch',
             function (SpanData $span) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.dispatch', MagentoIntegration::getRealClass($this));
-            }
-        );
-
-        // Media
-        hook_method(
-            'Magento\MediaStorage\App\Media',
-            '__construct',
-            function ($media, $scope, $args) {
-                $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
-
-                $relativeFileName = $args[6];
-                $rootSpan->meta['magento.media.file'] = $relativeFileName;
-            }
-        );
-
-        trace_method(
-            'Magento\MediaStorage\App\Media',
-            'launch',
-            function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.launch', MagentoIntegration::getRealClass($this));
-
-                $rootSpan = root_span();
-                $rootSpan->name = 'magento.request';
-                $rootSpan->type = Type::WEB_SERVLET;
-                $rootSpan->service = \ddtrace_config_app_name('magento');
-                $rootSpan->meta[Tag::COMPONENT] = 'magento';
-                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                    $rootSpan->resource = "media";
-                }
             }
         );
 
@@ -255,6 +271,7 @@ class MagentoIntegration extends Integration
             'processRequest',
             function (SpanData $span, $args, $action) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.process.request', MagentoIntegration::getRealClass($this));
+                $span->meta['magento.action'] = MagentoIntegration::getRealClass($action);
             }
         );
 
@@ -410,79 +427,48 @@ class MagentoIntegration extends Integration
         );
         */
 
+        // Controller execution
+        trace_method(
+            'Magento\Framework\App\ActionInterface',
+            'execute',
+            function (SpanData $span) {
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.controller.execute', MagentoIntegration::getRealClass($this));
+            }
+        );
+
+        // Rendering
         trace_method(
             'Magento\Framework\View\Element\Template',
             'fetchView',
             [
                 'recurse' => true,
-                'prehook' => function (SpanData $span, $args) {
+                'prehook' => function (SpanData $span) {
                     MagentoIntegration::setCommonSpanInfo($span, 'magento.template.render');
 
                     /** @var \Magento\Framework\View\Element\Template $template */
                     $template = $this;
-                    $span->meta['magento.template'] = $span->resource = $template->getTemplate();
-                    $span->meta['magento.module'] = $template->getModuleName();
+
+                    $templateFile = $template->getTemplate();
+                    $span->meta['magento.template'] = $span->resource = $templateFile;
+
+                    $module = $template->getModuleName();
+                    $span->meta['magento.module'] = empty($module) ? substr($templateFile, 0, strpos($templateFile, '::')) : $module;
+
                     $span->meta['magento.area'] = $template->getArea();
                 }
             ]
         );
 
-        // Images
         trace_method(
             'Magento\Catalog\Block\Product\AbstractProduct',
             'getImage',
-            function (SpanData $span, $args, $retval) {
+            function (SpanData $span, $args) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.image.get');
 
                 $product = $args[0];
                 $imageId = $args[1];
                 $span->resource = $product->getName();
                 $span->meta['magento.image.id'] = $imageId;
-            }
-        );
-
-        // Response
-        trace_method(
-            'Magento\Framework\App\ResponseInterface',
-            'sendResponse',
-            function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.response.send');
-            }
-        );
-
-        trace_method(
-            'Magento\Framework\Event\ObserverInterface',
-            'execute',
-            function (SpanData $span, $args) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.event.execute');
-
-                $span->resource = get_class($this);
-
-                // If this is an instance of \Magento\PageCache\Observer\ProcessLayoutRenderElement, then return false
-                // to prevent the original execute method from being called.
-                if ($this instanceof \Magento\PageCache\Observer\ProcessLayoutRenderElement) {
-                    return false;
-                }
-
-                return true;
-            }
-        );
-
-        trace_method(
-            'Magento\Framework\App\AreaList',
-            'getCodeByFrontName',
-            function (SpanData $span, $args, $area) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.area.get');
-
-                $frontName = $args[0]; // It WILL either be frontend or adminhtml
-                $span->meta['magento.frontname'] = $frontName;
-
-                if (empty($area)) {
-                    $span->resource = $frontName;
-                } else {
-                    $span->resource = "$frontName:$area";
-                    $span->meta['magento.area'] = $area;
-                }
             }
         );
 
@@ -504,7 +490,22 @@ class MagentoIntegration extends Integration
                 /** @var \Magento\Framework\View\Element\AbstractBlock $block */
                 $block = $this;
 
-                $moduleName = $block->getModuleName() ?: 'Magento_Core'; // A core block has no module name
+                $moduleName = $block->getModuleName();
+
+                // If the block inherits \Magento\Framework\View\Element\Template, then it MAY have a template
+                if ($block instanceof \Magento\Framework\View\Element\Template) {
+                    $template = $block->getTemplate();
+                    if ($template !== null) {
+                        $span->meta['magento.block.template'] = $template;
+                        if (empty($moduleName)) {
+                            $moduleName = substr($template, 0, strpos($template, '::'));
+                        }
+                    }
+                    $span->meta['magento.block.area'] = $block->getArea();
+                }
+
+                $moduleName = empty($moduleName) ? '<core>' : $moduleName;
+
                 $blockName = $block->getNameInLayout();
                 $span->resource = "{$moduleName}:{$blockName}";
 
@@ -519,16 +520,8 @@ class MagentoIntegration extends Integration
                     $span->meta['magento.block.cache_lifetime'] = $cacheLifetime;
                 }
 
-                // If the block inherits \Magento\Framework\View\Element\Template, then it MAY have a template
-                if ($block instanceof \Magento\Framework\View\Element\Template) {
-                    $template = $block->getTemplate();
-                    if ($template !== null) {
-                        $span->meta['magento.block.template'] = $template;
-                    }
-                    $span->meta['magento.block.area'] = $block->getArea();
-                }
-
-                $span->meta['magento.block.class'] = MagentoIntegration::getRealClass($block);
+                $class = MagentoIntegration::getRealClass($block);
+                $span->meta['magento.block.class'] = $class;
 
                 // See Magento\Widget\Model\Widget\Instance::generateLayoutUpdateXml
                 if (strlen($blockName) === 32
@@ -539,12 +532,31 @@ class MagentoIntegration extends Integration
             }
         );
 
-        // Controller execution
+        // Response
         trace_method(
-            'Magento\Framework\App\ActionInterface',
+            'Magento\Framework\App\ResponseInterface',
+            'sendResponse',
+            function (SpanData $span) {
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.response.send');
+            }
+        );
+
+        // Events
+        trace_method(
+            'Magento\Framework\Event\ObserverInterface',
             'execute',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.controller.execute', MagentoIntegration::getRealClass($this));
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.event.execute');
+
+                $span->resource = get_class($this);
+
+                // If this is an instance of \Magento\PageCache\Observer\ProcessLayoutRenderElement, then return false
+                // to prevent the original execute method from being called.
+                if ($this instanceof \Magento\PageCache\Observer\ProcessLayoutRenderElement) {
+                    return false;
+                }
+
+                return true;
             }
         );
 
@@ -554,15 +566,12 @@ class MagentoIntegration extends Integration
             'Magento\Framework\AppInterface',
             'catchException',
             null,
-            function ($http, $scope, $args, $retval) use ($integration) {
+            function ($http, $scope, $args) use ($integration) {
                 $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
+                if ($rootSpan !== null) {
+                    $integration->setError($rootSpan, $args[1]);
                 }
 
-                $integration->setError($rootSpan, $args[1]);
-
-                // TODO: See if the retval should be use to state whether it should be set on the root span :shrug:
             }
         );
 

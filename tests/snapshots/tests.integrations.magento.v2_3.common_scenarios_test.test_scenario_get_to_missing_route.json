@@ -5,7 +5,7 @@
     "resource": "cms/noroute/index",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 9378749009035560194,
+    "parent_id": 14588613201731877622,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -16,7 +16,8 @@
       "magento.cached": "false",
       "magento.frontname": "does_not_exist",
       "magento.route": "cms",
-      "runtime-id": "44074cfc-81e2-4aab-878c-cae5948bff44"
+      "runtime-id": "a6455df3-7639-46b0-9d59-fcb7b845eaae",
+      "span.kind": "server"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -118,7 +119,8 @@
              "parent_id": 7,
              "type": "web",
              "meta": {
-               "component": "magento"
+               "component": "magento",
+               "magento.action": "Magento\\Framework\\App\\Response\\Http"
              }
            },
               {
@@ -172,7 +174,8 @@
              "parent_id": 7,
              "type": "web",
              "meta": {
-               "component": "magento"
+               "component": "magento",
+               "magento.action": "Magento\\Framework\\View\\Result\\Page"
              }
            },
               {
@@ -351,7 +354,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:require.js",
+             "resource": "Magento_Theme:require.js",
              "trace_id": 0,
              "span_id": 16,
              "parent_id": 8,
@@ -361,7 +364,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_8de5c9db4bc1f1472fb965ac8e94a28098f69e26",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Template",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Theme",
                "magento.block.name": "require.js",
                "magento.block.template": "Magento_Theme::page/js/require_js.phtml"
              }
@@ -377,14 +380,14 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Theme",
                   "magento.template": "Magento_Theme::page/js/require_js.phtml"
                 }
               },
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:head.additional",
+             "resource": "Magento_Theme:head.additional",
              "trace_id": 0,
              "span_id": 17,
              "parent_id": 8,
@@ -394,7 +397,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_ca424072f037156c187c26a4e9033541af1de501",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Template",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Theme",
                "magento.block.name": "head.additional",
                "magento.block.template": "Magento_Theme::html/container.phtml"
              }
@@ -410,7 +413,7 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Theme",
                   "magento.template": "Magento_Theme::html/container.phtml"
                 }
               },
@@ -434,7 +437,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:head.components",
+             "resource": "Magento_Catalog:head.components",
              "trace_id": 0,
              "span_id": 19,
              "parent_id": 8,
@@ -444,7 +447,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_3c3f42bfd3a1da837aec5092d3847bd7b06882a3",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Js\\Components",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Catalog",
                "magento.block.name": "head.components",
                "magento.block.template": "Magento_Catalog::js/components.phtml"
              }
@@ -460,7 +463,7 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Catalog",
                   "magento.template": "Magento_Catalog::js/components.phtml"
                 }
               },
@@ -475,7 +478,7 @@
                    "meta": {
                      "component": "magento",
                      "magento.area": "frontend",
-                     "magento.module": "",
+                     "magento.module": "Magento_Sales",
                      "magento.template": "Magento_Sales::js/components.phtml"
                    }
                  },
@@ -490,7 +493,7 @@
                    "meta": {
                      "component": "magento",
                      "magento.area": "frontend",
-                     "magento.module": "",
+                     "magento.module": "Magento_Checkout",
                      "magento.template": "Magento_Checkout::js/components.phtml"
                    }
                  },
@@ -505,7 +508,7 @@
                    "meta": {
                      "component": "magento",
                      "magento.area": "frontend",
-                     "magento.module": "",
+                     "magento.module": "Magento_PageCache",
                      "magento.template": "Magento_PageCache::js/components.phtml"
                    }
                  },
@@ -520,7 +523,7 @@
                    "meta": {
                      "component": "magento",
                      "magento.area": "frontend",
-                     "magento.module": "",
+                     "magento.module": "Magento_Bundle",
                      "magento.template": "Magento_Bundle::js/components.phtml"
                    }
                  },
@@ -535,7 +538,7 @@
                    "meta": {
                      "component": "magento",
                      "magento.area": "frontend",
-                     "magento.module": "",
+                     "magento.module": "Magento_Newsletter",
                      "magento.template": "Magento_Newsletter::js/components.phtml"
                    }
                  },
@@ -550,7 +553,7 @@
                    "meta": {
                      "component": "magento",
                      "magento.area": "frontend",
-                     "magento.module": "",
+                     "magento.module": "Magento_Reports",
                      "magento.template": "Magento_Reports::js/components.phtml"
                    }
                  },
@@ -565,7 +568,7 @@
                    "meta": {
                      "component": "magento",
                      "magento.area": "frontend",
-                     "magento.module": "",
+                     "magento.module": "Magento_Wishlist",
                      "magento.template": "Magento_Wishlist::js/components.phtml"
                    }
                  },
@@ -588,7 +591,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:js_cookies",
+             "resource": "Magento_Theme:js_cookies",
              "trace_id": 0,
              "span_id": 21,
              "parent_id": 8,
@@ -598,7 +601,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_bbeb41967a6c7d6b10e68238e2383e25ee2ca20c",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Js\\Cookie",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Theme",
                "magento.block.name": "js_cookies",
                "magento.block.template": "Magento_Theme::js/cookie.phtml"
              }
@@ -614,7 +617,7 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Theme",
                   "magento.template": "Magento_Theme::js/cookie.phtml"
                 }
               },
@@ -687,7 +690,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:cookie_config",
+             "resource": "Magento_Cookie:cookie_config",
              "trace_id": 0,
              "span_id": 24,
              "parent_id": 8,
@@ -697,7 +700,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_4c5cd9811de35ec49b84041057140163f79ac415",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Js\\Cookie",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Cookie",
                "magento.block.name": "cookie_config",
                "magento.block.template": "Magento_Cookie::html/cookie.phtml"
              }
@@ -713,7 +716,7 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Cookie",
                   "magento.template": "Magento_Cookie::html/cookie.phtml"
                 }
               },
@@ -804,7 +807,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:skip_to_content",
+             "resource": "Magento_Theme:skip_to_content",
              "trace_id": 0,
              "span_id": 28,
              "parent_id": 8,
@@ -814,7 +817,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_3cb84a4477814d5a831cf78d5f9b07fc4c339f9e",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Template",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Theme",
                "magento.block.name": "skip_to_content",
                "magento.block.template": "Magento_Theme::html/skip.phtml"
              }
@@ -830,7 +833,7 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Theme",
                   "magento.template": "Magento_Theme::html/skip.phtml"
                 }
               },
@@ -903,7 +906,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:header.links",
+             "resource": "<core>:header.links",
              "trace_id": 0,
              "span_id": 31,
              "parent_id": 8,
@@ -913,7 +916,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_e4ae7cc3999a4185b6ce7515287ff69e94bedeef",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Html\\Links",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "<core>",
                "magento.block.name": "header.links"
              }
            },
@@ -1031,7 +1034,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:top.search",
+             "resource": "Magento_Search:top.search",
              "trace_id": 0,
              "span_id": 34,
              "parent_id": 8,
@@ -1041,7 +1044,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_759a97cb1f3a76d61c8c3edc0574da58592b120f",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Template",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Search",
                "magento.block.name": "top.search",
                "magento.block.template": "Magento_Search::form.mini.phtml"
              }
@@ -1057,7 +1060,7 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Search",
                   "magento.template": "Magento_Search::form.mini.phtml"
                 }
               },
@@ -1072,14 +1075,14 @@
                    "meta": {
                      "component": "magento",
                      "magento.area": "frontend",
-                     "magento.module": "",
+                     "magento.module": "Magento_CatalogSearch",
                      "magento.template": "Magento_CatalogSearch::advanced/link.phtml"
                    }
                  },
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:catalog.compare.link",
+             "resource": "Magento_Catalog:catalog.compare.link",
              "trace_id": 0,
              "span_id": 35,
              "parent_id": 8,
@@ -1089,7 +1092,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_b110f3f0afbe0821dc3170bb40d1b8d1cc6d18e5",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Template",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Catalog",
                "magento.block.name": "catalog.compare.link",
                "magento.block.template": "Magento_Catalog::product/compare/link.phtml"
              }
@@ -1105,14 +1108,14 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Catalog",
                   "magento.template": "Magento_Catalog::product/compare/link.phtml"
                 }
               },
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:navigation.sections",
+             "resource": "Magento_Theme:navigation.sections",
              "trace_id": 0,
              "span_id": 36,
              "parent_id": 8,
@@ -1122,7 +1125,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_982827c4857bfc1149322be30ad11a7efdaabcc3",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Template",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Theme",
                "magento.block.name": "navigation.sections",
                "magento.block.template": "Magento_Theme::html/sections.phtml"
              }
@@ -1138,7 +1141,7 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Theme",
                   "magento.template": "Magento_Theme::html/sections.phtml"
                 }
               },
@@ -1153,7 +1156,7 @@
                    "meta": {
                      "component": "magento",
                      "magento.area": "frontend",
-                     "magento.module": "",
+                     "magento.module": "Magento_Theme",
                      "magento.template": "Magento_Theme::html/container.phtml"
                    }
                  },
@@ -1180,7 +1183,7 @@
                    "meta": {
                      "component": "magento",
                      "magento.area": "frontend",
-                     "magento.module": "",
+                     "magento.module": "Magento_Theme",
                      "magento.template": "Magento_Theme::html/container.phtml"
                    }
                  },
@@ -1250,7 +1253,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:skip_to_content.target",
+             "resource": "Magento_Theme:skip_to_content.target",
              "trace_id": 0,
              "span_id": 38,
              "parent_id": 8,
@@ -1260,7 +1263,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_a51f00095ae0f08ab4982e70a4506cbd66a0da85",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Template",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Theme",
                "magento.block.name": "skip_to_content.target",
                "magento.block.template": "Magento_Theme::html/skiptarget.phtml"
              }
@@ -1276,7 +1279,7 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Theme",
                   "magento.template": "Magento_Theme::html/skiptarget.phtml"
                 }
               },
@@ -1316,7 +1319,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:ajax.message.placeholder",
+             "resource": "Magento_Theme:ajax.message.placeholder",
              "trace_id": 0,
              "span_id": 40,
              "parent_id": 8,
@@ -1326,7 +1329,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_90c803772bec40138b948e65d24c24f6f41dfc35",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Template",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Theme",
                "magento.block.name": "ajax.message.placeholder",
                "magento.block.template": "Magento_Theme::html/messages.phtml"
              }
@@ -1342,14 +1345,14 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Theme",
                   "magento.template": "Magento_Theme::html/messages.phtml"
                 }
               },
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:messages",
+             "resource": "Magento_Theme:messages",
              "trace_id": 0,
              "span_id": 41,
              "parent_id": 8,
@@ -1359,7 +1362,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_da39a3ee5e6b4b0d3255bfef95601890afd80709",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Messages",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Theme",
                "magento.block.name": "messages",
                "magento.block.template": "Magento_Theme::messages.phtml"
              }
@@ -1375,14 +1378,14 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Theme",
                   "magento.template": "Magento_Theme::messages.phtml"
                 }
               },
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:formkey",
+             "resource": "<core>:formkey",
              "trace_id": 0,
              "span_id": 42,
              "parent_id": 8,
@@ -1391,7 +1394,7 @@
                "component": "magento",
                "magento.block.cache_key": "BLOCK_bdf887740cf29190176399fb4e14d2fade6601be",
                "magento.block.class": "Magento\\Framework\\View\\Element\\FormKey",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "<core>",
                "magento.block.name": "formkey"
              }
            },
@@ -1579,7 +1582,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:catalog.compare.sidebar",
+             "resource": "Magento_Catalog:catalog.compare.sidebar",
              "trace_id": 0,
              "span_id": 49,
              "parent_id": 8,
@@ -1589,7 +1592,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_afd605299c48fc98f61bb48558395465860d3137",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Template",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "Magento_Catalog",
                "magento.block.name": "catalog.compare.sidebar",
                "magento.block.template": "Magento_Catalog::product/compare/sidebar.phtml"
              }
@@ -1605,7 +1608,7 @@
                 "meta": {
                   "component": "magento",
                   "magento.area": "frontend",
-                  "magento.module": "",
+                  "magento.module": "Magento_Catalog",
                   "magento.template": "Magento_Catalog::product/compare/sidebar.phtml"
                 }
               },
@@ -1696,7 +1699,7 @@
            {
              "name": "magento.block.render",
              "service": "magento",
-             "resource": "Magento_Core:footer_links",
+             "resource": "<core>:footer_links",
              "trace_id": 0,
              "span_id": 53,
              "parent_id": 8,
@@ -1706,7 +1709,7 @@
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_e4ae7cc3999a4185b6ce7515287ff69e94bedeef",
                "magento.block.class": "Magento\\Framework\\View\\Element\\Html\\Links",
-               "magento.block.module": "Magento_Core",
+               "magento.block.module": "<core>",
                "magento.block.name": "footer_links"
              }
            },
@@ -1788,6 +1791,7 @@
                "component": "magento",
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_d6cd1f9f4f48e1c72f7088978f21439a92a5c5c9",
+               "magento.block.cache_lifetime": "3600",
                "magento.block.class": "Magento\\Theme\\Block\\Html\\Footer",
                "magento.block.module": "Magento_Theme",
                "magento.block.name": "absolute_footer",
@@ -1806,6 +1810,7 @@
                "component": "magento",
                "magento.block.area": "frontend",
                "magento.block.cache_key": "BLOCK_d49f29979a1dfbd05b963e873020dd9079e9191b",
+               "magento.block.cache_lifetime": "3600",
                "magento.block.class": "Magento\\Theme\\Block\\Html\\Footer",
                "magento.block.module": "Magento_Theme",
                "magento.block.name": "copyright",

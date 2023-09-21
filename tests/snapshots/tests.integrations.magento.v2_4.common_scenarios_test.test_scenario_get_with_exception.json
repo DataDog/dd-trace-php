@@ -5,7 +5,7 @@
     "resource": "datadog/error/index",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 6669374448769099567,
+    "parent_id": 9209045489984248703,
     "type": "web",
     "error": 1,
     "meta": {
@@ -20,7 +20,8 @@
       "magento.cached": "false",
       "magento.frontname": "datadog",
       "magento.route": "datadog",
-      "runtime-id": "a5b6aba6-4458-4a71-aa14-70293bf875d0"
+      "runtime-id": "5a31f3ed-4708-481c-8ac6-7c92c046cc34",
+      "span.kind": "server"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
