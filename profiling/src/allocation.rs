@@ -8,6 +8,7 @@ use log::{debug, error, trace, warn};
 use rand::rngs::ThreadRng;
 use std::cell::RefCell;
 use std::ffi::CStr;
+use std::time::Instant;
 
 use rand_distr::{Distribution, Poisson};
 
@@ -60,7 +61,7 @@ impl AllocationProfilingStats {
         self.next_sample = self.poisson.sample(&mut self.rng) as i64;
     }
 
-    fn track_allocation(&mut self, len: size_t) {
+    fn track_allocation(&mut self, len: size_t, start: Instant) {
         self.next_sample -= len as i64;
 
         if self.next_sample > 0 {
@@ -75,7 +76,6 @@ impl AllocationProfilingStats {
             };
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
                 unsafe {
                     profiler.collect_allocations(
                         zend::ddog_php_prof_get_current_execute_data(),
@@ -84,6 +84,8 @@ impl AllocationProfilingStats {
                         &locals,
                     )
                 };
+
+                profiler.collect_overhead(start, "allocation", &locals);
             }
         });
     }
@@ -334,9 +336,11 @@ unsafe extern "C" fn alloc_profiling_malloc(len: size_t) -> *mut c_void {
         return ptr;
     }
 
+    let start = Instant::now();
+
     ALLOCATION_PROFILING_STATS.with(|cell| {
         let mut allocations = cell.borrow_mut();
-        allocations.track_allocation(len)
+        allocations.track_allocation(len, start);
     });
 
     ptr
@@ -387,9 +391,11 @@ unsafe extern "C" fn alloc_profiling_realloc(prev_ptr: *mut c_void, len: size_t)
         return ptr;
     }
 
+    let start = Instant::now();
+
     ALLOCATION_PROFILING_STATS.with(|cell| {
         let mut allocations = cell.borrow_mut();
-        allocations.track_allocation(len)
+        allocations.track_allocation(len, start);
     });
 
     ptr

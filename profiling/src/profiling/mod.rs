@@ -934,6 +934,58 @@ impl Profiler {
         }
     }
 
+    #[cfg(feature = "timeline")]
+    /// collect a stack frame for garbage collection.
+    /// as we do not know about the overhead currently, we only collect a fake frame.
+    pub fn collect_overhead(&self, start: Instant, reason: &'static str, locals: &RequestLocals) {
+        let mut labels = Profiler::message_labels();
+
+        lazy_static! {
+            static ref TIMELINE_GC_LABELS: Vec<Label> = vec![Label {
+                key: "event",
+                value: LabelValue::Str("stack walk".into()),
+            },];
+        }
+
+        labels.extend_from_slice(&TIMELINE_GC_LABELS);
+        labels.push(Label {
+            key: "reason",
+            value: LabelValue::Str(Cow::from(reason)),
+        });
+        labels.push(Label {
+            key: "end_timestamp_ns",
+            value: LabelValue::Num(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos() as i64,
+                None,
+            ),
+        });
+        let n_labels = labels.len();
+
+        match self.send_sample(Profiler::prepare_sample_message(
+            vec![ZendFrame {
+                function: "[stack walk]".into(),
+                file: None,
+                line: 0,
+            }],
+            SampleValues {
+                timeline: start.elapsed().as_nanos() as i64,
+                ..Default::default()
+            },
+            labels,
+            locals,
+        )) {
+            Ok(_) => {
+                trace!("Sent event 'stack walk' with {n_labels} labels and reason {reason} to profiler.")
+            }
+            Err(err) => {
+                warn!("Failed to send event 'stack walk' with {n_labels} and reason {reason} labels to profiler: {err}")
+            }
+        }
+    }
+
     fn message_labels() -> Vec<Label> {
         let gpc = unsafe { datadog_php_profiling_get_profiling_context };
         if let Some(get_profiling_context) = gpc {
