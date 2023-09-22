@@ -79,6 +79,7 @@ final class NginxServer
 
         // Check that the process started and nginx is listening
         $this->process->waitUntil(function ($type, $output) {
+            error_log("[nginx] {$output}");
             return strpos($output, 'nginx: [emerg]') === false;
         }, 10);
     }
