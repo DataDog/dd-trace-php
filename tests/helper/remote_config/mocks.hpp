@@ -9,7 +9,9 @@
 #include "../common.hpp"
 #include "base64.h"
 #include "engine.hpp"
+#include "remote_config/client.hpp"
 #include "remote_config/config.hpp"
+#include "service_identifier.hpp"
 
 namespace dds::remote_config::mock {
 
@@ -26,6 +28,19 @@ public:
         (override));
 
     static auto create() { return std::shared_ptr<engine>(new engine()); }
+};
+
+class client : public remote_config::client {
+public:
+    client(service_identifier sid)
+        : remote_config::client(nullptr, std::move(sid), {})
+    {}
+    ~client() override = default;
+    MOCK_METHOD0(poll, bool());
+    MOCK_METHOD0(is_remote_config_available, bool());
+    MOCK_METHOD(void, register_runtime_id, (const std::string &id), (override));
+    MOCK_METHOD(
+        void, unregister_runtime_id, (const std::string &id), (override));
 };
 
 inline remote_config::config generate_config(

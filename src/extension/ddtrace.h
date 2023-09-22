@@ -33,3 +33,4 @@ void dd_trace_close_all_spans_and_flush(void);
 // It is ready for modification, with refcount == 1
 zval *nullable dd_trace_root_span_get_meta(void);
 zval *nullable dd_trace_root_span_get_metrics(void);
+zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);

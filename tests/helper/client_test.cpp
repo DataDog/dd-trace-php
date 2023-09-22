@@ -33,6 +33,19 @@ public:
             bool dynamic_enablement),
         (override));
 };
+
+class service : public dds::service {
+public:
+    service(std::shared_ptr<engine> engine,
+        std::shared_ptr<service_config> service_config)
+        : dds::service(engine, service_config, {})
+    {}
+
+    MOCK_METHOD(void, register_runtime_id, (const std::string &id), (override));
+    MOCK_METHOD(
+        void, unregister_runtime_id, (const std::string &id), (override));
+};
+
 } // namespace mock
 
 void send_client_init(
@@ -134,6 +147,87 @@ TEST(ClientTest, ClientInit)
     // with EXPECT_NEAR.
     EXPECT_EQ(msg_res->metrics[tag::event_rules_loaded], 3.0);
     EXPECT_EQ(msg_res->metrics[tag::event_rules_failed], 0.0);
+}
+
+TEST(ClientTest, ClientInitRegisterRuntimeId)
+{
+    std::shared_ptr<engine> engine{engine::create()};
+    auto service_config = std::make_shared<dds::service_config>();
+
+    auto service = std::make_shared<mock::service>(engine, service_config);
+    auto smanager = std::make_shared<mock::service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    auto fn = create_sample_rules_ok();
+
+    network::client_init::request msg;
+    msg.pid = 1729;
+    msg.runtime_version = "1.0";
+    msg.client_version = "2.0";
+    msg.service.runtime_id = "thisisaruntimeid";
+    msg.engine_settings.rules_file = fn;
+
+    network::request req(std::move(msg));
+
+    std::shared_ptr<network::base_response> res;
+    EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+    EXPECT_CALL(*broker,
+        send(testing::An<const std::shared_ptr<network::base_response> &>()))
+        .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+    EXPECT_CALL(*smanager, create_service(_, _, _, _, _, true))
+        .Times(1)
+        .WillOnce(Return(service));
+
+    std::string runtime_id;
+    EXPECT_CALL(*service, register_runtime_id(_))
+        .Times(1)
+        .WillOnce(testing::SaveArg<0>(&runtime_id));
+
+    EXPECT_TRUE(c.run_client_init());
+    EXPECT_STREQ(runtime_id.c_str(), "thisisaruntimeid");
+}
+
+TEST(ClientTest, ClientInitGeneratesRuntimeId)
+{
+    std::shared_ptr<engine> engine{engine::create()};
+    auto service_config = std::make_shared<dds::service_config>();
+
+    auto service = std::make_shared<mock::service>(engine, service_config);
+    auto smanager = std::make_shared<mock::service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    auto fn = create_sample_rules_ok();
+
+    network::client_init::request msg;
+    msg.pid = 1729;
+    msg.runtime_version = "1.0";
+    msg.client_version = "2.0";
+    msg.engine_settings.rules_file = fn;
+
+    network::request req(std::move(msg));
+
+    std::shared_ptr<network::base_response> res;
+    EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+    EXPECT_CALL(*broker,
+        send(testing::An<const std::shared_ptr<network::base_response> &>()))
+        .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+    EXPECT_CALL(*smanager, create_service(_, _, _, _, _, true))
+        .Times(1)
+        .WillOnce(Return(service));
+
+    std::string runtime_id;
+    EXPECT_CALL(*service, register_runtime_id(_))
+        .Times(1)
+        .WillOnce(testing::SaveArg<0>(&runtime_id));
+
+    EXPECT_TRUE(c.run_client_init());
+    EXPECT_STRNE(runtime_id.c_str(), "");
 }
 
 TEST(ClientTest, ClientInitInvalidRules)

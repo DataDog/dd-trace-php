@@ -125,8 +125,13 @@ static dd_result _pack_command(
     // We send this empty for now. The helper will check for empty and if so it
     // will generate it
     dd_mpack_write_lstr(w, "runtime_id");
-    dd_mpack_write_nullable_cstr(w, "");
-
+    zend_string *runtime_id = dd_trace_get_formatted_runtime_id(false);
+    if (runtime_id == NULL) {
+        dd_mpack_write_nullable_cstr(w, "");
+    } else {
+        dd_mpack_write_nullable_zstr(w, runtime_id);
+        zend_string_free(runtime_id);
+    }
     mpack_finish_map(w);
 
     // Engine settings
