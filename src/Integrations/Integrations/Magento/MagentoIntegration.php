@@ -237,7 +237,11 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\FrontControllerInterface',
             'dispatch',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.dispatch', MagentoIntegration::getRealClass($this));
+                MagentoIntegration::setCommonSpanInfo(
+                    $span,
+                    'magento.dispatch',
+                    MagentoIntegration::getRealClass($this)
+                );
             }
         );
 
@@ -270,7 +274,11 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\FrontController',
             'processRequest',
             function (SpanData $span, $args, $action) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.process.request', MagentoIntegration::getRealClass($this));
+                MagentoIntegration::setCommonSpanInfo(
+                    $span,
+                    'magento.process.request',
+                    MagentoIntegration::getRealClass($this)
+                );
                 $span->meta['magento.action'] = MagentoIntegration::getRealClass($action);
             }
         );
@@ -432,7 +440,11 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\ActionInterface',
             'execute',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.controller.execute', MagentoIntegration::getRealClass($this));
+                MagentoIntegration::setCommonSpanInfo(
+                    $span,
+                    'magento.controller.execute',
+                    MagentoIntegration::getRealClass($this)
+                );
             }
         );
 
@@ -452,7 +464,9 @@ class MagentoIntegration extends Integration
                     $span->meta['magento.template'] = $span->resource = $templateFile;
 
                     $module = $template->getModuleName();
-                    $span->meta['magento.module'] = empty($module) ? substr($templateFile, 0, strpos($templateFile, '::')) : $module;
+                    $span->meta['magento.module'] = empty($module)
+                        ? substr($templateFile, 0, strpos($templateFile, '::'))
+                        : $module;
 
                     $span->meta['magento.area'] = $template->getArea();
                 }
@@ -476,7 +490,11 @@ class MagentoIntegration extends Integration
             'Magento\Framework\Controller\ResultInterface',
             'renderResult',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.result.render', MagentoIntegration::getRealClass($this));
+                MagentoIntegration::setCommonSpanInfo(
+                    $span,
+                    'magento.result.render',
+                    MagentoIntegration::getRealClass($this)
+                );
             }
         );
 
