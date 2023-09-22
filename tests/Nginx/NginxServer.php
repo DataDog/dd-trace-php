@@ -76,6 +76,11 @@ final class NginxServer
 
         $this->process = new Process($processCmd);
         $this->process->start();
+
+        // Check that the process started and nginx is listening
+        $this->process->waitUntil(function ($type, $output) {
+            return strpos($output, 'nginx: [emerg]') === false;
+        }, 10);
     }
 
     public function stop()
