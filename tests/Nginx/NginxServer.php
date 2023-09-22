@@ -56,7 +56,7 @@ final class NginxServer
         // This gets logged to phpunit_error.log (check CircleCI artifacts)
         error_log("[nginx] Generated config file '{$this->configFile}' for '{$indexFile}'");
         error_log("[nginx] Error log: '" . $replacements['{{error_log}}'] . "'");
-        error_log($configContent);
+        //error_log($configContent);
 
         if (false === file_put_contents($this->configFile, $configContent)) {
             throw new \Exception('Error creating temp nginx config file: ' . $this->configFile);
@@ -76,12 +76,6 @@ final class NginxServer
 
         $this->process = new Process($processCmd);
         $this->process->start();
-
-        // Check that the process started and nginx is listening
-        $this->process->waitUntil(function ($type, $output) {
-            error_log("[nginx] {$output}");
-            return strpos($output, 'nginx: [emerg]') === false;
-        }, 10);
     }
 
     public function stop()
