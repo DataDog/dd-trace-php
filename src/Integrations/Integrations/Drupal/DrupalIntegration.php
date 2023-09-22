@@ -8,7 +8,6 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
-
 use Drupal\Core\EventSubscriber\MainContentViewSubscriber;
 use function DDTrace\active_span;
 use function DDTrace\hook_method;
@@ -142,6 +141,57 @@ class DrupalIntegration extends Integration
         );
         */
 
+        $callbackHookId = null;
+        hook_method(
+            'Drupal\Core\Extension\ModuleHandler',
+            'invokeAllWith',
+            function ($moduleHandler, $scope, $args) use (&$callbackHookId) {
+                /** @var string $hook */
+                $hook = $args[0];
+                /** @var callable $callback */
+                $callback = $args[1];
+
+                if ($hook === 'cron') {
+                    install_hook(
+                        $callback,
+                        function (HookData $callbackHookData) use ($hook, &$callbackHookId) {
+                            $callbackHookId = $callbackHookData->id;
+
+                            // callback's signature: (callable $hook, string $module)
+                            $args = $callbackHookData->args;
+                            $module = $args[1];
+
+                            $functionName = $module . '_' . $hook;
+                            install_hook(
+                                $functionName,
+                                function (HookData $fnHookData) use ($hook, $module, $functionName) {
+                                    $span = $fnHookData->span();
+                                    $span->name = 'drupal.hook.' . $hook;
+                                    $span->type = Type::WEB_SERVLET;
+                                    $span->service = \ddtrace_config_app_name('drupal');
+                                    $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+                                    $span->resource = $functionName;
+
+                                    $span->meta['drupal.hook'] = $hook;
+                                    $span->meta['drupal.module'] = $module;
+                                    $span->meta['drupal.function'] = $functionName;
+
+                                    remove_hook($fnHookData->id);
+                                }
+                            );
+                        }
+                    );
+                }
+            }, function () use (&$callbackHookId) {
+                if ($callbackHookId) {
+                    remove_hook($callbackHookId);
+                    $callbackHookId = null;
+                }
+            }
+        );
+
+
+
         // View Metrics
         /*
         install_hook(
@@ -257,7 +307,6 @@ class DrupalIntegration extends Integration
                         if ($runtimeThemeRegistry->has($hook)) {
                             $span->meta['drupal.render.hook'] = $span->resource = $hook;
                             $info = $runtimeThemeRegistry->get($hook);
-                            Logger::get()->debug(json_encode($info, JSON_PRETTY_PRINT));
 
                             if (isset($info['base hook'])) {
                                 $span->meta['drupal.render.base_hook'] = $info['base hook'];
