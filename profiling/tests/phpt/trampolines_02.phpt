@@ -7,7 +7,6 @@ https://heap.space/xref/PHP-8.2/Zend/zend_closures.c?r=af2110e6#60-63
 
 Our zend_execute_internal hook inspected the func after the call has been made,
 potentially triggering the issue. This test will likely only fail under asan.
-It's unclear how the customer also got a crash out of it.
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))
