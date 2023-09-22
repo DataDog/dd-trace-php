@@ -117,8 +117,8 @@ int dd_execute_php_file(const char *filename) {
                     zend_object *ex = EG(exception);
 
                     const char *type = ex->ce->name->val;
-                    zend_string *msg = zai_exception_message(ex);
-                    log("%s thrown in request init hook: %s", type, ZSTR_VAL(msg));
+                    const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)): "<exit>";
+                    log("%s thrown in request init hook: %s", type, msg);
                 })
             }
             ddtrace_maybe_clear_exception();
