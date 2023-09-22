@@ -5,7 +5,7 @@
     "resource": "simple_view",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 7880900357209022862,
+    "parent_id": 13771721054768625547,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple_view",
-      "runtime-id": "89a627c5-8a78-4344-818e-cf575b04ca0e",
+      "runtime-id": "c5dc6e6f-8a28-414f-95f5-5fe7a8f51ccb",
       "span.kind": "server",
       "symfony.route.action": "Drupal\\datadog\\Controller\\DatadogController@simpleView",
       "symfony.route.name": "simple_view"
@@ -122,7 +122,7 @@
               {
                 "name": "symfony.kernel.view",
                 "service": "test_drupal_95",
-                "resource": "symfony.kernel.view",
+                "resource": "Drupal\\Core\\Render\\MainContent\\HtmlRenderer",
                 "trace_id": 0,
                 "span_id": 12,
                 "parent_id": 7,
@@ -146,181 +146,193 @@
                  {
                    "name": "drupal.theme.render",
                    "service": "test_drupal_95",
-                   "resource": "drupal.theme.render",
+                   "resource": "datadog",
                    "trace_id": 0,
                    "span_id": 16,
                    "parent_id": 12,
                    "type": "web",
                    "meta": {
                      "component": "drupal",
-                     "drupal.template": "modules/datadog/templates/datadog.html.twig",
-                     "drupal.theme.engine": "twig",
-                     "drupal.theme.name": "stark"
+                     "drupal.render.engine": "twig",
+                     "drupal.render.hook": "datadog",
+                     "drupal.render.theme": "stark",
+                     "drupal.template.file": "modules/datadog/templates/datadog.html.twig"
                    }
                  },
                  {
                    "name": "drupal.theme.render",
                    "service": "test_drupal_95",
-                   "resource": "drupal.theme.render",
+                   "resource": "html",
                    "trace_id": 0,
                    "span_id": 17,
                    "parent_id": 12,
                    "type": "web",
                    "meta": {
                      "component": "drupal",
-                     "drupal.template": "core/modules/system/templates/html.html.twig",
-                     "drupal.theme.engine": "twig",
-                     "drupal.theme.name": "stark"
+                     "drupal.render.engine": "twig",
+                     "drupal.render.hook": "html",
+                     "drupal.render.theme": "stark",
+                     "drupal.template.file": "core/modules/system/templates/html.html.twig"
                    }
                  },
                     {
                       "name": "drupal.theme.render",
                       "service": "test_drupal_95",
-                      "resource": "drupal.theme.render",
+                      "resource": "page",
                       "trace_id": 0,
                       "span_id": 18,
                       "parent_id": 17,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
-                        "drupal.template": "core/modules/system/templates/page.html.twig",
-                        "drupal.theme.engine": "twig",
-                        "drupal.theme.name": "stark"
+                        "drupal.render.engine": "twig",
+                        "drupal.render.hook": "page",
+                        "drupal.render.theme": "stark",
+                        "drupal.template.file": "core/modules/system/templates/page.html.twig"
                       }
                     },
                        {
                          "name": "drupal.theme.render",
                          "service": "test_drupal_95",
-                         "resource": "drupal.theme.render",
+                         "resource": "block",
                          "trace_id": 0,
                          "span_id": 20,
                          "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
-                           "drupal.template": "core/modules/system/templates/block--system-branding-block.html.twig",
-                           "drupal.theme.engine": "twig",
-                           "drupal.theme.name": "stark"
+                           "drupal.render.engine": "twig",
+                           "drupal.render.hook": "block",
+                           "drupal.render.theme": "stark",
+                           "drupal.template.file": "core/modules/system/templates/block--system-branding-block.html.twig"
                          }
                        },
                        {
                          "name": "drupal.theme.render",
                          "service": "test_drupal_95",
-                         "resource": "drupal.theme.render",
+                         "resource": "region",
                          "trace_id": 0,
                          "span_id": 21,
                          "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
-                           "drupal.template": "core/modules/system/templates/region.html.twig",
-                           "drupal.theme.engine": "twig",
-                           "drupal.theme.name": "stark"
+                           "drupal.render.engine": "twig",
+                           "drupal.render.hook": "region",
+                           "drupal.render.theme": "stark",
+                           "drupal.template.file": "core/modules/system/templates/region.html.twig"
                          }
                        },
                        {
                          "name": "drupal.theme.render",
                          "service": "test_drupal_95",
-                         "resource": "drupal.theme.render",
+                         "resource": "block",
                          "trace_id": 0,
                          "span_id": 22,
                          "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
-                           "drupal.template": "core/modules/system/templates/block--system-messages-block.html.twig",
-                           "drupal.theme.engine": "twig",
-                           "drupal.theme.name": "stark"
+                           "drupal.render.engine": "twig",
+                           "drupal.render.hook": "block",
+                           "drupal.render.theme": "stark",
+                           "drupal.template.file": "core/modules/system/templates/block--system-messages-block.html.twig"
                          }
                        },
                        {
                          "name": "drupal.theme.render",
                          "service": "test_drupal_95",
-                         "resource": "drupal.theme.render",
+                         "resource": "region",
                          "trace_id": 0,
                          "span_id": 23,
                          "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
-                           "drupal.template": "core/modules/system/templates/region.html.twig",
-                           "drupal.theme.engine": "twig",
-                           "drupal.theme.name": "stark"
+                           "drupal.render.engine": "twig",
+                           "drupal.render.hook": "region",
+                           "drupal.render.theme": "stark",
+                           "drupal.template.file": "core/modules/system/templates/region.html.twig"
                          }
                        },
                        {
                          "name": "drupal.theme.render",
                          "service": "test_drupal_95",
-                         "resource": "drupal.theme.render",
+                         "resource": "block",
                          "trace_id": 0,
                          "span_id": 24,
                          "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
-                           "drupal.template": "core/modules/block/templates/block.html.twig",
-                           "drupal.theme.engine": "twig",
-                           "drupal.theme.name": "stark"
+                           "drupal.render.engine": "twig",
+                           "drupal.render.hook": "block",
+                           "drupal.render.theme": "stark",
+                           "drupal.template.file": "core/modules/block/templates/block.html.twig"
                          }
                        },
                           {
                             "name": "drupal.theme.render",
                             "service": "test_drupal_95",
-                            "resource": "drupal.theme.render",
+                            "resource": "page_title",
                             "trace_id": 0,
                             "span_id": 27,
                             "parent_id": 24,
                             "type": "web",
                             "meta": {
                               "component": "drupal",
-                              "drupal.template": "core/modules/system/templates/page-title.html.twig",
-                              "drupal.theme.engine": "twig",
-                              "drupal.theme.name": "stark"
+                              "drupal.render.engine": "twig",
+                              "drupal.render.hook": "page_title",
+                              "drupal.render.theme": "stark",
+                              "drupal.template.file": "core/modules/system/templates/page-title.html.twig"
                             }
                           },
                        {
                          "name": "drupal.theme.render",
                          "service": "test_drupal_95",
-                         "resource": "drupal.theme.render",
+                         "resource": "region",
                          "trace_id": 0,
                          "span_id": 25,
                          "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
-                           "drupal.template": "core/modules/system/templates/region.html.twig",
-                           "drupal.theme.engine": "twig",
-                           "drupal.theme.name": "stark"
+                           "drupal.render.engine": "twig",
+                           "drupal.render.hook": "region",
+                           "drupal.render.theme": "stark",
+                           "drupal.template.file": "core/modules/system/templates/region.html.twig"
                          }
                        },
                        {
                          "name": "drupal.theme.render",
                          "service": "test_drupal_95",
-                         "resource": "drupal.theme.render",
+                         "resource": "region",
                          "trace_id": 0,
                          "span_id": 26,
                          "parent_id": 18,
                          "type": "web",
                          "meta": {
                            "component": "drupal",
-                           "drupal.template": "core/modules/system/templates/region.html.twig",
-                           "drupal.theme.engine": "twig",
-                           "drupal.theme.name": "stark"
+                           "drupal.render.engine": "twig",
+                           "drupal.render.hook": "region",
+                           "drupal.render.theme": "stark",
+                           "drupal.template.file": "core/modules/system/templates/region.html.twig"
                          }
                        },
                     {
                       "name": "drupal.theme.render",
                       "service": "test_drupal_95",
-                      "resource": "drupal.theme.render",
+                      "resource": "off_canvas_page_wrapper",
                       "trace_id": 0,
                       "span_id": 19,
                       "parent_id": 17,
                       "type": "web",
                       "meta": {
                         "component": "drupal",
-                        "drupal.template": "core/modules/system/templates/off-canvas-page-wrapper.html.twig",
-                        "drupal.theme.engine": "twig",
-                        "drupal.theme.name": "stark"
+                        "drupal.render.engine": "twig",
+                        "drupal.render.hook": "off_canvas_page_wrapper",
+                        "drupal.render.theme": "stark",
+                        "drupal.template.file": "core/modules/system/templates/off-canvas-page-wrapper.html.twig"
                       }
                     },
               {
