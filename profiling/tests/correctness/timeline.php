@@ -5,3 +5,5 @@ function foobar () {
 }
 
 include(__DIR__.'/timeline_call.php');
+
+eval('usleep(1);');

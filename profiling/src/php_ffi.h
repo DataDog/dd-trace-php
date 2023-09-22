@@ -1,5 +1,6 @@
 #include <SAPI.h>
 #include <Zend/zend_extensions.h>
+#include <Zend/zend_exceptions.h>
 #include <Zend/zend_types.h>
 #if CFG_FIBERS // defined by build.rs
 #include <Zend/zend_fibers.h>
@@ -7,6 +8,7 @@
 #include <Zend/zend_globals_macros.h>
 #include <Zend/zend_modules.h>
 #include <Zend/zend_alloc.h>
+#include <main/php_main.h>
 #include <php.h>
 #include <stdbool.h>
 #include <stddef.h>

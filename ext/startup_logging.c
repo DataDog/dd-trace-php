@@ -288,7 +288,8 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
         zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
-        if (cfg->name_index > 0) {
+        // DD_TRACE_LOGS_ENABLED would be the proper name, but for compatibility with other tracers, we also support DD_LOGS_INJECTION officially
+        if (cfg->name_index > 0 && i != DDTRACE_CONFIG_DD_TRACE_LOGS_ENABLED) {
             zai_config_name *old_name = &cfg->names[cfg->name_index];
             zend_string *message = zend_strpprintf(0, "'%s=%s' is deprecated, use %s instead.", old_name->ptr,
                                                    ZSTR_VAL(cfg->ini_entries[0]->value), cfg->names[0].ptr);

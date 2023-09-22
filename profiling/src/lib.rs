@@ -11,8 +11,14 @@ mod string_table;
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
 
+#[cfg(feature = "exception_profiling")]
+mod exception;
+
 #[cfg(feature = "timeline")]
 mod timeline;
+
+#[cfg(not(php_has_php_version_id_fn))]
+use bindings::zend_long;
 
 use bindings as zend;
 use bindings::{sapi_globals, ZendExtension, ZendResult};
@@ -54,6 +60,10 @@ static PROFILER_NAME_CSTR: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(
 /// Version of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
+
+/// Version ID of PHP at run-time, not the version it was built against at
+/// compile-time. Its value is overwritten during minit.
+static mut PHP_VERSION_ID: u32 = zend::PHP_VERSION_ID;
 
 lazy_static! {
     static ref LAZY_STATICS_TAGS: Vec<Tag> = {
@@ -176,6 +186,38 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
     unsafe extern "C" fn(execute_data: *mut zend::zend_execute_data, return_value: *mut zend::zval),
 > = MaybeUninit::uninit();
 
+/// # Safety
+/// Only call during minit/startup phase.
+unsafe fn set_run_time_php_version_id() -> anyhow::Result<()> {
+    cfg_if::cfg_if! {
+        if #[cfg(php_has_php_version_id_fn)] {
+            PHP_VERSION_ID = zend::php_version_id();
+            Ok(())
+        } else {
+            let vernum = b"PHP_VERSION_ID";
+            let vernum_zvp = zend::zend_get_constant_str(
+                vernum.as_ptr() as *const c_char,
+                vernum.len()
+            );
+            // SAFETY: if the pointer returned by zend_get_constant_str is not
+            // null, then it points to a valid zval.
+            let Some(vernum_zv) = vernum_zvp.as_mut() else {
+                anyhow::bail!("zend_get_constant_str returned null")
+            };
+            let vernum_long = match zend_long::try_from(vernum_zv) {
+                Ok(x) => x,
+                Err(err) => {
+                    anyhow::bail!("zend_get_constant_str(\"PHP_VERSION_ID\", ...) failed: unexpected zval type {err}");
+                }
+            };
+            let vernum_u32 = u32::try_from(vernum_long)?;
+            // SAFETY: during minit, there shouldn't be any threads.
+            PHP_VERSION_ID = vernum_u32;
+            Ok(())
+        }
+    }
+}
+
 /* Important note on the PHP lifecycle:
  * Based on how some SAPIs work and the documentation, one might expect that
  * MINIT is called once per process, but this is only sort-of true. Some SAPIs
@@ -215,6 +257,11 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
          * support forking, load this at the beginning:
          * let _ = ddcommon::connector::load_root_certs();
          */
+    }
+
+    // SAFETY: calling during minit as required.
+    if let Err(err) = unsafe { set_run_time_php_version_id() } {
+        panic!("error getting PHP_VERSION_ID at run-time: {err:#}");
     }
 
     config::minit(module_number);
@@ -301,6 +348,9 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "timeline")]
     timeline::timeline_minit();
 
+    #[cfg(feature = "exception_profiling")]
+    exception::exception_profiling_minit();
+
     ZendResult::Success
 }
 
@@ -326,6 +376,8 @@ pub struct RequestLocals {
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
     pub profiling_experimental_timeline_enabled: bool,
+    pub profiling_experimental_exception_enabled: bool,
+    pub profiling_experimental_exception_sampling_distance: u32,
     pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
     pub uri: Box<AgentEndpoint>,
@@ -347,6 +399,8 @@ thread_local! {
         profiling_experimental_cpu_time_enabled: true,
         profiling_allocation_enabled: true,
         profiling_experimental_timeline_enabled: true,
+        profiling_experimental_exception_enabled: false,
+        profiling_experimental_exception_sampling_distance: 100,
         profiling_log_level: LevelFilter::Off,
         service: None,
         uri: Box::<AgentEndpoint>::default(),
@@ -386,6 +440,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         unsafe { bindings::zai_config_first_time_rinit() };
+        #[cfg(feature = "exception_profiling")]
+        exception::exception_profiling_first_rinit();
     });
 
     unsafe { bindings::zai_config_rinit() };
@@ -397,6 +453,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         profiling_experimental_cpu_time_enabled,
         profiling_allocation_enabled,
         profiling_experimental_timeline_enabled,
+        profiling_experimental_exception_enabled,
+        profiling_experimental_exception_sampling_distance,
         log_level,
         output_pprof,
     ) = unsafe {
@@ -407,6 +465,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             profiling_enabled && config::profiling_experimental_cpu_time_enabled(),
             profiling_enabled && config::profiling_allocation_enabled(),
             profiling_enabled && config::profiling_experimental_timeline_enabled(),
+            profiling_enabled && config::profiling_experimental_exception_enabled(),
+            config::profiling_experimental_exception_sampling_distance(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
         )
@@ -424,6 +484,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
         locals.profiling_allocation_enabled = profiling_allocation_enabled;
         locals.profiling_experimental_timeline_enabled = profiling_experimental_timeline_enabled;
+        locals.profiling_experimental_exception_enabled = profiling_experimental_exception_enabled;
+        locals.profiling_experimental_exception_sampling_distance =
+            profiling_experimental_exception_sampling_distance;
         locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
@@ -747,6 +810,28 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             }
         }
 
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "exception_profiling")] {
+                zend::php_info_print_table_row(
+                    2,
+                    b"Experimental Exception Profiling Enabled\0".as_ptr(),
+                    if locals.profiling_experimental_exception_enabled {
+                        yes
+                    } else if locals.profiling_enabled {
+                        no
+                    } else {
+                        no_all
+                    },
+                );
+            } else {
+                zend::php_info_print_table_row(
+                    2,
+                    b"Experimental Exception Profiling Enabled\0".as_ptr(),
+                    b"Not available. The profiler was built without exception profiling support.\0"
+                );
+            }
+        }
+
         zend::php_info_print_table_row(
             2,
             b"Endpoint Collection Enabled\0".as_ptr(),
@@ -808,6 +893,9 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     if let Some(profiler) = profiler.as_mut() {
         profiler.stop(Duration::from_secs(1));
     }
+
+    #[cfg(feature = "exception_profiling")]
+    exception::exception_profiling_mshutdown();
 
     ZendResult::Success
 }

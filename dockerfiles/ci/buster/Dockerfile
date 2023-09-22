@@ -4,6 +4,10 @@ ENV LANG=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ACCEPT_EULA=Y
 
+# For LLVM dependencies:
+# Minimum: libclang. Nice-to-have: full toolchain including linker to play
+# with cross-language link-time optimization. Needs to match rustc -Vv's llvm
+# version.
 ENV DEVLIBS \
     clang-16 \
     libclang-16-dev \
@@ -12,14 +16,20 @@ ENV DEVLIBS \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \
+    libfreetype6-dev \
+    libicu-dev \
+    libjpeg-dev \
     libmcrypt-dev \
     libmemcached-dev \
     libonig-dev \
     libpq-dev \
+    libpng-dev \
     libsodium-dev \
     libsqlite3-dev \
     libssl-dev \
+    libwebp-dev \
     libxml2-dev \
+    libxslt1-dev \
     libzip-dev \
     zlib1g-dev \
     libasan5 \

@@ -107,7 +107,8 @@ else
   yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
   yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
   pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
-  pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini;
+  # Redis 6.0.0 dropped support for PHP 7.1 and below
+  pecl install redis$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -5.3.7; fi); echo "extension=redis.so" >> ${iniDir}/redis.ini;
   pecl install sqlsrv$SQLSRV_VERSION; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do

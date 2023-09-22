@@ -1,3 +1,51 @@
+MPack v1.1.1
+------------
+
+Bug Fixes:
+
+- Fixed a crash that could occur when a builder element was aligned exactly at the end of a page. (See #94)
+
+- Fixed a crash when encountering an I/O error during builder resolution without an error handler callback. (See #98)
+
+- Fixed an error destroying a writer while a builder is open. (See #88)
+
+- Fixed an issue with incorrect NULL checks for 0-length buffers. (See #97)
+
+- Fixed a string formatting issue on platforms where `int` is not 32 bits. (See #103)
+
+- Fixed some documentation errors. (See #93, #102)
+
+- Cleaned up some references to old unit test buildsystem. (See #95)
+
+MPack v1.1
+----------
+
+New Features:
+
+- Maps and arrays can now be built dynamically without specifying their size up front. See `mpack_build_map()` and `mpack_build_array()`.
+
+New Platforms:
+
+- Compiling as gnu89 is now supported. (See #68, #69)
+
+- Compiling in the Linux kernel is now possible using a [standalone configuration file](https://github.com/ludocode/mpack-linux-kernel). (See #80)
+
+- Compiling for AVR (e.g. Arduino) and other microcontrollers is now supported. MPack now compiles cleanly on platforms with 16-bit `int` and `size_t`. (See #74, #79)
+
+- `float` and/or `double` can now be disabled individually on platforms with limited floating point support. If `float` is supported but not `double`, MessagePack doubles can be converted to `float`. (See #74, #79)
+
+- MPack now builds cleanly under /W4 with Visual Studio 2015, 2017 and 2019 build tools.
+
+Bug Fixes and Other Changes:
+
+- An `mpack-defaults.h` sample configuration is no longer provided.
+
+- Replaced SCons unit test buildsystem and XCode/VS projects with Python+Ninja.
+
+- Fixed an issue where write overloads could be erroneously defined in C++ without `MPACK_WRITER` (#66).
+
+- Fixed some minor portability issues.
+
 MPack v1.0
 ----------
 
