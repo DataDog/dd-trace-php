@@ -5,7 +5,7 @@
     "resource": "simple_view",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 8973002223484633176,
+    "parent_id": 3272765232554916325,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,7 +13,7 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple_view",
-      "runtime-id": "3f220cfb-2069-45dc-a618-68d932563ad6",
+      "runtime-id": "692423cd-81b3-449e-a67e-43150df99f74",
       "span.kind": "server",
       "symfony.route.action": "Drupal\\datadog\\Controller\\DatadogController@simpleView",
       "symfony.route.name": "simple_view"
@@ -156,7 +156,9 @@
                      "drupal.render.engine": "twig",
                      "drupal.render.hook": "datadog",
                      "drupal.render.theme": "stark",
-                     "drupal.template.file": "modules/datadog/templates/datadog.html.twig"
+                     "drupal.render.type": "module",
+                     "drupal.template.file": "modules/datadog/templates/datadog.html.twig",
+                     "drupal.template.template": "datadog"
                    }
                  },
                  {
@@ -169,10 +171,13 @@
                    "type": "web",
                    "meta": {
                      "component": "drupal",
+                     "drupal.render.element": "html",
                      "drupal.render.engine": "twig",
                      "drupal.render.hook": "html",
                      "drupal.render.theme": "stark",
-                     "drupal.template.file": "core/modules/system/templates/html.html.twig"
+                     "drupal.render.type": "module",
+                     "drupal.template.file": "core/modules/system/templates/html.html.twig",
+                     "drupal.template.template": "html"
                    }
                  },
                     {
@@ -185,10 +190,13 @@
                       "type": "web",
                       "meta": {
                         "component": "drupal",
+                        "drupal.render.element": "page",
                         "drupal.render.engine": "twig",
                         "drupal.render.hook": "page",
                         "drupal.render.theme": "stark",
-                        "drupal.template.file": "core/modules/system/templates/page.html.twig"
+                        "drupal.render.type": "module",
+                        "drupal.template.file": "core/modules/system/templates/page.html.twig",
+                        "drupal.template.template": "page"
                       }
                     },
                        {
@@ -201,10 +209,13 @@
                          "type": "web",
                          "meta": {
                            "component": "drupal",
+                           "drupal.render.element": "elements",
                            "drupal.render.engine": "twig",
                            "drupal.render.hook": "block",
                            "drupal.render.theme": "stark",
-                           "drupal.template.file": "core/modules/system/templates/block--system-branding-block.html.twig"
+                           "drupal.render.type": "module",
+                           "drupal.template.file": "core/modules/system/templates/block--system-branding-block.html.twig",
+                           "drupal.template.template": "block"
                          }
                        },
                        {
@@ -217,10 +228,13 @@
                          "type": "web",
                          "meta": {
                            "component": "drupal",
+                           "drupal.render.element": "elements",
                            "drupal.render.engine": "twig",
                            "drupal.render.hook": "region",
                            "drupal.render.theme": "stark",
-                           "drupal.template.file": "core/modules/system/templates/region.html.twig"
+                           "drupal.render.type": "module",
+                           "drupal.template.file": "core/modules/system/templates/region.html.twig",
+                           "drupal.template.template": "region"
                          }
                        },
                        {
@@ -233,10 +247,13 @@
                          "type": "web",
                          "meta": {
                            "component": "drupal",
+                           "drupal.render.element": "elements",
                            "drupal.render.engine": "twig",
                            "drupal.render.hook": "block",
                            "drupal.render.theme": "stark",
-                           "drupal.template.file": "core/modules/system/templates/block--system-messages-block.html.twig"
+                           "drupal.render.type": "module",
+                           "drupal.template.file": "core/modules/system/templates/block--system-messages-block.html.twig",
+                           "drupal.template.template": "block"
                          }
                        },
                        {
@@ -249,10 +266,13 @@
                          "type": "web",
                          "meta": {
                            "component": "drupal",
+                           "drupal.render.element": "elements",
                            "drupal.render.engine": "twig",
                            "drupal.render.hook": "region",
                            "drupal.render.theme": "stark",
-                           "drupal.template.file": "core/modules/system/templates/region.html.twig"
+                           "drupal.render.type": "module",
+                           "drupal.template.file": "core/modules/system/templates/region.html.twig",
+                           "drupal.template.template": "region"
                          }
                        },
                        {
@@ -265,10 +285,13 @@
                          "type": "web",
                          "meta": {
                            "component": "drupal",
+                           "drupal.render.element": "elements",
                            "drupal.render.engine": "twig",
                            "drupal.render.hook": "block",
                            "drupal.render.theme": "stark",
-                           "drupal.template.file": "core/modules/block/templates/block.html.twig"
+                           "drupal.render.type": "module",
+                           "drupal.template.file": "core/modules/block/templates/block.html.twig",
+                           "drupal.template.template": "block"
                          }
                        },
                           {
@@ -284,7 +307,9 @@
                               "drupal.render.engine": "twig",
                               "drupal.render.hook": "page_title",
                               "drupal.render.theme": "stark",
-                              "drupal.template.file": "core/modules/system/templates/page-title.html.twig"
+                              "drupal.render.type": "module",
+                              "drupal.template.file": "core/modules/system/templates/page-title.html.twig",
+                              "drupal.template.template": "page-title"
                             }
                           },
                        {
@@ -297,10 +322,13 @@
                          "type": "web",
                          "meta": {
                            "component": "drupal",
+                           "drupal.render.element": "elements",
                            "drupal.render.engine": "twig",
                            "drupal.render.hook": "region",
                            "drupal.render.theme": "stark",
-                           "drupal.template.file": "core/modules/system/templates/region.html.twig"
+                           "drupal.render.type": "module",
+                           "drupal.template.file": "core/modules/system/templates/region.html.twig",
+                           "drupal.template.template": "region"
                          }
                        },
                        {
@@ -313,10 +341,13 @@
                          "type": "web",
                          "meta": {
                            "component": "drupal",
+                           "drupal.render.element": "elements",
                            "drupal.render.engine": "twig",
                            "drupal.render.hook": "region",
                            "drupal.render.theme": "stark",
-                           "drupal.template.file": "core/modules/system/templates/region.html.twig"
+                           "drupal.render.type": "module",
+                           "drupal.template.file": "core/modules/system/templates/region.html.twig",
+                           "drupal.template.template": "region"
                          }
                        },
                     {
@@ -332,7 +363,9 @@
                         "drupal.render.engine": "twig",
                         "drupal.render.hook": "off_canvas_page_wrapper",
                         "drupal.render.theme": "stark",
-                        "drupal.template.file": "core/modules/system/templates/off-canvas-page-wrapper.html.twig"
+                        "drupal.render.type": "module",
+                        "drupal.template.file": "core/modules/system/templates/off-canvas-page-wrapper.html.twig",
+                        "drupal.template.template": "off-canvas-page-wrapper"
                       }
                     },
               {
