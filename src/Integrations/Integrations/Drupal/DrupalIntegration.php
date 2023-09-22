@@ -7,6 +7,10 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\ObjectKVStore;
+
+use Drupal\Core\EventSubscriber\MainContentViewSubscriber;
+use function DDTrace\active_span;
 use function DDTrace\hook_method;
 use function DDTrace\install_hook;
 use function DDTrace\remove_hook;
@@ -163,12 +167,31 @@ class DrupalIntegration extends Integration
         );
         */
 
+        hook_method(
+            'Drupal\Core\Theme\ThemeManager',
+            'setThemeRegistry',
+            function ($themeManager, $scope, $args) {
+                // The theme registry is otherwise protected
+                ObjectKVStore::put($themeManager, 'theme_registry', $args[0]);
+            }
+        );
+
+        hook_method(
+            'Drupal\Core\Theme\Registry',
+            '__construct',
+            function ($registry, $scope, $args) {
+                // The theme is otherwise protected
+                // _construct($root, $cache, $lock, $module_handler, $theme_handler, $theme_initialization, $theme_name, $runtime_cache, $module_list)
+                ObjectKVStore::put($registry, 'theme_name', $args[6]);
+            }
+        );
+
         trace_method(
             'Drupal\Core\Theme\ThemeManager',
             'render',
             [
                 'recurse' => true,
-                'prehook' => function (SpanData $span) {
+                'prehook' => function (SpanData $span, $args) {
                     $span->name = 'drupal.theme.render';
                     $span->service = \ddtrace_config_app_name('drupal');
                     $span->type = Type::WEB_SERVLET;
@@ -182,11 +205,11 @@ class DrupalIntegration extends Integration
                     $themeEngine = $activeTheme->getEngine();
 
                     if (!empty($themeName)) {
-                        $span->meta['drupal.theme.name'] = $themeName;
+                        $span->meta['drupal.render.theme'] = $themeName;
                     }
 
                     if (!empty($themeEngine)) {
-                        $span->meta['drupal.theme.engine'] = $themeEngine;
+                        $span->meta['drupal.render.engine'] = $themeEngine;
                         if (function_exists("{$themeEngine}_render_template")) {
                             $renderFunction = "{$themeEngine}_render_template";
 
@@ -196,14 +219,132 @@ class DrupalIntegration extends Integration
                             install_hook(
                                 $renderFunction,
                                 function (HookData $hook) use ($span) {
-                                    $span->meta['drupal.template'] = $hook->args[0];
+                                    $span->meta['drupal.template.file'] = $hook->args[0];
                                     remove_hook($hook->id);
                                 }
                             );
                         }
                     }
+
+                    /** @var null|\Drupal\Core\Theme\Registry $themeRegistry */
+                    $themeRegistry = ObjectKVStore::get($themeManager, 'theme_registry');
+                    if ($themeRegistry) {
+                        $runtimeThemeRegistry = $themeRegistry->getRuntime();
+                        $hook = $args[0];
+
+                        if (is_array($hook)) {
+                            foreach ($hook as $candidate) {
+                                if ($runtimeThemeRegistry->has($candidate)) {
+                                    break;
+                                }
+                            }
+                            $hook = $candidate;
+                        }
+
+                        $originalHook = $hook;
+
+                        if (!$runtimeThemeRegistry->has($hook)) {
+                            // Iteratively strip everything after the last '__' delimiter, until an
+                            // implementation is found
+                            while ($pos = strrpos($hook, '__')) {
+                                $hook = substr($hook, 0, $pos);
+                                if ($runtimeThemeRegistry->has($hook)) {
+                                    break;
+                                }
+                            }
+                        }
+
+                        if ($runtimeThemeRegistry->has($hook)) {
+                            $span->meta['drupal.render.hook'] = $span->resource = $hook;
+                            $info = $runtimeThemeRegistry->get($hook);
+                            Logger::get()->debug(json_encode($info, JSON_PRETTY_PRINT));
+
+                            if (isset($info['base hook'])) {
+                                $span->meta['drupal.render.base_hook'] = $info['base hook'];
+                            }
+
+                            if (isset($info['type'])) {
+                                $span->meta['drupal.render.type'] = $info['type'];
+                            }
+
+                            if (isset($info['render element'])) {
+                                $span->meta['drupal.render.element'] = $info['render element'];
+                            }
+
+                            if (isset($info['template'])) {
+                                $span->meta['drupal.template.template'] = $info['template'];
+                            }
+
+                            if (isset($info['function'])) {
+                                $span->meta['drupal.render.theme_function'] = $info['function'];
+                            }
+
+                            if (isset($info['path'])) {
+                                // The template can be from a different theme than the active one
+                                // Format: '.../themes/<theme_name>/...'
+                                $path = $info['path'];
+                                $themePathStart = strpos($path, '/themes/');
+                                if ($themePathStart !== false) {
+                                    $themePath = substr($path,  $themePathStart + 8); // Between '/themes/', 8 = strlen('/themes/')
+                                    $themePath = substr($themePath, 0, strpos($themePath, '/')); // Until the next '/'
+                                    $span->meta['drupal.template.theme'] = $themePath;
+                                }
+                            }
+                        } else {
+                            $span->meta['drupal.render.hook'] = $span->resource = $originalHook;
+                        }
+                    }
                 }
             ]
+        );
+
+        hook_method(
+            'Drupal\Core\EventSubscriber\MainContentViewSubscriber',
+            '__construct',
+            function ($mainContViewSubscriber, $scope, $args) {
+                // These are otherwise protected
+                $classResolver = $args[0];
+                $mainContentRenderers = $args[2];
+                ObjectKVStore::put($mainContViewSubscriber, 'class_resolver', $classResolver);
+                ObjectKVStore::put($mainContViewSubscriber, 'main_content_renderers', $mainContentRenderers);
+            }
+        );
+
+        hook_method(
+            'Drupal\Core\EventSubscriber\MainContentViewSubscriber',
+            'onViewRenderArray',
+            null,
+            function ($mainContViewSubscriber, $scope, $args) {
+                // Called on the kernel.view event => active span should be symfony.kernel.view
+                $span = active_span();
+
+                if ($span->name === 'symfony.kernel.view') {
+                    $classResolver = ObjectKVStore::get($mainContViewSubscriber, 'class_resolver');
+                    $mainContentRenderers = ObjectKVStore::get($mainContViewSubscriber, 'main_content_renderers');
+
+                    /** @var \Symfony\Component\HttpKernel\Event\ViewEvent $event */
+                    $event = $args[0];
+                    $request = $event->getRequest();
+                    $result = $event->getControllerResult();
+                    if ($classResolver
+                        && $mainContentRenderers
+                        && is_array($result)
+                        && ($request->query->has(MainContentViewSubscriber::WRAPPER_FORMAT)
+                            || $request->getRequestFormat() == 'html'
+                        )
+                    ) {
+                        $wrapper = $request->query->get(MainContentViewSubscriber::WRAPPER_FORMAT, 'html');
+
+                        // Fall back to HTML if the requested wrapper envelope is not available.
+                        $wrapper = isset($mainContentRenderers[$wrapper]) ? $wrapper : 'html';
+
+                        $renderer = $classResolver->getInstanceFromDefinition($mainContentRenderers[$wrapper]);
+                        if ($renderer) {
+                            $span->resource = get_class($renderer);
+                        }
+                    }
+                }
+            }
         );
 
         trace_method(
