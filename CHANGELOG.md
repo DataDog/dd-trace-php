@@ -1,5 +1,21 @@
 # Datadog AppSec for PHP Release
 
+### v0.14.0
+
+#### Fixes
+- ([#301](https://github.com/DataDog/dd-appsec-php/pull/301)) Propagate Runtime IDs and keep a valid pool in the RC client
+
+#### Additions
+- ([#298](https://github.com/DataDog/dd-appsec-php/pull/298)) Add default processors and scanners
+- ([#299](https://github.com/DataDog/dd-appsec-php/pull/299)) Exchange more types between extension and helper
+- ([#300](https://github.com/DataDog/dd-appsec-php/pull/300)) API security configuration settings
+
+#### Miscellaneous Changes
+- ([#294](https://github.com/DataDog/dd-appsec-php/pull/294)) Add nginx container to integration tests
+- ([#295](https://github.com/DataDog/dd-appsec-php/pull/295)) Upgrade WAF to 1.14.0
+- ([#296](https://github.com/DataDog/dd-appsec-php/pull/296)) Upgrade tracer to v0.91.0 and remove master build downloads
+- ([#302](https://github.com/DataDog/dd-appsec-php/pull/302)) Upgrade ruleset to 1.8.0
+
 ### v0.13.1
 #### Fixes
 - ([#293](https://github.com/DataDog/dd-appsec-php/pull/293)) Fix service name alias configuration
