@@ -61,7 +61,7 @@ impl AllocationProfilingStats {
         self.next_sample = self.poisson.sample(&mut self.rng) as i64;
     }
 
-    fn track_allocation(&mut self, len: size_t, start: Instant) {
+    fn track_allocation(&mut self, len: size_t, overhead_start: Instant) {
         self.next_sample -= len as i64;
 
         if self.next_sample > 0 {
@@ -81,11 +81,10 @@ impl AllocationProfilingStats {
                         zend::ddog_php_prof_get_current_execute_data(),
                         1_i64,
                         len as i64,
+                        overhead_start,
                         &locals,
                     )
                 };
-
-                profiler.collect_overhead(start, "allocation", &locals);
             }
         });
     }

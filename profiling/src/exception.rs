@@ -59,11 +59,10 @@ impl ExceptionProfilingStats {
                     profiler.collect_exception(
                         zend::ddog_php_prof_get_current_execute_data(),
                         name,
+                        start,
                         &locals,
                     )
                 };
-
-                profiler.collect_overhead(start, "exception", &locals);
             }
         });
     }

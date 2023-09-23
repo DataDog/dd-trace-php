@@ -1027,12 +1027,15 @@ fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
         }
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            let start = Instant::now();
+            let overhead_start = Instant::now();
 
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            profiler.collect_time(execute_data, interrupt_count, locals.deref());
-
-            profiler.collect_overhead(start, "time", &locals);
+            profiler.collect_time(
+                execute_data,
+                interrupt_count,
+                overhead_start,
+                locals.deref(),
+            );
         }
     });
 }
