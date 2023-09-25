@@ -819,7 +819,9 @@ void zai_uhook_minit(int module_number) {
 void zai_uhook_attributes_mshutdown(void);
 #endif
 void zai_uhook_mshutdown() {
+#if PHP_VERSION_ID < 80300
     zend_unregister_functions(ext_functions, sizeof(ext_functions) / sizeof(zend_function_entry) - 1, NULL);
+#endif
 #if PHP_VERSION_ID >= 80000
     zai_uhook_attributes_mshutdown();
 #endif
