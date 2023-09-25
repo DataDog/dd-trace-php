@@ -818,6 +818,7 @@ TEST_WEB_81 := \
 	test_web_laravel_10x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
+	test_web_magento_24 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
@@ -864,6 +865,7 @@ TEST_WEB_82 := \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
+	test_web_magento_24 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
@@ -1163,6 +1165,12 @@ test_web_wordpress_61: global_test_run_dependencies
 test_web_yii_2: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0 update
 	$(call run_tests,tests/Integrations/Yii/V2_0)
+test_web_magento_23: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Magento/Version_2_3 update
+	$(call run_tests,tests/Integrations/Magento/V2_3)
+test_web_magento_24: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Magento/Version_2_4 update
+	$(call run_tests,tests/Integrations/Magento/V2_4)
 test_web_nette_24: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Nette/Version_2_4 update
 	$(call run_tests,tests/Integrations/Nette/V2_4)

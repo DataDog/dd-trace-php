@@ -1,0 +1,25 @@
+<!--
+/**
+ * Copyright © Magento, Inc. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+-->
+<span if="showMaximumPrice"
+      class="price-container"
+      css="getAdjustmentCssClasses($row())">
+    <span if="label"
+          class="price-label"
+          text="label"></span>
+
+    <span class="price-wrapper"
+          css="priceWrapperCssClasses"
+          attr="priceWrapperAttr"
+          data-price-amount=""
+          data-price-type=""
+          html="getMaxPriceUnsanitizedHtml($row())"></span>
+
+    <each args="data: getAdjustments('max_price'), as: '$adj'">
+        <render args="$adj.getBody()"></render>
+    </each>
+</span>
+
