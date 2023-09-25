@@ -1028,6 +1028,24 @@ extern "C" fn interrupt_function_wrapper(execute_data: *mut zend::zend_execute_d
     }
 }
 
+/// Returns true if the func tied to the execute_data is a trampoline.
+/// # Safety
+/// This is only safe to execute _before_ executing the trampoline, because the trampoline may
+/// free the `execute_data.func` _without_ setting it to NULL:
+/// https://heap.space/xref/PHP-8.2/Zend/zend_closures.c?r=af2110e6#60-63
+/// So no code can inspect the func after the call has been made, which is why you would call this function: find out before you
+/// call the function if indeed you need to skip certain code after it has been executed.
+unsafe fn execute_data_func_is_trampoline(execute_data: *const zend::zend_execute_data) -> bool {
+    if execute_data.is_null() {
+        return false;
+    }
+
+    if (*execute_data).func.is_null() {
+        return false;
+    }
+    return ((*(*execute_data).func).common.fn_flags & zend::ZEND_ACC_CALL_VIA_TRAMPOLINE) != 0;
+}
+
 /// Overrides the engine's zend_execute_internal hook in order to process pending VM interrupts
 /// while the internal function is still on top of the call stack. The VM does not process the
 /// interrupt until the call returns so that it could theoretically jump to a different opcode,
@@ -1041,12 +1059,23 @@ extern "C" fn execute_internal(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
-    // Safety: PREV_EXECUTE_INTERNAL was written during minit, doesn't change during runtime.
-    unsafe {
-        let prev_execute_internal = *PREV_EXECUTE_INTERNAL.as_mut_ptr();
-        prev_execute_internal(execute_data, return_value);
-    }
-    interrupt_function(execute_data);
+    // SAFETY: called before executing the trampoline.
+    let leaf_frame = if unsafe { execute_data_func_is_trampoline(execute_data) } {
+        // SAFETY: if is_trampoline is set, then there must be a valid execute_data.
+        unsafe { *execute_data }.prev_execute_data
+    } else {
+        execute_data
+    };
+
+    // SAFETY: PREV_EXECUTE_INTERNAL was written during minit, doesn't change during runtime.
+    let prev_execute_internal = unsafe { *PREV_EXECUTE_INTERNAL.as_mut_ptr() };
+
+    // SAFETY: calling prev_execute without modification will be safe.
+    unsafe { prev_execute_internal(execute_data, return_value) };
+
+    // See safety section of `execute_data_func_is_trampoline` docs for why the leaf frame is used
+    // instead of the execute_data ptr.
+    interrupt_function(leaf_frame);
 }
 
 #[cfg(test)]
