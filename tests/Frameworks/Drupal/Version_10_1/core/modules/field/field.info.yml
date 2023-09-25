@@ -1,0 +1,5 @@
+name: Field
+type: module
+description: 'Provides the capabilities to add fields to entities.'
+package: Core
+version: VERSION

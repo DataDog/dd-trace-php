@@ -1,0 +1,7 @@
+name: Actions
+type: module
+description: 'Allows configuration of tasks to be executed in response to events.'
+package: Core
+version: VERSION
+core: 8.x
+configure: entity.action.collection

@@ -161,6 +161,9 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_exec",
                                            "DDTrace\\Integrations\\Curl\\CurlIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_DRUPAL, "Drupal\\Core\\DrupalKernel", "__construct",
+                                         "DDTrace\\Integrations\\Drupal\\DrupalIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD_POST(DDTRACE_INTEGRATION_CODEIGNITER, "CI_Router", "_set_routing",
                                          "DDTrace\\Integrations\\CodeIgniter\\V2\\CodeIgniterIntegration");
 
@@ -302,6 +305,8 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Symfony\\Component\\HttpKernel\\HttpKernel", "__construct",
                                          "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Drupal\\Core\\DrupalKernel", "__construct",
+                                             "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_SQLSRV, "sqlsrv_connect",
                                          "DDTrace\\Integrations\\SQLSRV\\SQLSRVIntegration");

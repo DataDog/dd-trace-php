@@ -1,0 +1,159 @@
+{
+  "name": "Drupal",
+  "description": "Drupal is an open source content management platform powering millions of websites and applications.",
+  "license": "GPL-2.0",
+  "private": true,
+  "engines": {
+    "yarn": ">= 1.6",
+    "node": ">= 16.0"
+  },
+  "scripts": {
+    "build": "yarn build:css & yarn build:js & yarn build:ckeditor5 & yarn vendor-update",
+    "watch": "yarn watch:css & yarn watch:js & yarn watch:ckeditor5",
+    "build:css": "node ./scripts/css/postcss-build.js",
+    "watch:css": "node ./scripts/css/postcss-watch.js",
+    "build:js": "cross-env BABEL_ENV=legacy node ./scripts/js/babel-es6-build.js",
+    "build:js-dev": "cross-env NODE_ENV=development BABEL_ENV=legacy node ./scripts/js/babel-es6-build.js",
+    "watch:js": "cross-env BABEL_ENV=legacy node ./scripts/js/babel-es6-watch.js",
+    "watch:js-dev": "cross-env NODE_ENV=development BABEL_ENV=legacy node ./scripts/js/babel-es6-watch.js",
+    "lint:core-js": "node ./node_modules/eslint/bin/eslint.js .",
+    "lint:core-js-passing": "node ./node_modules/eslint/bin/eslint.js --quiet --config=.eslintrc.passing.json .",
+    "lint:core-js-stats": "node ./node_modules/eslint/bin/eslint.js --format=./scripts/js/eslint-stats-by-type.js .",
+    "lint:css": "stylelint \"**/*.css\"",
+    "lint:css-checkstyle": "stylelint \"**/*.css\" --custom-formatter ./node_modules/stylelint-checkstyle-formatter/index.js",
+    "lint:yaml": "node ./node_modules/eslint/bin/eslint.js --ext .yml .",
+    "test:nightwatch": "cross-env BABEL_ENV=development node -r dotenv-safe/config -r @babel/register ./node_modules/.bin/nightwatch --config ./tests/Drupal/Nightwatch/nightwatch.conf.js",
+    "prettier": "prettier --write \"./**/*.es6.js\" \"./tests/Drupal/Nightwatch/**/*.js\" \"./modules/ckeditor5/js/ckeditor5_plugins/**/*.js\"",
+    "spellcheck": "cspell",
+    "spellcheck:make-drupal-dict": "rm -f misc/cspell/dictionary.txt && touch misc/cspell/dictionary.txt && yarn -s spellcheck:core --unique --wordsOnly | perl -Mopen=locale -pe '$_=lc$_' | tr -d \\\\\\\\ | LC_ALL=C sort -u -o misc/cspell/dictionary.txt",
+    "spellcheck:core": "cspell \"**/*\" \".*\" \"../composer/**/*\" \"../composer.json\"",
+    "vendor-update": "node ./scripts/js/vendor-update.js",
+    "watch:ckeditor5": "webpack --config ./modules/ckeditor5/webpack.config.js --watch",
+    "build:ckeditor5": "webpack --config ./modules/ckeditor5/webpack.config.js",
+    "check:ckeditor5": "node ./scripts/js/ckeditor5-check-plugins.js",
+    "build:ckeditor5-types": "node ./scripts/js/ckeditor5-types-documentation.js",
+    "build:ckeditor5-dev": "yarn build:ckeditor5 --mode=development",
+    "watch:ckeditor5-dev": "yarn watch:ckeditor5 --mode=development"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "@babel/register": "^7.7.7",
+    "@ckeditor/ckeditor5-alignment": "~35.4.0",
+    "@ckeditor/ckeditor5-basic-styles": "~35.4.0",
+    "@ckeditor/ckeditor5-block-quote": "~35.4.0",
+    "@ckeditor/ckeditor5-code-block": "~35.4.0",
+    "@ckeditor/ckeditor5-editor-classic": "~35.4.0",
+    "@ckeditor/ckeditor5-editor-decoupled": "~35.4.0",
+    "@ckeditor/ckeditor5-essentials": "~35.4.0",
+    "@ckeditor/ckeditor5-heading": "~35.4.0",
+    "@ckeditor/ckeditor5-horizontal-line": "~35.4.0",
+    "@ckeditor/ckeditor5-html-support": "~35.4.0",
+    "@ckeditor/ckeditor5-image": "~35.4.0",
+    "@ckeditor/ckeditor5-indent": "~35.4.0",
+    "@ckeditor/ckeditor5-language": "~35.4.0",
+    "@ckeditor/ckeditor5-link": "~35.4.0",
+    "@ckeditor/ckeditor5-list": "~35.4.0",
+    "@ckeditor/ckeditor5-paste-from-office": "~35.4.0",
+    "@ckeditor/ckeditor5-remove-format": "~35.4.0",
+    "@ckeditor/ckeditor5-source-editing": "~35.4.0",
+    "@ckeditor/ckeditor5-special-characters": "~35.4.0",
+    "@ckeditor/ckeditor5-style": "~35.4.0",
+    "@ckeditor/ckeditor5-table": "~35.4.0",
+    "@drupal/once": "1.0.x",
+    "@popperjs/core": "2.11.x",
+    "babel-plugin-add-header-comment": "^1.0.3",
+    "backbone": "1.4.x",
+    "chalk": "^4.1.0",
+    "chokidar": "^3.3.1",
+    "ckeditor5": "~35.4.0",
+    "cross-env": "^7.0.2",
+    "cspell": "^6.0.0",
+    "css.escape": "1.5.x",
+    "dotenv-safe": "^8.2.0",
+    "es6-promise": "4.2.x",
+    "eslint": "^8.9.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^8.4.0",
+    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-jquery": "^1.5.1",
+    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-plugin-yml": "^1.2.0",
+    "farbtastic": "https://github.com/mattfarina/farbtastic/archive/1.3u.tar.gz",
+    "glob": "^8.0.3",
+    "joyride": "https://github.com/zurb/joyride/archive/refs/heads/v2.1.tar.gz",
+    "jquery": "~3.6.3",
+    "jquery-form": "4.3.x",
+    "jquery-once": "2.2.x",
+    "jquery-ui": "1.13.x",
+    "js-cookie": "3.0.x",
+    "jsdom": "^20.0.0",
+    "loadjs": "4.2.x",
+    "minimist": "^1.2.2",
+    "mkdirp": "^1.0.4",
+    "nightwatch": "^1.6.3",
+    "normalize.css": "8.0.x",
+    "picturefill": "3.0.x",
+    "postcss": "^8.4.18",
+    "postcss-calc": "^8.2.4",
+    "postcss-header": "^3.0.3",
+    "postcss-import": "^15.0.0",
+    "postcss-preset-env": "^7.8.2",
+    "postcss-pxtorem": "^6.0.0",
+    "postcss-url": "^10.1.3",
+    "prettier": "^2.1.2",
+    "shepherd.js": "9.1.x",
+    "sortablejs": "1.15.x",
+    "stylelint": "^14.0.1",
+    "stylelint-checkstyle-formatter": "^0.1.2",
+    "stylelint-config-standard": "^29.0.0",
+    "stylelint-order": "^5.0.0",
+    "tabbable": "~5.3.3",
+    "terser": "^5.14.2",
+    "terser-webpack-plugin": "^5.3.3",
+    "underscore": "~1.13.4",
+    "webpack": "^5.77.0",
+    "webpack-cli": "^5.0.0"
+  },
+  "//": "'development is the default environment, and legacy is for transpiling the old jQuery codebase",
+  "babel": {
+    "env": {
+      "development": {
+        "presets": [
+          [
+            "@babel/preset-env",
+            {
+              "modules": "commonjs",
+              "targets": {
+                "node": "current"
+              }
+            }
+          ]
+        ]
+      },
+      "legacy": {
+        "presets": [
+          [
+            "@babel/preset-env",
+            {
+              "modules": false
+            }
+          ]
+        ]
+      }
+    }
+  },
+  "browserslist": [
+    "last 2 Chrome major versions",
+    "last 2 Firefox major versions",
+    "last 2 Safari major versions",
+    "last 2 Edge major versions",
+    "last 2 Opera versions",
+    "last 2 iOS major versions",
+    "last 1 Explorer major version",
+    "last 1 ChromeAndroid version",
+    "last 1 UCAndroid version",
+    "last 1 Samsung version",
+    "Firefox ESR"
+  ]
+}

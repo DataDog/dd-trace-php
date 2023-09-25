@@ -1,0 +1,7 @@
+langcode: en
+status: true
+id: de
+label: German
+direction: ltr
+weight: 0
+locked: false
