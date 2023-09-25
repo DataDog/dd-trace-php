@@ -2,6 +2,7 @@ stages:
   - build
   - deploy
   - benchmarks
+  - ci-build
 
 variables:
   LATEST_LIBRARY_x86_64_LINUX_GNU:
@@ -14,6 +15,7 @@ variables:
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
   - local: .gitlab/benchmarks.yml
+  - local: .gitlab/ci-images.yml
 
 build:
   extends: .ci_authenticated_job
