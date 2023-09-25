@@ -659,6 +659,7 @@ TEST_WEB_73 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_lumen_81 \
+	test_web_magento_23 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
@@ -718,6 +719,7 @@ TEST_WEB_74 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_lumen_81 \
+	test_web_magento_23 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
@@ -818,6 +820,7 @@ TEST_WEB_81 := \
 	test_web_laravel_10x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
+	test_web_magento_24 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
@@ -864,6 +867,7 @@ TEST_WEB_82 := \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
+	test_web_magento_24 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
