@@ -659,7 +659,6 @@ TEST_WEB_73 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_lumen_81 \
-	test_web_magento_23 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
@@ -719,7 +718,6 @@ TEST_WEB_74 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_lumen_81 \
-	test_web_magento_23 \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
