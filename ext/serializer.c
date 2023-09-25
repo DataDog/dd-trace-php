@@ -163,6 +163,22 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     }
 }
 
+size_t ddtrace_serialize_simple_array_into_mapped_menory(zval *trace, char *map, size_t size) {
+    // encode to memory buffer
+    mpack_writer_t writer;
+    mpack_writer_init(&writer, map, size);
+    if (msgpack_write_zval(&writer, trace, 0) != 1) {
+        mpack_writer_destroy(&writer);
+        return 0;
+    }
+    size_t written = mpack_writer_buffer_size(&writer);
+    // finish writing
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        return 0;
+    }
+    return written;
+}
+
 int ddtrace_serialize_simple_array(zval *trace, zval *retval) {
     // encode to memory buffer
     char *data;

@@ -16,7 +16,9 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
 $get_sampling = function() use ($rr) {
-    return json_decode($rr->replayRequest()["body"], true)[0][0]["metrics"]["_sampling_priority_v1"];
+    $root = json_decode($rr->replayRequest()["body"], true);
+    $spans = $root["chunks"][0]["spans"] ?? $root[0];
+    return $spans[0]["metrics"]["_sampling_priority_v1"];
 };
 
 $rr->setResponse(["rate_by_service" => ["service:,env:" => 0]]);

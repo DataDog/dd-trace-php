@@ -9,27 +9,27 @@ DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS=1
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_AUTO_FLUSH_ENABLED=1
 --FILE--
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';
 
 RequestReplayer::launchUnixProxy(str_replace("unix://", "", getenv("DD_TRACE_AGENT_URL")));
 
-// payload = [[]]
-$payload = "\x91\x90";
-var_dump(dd_trace_send_traces_via_thread(1, [], $payload));
+\DDTrace\start_span();
+\DDTrace\close_span();
 
 $rr = new RequestReplayer();
 $rr->waitForFlush();
 
 echo PHP_EOL;
 $headers = $rr->replayHeaders([
-    'Content-Type',
-    'Datadog-Meta-Lang',
-    'Datadog-Meta-Lang-Interpreter',
-    'Datadog-Meta-Lang-Version',
-    'Datadog-Meta-Tracer-Version',
-    'X-Datadog-Trace-Count',
+    'content-type',
+    'datadog-meta-lang',
+    'datadog-meta-lang-interpreter',
+    'datadog-meta-lang-version',
+    'datadog-meta-tracer-version',
+    'x-datadog-trace-count',
 ]);
 foreach ($headers as $name => $value) {
     echo $name . ': ' . $value . PHP_EOL;
@@ -44,13 +44,11 @@ echo 'Done.' . PHP_EOL;
 @unlink("/tmp/ddtrace-agent-test.socket");
 ?>
 --EXPECTF--
-bool(true)
-
-Content-Type: application/msgpack
-Datadog-Meta-Lang: php
-Datadog-Meta-Lang-Interpreter: cli
-Datadog-Meta-Lang-Version: %d.%d.%s
-Datadog-Meta-Tracer-Version: %s
-X-Datadog-Trace-Count: 1
+content-type: application/msgpack
+datadog-meta-lang: php
+datadog-meta-lang-interpreter: cli
+datadog-meta-lang-version: %d.%d.%s
+datadog-meta-tracer-version: %s
+x-datadog-trace-count: 1
 
 Done.
