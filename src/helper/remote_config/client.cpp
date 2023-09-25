@@ -32,8 +32,8 @@ client::client(std::unique_ptr<http_api> &&arg_api, service_identifier &&sid,
     remote_config::settings settings,
     std::vector<listener_base::shared_ptr> listeners)
     : api_(std::move(arg_api)), id_(dds::generate_random_uuid()),
-      ids_(sid.runtime_id), sid_(std::move(sid)),
-      settings_(std::move(settings)), listeners_(std::move(listeners))
+      sid_(std::move(sid)), settings_(std::move(settings)),
+      listeners_(std::move(listeners))
 {
     for (auto const &listener : listeners_) {
         const auto &supported_products = listener->get_supported_products();
@@ -213,7 +213,9 @@ bool client::is_remote_config_available()
 
 bool client::poll()
 {
-    if (api_ == nullptr) {
+    // Wait until we have a valid runtime ID, once this ID is available,
+    // it'll always have a value, even if all extensions have disconnected
+    if (api_ == nullptr || !ids_.has_value()) {
         return false;
     }
 

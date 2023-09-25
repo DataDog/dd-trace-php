@@ -9,15 +9,11 @@
 
 namespace dds {
 
-TEST(RuntimeIDPool, InvalidConstruction)
-{
-    EXPECT_THROW(runtime_id_pool ids{""}, std::invalid_argument);
-}
-
 TEST(RuntimeIDPool, ConstructionAndGet)
 {
     auto uuid = generate_random_uuid();
-    runtime_id_pool ids{uuid};
+    runtime_id_pool ids;
+    ids.add(uuid);
 
     EXPECT_STREQ(ids.get().c_str(), uuid.c_str());
 }
@@ -25,7 +21,8 @@ TEST(RuntimeIDPool, ConstructionAndGet)
 TEST(RuntimeIDPool, AddAndGet)
 {
     auto uuid = generate_random_uuid();
-    runtime_id_pool ids{uuid};
+    runtime_id_pool ids;
+    ids.add(uuid);
 
     ids.add(generate_random_uuid());
 
@@ -35,7 +32,8 @@ TEST(RuntimeIDPool, AddAndGet)
 TEST(RuntimeIDPool, RemoveLast)
 {
     auto uuid = generate_random_uuid();
-    runtime_id_pool ids{uuid};
+    runtime_id_pool ids;
+    ids.add(uuid);
     ids.remove(uuid);
 
     EXPECT_STREQ(ids.get().c_str(), uuid.c_str());
@@ -44,7 +42,8 @@ TEST(RuntimeIDPool, RemoveLast)
 TEST(RuntimeIDPool, RemoveCurrent)
 {
     auto uuid = generate_random_uuid();
-    runtime_id_pool ids{uuid};
+    runtime_id_pool ids;
+    ids.add(uuid);
 
     auto uuid2 = generate_random_uuid();
     ids.add(uuid2);
@@ -57,7 +56,8 @@ TEST(RuntimeIDPool, RemoveCurrent)
 TEST(RuntimeIDPool, RemoveLastAndAdd)
 {
     auto uuid = generate_random_uuid();
-    runtime_id_pool ids{uuid};
+    runtime_id_pool ids;
+    ids.add(uuid);
     ids.remove(uuid);
 
     auto uuid2 = generate_random_uuid();
@@ -69,7 +69,8 @@ TEST(RuntimeIDPool, RemoveLastAndAdd)
 TEST(RuntimeIDPool, RemoveAddEmptyAndGet)
 {
     auto uuid = generate_random_uuid();
-    runtime_id_pool ids{uuid};
+    runtime_id_pool ids;
+    ids.add(uuid);
     ids.remove(uuid);
     ids.add("");
 
@@ -80,7 +81,8 @@ TEST(RuntimeIDPool, RemoveDuplicateAndGet)
 {
     auto uuid = generate_random_uuid();
     auto uuid2 = generate_random_uuid();
-    runtime_id_pool ids{uuid};
+    runtime_id_pool ids;
+    ids.add(uuid);
     ids.add(uuid);
     ids.add(uuid);
     ids.add(uuid2);
@@ -94,7 +96,8 @@ TEST(RuntimeIDPool, RemoveAllDuplicatesAndGet)
 {
     auto uuid = generate_random_uuid();
     auto uuid2 = generate_random_uuid();
-    runtime_id_pool ids{uuid};
+    runtime_id_pool ids;
+    ids.add(uuid);
     ids.add(uuid);
     ids.add(uuid);
     ids.add(uuid2);
@@ -109,7 +112,8 @@ TEST(RuntimeIDPool, RemoveAllDuplicatesAndGet)
 TEST(RuntimeIDPool, AddManyAndRemove)
 {
     auto uuid = generate_random_uuid();
-    runtime_id_pool ids{uuid};
+    runtime_id_pool ids;
+    ids.add(uuid);
 
     std::array<std::string, 20> uuid_array;
 

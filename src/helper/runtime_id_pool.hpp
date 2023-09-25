@@ -21,17 +21,7 @@ namespace dds {
  */
 class runtime_id_pool {
 public:
-    explicit runtime_id_pool(const std::string &initial_id)
-    {
-        if (initial_id.empty()) {
-            throw std::invalid_argument(
-                "runtime ID pool initialised with invalid ID");
-        }
-
-        std::lock_guard<std::mutex> lock{mtx_};
-        ids_.emplace(initial_id);
-        current_ = *ids_.begin();
-    }
+    runtime_id_pool() = default;
 
     void add(std::string id)
     {
@@ -73,10 +63,16 @@ public:
         return current_;
     }
 
+    [[nodiscard]] bool has_value() const
+    {
+        std::lock_guard<std::mutex> lock{mtx_};
+        return !current_.empty();
+    }
+
 protected:
     mutable std::mutex mtx_;
     std::unordered_multiset<std::string> ids_;
-    std::string current_;
+    std::string current_{};
 };
 
 } // namespace dds
