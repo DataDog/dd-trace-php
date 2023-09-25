@@ -12,6 +12,7 @@
     INTEGRATION(CAKEPHP, "cakephp")             \
     INTEGRATION(CODEIGNITER, "codeigniter")     \
     INTEGRATION(CURL, "curl")                   \
+    INTEGRATION(DRUPAL, "drupal")               \
     INTEGRATION(ELASTICSEARCH, "elasticsearch") \
     INTEGRATION(ELOQUENT, "eloquent")           \
     INTEGRATION(GUZZLE, "guzzle")               \

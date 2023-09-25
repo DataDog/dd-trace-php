@@ -1,0 +1,17 @@
+{#
+/**
+ * @file
+ * Template for an example 1 column layout.
+ */
+#}
+<div{{ attributes.addClass('layout-example-1col', 'clearfix') }}>
+  {% if in_preview %}
+    This is a preview, indeed
+  {% endif %}
+  <div {{ region_attributes.top.addClass('region-top') }}>
+    {{ content.top }}
+  </div>
+  <div {{ region_attributes.bottom.addClass('region-bottom') }}>
+    {{ content.bottom }}
+  </div>
+</div>

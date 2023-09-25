@@ -1,0 +1,8 @@
+assets/vendor/**/*
+node_modules/**/*
+**/js_test_files/**/*
+*.js
+!*.es6.js
+modules/locale/tests/locale_test.es6.js
+!tests/Drupal/Nightwatch/**/*.js
+misc/polyfills/object.assign.es6.js
