@@ -154,7 +154,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_TRACE_DEBUG_CURL_OUTPUT, "false", .ini_change = zai_config_system_ini_change)              \
     CONFIG(INT, DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT, "80", .ini_change = zai_config_system_ini_change)  \
     CONFIG(BOOL, DD_TRACE_SIDECAR_TRACE_SENDER, "false", .ini_change = zai_config_system_ini_change)           \
-    CONFIG(BOOL, DD_TRACE_BYPASS_AGENT, "false", .ini_change = zai_config_system_ini_change)                   \
+    CONFIG(BOOL, DD_TRACE_AGENTLESS, "false", .ini_change = zai_config_system_ini_change)                   \
     CONFIG(BOOL, DD_TRACE_WARN_LEGACY_DD_TRACE, "true")                                                        \
     CONFIG(BOOL, DD_TRACE_RETAIN_THREAD_CAPABILITIES, "false", .ini_change = zai_config_system_ini_change)     \
     CONFIG(STRING, DD_VERSION, "", .ini_change = ddtrace_alter_dd_version)                                     \

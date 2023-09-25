@@ -25,7 +25,7 @@ static bool dd_sidecar_connection_init(void) {
         return false;
     }
 
-    if (get_global_DD_TRACE_BYPASS_AGENT() && ZSTR_LEN(get_global_DD_API_KEY())) {
+    if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
         ddtrace_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
     } else {
         char *agent_url = ddtrace_agent_url();
