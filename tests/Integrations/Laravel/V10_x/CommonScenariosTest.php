@@ -8,4 +8,10 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\Laravel\V9_x\Commo
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_10_x/public/index.php';
     }
+
+    public static function ddSetUpBeforeClass()
+    {
+        parent::ddSetUpBeforeClass();
+        ini_set('open_basedir', __DIR__ . '/../../../Frameworks/Laravel/Version_10_x/');
+    }
 }
