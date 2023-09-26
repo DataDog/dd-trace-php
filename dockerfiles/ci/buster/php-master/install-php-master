@@ -19,18 +19,14 @@ git pull --depth=1 --rebase
 
 sharedConfig="
     --enable-option-checking=fatal \
-    --enable-bcmath \
     --enable-cgi \
     --enable-fpm \
     --enable-ftp \
-    --enable-intl \
     --enable-mbstring \
     --enable-opcache \
     --enable-pcntl \
     --enable-phpdbg \
-    --enable-soap \
     --enable-sockets \
-    $(if [ "${PHP_VERSION_ID}" -ge 74 ]; then echo --enable-gd; else echo --with-gd; fi) \
     --with-curl \
     --with-ffi \
     --with-fpm-user=www-data \
@@ -44,8 +40,6 @@ sharedConfig="
     --with-pdo-sqlite \
     --with-pear \
     --with-readline \
-    --with-sodium \
-    --with-xsl \
     --with-zip \
     --with-zlib
 "

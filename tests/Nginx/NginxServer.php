@@ -51,15 +51,12 @@ final class NginxServer
             file_get_contents(__DIR__ . '/nginx-default.conf')
         );
 
-        $this->configFile = $this->rootPath . uniqid('/nginx-', true);
+        $this->configFile = sys_get_temp_dir() . uniqid('/nginx-', true);
 
         // This gets logged to phpunit_error.log (check CircleCI artifacts)
         error_log("[nginx] Generated config file '{$this->configFile}' for '{$indexFile}'");
-        fwrite(STDERR, "[nginx] Generated config file '{$this->configFile}' for '{$indexFile}'\n");
         error_log("[nginx] Error log: '" . $replacements['{{error_log}}'] . "'");
-        fwrite(STDERR, "[nginx] Error log: '" . $replacements['{{error_log}}'] . "'\n");
-        error_log($configContent);
-        fwrite(STDERR, $configContent . "\n");
+        //error_log($configContent);
 
         if (false === file_put_contents($this->configFile, $configContent)) {
             throw new \Exception('Error creating temp nginx config file: ' . $this->configFile);
