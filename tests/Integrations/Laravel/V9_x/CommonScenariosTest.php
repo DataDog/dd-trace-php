@@ -21,12 +21,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
-    public static function ddSetUpBeforeClass()
-    {
-        parent::ddSetUpBeforeClass();
-        ini_set('open_basedir', __DIR__ . '/../../../Frameworks/Laravel/Version_9_x/');
-    }
-
     public function testScenarioGetReturnString()
     {
         $this->tracesFromWebRequestSnapshot(function () {
