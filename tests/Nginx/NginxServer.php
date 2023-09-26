@@ -75,7 +75,7 @@ final class NginxServer
         error_log("[nginx] Starting: '{$processCmd}'");
 
         $this->process = new Process($processCmd);
-        $this->process->run();
+        $this->process->start();
     }
 
     public function stop()
