@@ -158,12 +158,14 @@ static PHP_MINIT_FUNCTION(tea_extension) {
 }
 
 static PHP_MSHUTDOWN_FUNCTION(tea_extension) {
+#if PHP_VERSION_ID < 80300
     if (tea_extension_functions_list.size) {
         zend_unregister_functions(
             tea_extension_functions_list.entries,
             tea_extension_functions_list.size - 1,
             NULL);
     }
+#endif
 
     return tea_extension_shutdown_run(
         &tea_extension_mshutdown_list, SHUTDOWN_FUNC_ARGS_PASSTHRU);
