@@ -858,8 +858,8 @@ TEST_INTEGRATIONS_82 := \
 TEST_WEB_82 := \
 	test_metrics \
     test_web_laravel_8x \
-	test_web_laravel_10x \
     test_web_laravel_9x \
+	test_web_laravel_10x \
 	test_web_codeigniter_22 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
