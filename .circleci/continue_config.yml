@@ -2765,12 +2765,12 @@ workflows:
       - "cargo build --release":
           name: "Profiler PHP v8.3 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.3"
-          abi_no: "20220830"
+          abi_no: "20230831"
           triplet: "x86_64-alpine-linux-musl"
       - "cargo build --release":
           name: "Profiler PHP v8.3 - aarch64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.3"
-          abi_no: "20220830"
+          abi_no: "20230831"
           triplet: "aarch64-alpine-linux-musl"
           resource_class: "arm.medium"
 
@@ -2863,12 +2863,12 @@ workflows:
       - "cargo build --release":
           name: "Profiler PHP v8.3 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-8.3_centos-7"
-          abi_no: "20220830"
+          abi_no: "20230831"
           triplet: "x86_64-unknown-linux-gnu"
       - "cargo build --release":
           name: "Profiler PHP v8.3 - aarch64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-8.3_centos-7"
-          abi_no: "20220830"
+          abi_no: "20230831"
           triplet: "aarch64-unknown-linux-gnu"
           resource_class: "arm.medium"
 
@@ -3000,13 +3000,13 @@ workflows:
           name: "Compile x86_64 PHP 83 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.3_centos-7"
           php_version: "8.3"
-          so_suffix: "20220830"
+          so_suffix: "20230831"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 83 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.3_centos-7"
           php_version: "8.3"
-          so_suffix: "20220830"
+          so_suffix: "20230831"
           resource_class: "arm.medium"
       - pecl_build:
           requires: [ 'Prepare Code' ]
@@ -3119,12 +3119,12 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 83 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
-          so_suffix: "20220830"
+          so_suffix: "20230831"
       - compile_extension_asan:
           requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 83 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
-          so_suffix: "20220830"
+          so_suffix: "20230831"
           resource_class: "arm.medium"
 
       - "package extension":
