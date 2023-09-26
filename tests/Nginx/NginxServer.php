@@ -56,7 +56,7 @@ final class NginxServer
         // This gets logged to phpunit_error.log (check CircleCI artifacts)
         error_log("[nginx] Generated config file '{$this->configFile}' for '{$indexFile}'");
         error_log("[nginx] Error log: '" . $replacements['{{error_log}}'] . "'");
-        //error_log($configContent);
+        error_log($configContent);
 
         if (false === file_put_contents($this->configFile, $configContent)) {
             throw new \Exception('Error creating temp nginx config file: ' . $this->configFile);
