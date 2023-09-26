@@ -51,7 +51,7 @@ final class NginxServer
             file_get_contents(__DIR__ . '/nginx-default.conf')
         );
 
-        $this->configFile = sys_get_temp_dir() . uniqid('/nginx-', true);
+        $this->configFile = $this->rootPath . uniqid('/nginx-', true);
 
         // This gets logged to phpunit_error.log (check CircleCI artifacts)
         error_log("[nginx] Generated config file '{$this->configFile}' for '{$indexFile}'");
