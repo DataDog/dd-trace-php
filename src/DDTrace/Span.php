@@ -150,7 +150,6 @@ class Span extends DataSpan
             }
 
             if ($key === Tag::SERVICE_NAME) {
-                $this->addBaseServiceIfNeeded($value);
                 $this->internalSpan->service = $value;
                 return;
             }

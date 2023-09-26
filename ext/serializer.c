@@ -1101,6 +1101,22 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         }
 
         add_assoc_zval(el, "service", &prop_service_as_string);
+
+        // Add _dd.base_service if service name differs from mapped root service name
+        zval *prop_root_service = ddtrace_spandata_property_service(span->root);
+        ZVAL_DEREF(prop_root_service);
+        zval prop_root_service_as_string;
+        ddtrace_convert_to_string(&prop_root_service_as_string, prop_root_service);
+
+        zval *new_root_name = zend_hash_find(service_mappings, Z_STR(prop_root_service_as_string));
+        if (new_root_name) {
+            zend_string_release(Z_STR(prop_root_service_as_string));
+            ZVAL_COPY(&prop_root_service_as_string, new_root_name);
+        }
+
+        if (strcasecmp(Z_STRVAL(prop_service_as_string), Z_STRVAL(prop_root_service_as_string)) != 0) {
+            add_assoc_zval(el, "_dd.base_service", &prop_root_service_as_string);
+        }
     }
 
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
