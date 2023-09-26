@@ -691,7 +691,7 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-profiling",
- "ddcommon 4.0.0 (git+https://github.com/DataDog/libdatadog?tag=v4.0.0)",
+ "ddcommon 4.0.0",
  "env_logger",
  "indexmap 2.0.0",
  "lazy_static",
@@ -714,7 +714,7 @@ dependencies = [
  "bitmaps",
  "bytes",
  "chrono",
- "ddcommon 4.0.0 (git+https://github.com/DataDog/libdatadog?tag=v4.0.0)",
+ "ddcommon 4.0.0",
  "derivative",
  "futures",
  "futures-core",
@@ -750,7 +750,7 @@ dependencies = [
  "datadog-trace-normalization",
  "datadog-trace-protobuf",
  "datadog-trace-utils",
- "ddcommon 4.0.0",
+ "ddcommon 0.0.1",
  "ddtelemetry",
  "futures",
  "hashbrown 0.12.3",
@@ -787,7 +787,7 @@ dependencies = [
  "datadog-ipc",
  "datadog-sidecar",
  "datadog-trace-utils",
- "ddcommon 4.0.0",
+ "ddcommon 0.0.1",
  "ddcommon-ffi",
  "ddtelemetry",
  "ddtelemetry-ffi",
@@ -807,7 +807,7 @@ dependencies = [
 
 [[package]]
 name = "datadog-trace-normalization"
-version = "2.1.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "datadog-trace-protobuf",
@@ -817,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "datadog-trace-protobuf"
-version = "2.1.0"
+version = "0.0.1"
 dependencies = [
  "prost",
  "prost-build",
@@ -828,12 +828,12 @@ dependencies = [
 
 [[package]]
 name = "datadog-trace-utils"
-version = "2.1.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "datadog-trace-normalization",
  "datadog-trace-protobuf",
- "ddcommon 4.0.0",
+ "ddcommon 0.0.1",
  "flate2",
  "futures",
  "hyper",
@@ -848,7 +848,7 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "4.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "futures",
@@ -897,19 +897,19 @@ dependencies = [
 
 [[package]]
 name = "ddcommon-ffi"
-version = "4.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
- "ddcommon 4.0.0",
+ "ddcommon 0.0.1",
  "hyper",
 ]
 
 [[package]]
 name = "ddtelemetry"
-version = "4.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
- "ddcommon 4.0.0",
+ "ddcommon 0.0.1",
  "futures",
  "hashbrown 0.12.3",
  "http",
@@ -930,9 +930,9 @@ dependencies = [
 
 [[package]]
 name = "ddtelemetry-ffi"
-version = "4.0.0"
+version = "0.0.1"
 dependencies = [
- "ddcommon 4.0.0",
+ "ddcommon 0.0.1",
  "ddcommon-ffi",
  "ddtelemetry",
  "libc 0.2.147",
@@ -949,7 +949,7 @@ dependencies = [
  "cc_utils",
  "datadog-sidecar",
  "datadog-sidecar-ffi",
- "ddcommon 4.0.0",
+ "ddcommon 0.0.1",
  "ddcommon-ffi",
  "ddtelemetry",
  "ddtelemetry-ffi",
