@@ -767,6 +767,7 @@ TEST_INTEGRATIONS_80 := \
 
 TEST_WEB_80 := \
 	test_metrics \
+	test_web_nette_24 \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_codeigniter_22 \
@@ -775,7 +776,6 @@ TEST_WEB_80 := \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
-	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
