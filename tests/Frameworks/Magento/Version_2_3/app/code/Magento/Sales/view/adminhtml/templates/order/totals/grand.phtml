@@ -1,0 +1,21 @@
+<?php
+/**
+ * Copyright © Magento, Inc. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+?>
+<?php $_source  = $block->getSource() ?>
+<?php $block->setPriceDataObject($_source) ?>
+
+<tr>
+    <td class="label">
+        <strong style="font-size: larger">
+        <?php if ($block->getGrandTotalTitle()) : ?>
+            <?= $block->escapeHtml($block->getGrandTotalTitle()) ?>
+        <?php else : ?>
+            <?= $block->escapeHtml(__('Grand Total')) ?>
+        <?php endif; ?>
+        </strong>
+    </td>
+    <td class="emph" style="font-size: larger"><?= /* @noEscape */ $block->displayPriceAttribute('grand_total', true) ?></td>
+</tr>

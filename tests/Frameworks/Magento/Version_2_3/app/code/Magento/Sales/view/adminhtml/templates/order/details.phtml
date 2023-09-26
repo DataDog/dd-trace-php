@@ -1,0 +1,88 @@
+<?php
+/**
+ * Copyright © Magento, Inc. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+
+// phpcs:disable Magento2.Templates.ThisInTemplate
+
+/*
+store view name = $_order->getStore()->getName()
+web site name = $_order->getStore()->getWebsite()->getName()
+store name = $_order->getStore()->getGroup()->getName()
+*/
+
+/* @var \Magento\Sales\Block\Adminhtml\Order\Details $block */
+?>
+<?php
+/* @var \Magento\Sales\Model\Order $_order */
+$_order = $block->getOrder() ?>
+<div>
+<?= $block->escapeHtml(__('Customer Name: %1', $_order->getCustomerFirstname() ? $_order->getCustomerName() : $_order->getBillingAddress()->getName())) ?><br />
+<?= $block->escapeHtml(__('Purchased From: %1', $_order->getStore()->getGroup()->getName())) ?><br />
+</div>
+<table cellpadding="0" border="0" width="100%" style="border:1px solid #bebcb7; background:#f8f7f5;">
+    <thead>
+        <tr>
+            <th align="left" bgcolor="#d9e5ee" style="padding:3px 9px">Item</th>
+            <th align="center" bgcolor="#d9e5ee" style="padding:3px 9px">Qty</th>
+            <th align="right" bgcolor="#d9e5ee" width="10%" style="padding:3px 9px">Subtotal</th>
+        </tr>
+    </thead>
+
+    <tbody>
+<?php $i = 0; foreach ($_order->getAllItems() as $_item) : $i++ ?>
+        <tr <?= $i%2 ? 'bgcolor="#eeeded"' : '' ?>>
+            <td align="left" valign="top" style="padding:3px 9px"><strong><?= $block->escapeHtml($_item->getName()) ?></strong>
+            <?php if ($_item->getGiftMessageId() && $_giftMessage = $this->helper(\Magento\GiftMessage\Helper\Message::class)->getGiftMessage($_item->getGiftMessageId())) : ?>
+            <br /><strong><?= $block->escapeHtml(__('Gift Message')) ?></strong>
+            <br /><?= $block->escapeHtml(__('From:')) ?> <?= $block->escapeHtml($_giftMessage->getSender()) ?>
+            <br /><?= $block->escapeHtml(__('To:')) ?> <?= $block->escapeHtml($_giftMessage->getRecipient()) ?>
+            <br /><?= $block->escapeHtml(__('Message:')) ?><br /> <?= $block->escapeHtml($_giftMessage->getMessage()) ?>
+            <?php endif; ?>
+            </td>
+            <td align="center" valign="top" style="padding:3px 9px"><?= (float) $_item->getQtyOrdered() ?></td>
+            <td align="right" valign="top" style="padding:3px 9px"><?= /* @noEscape */ $_order->formatPrice($_item->getRowTotal()) ?></td>
+        </tr>
+<?php endforeach; ?>
+    </tbody>
+
+    <tfoot>
+    <?php if ($_order->getGiftMessageId() && $_giftMessage = $this->helper(\Magento\GiftMessage\Helper\Message::class)->getGiftMessage($_order->getGiftMessageId())) : ?>
+        <tr>
+            <td colspan="3" align="left" style="padding:3px 9px">
+            <strong><?= $block->escapeHtml(__('Gift Message')) ?></strong>
+            <br /><?= $block->escapeHtml(__('From:')) ?> <?= $block->escapeHtml($_giftMessage->getSender()) ?>
+            <br /><?= $block->escapeHtml(__('To:')) ?> <?= $block->escapeHtml($_giftMessage->getRecipient()) ?>
+            <br /><?= $block->escapeHtml(__('Message:')) ?><br /> <?= $block->escapeHtml($_giftMessage->getMessage()) ?>
+            </td>
+        </tr>
+    <?php endif; ?>
+        <tr>
+            <td colspan="2" align="right" style="padding:3px 9px"><?= $block->escapeHtml(__('Subtotal')) ?></td>
+            <td align="right" style="padding:3px 9px"><?= /* @noEscape */ $_order->formatPrice($_order->getSubtotal()) ?></td>
+        </tr>
+        <?php if ($_order->getDiscountAmount() > 0) : ?>
+            <tr>
+                <td colspan="2" align="right" style="padding:3px 9px"><?= $block->escapeHtml((($_order->getCouponCode()) ? __('Discount (%1)', $_order->getCouponCode()) : __('Discount'))) ?></td>
+                <td align="right" style="padding:3px 9px"><?= /* @noEscape */ $_order->formatPrice(0.00 - $_order->getDiscountAmount()) ?></td>
+            </tr>
+        <?php endif; ?>
+        <?php if ($_order->getShippingAmount() || $_order->getShippingDescription()) : ?>
+            <tr>
+                <td colspan="2" align="right" style="padding:3px 9px"><?= $block->escapeHtml(__('Shipping &amp; Handling')) ?></td>
+                <td align="right" style="padding:3px 9px"><?= /* @noEscape */ $_order->formatPrice($_order->getShippingAmount()) ?></td>
+            </tr>
+        <?php endif; ?>
+        <?php if ($_order->getTaxAmount() > 0) : ?>
+            <tr>
+                <td colspan="2" align="right" style="padding:3px 9px"><?= $block->escapeHtml(__('Tax')) ?></td>
+                <td align="right" style="padding:3px 9px"><?= /* @noEscape */ $_order->formatPrice($_order->getTaxAmount()) ?></td>
+            </tr>
+        <?php endif; ?>
+        <tr bgcolor="#DEE5E8">
+            <td colspan="2" align="right" style="padding:3px 9px"><strong style="font-size: larger"><?= $block->escapeHtml(__('Grand Total')) ?></strong></td>
+            <td align="right" style="padding:6px 9px"><strong style="font-size: larger"><?= /* @noEscape */ $_order->formatPrice($_order->getGrandTotal()) ?></strong></td>
+        </tr>
+    </tfoot>
+</table>
