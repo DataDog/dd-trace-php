@@ -13,13 +13,6 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
     }
 
-    protected static function getEnvs()
-    {
-        return array_merge(parent::getEnvs(), [
-            'DD_TRACE_DEBUG' => 'true'
-        ]);
-    }
-
     protected function connection()
     {
         return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');

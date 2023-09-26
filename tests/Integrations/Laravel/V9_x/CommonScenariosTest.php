@@ -16,8 +16,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'APP_NAME' => 'laravel_test_app',
-            'DD_SERVICE' => 'my_service',
-            'DD_TRACE_DEBUG' => 'true'
+            'DD_SERVICE' => 'my_service'
         ]);
     }
 
