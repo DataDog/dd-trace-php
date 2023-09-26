@@ -162,13 +162,6 @@ bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_stack_size, size_t
     atomic_store(&ddtrace_coms_globals.next_group_id, 1);
     atomic_store(&ddtrace_coms_globals.current_stack, stack);
 
-    ddog_Option_VecU8 writer_result = ddog_create_agent_remote_config_writer(&dd_agent_config_writer, &ddtrace_coms_agent_config_handle);
-    if (writer_result.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
-        ddtrace_bgs_logf("error creating config writer: %.*s", (int)writer_result.some.len, writer_result.some.ptr);
-        ddog_MaybeError_drop(writer_result);
-        return false;
-    }
-
     _dd_ptr_at_exit_callback = _dd_at_exit_callback;
     atexit(_dd_at_exit_hook);
 
@@ -693,7 +686,7 @@ static struct curl_slist *dd_agent_headers_alloc(void) {
 
     dd_append_header(&list, "Datadog-Meta-Lang", "php");
     dd_append_header(&list, "Datadog-Meta-Lang-Interpreter", sapi_module.name);
-    dd_append_header(&list, "Datadog-Meta-Lang-Version", PHP_VERSION);
+    dd_append_header(&list, "Datadog-Meta-Lang-Version", ZSTR_VAL(ddtrace_php_version));
     dd_append_header(&list, "Datadog-Meta-Tracer-Version", PHP_DDTRACE_VERSION);
 
     ddog_CharSlice id = ddtrace_get_container_id();
@@ -721,8 +714,10 @@ static void dd_agent_headers_free(struct curl_slist *list) {
 void ddtrace_coms_curl_shutdown(void) {
     dd_agent_headers_free(dd_agent_curl_headers);
 
-    ddog_agent_remote_config_writer_drop(dd_agent_config_writer);
-    ddog_drop_anon_shm_handle(ddtrace_coms_agent_config_handle);
+    if (dd_agent_config_writer) {
+        ddog_agent_remote_config_writer_drop(dd_agent_config_writer);
+        ddog_drop_anon_shm_handle(ddtrace_coms_agent_config_handle);
+    }
 }
 
 static long _dd_max_long(long a, long b) { return a >= b ? a : b; }
@@ -1104,6 +1099,9 @@ bool ddtrace_coms_init_and_start_writer(void) {
     if (writer->thread) {
         return false;
     }
+
+    ddtrace_ffi_try("error creating config writer", ddog_create_agent_remote_config_writer(&dd_agent_config_writer, &ddtrace_coms_agent_config_handle));
+
     struct _writer_thread_variables_t *thread = _dd_create_thread_variables();
     writer->thread = thread;
     writer->set_secbit = get_global_DD_TRACE_RETAIN_THREAD_CAPABILITIES();

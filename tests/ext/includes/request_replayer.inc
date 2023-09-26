@@ -47,13 +47,10 @@ class RequestReplayer
 
         ksort($request['headers']);
 
-        if (!$showOnly) {
-            return $request['headers'];
-        }
-
         $headers = [];
         foreach ($request['headers'] as $name => $value) {
-            if (!in_array($name, $showOnly, true)) {
+            $name = strtolower($name);
+            if ($showOnly && !in_array($name, $showOnly, true)) {
                 continue;
             }
             $headers[$name] = $value;

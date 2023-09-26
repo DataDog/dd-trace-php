@@ -769,6 +769,54 @@ jobs:
           path: /tmp/artifacts
       - <<: *STEP_GET_TEST_AGENT_RESULTS
 
+  test_sidecar_sender:
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Set core pattern
+          command: |
+            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+          extra: with_httpbin_and_request_replayer
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - run:
+          name: Run tests
+          command: |
+            set -euo pipefail
+            DD_TRACE_SIDECAR_TRACE_SENDER=1 make test_c RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      - <<: *STEP_STORE_TEST_RESULTS
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find /tmp -name "core*" -type f | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
   test_multi_observer:
     parameters:
       php_major_minor:
@@ -3438,6 +3486,13 @@ workflows:
                 - test_c_disabled
                 - test_internal_api_randomized
                 - test_opcache
+
+      # sidecar is version independent
+      - test_sidecar_sender:
+          requires: [ 'Prepare Code' ]
+          php_major_minor: '8.2'
+          switch_php_version: debug-zts-asan
+          resource_class: medium
 
       - test_multi_observer:
           requires: [ 'Prepare Code' ]

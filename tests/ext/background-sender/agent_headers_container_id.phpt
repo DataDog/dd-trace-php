@@ -13,21 +13,21 @@ DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS=1
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_AUTO_FLUSH_ENABLED=1
 --FILE--
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';
 
-// payload = [[]]
-$payload = "\x91\x90";
-var_dump(dd_trace_send_traces_via_thread(1, [], $payload));
+\DDTrace\start_span();
+\DDTrace\close_span();
 
 $rr = new RequestReplayer();
 $rr->waitForFlush();
 
 echo PHP_EOL;
 $headers = $rr->replayHeaders([
-    'Datadog-Container-Id',
-    'Datadog-Meta-Lang',
+    'datadog-container-id',
+    'datadog-meta-lang',
 ]);
 foreach ($headers as $name => $value) {
     echo $name . ': ' . $value . PHP_EOL;
@@ -38,10 +38,10 @@ echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
-bool(true)
+Flushing trace of size 1 to send-queue for http://request-replayer:80
 
-Datadog-Container-Id: 9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f
-Datadog-Meta-Lang: php
+datadog-container-id: 9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f
+datadog-meta-lang: php
 
 Done.
 No finished traces to be sent to the agent
