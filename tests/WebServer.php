@@ -163,7 +163,7 @@ final class WebServer
 
         if ($this->sapi->isFastCgi()) {
             $this->server = new NginxServer(
-                dirname($this->indexFile),
+                $this->indexFile,
                 $this->host,
                 $this->port,
                 self::FCGI_HOST,
