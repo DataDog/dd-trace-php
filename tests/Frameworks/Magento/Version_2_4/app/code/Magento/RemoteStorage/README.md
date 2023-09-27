@@ -1,1 +1,0 @@
-# Magento_RemoteStorage module
