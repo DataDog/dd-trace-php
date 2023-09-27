@@ -58,6 +58,10 @@ final class NginxServer
         error_log("[nginx] Error log: '" . $replacements['{{error_log}}'] . "'");
         //error_log($configContent);
 
+        # Ensure there won't be any memory issue with nginx-php-fpm leading to
+        # recv failed (104: Connection reset by peer) while reading response header from upstream
+        ini_set('memory_limit', '512M');
+
         if (false === file_put_contents($this->configFile, $configContent)) {
             throw new \Exception('Error creating temp nginx config file: ' . $this->configFile);
         }
