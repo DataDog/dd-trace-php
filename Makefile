@@ -767,15 +767,15 @@ TEST_INTEGRATIONS_80 := \
 
 TEST_WEB_80 := \
 	test_metrics \
-	test_web_laravel_8x \
-	test_web_nette_24 \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_codeigniter_22 \
 	test_web_drupal_95 \
 	test_web_laminas_14 \
 	test_web_laminas_20 \
+	test_web_laravel_8x \
 	test_web_laravel_9x \
+	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
@@ -811,13 +811,13 @@ TEST_INTEGRATIONS_81 := \
 
 TEST_WEB_81 := \
 	test_metrics \
-	test_web_laravel_10x \
-    test_web_laravel_8x \
-    test_web_laravel_9x \
 	test_web_codeigniter_22 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
 	test_web_laminas_20 \
+	test_web_laravel_8x \
+    test_web_laravel_9x \
+    test_web_laravel_10x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_magento_24 \
@@ -857,13 +857,13 @@ TEST_INTEGRATIONS_82 := \
 
 TEST_WEB_82 := \
 	test_metrics \
-    test_web_laravel_8x \
-    test_web_laravel_9x \
-	test_web_laravel_10x \
 	test_web_codeigniter_22 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
 	test_web_laminas_20 \
+	test_web_laravel_8x \
+    test_web_laravel_9x \
+    test_web_laravel_10x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
