@@ -173,7 +173,7 @@ final class WebServer
         }
 
         $this->sapi->start();
-        usleep(1000000);
+        usleep(500000);
     }
 
     /**

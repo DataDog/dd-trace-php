@@ -39,6 +39,6 @@ php -d memory_limit=1G ./bin/magento setup:install \
      --cleanup-database
 ```
 
-Note: The last two lines are only required for Magento 2.4+, since from the latter the use of elasticsearch is required
+Note: The last two elasticsearch lines are only required for Magento 2.4+, since from the latter the use of elasticsearch is required
 
 - Use the custom datadog controllers. Copy the `app/code/CustomElement` directory of the other test frameworks and place it at the same location for the newly tested version. Directory structure matters.
