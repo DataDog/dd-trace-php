@@ -6,8 +6,8 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
-
 use Magento\Framework\Interception\InterceptorInterface;
+
 use function DDTrace\hook_method;
 use function DDTrace\set_user;
 use function DDTrace\trace_method;
