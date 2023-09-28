@@ -9,6 +9,7 @@ use DDTrace\Type;
 
 use Magento\Framework\Interception\InterceptorInterface;
 use function DDTrace\hook_method;
+use function DDTrace\set_user;
 use function DDTrace\trace_method;
 use function DDTrace\root_span;
 
@@ -71,6 +72,8 @@ class MagentoIntegration extends Integration
 
     public function init()
     {
+        ini_set('datadog.trace.spans_limit', max(1500, ini_get('datadog.trace.spans_limit')));
+
         // Bootstrap
         trace_method(
             'Magento\Framework\App\Bootstrap',
@@ -94,35 +97,19 @@ class MagentoIntegration extends Integration
             function (SpanData $span, $args, $area) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.area.get');
 
-                $frontName = $args[0]; // It WILL either be frontend or adminhtml
-                $span->meta['magento.frontname'] = $frontName;
+                $frontName = $args[0];
+                $span->meta['magento.area'] = $area;
 
-                if (empty($area)) {
-                    $span->resource = $frontName;
+                if (empty($frontName)) {
+                    $span->resource = $area;
                 } else {
                     $span->resource = "$frontName:$area";
-                    $span->meta['magento.area'] = $area;
+                    $span->meta['magento.front'] = $frontName;
                 }
             }
         );
 
         // Static resources
-        hook_method(
-            'Magento\Framework\App\StaticResource',
-            '__construct',
-            function ($staticResource, $scope, $args) {
-                $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
-
-                $request = $args[2];
-                $path = $request->get('resource');
-                $params = $staticResource->parsePath($path);
-                MagentoIntegration::setStaticInfoToRootSpan($rootSpan, $path, $params);
-            }
-        );
-
         hook_method(
             'Magento\Framework\App\StaticResource',
             'parsePath',
@@ -151,19 +138,35 @@ class MagentoIntegration extends Integration
             }
         );
 
+        // Cron - bin/magento
         trace_method(
-            'Magento\MediaStorage\App\Media',
-            'launch',
-            function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.launch', MagentoIntegration::getRealClass($this));
+            'Symfony\Component\Console\Application', // Magento\Framework\Console\Cli extends this
+            'find',
+            function (SpanData $span, $args) {
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.console.find', $args[0]);
+                $span->meta['magento.console.command'] = root_span()->resource = $args[0];
+            }
+        );
 
-                $rootSpan = root_span();
-                MagentoIntegration::setCommonSpanInfo(
-                    $rootSpan,
-                    'magento.request',
-                    dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING") ? "media" : null
-                );
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+        trace_method(
+            'Magento\Cron\Observer\ProcessCronQueueObserver',
+            '_runJob',
+            function (SpanData $span, $args) {
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.cron.run');
+
+                // _runJob($scheduledTime, $currentTime, $jobConfig, $schedule, $groupId)
+                $span->meta['magento.cron.scheduled_time'] = $args[0];
+                $span->meta['magento.cron.current_time'] = $args[1];
+                $span->meta['magento.cron.group_id'] = $args[4];
+
+                $jobConfig = $args[2];
+                if (!isset($jobConfig['instance'], $jobConfig['method'])) {
+                    return;
+                } else {
+                    $span->resource = $jobConfig['instance'] . '::' . $jobConfig['method'];
+                    $span->meta['magento.cron.class'] = $jobConfig['instance'];
+                    $span->meta['magento.cron.method'] = $jobConfig['method'];
+                }
             }
         );
 
@@ -174,15 +177,16 @@ class MagentoIntegration extends Integration
             function (SpanData $span) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.launch', MagentoIntegration::getRealClass($this));
 
+                $resource = null;
+                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                    if ($this instanceof \Magento\Framework\App\StaticResource) {
+                        $resource = "static";
+                    } elseif ($this instanceof \Magento\MediaStorage\App\Media) {
+                        $resource = "media";
+                    }
+                }
                 $rootSpan = root_span();
-                MagentoIntegration::setCommonSpanInfo(
-                    $rootSpan,
-                    'magento.request',
-                    $this instanceof \Magento\Framework\App\StaticResource
-                    && dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")
-                        ? "static"
-                        : null
-                );
+                MagentoIntegration::setCommonSpanInfo($rootSpan, 'magento.request', $resource);
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
         );
@@ -530,10 +534,7 @@ class MagentoIntegration extends Integration
                 $span->meta['magento.block.module'] = $moduleName;
                 $span->meta['magento.block.name'] = $blockName;
 
-                $cacheKey = $block->getCacheKey();
                 $cacheLifetime = $block->getCacheLifetime();
-                $span->meta['magento.block.cache_key'] = $cacheKey; // A cache key is generated even if the block is not cached
-
                 if ($cacheLifetime !== null) {
                     $span->meta['magento.block.cache_lifetime'] = $cacheLifetime;
                 }
@@ -590,6 +591,22 @@ class MagentoIntegration extends Integration
                     $integration->setError($rootSpan, $args[1]);
                 }
 
+            }
+        );
+
+        // Identify current user (userid, email)
+        hook_method(
+            'Magento\Customer\Model\Session',
+            'isLoggedIn',
+            null,
+            function ($session, $scope, $args, $isLoggedIn) {
+                if ($isLoggedIn && root_span() !== null) {
+                    /** @var Magento\Customer\Model\Data\Customer $customer */
+                    $customer = $session->getCustomer();
+                    $userId = $customer->getId();
+                    $email = $customer->getEmail();
+                    set_user($userId, empty($email) ? null : ['email' => $email]);
+                }
             }
         );
 
