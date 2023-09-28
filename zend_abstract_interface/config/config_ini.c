@@ -131,15 +131,15 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
                 entries[i]->value = zend_string_copy(runtime_value);
             }
         }
+    }
 
-        if (runtime_value) {
-            buf->ptr = ZSTR_VAL(runtime_value);
-            buf->len = ZSTR_LEN(runtime_value);
-            zend_string_release(runtime_value);
-        } else if (parsed_ini_value && zai_option_str_is_none(*buf)) {
-            buf->ptr = ZSTR_VAL(parsed_ini_value);
-            buf->len = ZSTR_LEN(parsed_ini_value);
-        }
+    if (runtime_value) {
+        buf->ptr = ZSTR_VAL(runtime_value);
+        buf->len = ZSTR_LEN(runtime_value);
+        zend_string_release(runtime_value);
+    } else if (parsed_ini_value && zai_option_str_is_none(*buf)) {
+        buf->ptr = ZSTR_VAL(parsed_ini_value);
+        buf->len = ZSTR_LEN(parsed_ini_value);
     }
 
     if (parsed_ini_value) {
