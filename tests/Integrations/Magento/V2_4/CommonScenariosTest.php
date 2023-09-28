@@ -30,8 +30,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         '/datadog/simple/index?key=value&pwd=should_redact'
                     )
                 );
-            },
-            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta.magento.block.cache_key']
+            }
         );
     }
 
@@ -45,8 +44,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         '/datadog/simpleview/index?key=value&pwd=should_redact'
                     )
                 );
-            },
-            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta.magento.block.cache_key']
+            }
         );
     }
 
@@ -60,8 +58,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         '/datadog/error/index?key=value&pwd=should_redact'
                     )->expectStatusCode(500)
                 );
-            },
-            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta.magento.block.cache_key']
+            }
         );
     }
 
@@ -75,8 +72,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         '/does_not_exist?key=value&pwd=should_redact'
                     )->expectStatusCode(404)
                 );
-            },
-            ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta.magento.block.cache_key']
+            }
         );
     }
 }

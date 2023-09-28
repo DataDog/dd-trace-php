@@ -40,18 +40,12 @@ class MagentoIntegration extends Integration
         $span->service = \ddtrace_config_app_name('magento');
         $span->meta[Tag::COMPONENT] = 'magento';
 
-        if ($resource !== null) {
-            $span->resource = $resource;
-        }
+        $span->resource = $resource ?? $name;
     }
 
     public static function getRealClass(object $class): string
     {
-        if ($class instanceof InterceptorInterface) {
-            return get_parent_class($class);
-        } else {
-            return get_class($class);
-        }
+        return $class instanceof InterceptorInterface ? get_parent_class($class) : get_class($class);
     }
 
     /**
@@ -116,13 +110,9 @@ class MagentoIntegration extends Integration
             null,
             function ($staticResource, $scope, $args, $retval) {
                 $rootSpan = root_span();
-                if ($rootSpan === null) {
-                    return;
+                if ($rootSpan !== null) {
+                    MagentoIntegration::setStaticInfoToRootSpan($rootSpan, $args[0], $retval);
                 }
-
-                $path = $args[0];
-                $params = $retval;
-                MagentoIntegration::setStaticInfoToRootSpan($rootSpan, $path, $params);
             }
         );
 
@@ -519,9 +509,7 @@ class MagentoIntegration extends Integration
                     $template = $block->getTemplate();
                     if ($template !== null) {
                         $span->meta['magento.block.template'] = $template;
-                        if (empty($moduleName)) {
-                            $moduleName = substr($template, 0, strpos($template, '::'));
-                        }
+                        $moduleName = $moduleName ?? substr($template, 0, strpos($template, '::'));
                     }
                     $span->meta['magento.block.area'] = $block->getArea();
                 }
@@ -565,17 +553,11 @@ class MagentoIntegration extends Integration
             'Magento\Framework\Event\ObserverInterface',
             'execute',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.event.execute');
-
-                $span->resource = get_class($this);
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.event.execute', get_class($this));
 
                 // If this is an instance of \Magento\PageCache\Observer\ProcessLayoutRenderElement, then return false
                 // to prevent the original execute method from being called.
-                if ($this instanceof \Magento\PageCache\Observer\ProcessLayoutRenderElement) {
-                    return false;
-                }
-
-                return true;
+                return !($this instanceof \Magento\PageCache\Observer\ProcessLayoutRenderElement);
             }
         );
 
