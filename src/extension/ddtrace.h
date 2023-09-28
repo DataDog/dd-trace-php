@@ -17,7 +17,10 @@ void dd_trace_shutdown(void);
 void dd_trace_rinit(void);
 // Returns the tracer version
 const char *nullable dd_trace_version(void);
+// This function should only be used in RINIT
 bool dd_trace_enabled(void);
+// This function should be used before loading tracer symbols
+bool dd_trace_loaded(void);
 
 // increases the refcount of tag, but not value (like zval_hash_add)
 // however, it destroy value if the operation fails (unlike zval_hash_add)

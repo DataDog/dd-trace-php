@@ -20,7 +20,7 @@ static int (*_orig_ddtrace_shutdown)(SHUTDOWN_FUNC_ARGS);
 static int _mod_type;
 static int _mod_number;
 static const char *_mod_version;
-static bool _ddtrace_enabled;
+static bool _ddtrace_loaded;
 static zend_string *_ddtrace_root_span_fname;
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
@@ -83,11 +83,6 @@ static void dd_trace_load_symbols(void)
 
 void dd_trace_startup()
 {
-    _ddtrace_enabled = false;
-    if (!get_global_DD_TRACE_ENABLED()) {
-        return;
-    }
-
     _ddtrace_root_span_fname = zend_string_init_interned(
         LSTRARG("ddtrace\\root_span"), 1 /* permanent */);
     _meta_propname = zend_string_init_interned(LSTRARG("meta"), 1);
@@ -98,14 +93,16 @@ void dd_trace_startup()
     }
 
     zend_module_entry *mod = _find_ddtrace_module();
-    if (!mod) {
+    if (mod == NULL) {
         mlog(dd_log_debug, "Cannot find ddtrace extension");
+        _ddtrace_loaded = false;
         return;
     }
+
+    _ddtrace_loaded = true;
     _mod_type = mod->type;
     _mod_number = mod->module_number;
     _mod_version = mod->version;
-    _ddtrace_enabled = true;
 
     dd_trace_load_symbols();
 
@@ -120,7 +117,7 @@ void dd_trace_rinit()
     _span_meta = NULL;
     _span_metrics = NULL;
     // DDTrace might not be loaded during tests
-    if (!_ddtrace_enabled) {
+    if (!dd_trace_enabled()) {
         return;
     }
     _span_meta = dd_trace_root_span_get_meta();
@@ -159,7 +156,8 @@ static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS)
 
 const char *nullable dd_trace_version() { return _mod_version; }
 
-bool dd_trace_enabled() { return _ddtrace_enabled; }
+bool dd_trace_loaded() { return _ddtrace_loaded; }
+bool dd_trace_enabled() { return _ddtrace_loaded && get_DD_TRACE_ENABLED(); }
 
 bool dd_trace_root_span_add_tag(zend_string *nonnull tag, zval *nonnull value)
 {
