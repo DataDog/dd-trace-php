@@ -311,6 +311,8 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Symfony\\Component\\HttpKernel\\HttpKernel", "__construct",
                                          "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Symfony\\Component\\Console\\Command\\Command", "__construct",
+                                             "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Drupal\\Core\\DrupalKernel", "__construct",
                                              "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
 
