@@ -40,7 +40,7 @@ class MagentoIntegration extends Integration
         $span->service = \ddtrace_config_app_name('magento');
         $span->meta[Tag::COMPONENT] = 'magento';
 
-        $span->resource = $resource ?? $name;
+        $span->resource = $resource ?? $span->resource;
     }
 
     public static function getRealClass(object $class): string
@@ -458,10 +458,7 @@ class MagentoIntegration extends Integration
                     $span->meta['magento.template'] = $span->resource = $templateFile;
 
                     $module = $template->getModuleName();
-                    $span->meta['magento.module'] = empty($module)
-                        ? substr($templateFile, 0, strpos($templateFile, '::'))
-                        : $module;
-
+                    $span->meta['magento.module'] = $module ?: substr($templateFile, 0, strpos($templateFile, '::'));
                     $span->meta['magento.area'] = $template->getArea();
                 }
             ]
@@ -509,7 +506,7 @@ class MagentoIntegration extends Integration
                     $template = $block->getTemplate();
                     if ($template !== null) {
                         $span->meta['magento.block.template'] = $template;
-                        $moduleName = $moduleName ?? substr($template, 0, strpos($template, '::'));
+                        $moduleName = $moduleName ?: substr($template, 0, strpos($template, '::'));
                     }
                     $span->meta['magento.block.area'] = $block->getArea();
                 }
