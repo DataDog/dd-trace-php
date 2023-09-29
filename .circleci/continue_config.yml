@@ -3761,7 +3761,13 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 82 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
-          xdebug_version_one: "3.2.0RC1"
+          xdebug_version_one: "3.2.2"
+      - xdebug_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 83 Xdebug tests"
+          docker_image: "datadog/dd-trace-ci:php-8.3_buster"
+          xdebug_version_one: "3.3.0alpha2"
+
       - placeholder:
           requires: [ 'Prepare Code' ]
           name: Language tests
