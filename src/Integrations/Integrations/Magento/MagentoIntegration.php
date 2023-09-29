@@ -39,7 +39,6 @@ class MagentoIntegration extends Integration
         $span->type = Type::WEB_SERVLET;
         $span->service = \ddtrace_config_app_name('magento');
         $span->meta[Tag::COMPONENT] = 'magento';
-
         $span->resource = $resource ?? $span->resource;
     }
 
@@ -47,22 +46,6 @@ class MagentoIntegration extends Integration
     {
         return $class instanceof InterceptorInterface ? get_parent_class($class) : get_class($class);
     }
-
-    /**
-     * @param $path
-     * @param SpanData $rootSpan
-     * @param $params
-     * @return void
-     */
-    public static function setStaticInfoToRootSpan(SpanData $rootSpan, $path, $params): void
-    {
-        $rootSpan->meta['magento.static.path'] = $path;
-        $rootSpan->meta['magento.static.area'] = $params['area'];
-        $rootSpan->meta['magento.static.theme'] = $params['theme'];
-        $rootSpan->meta['magento.static.locale'] = $params['locale'];
-        $rootSpan->meta['magento.static.file'] = $params['file'];
-    }
-
 
     public function init()
     {
@@ -111,7 +94,11 @@ class MagentoIntegration extends Integration
             function ($staticResource, $scope, $args, $retval) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
-                    MagentoIntegration::setStaticInfoToRootSpan($rootSpan, $args[0], $retval);
+                    $rootSpan->meta['magento.static.path'] = $args[0];
+                    $rootSpan->meta['magento.static.area'] = $retval['area'];
+                    $rootSpan->meta['magento.static.theme'] = $retval['theme'];
+                    $rootSpan->meta['magento.static.locale'] = $retval['locale'];
+                    $rootSpan->meta['magento.static.file'] = $retval['file'];
                 }
             }
         );
@@ -160,9 +147,7 @@ class MagentoIntegration extends Integration
                 $span->meta['magento.cron.group_id'] = $args[4];
 
                 $jobConfig = $args[2];
-                if (!isset($jobConfig['instance'], $jobConfig['method'])) {
-                    return;
-                } else {
+                if (isset($jobConfig['instance'], $jobConfig['method'])) {
                     $span->resource = $jobConfig['instance'] . '::' . $jobConfig['method'];
                     $span->meta['magento.cron.class'] = $jobConfig['instance'];
                     $span->meta['magento.cron.method'] = $jobConfig['method'];
@@ -185,6 +170,7 @@ class MagentoIntegration extends Integration
                         $resource = "media";
                     }
                 }
+
                 $rootSpan = root_span();
                 MagentoIntegration::setCommonSpanInfo($rootSpan, 'magento.request', $resource);
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
@@ -286,7 +272,6 @@ class MagentoIntegration extends Integration
                 $meta = array_filter($meta, function ($value) {
                     return $value !== null;
                 });
-
                 $span->meta = array_merge($span->meta, $meta);
 
                 if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")
@@ -515,11 +500,10 @@ class MagentoIntegration extends Integration
             'Magento\Catalog\Block\Product\AbstractProduct',
             'getImage',
             function (SpanData $span, $args) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.image.get');
-
                 $product = $args[0];
                 $imageId = $args[1];
-                $span->resource = $product->getName();
+
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.image.get', $product->getName());
                 $span->meta['magento.image.id'] = $imageId;
             }
         );
@@ -574,7 +558,7 @@ class MagentoIntegration extends Integration
                 $class = MagentoIntegration::getRealClass($block);
                 $span->meta['magento.block.class'] = $class;
 
-                // See Magento\Widget\Model\Widget\Instance::generateLayoutUpdateXml
+                // For Legacy, see Magento\Widget\Model\Widget\Instance::generateLayoutUpdateXml
                 if (strlen($blockName) === 32
                     && $class === 'Magento\Cms\Block\Widget\Block'
                     && $integration->calculateEntropy($blockName) > 4.0) {
@@ -597,11 +581,14 @@ class MagentoIntegration extends Integration
             'Magento\Framework\Event\ObserverInterface',
             'execute',
             function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.event.execute', get_class($this));
-
-                // If this is an instance of \Magento\PageCache\Observer\ProcessLayoutRenderElement, then return false
-                // to prevent the original execute method from being called.
-                return !($this instanceof \Magento\PageCache\Observer\ProcessLayoutRenderElement);
+                $class = get_class($this);
+                if ($class !== 'Magento\PageCache\Observer\ProcessLayoutRenderElement') {
+                    MagentoIntegration::setCommonSpanInfo($span, 'magento.event.execute', $class);
+                } else {
+                    // If this is an instance of \Magento\PageCache\Observer\ProcessLayoutRenderElement, then return false
+                    // to prevent the original execute method from being called.
+                    return false;
+                }
             }
         );
 
