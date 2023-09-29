@@ -211,7 +211,9 @@ class MagentoIntegration extends Integration
                 $fullActionName = $request->getFullActionName('/');
                 $span->resource = $rootSpan->meta['magento.pathinfo'] = $fullActionName;
 
-                $isViewRequest = MagentoIntegration::getRealClass($retval) === 'Magento\Framework\View\Result\Page';
+                $isViewRequest = $retval // If an exception is thrown, retval will be null and get_class will fail
+                    ? MagentoIntegration::getRealClass($retval) === 'Magento\Framework\View\Result\Page'
+                    : null;
                 if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING") && !$isViewRequest) {
                     $rootSpan->resource = $fullActionName;
                 }
@@ -316,7 +318,9 @@ class MagentoIntegration extends Integration
                     MagentoIntegration::getRealClass($this)
                 );
 
-                $span->meta['magento.action'] = MagentoIntegration::getRealClass($action);
+                if ($action) {
+                    $span->meta['magento.action'] = MagentoIntegration::getRealClass($action);
+                }
             }
         );
 

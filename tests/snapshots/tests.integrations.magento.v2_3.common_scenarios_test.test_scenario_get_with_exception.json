@@ -5,7 +5,7 @@
     "resource": "datadog/error/index",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 11046799717886486190,
+    "parent_id": 9518402041931419535,
     "type": "web",
     "error": 1,
     "meta": {
@@ -17,10 +17,12 @@
       "http.method": "GET",
       "http.status_code": "500",
       "http.url": "http://localhost:9999/datadog/error/index?key=value&<redacted>",
+      "magento.area": "frontend",
       "magento.cached": "false",
       "magento.frontname": "datadog",
+      "magento.pathinfo": "datadog/error/index",
       "magento.route": "datadog",
-      "runtime-id": "1f7c2172-9905-4007-8f9e-77d8f51ab5d6",
+      "runtime-id": "945b3acb-5696-46ee-ad5e-59d88c944c6a",
       "span.kind": "server"
     },
     "metrics": {
@@ -78,7 +80,7 @@
           "meta": {
             "component": "magento",
             "magento.area": "frontend",
-            "magento.front": "datadog"
+            "magento.frontname": "datadog"
           }
         },
         {
@@ -113,7 +115,7 @@
            {
              "name": "magento.router.match",
              "service": "magento",
-             "resource": "magento.router.match",
+             "resource": "datadog/error/index",
              "trace_id": 0,
              "span_id": 9,
              "parent_id": 7,
@@ -123,6 +125,7 @@
                "magento.router.action": "index",
                "magento.router.controller": "error",
                "magento.router.controller_module": "CustomElement_Datadog",
+               "magento.router.frontname": "datadog",
                "magento.router.module": "datadog",
                "magento.router.route": "datadog"
              }

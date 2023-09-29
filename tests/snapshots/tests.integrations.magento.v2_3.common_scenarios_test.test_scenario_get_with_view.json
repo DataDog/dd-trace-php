@@ -2,10 +2,10 @@
   {
     "name": "magento.request",
     "service": "magento",
-    "resource": "datadog/simpleview/index",
+    "resource": "GET /datadog/simpleview/index",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 5202764563740184990,
+    "parent_id": 4508557253034011951,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,10 +13,12 @@
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/datadog/simpleview/index?key=value&<redacted>",
+      "magento.area": "frontend",
       "magento.cached": "false",
       "magento.frontname": "datadog",
+      "magento.pathinfo": "datadog/simpleview/index",
       "magento.route": "datadog",
-      "runtime-id": "1f7c2172-9905-4007-8f9e-77d8f51ab5d6",
+      "runtime-id": "cc94d5b6-55cd-4b41-b8c0-4c87736a6f61",
       "span.kind": "server"
     },
     "metrics": {
@@ -70,7 +72,7 @@
           "meta": {
             "component": "magento",
             "magento.area": "frontend",
-            "magento.front": "datadog"
+            "magento.frontname": "datadog"
           }
         },
         {
@@ -101,7 +103,7 @@
            {
              "name": "magento.router.match",
              "service": "magento",
-             "resource": "magento.router.match",
+             "resource": "datadog/simpleview/index",
              "trace_id": 0,
              "span_id": 11,
              "parent_id": 7,
@@ -111,6 +113,7 @@
                "magento.router.action": "index",
                "magento.router.controller": "simpleview",
                "magento.router.controller_module": "CustomElement_Datadog",
+               "magento.router.frontname": "datadog",
                "magento.router.module": "datadog",
                "magento.router.route": "datadog"
              }

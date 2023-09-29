@@ -5,7 +5,7 @@
     "resource": "cms/noroute/index",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 9451033555955422018,
+    "parent_id": 4944554630523795809,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
@@ -13,10 +13,12 @@
       "http.method": "GET",
       "http.status_code": "404",
       "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
+      "magento.area": "frontend",
       "magento.cached": "false",
       "magento.frontname": "does_not_exist",
+      "magento.pathinfo": "cms/noroute/index",
       "magento.route": "cms",
-      "runtime-id": "51cc6d4f-a3ec-4153-8df1-cde5f00efef0",
+      "runtime-id": "ea915fef-9f18-4890-81c3-fa4881e6cab7",
       "span.kind": "server"
     },
     "metrics": {
@@ -70,7 +72,7 @@
           "meta": {
             "component": "magento",
             "magento.area": "frontend",
-            "magento.front": "does_not_exist"
+            "magento.frontname": "does_not_exist"
           }
         },
         {
@@ -107,7 +109,8 @@
              "parent_id": 7,
              "type": "web",
              "meta": {
-               "component": "magento"
+               "component": "magento",
+               "magento.router.frontname": "does_not_exist"
              }
            },
            {
@@ -259,7 +262,7 @@
            {
              "name": "magento.router.match",
              "service": "magento",
-             "resource": "magento.router.match",
+             "resource": "cms/noroute/index",
              "trace_id": 0,
              "span_id": 14,
              "parent_id": 7,
@@ -269,6 +272,7 @@
                "magento.router.action": "index",
                "magento.router.controller": "noroute",
                "magento.router.controller_module": "Magento_Cms",
+               "magento.router.frontname": "does_not_exist",
                "magento.router.module": "cms",
                "magento.router.route": "cms"
              }
