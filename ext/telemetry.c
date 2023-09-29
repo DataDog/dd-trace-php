@@ -15,7 +15,8 @@ static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute
     UNUSED(invocation, auxiliary, dynamic);
 
     ddog_CharSlice composer_path = dd_zend_string_to_CharSlice(execute_data->func->op_array.filename);
-    if (ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), composer_path)) {
+    if (!ddtrace_sidecar // if sidecar connection was broken, let's skip immediately
+     || ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), composer_path)) {
         zai_hook_remove(ZAI_STR_EMPTY, ZAI_STR_EMPTY, dd_composer_hook_id);
     }
     return true;
