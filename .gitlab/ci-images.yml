@@ -2,7 +2,7 @@ variables:
   CI_REGISTRY_USER:
     value: ""
     description: "Your docker hub username"
-  CI_REGISTRY_PASSWORD:
+  CI_REGISTRY_TOKEN:
     value: ""
     description: "Your docker hub personal access token, can be created following this doc https://docs.docker.com/docker-hub/access-tokens/#create-an-access-token"
   CI_REGISTRY:
@@ -31,7 +31,7 @@ CentOS:
         - php-7.0
   script:
     - cd dockerfiles/ci/centos/7
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 Alpine Compile Extension:
@@ -56,7 +56,7 @@ Alpine Compile Extension:
         - 7.0-alpine
   script:
     - cd dockerfiles/ci/alpine_compile_extension
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 Ubuntu Buster:
@@ -85,5 +85,5 @@ Ubuntu Buster:
         - php-master
   script:
     - cd dockerfiles/ci/buster
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
     - docker buildx bake --no-cache --pull --push $PHP_VERSION

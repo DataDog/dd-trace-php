@@ -24,7 +24,7 @@ and manually start the jobs to build the images for the OS you need. You need to
 add the following CI variables to the job run:
 
 - `CI_REGISTRY_USER`: should be your Docker Hub username
-- `CI_REGISTRY_PASSWORD`: should be your access token
+- `CI_REGISTRY_TOKEN`: should be your access token
 
 In case you don't have one, follow the [docs to create an access
 token](https://docs.docker.com/docker-hub/access-tokens/#create-an-access-token).
