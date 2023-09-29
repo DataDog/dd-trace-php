@@ -176,6 +176,16 @@ pub fn allocation_profiling_rinit() {
 }
 
 pub fn allocation_profiling_rshutdown() {
+    let allocation_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.profiling_allocation_enabled)
+            .unwrap_or(false)
+    });
+
+    if !allocation_profiling {
+        return;
+    }
+
     // If `is_zend_mm()` is true, the custom handlers have been reset to `None`
     // already. This is unexpected, therefore we will not touch the ZendMM handlers
     // anymore as resetting to prev handlers might result in segfaults and other
