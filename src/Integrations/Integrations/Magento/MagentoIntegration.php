@@ -92,13 +92,13 @@ class MagentoIntegration extends Integration
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.area.get');
 
                 $frontName = $args[0];
-                $span->meta['magento.area'] = $area;
+                $span->meta['magento.area'] = root_span()->meta['magento.area'] = $area;
 
                 if (empty($frontName)) {
                     $span->resource = $area;
                 } else {
                     $span->resource = "$frontName:$area";
-                    $span->meta['magento.front'] = $frontName;
+                    $span->meta['magento.frontname'] = $frontName;
                 }
             }
         );
@@ -125,6 +125,16 @@ class MagentoIntegration extends Integration
                 if ($rootSpan !== null) {
                     $rootSpan->meta['magento.media.file'] = $args[6];
                 }
+            }
+        );
+
+        trace_method(
+            'Magento\MediaStorage\Service\ImageResize',
+            'resizeFromImageName',
+            function (SpanData $span, $args) {
+                $originalImageName = $args[0];
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.media.resize', $originalImageName);
+                root_span()->meta['magento.media.name'] = $originalImageName;
             }
         );
 
@@ -164,7 +174,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Framework\AppInterface',
             'launch',
-            function (SpanData $span) {
+            function (SpanData $span) use (&$fullPageCached) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.launch', MagentoIntegration::getRealClass($this));
 
                 $resource = null;
@@ -178,13 +188,17 @@ class MagentoIntegration extends Integration
                 $rootSpan = root_span();
                 MagentoIntegration::setCommonSpanInfo($rootSpan, 'magento.request', $resource);
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
+                if (!$fullPageCached && isset($rootSpan->meta['magento.pathinfo'])) {
+                    $rootSpan->resource = $rootSpan->meta['magento.pathinfo'];
+                }
             }
         );
 
         trace_method(
             'Magento\Framework\App\Action\Action',
             'dispatch',
-            function (SpanData $span, $args) {
+            function (SpanData $span, $args, $retval) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.action.dispatch');
 
                 $request = $args[0];
@@ -193,24 +207,29 @@ class MagentoIntegration extends Integration
                     return;
                 }
 
-                $module = $request->getModuleName();
-                $controller = $request->getControllerName();
-                $action = $request->getActionName();
-                $frontName = $request->getFrontName();
-                $routeName = $request->getRouteName();
-
                 $rootSpan = root_span();
-                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                    $rootSpan->resource = $span->resource = $module . '/' . $controller . '/' . $action;
-                }
-                $rootSpan->meta['magento.frontname'] = $frontName;
-                $rootSpan->meta['magento.route'] = $routeName;
+                $fullActionName = $request->getFullActionName('/');
+                $span->resource = $rootSpan->meta['magento.pathinfo'] = $fullActionName;
 
-                $span->meta['magento.module'] = $module;
-                $span->meta['magento.controller'] = $controller;
-                $span->meta['magento.action'] = $action;
-                $span->meta['magento.frontname'] = $frontName;
-                $span->meta['magento.route'] = $routeName;
+                $isViewRequest = MagentoIntegration::getRealClass($retval) === 'Magento\Framework\View\Result\Page';
+                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING") && !$isViewRequest) {
+                    $rootSpan->resource = $fullActionName;
+                }
+
+                $span->meta['magento.module'] = $request->getModuleName();
+                $span->meta['magento.controller'] = $request->getControllerName();
+                $span->meta['magento.action'] = $request->getActionName();
+                $span->meta['magento.frontname'] = $rootSpan->meta['magento.frontname'] = $request->getFrontName();
+                $span->meta['magento.route'] = $rootSpan->meta['magento.route'] = $request->getRouteName();
+            }
+        );
+
+        // Called within Magento\Framework\App\PageCache\Kernel::process (Full Page Cache Save)
+        hook_method(
+            'Magento\PageCache\Model\Cache\Type',
+            'save',
+            function () use (&$fullPageCached) {
+                $fullPageCached = true;
             }
         );
 
@@ -246,14 +265,20 @@ class MagentoIntegration extends Integration
             function (SpanData $span, $args) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.router.match');
 
+                /** @var \Magento\Framework\App\RequestInterface $request */
                 $request = $args[0];
 
+                $module = $request->getModuleName();
+                $controller = $request->getControllerName();
+                $action = $request->getActionName();
+                $routeName = $request->getRouteName();
+
                 $meta = [
-                    'magento.router.module' => $request->getModuleName(),
-                    'magento.router.controller' => $request->getControllerName(),
-                    'magento.router.action' => $request->getActionName(),
+                    'magento.router.module' => $module,
+                    'magento.router.controller' => $controller,
+                    'magento.router.action' => $action,
                     'magento.router.controller_module' => $request->getControllerModule(),
-                    'magento.router.route' => $request->getRouteName()
+                    'magento.router.route' => $routeName
                 ];
 
                 $meta = array_filter($meta, function ($value) {
@@ -261,6 +286,23 @@ class MagentoIntegration extends Integration
                 });
 
                 $span->meta = array_merge($span->meta, $meta);
+
+                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")
+                    && $module !== null && $controller !== null && $action !== null
+                ) {
+                    $span->resource = root_span()->meta['magento.pathinfo'] = "$module/$controller/$action";
+                }
+
+                if ($routeName !== null) {
+                    root_span()->meta['magento.route'] = $meta['magento.router.route'];
+                }
+
+                if (method_exists($request, 'getFrontName')) {
+                    $frontName = $request->getFrontName();
+                    if ($frontName !== null) {
+                        $span->meta['magento.router.frontname'] = root_span()->meta['magento.frontname'] = $frontName;
+                    }
+                }
             }
         );
 
@@ -273,6 +315,7 @@ class MagentoIntegration extends Integration
                     'magento.process.request',
                     MagentoIntegration::getRealClass($this)
                 );
+
                 $span->meta['magento.action'] = MagentoIntegration::getRealClass($action);
             }
         );
