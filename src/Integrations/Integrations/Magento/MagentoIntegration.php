@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Magento;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -9,6 +10,8 @@ use DDTrace\Type;
 use Magento\Framework\Interception\InterceptorInterface;
 
 use function DDTrace\hook_method;
+use function DDTrace\install_hook;
+use function DDTrace\remove_hook;
 use function DDTrace\set_user;
 use function DDTrace\trace_method;
 use function DDTrace\root_span;
@@ -243,6 +246,27 @@ class MagentoIntegration extends Integration
                     'magento.dispatch',
                     MagentoIntegration::getRealClass($this)
                 );
+            }
+        );
+
+        // REST API
+        hook_method(
+            'Magento\Webapi\Controller\Rest\InputParamsResolver',
+            'resolve',
+            function ($inputParamsResolver) {
+                $route = $inputParamsResolver->getRoute();
+                $serviceMethodName = $route->getServiceMethod();
+                $serviceClassName = $route->getServiceClass();
+                if ($serviceClassName && $serviceMethodName) {
+                    install_hook(
+                        "$serviceClassName::$serviceMethodName",
+                        function (HookData $hook) use ($serviceClassName, $serviceMethodName) {
+                            $span = $hook->span();
+                            MagentoIntegration::setCommonSpanInfo($span, 'magento.api.call', "$serviceClassName::$serviceMethodName");
+                            remove_hook($hook->id);
+                        }
+                    );
+                }
             }
         );
 
@@ -576,22 +600,6 @@ class MagentoIntegration extends Integration
             }
         );
 
-        // Events
-        trace_method(
-            'Magento\Framework\Event\ObserverInterface',
-            'execute',
-            function (SpanData $span) {
-                $class = get_class($this);
-                if ($class !== 'Magento\PageCache\Observer\ProcessLayoutRenderElement') {
-                    MagentoIntegration::setCommonSpanInfo($span, 'magento.event.execute', $class);
-                } else {
-                    // If this is an instance of \Magento\PageCache\Observer\ProcessLayoutRenderElement, then return false
-                    // to prevent the original execute method from being called.
-                    return false;
-                }
-            }
-        );
-
         // Exception handling
         $integration = $this;
         hook_method(
@@ -620,6 +628,74 @@ class MagentoIntegration extends Integration
                     $email = $customer->getEmail();
                     set_user($userId, empty($email) ? null : ['email' => $email]);
                 }
+            }
+        );
+
+
+        // Events
+        trace_method(
+            'Magento\Framework\Event\ObserverInterface',
+            'execute',
+            function (SpanData $span) {
+                $class = get_class($this);
+                if ($class !== 'Magento\PageCache\Observer\ProcessLayoutRenderElement') {
+                    MagentoIntegration::setCommonSpanInfo($span, 'magento.event.execute', $class);
+                } else {
+                    // If this is an instance of \Magento\PageCache\Observer\ProcessLayoutRenderElement, then return false
+                    // to prevent the original execute method from being traced.
+                    return false;
+                }
+            }
+        );
+
+        trace_method(
+            'Magento\Sales\Model\Service\OrderService',
+            'place',
+            function (SpanData $span, $args) {
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.order.place');
+
+                /** @var \Magento\Sales\Api\Data\OrderInterface $order */
+                $order = $args[0];
+
+                $span->meta['magento.order.item_count'] = $order->getTotalItemCount() ?? $order->getTotalQtyOrdered();
+                $span->meta['magento.order.customer_id'] = $order->getCustomerId();
+                $span->meta['magento.order.total'] = $order->getGrandTotal();
+                $span->meta['magento.order.total_base'] = $order->getBaseGrandTotal();
+                $span->meta['magento.order.id'] = $order->getRealOrderId();
+                $span->meta['magento.order.currency'] = $order->getOrderCurrencyCode();
+                if (($address = $order->getShippingAddress()) !== null) {
+                    $span->meta['magento.order.shipping_city'] = $address->getCity();
+                    $span->meta['magento.order.shipping_country'] = $address->getCountryId();
+                }
+
+                $i = 0;
+                $items = $order->getItems();
+                foreach ($items as $item) {
+                    // Indexes do not necessarily increment by 1 per item
+                    // It depends on their initial cart position
+                    if ($item->getPrice()) {
+                        $span->meta["magento.order.items.$i.sku"] = $item->getSku();
+                        $span->meta["magento.order.items.$i.name"] = $item->getName();
+                        $span->meta["magento.order.items.$i.price"] = $item->getPrice();
+                        $span->meta["magento.order.items.$i.qty"] = $item->getQtyOrdered();
+                    }
+                    $i++;
+                }
+            }
+        );
+
+
+        trace_method(
+            'Magento\Sales\Model\Order\Email\Sender\OrderSender',
+            'send',
+            function (SpanData $span, $args) {
+                MagentoIntegration::setCommonSpanInfo($span, 'magento.email.send');
+
+                /** @var Magento\Sales\Model\Order $order */
+                $order = $args[0];
+
+                $span->meta['magento.email.address'] = $order->getCustomerEmail();;
+                $span->meta['magento.email.order_id'] = $order->getRealOrderId();
             }
         );
 
