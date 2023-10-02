@@ -859,6 +859,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         smart_str buf = {0};
         _dd_serialize_json(span_links, &buf, 0);
         add_assoc_str(meta, "_dd.span_links", buf.s);
+        LOG(Info, "Span links: %s", buf.s->val);
     }
 
     if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) { // opt-in
