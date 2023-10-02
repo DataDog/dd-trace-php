@@ -62,55 +62,20 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This release adds experimental exception profiling to the profiler. This is off by default. Enable it with the environment variable DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=1 or INI setting datadog.profiling.experimental_exception_enabled=1.
-
-In Application Security Management, this release introduces the latest version of the WAF v1.14.0 and the latest ASM ruleset v1.8.0, as well as a fix to ensure runtime IDs reported by the remote configuration client are always valid and consistent with those reported by the Tracer.
-
 ## Tracer
-### Added
-- Add Drupal Integration #2188
-- Implement sidecar tracing #2234
-	- This functionality is currently experimental and guarded behind a configuration option DD_TRACE_SIDECAR_TRACE_SENDER=1 or INI setting datadog.trace.sidecar_trace_sender=1. It replaces the sending of traces through a dedicated thread.
-
 ### Fixed
-- Do not emit a deprecated diagnostic for DD_LOGS_INJECTION #2253
-- Set peer.service as dddbs when available #2260
-- Fix toggling datadog.trace.enabled with perdir configuration #2269
-- Enable auto flush for artisan commands #2270
-
-### Internal changes
-- Keep doctrine/dbal to major version 2 in symfony 5.2 tests #2254
-- docs: Explain minimum and nice-to-have from LLVM #2264
+- Handle UnwindExit in sandbox error reporting #2288
+- Add a safeguard nullcheck for the sidecar into telemetry reporting #2293
 
 ## Profiling
-### Added
-- Add exception profiling #2197, #2262
-- Do not disable allocation profiling on fixed PHP versions with active JIT #2246
-
 ### Fixed
-- Add missing `end_timestamp_ns` to string compilation event #2251
-- store customized heap #2261
-- remove “BETA” in `datadog-setup.php` as the profiler is not beta anymore #2278
-- use-after-free with Closure trampolines #2280
+- Do not leak module entry on purpose #2291
+- Fix allocation profiling shutdown with USE_ZEND_ALLOC=0 crashing #2294
 
-### Internal changes
-- add tests for timeline #2192
-
-## Application Security Management (0.14.0)
-### Added
-- Add default processors and scanners DataDog/dd-appsec-php#298
-- Exchange more types between extension and helper DataDog/dd-appsec-php#299
-- API security configuration settings DataDog/dd-appsec-php#300
-
+## Application Security Management (0.14.1)
 ### Fixed
-- Propagate Runtime IDs and keep a valid pool in the RC client DataDog/dd-appsec-php#301
-
-### Internal changes
-- Add nginx container to integration tests DataDog/dd-appsec-php#294
-- Upgrade WAF to 1.14.0 DataDog/dd-appsec-php#295
-- Upgrade tracer to v0.91.0 and remove master build downloads DataDog/dd-appsec-php#296
-- Upgrade ruleset to 1.8.0 DataDog/dd-appsec-php#302
-- Merge appsec repository as subtree #2267
+- Improve tracer state detection DataDog/dd-appsec-php#305
+- Fix setting perdir INI setting for multiple ZAI config users #2277
 ]]></notes>
     <contents>
         <dir name="/">
