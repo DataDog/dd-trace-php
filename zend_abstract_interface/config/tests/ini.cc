@@ -539,3 +539,33 @@ TEST_INI("setting perdir INI setting for multiple ZAI config users", {
 
     REQUEST_END();
 })
+
+
+TEST_INI("setting an env value after memoization for multiple ZAI config users", {}, {
+    REQUIRE_SETENV("INI_FOO_STRING", "value");
+
+    zai_config_memoized_entry *entry = &zai_config_memoized_entries[EXT_CFG_INI_FOO_STRING];
+    entry->original_on_modify = dummy;
+
+    REQUEST_BEGIN()
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_STRING);
+    REQUIRE(zval_string_equals(value, "value"));
+
+    REQUEST_END()
+
+    REQUIRE_SETENV("INI_FOO_STRING", "value2");
+
+    REQUEST_BEGIN()
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_STRING);
+    REQUIRE(zval_string_equals(value, "value2"));
+
+    REQUEST_END()
+})
