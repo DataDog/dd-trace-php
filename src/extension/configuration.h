@@ -31,7 +31,7 @@ extern bool runtime_config_first_init;
 
 // clang-format off
 #define DD_CONFIGURATION \
-    SYSCFG(BOOL, DD_APPSEC_ENABLED, "false")                                                                                          \
+    CONFIG(BOOL, DD_APPSEC_ENABLED, "false")                                                                                          \
     SYSCFG(STRING, DD_APPSEC_RULES, "")                                                                                               \
     SYSCFG(CUSTOM(uint64_t), DD_APPSEC_WAF_TIMEOUT, "10000", .parser = _parse_uint64)                                                 \
     SYSCFG(CUSTOM(uint32_t), DD_APPSEC_TRACE_RATE_LIMIT, "100", .parser = _parse_uint32)                                              \
