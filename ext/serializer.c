@@ -25,6 +25,7 @@
 #include "ddtrace.h"
 #include "engine_api.h"
 #include "engine_hooks.h"
+#include "ext/json/php_json.h"
 #include "ip_extraction.h"
 #include <components/log/log.h>
 #include "mpack/mpack.h"
@@ -857,7 +858,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     zend_array *span_links = ddtrace_spandata_property_links(span);
     if (zend_hash_num_elements(span_links) > 0) {
         smart_str buf = {0};
-        _dd_serialize_json(span_links, &buf, 0);
+        _dd_serialize_json(span_links, &buf, PHP_JSON_PARTIAL_OUTPUT_ON_ERROR & PHP_JSON_THROW_ON_ERROR);
         add_assoc_str(meta, "_dd.span_links", buf.s);
         LOG(Info, "Span links: %s", buf.s->val);
     }
