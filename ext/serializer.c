@@ -855,6 +855,11 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     }
 
     zend_array *span_links = ddtrace_spandata_property_links(span);
+    for (zend_ulong i = 0; i < zend_hash_num_elements(span_links); ++i) {
+        zval *link_zv = zend_hash_index_find(span_links, i);
+        LOG(Info, "Span link type: %d", Z_TYPE_P(link_zv));
+    }
+
     if (zend_hash_num_elements(span_links) > 0) {
         smart_str buf = {0};
         _dd_serialize_json(span_links, &buf, (1 << 9) | (1 << 22));
