@@ -367,8 +367,10 @@ PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
 
     Z_TRY_ADDREF(link->property_trace_id);
     zend_hash_add(array, trace_id, &link->property_trace_id);
+    LOG(Info, "Trace Id: %s", ZSTR_VAL(link->property_trace_id.value.str));
     Z_TRY_ADDREF(link->property_span_id);
     zend_hash_add(array, span_id, &link->property_span_id);
+    LOG(Info, "Span Id: %s", ZSTR_VAL(link->property_span_id.value.str));
     Z_TRY_ADDREF(link->property_trace_state);
     zend_hash_add(array, trace_state, &link->property_trace_state);
     Z_TRY_ADDREF(link->property_attributes);
