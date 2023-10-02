@@ -29,7 +29,7 @@ use ddcommon::cstr;
 use lazy_static::lazy_static;
 use libc::c_char;
 use log::{debug, error, info, trace, warn, LevelFilter};
-use once_cell::sync::OnceCell;
+use once_cell::sync::{Lazy, OnceCell};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
@@ -139,15 +139,6 @@ extern "C" {
 /// consecutive return value.
 #[no_mangle]
 pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
-    /* In PHP modules written in C, this just returns the address of a global,
-     * mutable variable. In Rust, you cannot initialize such a complicated
-     * global variable because of initialization order issues that have been
-     * found through decades of C++ experience.
-     * There are a variety of ways to deal with this. Since this function is
-     * only _supposed_ to be called once, I've taken the stance to just leak
-     * the result which avoids unsafe code and unnecessary locks.
-     */
-
     static DEPS: [zend::ModuleDep; 4] = [
         zend::ModuleDep::required(cstr!("standard")),
         zend::ModuleDep::required(cstr!("json")),
@@ -155,7 +146,13 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         zend::ModuleDep::end(),
     ];
 
-    let module = zend::ModuleEntry {
+    /* In PHP modules written in C, this just returns the address of a global,
+     * mutable variable. In Rust, you cannot initialize such a complicated
+     * global variable because of initialization order issues that have been
+     * found through decades of C++ experience.
+     * There are a variety of ways to deal with this; this is just one way.
+     */
+    static mut MODULE: Lazy<zend::ModuleEntry> = Lazy::new(|| zend::ModuleEntry {
         name: PROFILER_NAME.as_ptr(),
         // Safety: php_ffi.c defines this correctly
         functions: unsafe { bindings::ddog_php_prof_functions },
@@ -168,9 +165,10 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         post_deactivate_func: Some(prshutdown),
         deps: DEPS.as_ptr(),
         ..Default::default()
-    };
+    });
 
-    Box::leak(Box::new(module))
+    // SAFETY: well, it's as least as safe as what every single C extension does.
+    unsafe { &mut *MODULE }
 }
 
 /// The engine's previous `zend_interrupt_function` value, if there is one.

@@ -141,9 +141,9 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
         zend_object *ex = EG(exception);
         if (ex) {
             const char *type = ZSTR_VAL(ex->ce->name);
-            zend_string *msg = zai_exception_message(ex);
+            const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)): "<exit>";
             log("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s",
-                             type, deffile, defline, scope, colon, name, ZSTR_VAL(msg));
+                             type, deffile, defline, scope, colon, name, msg);
         } else if (PG(last_error_message)) {
 #if PHP_VERSION_ID < 80000
             char *error = PG(last_error_message);

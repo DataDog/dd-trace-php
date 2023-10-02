@@ -72,7 +72,13 @@ typedef struct ddog_Error {
  * so every operation on it is unsafe!
  */
 typedef struct ddog_Slice_CChar {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
   const char *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to.
+   */
   uintptr_t len;
 } ddog_Slice_CChar;
 
