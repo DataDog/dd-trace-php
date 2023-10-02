@@ -858,6 +858,10 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     for (zend_ulong i = 0; i < zend_hash_num_elements(span_links); ++i) {
         zval *link_zv = zend_hash_index_find(span_links, i);
         LOG(Info, "Span link type: %d", Z_TYPE_P(link_zv));
+        LOG(Info, "Instance of php_json_serializable_ce: %d", instanceof_function(Z_OBJCE_P(link_zv), php_json_serializable_ce));
+        HashTable* myth = Z_OBJPROP_P(link_zv);
+        LOG(Info, "myth && GC_IS_RECURSIVE(myth): %d", myth && GC_IS_RECURSIVE(myth));
+        LOG(Info, "Ce flags & ZEND_ACC_ENUM: %d", Z_OBJCE_P(link_zv)->ce_flags & ZEND_ACC_ENUM);
     }
 
     if (zend_hash_num_elements(span_links) > 0) {
