@@ -25,6 +25,7 @@ Zend/tests/gh7958.phpt
 Zend/tests/gh10346.phpt
 Zend/tests/gh11189.phpt
 Zend/tests/gh11189_1.phpt
+Zend/tests/gh12073.phpt
 Zend/tests/list_keyed_conversions.phpt
 Zend/tests/multibyte/multibyte_encoding_004.phpt
 Zend/tests/object_gc_in_shutdown.phpt
