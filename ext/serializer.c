@@ -857,7 +857,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     zend_array *span_links = ddtrace_spandata_property_links(span);
     if (zend_hash_num_elements(span_links) > 0) {
         smart_str buf = {0};
-        _dd_serialize_json(span_links, &buf, (1 << 9) & (1 << 22)); // LaravelQueueIntegration: hooking App\Jobs\
+        _dd_serialize_json(span_links, &buf, (1 << 9) & (1 << 22));
         add_assoc_str(meta, "_dd.span_links", buf.s);
         LOG(Info, "Span links: %s", buf.s->val);
     }
