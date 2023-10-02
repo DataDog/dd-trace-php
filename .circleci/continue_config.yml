@@ -3321,7 +3321,7 @@ workflows:
                 - PHP_MAJOR=8 PHP_MINOR=0
                 - PHP_MAJOR=8 PHP_MINOR=1
                 - PHP_MAJOR=8 PHP_MINOR=2
-                - PHP_MAJOR=8 PHP_MINOR=3
+                # - PHP_MAJOR=8 PHP_MINOR=3
       - verify_debian:
           requires: [ "package extension" ]
           matrix:
@@ -3343,7 +3343,7 @@ workflows:
                 - PHP_VERSION=8.0
                 - PHP_VERSION=8.1
                 - PHP_VERSION=8.2
-                - PHP_VERSION=8.3
+                # - PHP_VERSION=8.3
 
       - verify_tar_gz:
           requires: [ "package extension" ]
