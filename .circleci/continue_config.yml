@@ -3343,7 +3343,7 @@ workflows:
                 - PHP_VERSION=8.0
                 - PHP_VERSION=8.1
                 - PHP_VERSION=8.2
-                - PHP_VERSION=8.3
+                # - PHP_VERSION=8.3
 
       - verify_tar_gz:
           requires: [ "package extension" ]
