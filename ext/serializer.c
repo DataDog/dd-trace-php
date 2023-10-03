@@ -859,6 +859,25 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         zval *link_zv = zend_hash_index_find(span_links, i);
         LOG(Info, "Span link type: %d", Z_TYPE_P(link_zv));
         LOG(Info, "Instance of php_json_serializable_ce: %d", instanceof_function(Z_OBJCE_P(link_zv), php_json_serializable_ce));
+
+        // Convert this zval to a ddtrace_span_link object
+        ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(link_zv);
+        zval trace_id_zv = link->property_trace_id;
+        zval span_id_zv = link->property_span_id;
+        LOG(Info, "Trace Id: %s", Z_STRVAL(trace_id_zv));
+        LOG(Info, "Span Id: %s", Z_STRVAL(span_id_zv));
+
+        // If GC_IS_RECURSIVE is not defined, define it
+#ifndef GC_IS_RECURSIVE
+    #ifdef GC_FLAGS
+    #define GC_IS_RECURSIVE(p) (GC_FLAGS(p) & (1<<5))
+    #else
+    #define GC_FLAGS(p) (((p)->gc.u.type_info) >> 0) & (0x000003f0 >> 0)
+    #define GC_IS_RECURSIVE(p) (GC_FLAGS(p) && (1<<5))
+    #endif
+#endif
+        HashTable *myth = Z_OBJPROP_P(link_zv);
+        LOG(Info, "GC_IS_RECURSIVE: %d", GC_IS_RECURSIVE(myth));
     }
 
     if (zend_hash_num_elements(span_links) > 0) {
