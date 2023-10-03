@@ -78,13 +78,7 @@ class LaravelQueueIntegration extends Integration
                     // Create a new trace
                     $payload = $job->payload();
                     if (isset($payload['dd_headers'])) {
-                        if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_SPAN_LINKS')) {
-                            $ddHeaders = $payload['dd_headers'];
-                            $spanLink = new SpanLink();
-                            $spanLink->traceId = $ddHeaders[Propagator::DEFAULT_TRACE_ID_HEADER];;
-                            $spanLink->spanId = $ddHeaders[Propagator::DEFAULT_PARENT_ID_HEADER];
-                            $span->links[] = $spanLink;
-                        } else {
+                        if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')) {
                             $newTrace = start_trace_span();
 
                             $integration->setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
@@ -92,6 +86,12 @@ class LaravelQueueIntegration extends Integration
                             $integration->extractContext($payload);
                             $span->links[] = $newTrace->getLink();
                             $newTrace->links[] = $span->getLink();
+                        } else {
+                            $ddHeaders = $payload['dd_headers'];
+                            $spanLink = new SpanLink();
+                            $spanLink->traceId = $ddHeaders[Propagator::DEFAULT_TRACE_ID_HEADER];;
+                            $spanLink->spanId = $ddHeaders[Propagator::DEFAULT_PARENT_ID_HEADER];
+                            $span->links[] = $spanLink;
                         }
                     }
                 },
@@ -112,7 +112,7 @@ class LaravelQueueIntegration extends Integration
                     }
 
                     $activeSpan = active_span(); // This is the span created in the prehook, if any
-                    if (!dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_SPAN_LINKS')
+                    if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')
                         && $activeSpan !== $span
                         && $activeSpan == $newTrace
                     ) {

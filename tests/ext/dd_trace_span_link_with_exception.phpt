@@ -1,7 +1,6 @@
 --TEST--
 Span Link serialization with non-null EG(exception) doesn't fail
 --ENV--
-DD_TRACE_DEBUG=1
 DD_TRACE_AUTO_FLUSH_ENABLED=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
