@@ -899,6 +899,12 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         _dd_serialize_json(span_links, &buf, (1 << 9) | (1 << 22));
         add_assoc_str(meta, "_dd.span_links", buf.s);
         LOG(Info, "Span links: %s", buf.s->val);
+        // Log EG(exception)
+        if (EG(exception)) {
+            LOG(Info, "Exception: %s", ZSTR_VAL(EG(exception)->ce->name));
+        } else {
+            LOG(Info, "No exception");
+        }
     }
 
     if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) { // opt-in
