@@ -908,15 +908,14 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
             LOG(Info, "[Span] No exception");
         }
 
+        zend_object* current_exception = NULL;
         if (EG(exception)) {
             LOG(Info, "[EG(exception)] Exception: %s", ZSTR_VAL(EG(exception)->ce->name));
+            current_exception = EG(exception);
+            EG(exception) = NULL;
         } else {
             LOG(Info, "[EG(exception)] No exception");
         }
-
-        zval current_exception;
-        ZVAL_OBJ_COPY(&current_exception, EG(exception));
-        EG(exception) = NULL;
 
         smart_str buf = {0};
         _dd_serialize_json(span_links, &buf, (1 << 9) | (1 << 22));
@@ -929,7 +928,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         }
 
         // Restore the exception
-        EG(exception) = Z_OBJ(current_exception);
+        EG(exception) = current_exception;
 
         if (EG(exception)) {
             LOG(Info, "[EG(exception)] Exception: %s", ZSTR_VAL(EG(exception)->ce->name));
