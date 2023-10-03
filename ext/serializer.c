@@ -867,7 +867,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         LOG(Info, "Trace Id: %s", Z_STRVAL(trace_id_zv));
         LOG(Info, "Span Id: %s", Z_STRVAL(span_id_zv));
 
-        // If GC_IS_RECURSIVE is not defined, define it
 #ifndef GC_IS_RECURSIVE
     #ifdef GC_FLAGS
     #define GC_IS_RECURSIVE(p) (GC_FLAGS(p) & (1<<5))
@@ -899,6 +898,26 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     }
 
     if (zend_hash_num_elements(span_links) > 0) {
+        // Save the current exception, if any, and clear it for php_json_encode_serializable_object not to fail
+        // and zend_call_function to actually call the jsonSerialize method
+        // Restored after span links are serialized
+        zval *span_exception = ddtrace_spandata_property_exception(span);
+        if (span_exception) {
+            LOG(Info, "[Span] There is an exception");
+        } else {
+            LOG(Info, "[Span] No exception");
+        }
+
+        if (EG(exception)) {
+            LOG(Info, "[EG(exception)] Exception: %s", ZSTR_VAL(EG(exception)->ce->name));
+        } else {
+            LOG(Info, "[EG(exception)] No exception");
+        }
+
+        zval current_exception;
+        ZVAL_OBJ_COPY(&current_exception, EG(exception));
+        EG(exception) = NULL;
+
         smart_str buf = {0};
         _dd_serialize_json(span_links, &buf, (1 << 9) | (1 << 22));
         add_assoc_str(meta, "_dd.span_links", buf.s);
@@ -907,6 +926,15 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
             LOG(Info, "Exception: %s", ZSTR_VAL(EG(exception)->ce->name));
         } else {
             LOG(Info, "No exception");
+        }
+
+        // Restore the exception
+        EG(exception) = Z_OBJ(current_exception);
+
+        if (EG(exception)) {
+            LOG(Info, "[EG(exception)] Exception: %s", ZSTR_VAL(EG(exception)->ce->name));
+        } else {
+            LOG(Info, "[EG(exception)] No exception");
         }
     }
 
