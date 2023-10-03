@@ -878,6 +878,20 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 #endif
         HashTable *myth = Z_OBJPROP_P(link_zv);
         LOG(Info, "GC_IS_RECURSIVE: %d", GC_IS_RECURSIVE(myth));
+
+        zval fname;
+        ZVAL_STRING(&fname, "jsonSerialize");
+        zval retval;
+        LOG(Info, "Calling jsonSerialize");
+        zend_result res = call_user_function(NULL, link_zv, &fname, &retval, 0, NULL);
+        LOG(Info, "Done calling jsonSerialize");
+
+        LOG(Info, "retval type: %d", Z_TYPE(retval));
+        LOG(Info, "Result code: %d", res);
+        // retval should be an array, which will then be encoded by the json_encoder
+        smart_str buf = {0};
+        _dd_serialize_json(Z_ARRVAL(retval), &buf, (1 << 9) | (1 << 22));
+        LOG(Info, "Manual Serialization: %s", buf.s->val);
     }
 
     if (zend_hash_num_elements(span_links) > 0) {
