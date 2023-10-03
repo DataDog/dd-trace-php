@@ -1,5 +1,5 @@
 use datadog_sidecar::config;
-use datadog_sidecar::interface::blocking::TelemetryTransport;
+use datadog_sidecar::interface::blocking::SidecarTransport;
 use datadog_sidecar::interface::{blocking, InstanceId, QueueId};
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::CharSlice;
@@ -16,7 +16,7 @@ use std::{fs, io};
 #[must_use]
 #[no_mangle]
 pub extern "C" fn ddtrace_detect_composer_installed_json(
-    transport: &mut Box<TelemetryTransport>,
+    transport: &mut Box<SidecarTransport>,
     instance_id: &InstanceId,
     queue_id: &QueueId,
     path: CharSlice,
@@ -32,7 +32,7 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
 }
 
 fn parse_composer_installed_json(
-    transport: &mut Box<TelemetryTransport>,
+    transport: &mut Box<SidecarTransport>,
     instance_id: &InstanceId,
     queue_id: &QueueId,
     path: String,
@@ -62,20 +62,24 @@ fn parse_composer_installed_json(
 const MOCK_PHP: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/mock_php.shared_lib"));
 
 #[cfg(php_shared_build)]
-fn run_sidecar(mut cfg: config::Config) -> io::Result<TelemetryTransport> {
+fn run_sidecar(mut cfg: config::Config) -> io::Result<SidecarTransport> {
     cfg.library_dependencies
         .push(LibDependency::Binary(MOCK_PHP));
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 #[cfg(not(php_shared_build))]
-fn run_sidecar(cfg: config::Config) -> io::Result<TelemetryTransport> {
+fn run_sidecar(cfg: config::Config) -> io::Result<SidecarTransport> {
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_sidecar_connect_php(connection: &mut *mut TelemetryTransport) -> MaybeError {
-    let cfg = config::FromEnv::config();
+pub extern "C" fn ddog_sidecar_connect_php(
+    connection: &mut *mut SidecarTransport,
+    enable_telemetry: bool,
+) -> MaybeError {
+    let mut cfg = config::FromEnv::config();
+    cfg.self_telemetry = enable_telemetry;
     let stream = Box::new(try_c!(run_sidecar(cfg)));
     *connection = Box::into_raw(stream);
 
@@ -130,7 +134,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
 
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_telemetry_buffer_flush(
-    transport: &mut Box<TelemetryTransport>,
+    transport: &mut Box<SidecarTransport>,
     instance_id: &InstanceId,
     queue_id: &QueueId,
     buffer: Box<TelemetryActionsBuffer>,

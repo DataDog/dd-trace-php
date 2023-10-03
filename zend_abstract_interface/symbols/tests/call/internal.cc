@@ -13,7 +13,7 @@ TEA_TEST_CASE("symbol/call/internal", "global", {
 
     zval result;
 
-    zai_string_view fn = ZAI_STRL_VIEW("\\strlen");
+    zai_str fn = ZAI_STRL("\\strlen");
 
     zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 1, &param);
 
@@ -31,8 +31,8 @@ TEA_TEST_CASE("symbol/call/internal", "root ns", {
 
     zval result;
 
-    zai_string_view ns = ZAI_STRL_VIEW("\\");
-    zai_string_view fn = ZAI_STRL_VIEW("strlen");
+    zai_str ns = ZAI_STRL("\\");
+    zai_str fn = ZAI_STRL("strlen");
 
     zai_symbol_call(ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 1, &param);
 
@@ -50,8 +50,8 @@ TEA_TEST_CASE("symbol/call/internal", "empty ns", {
 
     zval result;
 
-    zai_string_view ns = ZAI_STRL_VIEW("");
-    zai_string_view fn = ZAI_STRL_VIEW("strlen");
+    zai_str ns = ZAI_STR_EMPTY;
+    zai_str fn = ZAI_STRL("strlen");
 
     zai_symbol_call(ZAI_SYMBOL_SCOPE_NAMESPACE, &ns, ZAI_SYMBOL_FUNCTION_NAMED, &fn, &result, 1, &param);
 
@@ -69,7 +69,7 @@ TEA_TEST_CASE("symbol/call/internal", "named (macro)", {
 
     zval result;
 
-    zai_string_view fn = ZAI_STRL_VIEW("strlen");
+    zai_str fn = ZAI_STRL("strlen");
 
     zai_symbol_call_named(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &fn, &result, 1, &param);
 
@@ -87,7 +87,7 @@ TEA_TEST_CASE("symbol/call/internal", "known (macro)", {
 
     zval result;
 
-    zai_string_view fn = ZAI_STRL_VIEW("strlen");
+    zai_str fn = ZAI_STRL("strlen");
     zend_function *fe = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &fn);
 
     REQUIRE(fe);

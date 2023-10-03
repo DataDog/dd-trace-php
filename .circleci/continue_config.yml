@@ -769,6 +769,54 @@ jobs:
           path: /tmp/artifacts
       - <<: *STEP_GET_TEST_AGENT_RESULTS
 
+  test_sidecar_sender:
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Set core pattern
+          command: |
+            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+          extra: with_httpbin_and_request_replayer
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - run:
+          name: Run tests
+          command: |
+            set -euo pipefail
+            DD_TRACE_SIDECAR_TRACE_SENDER=1 make test_c RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      - <<: *STEP_STORE_TEST_RESULTS
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find /tmp -name "core*" -type f | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
   test_multi_observer:
     parameters:
       php_major_minor:
@@ -1091,6 +1139,9 @@ jobs:
       xfail_list:
         type: string
         default: none
+      parallel_workers: # Only available for PHP 7.4+
+        type: boolean
+        default: false
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -1143,7 +1194,8 @@ jobs:
               -p /usr/local/bin/php \
               --show-diff \
               -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php
+              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php \
+              $(if [[ "<<parameters.parallel_workers>>" == "true" ]]; then echo -j5; fi)
       - run:
           command: |
             cd /usr/local/src/php
@@ -1915,7 +1967,6 @@ jobs:
                 -DCMAKE_INSTALL_PREFIX=/opt/tea/${phpBuild} \
                 -DCMAKE_BUILD_TYPE=Debug \
                 -DBUILD_TEA_TESTING=ON \
-                -DPHP_CONFIG=$(which php-config) \
                 ~/datadog/tea
               make -j all
               make test
@@ -1942,7 +1993,7 @@ jobs:
                 ${toolchain} \
                 -DCMAKE_BUILD_TYPE=Debug \
                 -DBUILD_ZAI_TESTING=ON \
-                -DPHP_CONFIG=$(which php-config) \
+                -DPhpConfig_ROOT=$(php-config --prefix) \
                 ~/datadog/zend_abstract_interface
               make -j all
               make test
@@ -1961,7 +2012,7 @@ jobs:
               -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_ZAI_TESTING=ON \
-              -DPHP_CONFIG=$(which php-config) \
+              -DPhpConfig_ROOT=$(php-config --prefix) \
               ~/datadog/zend_abstract_interface
             make -j all
             make test
@@ -2032,7 +2083,7 @@ jobs:
               -DCMAKE_INSTALL_PREFIX=/opt/tea/nts \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_TEA_TESTING=ON \
-              -DPHP_CONFIG=$(which php-config) \
+              -DPhpConfig_ROOT=$(php-config --prefix) \
               ~/datadog/tea
             make -j all
             make install
@@ -2076,7 +2127,7 @@ jobs:
             cmake \
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_ZAI_TESTING=ON \
-              -DPHP_CONFIG=$(which php-config) \
+              -DPhpConfig_ROOT=$(php-config --prefix) \
               -DRUN_SHARED_EXTS_TESTS=1 \
               ~/datadog/zend_abstract_interface
             make -j all
@@ -3398,14 +3449,14 @@ workflows:
           requires: [ 'package extension' ]
           name: "Parametric tests"
           build: |
-            cd system-tests/parametric
+            cd system-tests
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
             sudo apt-get install -y python-is-python3
-            pip install wheel && pip install -r requirements.txt
+            ./build.sh -i runner 
           run: |
-            cd system-tests/parametric
+            cd system-tests
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
-            CLIENTS_ENABLED=php ./run.sh
+            TEST_LIBRARY=php ./run.sh PARAMETRIC
 
   build:
     when: << pipeline.parameters.build >>
@@ -3435,6 +3486,13 @@ workflows:
                 - test_c_disabled
                 - test_internal_api_randomized
                 - test_opcache
+
+      # sidecar is version independent
+      - test_sidecar_sender:
+          requires: [ 'Prepare Code' ]
+          php_major_minor: '8.2'
+          switch_php_version: debug-zts-asan
+          resource_class: medium
 
       - test_multi_observer:
           requires: [ 'Prepare Code' ]
@@ -3621,21 +3679,25 @@ workflows:
           name: "PHP 82 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.2.list
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
+          parallel_workers: true
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 81 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.1.list
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
+          parallel_workers: true
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 80 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.0.list
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          parallel_workers: true
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 74 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.4.list
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          parallel_workers: true
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 73 language tests"

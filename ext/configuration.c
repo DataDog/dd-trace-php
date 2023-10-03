@@ -4,6 +4,7 @@
 
 #include "circuit_breaker.h"
 #include "logging.h"
+#include <components/log/log.h>
 
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
@@ -51,13 +52,13 @@ DD_CONFIGURATION
 #undef CALIASES
 #undef CONFIG
 
-static bool dd_parse_dbm_mode(zai_string_view value, zval *decoded_value, bool persistent) {
+static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persistent) {
     UNUSED(persistent);
-    if (zai_string_equals_literal_ci(value, "disabled")) {
+    if (zai_str_eq_ci_cstr(value, "disabled")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_DISABLED);
-    } else if (zai_string_equals_literal_ci(value, "service")) {
+    } else if (zai_str_eq_ci_cstr(value, "service")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_SERVICE);
-    } else if (zai_string_equals_literal_ci(value, "full")) {
+    } else if (zai_str_eq_ci_cstr(value, "full")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_FULL);
     } else {
         return false;
@@ -71,7 +72,7 @@ static bool dd_parse_dbm_mode(zai_string_view value, zval *decoded_value, bool p
 
 #define CUSTOM(...) CUSTOM
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
-#define CALIASES(...) ((zai_string_view[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
+#define CALIASES(...) ((zai_str[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
 #define CONFIG(type, name, ...) ZAI_CONFIG_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
 #define CALIAS(type, name, ...) ZAI_CONFIG_ALIASED_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
 static zai_config_entry config_entries[] = {DD_CONFIGURATION};
@@ -88,7 +89,7 @@ static void dd_copy_tolower(char *restrict dst, const char *restrict src) {
     }
 }
 
-static void dd_ini_env_to_ini_name(const zai_string_view env_name, zai_config_name *ini_name) {
+static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_name) {
     if (env_name.len + DD_TO_DATADOG_INC >= ZAI_CONFIG_NAME_BUFSIZ) {
         assert(false && "Expanded env name length is larger than the INI name buffer");
         return;
@@ -118,7 +119,7 @@ static void dd_ini_env_to_ini_name(const zai_string_view env_name, zai_config_na
 bool ddtrace_config_minit(int module_number) {
     if (!zai_config_minit(config_entries, (sizeof config_entries / sizeof *config_entries), dd_ini_env_to_ini_name,
                           module_number)) {
-        ddtrace_log_err("Unable to load configuration; likely due to json symbols failing to resolve.");
+        LOG(Error, "Unable to load configuration; likely due to json symbols failing to resolve.");
         return false;
     }
     // We immediately initialize inis at MINIT, so that we can use a select few values already at minit.
@@ -126,6 +127,8 @@ bool ddtrace_config_minit(int module_number) {
     // This is intentional, so that places wishing to use values pre-RINIT do have to explicitly opt in by using the
     // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
     zai_config_first_time_rinit();
+
+    ddtrace_alter_dd_trace_debug(NULL, &zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_DEBUG].decoded_value);
     return true;
 }
 
@@ -142,7 +145,7 @@ void ddtrace_config_first_rinit() {
         internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value;
 
     if (!zend_string_equals(internal_functions_old, internal_functions_new)) {
-        ddtrace_log_errf(
+        LOG(Error,
             "Received DD_TRACE_TRACED_INTERNAL_FUNCTIONS configuration via environment variable."
             "This specific value cannot be set via environment variable for this SAPI. This configuration "
             "needs to be available early in startup. To provide this value, set an ini value with the key "

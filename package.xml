@@ -62,48 +62,55 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This release adds logs correlation and telemetry support:
-- Used configurations, libraries and integrations will be collected. This may be disabled with `DD_INSTRUMENTATION_TELEMETRY_ENABLED=0`.
-- Logs written by common logging libraries will be attached metadata about the trace and span the log line was generated in. This may be disabled with `DD_LOGS_INJECTION=0`.
+This release adds experimental exception profiling to the profiler. This is off by default. Enable it with the environment variable DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=1 or INI setting datadog.profiling.experimental_exception_enabled=1.
 
+In Application Security Management, this release introduces the latest version of the WAF v1.14.0 and the latest ASM ruleset v1.8.0, as well as a fix to ensure runtime IDs reported by the remote configuration client are always valid and consistent with those reported by the Tracer.
+
+## Tracer
 ### Added
-- Add Logs Correlation #2118
-- Add network destination name to http client spans #2134
-- Add peer.service to Mysqli instrumentation #2142
-- Add peer.service to PHPRedis instrumentation #2152
-- Add peer.service to PDO instrumentation #2148
-- Add peer.service to SQLSRV instrumentation #2155
-- Add peer.service to Mongodb instrumentation #2147
-- Add peer.service to Memcached clients instrumentation #2145
-- Add peer.service to http client instrumentations #2134
-- Add automated login events to Symfony #2132 #2146
-- Opt-in to flat service names #2163
-
-### Changed
-- Move all integrations to deferred loading #2153
-- Reflect changes to datadog.version and datadog.env in existing spans #2165
-- Evaluate the service name after the service mapping for a sampling decision #2166
+- Add Drupal Integration #2188
+- Implement sidecar tracing #2234
+	- This functionality is currently experimental and guarded behind a configuration option DD_TRACE_SIDECAR_TRACE_SENDER=1 or INI setting datadog.trace.sidecar_trace_sender=1. It replaces the sending of traces through a dedicated thread.
 
 ### Fixed
-- Add invalid regex handling for sampling rules #2160
-
-### Internal Changes
-- Add SpanData::peerServiceSources #2130
-- Handle peer.service-related post-process in the extension #2135
-- Enable instrumentation telemetry by default #2153
-
-## Profiling
-
-### Added
-- doc(profiling): make phpinfo() output more helpful #2144
-- timeline: add eval() timings #2150
-
-### Fixed
-- Explicit shutdown allocation profiling on fork() #2149
-- Optimize event timestamp for timeline #2157
+- Do not emit a deprecated diagnostic for DD_LOGS_INJECTION #2253
+- Set peer.service as dddbs when available #2260
+- Fix toggling datadog.trace.enabled with perdir configuration #2269
+- Enable auto flush for artisan commands #2270
 
 ### Internal changes
-- refactor(profiling): apply clippy suggestions #2141
+- Keep doctrine/dbal to major version 2 in symfony 5.2 tests #2254
+- docs: Explain minimum and nice-to-have from LLVM #2264
+
+## Profiling
+### Added
+- Add exception profiling #2197, #2262
+- Do not disable allocation profiling on fixed PHP versions with active JIT #2246
+
+### Fixed
+- Add missing `end_timestamp_ns` to string compilation event #2251
+- store customized heap #2261
+- remove “BETA” in `datadog-setup.php` as the profiler is not beta anymore #2278
+- use-after-free with Closure trampolines #2280
+
+### Internal changes
+- add tests for timeline #2192
+
+## Application Security Management (0.14.0)
+### Added
+- Add default processors and scanners DataDog/dd-appsec-php#298
+- Exchange more types between extension and helper DataDog/dd-appsec-php#299
+- API security configuration settings DataDog/dd-appsec-php#300
+
+### Fixed
+- Propagate Runtime IDs and keep a valid pool in the RC client DataDog/dd-appsec-php#301
+
+### Internal changes
+- Add nginx container to integration tests DataDog/dd-appsec-php#294
+- Upgrade WAF to 1.14.0 DataDog/dd-appsec-php#295
+- Upgrade tracer to v0.91.0 and remove master build downloads DataDog/dd-appsec-php#296
+- Upgrade ruleset to 1.8.0 DataDog/dd-appsec-php#302
+- Merge appsec repository as subtree #2267
 ]]></notes>
     <contents>
         <dir name="/">

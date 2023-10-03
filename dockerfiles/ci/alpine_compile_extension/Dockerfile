@@ -1,4 +1,4 @@
-FROM alpine:3.17 as base
+FROM alpine:3.18 as base
 
 RUN mkdir -p /app
 WORKDIR /app
@@ -15,10 +15,14 @@ RUN set -eux; \
         libmcrypt-dev \
         libsodium-dev \
         libxml2-dev \
+        gnu-libiconv-dev \
         oniguruma-dev
 
 # Profiling deps
-RUN apk add --no-cache llvm15-libs clang15-dev
+# Minimum: libclang. Nice-to-have: full toolchain including linker to play
+# with cross-language link-time optimization. Needs to match rustc -Vv's llvm
+# version.
+RUN apk add --no-cache llvm16-libs clang16-dev lld llvm16
 RUN apk add --no-cache rust-stdlib
 RUN apk add --no-cache cargo
 RUN apk add --no-cache clang git protoc unzip

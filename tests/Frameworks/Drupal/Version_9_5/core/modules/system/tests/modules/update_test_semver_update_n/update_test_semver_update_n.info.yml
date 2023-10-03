@@ -1,0 +1,5 @@
+name: 'Update test hook_update_n semver'
+type: module
+description: 'Support module for update testing with core semver value.'
+package: Testing
+version: VERSION

@@ -6,7 +6,6 @@
 #include <main/php.h>
 #include <stdbool.h>
 #include <string.h>
-#include <strings.h>
 
 #if PHP_VERSION_ID < 80000
 #if PHP_VERSION_ID < 70300
@@ -40,7 +39,7 @@ void zai_config_dtor_pzval(zval *pval) {
     ZVAL_UNDEF(pval);
 }
 
-static bool zai_config_decode_bool(zai_string_view value, zval *decoded_value) {
+static bool zai_config_decode_bool(zai_str value, zval *decoded_value) {
     if ((value.len == 1 && strcmp(value.ptr, "1") == 0) || (value.len == 2 && strcasecmp(value.ptr, "on") == 0) ||
         (value.len == 3 && strcasecmp(value.ptr, "yes") == 0) ||
         (value.len == 4 && strcasecmp(value.ptr, "true") == 0)) {
@@ -76,7 +75,7 @@ static bool zai_config_is_valid_double_format(const char *str) {
     return true;
 }
 
-static bool zai_config_decode_double(zai_string_view value, zval *decoded_value) {
+static bool zai_config_decode_double(zai_str value, zval *decoded_value) {
     if (!zai_config_is_valid_double_format(value.ptr)) return false;
 
     const char *endptr = value.ptr;
@@ -114,7 +113,7 @@ static bool zai_config_is_valid_int_format(const char *str) {
     return true;
 }
 
-static bool zai_config_decode_int(zai_string_view value, zval *decoded_value) {
+static bool zai_config_decode_int(zai_str value, zval *decoded_value) {
     if (!zai_config_is_valid_int_format(value.ptr)) return false;
 
 #if PHP_VERSION_ID >= 80200
@@ -138,7 +137,7 @@ static bool zai_config_decode_int(zai_string_view value, zval *decoded_value) {
     return true;
 }
 
-static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bool persistent) {
+static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persistent) {
     zval tmp;
     ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
@@ -192,7 +191,7 @@ static bool zai_config_decode_map(zai_string_view value, zval *decoded_value, bo
     return true;
 }
 
-static bool zai_config_decode_set(zai_string_view value, zval *decoded_value, bool persistent, bool lowercase) {
+static bool zai_config_decode_set(zai_str value, zval *decoded_value, bool persistent, bool lowercase) {
     zval tmp;
     ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
@@ -273,7 +272,7 @@ static void zai_config_persist_zval(zval *in) {
     }
 }
 
-static bool zai_config_decode_json(zai_string_view value, zval *decoded_value, bool persistent) {
+static bool zai_config_decode_json(zai_str value, zval *decoded_value, bool persistent) {
     zai_json_decode_assoc(decoded_value, (char *)value.ptr, (int)value.len, 20);
 
     if (Z_TYPE_P(decoded_value) != IS_ARRAY) {
@@ -290,12 +289,12 @@ static bool zai_config_decode_json(zai_string_view value, zval *decoded_value, b
     return true;
 }
 
-static bool zai_config_decode_string(zai_string_view value, zval *decoded_value, bool persistent) {
+static bool zai_config_decode_string(zai_str value, zval *decoded_value, bool persistent) {
     ZVAL_NEW_STR(decoded_value, zend_string_init(value.ptr, value.len, persistent));
     return true;
 }
 
-bool zai_config_decode_value(zai_string_view value, zai_config_type type, zai_custom_parse custom_parser, zval *decoded_value, bool persistent) {
+bool zai_config_decode_value(zai_str value, zai_config_type type, zai_custom_parse custom_parser, zval *decoded_value, bool persistent) {
     assert((Z_TYPE_P(decoded_value) <= IS_NULL) && "The decoded_value must be IS_UNDEF or IS_NULL");
     switch (type) {
         case ZAI_CONFIG_TYPE_BOOL:

@@ -138,7 +138,12 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     char *cgroup_file;
     ddog_QueueId telemetry_queue_id;
+    ddog_AgentRemoteConfigReader *remote_config_reader;
+    HashTable *agent_rate_by_service;
     zend_string *last_flushed_root_service_name;
+
+    HashTable uhook_active_hooks;
+    HashTable uhook_closure_hooks;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 

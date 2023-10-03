@@ -21,7 +21,7 @@ extern "C" {
         uint32_t u;
     } zai_hook_test_fixed_t;
 
-    zai_string_view zai_hook_test_nonexistent = {.len = sizeof("zai_hook_test_nonexistent")-1, .ptr = "zai_hook_test_nonexistent"};
+    zai_str zai_hook_test_nonexistent = ZAI_STRL("zai_hook_test_nonexistent");
 
     static zai_hook_test_fixed_t zai_hook_test_fixed_first = {42};
     static zai_hook_test_fixed_t zai_hook_test_fixed_second = {42};
@@ -45,7 +45,7 @@ extern "C" {
     }
 }
 
-static zai_string_view zai_hook_test_target = ZAI_STRL_VIEW("phpversion");
+static zai_str zai_hook_test_target = ZAI_STRL("phpversion");
 static zend_long zai_hook_test_index;
 
 #define HOOK_TEST_CASE(description, statics, request, ...) \
@@ -80,7 +80,7 @@ HOOK_TEST_CASE("continue", { /* no static */ }, {
     zai_hook_test_reset(true);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -109,7 +109,7 @@ HOOK_TEST_CASE("stop", { /* no static */ }, {
     zai_hook_test_reset(false);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -138,7 +138,7 @@ HOOK_TEST_CASE("multiple continue", { /* no static */ }, {
     zai_hook_test_reset(true);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -146,7 +146,7 @@ HOOK_TEST_CASE("multiple continue", { /* no static */ }, {
         sizeof(zai_hook_test_dynamic_t)) != -1);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -175,7 +175,7 @@ HOOK_TEST_CASE("multiple stop", { /* no static */ }, {
     zai_hook_test_reset(false);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -183,7 +183,7 @@ HOOK_TEST_CASE("multiple stop", { /* no static */ }, {
         sizeof(zai_hook_test_dynamic_t)) != -1);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -212,7 +212,7 @@ HOOK_TEST_CASE("continue with static", {
     zai_hook_test_reset(true);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -220,7 +220,7 @@ HOOK_TEST_CASE("continue with static", {
         sizeof(zai_hook_test_dynamic_t)) != -1);
 }, {
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -249,7 +249,7 @@ HOOK_TEST_CASE("stop with static", {
     zai_hook_test_reset(false);
 
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -257,7 +257,7 @@ HOOK_TEST_CASE("stop with static", {
         sizeof(zai_hook_test_dynamic_t)) != -1);
 }, {
     REQUIRE(zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -286,14 +286,14 @@ HOOK_TEST_CASE("nonexistent removal", {
     zai_hook_test_reset(false);
 }, {
 }, {
-    REQUIRE(!zai_hook_remove(ZAI_STRING_EMPTY, zai_hook_test_target, 0));
+    REQUIRE(!zai_hook_remove(ZAI_STR_EMPTY, zai_hook_test_target, 0));
 });
 
 HOOK_TEST_CASE("resolved removal", {
     zai_hook_test_reset(false);
 }, {
     zai_hook_test_index = zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -302,7 +302,7 @@ HOOK_TEST_CASE("resolved removal", {
 
     REQUIRE(zai_hook_test_index != -1);
 }, {
-    REQUIRE(zai_hook_remove(ZAI_STRING_EMPTY, zai_hook_test_target, zai_hook_test_index));
+    REQUIRE(zai_hook_remove(ZAI_STR_EMPTY, zai_hook_test_target, zai_hook_test_index));
 
     zval result;
 
@@ -321,7 +321,7 @@ HOOK_TEST_CASE("unresolved removal", {
     zai_hook_test_reset(false);
 }, {
     zai_hook_test_index = zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_nonexistent,
         zai_hook_test_begin,
         zai_hook_test_end,
@@ -330,7 +330,7 @@ HOOK_TEST_CASE("unresolved removal", {
 
     REQUIRE(zai_hook_test_index != -1);
 }, {
-    REQUIRE(zai_hook_remove(ZAI_STRING_EMPTY, zai_hook_test_nonexistent, zai_hook_test_index));
+    REQUIRE(zai_hook_remove(ZAI_STR_EMPTY, zai_hook_test_nonexistent, zai_hook_test_index));
 });
 
 extern "C" {
@@ -341,7 +341,7 @@ extern "C" {
         dynamic->u = 1;
 
         REQUIRE(zai_hook_install(
-            ZAI_STRING_EMPTY,
+            ZAI_STR_EMPTY,
             zai_hook_test_target,
             zai_hook_test_begin,
             zai_hook_test_end,
@@ -349,7 +349,7 @@ extern "C" {
             sizeof(zai_hook_test_dynamic_t)) != -1);
 
         REQUIRE(zai_hook_install(
-            ZAI_STRING_EMPTY,
+            ZAI_STR_EMPTY,
             zai_hook_test_target,
             zai_hook_test_begin,
             zai_hook_test_end,
@@ -375,7 +375,7 @@ HOOK_TEST_CASE("hook add during begin", {
     zai_hook_test_reset(true);
 }, {
     zai_hook_test_index = zai_hook_install(
-        ZAI_STRING_EMPTY,
+        ZAI_STR_EMPTY,
         zai_hook_test_target,
         zai_hook_test_hook_add_begin,
         zai_hook_test_hook_add_end,

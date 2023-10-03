@@ -6,7 +6,7 @@ target_include_directories(
 
 target_compile_features(zai_hook PUBLIC c_std_99)
 
-target_link_libraries(zai_hook PUBLIC "${PHP_LIB}" Zai::Symbols)
+target_link_libraries(zai_hook PUBLIC Tea::Php Zai::Symbols)
 
 set_target_properties(zai_hook PROPERTIES EXPORT_NAME Hook
                                             VERSION ${PROJECT_VERSION})

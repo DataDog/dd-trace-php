@@ -69,6 +69,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   DD_TRACE_COMPONENT_SOURCES="\
     components/container_id/container_id.c \
+    components/log/log.c \
     components/sapi/sapi.c \
     components/string_view/string_view.c \
   "
@@ -113,6 +114,7 @@ if test "$PHP_DDTRACE" != "no"; then
     EXTRA_ZAI_SOURCES="\
       zend_abstract_interface/interceptor/php8/interceptor.c \
       zend_abstract_interface/interceptor/php8/resolver$ZAI_RESOLVER_SUFFIX.c \
+      zend_abstract_interface/jit_utils/jit_blacklist.c \
       zend_abstract_interface/sandbox/php8/sandbox.c \
     "
   fi
@@ -146,6 +148,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/random.c \
     ext/request_hooks.c \
     ext/serializer.c \
+    ext/sidecar.c \
     ext/signals.c \
     ext/span.c \
     ext/startup_logging.c \
@@ -168,6 +171,7 @@ if test "$PHP_DDTRACE" != "no"; then
     zend_abstract_interface/symbols/lookup.c \
     zend_abstract_interface/symbols/call.c \
     zend_abstract_interface/uri_normalization/uri_normalization.c \
+    zend_abstract_interface/zai_string/string.c \
   "
 
   PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
@@ -214,6 +218,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_ADD_BUILD_DIR([$ext_builddir/components])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/container_id])
+  PHP_ADD_BUILD_DIR([$ext_builddir/components/log])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/sapi])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/string_view])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/uuid])
@@ -229,6 +234,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor/php7])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/interceptor/php8])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/jit_utils])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/json])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php7])
@@ -277,7 +283,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   cat <<EOT >> Makefile.fragments
 \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components-rs" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*"; echo "$all_object_files" ) 2>/dev/null | xargs )
-	(cd "$ext_srcdir/components-rs"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") && test "$PHP_DDTRACE_RUST_SYMBOLS" == yes || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
+	(cd "$ext_srcdir/components-rs"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ RUSTC_BOOTSTRAP=1 \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") && test "$PHP_DDTRACE_RUST_SYMBOLS" == yes || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
 EOT
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then

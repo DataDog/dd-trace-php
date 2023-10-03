@@ -9,7 +9,7 @@
 #include "compat_string.h"
 #include "configuration.h"
 #include "ddtrace.h"
-#include "logging.h"
+#include <components/log/log.h>
 #include "random.h"
 #include "serializer.h"
 #include "ext/standard/php_string.h"
@@ -362,17 +362,32 @@ void ddtrace_push_root_span(void) {
     GC_DELREF(&span->std);
 }
 
-DDTRACE_PUBLIC bool ddtrace_root_span_add_tag(zend_string *tag, zval *value) {
+DDTRACE_PUBLIC zval *ddtrace_root_span_get_meta(void)
+{
     if (!DDTRACE_G(active_stack)) {
-        return false;
+        return NULL;
     }
 
     ddtrace_span_data *root_span = DDTRACE_G(active_stack)->root_span;
     if (root_span == NULL) {
-        return false;
+        return NULL;
     }
 
-    return zend_hash_add(ddtrace_spandata_property_meta(root_span), tag, value) != NULL;
+    return ddtrace_spandata_property_meta_zval(root_span);
+}
+
+DDTRACE_PUBLIC zval *ddtrace_root_span_get_metrics(void)
+{
+    if (!DDTRACE_G(active_stack)) {
+        return NULL;
+    }
+
+    ddtrace_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    if (root_span == NULL) {
+        return NULL;
+    }
+
+    return ddtrace_spandata_property_metrics_zval(root_span);
 }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
@@ -425,11 +440,11 @@ void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until) {
     ddtrace_span_data *span;
     while ((span = until->stack->active) && span->stack == until->stack && span != until && span->type != DDTRACE_AUTOROOT_SPAN) {
         if (span->type == DDTRACE_INTERNAL_SPAN) {
-            ddtrace_log_err("Found internal span data while closing userland spans");
+            LOG(Error, "Found internal span data while closing userland spans");
         }
 
         zend_string *name = ddtrace_convert_to_str(ddtrace_spandata_property_name(span));
-        ddtrace_log_debugf("Found unfinished span while automatically closing spans with name '%s'", ZSTR_VAL(name));
+        LOG(Warn, "Found unfinished span while automatically closing spans with name '%s'", ZSTR_VAL(name));
         zend_string_release(name);
 
         if (get_DD_AUTOFINISH_SPANS()) {
@@ -479,7 +494,7 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
             // As long as there's something to flush, we must hold a reference (to avoid cycle collection)
             GC_ADDREF(&stack->std);
 
-            if (stack->root_span->stack == stack || stack->root_span->type == DDTRACE_SPAN_CLOSED) {
+            if (stack->root_span && (stack->root_span->stack == stack || stack->root_span->type == DDTRACE_SPAN_CLOSED)) {
                 stack->next = DDTRACE_G(top_closed_stack);
                 DDTRACE_G(top_closed_stack) = stack;
             } else {
@@ -517,7 +532,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
 
         if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE) {
             // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
-            ddtrace_log_debug("Unable to auto flush the tracer");
+            LOG(Warn, "Unable to auto flush the tracer");
         }
     }
 }

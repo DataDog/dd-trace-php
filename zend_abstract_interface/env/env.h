@@ -1,9 +1,10 @@
 #ifndef ZAI_ENV_H
 #define ZAI_ENV_H
 
+#include <zai_string/string.h>
+
 #include <stdbool.h>
 #include <stddef.h>
-#include <zai_string/string.h>
 
 /* The upper-bounds limit on the buffer size to hold the value of an arbitrary
  * environment variable.
@@ -61,11 +62,11 @@ typedef struct zai_env_buffer_s {
  * truncate the value to accommodate the buffer size.
  */
 zai_env_result __attribute__((warn_unused_result))
-zai_getenv_ex(zai_string_view name, zai_env_buffer buf, bool pre_rinit);
-static inline __attribute__((warn_unused_result)) zai_env_result zai_getenv(zai_string_view name, zai_env_buffer buf) {
+zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit);
+static inline __attribute__((warn_unused_result)) zai_env_result zai_getenv(zai_str name, zai_env_buffer buf) {
     return zai_getenv_ex(name, buf, false);
 }
 
-#define zai_getenv_literal(name, buf) zai_getenv(ZAI_STRL_VIEW(name), buf)
+#define zai_getenv_literal(name, buf) zai_getenv(ZAI_STRL(name), buf)
 
 #endif  // ZAI_ENV_H

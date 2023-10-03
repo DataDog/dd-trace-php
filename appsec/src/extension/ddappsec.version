@@ -1,0 +1,4 @@
+{
+	global: get_module;
+	local: *;
+};

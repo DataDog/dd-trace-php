@@ -4,6 +4,7 @@
 
 int ddtrace_serialize_simple_array(zval *trace, zval *retval);
 int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p);
+size_t ddtrace_serialize_simple_array_into_mapped_menory(zval *trace, char *map, size_t size);
 
 void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array);
 

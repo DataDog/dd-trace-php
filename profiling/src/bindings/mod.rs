@@ -3,10 +3,15 @@ mod ffi;
 pub use ffi::*;
 
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
+use std::borrow::Cow;
 use std::ffi::CStr;
 use std::marker::PhantomData;
 use std::str::Utf8Error;
 use std::sync::atomic::AtomicBool;
+
+extern "C" {
+    pub static ddog_php_prof_functions: *const zend_function_entry;
+}
 
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
@@ -27,6 +32,11 @@ pub type VmZendCompileString =
 #[cfg(all(feature = "timeline", not(php_zend_compile_string_has_position), php7))]
 pub type VmZendCompileString =
     unsafe extern "C" fn(*mut _zval_struct, *mut c_char) -> *mut _zend_op_array;
+
+#[cfg(all(feature = "exception_profiling", php7))]
+pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zval);
+#[cfg(all(feature = "exception_profiling", php8))]
+pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zend_object);
 
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
@@ -75,16 +85,21 @@ pub struct ZendString {
     _opaque: [u8; 0],
 }
 
+impl _zend_object {
+    pub fn class_name(&self) -> String {
+        unsafe { zai_str_from_zstr((*self.ce).name.as_mut()).into_string() }
+    }
+}
+
 impl _zend_function {
     /// Returns a slice to the zend_string's data if it's present and not
     /// empty; otherwise returns None.
     fn zend_string_to_optional_bytes(zstr: Option<&mut zend_string>) -> Option<&[u8]> {
-        /* Safety: ddog_php_prof_zend_string_view can be called with
-         * any valid zend_string pointer, and the tailing .into_bytes() will
-         * be safe as the former will always return a view with a non-null
-         * pointer.
+        /* Safety: zai_str_from_zstr can be called with any valid zend_string
+         * pointer, and the tailing .into_bytes() will be safe as the former
+         * will always return a view with a non-null pointer.
          */
-        let bytes = unsafe { ddog_php_prof_zend_string_view(zstr).into_bytes() };
+        let bytes = unsafe { zai_str_from_zstr(zstr) }.into_bytes();
         if bytes.is_empty() {
             None
         } else {
@@ -282,10 +297,27 @@ extern "C" {
     #[cfg(php7)]
     pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void) -> ZendResult;
 
-    /// Converts the `zstr` into a `zai_string_view`. A None as well as empty
+    /// Converts the `zstr` into a `zai_str`. A None as well as empty
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
-    pub fn ddog_php_prof_zend_string_view(zstr: Option<&mut zend_string>) -> zai_string_view;
+    pub fn zai_str_from_zstr(zstr: Option<&mut zend_string>) -> zai_str;
+
+    /// Registers the run_time_cache slot with the engine. Must be done in
+    /// module init or extension startup.
+    pub fn ddog_php_prof_function_run_time_cache_init(module_name: *const c_char);
+
+    /// Gets the address of a function's run_time_cache slot. May return None
+    /// if it detects incomplete initialization, which is always a bug but
+    /// none-the-less has been seen in the wild. It may also return None if
+    /// the run_time_cache is not available on this function type.
+    #[cfg(not(feature = "stack_walking_tests"))]
+    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
+
+    /// mock for testing
+    #[cfg(feature = "stack_walking_tests")]
+    pub fn ddog_test_php_prof_function_run_time_cache(
+        func: &zend_function,
+    ) -> Option<&mut [usize; 2]>;
 }
 
 #[cfg(php_preload)]
@@ -354,7 +386,7 @@ impl<'a> TryFrom<&'a mut zval> for &'a mut zend_long {
 
     fn try_from(zval: &'a mut zval) -> Result<Self, Self::Error> {
         let r#type = unsafe { zval.u1.v.type_ };
-        if r#type as u32 == IS_LONG {
+        if r#type == IS_LONG {
             Ok(unsafe { &mut zval.value.lval })
         } else {
             Err(r#type)
@@ -367,11 +399,35 @@ impl TryFrom<&mut zval> for zend_long {
 
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
         let r#type = unsafe { zval.u1.v.type_ };
-        if r#type as u32 == IS_LONG {
+        if r#type == IS_LONG {
             Ok(unsafe { zval.value.lval })
         } else {
             Err(r#type)
         }
+    }
+}
+
+impl TryFrom<&mut zval> for u32 {
+    type Error = u8;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type == IS_LONG {
+            match u32::try_from(unsafe { zval.value.lval }) {
+                Err(_) => Err(r#type),
+                Ok(val) => Ok(val),
+            }
+        } else {
+            Err(r#type)
+        }
+    }
+}
+
+impl TryFrom<zval> for u32 {
+    type Error = u8;
+
+    fn try_from(mut zval: zval) -> Result<Self, Self::Error> {
+        u32::try_from(&mut zval)
     }
 }
 
@@ -388,9 +444,9 @@ impl TryFrom<&mut zval> for bool {
 
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
         let r#type = unsafe { zval.u1.v.type_ };
-        if r#type == (IS_FALSE as u8) {
+        if r#type == IS_FALSE {
             Ok(false)
-        } else if r#type == (IS_TRUE as u8) {
+        } else if r#type == IS_TRUE {
             Ok(true)
         } else {
             Err(r#type)
@@ -403,42 +459,41 @@ pub enum StringError {
     Type(u8), // Type didn't match.
 }
 
-/// Until we have safely abstracted zend_string*'s in Rust, we need to copy
-/// the String. This also means we can ensure UTF-8 through lossy conversion.
+/// Since we're making a String, do lossy-conversion as necessary.
 impl TryFrom<&mut zval> for String {
     type Error = StringError;
 
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
         let r#type = unsafe { zval.u1.v.type_ };
-        if r#type == (IS_STRING as u8) {
+        if r#type == IS_STRING {
             // This shouldn't happen, very bad, something screwed up.
             if unsafe { zval.value.str_.is_null() } {
                 return Err(StringError::Null);
             }
 
             // Safety: checked the pointer wasn't null above.
-            let view = unsafe { ddog_php_prof_zend_string_view(zval.value.str_.as_mut()) };
-
-            // Safety: ddog_php_prof_zend_string_view returns a fully populated string.
-            let bytes = unsafe { view.into_bytes() };
-
-            // PHP does not guarantee UTF-8 correctness, so lossy convert.
-            Ok(String::from_utf8_lossy(bytes).into_owned())
+            let str = unsafe { zai_str_from_zstr(zval.value.str_.as_mut()) }.into_string();
+            Ok(str)
         } else {
             Err(StringError::Type(r#type))
         }
     }
 }
 
+/// A non-owning, not necessarily null terminated, not necessarily utf-8
+/// encoded, borrowed string.
+/// It must satisfy the requirements of [core::slice::from_raw_parts], notably
+/// it must not use the null pointer even when the length is 0.
+/// Keep this representation in sync with zai_str.
 #[repr(C)]
-pub struct ZaiStringView<'a> {
-    len: size_t,
+pub struct ZaiStr<'a> {
     ptr: *const c_char,
+    len: size_t,
     _marker: PhantomData<&'a [c_char]>,
 }
 
-impl<'a> From<&'a str> for ZaiStringView<'a> {
-    fn from(val: &'a str) -> Self {
+impl<'a> From<&'a [u8]> for ZaiStr<'a> {
+    fn from(val: &'a [u8]) -> Self {
         Self {
             len: val.len(),
             ptr: val.as_ptr() as *const c_char,
@@ -447,8 +502,14 @@ impl<'a> From<&'a str> for ZaiStringView<'a> {
     }
 }
 
-impl<'a> ZaiStringView<'a> {
-    pub const fn new() -> ZaiStringView<'a> {
+impl<'a> From<&'a str> for ZaiStr<'a> {
+    fn from(value: &'a str) -> Self {
+        Self::from(value.as_bytes())
+    }
+}
+
+impl<'a> ZaiStr<'a> {
+    pub const fn new() -> ZaiStr<'a> {
         const NULL: &[u8] = b"\0";
         Self {
             len: 0,
@@ -464,40 +525,59 @@ impl<'a> ZaiStringView<'a> {
 
     /// # Safety
     /// `str` must be valid for [CStr::from_bytes_with_nul_unchecked]
-    pub const unsafe fn literal(str: &'static [u8]) -> Self {
+    pub const unsafe fn literal(bytes: &'static [u8]) -> Self {
+        // Chance at catching some UB at runtime with debug builds.
+        debug_assert!(!bytes.is_empty() && bytes[bytes.len() - 1] == 0);
+
         let mut i: usize = 0;
-        while str[i] != b'\0' {
+        while bytes[i] != b'\0' {
             i += 1;
         }
         Self {
             len: i as size_t,
-            ptr: str.as_ptr() as *const c_char,
+            ptr: bytes.as_ptr() as *const c_char,
             _marker: PhantomData,
         }
     }
 
-    /// # Safety
-    /// Inherits the safety requirements of [std::slice::from_raw_parts], in
-    /// particular, the view must not use a null pointer.
-    pub unsafe fn into_bytes(self) -> &'a [u8] {
-        assert!(!self.ptr.is_null());
+    #[inline]
+    pub fn as_bytes(&self) -> &'a [u8] {
+        debug_assert!(!self.ptr.is_null());
         let len = self.len;
-        std::slice::from_raw_parts(self.ptr as *const u8, len)
+        // Safety: the ZaiStr is supposed to uphold all the invariants, and
+        // the pointer has been debug_asserted to not be null, so 🤞🏻.
+        unsafe { std::slice::from_raw_parts(self.ptr as *const u8, len) }
     }
 
-    pub unsafe fn into_utf8(self) -> Result<&'a str, Utf8Error> {
+    #[inline]
+    pub fn into_bytes(self) -> &'a [u8] {
+        self.as_bytes()
+    }
+
+    #[inline]
+    pub fn into_utf8(self) -> Result<&'a str, Utf8Error> {
         let bytes = self.into_bytes();
         std::str::from_utf8(bytes)
+    }
+
+    #[inline]
+    pub fn into_string(self) -> String {
+        self.to_string_lossy().into_owned()
+    }
+
+    #[inline]
+    pub fn to_string_lossy(&self) -> Cow<str> {
+        String::from_utf8_lossy(self.as_bytes())
     }
 }
 
 #[repr(C)]
 pub struct ZaiConfigEntry {
     pub id: zai_config_id,
-    pub name: zai_string_view<'static>,
+    pub name: zai_str<'static>,
     pub type_: zai_config_type,
-    pub default_encoded_value: zai_string_view<'static>,
-    pub aliases: *const zai_string_view<'static>,
+    pub default_encoded_value: zai_str<'static>,
+    pub aliases: *const zai_str<'static>,
     pub aliases_count: u8,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
@@ -510,7 +590,7 @@ pub struct ZaiConfigMemoizedEntry {
     pub names_count: u8,
     pub type_: zai_config_type,
     pub decoded_value: zval,
-    pub default_encoded_value: zai_string_view<'static>,
+    pub default_encoded_value: zai_str<'static>,
     pub name_index: i16,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
@@ -524,4 +604,22 @@ pub struct ZaiConfigMemoizedEntry {
             stage: c_int,
         ) -> c_int,
     >,
+}
+
+#[cfg(test)]
+mod tests {
+
+    // If this fails, then ddog_php_prof_function_run_time_cache needs to be
+    // adjusted accordingly.
+    #[test]
+    fn test_sizeof_fixed_size_slice_is_same_as_pointer() {
+        assert_eq!(
+            std::mem::size_of::<&[usize; 2]>(),
+            std::mem::size_of::<*mut usize>()
+        );
+        assert_eq!(
+            std::mem::align_of::<&[usize; 2]>(),
+            std::mem::align_of::<*mut usize>()
+        );
+    }
 }

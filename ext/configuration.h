@@ -73,6 +73,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(STRING, DD_TRACE_AGENT_URL, "", .ini_change = zai_config_system_ini_change)                         \
     CONFIG(STRING, DD_AGENT_HOST, "", .ini_change = zai_config_system_ini_change)                              \
     CONFIG(STRING, DD_DOGSTATSD_URL, "")                                                                       \
+    CONFIG(STRING, DD_API_KEY, "", .ini_change = zai_config_system_ini_change)                                 \
     CONFIG(BOOL, DD_DISTRIBUTED_TRACING, "true")                                                               \
     CONFIG(STRING, DD_DOGSTATSD_PORT, "8125")                                                                  \
     CONFIG(STRING, DD_ENV, "", .ini_change = ddtrace_alter_dd_env)                                             \
@@ -90,7 +91,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false")                                                         \
     CONFIG(BOOL, DD_TRACE_CLI_ENABLED, "false")                                                                \
     CONFIG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                                        \
-    CONFIG(BOOL, DD_TRACE_DEBUG, "false")                                                                      \
+    CONFIG(BOOL, DD_TRACE_DEBUG, "false", .ini_change = ddtrace_alter_dd_trace_debug)                          \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true", .ini_change = ddtrace_alter_dd_trace_disabled_config)               \
     CONFIG(BOOL, DD_INSTRUMENTATION_TELEMETRY_ENABLED, "true", .ini_change = zai_config_system_ini_change)               \
     CONFIG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false", .ini_change = zai_config_system_ini_change)         \
@@ -110,7 +111,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(SET, DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED, "*")                                                    \
     CONFIG(SET, DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED, "")                                                     \
     CONFIG(INT, DD_TRACE_RATE_LIMIT, "0", .ini_change = zai_config_system_ini_change)                          \
-    CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "1", CALIASES("DD_SAMPLING_RATE"))                                    \
+    CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "-1", CALIASES("DD_SAMPLING_RATE"))                                   \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                                \
     CONFIG(JSON, DD_SPAN_SAMPLING_RULES, "[]")                                                                 \
     CONFIG(STRING, DD_SPAN_SAMPLING_RULES_FILE, "", .ini_change = ddtrace_alter_sampling_rules_file_config)    \
@@ -148,9 +149,12 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "10")                                                   \
     CONFIG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                                \
+    CONFIG(BOOL, DD_TRACE_ONCE_LOGS, "true")                                                                   \
     CONFIG(BOOL, DD_TRACE_AGENT_DEBUG_VERBOSE_CURL, "false", .ini_change = zai_config_system_ini_change)       \
     CONFIG(BOOL, DD_TRACE_DEBUG_CURL_OUTPUT, "false", .ini_change = zai_config_system_ini_change)              \
     CONFIG(INT, DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT, "80", .ini_change = zai_config_system_ini_change)  \
+    CONFIG(BOOL, DD_TRACE_SIDECAR_TRACE_SENDER, "false", .ini_change = zai_config_system_ini_change)           \
+    CONFIG(BOOL, DD_TRACE_AGENTLESS, "false", .ini_change = zai_config_system_ini_change)                   \
     CONFIG(BOOL, DD_TRACE_WARN_LEGACY_DD_TRACE, "true")                                                        \
     CONFIG(BOOL, DD_TRACE_RETAIN_THREAD_CAPABILITIES, "false", .ini_change = zai_config_system_ini_change)     \
     CONFIG(STRING, DD_VERSION, "", .ini_change = ddtrace_alter_dd_version)                                     \
@@ -164,6 +168,9 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(INT, DD_TRACE_AGENT_STACK_BACKLOG, "12", .ini_change = zai_config_system_ini_change)                \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_USER_ID_DEFAULT, "false")                                                  \
     CONFIG(CUSTOM(INT), DD_DBM_PROPAGATION_MODE, "disabled", .parser = dd_parse_dbm_mode)                      \
+    CONFIG(SET, DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS, "")                                                      \
+    CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "false")                                                          \
+    CONFIG(BOOL, DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION, "false")                                              \
     CONFIG(BOOL, DD_TRACE_OTEL_ENABLED, "false")                                                               \
     DD_INTEGRATIONS
 
@@ -218,5 +225,9 @@ DD_CONFIGURATION
 
 #undef CUSTOM
 #undef CALIAS
+
+static inline int ddtrace_quiet_zpp(void) {
+    return PHP_DEBUG ? 0 : ZEND_PARSE_PARAMS_QUIET;
+}
 
 #endif  // DD_CONFIGURATION_H

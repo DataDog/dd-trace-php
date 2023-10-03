@@ -26,7 +26,7 @@
 #include "engine_api.h"
 #include "engine_hooks.h"
 #include "ip_extraction.h"
-#include "logging.h"
+#include <components/log/log.h>
 #include "mpack/mpack.h"
 #include "priority_sampling/priority_sampling.h"
 #include "span.h"
@@ -35,8 +35,8 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
-                                               zai_string_view span_type,
-                                               zai_string_view resource);
+                                               zai_str span_type,
+                                               zai_str resource);
 
 #define MAX_ID_BUFSIZ 40  // 3.4e^38 = 39 chars + 1 terminator
 #define KEY_TRACE_ID "trace_id"
@@ -129,7 +129,7 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
             mpack_write_cstr(writer, Z_STRVAL_P(trace));
             break;
         default:
-            ddtrace_log_debug("Serialize values must be of type array, string, int, float, bool or null");
+            LOG(Warn, "Serialize values must be of type array, string, int, float, bool or null");
             return 0;
             break;
     }
@@ -161,6 +161,22 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     } else {
         return 0;
     }
+}
+
+size_t ddtrace_serialize_simple_array_into_mapped_menory(zval *trace, char *map, size_t size) {
+    // encode to memory buffer
+    mpack_writer_t writer;
+    mpack_writer_init(&writer, map, size);
+    if (msgpack_write_zval(&writer, trace, 0) != 1) {
+        mpack_writer_destroy(&writer);
+        return 0;
+    }
+    size_t written = mpack_writer_buffer_size(&writer);
+    // finish writing
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        return 0;
+    }
+    return written;
 }
 
 int ddtrace_serialize_simple_array(zval *trace, zval *retval) {
@@ -256,12 +272,12 @@ static zend_result dd_exception_to_error_type(zend_object *exception, void *cont
                     error_type_string = "E_USER_ERROR";
                     break;
                 default:
-                    ddtrace_assert_log_debug(
+                    LOG_UNREACHABLE(
                         "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
             }
 
         } else {
-            ddtrace_assert_log_debug("Exception was a DDTrace\\FatalError but failed to get an exception code");
+            LOG_UNREACHABLE("Exception was a DDTrace\\FatalError but failed to get an exception code");
         }
 
         value = ddtrace_string_cstring_ctor((char *)error_type_string);
@@ -581,7 +597,7 @@ static zend_string *dd_build_req_url() {
     if (question_mark) {
         uri_len = question_mark - uri;
         query_string = zai_filter_query_string(
-            (zai_string_view){.len = strlen(uri) - uri_len - 1, .ptr = question_mark + 1},
+            ZAI_STR_NEW(question_mark + 1, strlen(uri) - uri_len - 1),
             get_DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED(), get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
     } else {
         uri_len = strlen(uri);
@@ -664,7 +680,7 @@ void ddtrace_set_root_span_properties(ddtrace_span_data *span) {
                 const char *query_str = dd_get_query_string();
                 if (query_str) {
                     query_string =
-                        zai_filter_query_string((zai_string_view){.len = strlen(query_str), .ptr = query_str},
+                        zai_filter_query_string(ZAI_STR_FROM_CSTR(query_str),
                                                 get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED(),
                                                 get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
                 }
@@ -1042,7 +1058,8 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     // handle dropped spans
     if (span->parent) {
         ddtrace_span_data *parent = span->parent;
-        while (ddtrace_span_is_dropped(parent)) {
+        // Ensure the parent id is the root span if everything else was dropped
+        while (parent->parent && ddtrace_span_is_dropped(parent)) {
             parent = parent->parent;
         }
         span->parent_id = parent->span_id;
@@ -1114,11 +1131,11 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
 
     // Notify profiling for Endpoint Profiling.
     if (profiling_notify_trace_finished && top_level_span && Z_TYPE(prop_resource_as_string) == IS_STRING) {
-        zai_string_view type = Z_TYPE(prop_type_as_string) == IS_STRING
-                               ? ZAI_STRING_FROM_ZSTR(Z_STR(prop_type_as_string))
-                               : ZAI_STRL_VIEW("custom");
-        zai_string_view resource = ZAI_STRING_FROM_ZSTR(Z_STR(prop_resource_as_string));
-        ddtrace_log_debug("Notifying profiler of finished local root span.");
+        zai_str type = Z_TYPE(prop_type_as_string) == IS_STRING
+                               ? ZAI_STR_FROM_ZSTR(Z_STR(prop_type_as_string))
+                               : ZAI_STRL("custom");
+        zai_str resource = ZAI_STR_FROM_ZSTR(Z_STR(prop_resource_as_string));
+        LOG(Warn, "Notifying profiler of finished local root span.");
         profiling_notify_trace_finished(span->span_id, type, resource);
     }
 

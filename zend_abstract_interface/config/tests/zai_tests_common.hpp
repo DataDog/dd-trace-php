@@ -16,7 +16,7 @@ typedef enum {
 } ext_cfg_id;
 
 static PHP_MINIT_FUNCTION(zai_config_env) {
-    zai_string_view aliases_int[] = {ZAI_STRL_VIEW("BAR_ALIASED_INT_OLD"), ZAI_STRL_VIEW("BAR_ALIASED_INT_OLDER"), ZAI_STRL_VIEW("BAR_ALIASED_INT_OLDEST")};
+    zai_str aliases_int[] = {ZAI_STRL("BAR_ALIASED_INT_OLD"), ZAI_STRL("BAR_ALIASED_INT_OLDER"), ZAI_STRL("BAR_ALIASED_INT_OLDEST")};
     zai_config_entry entries[] = {
         EXT_CFG_ENTRY(FOO_BOOL, BOOL, "1"),
         EXT_CFG_ENTRY(FOO_DOUBLE, DOUBLE, "0.5"),

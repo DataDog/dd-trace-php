@@ -1,0 +1,101 @@
+name: Profiling correctness
+
+on:
+  - pull_request
+
+jobs:
+  prof-correctness:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Restore build cache
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build profiler
+        run: |
+          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main" | sudo tee -a /etc/apt/sources.list
+          echo "deb-src http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main" | sudo tee -a /etc/apt/sources.list
+          curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          sudo apt remove -y clang-*
+          sudo apt-get update
+          sudo apt install -y clang-16
+          cd profiling
+          version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
+          curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"
+          cargo rustc --features="trigger_time_sample" --release --crate-type=cdylib
+
+      - name: Cache build dependencies
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: |
+          export DD_PROFILING_LOG_LEVEL=trace
+          php -d extension=target/release/libdatadog_php_profiling.so -v
+          mkdir profiling/tests/correctness/allocations/
+          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
+          mkdir profiling/tests/correctness/time/
+          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/time/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/time.php
+          mkdir profiling/tests/correctness/strange_frames/
+          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/strange_frames/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/strange_frames.php
+          mkdir profiling/tests/correctness/timeline/
+          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/timeline/test.pprof DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED=1 php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/timeline.php
+          mkdir profiling/tests/correctness/exceptions/
+          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/exceptions/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so -d datadog.profiling.experimental_exception_sampling_distance=1 -d datadog.profiling.experimental_exception_enabled=On profiling/tests/correctness/exceptions.php
+
+      - name: Check profiler correctness for allocations
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/allocations.json
+          pprof_path: profiling/tests/correctness/allocations/
+
+      - name: Check profiler correctness for time
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/time.json
+          pprof_path: profiling/tests/correctness/time/
+
+      - name: Check profiler correctness for strange frames
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/strange_frames.json
+          pprof_path: profiling/tests/correctness/strange_frames/
+
+      - name: Check profiler correctness for timeline
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/timeline.json
+          pprof_path: profiling/tests/correctness/timeline/
+
+      - name: Check profiler correctness for exceptions
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/exceptions.json
+          pprof_path: profiling/tests/correctness/exceptions/

@@ -54,7 +54,7 @@ impl Uploader {
             bytes: serialized.buffer.as_slice(),
         }];
         let timeout = Duration::from_secs(10);
-        let request = exporter.build(start, end, files, None, endpoint_counts, timeout)?;
+        let request = exporter.build(start, end, files, None, endpoint_counts, None, timeout)?;
         debug!("Sending profile to: {}", index.endpoint);
         let result = exporter.send(request, None)?;
         Ok(result.status().as_u16())

@@ -16,7 +16,7 @@
 #include "excluded_modules.h"
 #include "ext/version.h"
 #include "integrations/integrations.h"
-#include "logging.h"
+#include <components/log/log.h>
 
 #define ISO_8601_LEN (20 + 1)  // +1 for terminating null-character
 
@@ -26,7 +26,7 @@ static void _dd_get_time(char *buf) {
     if (tm) {
         strftime(buf, ISO_8601_LEN, "%Y-%m-%dT%TZ", tm);
     } else {
-        ddtrace_log_debug("Error getting time");
+        LOG(Warn, "Error getting time");
     }
 }
 
@@ -200,6 +200,7 @@ static size_t _dd_check_for_agent_error(char *error, bool quick) {
 
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "X-Datadog-Diagnostic-Check: 1");
+    headers = curl_slist_append(headers, "Content-Type: application/json");
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
     const char *body = "[]";
@@ -287,7 +288,8 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
         zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
-        if (cfg->name_index > 0) {
+        // DD_TRACE_LOGS_ENABLED would be the proper name, but for compatibility with other tracers, we also support DD_LOGS_INJECTION officially
+        if (cfg->name_index > 0 && i != DDTRACE_CONFIG_DD_TRACE_LOGS_ENABLED) {
             zai_config_name *old_name = &cfg->names[cfg->name_index];
             zend_string *message = zend_strpprintf(0, "'%s=%s' is deprecated, use %s instead.", old_name->ptr,
                                                    ZSTR_VAL(cfg->ini_entries[0]->value), cfg->names[0].ptr);
@@ -332,25 +334,25 @@ void ddtrace_startup_logging_json(smart_str *buf, int options) {
     FREE_HASHTABLE(ht);
 }
 
-static void _dd_print_values_to_log(HashTable *ht) {
+static void _dd_print_values_to_log(HashTable *ht, void (*log)(const char *format, ...)) {
     zend_string *key;
     zval *val;
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, key, val) {
         switch (Z_TYPE_P(val)) {
             case IS_STRING:
-                ddtrace_log_errf("DATADOG TRACER DIAGNOSTICS - %s: %s", ZSTR_VAL(key), Z_STRVAL_P(val));
+                log("DATADOG TRACER DIAGNOSTICS - %s: %s", ZSTR_VAL(key), Z_STRVAL_P(val));
                 break;
             case IS_NULL:
-                ddtrace_log_errf("DATADOG TRACER DIAGNOSTICS - %s: NULL", ZSTR_VAL(key));
+                log("DATADOG TRACER DIAGNOSTICS - %s: NULL", ZSTR_VAL(key));
                 break;
             case IS_TRUE:
-                ddtrace_log_errf("DATADOG TRACER DIAGNOSTICS - %s: true", ZSTR_VAL(key));
+                log("DATADOG TRACER DIAGNOSTICS - %s: true", ZSTR_VAL(key));
                 break;
             case IS_FALSE:
-                ddtrace_log_errf("DATADOG TRACER DIAGNOSTICS - %s: false", ZSTR_VAL(key));
+                log("DATADOG TRACER DIAGNOSTICS - %s: false", ZSTR_VAL(key));
                 break;
             default:
-                ddtrace_log_errf("DATADOG TRACER DIAGNOSTICS - %s: {unknown type}", ZSTR_VAL(key));
+                log("DATADOG TRACER DIAGNOSTICS - %s: {unknown type}", ZSTR_VAL(key));
                 break;
         }
     }
@@ -359,27 +361,24 @@ static void _dd_print_values_to_log(HashTable *ht) {
 
 // Only show startup logs on the first request
 void ddtrace_startup_logging_first_rinit(void) {
-    if (!get_DD_TRACE_DEBUG() || !get_DD_TRACE_STARTUP_LOGS() || strcmp("cli", sapi_module.name) == 0) {
-        return;
-    }
+    LOGEV(Startup, {
+        HashTable *ht;
+        ALLOC_HASHTABLE(ht);
+        zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
 
-    HashTable *ht;
-    ALLOC_HASHTABLE(ht);
-    zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
+        ddtrace_startup_diagnostics(ht, true);
+        _dd_print_values_to_log(ht, log);
+        _dd_get_startup_config(ht);
 
-    ddtrace_startup_diagnostics(ht, true);
-    _dd_print_values_to_log(ht);
-    _dd_get_startup_config(ht);
+        smart_str buf = {0};
+        _dd_serialize_json(ht, &buf, 0);
+        log("DATADOG TRACER CONFIGURATION - %s", ZSTR_VAL(buf.s));
+        log("For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
+            "page. Alternatively set DD_TRACE_DEBUG=Error,Startup to add diagnostic checks to the error logs on the first request "
+            "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
+        smart_str_free(&buf);
 
-    smart_str buf = {0};
-    _dd_serialize_json(ht, &buf, 0);
-    ddtrace_log_errf("DATADOG TRACER CONFIGURATION - %s", ZSTR_VAL(buf.s));
-    ddtrace_log_errf(
-        "For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
-        "page. Alternatively set DD_TRACE_DEBUG=1 to add diagnostic checks to the error logs on the first request "
-        "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
-    smart_str_free(&buf);
-
-    zend_hash_destroy(ht);
-    FREE_HASHTABLE(ht);
+        zend_hash_destroy(ht);
+        FREE_HASHTABLE(ht);
+    })
 }

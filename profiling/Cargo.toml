@@ -1,6 +1,6 @@
 [package]
 name = "datadog-php-profiling"
-version = "0.90.0"
+version = "0.92.0"
 edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.64"
@@ -12,12 +12,14 @@ bench = false # disables cargo build in libtest bench
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ahash = { version = "0.8" }
 anyhow = { version = "1.0" }
+bumpalo = { version = "3.12", features = ["collections"] }
 cfg-if = { version = "1.0" }
-crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 cpu-time = { version = "1.0" }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v2.2.0" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v2.2.0" }
+crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v4.0.0" }
+ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v4.0.0" }
 env_logger = { version = "0.10" }
 indexmap = { version = "2.0.0" }
 lazy_static = { version = "1.4" }
@@ -25,15 +27,16 @@ libc = "0.2"
 # TRACE set to max to support runtime configuration.
 log = { version = "0.4", features = ["max_level_trace", "release_max_level_trace"]}
 once_cell = { version = "1.12" }
-uuid = { version = "1.0", features = ["v4"] }
+ouroboros = { version = "0.17.0" }
 rand = { version = "0.8.5" }
 rand_distr = { version = "0.4.3" }
+uuid = { version = "1.0", features = ["v4"] }
 
 [dev-dependencies]
-criterion = { version = "0.4" }
+criterion = { version = "0.5.1" }
 
 [target.'cfg(target_arch = "x86_64")'.dev-dependencies]
-criterion-perf-events = "0.3"
+criterion-perf-events = "0.4.0"
 perfcnt = "0.8.0"
 
 [[bench]]
@@ -41,10 +44,14 @@ name = "stack_walking"
 harness = false
 
 [features]
-default = ["allocation_profiling", "timeline"]
+default = ["allocation_profiling", "timeline", "exception_profiling"]
 allocation_profiling = []
 timeline = []
+exception_profiling = []
 stack_walking_tests = []
+
+# only for testing:
+trigger_time_sample = []
 
 [build-dependencies]
 bindgen = { version = "0.66.1" }

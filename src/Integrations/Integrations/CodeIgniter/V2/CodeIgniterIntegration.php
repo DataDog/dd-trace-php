@@ -107,7 +107,7 @@ class CodeIgniterIntegration extends Integration
                     $this->load->helper('url');
 
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
-                    . Normalizer::sanitizedQueryString();
+                        . Normalizer::sanitizedQueryString();
                     $rootSpan->meta['app.endpoint'] = "{$class}::_remap";
                 }
             }

@@ -1,0 +1,4 @@
+deprecation_log:
+  version: VERSION
+  js:
+    js/js_testing_log.js: {}

@@ -82,7 +82,7 @@ class LogsIntegration extends Integration
         $placeholders = LogsIntegration::getPlaceholders();
 
         foreach ($placeholders as $placeholder => $value) {
-            if (str_contains($message, $placeholder)) {
+            if (strpos($message, $placeholder) !== false) {
                 return true;
             }
         }
@@ -186,22 +186,22 @@ class LogsIntegration extends Integration
                 $spanIdSubstitute = isset($traceIdentifiers['span_id']) ? $traceIdentifiers['span_id'] : null;
             }
 
-             if (dd_trace_env_config("DD_TRACE_APPEND_TRACE_IDS_TO_LOGS")) {
+            if (dd_trace_env_config("DD_TRACE_APPEND_TRACE_IDS_TO_LOGS")) {
                 // Append the trace identifiers at the END of the message, prioritizing placeholders, if any
                 $message = LogsIntegration::appendTraceIdentifiersToMessage(
                     $message,
                     $traceIdSubstitute,
                     $spanIdSubstitute
                 );
-             } elseif (LogsIntegration::messageContainsPlaceholders($message)) {
-                 // Replace the placeholders, if any, with their actual values
-                 $message = LogsIntegration::replacePlaceholders(
-                     $message,
-                     null,
-                     $traceIdSubstitute,
-                     $spanIdSubstitute
-                 );
-             } elseif (strpos($message, 'dd.trace_id=') === false) {
+            } elseif (LogsIntegration::messageContainsPlaceholders($message)) {
+                // Replace the placeholders, if any, with their actual values
+                $message = LogsIntegration::replacePlaceholders(
+                    $message,
+                    null,
+                    $traceIdSubstitute,
+                    $spanIdSubstitute
+                );
+            } elseif (strpos($message, 'dd.trace_id=') === false) {
                 // Add the trace identifiers to the context
                 // They may or may not be used by the formatter
                 $context = LogsIntegration::addTraceIdentifiersToContext(

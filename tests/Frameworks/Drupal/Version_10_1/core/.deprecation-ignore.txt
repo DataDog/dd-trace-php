@@ -1,0 +1,38 @@
+# This file contains patterns to be ignored while testing for use of
+# deprecated code.
+# See https://www.drupal.org/node/3285162 for more details.
+
+%The "Symfony\\Component\\Validator\\Context\\ExecutionContextInterface::.*\(\)" method is considered internal Used by the validator engine\. (Should not be called by user\W+code\. )?It may change without further notice\. You should not extend it from "[^"]+"\.%
+%The "PHPUnit\\Framework\\TestCase::addWarning\(\)" method is considered internal%
+
+# Skip non-Symfony DebugClassLoader forward compatibility warnings.
+%Method "(?!Symfony\\)[^"]+" might add "[^"]+" as a native return type declaration in the future. Do the same in (child class|implementation) "[^"]+" now to avoid errors or add an explicit @return annotation to suppress this message%
+
+# Skip DebugClassLoader false positives.
+%Method "[^"]+" might add "[^"]+" as a native return type declaration in the future. Do the same in (child class|implementation) "(?!Drupal\\)[^"]+" now to avoid errors or add an explicit @return annotation to suppress this message%
+%The "Drupal\\[^"]+" method will require a new "[^"]+" argument in the next major version of its interface "Drupal\\[^"]+", not defining it is deprecated%
+
+# The following deprecation is listed for Twig 2 compatibility when unit
+# testing using \Symfony\Component\ErrorHandler\DebugClassLoader.
+%The "Twig\\Environment::getTemplateClass\(\)" method is considered internal\. It may change without further notice\. You should not extend it from "Drupal\\Core\\Template\\TwigEnvironment"\.%
+
+# PHPUnit 9.
+%"PHPUnit\\Framework\\TestListener".*is deprecated%
+%"PHPUnit\\Framework\\TestListenerDefaultImplementation".*is deprecated%
+%"PHPUnit\\Framework\\TestSuite".*is considered internal%
+%"PHPUnit\\TextUI\\DefaultResultPrinter".*is considered internal%
+
+# PHPUnit 9.6.
+%Expecting E_WARNING and E_USER_WARNING is deprecated and will no longer be possible in PHPUnit 10%
+%Expecting E_ERROR and E_USER_ERROR is deprecated and will no longer be possible in PHPUnit 10%
+%assertObjectHasAttribute\(\) is deprecated and will be removed in PHPUnit 10%
+%assertObjectNotHasAttribute\(\) is deprecated and will be removed in PHPUnit 10%
+
+# Skip deprecations for EditorMediaDialog, EditorImageDialog and EditorLinkDialog triggered by
+# \Drupal\Core\Entity\EntityResolverManager::setRouteOptions().
+%Drupal\\media\\Form\\EditorMediaDialog is deprecated in drupal:10.1.0 and is removed from drupal:11.0.0. There is no replacement. See https://www.drupal.org/project/drupal/issues/3291493%
+%Drupal\\editor\\Form\\EditorImageDialog is deprecated in drupal:10.1.0 and is removed from drupal:11.0.0. There is no replacement. See https://www.drupal.org/project/drupal/issues/3291493%
+%Drupal\\editor\\Form\\EditorLinkDialog is deprecated in drupal:10.1.0 and is removed from drupal:11.0.0. There is no replacement. See https://www.drupal.org/project/drupal/issues/3291493%
+
+# Symfony 7.
+%Method "Symfony\\Contracts\\Service\\ResetInterface::reset\(\)" might add "void" as a native return type declaration in the future. Do the same in implementation "Drupal\\Component\\DependencyInjection\\Container" now to avoid errors or add an explicit @return annotation to suppress this message.%

@@ -86,7 +86,7 @@ Options:
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries.
     --enable-appsec             Enable the application security monitoring module.
-    --enable-profiling          Enable the BETA profiling module.
+    --enable-profiling          Enable the profiling module.
     -d setting[=value]          Used in conjunction with `config <set|get>`
                                 command to specify the INI setting to get or set.
 
@@ -595,7 +595,12 @@ function install($options)
                 }
                 echo "Created INI file '$iniFilePath'\n";
             } else {
-                echo "Updating existing INI file '$iniFilePath'\n";
+                echo "Updating existing INI file '$iniFilePath'";
+                if (is_link($iniFilePath)) {
+                    $iniFilePath = readlink($iniFilePath);
+                    echo " which is a symlink to '$iniFilePath'";
+                }
+                echo "\n";
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 execute_or_exit(
                     'Impossible to replace the deprecated ddtrace.request_init_hook parameter with the new name.',
@@ -908,6 +913,9 @@ function uninstall($options)
          *  2) remove ddtrace.so
          */
         foreach ($iniFilePaths as $iniFilePath) {
+            if (is_link($iniFilePath)) {
+                $iniFilePath = readlink($iniFilePath);
+            }
             if (file_exists($iniFilePath)) {
                 execute_or_exit(
                     "Impossible to disable PHP modules from '$iniFilePath'. You can disable them manually.",
@@ -1753,6 +1761,18 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'default' => '1',
             'commented' => true,
             'description' => 'Enable the allocation profile type.',
+        ],
+        [
+            'name' => 'datadog.profiling.experimental_exception_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enable the exception profile type.',
+        ],
+        [
+            'name' => 'datadog.profiling.experimental_exception_sampling_distance',
+            'default' => '100',
+            'commented' => true,
+            'description' => 'Sampling distance for exception profiling (the higher the distance, the fewer samples are created).',
         ],
         [
             'name' => 'datadog.profiling.log_level',

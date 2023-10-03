@@ -56,6 +56,38 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         ]);
     }
 
+    public function testInjectionPeerService()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                $hook->span()->meta["peer.service"] = 'dbinstance';
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        // phpcs:disable Generic.Files.LineLength.TooLong
+        $this->assertSame("/*dddbs='dbinstance',ddps='phpunit',traceparent='00-0000000000000000c08c967f0e5e7b0a-22e2c43f8a1ad34e-01'*/ SELECT 1", $commentedQuery);
+        // phpcs:enable Generic.Files.LineLength.TooLong
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists("phpunit")->withChildren([
+                SpanAssertion::exists('instrumented')->withExactTags([
+                    "_dd.dbm_trace_injected" => "true"
+                ])
+            ])
+        ]);
+    }
+
     public function testEnvPropagation()
     {
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");

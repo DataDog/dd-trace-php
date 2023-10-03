@@ -8,6 +8,13 @@ function foo($a, $b) {
 }
 
 $hook = DDTrace\install_hook("foo", function($hook) {
+    $hook->overrideArguments([9, 10]);
+});
+
+foo(1, 2); // exact args
+
+DDTrace\remove_hook($hook);
+$hook = DDTrace\install_hook("foo", function($hook) {
     $hook->overrideArguments([5, 6, 7, 8]);
 });
 
@@ -35,10 +42,8 @@ optArg(1, 2);
 --EXPECTF--
 Array
 (
-    [0] => 5
-    [1] => 6
-    [2] => 7
-    [3] => 8
+    [0] => 9
+    [1] => 10
 )
 Array
 (
@@ -47,19 +52,26 @@ Array
     [2] => 7
     [3] => 8
 )
-Cannot set more args than provided: got too many arguments for hook in %s:%d
+Array
+(
+    [0] => 5
+    [1] => 6
+    [2] => 7
+    [3] => 8
+)
+Cannot set more args than provided: got too many arguments for hook in %s on line %d; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
 Array
 (
     [0] => 1
     [1] => 2
 )
-Not enough args provided for hook in %s:%d
+Not enough args provided for hook in %s on line %d; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
 Array
 (
     [0] => 1
     [1] => 2
 )
-Can't pass less args to an untyped function than originally passed (minus extra args) in %s:%d
+Can't pass less args to an untyped function than originally passed (minus extra args) in %s on line %d; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
 Array
 (
     [0] => 1

@@ -36,13 +36,20 @@ ${PHP_SRC_DIR}/configure \
         --without-pear \
     ; else echo \
         --disable-phpdbg \
+        --enable-bcmath \
         --enable-ftp \
+        $(if [[ ${PHP_VERSION_ID} -ge 71 ]]; then echo --enable-intl; fi) \
         --enable-mbstring \
         --enable-opcache \
         $(if [[ ${PHP_VERSION_ID} -ge 80 ]]; then echo --enable-zend-test=shared; fi) \
         --enable-pcntl \
+        --enable-soap \
         --enable-sockets \
         $(if [[ ${PHP_VERSION_ID} -le 73 ]]; then echo --enable-zip; fi) \
+        $(if [[ ${PHP_VERSION_ID} -ge 74 ]];
+          then echo --enable-gd --with-jpeg --with-freetype --with-webp;
+          else echo --with-gd --with-png-dir --with-jpeg-dir=/usr/include/;
+        fi) \
         --with-curl \
         $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-ffi; fi) \
         --with-libedit \
@@ -55,6 +62,8 @@ ${PHP_SRC_DIR}/configure \
         --with-pdo-sqlite \
         --with-pear \
         --with-readline \
+        $(if [[ ${PHP_VERSION_ID} -ge 72 ]]; then echo --with-sodium; fi) \
+        --with-xsl \
         $(if [[ ${PHP_VERSION_ID} -ge 74 ]]; then echo --with-zip; fi) \
         --with-zlib \
     ; fi) \
@@ -79,6 +88,7 @@ make -j "$((`nproc`+1))" || true
 if ! [[ -f ext/phar/phar.phar ]] && [[ ${INSTALL_VERSION} == *asan* ]]; then
   # Cross-compilation with asan and qemu will fail with a segfault instead. Handle this.
   sed -ir 's/TEST_PHP_EXECUTABLE_RES =.*/TEST_PHP_EXECUTABLE_RES = 1/' Makefile
+  mkdir -p ext/phar/
   touch ext/phar/phar.phar
   # ensure compilation finishes, then back up php
   make || true;

@@ -1,0 +1,7 @@
+name: History
+type: module
+description: 'Records which content users have viewed and marks it as new or updated.'
+package: Core
+version: VERSION
+dependencies:
+  - drupal:node

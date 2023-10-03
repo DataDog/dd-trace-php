@@ -4,7 +4,7 @@ target_include_directories(
   zai_symbols PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
                     $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(zai_symbols PUBLIC "${PHP_LIB}" Zai::Sandbox)
+target_link_libraries(zai_symbols PUBLIC Tea::Php Zai::Sandbox Zai::String)
 
 target_compile_features(zai_symbols PUBLIC c_std_99)
 

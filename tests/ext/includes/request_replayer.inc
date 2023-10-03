@@ -47,18 +47,25 @@ class RequestReplayer
 
         ksort($request['headers']);
 
-        if (!$showOnly) {
-            return $request['headers'];
-        }
-
         $headers = [];
         foreach ($request['headers'] as $name => $value) {
-            if (!in_array($name, $showOnly, true)) {
+            $name = strtolower($name);
+            if ($showOnly && !in_array($name, $showOnly, true)) {
                 continue;
             }
             $headers[$name] = $value;
         }
         return $headers;
+    }
+
+    public function setResponse($array) {
+        file_get_contents($this->endpoint . '/next-response', false, stream_context_create([
+            "http" => [
+                "method" => "POST",
+                "content" => json_encode($array),
+                "header" => "Content-Type: application/json"
+            ],
+        ]));
     }
 
     public static function launchUnixProxy($socketPath) {

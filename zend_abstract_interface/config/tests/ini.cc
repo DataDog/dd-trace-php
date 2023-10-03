@@ -18,14 +18,14 @@ typedef enum {
     EXT_CFG_INI_BAZ_MAP_EMPTY,
 } ext_ini_cfg_id;
 
-static void ext_ini_env_to_ini_name(zai_string_view env_name, zai_config_name *ini_name) {
+static void ext_ini_env_to_ini_name(zai_str env_name, zai_config_name *ini_name) {
     int len = snprintf(ini_name->ptr, ZAI_CONFIG_NAME_BUFSIZ, "zai_config.%s", env_name.ptr);
     ini_name->len = (len > 0 && len < ZAI_CONFIG_NAME_BUFSIZ) ? (size_t)len : 0;
 }
 
 static PHP_MINIT_FUNCTION(zai_config_ini) {
-    zai_string_view aliases_int[] = {ZAI_STRL_VIEW("INI_BAR_ALIASED_INT_OLD")};
-    zai_string_view aliases_string[] = {ZAI_STRL_VIEW("INI_BAR_ALIASED_STRING_OLD"), ZAI_STRL_VIEW("INI_BAR_ALIASED_STRING_OLDER")};
+    zai_str aliases_int[] = {ZAI_STRL("INI_BAR_ALIASED_INT_OLD")};
+    zai_str aliases_string[] = {ZAI_STRL("INI_BAR_ALIASED_STRING_OLD"), ZAI_STRL("INI_BAR_ALIASED_STRING_OLDER")};
     zai_config_entry entries[] = {
         EXT_CFG_ENTRY(INI_FOO_BOOL, BOOL, "1"),
         EXT_CFG_ENTRY(INI_FOO_DOUBLE, DOUBLE, "0.5"),
@@ -516,5 +516,26 @@ TEST_INI("change before request startup", {
 
     value = zai_config_get_value(EXT_CFG_INI_FOO_INT);
     REQUIRE(Z_LVAL_P(value) == 3);
+    REQUEST_END();
+})
+
+static ZEND_INI_MH(dummy) {
+    return SUCCESS;
+}
+TEST_INI("setting perdir INI setting for multiple ZAI config users", {
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_STRING", "another"));
+}, {
+    zai_config_memoized_entry *entry = &zai_config_memoized_entries[EXT_CFG_INI_FOO_STRING];
+    entry->original_on_modify = dummy;
+
+    zai_config_first_time_rinit();
+    REQUEST_BEGIN();
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_STRING);
+    REQUIRE(zval_string_equals(value, "another"));
+
     REQUEST_END();
 })

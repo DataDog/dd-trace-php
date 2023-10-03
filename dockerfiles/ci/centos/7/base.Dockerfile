@@ -102,12 +102,12 @@ RUN source scl_source enable devtoolset-7; set -eux; \
 
 ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig"
 
-RUN printf "source scl_source enable devtoolset-7" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
-ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
-
 # Caution, takes a very long time! Since we have to build one from source,
-# I picked LLVM 14, which matches Rust 1.60.
+# I picked LLVM 16, which matches Rust 1.71.
 # Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
+# Minimum: libclang. Nice-to-have: full toolchain including linker to play
+# with cross-language link-time optimization. Needs to match rustc -Vv's llvm
+# version.
 RUN source scl_source enable devtoolset-7 \
   && yum install -y python3 \
   && /root/download-src.sh ninja https://github.com/ninja-build/ninja/archive/refs/tags/v1.11.0.tar.gz \
@@ -119,10 +119,10 @@ RUN source scl_source enable devtoolset-7 \
   && cd - \
   && rm -fr "${SRC_DIR}/ninja" \
   && cd /usr/local/src \
-  && git clone --depth 1 -b release/14.x https://github.com/llvm/llvm-project.git \
+  && git clone --depth 1 -b release/16.x https://github.com/llvm/llvm-project.git \
   && mkdir -vp llvm-project/build \
   && cd llvm-project/build \
-  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
+  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
   && cmake --build . --parallel $(nproc) --target "install/strip" \
   && rm -f /usr/local/lib/libclang*.a /usr/local/lib/libLLVM*.a \
   && cd - \
@@ -150,9 +150,9 @@ RUN source scl_source enable devtoolset-7 \
   && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" "protobuf-${PROTOBUF_VERSION}"
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.64.0"
-ARG RUST_SHA256_ARM="7d8860572431bd4ee1b9cd0cd77cf7ff29fdd5b91ed7c92a820f872de6ced558"
-ARG RUST_SHA256_X86="a893977f238291370ab96726a74b6b9ae854dc75fbf5730954d901a93843bf9b"
+ARG RUST_VERSION="1.71.1"
+ARG RUST_SHA256_ARM="c7cf230c740a62ea1ca6a4304d955c286aea44e3c6fc960b986a8c2eeea4ec3f"
+ARG RUST_SHA256_X86="34778d1cda674990dfc0537bc600066046ae9cb5d65a07809f7e7da31d4689c4"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
@@ -171,8 +171,6 @@ RUN source scl_source enable devtoolset-7 \
     && cd - \
     && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
 
-ENV PATH="/rust/cargo/bin:${PATH}"
-
 # now install PHP specific dependencies
 RUN set -eux; \
     rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm; \
@@ -190,5 +188,10 @@ RUN set -eux; \
     readline-devel \
     zlib-devel; \
     yum clean all;
+
+RUN printf "source scl_source enable devtoolset-7" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
+ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
+
+ENV PATH="/rust/cargo/bin:${PATH}"
 
 RUN echo '#define SECBIT_NO_SETUID_FIXUP (1 << 2)' > '/usr/include/linux/securebits.h'

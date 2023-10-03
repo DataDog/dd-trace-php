@@ -12,6 +12,8 @@ include(GNUInstallDirs)
 find_package(PhpConfig REQUIRED)
 set(TEA_PHP_VERNUM ${PhpConfig_VERNUM})
 
+# Note, on Mac you need to build PHP with --enable-embed=static and make sure
+# that libphp.so does not exist at all, as that gets preferred over the .a.
 find_library(
   PHP_LIB
   # Before PHP 8 the lib was named, 'libphp<version>.so'
@@ -22,14 +24,9 @@ find_library(
   REQUIRED)
 
 add_library(tea-libphp INTERFACE)
-set_target_properties(tea-libphp PROPERTIES EXPORT_NAME PHP)
-target_link_libraries(tea-libphp INTERFACE "${PHP_LIB}")
-target_include_directories(
-  tea-libphp
-  INTERFACE "${PhpConfig_ROOT_DIR}/include/php"
-            "${PhpConfig_ROOT_DIR}/include/php/TSRM"
-            "${PhpConfig_ROOT_DIR}/include/php/Zend"
-            "${PhpConfig_ROOT_DIR}/include/php/main")
+set_target_properties(tea-libphp PROPERTIES EXPORT_NAME Php)
+target_link_libraries(tea-libphp INTERFACE PhpConfig::PhpConfig "${PHP_LIB}" ${PhpConfig_LIBRARIES})
+add_library(Tea::Php ALIAS tea-libphp)
 
 add_library(
   Tea
@@ -49,7 +46,7 @@ target_include_directories(
 
 target_compile_features(Tea PUBLIC c_std_99)
 
-target_link_libraries(Tea PUBLIC tea-libphp)
+target_link_libraries(Tea PUBLIC Tea::Php)
 
 set_target_properties(Tea PROPERTIES VERSION ${PROJECT_VERSION})
 
@@ -103,13 +100,17 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/testing/catch2.hpp
 
 # Copy the static library on install
 install(
-  TARGETS Tea tea-libphp
+  TARGETS Tea tea-libphp PhpConfig
   EXPORT TeaTargets
-  ARCHIVE)
+  LIBRARY
+  ARCHIVE
+  RUNTIME
+  PUBLIC_HEADER
+  BUNDLE)
 
 # Copy the .cmake files on install
 export(
-  TARGETS Tea tea-libphp
+  TARGETS Tea tea-libphp PhpConfig
   NAMESPACE Tea::
   FILE ${CMAKE_CURRENT_BINARY_DIR}/TeaTargets.cmake)
 

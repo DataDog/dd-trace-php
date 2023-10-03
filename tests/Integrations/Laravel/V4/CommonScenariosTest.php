@@ -49,6 +49,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                             'http.status_code' => '200',
+                            'http.route' => 'simple',
                             'some.key1' => 'value',
                             'some.key2' => 'value2',
                             TAG::SPAN_KIND => 'server',
@@ -63,26 +64,28 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             'some.key2' => 'value2',
                                             Tag::COMPONENT => 'laravel',
                                         ]),
-                                    SpanAssertion::exists('laravel.event.handle'),
-                                    SpanAssertion::exists('laravel.event.handle'),
-                                    SpanAssertion::exists('laravel.event.handle'),
-                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                 ]),
                             SpanAssertion::exists(
                                 'laravel.provider.load',
-                                'Illuminate\Foundation\ProviderRepository::load'
+                                'Illuminate\Foundation\ProviderRepository::load',
+                                null,
+                                'laravel'
                             )->withChildren([
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                             ]),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                         ]),
                 ],
                 'A simple GET request with a view' => [
@@ -90,14 +93,14 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         ->withChildren([
                             SpanAssertion::exists('laravel.application.handle')
                                 ->withChildren([
-                                    SpanAssertion::exists('laravel.event.handle'),
-                                    SpanAssertion::exists('laravel.event.handle'),
-                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                     SpanAssertion::exists('laravel.action')
                                         ->withChildren([
-                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                         ]),
-                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                     SpanAssertion::build('laravel.view.render', 'laravel', 'web', 'simple_view')
                                         ->withExactTags([
                                             'some.key1' => 'value',
@@ -105,24 +108,26 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             Tag::COMPONENT => 'laravel',
                                         ])
                                         ->withChildren([
-                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                         ]),
                                 ]),
                             SpanAssertion::exists(
                                 'laravel.provider.load',
-                                'Illuminate\Foundation\ProviderRepository::load'
+                                'Illuminate\Foundation\ProviderRepository::load',
+                                null,
+                                'laravel'
                             )->withChildren([
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                             ]),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                         ]),
                 ],
                 'A GET request with an exception' => [
@@ -133,6 +138,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                             'http.status_code' => '500',
+                            'http.route' => 'error',
                             'some.key1' => 'value',
                             'some.key2' => 'value2',
                             TAG::SPAN_KIND => 'server',
@@ -148,26 +154,75 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                         ])
                                         ->withExistingTagsNames(['error.stack'])
                                         ->setError('Exception', 'Controller error'),
-                                    SpanAssertion::exists('laravel.event.handle'),
-                                    SpanAssertion::exists('laravel.event.handle'),
-                                    SpanAssertion::exists('laravel.event.handle'),
-                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                 ]),
                             SpanAssertion::exists(
                                 'laravel.provider.load',
-                                'Illuminate\Foundation\ProviderRepository::load'
+                                'Illuminate\Foundation\ProviderRepository::load',
+                                null,
+                                'laravel'
                             )->withChildren([
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                             ]),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                        ]),
+                ],
+                'A GET request to a dynamic route returning a string' => [
+                    SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@dynamicRoute unnamed_route')
+                        ->withExactTags([
+                            'laravel.route.name' => 'unnamed_route',
+                            'laravel.route.action' => 'HomeController@dynamicRoute',
+                            'http.method' => 'GET',
+                            'http.url' => 'http://localhost:9999/dynamic_route/dynamic01/static/dynamic02',
+                            'http.status_code' => '200',
+                            'http.route' => 'dynamic_route/{param01}/static/{param02?}',
+                            'some.key1' => 'value',
+                            'some.key2' => 'value2',
+                            TAG::SPAN_KIND => 'server',
+                            Tag::COMPONENT => 'laravel',
+                        ])
+                        ->withChildren([
+                            SpanAssertion::exists('laravel.application.handle')
+                                ->withChildren([
+                                    SpanAssertion::build('laravel.action', 'laravel', 'web', 'dynamic_route/{param01}/static/{param02?}')
+                                        ->withExactTags([
+                                            'some.key1' => 'value',
+                                            'some.key2' => 'value2',
+                                            Tag::COMPONENT => 'laravel',
+                                        ]),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                ]),
+                            SpanAssertion::exists(
+                                'laravel.provider.load',
+                                'Illuminate\Foundation\ProviderRepository::load',
+                                null,
+                                'laravel'
+                            )->withChildren([
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                            ]),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
+                            SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                         ]),
                 ],
             ]
