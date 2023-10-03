@@ -866,7 +866,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         }
 
         smart_str buf = {0};
-        _dd_serialize_json(span_links, &buf, (1 << 9) | (1 << 22));
+        _dd_serialize_json(span_links, &buf);
         add_assoc_str(meta, "_dd.span_links", buf.s);
 
         // Restore the exception
