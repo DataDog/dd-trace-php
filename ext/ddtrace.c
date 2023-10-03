@@ -355,36 +355,36 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
 zend_class_entry *ddtrace_ce_span_link;
 
 PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
+    LOG(Info, "SpanLink::jsonSerialize");
     ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(ZEND_THIS);
-
-    zend_array *array = zend_new_array(5);
-
+    LOG(Info, "SpanLink::jsonSerialize: %s", ZSTR_VAL(link->property_trace_id.value.str));
+    array_init_size(return_value, 5);
+    LOG(Info, "Initialized array");
     zend_string *trace_id = zend_string_init("trace_id", sizeof("trace_id") - 1, 0);
     zend_string *span_id = zend_string_init("span_id", sizeof("span_id") - 1, 0);
     zend_string *trace_state = zend_string_init("trace_state", sizeof("trace_state") - 1, 0);
     zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
     zend_string *dropped_attributes_count = zend_string_init("dropped_attributes_count", sizeof("dropped_attributes_count") - 1, 0);
-
+    LOG(Info, "Initialized strings");
     Z_TRY_ADDREF(link->property_trace_id);
-    zend_hash_add(array, trace_id, &link->property_trace_id);
+    zend_hash_add(Z_ARR_P(return_value), trace_id, &link->property_trace_id);
     LOG(Info, "Trace Id: %s", ZSTR_VAL(link->property_trace_id.value.str));
     Z_TRY_ADDREF(link->property_span_id);
-    zend_hash_add(array, span_id, &link->property_span_id);
+    zend_hash_add(Z_ARR_P(return_value), span_id, &link->property_span_id);
     LOG(Info, "Span Id: %s", ZSTR_VAL(link->property_span_id.value.str));
     Z_TRY_ADDREF(link->property_trace_state);
-    zend_hash_add(array, trace_state, &link->property_trace_state);
+    zend_hash_add(Z_ARR_P(return_value), trace_state, &link->property_trace_state);
     Z_TRY_ADDREF(link->property_attributes);
-    zend_hash_add(array, attributes, &link->property_attributes);
+    zend_hash_add(Z_ARR_P(return_value), attributes, &link->property_attributes);
     Z_TRY_ADDREF(link->property_dropped_attributes_count);
-    zend_hash_add(array, dropped_attributes_count, &link->property_dropped_attributes_count);
+    zend_hash_add(Z_ARR_P(return_value), dropped_attributes_count, &link->property_dropped_attributes_count);
 
     zend_string_release(trace_id);
     zend_string_release(span_id);
     zend_string_release(trace_state);
     zend_string_release(attributes);
     zend_string_release(dropped_attributes_count);
-
-    RETURN_ARR(array);
+    LOG(Info, "SpanLink::jsonSerialize: done");
 }
 
 /* DDTrace\SpanData */

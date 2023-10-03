@@ -892,6 +892,10 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         smart_str buf = {0};
         _dd_serialize_json(Z_ARRVAL(retval), &buf, (1 << 9) | (1 << 22));
         LOG(Info, "Manual Serialization: %s", buf.s->val);
+
+        zval_ptr_dtor(&retval);
+        zval_ptr_dtor(&fname);
+        smart_str_free(&buf);
     }
 
     if (zend_hash_num_elements(span_links) > 0) {
