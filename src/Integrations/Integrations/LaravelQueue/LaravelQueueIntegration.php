@@ -8,7 +8,6 @@ use DDTrace\Propagator;
 use DDTrace\SpanData;
 use DDTrace\SpanLink;
 use DDTrace\Tag;
-use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Jobs\JobName;
@@ -134,7 +133,9 @@ class LaravelQueueIntegration extends Integration
                         }
                     }
 
-                    $integration->setSpanAttributes($span, 'laravel.queue.process', 'receive', $job, $exception);
+                    if ($exception) {
+                        $integration->setError($span, $exception);
+                    }
                 },
                 'recurse' => true
             ]
@@ -203,6 +204,11 @@ class LaravelQueueIntegration extends Integration
                                     null,
                                     $class . '@' . $method
                                 );
+                            }
+                        },
+                        function (HookData $hook) use ($integration, $class, $method) {
+                            if ($hook->exception !== null) {
+                                $integration->setError($hook->span(), $hook->exception);
                             }
 
                             remove_hook($hook->id);
