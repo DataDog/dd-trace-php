@@ -10,6 +10,7 @@ opportunities to lock or crash if that lock is held.
 foreach (['datadog-profiling', 'pcntl'] as $extension)
     if (!extension_loaded($extension))
         echo "skip: test requires {$extension}\n";
+if (getenv('SKIP_ASAN')) die('skip: the profiler leaks on purpose in child of a fork');
 ?>
 --INI--
 assert.exception=1

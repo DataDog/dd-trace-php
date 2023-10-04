@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
+    println!("cargo:rustc-link-arg=-fsanitize=address");
     let php_config_includes_output = Command::new("php-config")
         .arg("--includes")
         .output()
@@ -140,9 +141,10 @@ fn build_zend_php_ffis(
                 .map(Path::new)
                 .chain([Path::new("../zend_abstract_interface")]),
         )
-        .flag_if_supported("-fuse-ld=lld")
+        .flag_if_supported("-fuse-ld=lld-16")
         .flag_if_supported("-std=c11")
         .flag_if_supported("-std=c17")
+        .flag("-fsanitize=address")
         .compile("php_ffi");
 }
 
