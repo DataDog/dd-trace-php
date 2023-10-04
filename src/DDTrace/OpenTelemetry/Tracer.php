@@ -11,6 +11,7 @@ use OpenTelemetry\SDK\Trace\TracerSharedState;
 
 class Tracer implements API\TracerInterface
 {
+    public const FALLBACK_SPAN_NAME = 'empty';
 
     /** @readonly */
     private InstrumentationScopeInterface $instrumentationScope;
@@ -25,7 +26,14 @@ class Tracer implements API\TracerInterface
      */
     public function spanBuilder(string $spanName): API\SpanBuilderInterface
     {
+        if (ctype_space($spanName)) {
+            $spanName = self::FALLBACK_SPAN_NAME;
+        }
 
+        return new SpanBuilder(
+            $spanName,
+            $this->instrumentationScope
+        );
     }
 
     public function getInstrumentationScope(): InstrumentationScopeInterface

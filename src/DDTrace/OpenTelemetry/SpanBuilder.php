@@ -15,9 +15,12 @@ use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
 
+use OpenTelemetry\SDK\Trace\LinkInterface;
+use OpenTelemetry\SDK\Trace\TracerSharedState;
 use function DDTrace\consume_distributed_tracing_headers;
 use function DDTrace\start_span;
 use function DDTrace\start_trace_span;
+use function DDTrace\trace_id;
 
 final class SpanBuilder implements API\SpanBuilderInterface
 {
@@ -30,6 +33,9 @@ final class SpanBuilder implements API\SpanBuilderInterface
     /** @readonly */
     private InstrumentationScopeInterface $instrumentationScope;
 
+    /** @readonly */
+    private TracerSharedState $tracerSharedState;
+
     /** @var ContextInterface|false|null */
     private $parentContext = null;
 
@@ -38,17 +44,23 @@ final class SpanBuilder implements API\SpanBuilderInterface
      */
     private int $spanKind = API\SpanKind::KIND_INTERNAL;
 
+    /** @var list<LinkInterface> */
+    private array $links = [];
+
     private AttributesBuilderInterface $attributesBuilder;
-    private int $startTime = 0;
+    private int $totalNumberOfLinksAdded = 0;
+    private int $startEpochNanos = 0;
 
     /** @param non-empty-string $spanName */
     public function __construct(
         string $spanName,
-        InstrumentationScopeInterface $instrumentationScope
+        InstrumentationScopeInterface $instrumentationScope,
+        TracerSharedState $tracerSharedState
     ) {
         $this->spanName = $spanName;
         $this->instrumentationScope = $instrumentationScope;
-        $this->attributesBuilder = Attributes::factory()->builder();
+        $this->tracerSharedState = $tracerSharedState;
+        $this->attributesBuilder = $tracerSharedState->getSpanLimits()->getAttributesFactory()->builder();
     }
 
     /**
@@ -95,7 +107,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
             return $this;
         }
 
-        $this->startTime = $timestampNanos / 1000000000;
+        $this->startEpochNanos = $timestampNanos / 1000000000;
 
         return $this;
     }
@@ -137,11 +149,15 @@ final class SpanBuilder implements API\SpanBuilderInterface
             consume_distributed_tracing_headers($headers);
         }
 
+        $headers = \DDTrace\generate_distributed_tracing_headers();
+        $traceFlags = isset($headers[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]) ? API\TraceFlags::SAMPLED : API\TraceFlags::DEFAULT;
+        $traceState = isset($headers["tracestate"]) ? new API\TraceState($headers["tracestate"]) : null; // TODO: Check if the parsing is correct
+
         $spanContext = API\SpanContext::create(
-            \DDTrace\trace_id(),
-            $span->id,
-            API\TraceFlags::DEFAULT, // TODO: Handle Sampling
-            $parentSpanContext->isValid() ? new API\TraceState($parentSpanContext->getTraceState()) : null // TODO: Handle Sampling
+            str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT),
+            str_pad(strtolower(self::largeBaseConvert(dd_trace_peek_span_id(), 10, 16)), 16, '0', STR_PAD_LEFT),
+            $traceFlags,
+            $parentSpanContext->isValid() ? new API\TraceState($parentSpanContext->getTraceState()) : $traceState // TODO: Handle Sampling
         );
 
         return Span::startSpan(
@@ -149,13 +165,41 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $spanContext,
             $this->instrumentationScope,
             $this->spanKind,
-            $parentSpan,
             $parentContext,
-            $this->tracerSharedState->getResource(),
             $this->attributesBuilder,
             [],
             0,
-            $this->startTime
+            $this->startEpochNanos
         );
+    }
+
+    // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
+    private static function largeBaseConvert($numString, $fromBase, $toBase)
+    {
+        $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+        $toString = substr($chars, 0, $toBase);
+
+        $length = strlen($numString);
+        $result = '';
+        for ($i = 0; $i < $length; $i++) {
+            $number[$i] = strpos($chars, $numString[$i]);
+        }
+        do {
+            $divide = 0;
+            $newLen = 0;
+            for ($i = 0; $i < $length; $i++) {
+                $divide = $divide * $fromBase + $number[$i];
+                if ($divide >= $toBase) {
+                    $number[$newLen++] = (int)($divide / $toBase);
+                    $divide = $divide % $toBase;
+                } elseif ($newLen > 0) {
+                    $number[$newLen++] = 0;
+                }
+            }
+            $length = $newLen;
+            $result = $toString[$divide] . $result;
+        } while ($newLen != 0);
+
+        return $result;
     }
 }

@@ -53,9 +53,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     private int $kind;
 
     /** @readonly */
-    private ResourceInfo $resource;
-
-    /** @readonly */
     private InstrumentationScopeInterface $instrumentationScope;
 
     /** @readonly */
@@ -79,8 +76,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         InstrumentationScopeInterface $instrumentationScope,
         int $kind,
         API\SpanContextInterface $parentSpanContext,
-        SpanProcessorInterface $spanProcessor,
-        ResourceInfo $resource,
         AttributesBuilderInterface $attributesBuilder,
         array $links,
         int $totalRecordedLinks,
@@ -91,8 +86,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->instrumentationScope = $instrumentationScope;
         $this->kind = $kind;
         $this->parentSpanContext = $parentSpanContext;
-        $this->spanProcessor = $spanProcessor;
-        $this->resource = $resource;
         $this->attributesBuilder = $attributesBuilder;
         $this->links = $links;
         $this->totalRecordedLinks = $totalRecordedLinks;
@@ -117,9 +110,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         API\SpanContextInterface $context,
         InstrumentationScopeInterface $instrumentationScope,
         int $kind,
-        API\SpanInterface $parentSpan,
         ContextInterface $parentContext,
-        ResourceInfo $resource,
         AttributesBuilderInterface $attributesBuilder,
         array $links,
         int $totalRecordedLinks,
@@ -130,8 +121,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $context,
             $instrumentationScope,
             $kind,
-            $parentSpan->getContext(),
-            $resource,
+            $parentContext,
             $attributesBuilder,
             $links,
             $totalRecordedLinks,
@@ -153,11 +143,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getContext(): SpanContextInterface
     {
-        $headers = \DDTrace\generate_distributed_tracing_headers();
-        $traceFlags = isset($headers[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]) ? API\TraceFlags::SAMPLED : API\TraceFlags::DEFAULT;
-        $traceState = isset($headers["tracestate"]) ? new API\TraceState($headers["tracestate"]) : null; // TODO: Check if the parsing is correct
-
-        return API\SpanContext::create(trace_id(), $this->span->id, $traceFlags, $traceState);
+        return $this->context;
     }
 
     public function getParentContext(): API\SpanContextInterface
@@ -183,8 +169,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         return new ImmutableSpan(
             $this,
             $this->getName(),
-            null, // TODO: Handle Span Links
-        null,
+            $this->links, // TODO: Handle Span Links
+            $this->events, // TODO: Handle Span Events
             Attributes::create($this->span->meta), // TODO: See if it handles 'nested' attributes correctly
             0,
             new StatusData($this->statusCode, $this->description),
@@ -285,7 +271,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function recordException(Throwable $exception, iterable $attributes = []): SpanInterface
     {
-        // no-op
+        $this->span->meta[Tag::ERROR_MSG] = $exception->getMessage();
+        $this->span->meta[Tag::ERROR_TYPE] = get_class($exception);
+        $this->span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
+
         return $this;
     }
 
@@ -318,7 +307,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $this->statusCode = $code;
             $this->description = $description;
             unset($this->span->meta[Tag::ERROR_MSG]);
+            unset($this->span->meta[Tag::ERROR_TYPE]);
+            unset($this->span->meta[Tag::ERROR_STACK]);
         }
+
+        // TODO: Look into this
 
         return $this;
     }

@@ -83,9 +83,9 @@
     },
     "extra": {
         "scenarios": {
-            "opentelemetry_beta1": {
+            "opentelemetry1": {
                 "require": {
-                    "open-telemetry/opentelemetry": "1.0.0beta1"
+                    "open-telemetry/sdk": "1.0.0RC2"
                 },
                 "scenario-options": {
                     "create-lockfile": false
