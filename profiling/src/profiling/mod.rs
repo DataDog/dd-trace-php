@@ -15,14 +15,17 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::{AgentEndpoint, RequestLocals, CLOCKS, TAGS};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
+use datadog_profiling::api::{
+    Function, Label as ApiLabel, Location, Period, Sample, ValueType as ApiValueType,
+};
 use datadog_profiling::exporter::Tag;
-use datadog_profiling::profile;
-use datadog_profiling::profile::api::{Function, Location, Period, Sample};
+use datadog_profiling::internal::Profile as InternalProfile;
 use log::{debug, error, info, trace, warn};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
+use std::num::NonZeroI64;
 use std::str;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
@@ -37,7 +40,7 @@ use std::time::UNIX_EPOCH;
 #[cfg(feature = "allocation_profiling")]
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 #[cfg(feature = "allocation_profiling")]
-use datadog_profiling::profile::api::UpscalingInfo;
+use datadog_profiling::api::UpscalingInfo;
 
 #[cfg(feature = "exception_profiling")]
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
@@ -96,7 +99,7 @@ pub struct Label {
     pub value: LabelValue,
 }
 
-impl<'a> From<&'a Label> for profile::api::Label<'a> {
+impl<'a> From<&'a Label> for ApiLabel<'a> {
     fn from(label: &'a Label) -> Self {
         let key = label.key;
         match &label.value {
@@ -147,6 +150,7 @@ pub struct SampleData {
     pub frames: Vec<ZendFrame>,
     pub labels: Vec<Label>,
     pub sample_values: Vec<i64>,
+    pub timestamp: i64,
 }
 
 #[derive(Debug)]
@@ -211,7 +215,7 @@ struct TimeCollector {
 impl TimeCollector {
     fn handle_timeout(
         &self,
-        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
+        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         last_export: &WallTime,
     ) -> WallTime {
         let wall_export = WallTime::now();
@@ -244,12 +248,12 @@ impl TimeCollector {
     /// makes sense to use an older time than now because if the profiler was
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
-    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> profile::Profile {
-        let sample_types: Vec<profile::api::ValueType> = message
+    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> InternalProfile {
+        let sample_types: Vec<ApiValueType> = message
             .key
             .sample_types
             .iter()
-            .map(|sample_type| profile::api::ValueType {
+            .map(|sample_type| ApiValueType {
                 r#type: sample_type.r#type,
                 unit: sample_type.unit,
             })
@@ -270,17 +274,17 @@ impl TimeCollector {
             .position(|&x| x.r#type == "exception-samples");
 
         let period = WALL_TIME_PERIOD.as_nanos();
-        let mut profile = profile::ProfileBuilder::new()
-            .period(Some(Period {
-                r#type: profile::api::ValueType {
+        let mut profile = InternalProfile::new(
+            started_at,
+            &sample_types,
+            Some(Period {
+                r#type: ApiValueType {
                     r#type: WALL_TIME_PERIOD_TYPE.r#type,
                     unit: WALL_TIME_PERIOD_TYPE.unit,
                 },
                 value: period.min(i64::MAX as u128) as i64,
-            }))
-            .start_time(Some(started_at))
-            .sample_types(sample_types)
-            .build();
+            }),
+        );
 
         #[cfg(feature = "allocation_profiling")]
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
@@ -319,7 +323,7 @@ impl TimeCollector {
 
     fn handle_resource_message(
         message: LocalRootSpanResourceMessage,
-        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
+        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
     ) {
         trace!(
             "Received Endpoint Profiling message for span id {}.",
@@ -336,10 +340,10 @@ impl TimeCollector {
 
     fn handle_sample_message(
         message: SampleMessage,
-        profiles: &mut HashMap<ProfileIndex, profile::Profile>,
+        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         started_at: &WallTime,
     ) {
-        let profile: &mut profile::Profile = if let Some(value) = profiles.get_mut(&message.key) {
+        let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key) {
             value
         } else {
             profiles.insert(
@@ -354,12 +358,7 @@ impl TimeCollector {
         let mut locations = Vec::with_capacity(message.value.frames.len());
 
         let values = message.value.sample_values;
-        let labels: Vec<profile::api::Label> = message
-            .value
-            .labels
-            .iter()
-            .map(profile::api::Label::from)
-            .collect();
+        let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
 
         for frame in &message.value.frames {
             let location = Location {
@@ -382,7 +381,9 @@ impl TimeCollector {
             labels,
         };
 
-        match profile.add(sample) {
+        let timestamp = NonZeroI64::new(message.value.timestamp);
+
+        match profile.add_sample(sample, timestamp) {
             Ok(_id) => {}
             Err(err) => {
                 warn!("Failed to add sample to the profile: {err}")
@@ -392,7 +393,7 @@ impl TimeCollector {
 
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<ProfileIndex, profile::Profile> = HashMap::with_capacity(1);
+        let mut profiles: HashMap<ProfileIndex, InternalProfile> = HashMap::with_capacity(1);
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
@@ -476,7 +477,7 @@ impl TimeCollector {
 
 pub struct UploadRequest {
     index: ProfileIndex,
-    profile: profile::Profile,
+    profile: InternalProfile,
     end_time: SystemTime,
     duration: Option<Duration>,
 }
@@ -650,14 +651,12 @@ impl Profiler {
                 let depth = frames.len();
                 let (wall_time, cpu_time) = CLOCKS.with(|cell| cell.borrow_mut().rotate_clocks());
 
-                let mut labels = Profiler::message_labels();
+                let labels = Profiler::message_labels();
+                let mut timestamp = 0;
                 #[cfg(feature = "timeline")]
                 if locals.profiling_experimental_timeline_enabled {
                     if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                        labels.push(Label {
-                            key: "end_timestamp_ns",
-                            value: LabelValue::Num(now.as_nanos() as i64, None),
-                        });
+                        timestamp = now.as_nanos() as i64;
                     }
                 }
 
@@ -673,6 +672,7 @@ impl Profiler {
                     },
                     labels,
                     locals,
+                    timestamp,
                 )) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames and {n_labels} labels to profiler."
@@ -712,7 +712,8 @@ impl Profiler {
                         ..Default::default()
                     },
                     labels,
-                    locals
+                    locals,
+                    0,
                 )) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler."
@@ -755,7 +756,8 @@ impl Profiler {
                         ..Default::default()
                     },
                     labels,
-                    locals
+                    locals,
+                    0,
                 )) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels with Exception {exception} to profiler."
@@ -790,10 +792,6 @@ impl Profiler {
         }
 
         labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
-        labels.push(Label {
-            key: "end_timestamp_ns",
-            value: LabelValue::Num(now, None),
-        });
         let n_labels = labels.len();
 
         match self.send_sample(Profiler::prepare_sample_message(
@@ -808,6 +806,7 @@ impl Profiler {
             },
             labels,
             locals,
+            now,
         )) {
             Ok(_) => {
                 trace!("Sent event 'compile eval' with {n_labels} labels to profiler.")
@@ -843,10 +842,6 @@ impl Profiler {
             key: "filename",
             value: LabelValue::Str(Cow::from(filename)),
         });
-        labels.push(Label {
-            key: "end_timestamp_ns",
-            value: LabelValue::Num(now, None),
-        });
 
         let n_labels = labels.len();
 
@@ -862,6 +857,7 @@ impl Profiler {
             },
             labels,
             locals,
+            now,
         )) {
             Ok(_) => {
                 trace!("Sent event 'compile file' with {n_labels} labels to profiler.")
@@ -900,10 +896,6 @@ impl Profiler {
             key: "gc reason",
             value: LabelValue::Str(Cow::from(reason)),
         });
-        labels.push(Label {
-            key: "end_timestamp_ns",
-            value: LabelValue::Num(now, None),
-        });
 
         #[cfg(php_gc_status)]
         labels.push(Label {
@@ -928,6 +920,7 @@ impl Profiler {
             },
             labels,
             locals,
+            now,
         )) {
             Ok(_) => {
                 trace!("Sent event 'gc' with {n_labels} labels and reason {reason} to profiler.")
@@ -971,6 +964,7 @@ impl Profiler {
         #[cfg(php_has_fibers)] mut labels: Vec<Label>,
         #[cfg(not(php_has_fibers))] labels: Vec<Label>,
         locals: &RequestLocals,
+        timestamp: i64,
     ) -> SampleMessage {
         // Lay this out in the same order as SampleValues
         static SAMPLE_TYPES: &[ValueType; 7] = &[
@@ -1048,6 +1042,7 @@ impl Profiler {
                 frames,
                 labels,
                 sample_values,
+                timestamp,
             },
         }
     }
@@ -1110,7 +1105,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
 
         assert_eq!(message.key.sample_types, vec![]);
         let expected: Vec<i64> = vec![];
@@ -1128,7 +1123,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
 
         assert_eq!(
             message.key.sample_types,
@@ -1151,7 +1146,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
 
         assert_eq!(
             message.key.sample_types,
@@ -1175,7 +1170,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
 
         assert_eq!(
             message.key.sample_types,
@@ -1200,7 +1195,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
 
         assert_eq!(
             message.key.sample_types,
@@ -1227,7 +1222,7 @@ mod tests {
         locals.profiling_experimental_timeline_enabled = true;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, 900);
 
         assert_eq!(
             message.key.sample_types,
@@ -1239,6 +1234,7 @@ mod tests {
             ]
         );
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
+        assert_eq!(message.value.timestamp, 900);
     }
 
     #[test]
@@ -1253,7 +1249,7 @@ mod tests {
         locals.profiling_experimental_exception_enabled = true;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
 
         assert_eq!(
             message.key.sample_types,
