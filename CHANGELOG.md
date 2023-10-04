@@ -1,5 +1,11 @@
 # Datadog AppSec for PHP Release
 
+### v0.14.2
+
+#### Fixes
+- ([#307](https://github.com/DataDog/dd-appsec-php/pull/307)) Always update enabled status on RINIT
+- ([dd-trace-php/#2298](https://github.com/DataDog/dd-trace-php/pull/2298)) Fix ZAI config handling for .htaccess with php-fpm
+
 ### v0.14.1
 
 #### Fixes
