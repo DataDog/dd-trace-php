@@ -57,7 +57,6 @@ abstract class Span implements SpanInterface
         } elseif ($name == "tags") {
             $name = "meta";
         }
-
         return $this->internalSpan->$name = $value;
     }
 
