@@ -691,7 +691,7 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-profiling",
- "ddcommon 4.0.0",
+ "ddcommon 5.0.0",
  "env_logger",
  "indexmap 2.0.2",
  "lazy_static",
@@ -707,14 +707,14 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "4.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v4.0.0#a07180585a39b0e0baeb858d20efb8d7b57f17c4"
+version = "5.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v5.0.0#7b8a01ecfaf03e063feb16896356e71b9a2fc6f3"
 dependencies = [
  "anyhow",
  "bitmaps",
  "bytes",
  "chrono",
- "ddcommon 4.0.0",
+ "ddcommon 5.0.0",
  "derivative",
  "futures",
  "futures-core",
@@ -873,8 +873,8 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "4.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v4.0.0#a07180585a39b0e0baeb858d20efb8d7b57f17c4"
+version = "5.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v5.0.0#7b8a01ecfaf03e063feb16896356e71b9a2fc6f3"
 dependencies = [
  "anyhow",
  "futures",
