@@ -2622,8 +2622,12 @@ void ddtrace_read_distributed_tracing_ids(bool (*read_header)(zai_str, const cha
         }
         zval zv;
         if (reset_decision_maker) {
-            ZVAL_STRINGL(&zv, "-0", 2);
-            zend_hash_str_update(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.p.dm"), &zv);
+            if (priority_sampling > 0) {
+                ZVAL_STRINGL(&zv, "-0", 2);
+                zend_hash_str_update(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.p.dm"), &zv);
+            } else {
+                zend_hash_str_del(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.p.dm"));
+            }
         }
         if (!DDTRACE_G(active_stack)->root_span) {
             DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = priority_sampling;
