@@ -144,7 +144,7 @@ In Application Security Management, this release introduces the latest version o
         <required>
             <php>
                 <min>7.0</min>
-                <max>8.2.99</max>
+                <max>8.3.99</max>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>

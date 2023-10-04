@@ -21,6 +21,7 @@ RUN set -eux; \
         unzip \
         vim \
         xz; \
+    yum update nss nss-util nss-sysinit nss-tools; \
     yum install -y devtoolset-7; \
     yum clean all;
 
