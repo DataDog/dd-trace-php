@@ -943,6 +943,11 @@ test_distributed_tracing: global_test_run_dependencies
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
 
+test_opentelemetry_1: global_test_run_dependencies
+	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
+	$(MAKE) test_scenario_opentelemetry1
+	$(call run_tests,--testsuite=opentelemetry1 $(TESTS))
+
 test_opentracing_beta5: global_test_run_dependencies
 	$(MAKE) test_scenario_opentracing_beta5
 	$(call run_tests,tests/OpenTracerUnit)

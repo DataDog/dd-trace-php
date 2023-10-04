@@ -44,6 +44,14 @@ class PHPRedisIntegration extends Integration
     public function init()
     {
         $traceConnectOpen = function (SpanData $span, $args) {
+            if (
+                dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                && \DDTrace\trace_id() == $span->id
+            ) {
+                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+            }
+
             $hostOrUDS = (isset($args[0]) && \is_string($args[0])) ? $args[0] : PHPRedisIntegration::DEFAULT_HOST;
             $span->meta[Tag::TARGET_HOST] = $hostOrUDS;
             $span->meta[Tag::TARGET_PORT] = isset($args[1]) && \is_numeric($args[1]) ?
@@ -114,6 +122,14 @@ class PHPRedisIntegration extends Integration
         self::traceMethodNoArgs('restore');
 
         \DDTrace\trace_method('Redis', 'select', function (SpanData $span, $args) {
+            if (
+                dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                && \DDTrace\trace_id() == $span->id
+            ) {
+                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+            }
+
             PHPRedisIntegration::enrichSpan($span, $this, 'Redis');
             if (isset($args[0]) && \is_numeric($args[0])) {
                 $span->meta['db.index'] = $args[0];
@@ -384,6 +400,14 @@ class PHPRedisIntegration extends Integration
     public static function traceMethodAsCommand($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
+            if (
+                dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                && \DDTrace\trace_id() == $span->id
+            ) {
+                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+            }
+
             PHPRedisIntegration::enrichSpan($span, $this, 'Redis', $method);
             $normalizedArgs = PHPRedisIntegration::normalizeArgs($args);
             // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
@@ -397,6 +421,14 @@ class PHPRedisIntegration extends Integration
             }
         });
         \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
+            if (
+                dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+                && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                && \DDTrace\trace_id() == $span->id
+            ) {
+                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+            }
+
             PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster', $method);
             $normalizedArgs = PHPRedisIntegration::normalizeArgs($args);
             // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go

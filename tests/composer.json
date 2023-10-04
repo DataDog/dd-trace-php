@@ -119,9 +119,10 @@
                 "require": {
                     "open-telemetry/sdk": "1.0.0RC2"
                 },
-                "scenario-options": {
-                    "create-lockfile": false
-                }
+              "scenario-options": {
+                "create-lockfile": false
+              },
+              "minimum-stability": "dev"
             },
             "opentracing_beta5": {
                 "require": {

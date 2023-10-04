@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\OpenTelemetry\SDK\Trace;
+namespace OpenTelemetry\SDK\Trace;
 
 use DDTrace\Propagator;
 use DDTrace\SpanData;

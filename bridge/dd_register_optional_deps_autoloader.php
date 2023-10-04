@@ -15,6 +15,7 @@ class OptionalDepsAutoloader
     private static $autoloaderMapping = [
         "DDTrace\\Integrations\\ZendFramework\\V1\\TraceRequest" => 'DDTrace/Integrations/ZendFramework/V1/TraceRequest.php',
         "DDTrace\\Log\\PsrLogger" => 'api/Log/PsrLogger.php',
+        "OpenTelemetry\\SDK\\Trace\\Span" => 'DDTrace/OpenTelemetry/Span.php',
         "DDTrace\\OpenTracer\\Tracer" => 'DDTrace/OpenTracer/Tracer.php',
         "DDTrace\\OpenTracer\\Span" => 'DDTrace/OpenTracer/Span.php',
         "DDTrace\\OpenTracer\\Scope" => 'DDTrace/OpenTracer/Scope.php',

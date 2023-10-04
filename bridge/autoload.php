@@ -12,7 +12,6 @@
 //       internal userland classes and loaded by composer;
 //     - automatic instrumentation runs before it is known that composer exists, and after any `opcache.preload` script;
 
-
 // Do not trigger the autoloading mechanism if the class is not defined, so 'terminal' autoloaders - that trigger
 // errors if a class was not found - are supported.
 //   - Class `DDTrace\ComposerBootstrap` is declared in `src/api/ComposerBootstrap.php` and it is loaded when the
@@ -36,8 +35,11 @@ if ($apiLoadedViaComposer) {
     spl_autoload_register(function ($class) use ($apiLoadedViaComposerClass) {
         // If $class is not a DDTrace class, move quickly to the next autoloader
         $prefix = 'DDTrace\\';
+        $openTelemetry = 'OpenTelemetry\\';
         $len = strlen($prefix);
-        if (strncmp($prefix, $class, $len) !== 0) {
+        $otelLen = strlen($openTelemetry);
+        var_dump($class);
+        if (strncmp($prefix, $class, $len) !== 0 && strncmp($openTelemetry, $class, $otelLen) !== 0) {
             // move to the next registered autoloader
             return;
         }
@@ -95,12 +97,16 @@ if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
 // This autoloader exists as to avoid loading the legacy API completely, if it is not used at all by the user.
 spl_autoload_register(function ($class) use ($tracerFiles, $tracerFilesWithComposerLoaded, $apiLoadedViaComposerClass) {
     // If $class is not a DDTrace class, move quickly to the next autoloader
+    var_dump($class);
     $prefix = 'DDTrace\\';
+    $openTelemetry = 'OpenTelemetry\\';
     $len = strlen($prefix);
-    if (strncmp($prefix, $class, $len) !== 0) {
+    $otelLen = strlen($openTelemetry);
+    if (strncmp($prefix, $class, $len) !== 0 && strncmp($openTelemetry, $class, $otelLen) !== 0) {
         // move to the next registered autoloader
         return;
     }
+    var_dump($class);
 
     // The value of `$apiLoadedViaComposer` defined in the root scope cannot be reused because that value only reflects
     // composer's autoloading definitions loaded during `opcache.preload` scripts execution.
