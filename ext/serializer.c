@@ -1133,9 +1133,9 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         if (strcasecmp(Z_STRVAL(prop_service_as_string), Z_STRVAL(prop_root_service_as_string)) != 0) {
             zval *meta = ddtrace_spandata_property_meta_zval(span);
             add_assoc_zval(meta, "_dd.base_service", &prop_root_service_as_string);
+        } else {
+            zend_string_release(Z_STR(prop_root_service_as_string));
         }
-
-        zend_string_release(Z_STR(prop_root_service_as_string));
     }
 
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
