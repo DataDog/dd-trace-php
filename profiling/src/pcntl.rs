@@ -7,7 +7,6 @@ use crate::{Profiler, PROFILER, REQUEST_LOCALS};
 use log::{error, warn};
 use std::ffi::CStr;
 use std::mem::{forget, swap};
-use std::sync::atomic::Ordering;
 
 static mut PCNTL_FORK_HANDLER: InternalFunctionHandler = None;
 static mut PCNTL_RFORK_HANDLER: InternalFunctionHandler = None;
@@ -102,8 +101,7 @@ fn stop_and_forget_profiling(maybe_profiler: &mut Option<Profiler>) {
      */
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
-        locals.profiling_enabled = false;
-        locals.interrupt_count.store(0, Ordering::SeqCst);
+        locals.disable();
     });
 }
 
