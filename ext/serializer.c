@@ -818,6 +818,59 @@ static void _dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
     smart_str_0(buf);
 }
 
+static void dd_serialize_array_meta_recursively(zend_array *target, zend_string *str, zval *value) {
+    ZVAL_DEREF(value);
+    if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
+        zend_array *arr;
+        if (Z_TYPE_P(value) == IS_OBJECT) {
+#if PHP_VERSION_ID >= 70400
+            arr = zend_get_properties_for(value, ZEND_PROP_PURPOSE_JSON);
+#else
+            arr = Z_OBJPROP_P(value);
+#endif
+        } else {
+            arr = Z_ARR_P(value);
+        }
+        if (zend_hash_num_elements(arr) && !GC_IS_RECURSIVE(arr)) {
+            GC_PROTECT_RECURSION(arr);
+
+            zval *val;
+            zend_string *str_key;
+            zend_ulong num_key;
+            ZEND_HASH_FOREACH_KEY_VAL_IND(arr, num_key, str_key, val) {
+                zend_string *key;
+                if (str_key) {
+                    if (ZSTR_VAL(str_key)[0] == '\0' && ZSTR_LEN(str_key) > 0) {
+                        // Skip protected and private members
+                        continue;
+                    }
+                    key = zend_strpprintf(0, "%.*s.%.*s", (int)ZSTR_LEN(str), ZSTR_VAL(str), (int)ZSTR_LEN(str_key), ZSTR_VAL(str_key));
+                } else {
+                    key = zend_strpprintf(0, "%.*s." ZEND_LONG_FMT, (int)ZSTR_LEN(str), ZSTR_VAL(str), num_key);
+                }
+                dd_serialize_array_meta_recursively(target, key, val);
+                zend_string_release(key);
+            } ZEND_HASH_FOREACH_END();
+
+            GC_UNPROTECT_RECURSION(arr);
+        } else {
+            zval zv;
+            ZVAL_EMPTY_STRING(&zv);
+            zend_hash_update(target, str, &zv);
+        }
+
+#if PHP_VERSION_ID >= 70400
+        if (Z_TYPE_P(value) == IS_OBJECT) {
+            zend_release_properties(arr);
+        }
+#endif
+    } else {
+        zval val_as_string;
+        ddtrace_convert_to_string(&val_as_string, value);
+        zend_hash_update(target, str, &val_as_string);
+    }
+}
+
 static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     bool is_top_level_span = span->parent_id == DDTRACE_G(distributed_parent_trace_id);
     bool is_local_root_span = span->parent_id == 0 || is_top_level_span;
@@ -828,7 +881,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     ZVAL_DEREF(meta);
     if (Z_TYPE_P(meta) == IS_ARRAY) {
         zend_string *str_key;
-        zval *orig_val, val_as_string;
+        zval *orig_val;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(meta), str_key, orig_val) {
             if (str_key) {
                 if (zend_string_equals_literal_ci(str_key, "error.ignored")) {
@@ -836,8 +889,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
                     continue;
                 }
 
-                ddtrace_convert_to_string(&val_as_string, orig_val);
-                add_assoc_zval(&meta_zv, ZSTR_VAL(str_key), &val_as_string);
+                dd_serialize_array_meta_recursively(Z_ARRVAL(meta_zv), str_key, orig_val);
             }
         }
         ZEND_HASH_FOREACH_END();
