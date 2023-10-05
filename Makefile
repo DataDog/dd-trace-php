@@ -22,7 +22,7 @@ RUST_DEBUG_SYMBOLS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
 PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.2/datadog-profiling.tar.gz
-APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.13.1/dd-appsec-php-0.13.1-amd64.tar.gz
+APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.14.2/dd-appsec-php-0.14.2-amd64.tar.gz
 
 INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
@@ -32,7 +32,7 @@ RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKE
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{ddcommon,ddcommon-ffi,ddtelemetry,ddtelemetry-ffi,ipc,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},trace-normalization,trace-obfuscation,trace-protobuf,trace-utils,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{ddcommon,ddcommon-ffi,ddtelemetry,ddtelemetry-ffi,ipc,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -592,6 +592,7 @@ TEST_INTEGRATIONS_72 := \
 TEST_WEB_72 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_drupal_89 \
 	test_web_laravel_42 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
@@ -649,6 +650,7 @@ TEST_INTEGRATIONS_73 :=\
 TEST_WEB_73 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_drupal_89 \
 	test_web_laminas_14 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
@@ -706,6 +708,8 @@ TEST_INTEGRATIONS_74 := \
 TEST_WEB_74 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_drupal_89 \
+	test_web_drupal_95 \
 	test_web_laminas_14 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
@@ -762,6 +766,7 @@ TEST_INTEGRATIONS_80 := \
 TEST_WEB_80 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_drupal_95 \
 	test_web_laminas_14 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
@@ -805,6 +810,8 @@ TEST_INTEGRATIONS_81 := \
 TEST_WEB_81 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_drupal_95 \
+	test_web_drupal_101 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
@@ -848,6 +855,8 @@ TEST_INTEGRATIONS_82 := \
 TEST_WEB_82 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_drupal_95 \
+	test_web_drupal_101 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
@@ -1033,6 +1042,18 @@ test_web_cakephp_28: global_test_run_dependencies
 	$(call run_tests,--testsuite=cakephp-28-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests,--testsuite=codeigniter-22-test)
+test_web_drupal_89: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_8_9/core update --ignore-platform-reqs
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_8_9 update --ignore-platform-reqs
+	$(call run_tests,tests/Integrations/Drupal/V8_9)
+test_web_drupal_95: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_9_5/core update --ignore-platform-reqs
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_9_5 update --ignore-platform-reqs
+	$(call run_tests,tests/Integrations/Drupal/V9_5)
+test_web_drupal_101: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_10_1/core update --ignore-platform-reqs
+	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_10_1 update --ignore-platform-reqs
+	$(call run_tests,tests/Integrations/Drupal/V10_1)
 test_web_laminas_14: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_1_4 update
 	$(call run_tests,tests/Integrations/Laminas/V1_4)

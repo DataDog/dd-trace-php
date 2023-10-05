@@ -86,7 +86,7 @@ Options:
     --install-dir <path>        Install to a specific directory. Default: '/opt/datadog'
     --uninstall                 Uninstall the library from the specified binaries.
     --enable-appsec             Enable the application security monitoring module.
-    --enable-profiling          Enable the BETA profiling module.
+    --enable-profiling          Enable the profiling module.
     -d setting[=value]          Used in conjunction with `config <set|get>`
                                 command to specify the INI setting to get or set.
 

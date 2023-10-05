@@ -15,7 +15,8 @@ static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute
     UNUSED(invocation, auxiliary, dynamic);
 
     ddog_CharSlice composer_path = dd_zend_string_to_CharSlice(execute_data->func->op_array.filename);
-    if (ddtrace_detect_composer_installed_json(&dd_sidecar, dd_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), composer_path)) {
+    if (!ddtrace_sidecar // if sidecar connection was broken, let's skip immediately
+     || ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), composer_path)) {
         zai_hook_remove(ZAI_STR_EMPTY, ZAI_STR_EMPTY, dd_composer_hook_id);
     }
     return true;
@@ -26,7 +27,7 @@ void ddtrace_telemetry_first_init(void) {
 }
 
 void ddtrace_telemetry_finalize(void) {
-    if (!dd_sidecar) {
+    if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
     }
 
@@ -58,7 +59,7 @@ void ddtrace_telemetry_finalize(void) {
             ddog_sidecar_telemetry_addIntegration_buffer(buffer, integration_name, DDOG_CHARSLICE_C("0"), false);
         }
     }
-    ddog_sidecar_telemetry_buffer_flush(&dd_sidecar, dd_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
+    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 
     ddog_CharSlice service_name = DDOG_CHARSLICE_C("unnamed-php-service");
     if (DDTRACE_G(last_flushed_root_service_name)) {
@@ -68,17 +69,17 @@ void ddtrace_telemetry_finalize(void) {
     ddog_CharSlice php_version = dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION"))));
     struct ddog_RuntimeMeta *meta = ddog_sidecar_runtimeMeta_build(DDOG_CHARSLICE_C("php"), php_version, DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
 
-    ddog_sidecar_telemetry_flushServiceData(&dd_sidecar, dd_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name);
+    ddog_sidecar_telemetry_flushServiceData(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name);
 
     ddog_sidecar_runtimeMeta_drop(meta);
 
-    ddog_sidecar_telemetry_end(&dd_sidecar, dd_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id));
+    ddog_sidecar_telemetry_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id));
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
-    if (dd_sidecar) {
+    if (ddtrace_sidecar && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddog_CharSlice integration = (ddog_CharSlice) {.len = name_len, .ptr = name};
-        ddog_sidecar_telemetry_addIntegration(&dd_sidecar, dd_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), integration,
+        ddog_sidecar_telemetry_addIntegration(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), integration,
                                               DDOG_CHARSLICE_C("0"), true);
     }
 }

@@ -1,0 +1,66 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - core.entity_view_display.node.article.full
+    - core.entity_view_display.node.page.full
+    - core.entity_view_display.node.recipe.full
+    - node.type.article
+    - node.type.page
+    - node.type.recipe
+    - taxonomy.vocabulary.recipe_category
+    - taxonomy.vocabulary.tags
+    - workflows.workflow.editorial
+  module:
+    - content_moderation
+    - contextual
+    - file
+    - layout_builder
+    - node
+    - path
+    - system
+    - taxonomy
+    - toolbar
+id: author
+label: Author
+weight: 3
+is_admin: null
+permissions:
+  - 'access content overview'
+  - 'access contextual links'
+  - 'access files overview'
+  - 'access toolbar'
+  - 'cancel account'
+  - 'change own username'
+  - 'configure editable article node layout overrides'
+  - 'configure editable page node layout overrides'
+  - 'configure editable recipe node layout overrides'
+  - 'create and edit custom blocks'
+  - 'create article content'
+  - 'create page content'
+  - 'create recipe content'
+  - 'create terms in recipe_category'
+  - 'create terms in tags'
+  - 'create url aliases'
+  - 'delete article revisions'
+  - 'delete own article content'
+  - 'delete own files'
+  - 'delete own page content'
+  - 'delete own recipe content'
+  - 'delete page revisions'
+  - 'delete recipe revisions'
+  - 'delete terms in recipe_category'
+  - 'delete terms in tags'
+  - 'edit own article content'
+  - 'edit own page content'
+  - 'edit own recipe content'
+  - 'edit terms in recipe_category'
+  - 'edit terms in tags'
+  - 'use editorial transition create_new_draft'
+  - 'view all revisions'
+  - 'view article revisions'
+  - 'view latest version'
+  - 'view own unpublished content'
+  - 'view page revisions'
+  - 'view recipe revisions'
+  - 'view the administration theme'

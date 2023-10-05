@@ -158,7 +158,7 @@ bool ddtrace_detect_composer_installed_json(ddog_SidecarTransport **transport,
                                             const ddog_QueueId *queue_id,
                                             ddog_CharSlice path);
 
-ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection);
+ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection, bool enable_telemetry);
 
 struct ddog_TelemetryActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
 

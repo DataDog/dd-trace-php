@@ -2,6 +2,13 @@
 members = ["components-rs", "profiling"]
 resolver = "2"
 
+[workspace.package]
+rust-version = "1.69"
+edition = "2021"
+# Irrelevant version and license. These do NOT apply here, they just are here to make cargo build pass.
+version = "0.0.1"
+license = "Apache-2.0"
+
 [profile.dev]
 debug = 2 # full debug info
 

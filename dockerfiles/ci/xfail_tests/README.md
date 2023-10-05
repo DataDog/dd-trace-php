@@ -57,7 +57,7 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 
 # Specific tests
 
-## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`, `Zend/tests/gh11189(_1).phpt`
+## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`, `Zend/tests/gh11189(_1).phpt`, `Zend/tests/gh12073.phpt`
 
 Tests memory limits, which we exceed due to tracer being loaded.
 

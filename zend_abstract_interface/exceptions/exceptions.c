@@ -25,7 +25,7 @@
 #endif
 
 zend_string *zai_exception_message(zend_object *ex) {
-    if (!ex) {
+    if (!ex || !instanceof_function(ex->ce, zend_ce_throwable)) {
         // should never happen; TODO: fail in CI
         return zend_string_init_interned(ZEND_STRL("(internal error retrieving exception for message)"), 1);
     }

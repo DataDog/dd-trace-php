@@ -1,0 +1,5 @@
+name: Migrate
+type: module
+description: 'Provides a framework for migrating data to Drupal.'
+package: Migration
+version: VERSION

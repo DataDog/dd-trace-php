@@ -62,79 +62,55 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This release adds an enhanced WordPress integration, which can be enabled through datadog.trace.wordpress_enhanced_integration=1 in INI. Even more extensive span collection can be enabled through datadog.trace.wordpress_callbacks=1.
+This release adds experimental exception profiling to the profiler. This is off by default. Enable it with the environment variable DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=1 or INI setting datadog.profiling.experimental_exception_enabled=1.
 
+In Application Security Management, this release introduces the latest version of the WAF v1.14.0 and the latest ASM ruleset v1.8.0, as well as a fix to ensure runtime IDs reported by the remote configuration client are always valid and consistent with those reported by the Tracer.
+
+## Tracer
 ### Added
-- Add automated login events to Wordpress #2162
-- Enhance the WordPress Integration #2126
-- Implement agent sampling #2223
-- Add Laravel 9.X & 10.X tests #2237
-- Add http.route to laravel #2204 #2241
+- Add Drupal Integration #2188
+- Implement sidecar tracing #2234
+	- This functionality is currently experimental and guarded behind a configuration option DD_TRACE_SIDECAR_TRACE_SENDER=1 or INI setting datadog.trace.sidecar_trace_sender=1. It replaces the sending of traces through a dedicated thread.
 
 ### Fixed
-- (Legacy OpenTracing API) Check if the active span has a parent #2177
-- Handle killed workers and change root span initialization in the integrations #2176
-- fix: add Symfony command's exception to the root span #2194
-- Fix #2174: Can't pass less args to an untyped function than originally passed #2227, #2243
-- Fix #2232: Add Cargo.lock to pecl #2233
-- fix: wrong service name on some laravel.event.handle spans #2235
-- fix: PHP7 compatibility in logs correlation #2236
-- Store library_dependencies in memfd, referenced via /proc/self/fd/X DataDog/libdatadog#221
-- fix `datadog-setup.php` when INI file is a symlink #2242
-- update webpki and other dependencies #2247
+- Do not emit a deprecated diagnostic for DD_LOGS_INJECTION #2253
+- Set peer.service as dddbs when available #2260
+- Fix toggling datadog.trace.enabled with perdir configuration #2269
+- Enable auto flush for artisan commands #2270
 
-### Internal Changes
-- Add log levels #2158
-- Add `zai_option_str` and use it in config #2205, #2213
-- Refactor zai_string_view APIs and use them more #2203
-- Rename zai_string_view to zai_str #2206, #2207, #2212
-- Require zai_str.ptr to not be null #2214
-- Add zai_string and use it in zai_config #2217
-- Fix tests: allocate less TLS space by putting uhook HashTables into module globals #2219
-- Add sidecar metrics into their own namespace, fix seq id Datadog/libdatadog#220
+### Internal changes
+- Keep doctrine/dbal to major version 2 in symfony 5.2 tests #2254
+- docs: Explain minimum and nice-to-have from LLVM #2264
 
 ## Profiling
-
-This release reduces CPU overhead to collect stacks, and also reduces overhead when services are idle or partially idle. It also reduces the average amount of memory used.
-
 ### Added
-- attach fiber's function name as a label #2169
+- Add exception profiling #2197, #2262
+- Do not disable allocation profiling on fixed PHP versions with active JIT #2246
 
 ### Fixed
-- enable allocation profiling only if profiling is enabled #2185
-- enable timeline only if profiling is enabled and lower overhead when disabled #2189
-- fix empty profiles with timeline due to `end_timestamp_ns` unit being set #2244
+- Add missing `end_timestamp_ns` to string compilation event #2251
+- store customized heap #2261
+- remove “BETA” in `datadog-setup.php` as the profiler is not beta anymore #2278
+- use-after-free with Closure trampolines #2280
 
 ### Internal changes
-- perf: speed up stack walking by using function run_time_cache #1998, #2182
-- perf: only wake every 10ms if PHP is serving a request #2168
-- refactor: extract ZaiStringView::to_string #2175
-- build: update Cargo.lock #2183
-- refactor: simplify string tables #2186
-- perf: use u32 instead of usize for string table indices #2187
-- test: add Datadog\Profiling\trigger_time_sample #2201
-- build: Update to Rust 1.71 / LLVM 16 #2208
-- Bump libdatadog to v3.0.0 #2210
-- fix(profiling): clippy lints #2215
-- style(profiler): use let-else syntax #2216
-- build(profiling): bump dependencies including libdatadog v4.0.0 #2228
+- add tests for timeline #2192
 
-## Application Security Management (0.13.1)
-
+## Application Security Management (0.14.0)
 ### Added
-- Add trusted IPs capability DataDog/dd-appsec-php#279
-- Add extra_services configuration DataDog/dd-appsec-php#282
+- Add default processors and scanners DataDog/dd-appsec-php#298
+- Exchange more types between extension and helper DataDog/dd-appsec-php#299
+- API security configuration settings DataDog/dd-appsec-php#300
 
 ### Fixed
-- Ensure ddtrace is also enabled DataDog/dd-appsec-php#281
-- Fix service name alias configuration DataDog/dd-appsec-php#293
+- Propagate Runtime IDs and keep a valid pool in the RC client DataDog/dd-appsec-php#301
 
 ### Internal changes
-- Add automated login events integration test for Laravel and Symfony DataDog/dd-appsec-php#270
-- Upload suppressions and fix current ones DataDog/dd-appsec-php#280
-- WAF upgrade to 1.13.1 Datadog/dd-appsec-php#292
-- Send events even when limiter does not force manual keep Datadog/dd-appsec-php#290
-- Update ruleset to 1.7.2 Datadog/dd-appsec-php#291
+- Add nginx container to integration tests DataDog/dd-appsec-php#294
+- Upgrade WAF to 1.14.0 DataDog/dd-appsec-php#295
+- Upgrade tracer to v0.91.0 and remove master build downloads DataDog/dd-appsec-php#296
+- Upgrade ruleset to 1.8.0 DataDog/dd-appsec-php#302
+- Merge appsec repository as subtree #2267
 ]]></notes>
     <contents>
         <dir name="/">
@@ -168,7 +144,7 @@ This release reduces CPU overhead to collect stacks, and also reduces overhead w
         <required>
             <php>
                 <min>7.0</min>
-                <max>8.2.99</max>
+                <max>8.3.99</max>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>
