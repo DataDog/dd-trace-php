@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\OpenTracer;
+namespace OpenTracer;
 
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\SpanContext as DDSpanContext;

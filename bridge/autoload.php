@@ -38,7 +38,6 @@ if ($apiLoadedViaComposer) {
         $openTelemetry = 'OpenTelemetry\\';
         $len = strlen($prefix);
         $otelLen = strlen($openTelemetry);
-        var_dump($class);
         if (strncmp($prefix, $class, $len) !== 0 && strncmp($openTelemetry, $class, $otelLen) !== 0) {
             // move to the next registered autoloader
             return;
@@ -97,7 +96,6 @@ if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
 // This autoloader exists as to avoid loading the legacy API completely, if it is not used at all by the user.
 spl_autoload_register(function ($class) use ($tracerFiles, $tracerFilesWithComposerLoaded, $apiLoadedViaComposerClass) {
     // If $class is not a DDTrace class, move quickly to the next autoloader
-    var_dump($class);
     $prefix = 'DDTrace\\';
     $openTelemetry = 'OpenTelemetry\\';
     $len = strlen($prefix);
@@ -106,7 +104,6 @@ spl_autoload_register(function ($class) use ($tracerFiles, $tracerFilesWithCompo
         // move to the next registered autoloader
         return;
     }
-    var_dump($class);
 
     // The value of `$apiLoadedViaComposer` defined in the root scope cannot be reused because that value only reflects
     // composer's autoloading definitions loaded during `opcache.preload` scripts execution.
@@ -121,6 +118,22 @@ spl_autoload_register(function ($class) use ($tracerFiles, $tracerFilesWithCompo
         require_once $file;
     }
 });
+
+\DDTrace\install_hook(
+    'Composer\Autoload\ClassLoader::register',
+    null,
+    function (\DDTrace\HookData $hook) {
+        $prepend = $hook->args[0];
+        if ($prepend) {
+            // We need to unregister and register dd's autoload, prepending it to the list of autoloaders.
+            // This is needed because composer's autoloader is prepended to the list of autoloaders, and we need to
+            // make sure that dd's autoloader is prepended to composer's autoloader.
+            spl_autoload_unregister('DDTrace\Bridge\OptionalDepsAutoloader::load');
+            spl_autoload_register('DDTrace\Bridge\OptionalDepsAutoloader::load', true, true);
+        }
+    }
+);
+
 
 function ddtrace_legacy_tracer_autoloading_possible()
 {

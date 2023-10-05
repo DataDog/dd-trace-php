@@ -27,6 +27,7 @@ use OpenTelemetry\SDK\Trace\StatusDataInterface;
 use Throwable;
 
 use function DDTrace\close_span;
+use function DDTrace\start_trace_span;
 use function DDTrace\trace_id;
 
 final class Span extends API\Span implements ReadWriteSpanInterface
@@ -38,6 +39,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     /** @readonly */
     private API\SpanContextInterface $parentSpanContext;
+
+    /** @readonly */
+    private SpanProcessorInterface $spanProcessor;
 
     /**
      * @readonly
@@ -51,6 +55,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     /** @readonly */
     private int $kind;
+
+    /** @readonly */
+    private ResourceInfo $resource;
 
     /** @readonly */
     private InstrumentationScopeInterface $instrumentationScope;
@@ -76,20 +83,22 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         InstrumentationScopeInterface $instrumentationScope,
         int $kind,
         API\SpanContextInterface $parentSpanContext,
+        SpanProcessorInterface $spanProcessor,
+        ResourceInfo $resource,
         AttributesBuilderInterface $attributesBuilder,
         array $links,
-        int $totalRecordedLinks,
-        int $startEpochNanos
+        int $totalRecordedLinks
     ) {
         $this->span = $span;
         $this->context = $context;
         $this->instrumentationScope = $instrumentationScope;
         $this->kind = $kind;
         $this->parentSpanContext = $parentSpanContext;
+        $this->spanProcessor = $spanProcessor;
+        $this->resource = $resource;
         $this->attributesBuilder = $attributesBuilder;
         $this->links = $links;
         $this->totalRecordedLinks = $totalRecordedLinks;
-        $this->startEpochNanos = $startEpochNanos;
 
         $this->status = StatusData::unset();
     }
@@ -106,29 +115,44 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      * @psalm-internal OpenTelemetry
      */
     public static function startSpan(
-        SpanData $span,
+        string $name,
         API\SpanContextInterface $context,
         InstrumentationScopeInterface $instrumentationScope,
         int $kind,
+        API\SpanInterface $parentSpan,
         ContextInterface $parentContext,
+        SpanLimits $spanLimits,
+        SpanProcessorInterface $spanProcessor,
+        ResourceInfo $resource,
         AttributesBuilderInterface $attributesBuilder,
         array $links,
         int $totalRecordedLinks,
-        int $startEpochNanos
+        int $startEpochNanos = 0
     ): self {
+        $span = $parentSpan->getContext()->isValid()
+            ? \DDTrace\start_span($startEpochNanos / 1000000000)
+            : \DDTrace\start_trace_span($startEpochNanos / 1000000000);
+
+        $span->name = $name;
+
+        $attributes = $attributesBuilder->build()->toArray();
+        self::_setAttributes($span, $attributes);
+
         $OTelSpan = new self(
             $span,
             $context,
             $instrumentationScope,
             $kind,
-            $parentContext,
+            $parentSpan->getContext(),
+            $spanProcessor,
+            $resource,
             $attributesBuilder,
             $links,
-            $totalRecordedLinks,
-            $startEpochNanos
+            $totalRecordedLinks
         );
 
-        // TODO: Span Processors are future work
+        // Call onStart here to ensure the span is fully initialized.
+        $spanProcessor->onStart($OTelSpan, $parentContext);
 
         return $OTelSpan;
     }
@@ -171,9 +195,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $this->getName(),
             $this->links, // TODO: Handle Span Links
             $this->events, // TODO: Handle Span Events
-            Attributes::create($this->span->meta), // TODO: See if it handles 'nested' attributes correctly
+            $this->attributesBuilder->build(),
             0,
-            new StatusData($this->statusCode, $this->description),
+            StatusData::create($this->status->getCode(), $this->status->getDescription()),
             $this->hasEnded ? $this->getDuration() : 0,
             $this->hasEnded
         );
@@ -184,7 +208,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getDuration(): int
     {
-        return $this->span->getDuration();
+        return $this->hasEnded
+            ? $this->span->getDuration()
+            : (int) (microtime(true) * 1000000000) - $this->span->getStartTime();
     }
 
     /**
@@ -200,6 +226,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getAttribute(string $key)
     {
+        return $this->attributesBuilder[$key];
+
         $meta = $this->span->meta;
 
         if (isset($meta[$key])) {
@@ -225,6 +253,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         return null;
     }
 
+    public function getStartEpochNanos(): int
+    {
+        return $this->span->getStartTime();
+    }
+
     /**
      * @inheritDoc
      */
@@ -233,13 +266,20 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         return !$this->hasEnded;
     }
 
+    private static function _setAttributes(SpanData $span, iterable $attributes): void
+    {
+        foreach ($attributes as $key => $value) {
+            $span->meta[$key] = $value;
+        }
+    }
+
     /**
      * @inheritDoc
      */
     public function setAttribute(string $key, $value): SpanInterface
     {
         if (!$this->hasEnded) {
-            $this->span->meta[$key] = $value;
+            $this->attributesBuilder[$key] = $value;
         }
 
         return $this;
@@ -251,7 +291,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function setAttributes(iterable $attributes): SpanInterface
     {
         foreach ($attributes as $key => $value) {
-            $this->setAttribute($key, $value);
+            $this->attributesBuilder[$key] = $value;
         }
 
         return $this;
@@ -299,19 +339,26 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             return $this;
         }
 
-        if ($this->statusCode === API\StatusCode::STATUS_UNSET && $code === API\StatusCode::STATUS_ERROR) {
-            $this->statusCode = $code;
-            $this->description = $description;
+        // An attempt to set value Unset SHOULD be ignored.
+        if ($code === API\StatusCode::STATUS_UNSET) {
+            return $this;
+        }
+
+        // When span status is set to Ok it SHOULD be considered final and any further attempts to change it SHOULD be ignored.
+        if ($this->status->getCode() === API\StatusCode::STATUS_OK) {
+            return $this;
+        }
+
+        // TODO: Look into this
+        if ($this->status->getCode() === API\StatusCode::STATUS_UNSET && $code === API\StatusCode::STATUS_ERROR) {
             $this->span->meta[Tag::ERROR_MSG] = $description;
-        } elseif ($this->statusCode === API\StatusCode::STATUS_ERROR && $code === API\StatusCode::STATUS_OK) {
-            $this->statusCode = $code;
-            $this->description = $description;
+        } elseif ($this->status->getCode() === API\StatusCode::STATUS_ERROR && $code === API\StatusCode::STATUS_OK) {
             unset($this->span->meta[Tag::ERROR_MSG]);
             unset($this->span->meta[Tag::ERROR_TYPE]);
             unset($this->span->meta[Tag::ERROR_STACK]);
         }
 
-        // TODO: Look into this
+        $this->status = StatusData::create($code, $description);
 
         return $this;
     }
@@ -325,8 +372,18 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             return;
         }
 
+        $attributes = $this->attributesBuilder->build()->toArray();
+        self::_setAttributes($this->span, $attributes);
+
         // TODO: Actually check if the span was closed (change extension to return a boolean?)
         close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
         $this->hasEnded = true;
+
+        $this->spanProcessor->onEnd($this);
+    }
+
+    public function getResource(): ResourceInfo
+    {
+        return $this->resource;
     }
 }
