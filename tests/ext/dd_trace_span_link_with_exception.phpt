@@ -1,10 +1,18 @@
 --TEST--
 Span Link serialization with non-null EG(exception) doesn't fail
+--SKIPIF--
+<?php include __DIR__ . '/includes/skipif_no_dev_env.inc'; ?>
 --ENV--
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
+DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_AUTO_FLUSH_ENABLED=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 --FILE--
 <?php
+
+include __DIR__ . '/includes/request_replayer.inc';
 
 use DDTrace\SpanData;
 use DDTrace\SpanLink;
@@ -30,6 +38,8 @@ DDTrace\trace_method('Foo', 'bar', function (SpanData $span) {
     $span->links[] = $spanLink;
 });
 
+$rr = new RequestReplayer();
+
 $foo = new Foo();
 try {
     $foo->bar();
@@ -37,6 +47,20 @@ try {
     echo 'Caught exception: ' . $e->getMessage() . PHP_EOL;
 }
 
+$rr->waitForFlush();
+
+$root = json_decode($rr->replayRequest()["body"], true);
+$span = $root[0]['0'];
+var_dump($span['meta']['error.message']);
+var_dump($span['meta']['error.type']);
+var_dump($span['meta']['error.stack']);
+var_dump($span['meta']['_dd.span_links']);
 ?>
 --EXPECTF--
 Caught exception: Oops!
+string(118) "Uncaught Exception: Oops! in /home/circleci/%s/dd_trace_span_link_with_exception.php:17"
+string(9) "Exception"
+string(229) "#0 /home/circleci/%s/dd_trace_span_link_with_exception.php(12): Foo->doException()
+#1 /home/circleci/%s/dd_trace_span_link_with_exception.php(33): Foo->bar()
+#2 {main}"
+string(33) "[{"trace_id":"42","span_id":"6"}]"

@@ -75,14 +75,11 @@ class LaravelQueueIntegration extends Integration
 
                     $integration->setSpanAttributes($span, 'laravel.queue.process', 'receive', $job);
 
-                    // Create a new trace
                     $payload = $job->payload();
                     if (isset($payload['dd_headers'])) {
                         if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')) {
                             $newTrace = start_trace_span();
-
                             $integration->setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
-
                             $integration->extractContext($payload);
                             $span->links[] = $newTrace->getLink();
                             $newTrace->links[] = $span->getLink();
@@ -133,9 +130,7 @@ class LaravelQueueIntegration extends Integration
                         }
                     }
 
-                    if ($exception) {
-                        $integration->setError($span, $exception);
-                    }
+                    $integration->setSpanAttributes($span, 'laravel.queue.process', 'receive', $job, $exception);
                 },
                 'recurse' => true
             ]
@@ -205,13 +200,6 @@ class LaravelQueueIntegration extends Integration
                                     $class . '@' . $method
                                 );
                             }
-                        },
-                        function (HookData $hook) use ($integration, $class, $method) {
-                            if ($hook->exception !== null) {
-                                $integration->setError($hook->span(), $hook->exception);
-                            }
-
-                            remove_hook($hook->id);
                         }
                     );
                 }
