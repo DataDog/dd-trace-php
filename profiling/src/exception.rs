@@ -87,7 +87,7 @@ pub fn exception_profiling_first_rinit() {
 
     EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::SeqCst);
 
-    info!("Exception profiling sampling disance initialized to {sampling_distance}");
+    info!("Exception profiling sampling distance initialized to {sampling_distance}");
 }
 
 pub fn exception_profiling_mshutdown() {
