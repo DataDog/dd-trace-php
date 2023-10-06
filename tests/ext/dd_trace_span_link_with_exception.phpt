@@ -58,9 +58,9 @@ var_dump($span['meta']['_dd.span_links']);
 ?>
 --EXPECTF--
 Caught exception: Oops!
-string(%s) "Uncaught Exception: Oops! in /home/circleci/%s/dd_trace_span_link_with_exception.php:17"
+string(%d) "Uncaught Exception: Oops! in %s/dd_trace_span_link_with_exception.php:17"
 string(9) "Exception"
-string(%s) "#0 /home/circleci/%s/dd_trace_span_link_with_exception.php(12): Foo->doException()
-#1 /home/circleci/%s/dd_trace_span_link_with_exception.php(33): Foo->bar()
+string(%d) "#0 %s/dd_trace_span_link_with_exception.php(12): Foo->doException()
+#1 %s/dd_trace_span_link_with_exception.php(33): Foo->bar()
 #2 {main}"
 string(33) "[{"trace_id":"42","span_id":"6"}]"
