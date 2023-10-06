@@ -30,7 +30,7 @@ for architecture in "${architectures[@]}"; do
     tmp_folder_final_gnu_trace=$tmp_folder_final_gnu/dd-library-php/trace
     tmp_folder_final_musl_trace=$tmp_folder_final_musl/dd-library-php/trace
 
-    php_apis=(20190902 20200930 20210902 20220829)
+    php_apis=(20190902 20200930 20210902 20220829 20230831)
     if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
         php_apis+=(20151012 20160303 20170718 20180731)
         if [[ $architecture == "x86_64" ]]; then
@@ -68,7 +68,7 @@ for architecture in "${architectures[@]}"; do
         tar -xf $tmp_folder_profiling_archive -C $tmp_folder_profiling
 
         # Extension
-        php_apis=(20160303 20170718 20180731 20190902 20200930 20210902 20220829)
+        php_apis=(20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831)
         for version in "${php_apis[@]}"
         do
             mkdir -v -p \

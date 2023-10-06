@@ -143,12 +143,16 @@ pub fn allocation_profiling_rinit() {
             ALLOCATION_PROFILING_ALLOC = allocation_profiling_prev_alloc;
             ALLOCATION_PROFILING_FREE = allocation_profiling_prev_free;
             ALLOCATION_PROFILING_REALLOC = allocation_profiling_prev_realloc;
+            ALLOCATION_PROFILING_PREPARE_ZEND_HEAP = prepare_zend_heap_none;
+            ALLOCATION_PROFILING_RESTORE_ZEND_HEAP = restore_zend_heap_none;
         }
     } else {
         unsafe {
             ALLOCATION_PROFILING_ALLOC = allocation_profiling_orig_alloc;
             ALLOCATION_PROFILING_FREE = allocation_profiling_orig_free;
             ALLOCATION_PROFILING_REALLOC = allocation_profiling_orig_realloc;
+            ALLOCATION_PROFILING_PREPARE_ZEND_HEAP = prepare_zend_heap;
+            ALLOCATION_PROFILING_RESTORE_ZEND_HEAP = restore_zend_heap;
         }
     }
 
@@ -252,6 +256,10 @@ pub fn allocation_profiling_startup() {
     }
 }
 
+static mut ALLOCATION_PROFILING_PREPARE_ZEND_HEAP: unsafe fn(
+    heap: *mut zend::_zend_mm_heap,
+) -> c_int = prepare_zend_heap;
+
 /// Overrides the ZendMM heap's `use_custom_heap` flag with the default `ZEND_MM_CUSTOM_HEAP_NONE`
 /// (currently a `u32: 0`). This needs to be done, as the `zend_mm_gc()` and `zend_mm_shutdown()`
 /// functions alter behaviour in case custom handlers are installed.
@@ -266,10 +274,21 @@ unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
     custom_heap
 }
 
+fn prepare_zend_heap_none(_heap: *mut zend::_zend_mm_heap) -> c_int {
+    0
+}
+
+static mut ALLOCATION_PROFILING_RESTORE_ZEND_HEAP: unsafe fn(
+    heap: *mut zend::_zend_mm_heap,
+    custom_heap: c_int,
+) = restore_zend_heap;
+
 /// Restore the ZendMM heap's `use_custom_heap` flag, see `prepare_zend_heap` for details
 unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) {
     std::ptr::write(heap as *mut c_int, custom_heap);
 }
+
+fn restore_zend_heap_none(_heap: *mut zend::_zend_mm_heap, _custom_heap: c_int) {}
 
 /// The PHP userland function `gc_mem_caches()` directly calls the `zend_mm_gc()` function which
 /// does nothing in case custom handlers are installed on the heap used. So we prepare the heap for
@@ -288,9 +307,9 @@ unsafe extern "C" fn alloc_profiling_gc_mem_caches(
     if let Some(func) = GC_MEM_CACHES_HANDLER {
         if allocation_profiling {
             let heap = zend::zend_mm_get_heap();
-            let custom_heap = prepare_zend_heap(heap);
+            let custom_heap = ALLOCATION_PROFILING_PREPARE_ZEND_HEAP(heap);
             func(execute_data, return_value);
-            restore_zend_heap(heap, custom_heap);
+            ALLOCATION_PROFILING_RESTORE_ZEND_HEAP(heap, custom_heap);
         } else {
             func(execute_data, return_value);
         }
@@ -326,9 +345,9 @@ unsafe fn allocation_profiling_prev_alloc(len: size_t) -> *mut c_void {
 
 unsafe fn allocation_profiling_orig_alloc(len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let custom_heap = prepare_zend_heap(heap);
+    let custom_heap = ALLOCATION_PROFILING_PREPARE_ZEND_HEAP(heap);
     let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
-    restore_zend_heap(heap, custom_heap);
+    ALLOCATION_PROFILING_RESTORE_ZEND_HEAP(heap, custom_heap);
     ptr
 }
 
@@ -379,9 +398,9 @@ unsafe fn allocation_profiling_prev_realloc(prev_ptr: *mut c_void, len: size_t) 
 
 unsafe fn allocation_profiling_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let custom_heap = prepare_zend_heap(heap);
+    let custom_heap = ALLOCATION_PROFILING_PREPARE_ZEND_HEAP(heap);
     let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
-    restore_zend_heap(heap, custom_heap);
+    ALLOCATION_PROFILING_RESTORE_ZEND_HEAP(heap, custom_heap);
     ptr
 }
 

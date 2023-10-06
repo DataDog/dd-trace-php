@@ -1,0 +1,89 @@
+variables:
+  CI_REGISTRY_USER:
+    value: ""
+    description: "Your docker hub username"
+  CI_REGISTRY_TOKEN:
+    value: ""
+    description: "Your docker hub personal access token, can be created following this doc https://docs.docker.com/docker-hub/access-tokens/#create-an-access-token"
+  CI_REGISTRY:
+    value: "docker.io"
+
+CentOS:
+  stage: ci-build
+  rules:
+    - when: manual
+  needs: []
+  tags: ["arch:amd64"]
+  timeout: 1h
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  parallel:
+    matrix:
+      - PHP_VERSION:
+        - base
+        - php-8.3
+        - php-8.2
+        - php-8.1
+        - php-8.0
+        - php-7.4
+        - php-7.3
+        - php-7.2
+        - php-7.1
+        - php-7.0
+  script:
+    - cd dockerfiles/ci/centos/7
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - docker buildx bake --no-cache --pull --push $PHP_VERSION
+
+Alpine Compile Extension:
+  stage: ci-build
+  rules:
+    - when: manual
+  needs: []
+  tags: ["arch:amd64"]
+  timeout: 1h
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  parallel:
+    matrix:
+      - PHP_VERSION:
+        - 8.3-alpine
+        - 8.2-alpine
+        - 8.1-alpine
+        - 8.0-alpine
+        - 7.4-alpine
+        - 7.3-alpine
+        - 7.2-alpine
+        - 7.1-alpine
+        - 7.0-alpine
+  script:
+    - cd dockerfiles/ci/alpine_compile_extension
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - docker buildx bake --no-cache --pull --push $PHP_VERSION
+
+Ubuntu Buster:
+  stage: ci-build
+  rules:
+    - when: manual
+  needs: []
+  tags: ["arch:amd64"]
+  timeout: 1h
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  parallel:
+    matrix:
+      - PHP_VERSION:
+        - base
+        - php-8.3
+        - php-8.2
+        - php-8.1
+        - php-8.0
+        - php-8.0-shared-ext
+        - php-7.4
+        - php-7.4-shared-ext
+        - php-7.3
+        - php-7.2
+        - php-7.1
+        - php-7.0
+        - php-master
+  script:
+    - cd dockerfiles/ci/buster
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - docker buildx bake --no-cache --pull --push $PHP_VERSION
