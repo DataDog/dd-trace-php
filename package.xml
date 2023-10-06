@@ -64,18 +64,12 @@
         <![CDATA[
 ## Tracer
 ### Fixed
-- Handle UnwindExit in sandbox error reporting #2288
-- Add a safeguard nullcheck for the sidecar into telemetry reporting #2293
+- Fix ZAI config handling for .htaccess with php-fpm #2298
 
-## Profiling
+## Application Security Management (0.14.2)
 ### Fixed
-- Do not leak module entry on purpose #2291
-- Fix allocation profiling shutdown with USE_ZEND_ALLOC=0 crashing #2294
-
-## Application Security Management (0.14.1)
-### Fixed
-- Improve tracer state detection DataDog/dd-appsec-php#305
-- Fix setting perdir INI setting for multiple ZAI config users #2277
+- Always update enabled status on RINIT DataDog/dd-appsec-php#307
+- Fix ZAI config handling for .htaccess with php-fpm #2298
 ]]></notes>
     <contents>
         <dir name="/">
