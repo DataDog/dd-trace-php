@@ -206,8 +206,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDoesNotInheritTopLevelAppName()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->inWebServer(
             function ($execute) {
                 $execute(GetSpec::create('GET', '/curl_in_web_request.php'));
@@ -230,6 +228,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                             'span.kind' => 'client',
                             'network.destination.name' => 'httpbin_integration',
+                            '_dd.base_service' => 'top_level_app',
                             Tag::COMPONENT => 'curl',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -574,7 +573,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
      */
     public function testTraceAnalytics($envsOverride, $expectedSampleRate)
     {
-        $env = array_merge(['DD_SERVICE' => 'top_level_app'], ['DD_TRACE_GENERATE_ROOT_SPAN' => '0'], $envsOverride);
+        $env = array_merge(['DD_SERVICE' => 'top_level_app'], $envsOverride);
 
         $traces = $this->inWebServer(
             function ($execute) {
@@ -601,6 +600,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                             'span.kind' => 'client',
                             'network.destination.name' => 'httpbin_integration',
+                            '_dd.base_service' => 'top_level_app',
                             Tag::COMPONENT => 'curl',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
