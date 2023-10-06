@@ -200,6 +200,8 @@ class LaravelQueueIntegration extends Integration
                                     $class . '@' . $method
                                 );
                             }
+
+                            remove_hook($hook->id);
                         }
                     );
                 }
