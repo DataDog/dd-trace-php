@@ -127,7 +127,8 @@ final class SpanContext implements SpanContextInterface
 
     public function getTraceFlags(): int
     {
-        return $this->sampled ? TraceFlags::SAMPLED : TraceFlags::DEFAULT;
+        // TODO: Handle Sampling
+        return TraceFlags::DEFAULT;
     }
 
     public static function createFromRemoteParent(string $traceId, string $spanId, int $traceFlags = TraceFlags::DEFAULT, ?TraceStateInterface $traceState = null): SpanContextInterface

@@ -6,6 +6,7 @@ namespace OpenTelemetry\SDK\Trace;
 
 use DDTrace\Propagator;
 use DDTrace\SpanData;
+use DDTrace\SpanLink;
 use DDTrace\Tag;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
@@ -27,6 +28,8 @@ use OpenTelemetry\SDK\Trace\StatusDataInterface;
 use Throwable;
 
 use function DDTrace\close_span;
+use function DDTrace\close_spans_until;
+use function DDTrace\generate_distributed_tracing_headers;
 use function DDTrace\start_trace_span;
 use function DDTrace\trace_id;
 
@@ -43,16 +46,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /** @readonly */
     private SpanProcessorInterface $spanProcessor;
 
-    /**
-     * @readonly
-     *
-     * @var list<LinkInterface>
-     */
-    private array $links;
-
-    /** @readonly */
-    private int $totalRecordedLinks;
-
     /** @readonly */
     private int $kind;
 
@@ -62,19 +55,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /** @readonly */
     private InstrumentationScopeInterface $instrumentationScope;
 
-    /** @readonly */
-    private int $startEpochNanos;
-
-    /** @var non-empty-string */
-    private string $name;
-
-    /** @var list<EventInterface> */
-    private array $events = [];
-
     private AttributesBuilderInterface $attributesBuilder;
-    private int $totalRecordedEvents = 0;
     private StatusDataInterface $status;
-    private int $endEpochNanos = 0;
     private bool $hasEnded = false;
 
     private function __construct(
@@ -85,9 +67,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         API\SpanContextInterface $parentSpanContext,
         SpanProcessorInterface $spanProcessor,
         ResourceInfo $resource,
-        AttributesBuilderInterface $attributesBuilder,
-        array $links,
-        int $totalRecordedLinks
+        AttributesBuilderInterface $attributesBuilder
     ) {
         $this->span = $span;
         $this->context = $context;
@@ -97,8 +77,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->spanProcessor = $spanProcessor;
         $this->resource = $resource;
         $this->attributesBuilder = $attributesBuilder;
-        $this->links = $links;
-        $this->totalRecordedLinks = $totalRecordedLinks;
 
         $this->status = StatusData::unset();
     }
@@ -115,26 +93,19 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      * @psalm-internal OpenTelemetry
      */
     public static function startSpan(
-        string $name,
+        SpanData $span,
         API\SpanContextInterface $context,
         InstrumentationScopeInterface $instrumentationScope,
         int $kind,
         API\SpanInterface $parentSpan,
         ContextInterface $parentContext,
-        SpanLimits $spanLimits,
         SpanProcessorInterface $spanProcessor,
         ResourceInfo $resource,
         AttributesBuilderInterface $attributesBuilder,
         array $links,
         int $totalRecordedLinks,
-        int $startEpochNanos = 0
+        float $startEpochNanos = 0
     ): self {
-        $span = $parentSpan->getContext()->isValid()
-            ? \DDTrace\start_span($startEpochNanos / 1000000000)
-            : \DDTrace\start_trace_span($startEpochNanos / 1000000000);
-
-        $span->name = $name;
-
         $attributes = $attributesBuilder->build()->toArray();
         self::_setAttributes($span, $attributes);
 
@@ -146,9 +117,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $parentSpan->getContext(),
             $spanProcessor,
             $resource,
-            $attributesBuilder,
-            $links,
-            $totalRecordedLinks
+            $attributesBuilder
         );
 
         // Call onStart here to ensure the span is fully initialized.
@@ -193,8 +162,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         return new ImmutableSpan(
             $this,
             $this->getName(),
-            $this->links, // TODO: Handle Span Links
-            $this->events, // TODO: Handle Span Events
+            [], // TODO: Handle Span Links
+            [], // TODO: Handle Span Events
             $this->attributesBuilder->build(),
             0,
             StatusData::create($this->status->getCode(), $this->status->getDescription()),
@@ -376,7 +345,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         self::_setAttributes($this->span, $attributes);
 
         // TODO: Actually check if the span was closed (change extension to return a boolean?)
-        close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
+        close_spans_until($this->span);
+        close_span();
+        //close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
         $this->hasEnded = true;
 
         $this->spanProcessor->onEnd($this);

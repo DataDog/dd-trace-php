@@ -16,6 +16,7 @@ class OptionalDepsAutoloader
         "DDTrace\\Integrations\\ZendFramework\\V1\\TraceRequest" => 'DDTrace/Integrations/ZendFramework/V1/TraceRequest.php',
         "DDTrace\\Log\\PsrLogger" => 'api/Log/PsrLogger.php',
         "OpenTelemetry\\SDK\\Trace\\Span" => 'DDTrace/OpenTelemetry/Span.php',
+        "OpenTelemetry\\SDK\\Trace\\SpanBuilder" => 'DDTrace/OpenTelemetry/SpanBuilder.php',
         "DDTrace\\OpenTracer\\Tracer" => 'DDTrace/OpenTracer/Tracer.php',
         "DDTrace\\OpenTracer\\Span" => 'DDTrace/OpenTracer/Span.php',
         "DDTrace\\OpenTracer\\Scope" => 'DDTrace/OpenTracer/Scope.php',

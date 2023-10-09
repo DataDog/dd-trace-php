@@ -52,7 +52,7 @@
             <directory>./Integrations/CLI/Laravel/V10_X</directory>
         </testsuite>
         <testsuite name="opentelemetry1">
-            <directory>./OpenTelemetry/Unit</directory>
+            <directory>./OpenTelemetry/Integration/API</directory>
         </testsuite>
         <testsuite name="slim-312-test">
             <directory>./Integrations/Slim/V3_12</directory>

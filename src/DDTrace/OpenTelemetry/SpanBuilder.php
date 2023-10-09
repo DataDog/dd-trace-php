@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\OpenTelemetry\SDK\Trace;
+namespace OpenTelemetry\SDK\Trace;
 
+use DDTrace\Log\Logger;
 use DDTrace\Propagator;
+use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Tag;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Trace\SpanBuilderInterface;
 use OpenTelemetry\API\Trace\SpanContextInterface;
@@ -49,7 +52,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
     private AttributesBuilderInterface $attributesBuilder;
     private int $totalNumberOfLinksAdded = 0;
-    private int $startEpochNanos = 0;
+    private float $startEpochNanos = 0;
 
     /** @param non-empty-string $spanName */
     public function __construct(
@@ -119,6 +122,23 @@ final class SpanBuilder implements API\SpanBuilderInterface
     {
         $this->spanKind = $spanKind;
 
+        switch ($spanKind) {
+            case API\SpanKind::KIND_CLIENT:
+                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_CLIENT);
+                break;
+            case API\SpanKind::KIND_SERVER:
+                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_SERVER);
+                break;
+            case API\SpanKind::KIND_PRODUCER:
+                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_PRODUCER);
+                break;
+            case API\SpanKind::KIND_CONSUMER:
+                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_CONSUMER);
+                break;
+            default:
+                break;
+        }
+
         return $this;
     }
 
@@ -127,47 +147,79 @@ final class SpanBuilder implements API\SpanBuilderInterface
      */
     public function startSpan(): SpanInterface
     {
-        if ($this->parentContext === false) {
-            $span = start_trace_span();
-        } else {
-            $span = start_span();
-        }
-
+        Logger::get()->debug('Has a current context? ' . ($this->parentContext ? 'Yes' : 'No'));
         $parentContext = Context::resolve($this->parentContext);
+        Logger::get()->debug('Is current? ' . (Context::getCurrent() === $parentContext ? 'Yes' : 'No'));
         $parentSpan = Span::fromContext($parentContext);
         $parentSpanContext = $parentSpan->getContext();
 
+        $headers = [];
+
         if ($parentSpanContext->isValid()) {
-            $headers = [
-                Propagator::DEFAULT_TRACE_ID_HEADER => $parentSpanContext->getTraceId(),
-                Propagator::DEFAULT_PARENT_ID_HEADER => $parentSpanContext->getSpanId(),
-                "tracestate" => $parentSpanContext->getTraceState(),
-            ];
-
-            // TODO: Handle Sampling
-
-            consume_distributed_tracing_headers($headers);
+            $span = \DDTrace\start_span($this->startEpochNanos);
+            $traceId = $parentSpanContext->getTraceId();
+            $headers[Propagator::DEFAULT_TRACE_ID_HEADER] = $traceId;
+            $headers[Propagator::DEFAULT_PARENT_ID_HEADER] = $parentSpanContext->getSpanId();
+            Logger::get()->debug("Trace Id: $traceId");
+            Logger::get()->debug("Span Id: {$span->id}");
+        } else {
+            $span = \DDTrace\start_trace_span($this->startEpochNanos);
+            $traceId = str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT);
         }
 
-        $headers = \DDTrace\generate_distributed_tracing_headers();
-        $traceFlags = isset($headers[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]) ? API\TraceFlags::SAMPLED : API\TraceFlags::DEFAULT;
-        $traceState = isset($headers["tracestate"]) ? new API\TraceState($headers["tracestate"]) : null; // TODO: Check if the parsing is correct
+
+        $samplingResult = $this
+            ->tracerSharedState
+            ->getSampler()
+            ->shouldSample(
+                $parentContext,
+                $traceId,
+                $this->spanName,
+                $this->spanKind,
+                $this->attributesBuilder->build(),
+                $this->links,
+            );
+        $samplingDecision = $samplingResult->getDecision();
+        $samplingResultTraceState = $samplingResult->getTraceState();
+        $headers["tracestate"] = $samplingResultTraceState;
+
+        $prioritySampling = $samplingDecision === SamplingResult::RECORD_AND_SAMPLE
+            ? PrioritySampling::AUTO_KEEP
+            : PrioritySampling::AUTO_REJECT;
+        $headers[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER] = $prioritySampling;
+
+        consume_distributed_tracing_headers($headers);
 
         $spanContext = API\SpanContext::create(
-            str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT),
-            str_pad(strtolower(self::largeBaseConvert(dd_trace_peek_span_id(), 10, 16)), 16, '0', STR_PAD_LEFT),
-            $traceFlags,
-            $parentSpanContext->isValid() ? new API\TraceState($parentSpanContext->getTraceState()) : $traceState // TODO: Handle Sampling
+            $traceId,
+            str_pad(strtolower(self::largeBaseConvert($span->id, 10, 16)), 16, '0', STR_PAD_LEFT),
+            SamplingResult::RECORD_AND_SAMPLE === $samplingDecision ? API\TraceFlags::SAMPLED : API\TraceFlags::DEFAULT,
+            $samplingResultTraceState
         );
+
+        if (!in_array($samplingDecision, [SamplingResult::RECORD_AND_SAMPLE, SamplingResult::RECORD_ONLY], true)) {
+            // TODO: Test
+            return Span::wrap($spanContext);
+        }
+
+        $span->name = $this->spanName;
+
+        $attributesBuilder = clone $this->attributesBuilder; // According to OTel's spec, attributes can't be changed after span creation...
+        foreach ($samplingResult->getAttributes() as $key => $value) {
+            $attributesBuilder[$key] = $value;
+        }
 
         return Span::startSpan(
             $span,
             $spanContext,
             $this->instrumentationScope,
             $this->spanKind,
+            $parentSpan,
             $parentContext,
-            $this->attributesBuilder,
-            [],
+            $this->tracerSharedState->getSpanProcessor(),
+            $this->tracerSharedState->getResource(),
+            $attributesBuilder,
+            $this->links,
             0,
             $this->startEpochNanos
         );
