@@ -34,10 +34,10 @@ void ddtrace_try_read_agent_rate(void) {
     }
 }
 
-static void dd_update_decision_maker_tag(ddtrace_span_data *span, enum dd_sampling_mechanism mechanism) {
-    zend_array *meta = ddtrace_spandata_property_meta(span);
+static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span, enum dd_sampling_mechanism mechanism) {
+    zend_array *meta = ddtrace_property_array(&root_span->property_meta);
 
-    zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_span(span->root);
+    zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_span(root_span);
     if (DDTRACE_G(propagated_priority_sampling) == sampling_priority) {
         return;
     }
@@ -64,7 +64,7 @@ static bool dd_rule_matches(zval *pattern, zval *prop) {
     return zai_match_regex(Z_STR_P(pattern), Z_STR_P(prop));
 }
 
-static void dd_decide_on_sampling(ddtrace_span_data *span) {
+static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     int priority = DDTRACE_G(default_priority_sampling);
     // manual if it's not just inherited, otherwise this value is irrelevant (as sampling priority will be default)
     enum dd_sampling_mechanism mechanism = DD_MECHANISM_MANUAL;
@@ -73,7 +73,7 @@ static void dd_decide_on_sampling(ddtrace_span_data *span) {
         double default_sample_rate = get_DD_TRACE_SAMPLE_RATE(), sample_rate = default_sample_rate >= 0 ? default_sample_rate : 1;
         bool explicit_rule = default_sample_rate >= 0;
 
-        zval *service = ddtrace_spandata_property_service(span);
+        zval *service = &span->property_service;
 
         ZEND_HASH_FOREACH_VAL(get_DD_TRACE_SAMPLING_RULES(), rule) {
             if (Z_TYPE_P(rule) != IS_ARRAY) {
@@ -84,7 +84,6 @@ static void dd_decide_on_sampling(ddtrace_span_data *span) {
 
             zval *rule_pattern;
             if ((rule_pattern = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("service")))) {
-                zval *service = ddtrace_spandata_property_service(span);
                 if (Z_TYPE_P(service) == IS_STRING) {
                     zval *mapped_service = zend_hash_find(get_DD_SERVICE_MAPPING(), Z_STR_P(service));
                     if (!mapped_service) {
@@ -94,7 +93,7 @@ static void dd_decide_on_sampling(ddtrace_span_data *span) {
                 }
             }
             if ((rule_pattern = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("name")))) {
-                rule_matches &= dd_rule_matches(rule_pattern, ddtrace_spandata_property_name(span));
+                rule_matches &= dd_rule_matches(rule_pattern, &span->property_name);
             }
 
             zval *sample_rate_zv;
@@ -110,7 +109,7 @@ static void dd_decide_on_sampling(ddtrace_span_data *span) {
             ddtrace_try_read_agent_rate();
 
             if (DDTRACE_G(agent_rate_by_service)) {
-                zval *env = zend_hash_str_find(ddtrace_spandata_property_meta(span), ZEND_STRL("env"));
+                zval *env = zend_hash_str_find(ddtrace_property_array(&span->property_meta), ZEND_STRL("env"));
                 zval *sample_rate_zv = NULL;
                 if (Z_TYPE_P(service) == IS_STRING && env && Z_TYPE_P(env) == IS_STRING) {
                     zend_string *sample_key = zend_strpprintf(0, "service:%.*s,env:%.*s",(int) Z_STRLEN_P(service), Z_STRVAL_P(service),
@@ -141,20 +140,20 @@ static void dd_decide_on_sampling(ddtrace_span_data *span) {
 
         zval sample_rate_zv;
         ZVAL_DOUBLE(&sample_rate_zv, sample_rate);
-        zend_hash_str_update(ddtrace_spandata_property_metrics(span), ZEND_STRL("_dd.rule_psr"),
+        zend_hash_str_update(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.rule_psr"),
                              &sample_rate_zv);
 
         if (limited) {
             zval limit_zv;
             ZVAL_DOUBLE(&limit_zv, ddtrace_limiter_rate());
-            zend_hash_str_update(ddtrace_spandata_property_metrics(span), ZEND_STRL("_dd.limit_psr"),
+            zend_hash_str_update(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.limit_psr"),
                             &limit_zv);
         }
     }
 
     zval priority_zv;
     ZVAL_LONG(&priority_zv, priority);
-    zend_hash_str_update(ddtrace_spandata_property_metrics(span), ZEND_STRL("_sampling_priority_v1"),
+    zend_hash_str_update(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_sampling_priority_v1"),
                          &priority_zv);
 
     dd_update_decision_maker_tag(span, mechanism);
@@ -171,9 +170,9 @@ zend_long ddtrace_fetch_prioritySampling_from_root(void) {
     return ddtrace_fetch_prioritySampling_from_span(DDTRACE_G(active_stack)->root_span);
 }
 
-zend_long ddtrace_fetch_prioritySampling_from_span(ddtrace_span_data *root_span) {
+zend_long ddtrace_fetch_prioritySampling_from_span(ddtrace_root_span_data *root_span) {
     zval *priority_zv;
-    zend_array *root_metrics = ddtrace_spandata_property_metrics(root_span);
+    zend_array *root_metrics = ddtrace_property_array(&root_span->property_metrics);
     if (!(priority_zv = zend_hash_str_find(root_metrics, ZEND_STRL("_sampling_priority_v1")))) {
         if (DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNSET) {
             return DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
@@ -187,13 +186,13 @@ zend_long ddtrace_fetch_prioritySampling_from_span(ddtrace_span_data *root_span)
 }
 
 void ddtrace_set_prioritySampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism) {
-    ddtrace_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
 
     if (!root_span) {
         return;
     }
 
-    zend_array *root_metrics = ddtrace_spandata_property_metrics(root_span);
+    zend_array *root_metrics = ddtrace_property_array(&root_span->property_metrics);
     if (priority == DDTRACE_PRIORITY_SAMPLING_UNKNOWN || priority == DDTRACE_PRIORITY_SAMPLING_UNSET) {
         zend_hash_str_del(root_metrics, ZEND_STRL("_sampling_priority_v1"));
     } else {
