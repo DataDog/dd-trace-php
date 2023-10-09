@@ -14,7 +14,22 @@ Build and push all images:
 docker buildx bake --no-cache --pull --push
 ```
 
-## Need blazingly fast builds?
+## Building via GitLab-CI
+
+This is the preferred way of building the images.
+
+Find your pipeline with the changes you made in
+[GitLab-CI](https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/pipelines)
+and manually start the jobs to build the images for the OS you need. You need to
+add the following CI variables to the job run:
+
+- `CI_REGISTRY_USER`: should be your Docker Hub username
+- `CI_REGISTRY_TOKEN`: should be your access token
+
+In case you don't have one, follow the [docs to create an access
+token](https://docs.docker.com/docker-hub/access-tokens/#create-an-access-token).
+
+## Building locally and need more speed?
 
 Building the containers that match your host platform is usually fast enough to
 just wait. But building the containers for the other platform (`arm64` vs.

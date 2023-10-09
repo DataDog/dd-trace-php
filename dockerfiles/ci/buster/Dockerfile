@@ -11,6 +11,7 @@ ENV ACCEPT_EULA=Y
 ENV DEVLIBS \
     clang-16 \
     libclang-16-dev \
+    libclang-rt-16-dev \
     llvm-16-dev \
     lld-16 \
     libcurl4-openssl-dev \

@@ -83,7 +83,11 @@ HashTable *dd_uhook_collect_args(zend_execute_data *execute_data) {
 
     zval *p = EX_VAR_NUM(0);
     zend_function *func = EX(func);
+#if PHP_VERSION_ID < 80300
     ht->nNumOfElements = num_args;
+#else
+    ht->nTableSize = num_args;
+#endif
 
     zend_hash_real_init(ht, 1);
     ZEND_HASH_FILL_PACKED(ht) {
@@ -815,7 +819,9 @@ void zai_uhook_minit(int module_number) {
 void zai_uhook_attributes_mshutdown(void);
 #endif
 void zai_uhook_mshutdown() {
+#if PHP_VERSION_ID < 80300
     zend_unregister_functions(ext_functions, sizeof(ext_functions) / sizeof(zend_function_entry) - 1, NULL);
+#endif
 #if PHP_VERSION_ID >= 80000
     zai_uhook_attributes_mshutdown();
 #endif
