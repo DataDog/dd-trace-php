@@ -280,6 +280,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function recordException(Throwable $exception, iterable $attributes = []): SpanInterface
     {
+        if ($this->hasEnded) {
+            return $this;
+        }
+
         $this->span->meta[Tag::ERROR_MSG] = $exception->getMessage();
         $this->span->meta[Tag::ERROR_TYPE] = get_class($exception);
         $this->span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
@@ -318,13 +322,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             return $this;
         }
 
-        // TODO: Look into this
         if ($this->status->getCode() === API\StatusCode::STATUS_UNSET && $code === API\StatusCode::STATUS_ERROR) {
             $this->span->meta[Tag::ERROR_MSG] = $description;
         } elseif ($this->status->getCode() === API\StatusCode::STATUS_ERROR && $code === API\StatusCode::STATUS_OK) {
             unset($this->span->meta[Tag::ERROR_MSG]);
-            unset($this->span->meta[Tag::ERROR_TYPE]);
-            unset($this->span->meta[Tag::ERROR_STACK]);
         }
 
         $this->status = StatusData::create($code, $description);

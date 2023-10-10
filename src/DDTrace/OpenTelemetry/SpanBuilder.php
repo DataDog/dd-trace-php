@@ -135,6 +135,9 @@ final class SpanBuilder implements API\SpanBuilderInterface
             case API\SpanKind::KIND_CONSUMER:
                 $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_CONSUMER);
                 break;
+            case API\SpanKind::KIND_INTERNAL:
+                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_INTERNAL);
+                break;
             default:
                 break;
         }
@@ -147,10 +150,11 @@ final class SpanBuilder implements API\SpanBuilderInterface
      */
     public function startSpan(): SpanInterface
     {
-        Logger::get()->debug('Has a current context? ' . ($this->parentContext ? 'Yes' : 'No'));
+        Logger::get()->debug('[START_SPAN init] Has a parent context? ' . ($this->parentContext ? 'Yes' : 'No'));
         $parentContext = Context::resolve($this->parentContext);
-        Logger::get()->debug('Is current? ' . (Context::getCurrent() === $parentContext ? 'Yes' : 'No'));
+        Logger::get()->debug('[START_SPAN init] Is current? ' . (Context::getCurrent() === $parentContext ? 'Yes' : 'No'));
         $parentSpan = Span::fromContext($parentContext);
+        Logger::get()->debug('[START_SPAN init] Parent Id: ' . $parentSpan->getContext()->getSpanId());
         $parentSpanContext = $parentSpan->getContext();
 
         $headers = [];
@@ -160,8 +164,8 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $traceId = $parentSpanContext->getTraceId();
             $headers[Propagator::DEFAULT_TRACE_ID_HEADER] = $traceId;
             $headers[Propagator::DEFAULT_PARENT_ID_HEADER] = $parentSpanContext->getSpanId();
-            Logger::get()->debug("Trace Id: $traceId");
-            Logger::get()->debug("Span Id: {$span->id}");
+            //Logger::get()->debug("[SPAN_BUILDER isvalid] Trace Id: $traceId");
+            //Logger::get()->debug("[SPAN_BUILDER isvalid] Span Id: {$span->id}");
         } else {
             $span = \DDTrace\start_trace_span($this->startEpochNanos);
             $traceId = str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT);
@@ -190,9 +194,11 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
         consume_distributed_tracing_headers($headers);
 
+        $hexSpanId = str_pad(strtolower(self::largeBaseConvert($span->id, 10, 16)), 16, '0', STR_PAD_LEFT);
+        Logger::get()->debug("[START_SPAN] Span Id: {$span->id} // Hex Span Id: $hexSpanId");
         $spanContext = API\SpanContext::create(
             $traceId,
-            str_pad(strtolower(self::largeBaseConvert($span->id, 10, 16)), 16, '0', STR_PAD_LEFT),
+            $hexSpanId,
             SamplingResult::RECORD_AND_SAMPLE === $samplingDecision ? API\TraceFlags::SAMPLED : API\TraceFlags::DEFAULT,
             $samplingResultTraceState
         );

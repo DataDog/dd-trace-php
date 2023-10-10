@@ -9,10 +9,12 @@ use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Common\TracerTestTrait;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\SDK\Sdk;
 use OpenTelemetry\SDK\Trace\Span;
 use OpenTelemetry\SDK\Trace\TracerProvider;
+use function DDTrace\active_span;
 
 final class TracerTest extends BaseTestCase
 {
@@ -216,23 +218,193 @@ final class TracerTest extends BaseTestCase
         $this->assertNotSame($rootSpan['trace_id'], $span['trace_id']);
     }
 
+    public function testSpanAttributes()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('test.span')
+                ->setAttribute("string", "a")
+                ->setAttribute("null-string", null)
+                ->setAttributes([
+                    "empty_string" => "",
+                    "number" => 1,
+                    "boolean" => true,
+                    "string-array" => ["a", "b", "c"],
+                    "boolean-array" => [true, false],
+                    "float-array" => [1.1, 2.2, 3.3],
+                    "empty-array" => []
+                ])
+                ->startSpan();
+            $span->end();
+        });
+
+        $meta = $traces[0][0]['meta'];
+        $this->assertSame("a", $meta['string']);
+        $this->assertArrayNotHasKey("null-string", $meta);
+        $this->assertSame("", $meta['empty_string']);
+        $this->assertSame("1", $meta['number']);
+        $this->assertSame("true", $meta['boolean']);
+        $this->assertSame("a", $meta['string-array.0']);
+        $this->assertSame("b", $meta['string-array.1']);
+        $this->assertSame("c", $meta['string-array.2']);
+        $this->assertSame("true", $meta['boolean-array.0']);
+        $this->assertSame("false", $meta['boolean-array.1']);
+        $this->assertSame("1.1", $meta['float-array.0']);
+        $this->assertSame("2.2", $meta['float-array.1']);
+        $this->assertSame("3.3", $meta['float-array.2']);
+        $this->assertSame("", $meta['empty-array']);
+
+        $this->markTestIncomplete("Set resource name");
+    }
+
+    /**
+     * @dataProvider providerSpanKind
+     */
+    public function testSpanKind($otelSpanKind, $tagSpanKind)
+    {
+        $traces = $this->isolateTracer(function () use ($otelSpanKind) {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('test.span')
+                ->setSpanKind($otelSpanKind)
+                ->startSpan();
+            $span->end();
+        });
+
+        $span = $traces[0][0];
+        $this->assertSame($tagSpanKind, $span['meta']['span.kind']);
+    }
+
+    public function providerSpanKind()
+    {
+        return [
+            [SpanKind::KIND_CLIENT, Tag::SPAN_KIND_VALUE_CLIENT],
+            [SpanKind::KIND_SERVER, Tag::SPAN_KIND_VALUE_SERVER],
+            [SpanKind::KIND_PRODUCER, Tag::SPAN_KIND_VALUE_PRODUCER],
+            [SpanKind::KIND_CONSUMER, Tag::SPAN_KIND_VALUE_CONSUMER],
+            [SpanKind::KIND_INTERNAL, Tag::SPAN_KIND_VALUE_INTERNAL],
+        ];
+    }
+
+    public function testSpanErrorStatus()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('test.span')->startSpan();
+            $span->setStatus(StatusCode::STATUS_ERROR, "error message");
+            $span->end();
+        });
+
+        $span = $traces[0][0];
+        $this->assertSame('test.span', $span['name']);
+        $this->assertSame('test.span', $span['resource']);
+        $this->assertSame('error message', $span['meta']['error.message']);
+        $this->assertEquals(1, $span['error']);
+    }
+
+    public function testSpanStatusTransition()
+    {
+        $testTape = [];
+
+        $traces = $this->isolateTracer(function () use (&$testTape) {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('test.span')->startSpan();
+            $span->setStatus(StatusCode::STATUS_UNSET);
+            $testTape[] = !isset(active_span()->meta[Tag::ERROR_MSG]); // Initial state
+            $span->setStatus(StatusCode::STATUS_ERROR, "error message");
+            $testTape[] = active_span()->meta[Tag::ERROR_MSG] === "error message"; // Error state
+            $span->setStatus(StatusCode::STATUS_UNSET);
+            $testTape[] = active_span()->meta[Tag::ERROR_MSG] === "error message"; // Unchanged state
+            $span->setStatus(StatusCode::STATUS_OK);
+            $testTape[] = !isset(active_span()->meta[Tag::ERROR_MSG]); // OK state
+            $span->end();
+        });
+
+        $this->assertTrue(array_reduce($testTape, function ($carry, $item) {
+            return $carry && $item;
+        }, true));
+
+        $span = $traces[0][0];
+        $this->assertArrayNotHasKey("error", $span);
+        $this->assertArrayNotHasKey("error.message", $span['meta']);
+        $this->assertSame("test.span", $span['name']);
+        $this->assertSame("test.span", $span['resource']);
+    }
+
+    public function testRecordException()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('test.span')->startSpan();
+            $span->recordException(new \RuntimeException("exception message"));
+            $span->end();
+        });
+
+        $span = $traces[0][0];
+        $this->assertSame('test.span', $span['name']);
+        $this->assertSame('test.span', $span['resource']);
+        $this->assertSame('exception message', $span['meta'][Tag::ERROR_MSG]);
+        $this->assertSame('RuntimeException', $span['meta'][Tag::ERROR_TYPE]);
+        $this->assertNotEmpty($span['meta'][Tag::ERROR_STACK]);
+        $this->assertEquals(1, $span['error']);
+
+        $this->markTestIncomplete("Span Events aren't yet supported");
+    }
+
+    public function testSpanNameUpdate()
+    {
+        $this->markTestSkipped("Define Behavior");
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('test.span')->startSpan();
+            $span->updateName('new.name');
+            $span->end();
+        });
+
+        $span = $traces[0][0];
+        $this->assertSame('new.name', $span['name']);
+    }
+
+    public function testSpanUpdateAfterEnd()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('test.span')->startSpan();
+            $span->setStatus(StatusCode::STATUS_ERROR, "error message");
+            $span->setAttribute('foo', 'bar');
+            $span->end();
+            $span->setAttribute('foo', 'baz');
+            $span->setStatus(StatusCode::STATUS_OK);
+        });
+
+        $span = $traces[0][0];
+        $this->assertSame('test.span', $span['name']);
+        $this->assertSame('test.span', $span['resource']);
+        $this->assertSame('error message', $span['meta']['error.message']);
+        $this->assertEquals(1, $span['error']);
+        $this->assertSame('bar', $span['meta']['foo']);
+
+        $this->markTestIncomplete("Define naming behavior");
+    }
+
     public function testConcurrentSpans()
     {
+        $this->markTestSkipped("Define Behavior");
         self::putEnvAndReloadConfig(["DD_TRACE_DEBUG=1"]);
         // credits: https://github.com/open-telemetry/opentelemetry-php/blob/main/examples/traces/features/concurrent_spans.php
         $traces = $this->isolateTracer(function () {
-           $tracer = self::getTracer();
+            $tracer = self::getTracer();
 
             $rootSpan = $tracer->spanBuilder('root')->startSpan();
             $scope = $rootSpan->activate();
+            Logger::get()->debug("[ROOT] Span Id: " . $rootSpan->getContext()->getSpanId());
 
             // Because the root span is active, each of the following spans will be parented to the root span
             try {
                 $spans = [];
                 for ($i = 1; $i <= 3; $i++) {
-                    $currentContext = Context::getCurrent();
-                    Logger::get()->debug('Current Context Trace Id: ' . $currentContext->getSpanContext()->getTraceId());
-                    Logger::get()->debug('Current Context Span Id: ' . $currentContext->getSpanContext()->getSpanId());
+                    $s = Span::fromContext(Context::getCurrent());
+                    Logger::get()->debug('[TEST] Current Context Trace Id: ' . $s->getContext()->getTraceId());
+                    Logger::get()->debug('[TEST] Current Context Span Id: ' . $s->getContext()->getSpanId());
                     $spans[] = $tracer->spanBuilder('http-' . $i)
                         //@see https://github.com/open-telemetry/opentelemetry-collector/blob/main/model/semconv/v1.6.1/trace.go#L834
                         ->setAttribute('http.method', 'GET')
