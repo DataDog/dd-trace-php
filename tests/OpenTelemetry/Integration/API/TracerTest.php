@@ -8,13 +8,23 @@ use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Common\TracerTestTrait;
 use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Trace\NonRecordingSpan;
+use OpenTelemetry\API\Trace\SpanContext;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\StatusCode;
+use OpenTelemetry\API\Trace\TraceFlags;
+use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\SDK\Sdk;
+use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
+use OpenTelemetry\SDK\Trace\Sampler\ParentBased;
+use OpenTelemetry\SDK\Trace\SamplerInterface;
+use OpenTelemetry\SDK\Trace\SamplingResult;
 use OpenTelemetry\SDK\Trace\Span;
+use OpenTelemetry\SDK\Trace\SpanBuilder;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 use function DDTrace\active_span;
+use function DDTrace\generate_distributed_tracing_headers;
 
 final class TracerTest extends BaseTestCase
 {
@@ -26,8 +36,10 @@ final class TracerTest extends BaseTestCase
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         //self::putEnv("DD_TRACE_DEBUG=1");
         parent::ddSetUp();
+
+        $tracerProvider = new TracerProvider([], new AlwaysOnSampler());
         Sdk::builder()
-            ->setTracerProvider(new TracerProvider())
+            ->setTracerProvider($tracerProvider)
             ->buildAndRegisterGlobal();
     }
 
@@ -303,25 +315,19 @@ final class TracerTest extends BaseTestCase
 
     public function testSpanStatusTransition()
     {
-        $testTape = [];
-
-        $traces = $this->isolateTracer(function () use (&$testTape) {
+        $traces = $this->isolateTracer(function () {
             $tracer = self::getTracer();
             $span = $tracer->spanBuilder('test.span')->startSpan();
             $span->setStatus(StatusCode::STATUS_UNSET);
-            $testTape[] = !isset(active_span()->meta[Tag::ERROR_MSG]); // Initial state
+            $this->assertArrayNotHasKey(Tag::ERROR_MSG, active_span()->meta); // Initial state
             $span->setStatus(StatusCode::STATUS_ERROR, "error message");
-            $testTape[] = active_span()->meta[Tag::ERROR_MSG] === "error message"; // Error state
+            $this->assertSame("error message", active_span()->meta[Tag::ERROR_MSG]); // Error state
             $span->setStatus(StatusCode::STATUS_UNSET);
-            $testTape[] = active_span()->meta[Tag::ERROR_MSG] === "error message"; // Unchanged state
+            $this->assertSame("error message", active_span()->meta[Tag::ERROR_MSG]); // Unchanged state
             $span->setStatus(StatusCode::STATUS_OK);
-            $testTape[] = !isset(active_span()->meta[Tag::ERROR_MSG]); // OK state
+            $this->assertArrayNotHasKey(Tag::ERROR_MSG, active_span()->meta); // OK state
             $span->end();
         });
-
-        $this->assertTrue(array_reduce($testTape, function ($carry, $item) {
-            return $carry && $item;
-        }, true));
 
         $span = $traces[0][0];
         $this->assertArrayNotHasKey("error", $span);
@@ -352,7 +358,6 @@ final class TracerTest extends BaseTestCase
 
     public function testSpanNameUpdate()
     {
-        $this->markTestSkipped("Define Behavior");
         $traces = $this->isolateTracer(function () {
             $tracer = self::getTracer();
             $span = $tracer->spanBuilder('test.span')->startSpan();
@@ -374,6 +379,11 @@ final class TracerTest extends BaseTestCase
             $span->end();
             $span->setAttribute('foo', 'baz');
             $span->setStatus(StatusCode::STATUS_OK);
+            $span->updateName('new.name');
+            $span->setAttributes([
+                'foo' => 'quz',
+                'bar' => 'baz'
+            ]);
         });
 
         $span = $traces[0][0];
@@ -388,23 +398,18 @@ final class TracerTest extends BaseTestCase
 
     public function testConcurrentSpans()
     {
-        $this->markTestSkipped("Define Behavior");
-        self::putEnvAndReloadConfig(["DD_TRACE_DEBUG=1"]);
         // credits: https://github.com/open-telemetry/opentelemetry-php/blob/main/examples/traces/features/concurrent_spans.php
         $traces = $this->isolateTracer(function () {
             $tracer = self::getTracer();
 
             $rootSpan = $tracer->spanBuilder('root')->startSpan();
             $scope = $rootSpan->activate();
-            Logger::get()->debug("[ROOT] Span Id: " . $rootSpan->getContext()->getSpanId());
 
             // Because the root span is active, each of the following spans will be parented to the root span
             try {
                 $spans = [];
                 for ($i = 1; $i <= 3; $i++) {
                     $s = Span::fromContext(Context::getCurrent());
-                    Logger::get()->debug('[TEST] Current Context Trace Id: ' . $s->getContext()->getTraceId());
-                    Logger::get()->debug('[TEST] Current Context Span Id: ' . $s->getContext()->getSpanId());
                     $spans[] = $tracer->spanBuilder('http-' . $i)
                         //@see https://github.com/open-telemetry/opentelemetry-collector/blob/main/model/semconv/v1.6.1/trace.go#L834
                         ->setAttribute('http.method', 'GET')
@@ -424,12 +429,10 @@ final class TracerTest extends BaseTestCase
             }
         });
 
-        fwrite(STDERR, json_encode($traces[0], JSON_PRETTY_PRINT));
         $spans = $traces[0];
-
-        list($rootSpan, $httpSpans) = $spans;
-
-        fwrite(STDERR, json_encode($httpSpans, JSON_PRETTY_PRINT));
+        $rootSpan = $spans[0];
+        $httpSpans = [$spans[1], $spans[2], $spans[3]];
+        $this->assertCount(4, $spans);
 
         $traceId = $rootSpan['trace_id'];
         $this->assertNotEmpty($traceId);
@@ -443,11 +446,82 @@ final class TracerTest extends BaseTestCase
             $this->assertSame("http-$i", $httpSpan['name']);
             $this->assertSame("GET", $httpSpan['meta']['http.method']);
             $this->assertSame("example.com/$i", $httpSpan['meta']['http.url']);
-            $this->assertSame(200, $httpSpan['meta']['http.status_code']);
-            $this->assertSame(1024, $httpSpan['meta']['http.response_content_length']);
+            $this->assertSame('200', $httpSpan['meta']['http.status_code']);
+            $this->assertSame('1024', $httpSpan['meta']['http.response_content_length']);
         }
     }
 
-    // TODO: Span pyramid
-    // TODO: All span kinds
+    public function testGetSpanContextWithMultipleTraceStates()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('test.span')->startSpan();
+            $span->setAttributes([
+                '_dd.p.congo' => 't61rcWkgMzE',
+                '_dd.p.some_val' => 'tehehe'
+            ]);
+            $this->assertSame("dd=t.dm:-1;t.congo:t61rcWkgMzE;t.some_val:tehehe", (string)$span->getContext()->getTraceState());
+            $span->end();
+            $this->assertSame("dd=t.dm:-1;t.congo:t61rcWkgMzE;t.some_val:tehehe", (string)$span->getContext()->getTraceState());
+        });
+
+        $span = $traces[0][0];
+        $this->assertSame('t61rcWkgMzE', $span['meta']['_dd.p.congo']);
+        $this->assertSame('tehehe', $span['meta']['_dd.p.some_val']);
+    }
+
+    /**
+     * @dataProvider providerRemoteParent
+     */
+    public function testGetSpanContextWithRemoteParent(int $traceFlags, ?TraceState $traceState)
+    {
+        // 128-bit trace id = low-64 trace_id (as decimal) + high-64 _dd.p.tid (as hex) * 2^64
+        $low = "11803532876627986230";
+        $high = "4bf92f3577b34da6";
+        $decSpanId = "67667974448284343";
+
+        $traces = $this->isolateTracer(function () use ($traceFlags, $traceState, $low, $decSpanId) {
+            $remoteContext =  SpanContext::createFromRemoteParent(
+                '4bf92f3577b34da6a3ce929d0e0e4736',
+                '00f067aa0ba902b7',
+                $traceFlags,
+                $traceState
+            );
+            $remoteSpan = new NonRecordingSpan($remoteContext);
+
+            $tracer = self::getTracer();
+            $spanBuilder = $tracer->spanBuilder('test.span');
+            $this->assertInstanceOf(SpanBuilder::class, $spanBuilder);
+            $child = $spanBuilder
+                ->setParent(Context::getCurrent()->withContextValue($remoteSpan))
+                ->startSpan();
+            $scope = $child->activate();
+            $this->assertTrue($child->isRecording());
+            $this->assertInstanceOf(Span::class, $child);
+            $scope->detach();
+            $child->end();
+
+            $childContext = $child->getContext();
+            $this->assertSame($remoteContext->getTraceId(), $childContext->getTraceId());
+            $this->assertSame($remoteContext->getSpanId(), $child->getParentContext()->getSpanId());
+            $this->assertFalse($childContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
+            $this->assertEquals(1, $childContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
+            $this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-1" . ($traceState ? ",$traceState" : ""), (string)$childContext->getTraceState());
+        });
+
+        $span = $traces[0][0];
+        $this->assertSame($low, $span['trace_id']);
+        $this->assertSame($high, $span['meta']['_dd.p.tid']);
+        $this->assertSame($decSpanId, $span['parent_id']);
+    }
+
+    public function providerRemoteParent()
+    {
+        return [
+            [TraceFlags::SAMPLED, null],
+            [TraceFlags::SAMPLED, new TraceState("rojo=00f067aa0ba902b7,congo=t61rcWkgMzE")],
+            [TraceFlags::DEFAULT, null],
+            [TraceFlags::DEFAULT, new TraceState("rojo=00f067aa0ba902b7,congo=t61rcWkgMzE")],
+        ];
+    }
 }

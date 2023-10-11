@@ -17,6 +17,7 @@ class OptionalDepsAutoloader
         "DDTrace\\Log\\PsrLogger" => 'api/Log/PsrLogger.php',
         "OpenTelemetry\\SDK\\Trace\\Span" => 'DDTrace/OpenTelemetry/Span.php',
         "OpenTelemetry\\SDK\\Trace\\SpanBuilder" => 'DDTrace/OpenTelemetry/SpanBuilder.php',
+        "DDTrace\\OpenTelemetry\\API\\Trace\\SpanContext" => 'DDTrace/OpenTelemetry/SpanContext.php',
         "DDTrace\\OpenTracer\\Tracer" => 'DDTrace/OpenTracer/Tracer.php',
         "DDTrace\\OpenTracer\\Span" => 'DDTrace/OpenTracer/Span.php',
         "DDTrace\\OpenTracer\\Scope" => 'DDTrace/OpenTracer/Scope.php',

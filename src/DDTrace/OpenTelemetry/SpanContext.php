@@ -6,7 +6,12 @@ namespace DDTrace\OpenTelemetry\API\Trace;
 
 use DDTrace\OpenTelemetry\SDK\Trace\Span;
 use DDTrace\Propagator;
+use DDTrace\SpanData;
+use DDTrace\Tag;
+use DDTrace\Trace;
+use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Trace\SpanContextInterface;
+use OpenTelemetry\API\Trace\SpanContextValidator;
 use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\API\Trace\TraceStateInterface;
@@ -15,7 +20,7 @@ use function DDTrace\trace_id;
 
 final class SpanContext implements SpanContextInterface
 {
-    /** @var Span */
+    /** @var SpanData */
     private $span;
 
     private bool $sampled;
@@ -26,16 +31,23 @@ final class SpanContext implements SpanContextInterface
 
     private ?string $spanId;
 
-    private ?TraceStateInterface $traceState;
+    private bool $isValid = true;
 
-    private function __construct(Span $span, bool $sampled, bool $remote, ?TraceStateInterface $traceState)
+    private function __construct(SpanData $span, bool $sampled, bool $remote, ?string $traceId = null, ?string $spanId = null)
     {
         $this->span = $span;
         $this->sampled = $sampled;
         $this->remote = $remote;
-        $this->traceState = $traceState;
-        $this->traceId = null;
-        $this->spanId = null;
+        $this->traceId = $traceId ?: str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT);
+        $this->spanId = $spanId ?: str_pad(strtolower(self::largeBaseConvert($this->span->id, 10, 16)), 16, '0', STR_PAD_LEFT);
+
+        // TraceId must be exactly 16 bytes (32 chars) and at least one non-zero byte
+        // SpanId must be exactly 8 bytes (16 chars) and at least one non-zero byte
+        if (!SpanContextValidator::isValidTraceId($this->traceId) || !SpanContextValidator::isValidSpanId($this->spanId)) {
+            $this->traceId = SpanContextValidator::INVALID_TRACE;
+            $this->spanId = SpanContextValidator::INVALID_SPAN;
+            $this->isValid = false;
+        }
     }
 
     // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
@@ -73,10 +85,6 @@ final class SpanContext implements SpanContextInterface
      */
     public function getTraceId(): string
     {
-        if ($this->traceId === null) {
-            $this->traceId = str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT);
-        }
-
         return $this->traceId;
     }
 
@@ -90,10 +98,6 @@ final class SpanContext implements SpanContextInterface
      */
     public function getSpanId(): string
     {
-        if ($this->spanId === null) {
-            $this->spanId = str_pad(strtolower(self::largeBaseConvert(dd_trace_peek_span_id(), 10, 16)), 16, '0', STR_PAD_LEFT);
-        }
-
         return $this->spanId;
     }
 
@@ -104,10 +108,8 @@ final class SpanContext implements SpanContextInterface
 
     public function getTraceState(): ?TraceStateInterface
     {
-        return $this->traceState;
-        $headers = generate_distributed_tracing_headers();
-
-        return isset($headers["tracestate"]) ? new TraceState($headers["tracestate"]) : null; // TODO: Check if the parsing is correct
+        $traceContext = generate_distributed_tracing_headers(['tracecontext']);
+        return new TraceState($traceContext['tracestate'] ?? null);
     }
 
     public function isSampled(): bool
@@ -117,7 +119,7 @@ final class SpanContext implements SpanContextInterface
 
     public function isValid(): bool
     {
-        return true; // TODO: Check what it means
+        return $this->isValid;
     }
 
     public function isRemote(): bool
@@ -127,22 +129,35 @@ final class SpanContext implements SpanContextInterface
 
     public function getTraceFlags(): int
     {
-        // TODO: Handle Sampling
-        return TraceFlags::DEFAULT;
+        return $this->sampled ? TraceFlags::SAMPLED : TraceFlags::DEFAULT;
     }
 
+    /** @inheritDoc */
     public static function createFromRemoteParent(string $traceId, string $spanId, int $traceFlags = TraceFlags::DEFAULT, ?TraceStateInterface $traceState = null): SpanContextInterface
     {
-        // TODO: Implement createFromRemoteParent() method.
+        return API\SpanContext::createFromRemoteParent($traceId, $spanId, $traceFlags, $traceState);
     }
 
+    /** @inheritDoc */
     public static function create(string $traceId, string $spanId, int $traceFlags = TraceFlags::DEFAULT, ?TraceStateInterface $traceState = null): SpanContextInterface
     {
-        // TODO: Implement create() method.
+        return API\SpanContext::create($traceId, $spanId, $traceFlags, $traceState);
     }
 
+    /** @inheritDoc */
     public static function getInvalid(): SpanContextInterface
     {
-        // TODO: Implement getInvalid() method.
+        return API\SpanContext::getInvalid();
+    }
+
+    public static function createFromLocalSpan(SpanData $span, bool $sampled, ?string $traceId = null, ?string $spanId = null)
+    {
+        return new self(
+            $span,
+            $sampled,
+            false,
+            $traceId,
+            $spanId
+        );
     }
 }

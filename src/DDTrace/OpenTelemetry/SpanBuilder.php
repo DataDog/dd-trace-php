@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\SDK\Trace;
 
+use DDTrace\OpenTelemetry\API\Trace as DDTraceAPI;
+
 use DDTrace\Log\Logger;
 use DDTrace\Propagator;
 use DDTrace\Sampling\PrioritySampling;
@@ -156,21 +158,14 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $parentSpan = Span::fromContext($parentContext);
         Logger::get()->debug('[START_SPAN init] Parent Id: ' . $parentSpan->getContext()->getSpanId());
         $parentSpanContext = $parentSpan->getContext();
+        Logger::get()->debug('TraceState: ' . $parentSpanContext->getTraceState());
 
-        $headers = [];
-
+        $span = \DDTrace\start_trace_span($this->startEpochNanos);
         if ($parentSpanContext->isValid()) {
-            $span = \DDTrace\start_span($this->startEpochNanos);
             $traceId = $parentSpanContext->getTraceId();
-            $headers[Propagator::DEFAULT_TRACE_ID_HEADER] = $traceId;
-            $headers[Propagator::DEFAULT_PARENT_ID_HEADER] = $parentSpanContext->getSpanId();
-            //Logger::get()->debug("[SPAN_BUILDER isvalid] Trace Id: $traceId");
-            //Logger::get()->debug("[SPAN_BUILDER isvalid] Span Id: {$span->id}");
         } else {
-            $span = \DDTrace\start_trace_span($this->startEpochNanos);
             $traceId = str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT);
         }
-
 
         $samplingResult = $this
             ->tracerSharedState
@@ -184,27 +179,32 @@ final class SpanBuilder implements API\SpanBuilderInterface
                 $this->links,
             );
         $samplingDecision = $samplingResult->getDecision();
+        $sampled = SamplingResult::RECORD_AND_SAMPLE === $samplingDecision;
         $samplingResultTraceState = $samplingResult->getTraceState();
-        $headers["tracestate"] = $samplingResultTraceState;
 
-        $prioritySampling = $samplingDecision === SamplingResult::RECORD_AND_SAMPLE
-            ? PrioritySampling::AUTO_KEEP
-            : PrioritySampling::AUTO_REJECT;
-        $headers[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER] = $prioritySampling;
+        Logger::get()->debug('> ' . $samplingResultTraceState . ' <');
 
-        consume_distributed_tracing_headers($headers);
+        if ($parentSpanContext->isValid()) {
+            // Traceparent: {version}-{hex trace id}-{hex parent id}-{trace_flags}, version always being '00'
+            // Since parentSpanContext is valid, the trace identifiers are guaranteed to be in hexadecimal format
+            $parentId = $parentSpanContext->getSpanId();
+            $traceFlags = $sampled ? '01' : '00';
+            $traceParent = "00-$traceId-$parentId-$traceFlags";
+            Logger::get()->debug($traceParent);
+            \DDTrace\consume_distributed_tracing_headers([
+                'traceparent' => $traceParent,
+                'tracestate' => (string) $samplingResultTraceState, // __toString() is implemented in TraceState
+            ]);
+        } else {
+            \DDTrace\consume_distributed_tracing_headers([
+                'tracestate' => (string) $samplingResultTraceState, // __toString() is implemented in TraceState
+            ]);
+        }
 
         $hexSpanId = str_pad(strtolower(self::largeBaseConvert($span->id, 10, 16)), 16, '0', STR_PAD_LEFT);
-        Logger::get()->debug("[START_SPAN] Span Id: {$span->id} // Hex Span Id: $hexSpanId");
-        $spanContext = API\SpanContext::create(
-            $traceId,
-            $hexSpanId,
-            SamplingResult::RECORD_AND_SAMPLE === $samplingDecision ? API\TraceFlags::SAMPLED : API\TraceFlags::DEFAULT,
-            $samplingResultTraceState
-        );
+        $spanContext = DDTraceAPI\SpanContext::createFromLocalSpan($span, $sampled, $traceId, $hexSpanId);
 
         if (!in_array($samplingDecision, [SamplingResult::RECORD_AND_SAMPLE, SamplingResult::RECORD_ONLY], true)) {
-            // TODO: Test
             return Span::wrap($spanContext);
         }
 

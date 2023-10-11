@@ -37,6 +37,7 @@ class TracerTest extends TestCase
         self::restoreEnvironmentVariables();
     }
 
+    /** @noinspection PhpParamsInspection */
     public function test_sampler_may_override_parents_trace_state(): void
     {
         $parentTraceState = new TraceState('orig-key=orig_value');
@@ -66,11 +67,12 @@ class TracerTest extends TestCase
         $span = $tracer->spanBuilder('test.span')->setParent($parentContext)->startSpan();
 
         $this->assertNotEquals($parentTraceState, $span->getContext()->getTraceState());
-        $this->assertEquals($newTraceState, $span->getContext()->getTraceState());
+        $this->assertEquals('dd=t.tid:4bf92f3577b34da6;t.dm:-1,new-key=new_value', (string)$span->getContext()->getTraceState());
     }
 
     /**
      * @group trace-compliance
+     * @noinspection PhpParamsInspection
      */
     public function test_span_should_receive_instrumentation_scope(): void
     {

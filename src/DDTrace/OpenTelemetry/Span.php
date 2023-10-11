@@ -10,7 +10,9 @@ use DDTrace\SpanLink;
 use DDTrace\Tag;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
+use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
+use OpenTelemetry\Context\ContextKeys;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
@@ -131,6 +133,36 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         return $this->span->name;
     }
 
+    // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
+    private static function largeBaseConvert($numString, $fromBase, $toBase)
+    {
+        $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+        $toString = substr($chars, 0, $toBase);
+
+        $length = strlen($numString);
+        $result = '';
+        for ($i = 0; $i < $length; $i++) {
+            $number[$i] = strpos($chars, $numString[$i]);
+        }
+        do {
+            $divide = 0;
+            $newLen = 0;
+            for ($i = 0; $i < $length; $i++) {
+                $divide = $divide * $fromBase + $number[$i];
+                if ($divide >= $toBase) {
+                    $number[$newLen++] = (int)($divide / $toBase);
+                    $divide = $divide % $toBase;
+                } elseif ($newLen > 0) {
+                    $number[$newLen++] = 0;
+                }
+            }
+            $length = $newLen;
+            $result = $toString[$divide] . $result;
+        } while ($newLen != 0);
+
+        return $result;
+    }
+
     /**
      * @inheritDoc
      */
@@ -238,7 +270,14 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     private static function _setAttributes(SpanData $span, iterable $attributes): void
     {
         foreach ($attributes as $key => $value) {
-            $span->meta[$key] = $value;
+            if ($key === Tag::RESOURCE_NAME) {
+                $span->resource = $value;
+            } elseif (strpos($key, '_dd.p.') === 0) {
+                $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
+                \DDTrace\add_distributed_tag($distributedKey, $value);
+            } else {
+                $span->meta[$key] = $value;
+            }
         }
     }
 
@@ -248,7 +287,15 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function setAttribute(string $key, $value): SpanInterface
     {
         if (!$this->hasEnded) {
-            $this->attributesBuilder[$key] = $value;
+            if ($key === Tag::RESOURCE_NAME) {
+                $this->span->resource = $value;
+            } elseif (strpos($key, '_dd.p.') === 0) {
+                $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
+                \DDTrace\add_distributed_tag($distributedKey, $value);
+                //$this->attributesBuilder[$key] = $value; // Counts towards the attribute limit
+            } else {
+                $this->attributesBuilder[$key] = $value;
+            }
         }
 
         return $this;
@@ -260,7 +307,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function setAttributes(iterable $attributes): SpanInterface
     {
         foreach ($attributes as $key => $value) {
-            $this->attributesBuilder[$key] = $value;
+            $this->setAttribute($key, $value);
         }
 
         return $this;
@@ -345,8 +392,16 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $attributes = $this->attributesBuilder->build()->toArray();
         self::_setAttributes($this->span, $attributes);
 
+        // After closing the span, the context won't change, but would otherwise be lost
+        $this->context = API\SpanContext::create(
+            $this->context->getTraceId(),
+            $this->context->getSpanId(),
+            $this->context->getTraceFlags(),
+            $this->context->getTraceState()
+        );
+
         // TODO: Actually check if the span was closed (change extension to return a boolean?)
-        close_spans_until($this->span);
+        //close_spans_until($this->span);
         close_span();
         //close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
         $this->hasEnded = true;
