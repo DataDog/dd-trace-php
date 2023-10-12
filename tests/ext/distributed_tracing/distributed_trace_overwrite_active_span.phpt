@@ -65,7 +65,7 @@ array(7) {
   }
 }
 bool(true)
-parent: 321, trace: 123, meta: {"_dd.origin":"foo","a":"b"}
+parent: 321, trace: 123, meta: {"a":"b","_dd.origin":"foo"}
 parent: %d, trace: 123, meta: {"_dd.origin":"foo"}
 bool(true)
 array(5) {

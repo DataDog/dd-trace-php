@@ -102,7 +102,7 @@ final class CliServer implements Sapi
     public function checkErrors()
     {
         $newLogs = $this->process->getIncrementalErrorOutput();
-        if (preg_match("(=== Total [0-9]+ memory leaks detected ===)", $newLogs)) {
+        if (preg_match("(=== Total [0-9]+ memory leaks detected ===|AddressSanitizer:)", $newLogs)) {
             return $newLogs;
         }
 

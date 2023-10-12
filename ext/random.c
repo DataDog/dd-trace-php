@@ -104,7 +104,7 @@ uint64_t ddtrace_peek_span_id(void) {
 
 ddtrace_trace_id ddtrace_peek_trace_id(void) {
     ddtrace_span_properties *pspan = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->active : NULL;
-    return pspan ? SPANDATA(pspan)->trace_id : DDTRACE_G(distributed_trace_id);
+    return pspan ? SPANDATA(pspan)->root->trace_id : DDTRACE_G(distributed_trace_id);
 }
 
 int ddtrace_conv10_trace_id(ddtrace_trace_id id, uint8_t reverse[DD_TRACE_MAX_ID_LEN]) {

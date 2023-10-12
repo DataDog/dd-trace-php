@@ -55,6 +55,14 @@ namespace DDTrace {
          * @return mixed
          */
         public function jsonSerialize(): mixed {}
+
+        /**
+         * Consumes distributed tracing headers, from which a span link will be constructed.
+         *
+         * @param array|callable(string):mixed $headersOrCallback Either an array with a lowercase header to value mapping,
+         * or a callback, which given a header name for distributed tracing, returns the value it should be updated to.
+         */
+        public static function fromHeaders(array|callable $headersOrCallback): SpanLink {}
     }
 
     class SpanData {
@@ -136,9 +144,59 @@ namespace DDTrace {
          * @return SpanLink Get a pre-populated SpanLink object with the current span's trace and span IDs
          */
         public function getLink(): SpanLink {}
+
+        /**
+         * @return Returns the span id as zero-padded 16 character hexadecimal string.
+         */
+        public function hexId(): string {}
     }
 
     class RootSpanData extends SpanData {
+        /**
+         * @var string The origin site of the trace. Propagated through distributed tracing by default.
+         */
+        public string $origin;
+
+        /**
+         * @var array A hashset of keys which are propagated from meta, if present.
+         */
+        public array $propagatedTags = [];
+
+        /**
+         * @var int The currently active sampling priority.
+         */
+        public int $samplingPriority = \DD_TRACE_PRIORITY_SAMPLING_UNKNOWN;
+
+        /**
+         * @var int The unmodified sampling priority as inherited directly through distributed tracing.
+         */
+        public int $propagatedSamplingPriority;
+
+        /**
+         * @var string The original tracestate minus datadog specific tags, as it will be propagated to upstream
+         * distributed tracing targets.
+         */
+        public string $tracestate;
+
+        /**
+         * @var array A list of datadog specific tags, which will be propagated to upstream distributed tracing
+         * targets as part of the tracestate. Some known keys are not included here, but directly extracted, e.g. origin.
+         */
+        public array $tracestateTags = [];
+
+        /**
+         * @var string The unique identifier of the parent span as a decimal number.
+         * Assignment of an invalid id will unset the parent id.
+         * This variable cannot be accessed by reference.
+         */
+        public string $parentId;
+
+        /**
+         * @var string The unique identifier for the trace id, as a zero-padded 32 character hexadecimal string.
+         * Assignment of an invalid id will reset the trace id to the default trace id.
+         * This variable cannot be accessed by reference.
+         */
+        public string $traceId = "";
     }
 
     /**
