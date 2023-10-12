@@ -60,4 +60,7 @@ string(11) "app-started"
 string(20) "simple-telemetry-app"
 string(8) "test-env"
 string(11) "app-closing"
+--CLEAN--
+<?php
 
+@unlink(__DIR__ . '/simple-telemetry.out');
