@@ -14,7 +14,15 @@ datadog.trace.agent_url=file://{PWD}/simple-telemetry.out
 <?php
 
 DDTrace\start_span();
+$root = DDTrace\root_span();
+
+$root->service = 'simple-telemetry-app';
+$root->meta['env'] = 'test-env';
+
 DDTrace\close_span();
+
+// At this stage, the service and env are stored to be used by telemetry
+dd_trace_serialize_closed_spans();
 
 dd_trace_internal_fn("finalize_telemetry");
 
@@ -33,7 +41,13 @@ for ($i = 0; $i < 100; ++$i) {
         });
         if (count($found) == 2) {
             foreach ($found as $json) {
+                $request_type = $json['request_type'];
                 var_dump($json["request_type"]);
+
+                if ($request_type == 'app-started') {
+                    var_dump($json['application']['service_name']);
+                    var_dump($json['application']['env']);
+                }
             }
             break;
         }
@@ -43,8 +57,7 @@ for ($i = 0; $i < 100; ++$i) {
 ?>
 --EXPECT--
 string(11) "app-started"
+string(20) "simple-telemetry-app"
+string(8) "test-env"
 string(11) "app-closing"
---CLEAN--
-<?php
 
-@unlink(__DIR__ . '/simple-telemetry.out');
