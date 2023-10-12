@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 414789fb27e3a704af44a6c25ae021ce97c85b43 */
+ * Stub hash: 80693b89dadb1c051e428e472dd5a3cd8c0d8d57 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -411,6 +411,11 @@ static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 };
 
 
+static const zend_function_entry class_DDTrace_RootSpanData_methods[] = {
+	ZEND_FE_END
+};
+
+
 static const zend_function_entry class_DDTrace_SpanStack_methods[] = {
 	ZEND_FE_END
 };
@@ -551,6 +556,16 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_string *property_stack_class_DDTrace_SpanStack = zend_string_init("DDTrace\\SpanStack", sizeof("DDTrace\\SpanStack")-1, 1);
 	zend_declare_typed_property(class_entry, property_stack_name, &property_stack_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_stack_class_DDTrace_SpanStack, 0, 0));
 	zend_string_release(property_stack_name);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_DDTrace_RootSpanData(zend_class_entry *class_entry_DDTrace_SpanData)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "RootSpanData", class_DDTrace_RootSpanData_methods);
+	class_entry = zend_register_internal_class_ex(&ce, class_entry_DDTrace_SpanData);
 
 	return class_entry;
 }

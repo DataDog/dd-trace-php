@@ -138,6 +138,9 @@ namespace DDTrace {
         public function getLink(): SpanLink {}
     }
 
+    class RootSpanData extends SpanData {
+    }
+
     /**
      * The SpanStack class allows context transfer between spans.
      *
