@@ -889,6 +889,13 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
                     continue;
                 }
 
+                if (!span->parent && zend_string_equals_literal_ci(str_key, "env")) {
+                    if (DDTRACE_G(last_flushed_root_env_name)) {
+                        zend_string_release(DDTRACE_G(last_flushed_root_env_name));
+                    }
+                    DDTRACE_G(last_flushed_root_env_name) = zend_string_copy(Z_STR_P(orig_val));
+                }
+
                 dd_serialize_array_meta_recursively(Z_ARRVAL(meta_zv), str_key, orig_val);
             }
         }

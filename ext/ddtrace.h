@@ -141,6 +141,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_AgentRemoteConfigReader *remote_config_reader;
     HashTable *agent_rate_by_service;
     zend_string *last_flushed_root_service_name;
+    zend_string *last_flushed_root_env_name;
 
     HashTable uhook_active_hooks;
     HashTable uhook_closure_hooks;
