@@ -1007,6 +1007,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         zend_string_release(DDTRACE_G(last_flushed_root_service_name));
         DDTRACE_G(last_flushed_root_service_name) = NULL;
     }
+    if (DDTRACE_G(last_flushed_root_env_name)) {
+        zend_string_release(DDTRACE_G(last_flushed_root_env_name));
+        DDTRACE_G(last_flushed_root_env_name) = NULL;
+    }
 
     return SUCCESS;
 }

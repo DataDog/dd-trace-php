@@ -66,10 +66,15 @@ void ddtrace_telemetry_finalize(void) {
         service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_service_name));
     }
 
+    ddog_CharSlice env_name = DDOG_CHARSLICE_C("none");
+    if (DDTRACE_G(last_flushed_root_env_name)) {
+        env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_env_name));
+    }
+
     ddog_CharSlice php_version = dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION"))));
     struct ddog_RuntimeMeta *meta = ddog_sidecar_runtimeMeta_build(DDOG_CHARSLICE_C("php"), php_version, DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
 
-    ddog_sidecar_telemetry_flushServiceData(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name);
+    ddog_sidecar_telemetry_flushServiceData(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name, env_name);
 
     ddog_sidecar_runtimeMeta_drop(meta);
 
