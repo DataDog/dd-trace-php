@@ -1,8 +1,10 @@
 use crate::bindings as zend;
-use crate::zend::{zai_str_from_zstr, zend_get_executed_filename_ex};
+use crate::zend::{zai_str_from_zstr, zend_get_executed_filename_ex, InternalFunctionHandler};
 use crate::{PROFILER, REQUEST_LOCALS};
 use libc::c_char;
 use log::{error, trace};
+use std::cell::RefCell;
+use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::ptr;
 use std::time::Instant;
@@ -33,6 +35,176 @@ pub fn timeline_minit() {
         PREV_ZEND_COMPILE_STRING = zend::zend_compile_string;
         zend::zend_compile_string = Some(ddog_php_prof_compile_string);
     }
+}
+
+const STREAM_SELECT: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"stream_select\0") };
+const SLEEP: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"sleep\0") };
+const USLEEP: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"usleep\0") };
+
+static mut STREAM_SELECT_HANDLER: InternalFunctionHandler = None;
+static mut SLEEP_HANDLER: InternalFunctionHandler = None;
+static mut USLEEP_HANDLER: InternalFunctionHandler = None;
+
+/// Wrapping the PHP `stream_select()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_stream_select(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    let start = Instant::now();
+
+    if let Some(func) = STREAM_SELECT_HANDLER {
+        func(execute_data, return_value);
+    }
+
+    let duration = start.elapsed();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+
+    REQUEST_LOCALS.with(|cell| {
+        // try to borrow and bail out if not successful
+        let Ok(locals) = cell.try_borrow() else {
+            return;
+        };
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            profiler.collect_idle(
+                // Safety: checked for `is_err()` above
+                now.unwrap().as_nanos() as i64,
+                duration.as_nanos() as i64,
+                "select",
+                &locals,
+            );
+        }
+    });
+}
+
+/// Wrapping the PHP `sleep()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_sleep(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    let start = Instant::now();
+
+    if let Some(func) = SLEEP_HANDLER {
+        func(execute_data, return_value);
+    }
+
+    let duration = start.elapsed();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+
+    REQUEST_LOCALS.with(|cell| {
+        // try to borrow and bail out if not successful
+        let Ok(locals) = cell.try_borrow() else {
+            return;
+        };
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            profiler.collect_idle(
+                // Safety: checked for `is_err()` above
+                now.unwrap().as_nanos() as i64,
+                duration.as_nanos() as i64,
+                "sleeping",
+                &locals,
+            );
+        }
+    });
+}
+
+/// Wrapping the PHP `usleep()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_usleep(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    let start = Instant::now();
+
+    if let Some(func) = USLEEP_HANDLER {
+        func(execute_data, return_value);
+    }
+
+    let duration = start.elapsed();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+
+    REQUEST_LOCALS.with(|cell| {
+        // try to borrow and bail out if not successful
+        let Ok(locals) = cell.try_borrow() else {
+            return;
+        };
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            profiler.collect_idle(
+                // Safety: checked for `is_err()` above
+                now.unwrap().as_nanos() as i64,
+                duration.as_nanos() as i64,
+                "sleeping",
+                &locals,
+            );
+        }
+    });
+}
+
+/// This function is run during the STARTUP phase and hooks into the execution of some functions
+/// that we'd like to observe in regards of visualization on the timeline
+pub unsafe fn timeline_startup() {
+    let handlers = [
+        zend::datadog_php_zif_handler::new(
+            STREAM_SELECT,
+            &mut STREAM_SELECT_HANDLER,
+            Some(php_stream_select),
+        ),
+        zend::datadog_php_zif_handler::new(SLEEP, &mut SLEEP_HANDLER, Some(php_sleep)),
+        zend::datadog_php_zif_handler::new(USLEEP, &mut USLEEP_HANDLER, Some(php_usleep)),
+    ];
+
+    for handler in handlers.into_iter() {
+        // Safety: we've set all the parameters correctly for this C call.
+        zend::datadog_php_install_handler(handler);
+    }
+}
+
+thread_local! {
+    static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
+}
+
+/// This function is run during the RINIT phase and reports any `IDLE_SINCE` duration as an idle
+/// period for this PHP thread
+pub fn timeline_rinit() {
+    REQUEST_LOCALS.with(|cell| {
+        // try to borrow and bail out if not successful
+        let Ok(locals) = cell.try_borrow() else {
+            return;
+        };
+
+        IDLE_SINCE.with(|cell| {
+            // try to borrow and bail out if not successful
+            let Ok(idle_since) = cell.try_borrow() else {
+                return;
+            };
+
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                profiler.collect_idle(
+                    // Safety: checked for `is_err()` above
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos() as i64,
+                    idle_since.elapsed().as_nanos() as i64,
+                    "idle",
+                    &locals,
+                );
+            }
+        });
+    });
+}
+
+/// This function is run during the RSHUTDOWN phase and resets the `IDLE_SINCE` thread local to
+/// "now", indicating the start of a new idle phase
+pub fn timeline_rshutdown() {
+    IDLE_SINCE.with(|cell| {
+        // try to borrow and bail out if not successful
+        let Ok(mut idle_since) = cell.try_borrow_mut() else {
+            return;
+        };
+        *idle_since = Instant::now();
+    })
 }
 
 /// This function gets called when a `eval()` is being called. This is done by letting the

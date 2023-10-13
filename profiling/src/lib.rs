@@ -639,6 +639,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rinit();
 
+    #[cfg(feature = "timeline")]
+    timeline::timeline_rinit();
+
     ZendResult::Success
 }
 
@@ -744,6 +747,9 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rshutdown();
+
+    #[cfg(feature = "timeline")]
+    timeline::timeline_rshutdown();
 
     ZendResult::Success
 }
@@ -905,15 +911,15 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("MSHUTDOWN({_type}, {_module_number})");
 
+    #[cfg(feature = "exception_profiling")]
+    exception::exception_profiling_mshutdown();
+
     unsafe { bindings::zai_config_mshutdown() };
 
     let mut profiler = PROFILER.lock().unwrap();
     if let Some(profiler) = profiler.as_mut() {
         profiler.stop(Duration::from_secs(1));
     }
-
-    #[cfg(feature = "exception_profiling")]
-    exception::exception_profiling_mshutdown();
 
     ZendResult::Success
 }
@@ -949,7 +955,10 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     };
 
     // Safety: calling this in zend_extension startup.
-    unsafe { pcntl::startup() };
+    unsafe {
+        pcntl::startup();
+        timeline::timeline_startup();
+    }
 
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_startup();

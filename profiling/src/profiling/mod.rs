@@ -874,6 +874,50 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
+    /// This function can be called to collect any kind of inactivity that is happening
+    pub fn collect_idle(
+        &self,
+        now: i64,
+        duration: i64,
+        reason: &'static str,
+        locals: &RequestLocals,
+    ) {
+        let mut labels = Profiler::message_labels();
+
+        labels.push(Label {
+            key: "event",
+            value: LabelValue::Str(reason.into()),
+        });
+        labels.push(Label {
+            key: "end_timestamp_ns",
+            value: LabelValue::Num(now, None),
+        });
+
+        let n_labels = labels.len();
+
+        match self.send_sample(Profiler::prepare_sample_message(
+            vec![ZendFrame {
+                function: "[idle]".into(),
+                file: None,
+                line: 0,
+            }],
+            SampleValues {
+                timeline: duration,
+                ..Default::default()
+            },
+            labels,
+            locals,
+        )) {
+            Ok(_) => {
+                trace!("Sent event 'idle' with {n_labels} labels to profiler.")
+            }
+            Err(err) => {
+                warn!("Failed to send event 'idle' with {n_labels} labels to profiler: {err}")
+            }
+        }
+    }
+
+    #[cfg(feature = "timeline")]
     /// collect a stack frame for garbage collection.
     /// as we do not know about the overhead currently, we only collect a fake frame.
     pub fn collect_garbage_collection(
