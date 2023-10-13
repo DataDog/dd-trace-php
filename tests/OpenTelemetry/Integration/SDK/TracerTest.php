@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace OpenTelemetry\Tests\Integration\SDK;
 
 use AssertWell\PHPUnitGlobalState\EnvironmentVariables;
+use DDTrace\Tests\Common\BaseTestCase;
+use DDTrace\Tests\Common\TracerTestTrait;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Trace\NonRecordingSpan;
 use OpenTelemetry\API\Trace\SpanContext;
@@ -28,13 +30,23 @@ use PHPUnit\Framework\TestCase;
 /**
  * @coversNothing
  */
-class TracerTest extends TestCase
+class TracerTest extends BaseTestCase
 {
-    use EnvironmentVariables;
+    use EnvironmentVariables, TracerTestTrait;
 
-    public function tearDown(): void
+    protected function ddSetUp(): void
     {
+        \dd_trace_serialize_closed_spans();
+        BaseTestCase::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
+        parent::ddSetUp();
+    }
+
+    public function ddTearDown(): void
+    {
+        parent::ddTearDown();
+        BaseTestCase::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
         self::restoreEnvironmentVariables();
+        \dd_trace_serialize_closed_spans();
     }
 
     /** @noinspection PhpParamsInspection */
@@ -62,12 +74,14 @@ class TracerTest extends TestCase
                 $newTraceState
             ));
 
-        $tracerProvider = new TracerProvider([], $sampler);
-        $tracer = $tracerProvider->getTracer('OpenTelemetry.TracerTest');
-        $span = $tracer->spanBuilder('test.span')->setParent($parentContext)->startSpan();
+        $this->isolateTracer(function () use ($sampler, $parentContext, $parentTraceState) {
+            $tracerProvider = new TracerProvider([], $sampler);
+            $tracer = $tracerProvider->getTracer('OpenTelemetry.TracerTest');
+            $span = $tracer->spanBuilder('test.span')->setParent($parentContext)->startSpan();
 
-        $this->assertNotEquals($parentTraceState, $span->getContext()->getTraceState());
-        $this->assertEquals('dd=t.tid:4bf92f3577b34da6;t.dm:-1,new-key=new_value', (string)$span->getContext()->getTraceState());
+            $this->assertNotEquals($parentTraceState, $span->getContext()->getTraceState());
+            $this->assertEquals('dd=t.tid:4bf92f3577b34da6;t.dm:-1,new-key=new_value', (string)$span->getContext()->getTraceState());
+        });
     }
 
     /**
@@ -76,25 +90,29 @@ class TracerTest extends TestCase
      */
     public function test_span_should_receive_instrumentation_scope(): void
     {
-        $tracerProvider = new TracerProvider();
-        $tracer = $tracerProvider->getTracer('OpenTelemetry.TracerTest', 'dev', 'http://url', ['foo' => 'bar']);
-        /** @var Span $span */
-        $span = $tracer->spanBuilder('test.span')->startSpan();
-        $spanInstrumentationScope = $span->getInstrumentationScope();
+        $this->isolateTracer(function () {
+            $tracerProvider = new TracerProvider();
+            $tracer = $tracerProvider->getTracer('OpenTelemetry.TracerTest', 'dev', 'http://url', ['foo' => 'bar']);
+            /** @var Span $span */
+            $span = $tracer->spanBuilder('test.span')->startSpan();
+            $spanInstrumentationScope = $span->getInstrumentationScope();
 
-        $this->assertSame('OpenTelemetry.TracerTest', $spanInstrumentationScope->getName());
-        $this->assertSame('dev', $spanInstrumentationScope->getVersion());
-        $this->assertSame('http://url', $spanInstrumentationScope->getSchemaUrl());
-        $this->assertSame(['foo' => 'bar'], $spanInstrumentationScope->getAttributes()->toArray());
+            $this->assertSame('OpenTelemetry.TracerTest', $spanInstrumentationScope->getName());
+            $this->assertSame('dev', $spanInstrumentationScope->getVersion());
+            $this->assertSame('http://url', $spanInstrumentationScope->getSchemaUrl());
+            $this->assertSame(['foo' => 'bar'], $spanInstrumentationScope->getAttributes()->toArray());
+        });
     }
 
     public function test_returns_noop_span_builder_after_shutdown(): void
     {
-        $tracerProvider = new TracerProvider();
-        $tracer = $tracerProvider->getTracer('foo');
-        $this->assertInstanceOf(SpanBuilder::class, $tracer->spanBuilder('bar'));
-        $tracerProvider->shutdown();
-        $this->assertInstanceOf(API\NoopSpanBuilder::class, $tracer->spanBuilder('baz'));
+        $this->isolateTracer(function () {
+            $tracerProvider = new TracerProvider();
+            $tracer = $tracerProvider->getTracer('foo');
+            $this->assertInstanceOf(SpanBuilder::class, $tracer->spanBuilder('bar'));
+            $tracerProvider->shutdown();
+            $this->assertInstanceOf(API\NoopSpanBuilder::class, $tracer->spanBuilder('baz'));
+        });
     }
 
     public function test_factory_returns_noop_tracer_when_sdk_disabled(): void
@@ -107,42 +125,46 @@ class TracerTest extends TestCase
 
     public function test_general_identity_attributes_are_dropped_by_default(): void
     {
-        $exporter = new InMemoryExporter();
-        $tracerProvider = new TracerProvider(new SimpleSpanProcessor($exporter));
-        $tracer = $tracerProvider->getTracer('test');
-        $tracer->spanBuilder('test')
-            ->setAttribute(TraceAttributes::ENDUSER_ID, 'username')
-            ->setAttribute(TraceAttributes::ENDUSER_ROLE, 'admin')
-            ->setAttribute(TraceAttributes::ENDUSER_SCOPE, 'read:message, write:files')
-            ->startSpan()
-            ->end();
+        $this->isolateTracer(function () {
+            $exporter = new InMemoryExporter();
+            $tracerProvider = new TracerProvider(new SimpleSpanProcessor($exporter));
+            $tracer = $tracerProvider->getTracer('test');
+            $tracer->spanBuilder('test')
+                ->setAttribute(TraceAttributes::ENDUSER_ID, 'username')
+                ->setAttribute(TraceAttributes::ENDUSER_ROLE, 'admin')
+                ->setAttribute(TraceAttributes::ENDUSER_SCOPE, 'read:message, write:files')
+                ->startSpan()
+                ->end();
 
-        $tracerProvider->shutdown();
+            $tracerProvider->shutdown();
 
-        $attributes = $exporter->getSpans()[0]->getAttributes();
-        $this->assertCount(0, $attributes);
-        $this->assertSame(3, $attributes->getDroppedAttributesCount());
+            $attributes = $exporter->getSpans()[0]->getAttributes();
+            $this->assertCount(0, $attributes);
+            $this->assertSame(3, $attributes->getDroppedAttributesCount());
+        });
     }
 
     public function test_general_identity_attributes_are_retained_if_enabled(): void
     {
-        $exporter = new InMemoryExporter();
-        $spanLimits = (new SpanLimitsBuilder())
-            ->retainGeneralIdentityAttributes()
-            ->build();
-        $tracerProvider = new TracerProvider(new SimpleSpanProcessor($exporter), null, null, $spanLimits);
-        $tracer = $tracerProvider->getTracer('test');
-        $tracer->spanBuilder('test')
-            ->setAttribute(TraceAttributes::ENDUSER_ID, 'username')
-            ->setAttribute(TraceAttributes::ENDUSER_ROLE, 'admin')
-            ->setAttribute(TraceAttributes::ENDUSER_SCOPE, 'read:message, write:files')
-            ->startSpan()
-            ->end();
+        $this->isolateTracer(function () {
+            $exporter = new InMemoryExporter();
+            $spanLimits = (new SpanLimitsBuilder())
+                ->retainGeneralIdentityAttributes()
+                ->build();
+            $tracerProvider = new TracerProvider(new SimpleSpanProcessor($exporter), null, null, $spanLimits);
+            $tracer = $tracerProvider->getTracer('test');
+            $tracer->spanBuilder('test')
+                ->setAttribute(TraceAttributes::ENDUSER_ID, 'username')
+                ->setAttribute(TraceAttributes::ENDUSER_ROLE, 'admin')
+                ->setAttribute(TraceAttributes::ENDUSER_SCOPE, 'read:message, write:files')
+                ->startSpan()
+                ->end();
 
-        $tracerProvider->shutdown();
+            $tracerProvider->shutdown();
 
-        $attributes = $exporter->getSpans()[0]->getAttributes();
-        $this->assertCount(3, $attributes);
-        $this->assertSame(0, $attributes->getDroppedAttributesCount());
+            $attributes = $exporter->getSpans()[0]->getAttributes();
+            $this->assertCount(3, $attributes);
+            $this->assertSame(0, $attributes->getDroppedAttributesCount());
+        });
     }
 }

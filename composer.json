@@ -53,7 +53,7 @@
             "DDTrace\\Tests\\": "./tests/"
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "RC",
     "prefer-stable": true,
     "scripts": {
         "compile": [

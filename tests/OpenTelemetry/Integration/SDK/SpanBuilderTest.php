@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Tests\Integration\SDK;
 
+use DDTrace\Tests\Common\BaseTestCase;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Mockery\MockInterface;
@@ -22,6 +23,7 @@ use OpenTelemetry\SDK\Trace\Span;
 use OpenTelemetry\SDK\Trace\SpanLimitsBuilder;
 use OpenTelemetry\SDK\Trace\SpanProcessorInterface;
 use OpenTelemetry\SDK\Trace\TracerProvider;
+use function DDTrace\active_span;
 use function range;
 use function str_repeat;
 
@@ -41,6 +43,9 @@ class SpanBuilderTest extends MockeryTestCase
 
     protected function setUp(): void
     {
+        \dd_trace_serialize_closed_spans();
+        BaseTestCase::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
+
         $this->spanProcessor = Mockery::spy(SpanProcessorInterface::class);
         $this->tracerProvider = new TracerProvider($this->spanProcessor);
         $this->tracer = $this->tracerProvider->getTracer('SpanBuilderTest');
@@ -50,6 +55,38 @@ class SpanBuilderTest extends MockeryTestCase
             '8765432112345678',
             API\TraceFlags::SAMPLED,
         );
+    }
+
+    protected function tearDown() : void
+    {
+        BaseTestCase::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
+        \dd_trace_serialize_closed_spans();
+    }
+
+    public function test_set_parent_invalid_context(): void
+    {
+        $parentSpan = Span::getInvalid();
+
+        $parentContext = Context::getCurrent()->withContextValue($parentSpan);
+
+        /** @var Span $span */
+        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->setParent($parentContext)->startSpan();
+
+        $this
+            ->spanProcessor
+            ->shouldHaveReceived('onStart')
+            ->with($span, $parentContext)
+            ->once();
+
+        $this->assertNotSame(
+            $span->getContext()->getTraceId(),
+            $parentSpan->getContext()->getTraceId()
+        );
+
+        $this->assertFalse(SpanContextValidator::isValidSpanId($span->toSpanData()->getParentSpanId()));
+
+        $span->end();
+        $parentSpan->end();
     }
 
     /**
@@ -621,32 +658,6 @@ class SpanBuilderTest extends MockeryTestCase
 
         $span->end();
         $parentScope->detach();
-        $parentSpan->end();
-    }
-
-    public function test_set_parent_invalid_context(): void
-    {
-        $parentSpan = Span::getInvalid();
-
-        $parentContext = Context::getCurrent()->withContextValue($parentSpan);
-
-        /** @var Span $span */
-        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->setParent($parentContext)->startSpan();
-
-        $this
-            ->spanProcessor
-            ->shouldHaveReceived('onStart')
-            ->with($span, $parentContext)
-            ->once();
-
-        $this->assertNotSame(
-            $span->getContext()->getTraceId(),
-            $parentSpan->getContext()->getTraceId()
-        );
-
-        $this->assertFalse(SpanContextValidator::isValidSpanId($span->toSpanData()->getParentSpanId()));
-
-        $span->end();
         $parentSpan->end();
     }
 }

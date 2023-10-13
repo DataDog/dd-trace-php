@@ -108,11 +108,9 @@ final class SpanBuilder implements API\SpanBuilderInterface
      */
     public function setStartTimestamp(int $timestampNanos): SpanBuilderInterface
     {
-        if ($timestampNanos < 0) {
-            return $this;
+        if ($timestampNanos >= 0) {
+            $this->startEpochNanos = $timestampNanos / 1000000000;
         }
-
-        $this->startEpochNanos = $timestampNanos / 1000000000;
 
         return $this;
     }
@@ -152,13 +150,10 @@ final class SpanBuilder implements API\SpanBuilderInterface
      */
     public function startSpan(): SpanInterface
     {
-        Logger::get()->debug('[START_SPAN init] Has a parent context? ' . ($this->parentContext ? 'Yes' : 'No'));
+        // TODO: Check w/. setParent(false)
         $parentContext = Context::resolve($this->parentContext);
-        Logger::get()->debug('[START_SPAN init] Is current? ' . (Context::getCurrent() === $parentContext ? 'Yes' : 'No'));
         $parentSpan = Span::fromContext($parentContext);
-        Logger::get()->debug('[START_SPAN init] Parent Id: ' . $parentSpan->getContext()->getSpanId());
         $parentSpanContext = $parentSpan->getContext();
-        Logger::get()->debug('TraceState: ' . $parentSpanContext->getTraceState());
 
         $span = \DDTrace\start_trace_span($this->startEpochNanos);
         if ($parentSpanContext->isValid()) {
@@ -182,15 +177,12 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $sampled = SamplingResult::RECORD_AND_SAMPLE === $samplingDecision;
         $samplingResultTraceState = $samplingResult->getTraceState();
 
-        Logger::get()->debug('> ' . $samplingResultTraceState . ' <');
-
         if ($parentSpanContext->isValid()) {
             // Traceparent: {version}-{hex trace id}-{hex parent id}-{trace_flags}, version always being '00'
             // Since parentSpanContext is valid, the trace identifiers are guaranteed to be in hexadecimal format
             $parentId = $parentSpanContext->getSpanId();
             $traceFlags = $sampled ? '01' : '00';
             $traceParent = "00-$traceId-$parentId-$traceFlags";
-            Logger::get()->debug($traceParent);
             \DDTrace\consume_distributed_tracing_headers([
                 'traceparent' => $traceParent,
                 'tracestate' => (string) $samplingResultTraceState, // __toString() is implemented in TraceState

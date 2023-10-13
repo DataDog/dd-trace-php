@@ -258,6 +258,9 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Bootstrap\\Configurator", "__construct",
                                          "DDTrace\\Integrations\\Nette\\NetteIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_OPENTELEMETRY, "OpenTelemetry\\SDK\\Trace\\TracerProvider", "__construct",
+                                             "DDTrace\\Integrations\\OpenTelemetry\\OpenTelemetryIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_PCNTL, "pcntl_fork",
                                          "DDTrace\\Integrations\\Pcntl\\PcntlIntegration");
 #if PHP_VERSION_ID >= 80100

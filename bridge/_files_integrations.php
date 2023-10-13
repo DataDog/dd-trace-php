@@ -42,6 +42,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/Roadrunner/RoadrunnerIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Yii/YiiIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Nette/NetteIntegration.php',
+    __DIR__ . '/../src/Integrations/Integrations/OpenTelemetry/OpenTelemetryIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/WordPress/WordPressIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/WordPress/V1/WordPressIntegrationLoader.php',
     __DIR__ . '/../src/Integrations/Integrations/WordPress/V2/WordPressIntegrationLoader.php',

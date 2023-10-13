@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\SDK\Trace;
 
+use DDTrace\Log\Logger;
 use DDTrace\Propagator;
 use DDTrace\SpanData;
 use DDTrace\SpanLink;
 use DDTrace\Tag;
+use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\Context\Context;
@@ -122,6 +124,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $attributesBuilder
         );
 
+        ObjectKVStore::put($span, 'otel_span', $OTelSpan);
+        print("[OTel] Created span {$OTelSpan->getContext()->getSpanId()}\n");
+
         // Call onStart here to ensure the span is fully initialized.
         $spanProcessor->onStart($OTelSpan, $parentContext);
 
@@ -228,30 +233,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function getAttribute(string $key)
     {
         return $this->attributesBuilder[$key];
-
-        $meta = $this->span->meta;
-
-        if (isset($meta[$key])) {
-            return $meta[$key];
-        }
-
-        if (empty($meta)) {
-            return null;
-        }
-
-        // Support for nested attributes through dot notation
-        $prefix = '';
-        $parts = explode('.', $key);
-        foreach ($parts as $part) {
-            $prefix .= $part;
-            if (isset($meta[$prefix])) {
-                return $meta[$prefix];
-            } else {
-                $prefix .= '.';
-            }
-        }
-
-        return null;
     }
 
     public function getStartEpochNanos(): int
@@ -293,7 +274,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
                 \DDTrace\add_distributed_tag($distributedKey, $value);
                 //$this->attributesBuilder[$key] = $value; // Counts towards the attribute limit
-            } else {
+            } elseif ($this->instrumentationScope->getName() === 'datadog') {
+                $this->span->meta[$key] = $value;
+                $this->attributesBuilder[$key] = $value;
+            } else {// TODO: Horrible workaround for now
                 $this->attributesBuilder[$key] = $value;
             }
         }
@@ -327,13 +311,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function recordException(Throwable $exception, iterable $attributes = []): SpanInterface
     {
-        if ($this->hasEnded) {
-            return $this;
+        if (!$this->hasEnded) {
+            $this->span->meta[Tag::ERROR_MSG] = $exception->getMessage();
+            $this->span->meta[Tag::ERROR_TYPE] = get_class($exception);
+            $this->span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
         }
-
-        $this->span->meta[Tag::ERROR_MSG] = $exception->getMessage();
-        $this->span->meta[Tag::ERROR_TYPE] = get_class($exception);
-        $this->span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
 
         return $this;
     }
@@ -373,6 +355,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $this->span->meta[Tag::ERROR_MSG] = $description;
         } elseif ($this->status->getCode() === API\StatusCode::STATUS_ERROR && $code === API\StatusCode::STATUS_OK) {
             unset($this->span->meta[Tag::ERROR_MSG]);
+            unset($this->span->meta[Tag::ERROR_TYPE]);
+            unset($this->span->meta[Tag::ERROR_STACK]);
         }
 
         $this->status = StatusData::create($code, $description);
@@ -384,6 +368,16 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      * @inheritDoc
      */
     public function end(int $endEpochNanos = null): void
+    {
+        $this->endOTelSpan($endEpochNanos);
+
+        // TODO: Actually check if the span was closed (change extension to return a boolean?)
+        //close_spans_until($this->span);
+        close_span();
+        //close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
+    }
+
+    public function endOTelSpan(int $endEpochNanos = null): void
     {
         if ($this->hasEnded) {
             return;
@@ -400,10 +394,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $this->context->getTraceState()
         );
 
-        // TODO: Actually check if the span was closed (change extension to return a boolean?)
-        //close_spans_until($this->span);
-        close_span();
-        //close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
         $this->hasEnded = true;
 
         $this->spanProcessor->onEnd($this);
@@ -412,5 +402,31 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function getResource(): ResourceInfo
     {
         return $this->resource;
+    }
+
+    public function getDDSpan(): SpanData
+    {
+        return $this->span;
+    }
+
+    // __destruct() --> detach scope if active
+    public function __destruct()
+    {
+        /*
+        print("Destructing span\n");
+        if ($this->hasEnded) {
+            return;
+        }
+
+        $currentScope = Context::storage()->scope();
+        $associatedContext = $currentScope->context();
+        $associatedSpan = $associatedContext->get(ContextKeys::span());
+        if ($associatedSpan === $this) {
+            print("Detaching scope\n");
+            $currentScope->detach();
+        }
+
+        $this->end();
+        */
     }
 }

@@ -48,13 +48,40 @@ final class TracerTest extends BaseTestCase
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
         self::putEnv("DD_TRACE_DEBUG=");
         parent::ddTearDown();
+        \dd_trace_serialize_closed_spans();
     }
 
     public static function getTracer()
     {
-        $tracerProvider = Globals::tracerProvider();
-        $tracer = $tracerProvider->getTracer('OpenTelemetry.TracerTest');
+        // Generate a unique key of length 10
+        $uniqueKey = substr(md5(uniqid()), 0, 10);
+        $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer("OpenTelemetry.TracerTest$uniqueKey");
         return $tracer;
+    }
+
+    public function testUnorderedOtelSpanActivation()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $span1 = $tracer->spanBuilder('test.span1')->startSpan();
+            $span2 = $tracer->spanBuilder('test.span2')->startSpan();
+            $span3 = $tracer->spanBuilder('test.span3')->startSpan();
+
+            $scope1 = $span1->activate();
+            $scope3 = $span3->activate();
+            $scope2 = $span2->activate();
+
+            $scope2->detach();
+            $scope3->detach();
+            $scope1->detach();
+
+            $span1->end();
+            $span2->end();
+            $span3->end();
+        });
+
+        $spans = $traces[0];
+        fwrite(STDERR, json_encode($spans, JSON_PRETTY_PRINT));
     }
 
     public function testManuallyCreatedSpanWithNoCustomTags()
