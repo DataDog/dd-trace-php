@@ -7,6 +7,8 @@ anything and return `int(0)`. As we do prepare the heap for this call, the
 function should actually cleanup some memory and return the amount in bytes.
 --SKIPIF--
 <?php
+if (getenv('USE_ZEND_ALLOC') === '0')
+    die("skip requires ZendMM");
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires Datadog Continuous Profiler\n";
 ?>
