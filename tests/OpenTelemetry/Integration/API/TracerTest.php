@@ -6,6 +6,8 @@ use DDTrace\Log\Logger;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
+use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\NonRecordingSpan;
@@ -28,7 +30,7 @@ use function DDTrace\generate_distributed_tracing_headers;
 
 final class TracerTest extends BaseTestCase
 {
-    use TracerTestTrait;
+    use TracerTestTrait, SpanAssertionTrait;
 
     public function ddSetUp(): void
     {
@@ -80,8 +82,11 @@ final class TracerTest extends BaseTestCase
             $span3->end();
         });
 
-        $spans = $traces[0];
-        fwrite(STDERR, json_encode($spans, JSON_PRETTY_PRINT));
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('test.span1', 'phpunit', 'cli', 'test.span1'),
+            SpanAssertion::build('test.span2', 'phpunit', 'cli', 'test.span2'),
+            SpanAssertion::build('test.span3', 'phpunit', 'cli', 'test.span3')
+        ]);
     }
 
     public function testManuallyCreatedSpanWithNoCustomTags()

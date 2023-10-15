@@ -2,7 +2,10 @@
 
 namespace DDTrace\Tests\OpenTelemetry\Integration;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
+use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\Span;
@@ -19,11 +22,12 @@ use function DDTrace\close_span;
 use function DDTrace\close_spans_until;
 use function DDTrace\generate_distributed_tracing_headers;
 use function DDTrace\start_span;
+use function DDTrace\start_trace_span;
 use function DDTrace\trace_id;
 
 final class InteroperabilityTest extends BaseTestCase
 {
-    use TracerTestTrait;
+    use TracerTestTrait, SpanAssertionTrait;
 
     // TODO: Implement AttributesBuilder and add a method to retrieve the attributeCountLimit
 
@@ -91,7 +95,6 @@ final class InteroperabilityTest extends BaseTestCase
             $ddSpan = start_span();
             $ddSpan->name = "dd.span";
             $currentSpan = Span::getCurrent();
-            print("DD Span Id: " . str_pad(strtolower(self::largeBaseConvert($ddSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT) . "\n");
 
             $this->assertNotNull($currentSpan);
             $this->assertSame($ddSpan, $currentSpan->getDDSpan());
@@ -110,16 +113,12 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame(str_pad(strtolower(self::largeBaseConvert($ddSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT), $currentSpan->getContext()->getSpanId());
             $this->assertSame(str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT), $currentSpan->getContext()->getTraceId());
 
-            print("----\n");
             close_span();
-            print("----\n");
             $currentSpan = Span::getCurrent();
-            print("Current Span Id: " . $currentSpan->getContext()->getSpanId() . PHP_EOL);
             $this->assertSame(SpanContextValidator::INVALID_SPAN, $currentSpan->getContext()->getSpanId());
             $this->assertSame(SpanContextValidator::INVALID_TRACE, $currentSpan->getContext()->getTraceId());
         });
 
-        fwrite(STDERR, json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL);
         $span = $traces[0][0];
         $this->assertSame('dd.span', $span['name']);
         $this->assertArrayNotHasKey('parent_id', $span['meta']);
@@ -135,9 +134,7 @@ final class InteroperabilityTest extends BaseTestCase
             $tracer = (new TracerProvider())->getTracer('test.tracer');
             $span = $tracer->spanBuilder("test.span")->startSpan();
 
-            print("~~1~~\n");
             $currentSpan = Span::getCurrent();
-            print("~~1~~\n");
 
             $this->assertNotNull($currentSpan);
             $this->assertSame(SpanContextValidator::INVALID_TRACE, $currentSpan->getContext()->getTraceId());
@@ -145,25 +142,19 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame(SpanContext::getInvalid(), $currentSpan->getContext());
 
             $scope = $span->activate();
-            print("~~2~~\n");
             $currentSpan = Span::getCurrent();
-            print("~~2~~\n");
 
             $this->assertNotNull($currentSpan);
             $this->assertSame($span, $currentSpan);
-            print("Span ID: " . str_pad(strtolower(self::largeBaseConvert($span->getContext()->getSpanId(), 10, 16)), 16, '0', STR_PAD_LEFT) . "\n");
 
             $ddSpan = \DDTrace\start_span();
             $ddSpan->name = "other.span";
             $spanId = str_pad(strtolower(self::largeBaseConvert($ddSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT);
-            print("Created DDSpan $spanId\n");
             $parentId = str_pad(strtolower(self::largeBaseConvert($ddSpan->parent->id, 10, 16)), 16, '0', STR_PAD_LEFT);
             $this->assertSame($span->getContext()->getSpanId(), $parentId);
 
-            print("~~3~~\n");
             $currentSpan = Span::getCurrent();
             $this->assertSame($span->getContext()->getSpanId(), $currentSpan->getParentContext()->getSpanId());
-            print("~~3~~\n");
             $currentSpan->setAttributes([
                 'foo' => 'bar',
             ]);
@@ -182,7 +173,6 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertCount(2, $spans);
 
         list($parent, $child) = $spans;
-        fwrite(STDERR, json_encode($spans, JSON_PRETTY_PRINT) . PHP_EOL);
         $this->assertSame('test.span', $parent['name']);
         $this->assertSame('other.span', $child['name']);
         $this->assertSame($parent['span_id'], $child['parent_id']);
@@ -236,23 +226,17 @@ final class InteroperabilityTest extends BaseTestCase
         $traces = $this->isolateTracer(function () {
             $span1 = start_span();
             $span1->name = "dd.span1";
-            print("Span1 ID: " . str_pad(strtolower(self::largeBaseConvert($span1->id, 10, 16)), 16, '0', STR_PAD_LEFT) . "\n");
             $span2 = start_span();
             $span2->name = "dd.span2";
-            print("Span2 ID: " . str_pad(strtolower(self::largeBaseConvert($span2->id, 10, 16)), 16, '0', STR_PAD_LEFT) . "\n");
             $span3 = start_span();
             $span3->name = "dd.span3";
-            print("Span3 ID: " . str_pad(strtolower(self::largeBaseConvert($span3->id, 10, 16)), 16, '0', STR_PAD_LEFT) . "\n");
 
             $currentSpan = Span::getCurrent(); // Should generate the OTel spans under the hood
-            print("Current Span Id: " . $currentSpan->getContext()->getSpanId() . PHP_EOL);
             $this->assertSame($span3, $currentSpan->getDDSpan());
 
-            print(close_spans_until($span1)); // Closes And Flush span3 and span2
+            close_spans_until($span1); // Closes And Flush span3 and span2
             // span1 is never flushed since never closed
-            print("----\n");
             $currentSpan = Span::getCurrent(); // span2 and span3 are closed, span3 is still open and should be the active span
-            print("Current Span Id: " . $currentSpan->getContext()->getSpanId() . PHP_EOL);
             $this->assertSame($span1, $currentSpan->getDDSpan());
         });
 
@@ -271,18 +255,13 @@ final class InteroperabilityTest extends BaseTestCase
         $traces = $this->isolateTracer(function () {
             $tracer = self::getTracer();
             $OTelSpan = $tracer->spanBuilder("otel.span")->startSpan();
-            print("OTel Span Id: " . $OTelSpan->getContext()->getSpanId() . PHP_EOL);
 
             $ddSpan = start_span();
             $ddSpan->name = "dd.span";
-            print("DD Span Id: " . str_pad(strtolower(self::largeBaseConvert($ddSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT) . "\n");
 
-            print("----\n");
             $OTelScope = $OTelSpan->activate();
-            print("----\n");
 
             $currentSpan = Span::getCurrent();
-            print("Current Span Id: " . $currentSpan->getContext()->getSpanId() . PHP_EOL);
             $this->assertSame($ddSpan, $currentSpan->getDDSpan());
 
             $OTelScope->detach();
@@ -291,7 +270,6 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $spans = $traces[0];
-        fwrite(STDERR, json_encode($spans, JSON_PRETTY_PRINT) . PHP_EOL);
         $this->assertCount(2, $spans);
 
         list($OTelSpan, $ddSpan) = $spans;
@@ -338,7 +316,6 @@ final class InteroperabilityTest extends BaseTestCase
             $OTelParentSpan->end();
         });
 
-        //fwrite(STDERR, json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL);
         $spans = $traces[0];
         $this->assertCount(3, $spans);
 
@@ -352,5 +329,333 @@ final class InteroperabilityTest extends BaseTestCase
 
         $this->assertSame($ddChildSpan['span_id'], $OTelGrandChildSpan['parent_id']);
         $this->assertSame($OTelParentSpan['trace_id'], $OTelGrandChildSpan['trace_id']);
+    }
+
+    public function testStartNewTraces()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $OTelRootSpan = $tracer->spanBuilder("otel.root.span")->startSpan();
+            $OTelRootScope = $OTelRootSpan->activate();
+
+            $currentSpan = Span::getCurrent();
+            $this->assertNotNull($currentSpan);
+            $this->assertSame($OTelRootSpan, $currentSpan);
+
+            $OTelChildSpan = $tracer->spanBuilder("otel.child.span")->startSpan();
+            $OTelChildScope = $OTelChildSpan->activate();
+
+            $currentSpan = Span::getCurrent();
+            $this->assertNotNull($currentSpan);
+            $this->assertSame($OTelChildSpan, $currentSpan);
+
+            $DDChildSpan = start_span();
+            $DDChildSpan->name = "dd.child.span";
+
+            $currentSpan = Span::getCurrent();
+            $this->assertNotNull($currentSpan);
+            $this->assertSame($DDChildSpan, $currentSpan->getDDSpan());
+
+            $DDRootSpan = start_trace_span();
+            $DDRootSpan->name = "dd.root.span";
+
+            $DDRootOTelSpan = $tracer->spanBuilder("dd.root.otel.span")->startSpan();
+            $DDRootOTelScope = $DDRootOTelSpan->activate();
+
+            $currentSpan = Span::getCurrent();
+            $this->assertNotNull($currentSpan);
+            $this->assertSame($DDRootOTelSpan, $currentSpan);
+
+            $DDRootChildSpan = start_span();
+            $DDRootChildSpan->name = "dd.root.child.span";
+
+            close_span(); // Closes DDRootChildSpan
+            $DDRootOTelScope->detach();
+            $DDRootOTelSpan->end();
+            close_span(); // Closes and flushes DDRootSpan
+
+            close_span(); // Closes DDChildSpan
+
+            $OTelChildScope->detach();
+            $OTelChildSpan->end();
+
+            $OTelRootScope->detach();
+            $OTelRootSpan->end();
+        });
+
+        $spans = $traces[0];
+        $this->assertCount(6, $spans);
+
+        list($OTelRootSpan, $OTelChildSpan, $DDChildSpan, $DDRootSpan, $DDRootOTelSpan, $DDRootChildSpan) = $spans;
+        $this->assertSame('otel.root.span', $OTelRootSpan['name']);
+        $this->assertSame('otel.child.span', $OTelChildSpan['name']);
+        $this->assertSame('dd.child.span', $DDChildSpan['name']);
+
+        $this->assertSame('dd.root.span', $DDRootSpan['name']);
+        $this->assertSame('dd.root.otel.span', $DDRootOTelSpan['name']);
+        $this->assertSame('dd.root.child.span', $DDRootChildSpan['name']);
+
+        $this->assertSame($OTelRootSpan['trace_id'], $OTelChildSpan['trace_id']);
+        $this->assertSame($OTelRootSpan['span_id'], $OTelChildSpan['parent_id']);
+
+        $this->assertSame($OTelRootSpan['trace_id'], $DDChildSpan['trace_id']);
+        $this->assertSame($OTelChildSpan['span_id'], $DDChildSpan['parent_id']);
+
+        $this->assertNotSame($OTelRootSpan['trace_id'], $DDRootSpan['trace_id']);
+        $this->assertArrayNotHasKey('parent_id', $DDRootSpan['meta']);
+
+        $this->assertSame($DDRootSpan['trace_id'], $DDRootOTelSpan['trace_id']);
+        $this->assertSame($DDRootSpan['span_id'], $DDRootOTelSpan['parent_id']);
+
+        $this->assertSame($DDRootSpan['trace_id'], $DDRootChildSpan['trace_id']);
+        $this->assertSame($DDRootOTelSpan['span_id'], $DDRootChildSpan['parent_id']);
+    }
+
+    public function testStartNewTracesWithCloseSpansUntil()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $OTelRootSpan = $tracer->spanBuilder("otel.root.span")->startSpan();
+            $OTelRootScope = $OTelRootSpan->activate();
+
+            $currentSpan = Span::getCurrent();
+            $this->assertNotNull($currentSpan);
+            $this->assertSame($OTelRootSpan, $currentSpan);
+
+            $OTelChildSpan = $tracer->spanBuilder("otel.child.span")->startSpan();
+            $OTelChildScope = $OTelChildSpan->activate();
+
+            $currentSpan = Span::getCurrent();
+            $this->assertNotNull($currentSpan);
+            $this->assertSame($OTelChildSpan, $currentSpan);
+
+            $DDChildSpan = start_span();
+            $DDChildSpan->name = "dd.child.span";
+
+            $currentSpan = Span::getCurrent();
+            $this->assertNotNull($currentSpan);
+            $this->assertSame($DDChildSpan, $currentSpan->getDDSpan());
+
+            $DDRootSpan = start_trace_span();
+            $DDRootSpan->name = "dd.root.span";
+
+            $DDRootOTelSpan = $tracer->spanBuilder("dd.root.otel.span")->startSpan();
+            $DDRootOTelScope = $DDRootOTelSpan->activate();
+
+            $currentSpan = Span::getCurrent();
+            $this->assertNotNull($currentSpan);
+            $this->assertSame($DDRootOTelSpan, $currentSpan);
+
+            $DDRootChildSpan = $tracer->spanBuilder("dd.root.child.span")->startSpan();
+            $DDRootChildScope = $DDRootChildSpan->activate();
+
+            $DDRootChildScope->detach();
+            $DDRootOTelScope->detach();
+            close_spans_until(null); // Closes DDRootChildSpan, DDRootOTelSpan and DDRootSpan
+
+            close_span(); // Closes DDChildSpan
+            $OTelChildScope->detach();
+            $OTelRootScope->detach();
+            close_spans_until(null); // Closes OTelChildSpan and OTelRootSpan
+        });
+
+        $spans = $traces[0];
+        $this->assertCount(6, $spans);
+
+        list($OTelRootSpan, $OTelChildSpan, $DDChildSpan, $DDRootSpan, $DDRootOTelSpan, $DDRootChildSpan) = $spans;
+        $this->assertSame('otel.root.span', $OTelRootSpan['name']);
+        $this->assertSame('otel.child.span', $OTelChildSpan['name']);
+        $this->assertSame('dd.child.span', $DDChildSpan['name']);
+
+        $this->assertSame('dd.root.span', $DDRootSpan['name']);
+        $this->assertSame('dd.root.otel.span', $DDRootOTelSpan['name']);
+        $this->assertSame('dd.root.child.span', $DDRootChildSpan['name']);
+
+        $this->assertSame($OTelRootSpan['trace_id'], $OTelChildSpan['trace_id']);
+        $this->assertSame($OTelRootSpan['span_id'], $OTelChildSpan['parent_id']);
+
+        $this->assertSame($OTelRootSpan['trace_id'], $DDChildSpan['trace_id']);
+        $this->assertSame($OTelChildSpan['span_id'], $DDChildSpan['parent_id']);
+
+        $this->assertNotSame($OTelRootSpan['trace_id'], $DDRootSpan['trace_id']);
+        $this->assertArrayNotHasKey('parent_id', $DDRootSpan['meta']);
+
+        $this->assertSame($DDRootSpan['trace_id'], $DDRootOTelSpan['trace_id']);
+        $this->assertSame($DDRootSpan['span_id'], $DDRootOTelSpan['parent_id']);
+
+        $this->assertSame($DDRootSpan['trace_id'], $DDRootChildSpan['trace_id']);
+        $this->assertSame($DDRootOTelSpan['span_id'], $DDRootChildSpan['parent_id']);
+    }
+
+    public function testMixingSetParentContext()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $OTelRootSpan = $tracer->spanBuilder("otel.root.span")->startSpan();
+            $OTelRootScope = $OTelRootSpan->activate();
+
+            $DDRootSpan = start_trace_span();
+            $DDRootSpan->name = "dd.root.span";
+
+            $DDRootSpanContext = Context::getCurrent();
+
+            // Create a new OTel span with the OTel root span as parent
+            $OTelChildSpan = $tracer->spanBuilder("otel.child.span")
+                ->setParent(Context::getCurrent()->withContextValue($OTelRootSpan))
+                ->startSpan();
+            $OTelChildScope = $OTelChildSpan->activate();
+
+            $DDChildSpan = start_span();
+            $DDChildSpan->name = "dd.child.span";
+
+            // Create a new OTel span with the DD root span as parent
+            $OTelGrandChildSpan = $tracer->spanBuilder("otel.grandchild.span")
+                ->setParent($DDRootSpanContext)
+                ->startSpan();
+            $OTelGrandChildScope = $OTelGrandChildSpan->activate();
+
+            // Create a new DD span with the DD child span as parent
+            $DDGrandChildSpan = start_span();
+            $DDGrandChildSpan->name = "dd.grandchild.span";
+
+            (Span::getCurrent())->end(); // Closes DDGrandChildSpan
+            $OTelGrandChildScope->detach();
+            $OTelGrandChildSpan->end();
+
+            close_span(); // Closes DDChildSpan
+            $OTelChildScope->detach();
+            $OTelChildSpan->end();
+
+            (Span::getCurrent())->end(); // Closes DDRootSpan
+            $OTelRootScope->detach();
+            $OTelRootSpan->end();
+        });
+
+        $spans = $traces[0];
+        $this->assertCount(6, $spans);
+
+        list($OTelRootSpan, $DDRootSpan, $OTelChildSpan, $DDChildSpan, $OTelGrandChildSpan, $DDGrandChildSpan) = $spans;
+
+        $this->assertSame('otel.root.span', $OTelRootSpan['name']);
+        $this->assertSame('dd.root.span', $DDRootSpan['name']);
+        $this->assertSame('otel.child.span', $OTelChildSpan['name']);
+        $this->assertSame('dd.child.span', $DDChildSpan['name']);
+        $this->assertSame('otel.grandchild.span', $OTelGrandChildSpan['name']);
+        $this->assertSame('dd.grandchild.span', $DDGrandChildSpan['name']);
+
+        $this->assertSame($OTelRootSpan['trace_id'], $OTelChildSpan['trace_id']);
+        $this->assertSame($OTelRootSpan['span_id'], $OTelChildSpan['parent_id']);
+
+        $this->assertSame($OTelRootSpan['trace_id'], $DDChildSpan['trace_id']);
+        $this->assertSame($OTelChildSpan['span_id'], $DDChildSpan['parent_id']);
+
+        $this->assertNotSame($OTelRootSpan['trace_id'], $DDRootSpan['trace_id']);
+        $this->assertArrayNotHasKey('parent_id', $DDRootSpan['meta']);
+
+        $this->assertSame($DDRootSpan['trace_id'], $OTelGrandChildSpan['trace_id']);
+        $this->assertSame($DDRootSpan['span_id'], $OTelGrandChildSpan['parent_id']);
+
+        $this->assertSame($DDRootSpan['trace_id'], $DDGrandChildSpan['trace_id']);
+        $this->assertSame($OTelGrandChildSpan['span_id'], $DDGrandChildSpan['parent_id']);
+    }
+
+    public function testMixingMultipleTraces()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $OTelTrace1 = $tracer->spanBuilder("otel.trace1")->startSpan();
+            $OTelTrace1Scope = $OTelTrace1->activate();
+            $OTelChild1 = $tracer->spanBuilder("otel.child1")->startSpan();
+            $OTelChild1Scope = $OTelChild1->activate();
+
+            $OTelTrace2 = $tracer->spanBuilder("otel.trace2")->setParent(false)->startSpan();
+            $OTelTrace2Scope = $OTelTrace2->activate();
+            $DDChild2 = start_span();
+            $DDChild2->name = "dd.child2";
+
+            $OTelTrace1->setAttribute('foo1', 'bar1');
+
+            $DDTrace1 = start_trace_span();
+            $DDTrace1->name = "dd.trace1";
+            $DDChild1 = start_span();
+            $DDChild1->name = "dd.child1";
+
+            $OTelChild1->setAttribute('foo2', 'bar2');
+            $OTelChild1->setAttribute(Tag::SERVICE_NAME, 'my.service');
+
+            $DDTrace2 = start_trace_span();
+            $DDTrace2->name = "dd.trace2";
+            $OTelChild2 = $tracer->spanBuilder("otel.child2")->startSpan();
+            $OTelChild2Scope = $OTelChild2->activate();
+
+            $DDTrace1->meta['foo1'] = 'bar1';
+
+            // Add an OTel span to OTelTrace1
+            $OTelChild3 = $tracer->spanBuilder("otel.child3")
+                ->setParent(Context::getCurrent()->withContextValue($OTelChild1))
+                ->startSpan();
+            $OTelChild3Scope = $OTelChild3->activate();
+
+            $OTelChild3->setAttribute('foo3', 'bar3');
+            $OTelChild3->setAttribute(Tag::RESOURCE_NAME, 'my.resource');
+
+            // Add an OTel span to OTelChild2
+            $OTelChild4 = $tracer->spanBuilder("otel.child4")
+                ->setParent(Context::getCurrent()->withContextValue($OTelChild2))
+                ->startSpan();
+            $OTelChild4Scope = $OTelChild4->activate();
+
+            $OTelChild3->setAttribute('foo3', 'bar3');
+
+            $OTelChild4Scope->detach();
+            $OTelChild2Scope->detach();
+            close_spans_until(null); // Closes DDTrace2
+            close_spans_until(null); // Closes DDTrace1
+            $OTelTrace2Scope->detach();
+            close_spans_until(null); // Closes OTelTrace2
+            $OTelChild3Scope->detach();
+            $OTelChild3->end();
+            $OTelChild1Scope->detach();
+            $OTelChild1->end();
+            $OTelTrace1Scope->detach();
+            $OTelTrace1->end();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('otel.trace1', 'phpunit', 'cli', 'otel.trace1')
+                ->withExactTags([
+                    'foo1' => 'bar1',
+                ])
+                ->withChildren(
+                    SpanAssertion::build('otel.child1', 'my.service', 'cli', 'otel.child1')
+                        ->withExactTags([
+                            'foo2' => 'bar2',
+                        ])
+                        ->withChildren(
+                            SpanAssertion::build('otel.child3', 'phpunit', 'cli', 'my.resource')
+                                ->withExactTags([
+                                    'foo3' => 'bar3',
+                                ])
+                        )
+                ),
+            SpanAssertion::build('otel.trace2', 'phpunit', 'cli', 'otel.trace2')
+                ->withChildren(
+                    SpanAssertion::build('dd.child2', 'phpunit', 'cli', 'dd.child2')
+                ),
+            SpanAssertion::build('dd.trace1', 'phpunit', 'cli', 'dd.trace1')
+                ->withExactTags([
+                    'foo1' => 'bar1',
+                ])
+                ->withChildren(
+                    SpanAssertion::build('dd.child1', 'phpunit', 'cli', 'dd.child1')
+                ),
+            SpanAssertion::build('dd.trace2', 'phpunit', 'cli', 'dd.trace2')
+                ->withChildren(
+                    SpanAssertion::build('otel.child2', 'phpunit', 'cli', 'otel.child2')
+                        ->withChildren(
+                            SpanAssertion::build('otel.child4', 'phpunit', 'cli', 'otel.child4')
+                        )
+                ),
+        ]);
     }
 }

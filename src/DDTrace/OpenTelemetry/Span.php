@@ -125,7 +125,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         );
 
         ObjectKVStore::put($span, 'otel_span', $OTelSpan);
-        print("[OTel] Created span {$OTelSpan->getContext()->getSpanId()}\n");
 
         // Call onStart here to ensure the span is fully initialized.
         $spanProcessor->onStart($OTelSpan, $parentContext);
@@ -270,6 +269,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         if (!$this->hasEnded) {
             if ($key === Tag::RESOURCE_NAME) {
                 $this->span->resource = $value;
+            } elseif ($key === Tag::SERVICE_NAME) {
+                $this->span->service = $value;
             } elseif (strpos($key, '_dd.p.') === 0) {
                 $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
                 \DDTrace\add_distributed_tag($distributedKey, $value);

@@ -102,6 +102,14 @@ final class Context implements ContextInterface
      */
     public static function resolve($context, ?ContextStorageInterface $contextStorage = null): ContextInterface
     {
+        $spanFromContext = API\Span::fromContext(self::storage()->current());
+        if ($spanFromContext instanceof SDK\Span) {
+            $ddSpanFromContext = $spanFromContext->getDDSpan();
+            self::deactivateEndedParents($ddSpanFromContext);
+        }
+
+        self::activateParent(active_span());
+
         return $context
             ?? ($contextStorage ?? self::storage())->current()
             ?: self::getRoot();
@@ -126,41 +134,27 @@ final class Context implements ContextInterface
 
     public static function getCurrent(): ContextInterface
     {
-        if (active_span()) {
-            print("[>Context] Active span id: " . str_pad(strtolower(self::largeBaseConvert(active_span()?->id, 10, 16)), 16, '0', STR_PAD_LEFT) . PHP_EOL);
-        }
         $spanFromContext = API\Span::fromContext(self::storage()->current());
         if ($spanFromContext instanceof SDK\Span) {
             $ddSpanFromContext = $spanFromContext->getDDSpan();
-            self::desactivateEndedParents($ddSpanFromContext);
+            self::deactivateEndedParents($ddSpanFromContext);
         }
 
-        $currentSpanId = self::storage()->current()->get(self::$spanContextKey)?->getContext()->getSpanId();
-        print("[Context] Current Span Id: $currentSpanId\n");
-        $currentSpanDDSpan = $currentSpanId = self::storage()->current()->get(self::$spanContextKey)?->getDDSpan()->getDuration();
-        print("[Context] Has a dd span? $currentSpanDDSpan\n");
-        print("[Context] Active spans's duration: " . active_span()?->getDuration() . PHP_EOL);
-        if (active_span()) {
-            print("[<Context] Active span id: " . str_pad(strtolower(self::largeBaseConvert(active_span()?->id, 10, 16)), 16, '0', STR_PAD_LEFT) . PHP_EOL);
-        }
         return self::activateParent(active_span());
     }
 
-    private static function desactivateEndedParents(?SpanData $currentSpan)
+    private static function deactivateEndedParents(?SpanData $currentSpan)
     {
         $_spanId = $currentSpan
             ? str_pad(strtolower(self::largeBaseConvert($currentSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT)
             : "null";
-        print("Desactivating ended parents of span $_spanId\n");
 
         if ($currentSpan === null) { // Terminal condition - root span
-            print("No current span\n");
             return;
         }
 
         if ($currentSpan->getDuration() === 0) {
             // The span is still active, so its parents are still active
-            print("Span $_spanId is still active\n");
             return;
         }
 
@@ -168,22 +162,16 @@ final class Context implements ContextInterface
         /** @var SDK\Span $OTelCurrentSpan */
         $OTelCurrentSpan = ObjectKVStore::get($currentSpan, 'otel_span'); // Note: SDK\Span::startSpan() associates the DDTrace span with the OTel span when it is created
         if ($OTelCurrentSpan !== null) {
-            print("Ending span {$OTelCurrentSpan->getContext()->getSpanId()}\n");
             $OTelCurrentSpan->endOTelSpan();
         }
 
         // End the parent spans
-        self::desactivateEndedParents($currentSpan->parent);
+        self::deactivateEndedParents($currentSpan->parent);
     }
 
     private static function activateParent(?SpanData $currentSpan): ContextInterface
     {
-        $_spanId = $currentSpan
-            ? str_pad(strtolower(self::largeBaseConvert($currentSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT)
-            : "null";
-        print("Activating parent of span $_spanId\n");
         if ($currentSpan === null) { // Terminal condition - root span
-            print("No current span\n");
             return self::storage()->current();
             //return self::getRoot();
         }
@@ -191,16 +179,13 @@ final class Context implements ContextInterface
         /** @var SDK\Span $OTelCurrentSpan */
         $OTelCurrentSpan = ObjectKVStore::get($currentSpan, 'otel_span'); // Note: SDK\Span::startSpan() associates the DDTrace span with the OTel span when it is created
         if ($OTelCurrentSpan !== null) { // If the current span has been activated, nothing to do, trigger backtalk
-            print("Current span {$OTelCurrentSpan->getContext()->getSpanId()} otel exists\n");
             // Return the context associated with the current span
             if (ObjectKVStore::get($currentSpan, 'ddtrace_scope_activated')) {
-                print("Current span {$OTelCurrentSpan->getContext()->getSpanId()} already activated\n");
                 return self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
             } else {
-                print("Current span {$OTelCurrentSpan->getContext()->getSpanId()} not activated\n");
                 return self::storage()->current();
             }
-            return self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
+            //return self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
             //return self::storage()->current();
             //$currentContext = self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
             //self::storage()->attach($currentContext); // TODO: Handle Detach
@@ -233,7 +218,6 @@ final class Context implements ContextInterface
             $currentSpan->getStartTime()
         );
         ObjectKVStore::put($currentSpan, 'otel_span', $OTelCurrentSpan);
-        print("Created span {$OTelCurrentSpan->getContext()->getSpanId()}\n");
         $currentContext = $parentContext->with(self::$spanContextKey, $OTelCurrentSpan); // Sets the current span in the context
         ObjectKVStore::put($currentSpan, 'ddtrace_scope_activated', true);
         self::storage()->attach($currentContext); // TODO: Handle Detach
