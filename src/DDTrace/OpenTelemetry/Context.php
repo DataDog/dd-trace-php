@@ -9,14 +9,11 @@ use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\SDK\Common\Attribute\AttributesFactory;
-use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScope;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeFactory;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
 use OpenTelemetry\SDK\Resource\ResourceInfoFactory;
 use OpenTelemetry\SDK\Trace as SDK;
-use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\SDK\Trace\SpanProcessor\NoopSpanProcessor;
-use function assert;
 use function DDTrace\active_span;
 use function DDTrace\generate_distributed_tracing_headers;
 use function DDTrace\trace_id;
@@ -145,10 +142,6 @@ final class Context implements ContextInterface
 
     private static function deactivateEndedParents(?SpanData $currentSpan)
     {
-        $_spanId = $currentSpan
-            ? str_pad(strtolower(self::largeBaseConvert($currentSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT)
-            : "null";
-
         if ($currentSpan === null) { // Terminal condition - root span
             return;
         }
@@ -173,7 +166,6 @@ final class Context implements ContextInterface
     {
         if ($currentSpan === null) { // Terminal condition - root span
             return self::storage()->current();
-            //return self::getRoot();
         }
 
         /** @var SDK\Span $OTelCurrentSpan */
@@ -185,11 +177,6 @@ final class Context implements ContextInterface
             } else {
                 return self::storage()->current();
             }
-            //return self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
-            //return self::storage()->current();
-            //$currentContext = self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
-            //self::storage()->attach($currentContext); // TODO: Handle Detach
-            //return $currentContext;
         }
 
         $parentContext = self::activateParent($currentSpan->parent); // Activates the ancestors first
@@ -227,13 +214,11 @@ final class Context implements ContextInterface
 
     public function activate(): ScopeInterface
     {
-        // TODO: Context::getCurrent should already have been called, so the current span should be set, but test it anyway
         if ($this->span instanceof SDK\Span) {
             ObjectKVStore::put($this->span->getDDSpan(), 'ddtrace_scope_activated', true);
         }
+
         $scope = self::storage()->attach($this);
-        /** @psalm-suppress RedundantCondition */
-        //assert((bool) $scope = new DebugScope($scope));
 
         return $scope;
     }

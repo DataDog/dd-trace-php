@@ -4,38 +4,19 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\SDK\Trace;
 
-use DDTrace\Log\Logger;
-use DDTrace\Propagator;
 use DDTrace\SpanData;
-use DDTrace\SpanLink;
 use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
-use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
-use OpenTelemetry\Context\ContextKeys;
-use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
 use OpenTelemetry\SDK\Resource\ResourceInfo;
-use OpenTelemetry\SDK\Trace\EventInterface;
-use OpenTelemetry\SDK\Trace\ImmutableSpan;
-use OpenTelemetry\SDK\Trace\LinkInterface;
-use OpenTelemetry\SDK\Trace\ReadWriteSpanInterface;
 use OpenTelemetry\API\Trace as API;
-use OpenTelemetry\SDK\Trace\SpanDataInterface;
-use OpenTelemetry\SDK\Trace\SpanLimits;
-use OpenTelemetry\SDK\Trace\SpanProcessorInterface;
-use OpenTelemetry\SDK\Trace\StatusData;
-use OpenTelemetry\SDK\Trace\StatusDataInterface;
 use Throwable;
 
 use function DDTrace\close_span;
-use function DDTrace\close_spans_until;
-use function DDTrace\generate_distributed_tracing_headers;
-use function DDTrace\start_trace_span;
-use function DDTrace\trace_id;
 
 final class Span extends API\Span implements ReadWriteSpanInterface
 {
@@ -252,6 +233,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         foreach ($attributes as $key => $value) {
             if ($key === Tag::RESOURCE_NAME) {
                 $span->resource = $value;
+            } elseif ($key === Tag::SERVICE_NAME) {
+                $span->service = $value;
             } elseif (strpos($key, '_dd.p.') === 0) {
                 $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
                 \DDTrace\add_distributed_tag($distributedKey, $value);
@@ -373,9 +356,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->endOTelSpan($endEpochNanos);
 
         // TODO: Actually check if the span was closed (change extension to return a boolean?)
-        //close_spans_until($this->span);
-        close_span();
-        //close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
+        //close_span();
+        close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
     }
 
     public function endOTelSpan(int $endEpochNanos = null): void
@@ -408,26 +390,5 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function getDDSpan(): SpanData
     {
         return $this->span;
-    }
-
-    // __destruct() --> detach scope if active
-    public function __destruct()
-    {
-        /*
-        print("Destructing span\n");
-        if ($this->hasEnded) {
-            return;
-        }
-
-        $currentScope = Context::storage()->scope();
-        $associatedContext = $currentScope->context();
-        $associatedSpan = $associatedContext->get(ContextKeys::span());
-        if ($associatedSpan === $this) {
-            print("Detaching scope\n");
-            $currentScope->detach();
-        }
-
-        $this->end();
-        */
     }
 }

@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace DDTrace\OpenTelemetry\API\Trace;
 
 use DDTrace\OpenTelemetry\SDK\Trace\Span;
-use DDTrace\Propagator;
 use DDTrace\SpanData;
-use DDTrace\Tag;
-use DDTrace\Trace;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanContextValidator;

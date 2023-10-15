@@ -6,9 +6,6 @@ namespace OpenTelemetry\SDK\Trace;
 
 use DDTrace\OpenTelemetry\API\Trace as DDTraceAPI;
 
-use DDTrace\Log\Logger;
-use DDTrace\Propagator;
-use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tag;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Trace\SpanBuilderInterface;
@@ -16,15 +13,9 @@ use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
-use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
 
-use OpenTelemetry\SDK\Trace\LinkInterface;
-use OpenTelemetry\SDK\Trace\TracerSharedState;
-use function DDTrace\consume_distributed_tracing_headers;
-use function DDTrace\start_span;
-use function DDTrace\start_trace_span;
 use function DDTrace\trace_id;
 
 final class SpanBuilder implements API\SpanBuilderInterface
@@ -150,7 +141,6 @@ final class SpanBuilder implements API\SpanBuilderInterface
      */
     public function startSpan(): SpanInterface
     {
-        // TODO: Check w/. setParent(false)
         $parentContext = Context::resolve($this->parentContext);
         $parentSpan = Span::fromContext($parentContext);
         $parentSpanContext = $parentSpan->getContext();
@@ -178,7 +168,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $samplingResultTraceState = $samplingResult->getTraceState();
 
         if ($parentSpanContext->isValid()) {
-            // Traceparent: {version}-{hex trace id}-{hex parent id}-{trace_flags}, version always being '00'
+            // Traceparent: {2:version}-{32:hex trace id}-{16:hex parent id}-{2:trace_flags}, version always being '00'
             // Since parentSpanContext is valid, the trace identifiers are guaranteed to be in hexadecimal format
             $parentId = $parentSpanContext->getSpanId();
             $traceFlags = $sampled ? '01' : '00';
