@@ -54,6 +54,8 @@
         <testsuite name="opentelemetry1">
             <directory>./OpenTelemetry/Integration/API</directory>
             <directory>./OpenTelemetry/Integration/SDK</directory>
+            <directory>./OpenTelemetry/Unit/Context</directory>
+            <directory>./OpenTelemetry/Unit/Propagation</directory>
             <file>./OpenTelemetry/Integration/InteroperabilityTest.php</file>
         </testsuite>
         <testsuite name="slim-312-test">

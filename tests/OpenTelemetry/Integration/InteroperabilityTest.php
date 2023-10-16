@@ -8,19 +8,18 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;
 use OpenTelemetry\API\Globals;
+use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
 use OpenTelemetry\API\Trace\SpanContextValidator;
-use OpenTelemetry\API\Trace\TraceFlags;
-use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Extension\Propagator\B3\B3Propagator;
 use OpenTelemetry\SDK\Sdk;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 use function DDTrace\active_span;
 use function DDTrace\close_span;
 use function DDTrace\close_spans_until;
-use function DDTrace\generate_distributed_tracing_headers;
 use function DDTrace\start_span;
 use function DDTrace\start_trace_span;
 use function DDTrace\trace_id;
@@ -30,6 +29,7 @@ final class InteroperabilityTest extends BaseTestCase
     use TracerTestTrait, SpanAssertionTrait;
 
     // TODO: Implement AttributesBuilder and add a method to retrieve the attributeCountLimit
+    // TODO: Change things to use SpanAssertionTrait's capabilities instead
 
     // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
     private static function largeBaseConvert($numString, $fromBase, $toBase)
@@ -656,6 +656,175 @@ final class InteroperabilityTest extends BaseTestCase
                             SpanAssertion::build('otel.child4', 'phpunit', 'cli', 'otel.child4')
                         )
                 ),
+        ]);
+    }
+
+    public function testW3CInteroperability()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $propagator = TraceContextPropagator::getInstance();
+
+            $carrier = [
+                TraceContextPropagator::TRACEPARENT => '00-ff0000000000051791e0000000000041-ff00051791e00041-01'
+            ];
+
+            $context = $propagator->extract($carrier);
+
+            $OTelRootSpan = $tracer->spanBuilder("otel.root.span")
+                ->setParent($context)
+                ->startSpan();
+            $OTelRootScope = $OTelRootSpan->activate();
+
+            $DDChildSpan = start_span();
+            $DDChildSpan->name = "dd.child.span";
+
+            $DDChildSpanAsOtel = Span::getCurrent();
+            $DDChildSpanId = $DDChildSpanAsOtel->getContext()->getSpanId();
+
+            $carrier = [];
+            $propagator->inject(
+                $carrier,
+                null,
+                Context::getCurrent()->withContextValue($DDChildSpanAsOtel)
+            );
+
+            $DDChildSpanAsOtel->end();
+            $OTelRootScope->detach();
+            $OTelRootSpan->end();
+
+            $this->assertSame("00-ff0000000000051791e0000000000041-$DDChildSpanId-01", $carrier[TraceContextPropagator::TRACEPARENT]);
+            $this->assertSame('dd=t.tid:ff00000000000517;t.dm:-1', $carrier[TraceContextPropagator::TRACESTATE]); // ff00000000000517 is the high 64-bit part of the 128-bit trace id
+        });
+
+        $this->assertSame('10511401530282737729', $traces[0][0]['trace_id']);
+        $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('otel.root.span', 'phpunit', 'cli', 'otel.root.span')
+                ->withExactTags([
+                    '_dd.p.tid' => 'ff00000000000517'
+                ])
+                ->withChildren(
+                    SpanAssertion::build('dd.child.span', 'phpunit', 'cli', 'dd.child.span')
+                        ->withExactTags([
+                            '_dd.p.tid' => 'ff00000000000517'
+                        ])
+                )
+        ]);
+    }
+
+    public function testB3SingleInteroperability()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $propagator = B3Propagator::getB3SingleHeaderInstance();
+
+            $carrier = [
+                'b3' => 'ff0000000000051791e0000000000041-ff00051791e00041'
+            ];
+
+            $context = $propagator->extract($carrier);
+
+            $OTelRootSpan = $tracer->spanBuilder("otel.root.span")
+                ->setParent($context)
+                ->startSpan();
+            $OTelRootScope = $OTelRootSpan->activate();
+
+            $DDChildSpan = start_span();
+            $DDChildSpan->name = "dd.child.span";
+
+            $DDChildSpanAsOtel = Span::getCurrent();
+            $DDChildSpanId = $DDChildSpanAsOtel->getContext()->getSpanId();
+
+            // Inject
+            $carrier = [];
+            $propagator->inject(
+                $carrier,
+                null,
+                Context::getCurrent()->withContextValue($DDChildSpanAsOtel)
+            );
+
+            $DDChildSpanAsOtel->end();
+            $OTelRootScope->detach();
+            $OTelRootSpan->end();
+
+            $this->assertSame("ff0000000000051791e0000000000041-$DDChildSpanId-1", $carrier['b3']);
+        });
+
+        $this->assertSame('10511401530282737729', $traces[0][0]['trace_id']);
+        $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('otel.root.span', 'phpunit', 'cli', 'otel.root.span')
+                ->withExactTags([
+                    '_dd.p.tid' => 'ff00000000000517'
+                ])
+                ->withChildren(
+                    SpanAssertion::build('dd.child.span', 'phpunit', 'cli', 'dd.child.span')
+                        ->withExactTags([
+                            '_dd.p.tid' => 'ff00000000000517'
+                        ])
+                )
+        ]);
+    }
+
+    public function testB3MultiInteroperability()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $propagator = B3Propagator::getB3MultiHeaderInstance();
+
+            $carrier = [
+                'X-B3-TraceId' => 'ff0000000000051791e0000000000041',
+                'X-B3-SpanId' => 'ff00051791e00041',
+                'X-B3-Sampled' => '1'
+            ];
+
+            $context = $propagator->extract($carrier);
+
+            $OTelRootSpan = $tracer->spanBuilder("otel.root.span")
+                ->setParent($context)
+                ->startSpan();
+            $OTelRootScope = $OTelRootSpan->activate();
+
+            $DDChildSpan = start_span();
+            $DDChildSpan->name = "dd.child.span";
+
+            $DDChildSpanAsOtel = Span::getCurrent();
+            $DDChildSpanId = $DDChildSpanAsOtel->getContext()->getSpanId();
+
+            // Inject
+            $carrier = [];
+            $propagator->inject(
+                $carrier,
+                null,
+                Context::getCurrent()->withContextValue($DDChildSpanAsOtel)
+            );
+
+            $DDChildSpanAsOtel->end();
+            $OTelRootScope->detach();
+            $OTelRootSpan->end();
+
+            $this->assertSame('ff0000000000051791e0000000000041', $carrier['X-B3-TraceId']);
+            $this->assertSame($DDChildSpanId, $carrier['X-B3-SpanId']);
+            $this->assertSame('1', $carrier['X-B3-Sampled']);
+        });
+
+        $this->assertSame('10511401530282737729', $traces[0][0]['trace_id']);
+        $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('otel.root.span', 'phpunit', 'cli', 'otel.root.span')
+                ->withExactTags([
+                    '_dd.p.tid' => 'ff00000000000517'
+                ])
+                ->withChildren(
+                    SpanAssertion::build('dd.child.span', 'phpunit', 'cli', 'dd.child.span')
+                        ->withExactTags([
+                            '_dd.p.tid' => 'ff00000000000517'
+                        ])
+                )
         ]);
     }
 }
