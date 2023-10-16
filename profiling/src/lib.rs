@@ -377,6 +377,7 @@ pub struct RequestLocals {
     pub profiling_experimental_exception_enabled: bool,
     pub profiling_experimental_exception_sampling_distance: u32,
     pub profiling_log_level: LevelFilter, // Only used for minfo
+    pub profiling_wall_time_enabled: bool,
     pub service: Option<Cow<'static, str>>,
     pub uri: Box<AgentEndpoint>,
     pub version: Option<Cow<'static, str>>,
@@ -407,6 +408,7 @@ impl Default for RequestLocals {
             profiling_experimental_exception_enabled: false,
             profiling_experimental_exception_sampling_distance: 100,
             profiling_log_level: LevelFilter::Off,
+            profiling_wall_time_enabled: true,
             service: None,
             uri: Box::<AgentEndpoint>::default(),
             version: None,
@@ -474,6 +476,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         profiling_experimental_exception_sampling_distance,
         log_level,
         output_pprof,
+        profiling_wall_time_enabled,
     ) = unsafe {
         let profiling_enabled = config::profiling_enabled();
         (
@@ -486,6 +489,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             config::profiling_experimental_exception_sampling_distance(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
+            profiling_enabled && config::profiling_wall_time_enabled(),
         )
     };
 
@@ -505,6 +509,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         locals.profiling_experimental_exception_sampling_distance =
             profiling_experimental_exception_sampling_distance;
         locals.profiling_log_level = log_level;
+
+        locals.profiling_wall_time_enabled = profiling_wall_time_enabled;
 
         // Safety: We are after first rinit and before mshutdown.
         unsafe {
@@ -611,6 +617,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         REQUEST_LOCALS.with(|cell| {
             let locals = cell.borrow();
             let cpu_time_enabled = locals.profiling_experimental_cpu_time_enabled;
+            let wall_time_enabled = locals.profiling_wall_time_enabled;
             CLOCKS.with(|cell| cell.borrow_mut().initialize(cpu_time_enabled));
 
             TAGS.with(|cell| {
@@ -624,6 +631,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 add_tag(&mut tags, "php.sapi", SAPI.as_ref());
                 cell.replace(Arc::new(tags));
             });
+
+            if !wall_time_enabled && !cpu_time_enabled {
+                return;
+            }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 let interrupt = VmInterrupt {
