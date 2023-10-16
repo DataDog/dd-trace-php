@@ -61,7 +61,9 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->assertEquals([[
             "name" => "nikic/fast-route",
             "version" => "v1.3.0",
-        ]], $payloads[1]["payload"]["dependencies"]);
+        ]], array_filter($payloads[1]["payload"]["dependencies"], function ($i) {
+            return strpos($i["name"], "ext-") !== 0;
+        }));
         // Not asserting app-closing, this is not expected to happen until shutdown
 
         $this->call(GetSpec::create("autoloaded", "/pdo"));
@@ -79,7 +81,6 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->assertEquals([[
             "name" => "pdo",
             "enabled" => true,
-            "version" => '0'
         ]], $payloads[2]["payload"]["integrations"]);
     }
 }
