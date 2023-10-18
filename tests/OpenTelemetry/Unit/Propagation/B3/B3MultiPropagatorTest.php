@@ -10,6 +10,7 @@ use OpenTelemetry\API\Trace\SpanContextValidator;
 use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
+use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\Extension\Propagator\B3\B3DebugFlagContextKey;
 use OpenTelemetry\Extension\Propagator\B3\B3MultiPropagator;
 use OpenTelemetry\SDK\Trace\Span;
@@ -34,6 +35,7 @@ class B3MultiPropagatorTest extends TestCase
 
     protected function setUp(): void
     {
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         $this->b3MultiPropagator = B3MultiPropagator::getInstance();
         $b3MultiFields = $this->b3MultiPropagator->fields();
         $this->TRACE_ID = $b3MultiFields[0];

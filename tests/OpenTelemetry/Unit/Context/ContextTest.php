@@ -7,6 +7,7 @@ namespace OpenTelemetry\Tests\Unit\Context;
 use DDTrace\Tests\Common\BaseTestCase;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextKeys;
+use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\Context\ImplicitContextKeyedInterface;
 use PHPUnit\Framework\TestCase;
 use stdClass;
@@ -25,6 +26,7 @@ class ContextTest extends BaseTestCase
 
     protected function tearDown() : void
     {
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
         parent::tearDown();
         \dd_trace_serialize_closed_spans();

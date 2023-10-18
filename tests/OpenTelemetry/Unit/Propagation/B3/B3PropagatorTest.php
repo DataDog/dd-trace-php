@@ -10,6 +10,7 @@ use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
+use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\Extension\Propagator\B3\B3DebugFlagContextKey;
 use OpenTelemetry\Extension\Propagator\B3\B3MultiPropagator;
 use OpenTelemetry\Extension\Propagator\B3\B3Propagator;
@@ -44,6 +45,7 @@ class B3PropagatorTest extends BaseTestCase
 
     protected function ddTearDown()
     {
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         parent::ddTearDown();
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         dd_trace_internal_fn('ddtrace_reload_config');

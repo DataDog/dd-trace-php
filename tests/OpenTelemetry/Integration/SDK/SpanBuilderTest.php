@@ -13,6 +13,7 @@ use OpenTelemetry\API\Trace\SpanContext;
 use OpenTelemetry\API\Trace\SpanContextValidator;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
+use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesInterface;
 use OpenTelemetry\SDK\Trace\Link;
@@ -59,6 +60,7 @@ class SpanBuilderTest extends MockeryTestCase
 
     protected function tearDown() : void
     {
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         BaseTestCase::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
         \dd_trace_serialize_closed_spans();
     }

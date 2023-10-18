@@ -7,12 +7,15 @@ use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;
+use OpenTelemetry\API\Baggage\Baggage;
 use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
 use OpenTelemetry\API\Trace\SpanContextValidator;
+use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\Extension\Propagator\B3\B3Propagator;
 use OpenTelemetry\SDK\Sdk;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
@@ -77,9 +80,9 @@ final class InteroperabilityTest extends BaseTestCase
     public function ddTearDown()
     {
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
-        self::putEnv("DD_TRACE_DEBUG=");
+        //self::putEnv("DD_TRACE_DEBUG=");
         parent::ddTearDown();
-        \dd_trace_serialize_closed_spans();
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
     }
 
     public static function getTracer()
@@ -825,6 +828,52 @@ final class InteroperabilityTest extends BaseTestCase
                             '_dd.p.tid' => 'ff00000000000517'
                         ])
                 )
+        ]);
+    }
+
+    public function testBaggageInteroperability()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
+
+            $parentSpan = $tracer->spanBuilder('parent')
+                ->setSpanKind(SpanKind::KIND_SERVER)
+                ->startSpan();
+            $parentSpanScope = $parentSpan->activate();
+
+            $baggage = Baggage::getBuilder()
+                ->set('user.id', '1')
+                ->set('user.name', 'name')
+                ->build();
+            $baggageScope = $baggage->storeInContext(Context::getCurrent())->activate();
+
+            $childSpan = start_span();
+            $childSpan->name = 'child';
+            $childSpan->meta['user.id'] = Baggage::getCurrent()->getValue('user.id');
+
+            close_span();
+
+            $parentSpan->setAttribute('http.method', 'GET');
+            $parentSpan->setAttribute('http.uri', '/parent');
+
+            $baggageScope->detach();
+            $parentSpanScope->detach();
+            $parentSpan->end();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('parent', 'phpunit', 'cli', 'parent')
+                ->withExactTags([
+                    Tag::SPAN_KIND => Tag::SPAN_KIND_VALUE_SERVER,
+                    'http.method' => 'GET',
+                    'http.uri' => '/parent'
+                ])
+                ->withChildren([
+                    SpanAssertion::build('child', 'phpunit', 'cli', 'child')
+                        ->withExactTags([
+                            'user.id' => '1',
+                        ])
+                ])
         ]);
     }
 }

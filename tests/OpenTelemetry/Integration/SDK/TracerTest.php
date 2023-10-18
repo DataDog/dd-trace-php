@@ -12,6 +12,7 @@ use OpenTelemetry\API\Trace\NonRecordingSpan;
 use OpenTelemetry\API\Trace\SpanContext;
 use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\SDK\Common\Configuration\Variables;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOffSampler;
 use OpenTelemetry\SDK\Trace\SamplerInterface;
@@ -43,6 +44,7 @@ class TracerTest extends BaseTestCase
 
     public function ddTearDown(): void
     {
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         parent::ddTearDown();
         BaseTestCase::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
         self::restoreEnvironmentVariables();

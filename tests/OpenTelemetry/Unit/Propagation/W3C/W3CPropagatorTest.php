@@ -12,6 +12,7 @@ use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
+use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\SDK\Trace\Span;
 
 /**
@@ -41,6 +42,7 @@ class W3CPropagatorTest extends BaseTestCase
 
     protected function ddTearDown()
     {
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         parent::ddTearDown();
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
         dd_trace_internal_fn('ddtrace_reload_config');

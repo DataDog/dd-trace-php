@@ -17,6 +17,7 @@ use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\SDK\Sdk;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\Sampler\ParentBased;
@@ -47,6 +48,7 @@ final class TracerTest extends BaseTestCase
 
     public function ddTearDown()
     {
+        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
         self::putEnv("DD_TRACE_DEBUG=");
         parent::ddTearDown();
