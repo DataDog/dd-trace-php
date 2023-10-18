@@ -1257,4 +1257,31 @@ mod tests {
         );
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 70]);
     }
+
+    #[test]
+    fn profiler_prepare_sample_message_works_with_disabled_walltime() {
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_allocation_enabled = false;
+        locals.profiling_experimental_cpu_time_enabled = false;
+        locals.profiling_experimental_exception_enabled = false;
+        locals.profiling_wall_time_enabled = false;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+
+        // Still present because at the moment, disabling wall-time only
+        // disables the timer, not the sample type.
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType::new("sample", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+            ]
+        );
+        assert_eq!(message.value.sample_values, vec![10, 20]);
+    }
 }
