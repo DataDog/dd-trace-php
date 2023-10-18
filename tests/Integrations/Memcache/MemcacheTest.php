@@ -29,6 +29,8 @@ final class MemcacheTest extends IntegrationTestCase
             // Cleaning up existing data from previous tests
             $this->client->flush();
         });
+
+        $this->putEnv('DD_TRACE_GENERATE_ROOT_SPAN=0');
     }
 
     protected function envsToCleanUpAtTearDown()
