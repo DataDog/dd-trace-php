@@ -49,6 +49,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             'DD_TRACE_MEMORY_LIMIT',
             'DD_TRACE_SPANS_LIMIT',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_TRACE_GENERATE_ROOT_SPAN',
         ];
     }
 
@@ -694,6 +695,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     'peer.service' => 'httpbin_integration',
                     '_dd.peer.service.source' => 'network.destination.name',
+                    '_dd.base_service' => 'phpunit'
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
