@@ -488,20 +488,9 @@ pub enum UploadMessage {
 
 impl Profiler {
     pub fn new(output_pprof: Option<Cow<'static, str>>) -> Self {
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "trigger_time_sample")] {
-                // We don't want giant profiles when benchmarking.
-                // We don't want it to block, either.
-                // 1 fits both goals.
-                let message_capacity = 1;
-            } else {
-                let message_capacity = 128;
-            }
-        }
-        let (message_sender, message_receiver) = crossbeam_channel::bounded(message_capacity);
-
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
+        let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
