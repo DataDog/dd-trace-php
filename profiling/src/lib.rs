@@ -363,6 +363,9 @@ extern "C" fn prshutdown() -> ZendResult {
 
     TAGS.with(|cell| cell.replace(Arc::default()));
 
+    #[cfg(feature = "timeline")]
+    timeline::timeline_prshutdown();
+
     ZendResult::Success
 }
 
@@ -747,9 +750,6 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rshutdown();
-
-    #[cfg(feature = "timeline")]
-    timeline::timeline_rshutdown();
 
     ZendResult::Success
 }
