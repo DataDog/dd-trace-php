@@ -1,4 +1,5 @@
 use crate::bindings as zend;
+use crate::profiling::CACHED_STRINGS;
 use crate::zend::{zai_str_from_zstr, zend_get_executed_filename_ex};
 use crate::{PROFILER, REQUEST_LOCALS};
 use libc::c_char;
@@ -75,31 +76,37 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
             return op_array;
         }
 
-        let filename = zai_str_from_zstr(zend_get_executed_filename_ex().as_mut()).into_string();
+        let filename = zai_str_from_zstr(zend_get_executed_filename_ex().as_mut());
+        let filename_lossy = filename.to_string_lossy();
+        CACHED_STRINGS
+            .with(|cell| -> anyhow::Result<()> {
+                let string_table = &mut *cell.borrow_mut();
+                let filename = string_table.insert(&filename_lossy)?;
 
-        let line = zend::zend_get_executed_lineno();
+                let line = zend::zend_get_executed_lineno();
 
-        trace!(
-            "Compiling eval()'ed code in \"{filename}\" at line {line} took {} nanoseconds",
-            duration.as_nanos(),
-        );
-        REQUEST_LOCALS.with(|cell| {
-            // try to borrow and bail out if not successful
-            let Ok(locals) = cell.try_borrow() else {
-                return;
-            };
+                REQUEST_LOCALS.with(|cell| {
+                    // try to borrow and bail out if not successful
+                    let Ok(locals) = cell.try_borrow() else {
+                        return;
+                    };
 
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                profiler.collect_compile_string(
-                    // Safety: checked for `is_err()` above
-                    now.unwrap().as_nanos() as i64,
-                    duration.as_nanos() as i64,
-                    filename,
-                    line,
-                    &locals,
-                );
-            }
-        });
+                    if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                        profiler.collect_compile_string(
+                            // Safety: checked for `is_err()` above
+                            now.unwrap().as_nanos() as i64,
+                            duration.as_nanos() as i64,
+                            filename,
+                            line,
+                            &locals,
+                            string_table,
+                        );
+                    }
+                });
+                Ok(())
+            })
+            .unwrap(); // todo <- fix unwrap
+
         return op_array;
     }
     error!("No previous `zend_compile_string` handler found! This is a huge problem as your eval() won't work and PHP will higly likely crash. I am sorry, but the die is cast.");

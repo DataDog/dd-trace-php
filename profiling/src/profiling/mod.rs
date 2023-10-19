@@ -41,6 +41,7 @@ use std::time::UNIX_EPOCH;
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 #[cfg(feature = "allocation_profiling")]
 use datadog_profiling::api::UpscalingInfo;
+use datadog_profiling::collections::identifiable::{StringId, StringTable};
 
 #[cfg(feature = "exception_profiling")]
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
@@ -778,9 +779,10 @@ impl Profiler {
         &self,
         now: i64,
         duration: i64,
-        filename: String,
+        filename: StringId,
         line: u32,
         locals: &RequestLocals,
+        string_table: &mut StringTable,
     ) {
         let mut labels = Profiler::message_labels();
 
@@ -796,7 +798,15 @@ impl Profiler {
 
         // todo: add fake stack frame back
         match self.send_sample(Profiler::prepare_sample_message(
-            vec![],
+            vec![ZendFrame {
+                reader: string_table.get_reader(),
+                function: AbrigedFunction {
+                    // todo: fix magic number
+                    name: StringId::new(6),
+                    filename,
+                },
+                line,
+            }],
             SampleValues {
                 timeline: duration,
                 ..Default::default()

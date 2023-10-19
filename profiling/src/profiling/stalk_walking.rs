@@ -63,9 +63,23 @@ impl Id for FunctionId {
     }
 }
 
+fn new_string_table_with_known_strings(capacity: usize) -> anyhow::Result<StringTable> {
+    let mut table = StringTable::with_capacity(capacity)?;
+    assert_eq!(StringId::new(1), table.insert("<?php")?);
+    assert_eq!(StringId::new(2), table.insert("[gc]")?);
+    assert_eq!(StringId::new(3), table.insert("[include]")?);
+    assert_eq!(StringId::new(4), table.insert("[require]")?);
+    assert_eq!(StringId::new(5), table.insert("[truncated]")?);
+
+    #[cfg(feature = "timeline")]
+    assert_eq!(StringId::new(6), table.insert("[eval]")?);
+
+    Ok(table)
+}
+
 #[cfg(php_run_time_cache)]
 thread_local! {
-    pub static CACHED_STRINGS: RefCell<StringTable> = RefCell::new(StringTable::with_capacity(1024*1024*8).unwrap());
+    pub static CACHED_STRINGS: RefCell<StringTable> = RefCell::new(new_string_table_with_known_strings(1024*1024*8).unwrap());
     pub static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> = RefCell::new(Default::default())
 }
 
@@ -74,7 +88,8 @@ thread_local! {
 #[inline]
 pub unsafe fn activate_run_time_cache() {
     #[cfg(php_run_time_cache)]
-    CACHED_STRINGS.with(|cell| cell.replace(StringTable::with_capacity(1000).unwrap()));
+    CACHED_STRINGS
+        .with(|cell| cell.replace(new_string_table_with_known_strings(1024 * 1024 * 8).unwrap()));
 }
 
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
