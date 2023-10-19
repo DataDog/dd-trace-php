@@ -29,17 +29,17 @@ impl FunctionRunTimeCacheStats {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 #[repr(C)]
-pub struct AbrigedFunction {
+pub struct AbridgedFunction {
     pub name: StringId,
     pub filename: StringId,
 }
 
-impl Item for AbrigedFunction {
+impl Item for AbridgedFunction {
     type Id = FunctionId;
 }
 
 pub struct FunctionTable {
-    pub functions: Table<AbrigedFunction>,
+    pub functions: Table<AbridgedFunction>,
     pub strings: StringTable,
 }
 
@@ -77,9 +77,10 @@ fn new_string_table_with_known_strings(capacity: usize) -> anyhow::Result<String
     Ok(table)
 }
 
-#[cfg(php_run_time_cache)]
 thread_local! {
     pub static CACHED_STRINGS: RefCell<StringTable> = RefCell::new(new_string_table_with_known_strings(1024*1024*8).unwrap());
+
+    #[cfg(php_run_time_cache)]
     pub static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> = RefCell::new(Default::default())
 }
 
@@ -87,7 +88,6 @@ thread_local! {
 /// Must be called in Zend Extension activate.
 #[inline]
 pub unsafe fn activate_run_time_cache() {
-    #[cfg(php_run_time_cache)]
     CACHED_STRINGS
         .with(|cell| cell.replace(new_string_table_with_known_strings(1024 * 1024 * 8).unwrap()));
 }
@@ -100,7 +100,7 @@ pub const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 
 pub struct ZendFrame {
     pub reader: StringTableReader,
-    pub function: AbrigedFunction,
+    pub function: AbridgedFunction,
     pub line: u32, // use 0 for no line info
 }
 
@@ -114,6 +114,7 @@ pub struct ZendFrame {
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
 pub fn extract_function_name(func: &zend_function) -> Option<String> {
+    // todo: pass string table in here instead of making a temporary String
     let method_name: &[u8] = func.name().unwrap_or(b"");
 
     /* The top of the stack seems to reasonably often not have a function, but
@@ -194,8 +195,8 @@ pub fn extract_function_name(func: &zend_function) -> Option<String> {
 unsafe fn handle_function_cache_slot(
     execute_data: &zend_execute_data,
     string_table: &mut StringTable,
-    cache_slot: &mut AbrigedFunction,
-) -> Option<(AbrigedFunction, u32)> {
+    cache_slot: &mut AbridgedFunction,
+) -> Option<(AbridgedFunction, u32)> {
     let name = if cache_slot.name.is_zero() {
         let name = extract_function_name(execute_data.func.as_ref()?).unwrap();
         let name_string_id = string_table.insert(name.as_str()).unwrap();
@@ -228,10 +229,11 @@ unsafe fn handle_function_cache_slot(
         0
     };
 
-    Some((AbrigedFunction { name, filename }, line))
+    Some((AbridgedFunction { name, filename }, line))
 }
 
 unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
+    // todo: pass string table in here instead of making a temporary String
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
         Some(func) if func.type_ == ZEND_USER_FUNCTION as u8 => {
@@ -279,7 +281,7 @@ unsafe fn collect_call_frame(
 
             let function = extract_function_name(func).unwrap_or_default();
             let (file, line) = extract_file_and_line(execute_data);
-            let function = AbrigedFunction {
+            let function = AbridgedFunction {
                 name: string_table.insert(function.as_str()).unwrap(),
                 filename: string_table
                     .insert(file.unwrap_or_default().as_str())
@@ -304,7 +306,10 @@ unsafe fn collect_call_frame(
 
 // todo: fix this to use the new string table
 #[cfg(not(php_run_time_cache))]
-unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+unsafe fn collect_call_frame(
+    execute_data: &zend_execute_data,
+    string_table: &mut StringTable,
+) -> Option<ZendFrame> {
     if let Some(func) = execute_data.func.as_ref() {
         let function = extract_function_name(func);
         let (file, line) = extract_file_and_line(execute_data);
@@ -312,10 +317,17 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
         // Only create a new frame if there's file or function info.
         if file.is_some() || function.is_some() {
             // If there's no function name, use a fake name.
-            let function = function.map(Cow::Owned).unwrap_or(COW_PHP_OPEN_TAG);
+            // todo: fix panic and hardcoded string
+            let name = function
+                .map(|f| string_table.insert(f.as_str()).unwrap())
+                .unwrap_or(StringId::new(1));
+
+            let file = file
+                .map(|f| string_table.insert(f.as_str()).unwrap())
+                .unwrap_or(StringId::ZERO);
             return Some(ZendFrame {
-                function,
-                file,
+                reader: string_table.get_reader(),
+                function: AbridgedFunction { name, filename },
                 line,
             });
         }
@@ -326,20 +338,14 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
 #[inline]
 fn collect_stack_sample_helper(
     top_execute_data: *mut zend_execute_data,
-    #[cfg(php_run_time_cache)] string_table: &mut StringTable,
+    string_table: &mut StringTable,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     let max_depth = 512;
     let mut samples = Vec::with_capacity(max_depth >> 3);
     let mut execute_data_ptr = top_execute_data;
 
     while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-        let maybe_frame = unsafe {
-            collect_call_frame(
-                execute_data,
-                #[cfg(php_run_time_cache)]
-                string_table,
-            )
-        };
+        let maybe_frame = unsafe { collect_call_frame(execute_data, string_table) };
         if let Some(frame) = maybe_frame {
             samples.push(frame);
 
@@ -366,16 +372,10 @@ fn collect_stack_sample_helper(
 pub fn collect_stack_sample(
     top_execute_data: *mut zend_execute_data,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
-    cfg_if::cfg_if! {
-        if #[cfg(php_run_time_cache)] {
-            CACHED_STRINGS.with(|cell| {
-                let mut string_table = cell.borrow_mut();
-                collect_stack_sample_helper(top_execute_data, &mut string_table)
-            })
-        } else {
-            collect_stack_sample_helper(top_execute_data)
-        }
-    }
+    CACHED_STRINGS.with(|cell| {
+        let mut string_table = cell.borrow_mut();
+        collect_stack_sample_helper(top_execute_data, &mut string_table)
+    })
 }
 
 #[cfg(test)]

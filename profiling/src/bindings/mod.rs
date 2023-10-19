@@ -313,13 +313,13 @@ extern "C" {
     #[cfg(not(feature = "stack_walking_tests"))]
     pub fn ddog_php_prof_function_run_time_cache(
         func: &zend_function,
-    ) -> Option<&mut crate::profiling::AbrigedFunction>;
+    ) -> Option<&mut crate::profiling::AbridgedFunction>;
 
     /// mock for testing
     #[cfg(feature = "stack_walking_tests")]
     pub fn ddog_test_php_prof_function_run_time_cache(
         func: &zend_function,
-    ) -> Option<&mut crate::profiling::AbrigedFunction>;
+    ) -> Option<&mut crate::profiling::AbridgedFunction>;
 }
 
 #[cfg(php_preload)]

@@ -800,7 +800,7 @@ impl Profiler {
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
                 reader: string_table.get_reader(),
-                function: AbrigedFunction {
+                function: AbridgedFunction {
                     // todo: fix magic number
                     name: StringId::new(6),
                     filename,
@@ -1064,7 +1064,7 @@ mod tests {
         let mut string_table = StringTable::with_capacity(10).unwrap();
         vec![ZendFrame {
             reader: string_table.get_reader(),
-            function: AbrigedFunction {
+            function: AbridgedFunction {
                 name: string_table.insert("foobar").unwrap(),
                 filename: string_table.insert("foobar.php").unwrap(),
             },
