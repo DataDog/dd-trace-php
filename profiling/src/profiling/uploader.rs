@@ -45,7 +45,8 @@ impl Uploader {
             endpoint,
         )?;
 
-        let serialized = profile.serialize(Some(message.end_time), message.duration)?;
+        let serialized =
+            profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
         let endpoint_counts = Some(&serialized.endpoints_stats);
         let start = serialized.start.into();
         let end = serialized.end.into();
@@ -54,7 +55,8 @@ impl Uploader {
             bytes: serialized.buffer.as_slice(),
         }];
         let timeout = Duration::from_secs(10);
-        let request = exporter.build(start, end, files, None, endpoint_counts, None, timeout)?;
+        let request =
+            exporter.build(start, end, &[], files, None, endpoint_counts, None, timeout)?;
         debug!("Sending profile to: {}", index.endpoint);
         let result = exporter.send(request, None)?;
         Ok(result.status().as_u16())
@@ -85,9 +87,9 @@ impl Uploader {
                     Ok(UploadMessage::Upload(request)) => {
                         match pprof_filename {
                             Some(filename) => {
-                                let r = request.profile.serialize(None, None).unwrap();
+                                let r = request.profile.serialize_into_compressed_pprof(None, None).unwrap();
                                 i += 1;
-                                std::fs::write(format!("{filename}.{i}"), r.buffer).expect("write to succeed")
+                                std::fs::write(format!("{filename}.{i}.lz4"), r.buffer).expect("write to succeed")
                             },
                             None => match Self::upload(request) {
                                 Ok(status) => {
