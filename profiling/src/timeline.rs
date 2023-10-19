@@ -195,9 +195,9 @@ pub fn timeline_rinit() {
     });
 }
 
-/// This function is run during the RSHUTDOWN phase and resets the `IDLE_SINCE` thread local to
+/// This function is run during the P-RSHUTDOWN phase and resets the `IDLE_SINCE` thread local to
 /// "now", indicating the start of a new idle phase
-pub fn timeline_rshutdown() {
+pub fn timeline_prshutdown() {
     IDLE_SINCE.with(|cell| {
         // try to borrow and bail out if not successful
         let Ok(mut idle_since) = cell.try_borrow_mut() else {
