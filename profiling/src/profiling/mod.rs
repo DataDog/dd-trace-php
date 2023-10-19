@@ -145,7 +145,6 @@ pub struct ProfileIndex {
     pub endpoint: Box<AgentEndpoint>,
 }
 
-#[derive(Debug)]
 pub struct SampleData {
     pub frames: Vec<ZendFrame>,
     pub labels: Vec<Label>,
@@ -153,7 +152,6 @@ pub struct SampleData {
     pub timestamp: i64,
 }
 
-#[derive(Debug)]
 pub struct SampleMessage {
     pub key: ProfileIndex,
     pub value: SampleData,
@@ -165,7 +163,6 @@ pub struct LocalRootSpanResourceMessage {
     pub resource: String,
 }
 
-#[derive(Debug)]
 pub enum ProfilerMessage {
     Cancel,
     Sample(SampleMessage),
@@ -363,9 +360,12 @@ impl TimeCollector {
         for frame in &message.value.frames {
             let location = Location {
                 function: Function {
-                    name: frame.function.as_ref(),
+                    name: frame.reader.try_get_id(frame.function.name).unwrap_or(""),
                     system_name: "",
-                    filename: frame.file.as_deref().unwrap_or(""),
+                    filename: frame
+                        .reader
+                        .try_get_id(frame.function.filename)
+                        .unwrap_or(""),
                     start_line: 0,
                 },
                 line: frame.line as i64,
@@ -794,12 +794,9 @@ impl Profiler {
         labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
+        // todo: add fake stack frame back
         match self.send_sample(Profiler::prepare_sample_message(
-            vec![ZendFrame {
-                function: COW_EVAL,
-                file: Some(filename),
-                line,
-            }],
+            vec![],
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -846,11 +843,13 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.send_sample(Profiler::prepare_sample_message(
-            vec![ZendFrame {
-                function: format!("[{include_type}]").into(),
-                file: None,
-                line: 0,
-            }],
+            vec![],
+            // todo: add this again
+            // vec![ZendFrame {
+            //     function: format!("[{include_type}]").into(),
+            //     file: None,
+            //     line: 0,
+            // }],
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -908,12 +907,9 @@ impl Profiler {
         });
         let n_labels = labels.len();
 
+        // todo: add fake stack frame again
         match self.send_sample(Profiler::prepare_sample_message(
-            vec![ZendFrame {
-                function: "[gc]".into(),
-                file: None,
-                line: 0,
-            }],
+            vec![],
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1050,12 +1046,18 @@ impl Profiler {
 
 #[cfg(test)]
 mod tests {
+    use datadog_profiling::collections::identifiable::StringTable;
+
     use super::*;
 
     fn get_frames() -> Vec<ZendFrame> {
+        let mut string_table = StringTable::with_capacity(10).unwrap();
         vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
+            reader: string_table.get_reader(),
+            function: AbrigedFunction {
+                name: string_table.insert("foobar").unwrap(),
+                filename: string_table.insert("foobar.php").unwrap(),
+            },
             line: 42,
         }]
     }
@@ -1267,7 +1269,7 @@ mod tests {
         locals.profiling_wall_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, 1);
 
         // Still present because at the moment, disabling wall-time only
         // disables the timer, not the sample type.

@@ -1,5 +1,5 @@
 use datadog_profiling::collections::identifiable::{
-    small_non_zero_pprof_id, Id, Item, StringId, StringTable, Table,
+    small_non_zero_pprof_id, Id, Item, StringId, StringTable, StringTableReader, Table,
 };
 
 use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function, ZEND_USER_FUNCTION};
@@ -65,7 +65,7 @@ impl Id for FunctionId {
 
 #[cfg(php_run_time_cache)]
 thread_local! {
-    static CACHED_STRINGS: RefCell<StringTable> = RefCell::new(StringTable::with_capacity(1000).unwrap());
+    pub static CACHED_STRINGS: RefCell<StringTable> = RefCell::new(StringTable::with_capacity(1024*1024*8).unwrap());
     pub static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> = RefCell::new(Default::default())
 }
 
@@ -83,12 +83,9 @@ const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 #[cfg(feature = "timeline")]
 pub const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 
-#[derive(Default, Debug)]
 pub struct ZendFrame {
-    // Most tools don't like frames that don't have function names, so use a
-    // fake name if you need to like "<?php".
-    pub function: Cow<'static, str>,
-    pub file: Option<String>,
+    pub reader: StringTableReader,
+    pub function: AbrigedFunction,
     pub line: u32, // use 0 for no line info
 }
 
@@ -183,39 +180,40 @@ unsafe fn handle_function_cache_slot(
     execute_data: &zend_execute_data,
     string_table: &mut StringTable,
     cache_slot: &mut AbrigedFunction,
-) -> Option<(Cow<'static, str>, Cow<'static, str>, u32)> {
+) -> Option<(AbrigedFunction, u32)> {
     let name = if cache_slot.name.is_zero() {
         let name = extract_function_name(execute_data.func.as_ref()?).unwrap();
-        let string_table_name = string_table.insert(name.as_str()).unwrap();
-        cache_slot.name = string_table_name;
-        name
+        let name_string_id = string_table.insert(name.as_str()).unwrap();
+        cache_slot.name = name_string_id;
+        name_string_id
     } else {
-        string_table.get_id(cache_slot.name).to_owned()
+        cache_slot.name
     };
 
+    let func = &*execute_data.func;
     let filename = if cache_slot.filename.is_zero() {
-        let func = &*execute_data.func;
         if func.type_ != ZEND_USER_FUNCTION as u8 {
-            return None;
-        };
-        let filename = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
-        let string_table_name = string_table.insert(filename.as_str()).unwrap();
-        cache_slot.filename = string_table_name;
-        filename
+            StringId::ZERO
+        } else {
+            let filename = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
+            let filename_string_id = string_table.insert(filename.as_str()).unwrap();
+            cache_slot.filename = filename_string_id;
+            filename_string_id
+        }
     } else {
-        string_table.get_id(cache_slot.filename).to_owned()
+        cache_slot.filename
     };
 
-    let line = match execute_data.opline.as_ref() {
-        Some(opline) => opline.lineno,
-        None => 0,
+    let line = if func.type_ == ZEND_USER_FUNCTION as u8 {
+        match execute_data.opline.as_ref() {
+            Some(opline) => opline.lineno,
+            None => 0,
+        }
+    } else {
+        0
     };
 
-    Some((
-        Cow::Owned(name.to_owned()),
-        Cow::Owned(filename.to_owned()),
-        line,
-    ))
+    Some((AbrigedFunction { name, filename }, line))
 }
 
 unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
@@ -245,7 +243,7 @@ unsafe fn collect_call_frame(
     use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
 
     let func = execute_data.func.as_ref()?;
-    let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
+    let (function, line) = match ddog_php_prof_function_run_time_cache(func) {
         Some(cache_slot) => {
             FUNCTION_CACHE_STATS.with(|cell| {
                 let mut stats = cell.borrow_mut();
@@ -255,9 +253,7 @@ unsafe fn collect_call_frame(
                     stats.hit += 1;
                 }
             });
-            let (file, name, line) =
-                handle_function_cache_slot(execute_data, string_table, cache_slot).unwrap();
-            (Some(name), Some(String::from(file)), line)
+            handle_function_cache_slot(execute_data, string_table, cache_slot).unwrap()
         }
 
         None => {
@@ -265,16 +261,25 @@ unsafe fn collect_call_frame(
                 let mut stats = cell.borrow_mut();
                 stats.not_applicable += 1;
             });
-            let function = extract_function_name(func).map(Cow::Owned);
+
+            let function = extract_function_name(func).unwrap_or_default();
             let (file, line) = extract_file_and_line(execute_data);
-            (function, file, line)
+            let function = AbrigedFunction {
+                name: string_table.insert(function.as_str()).unwrap(),
+                filename: string_table
+                    .insert(file.unwrap_or_default().as_str())
+                    .unwrap(),
+            };
+
+            (function, line)
         }
     };
 
-    if function.is_some() || file.is_some() {
+    // todo: re add the PHP open tag: <?php in case there is no function name and no filename
+    if !function.name.is_zero() || !function.filename.is_zero() {
         Some(ZendFrame {
-            function: function.unwrap_or(COW_PHP_OPEN_TAG),
-            file,
+            reader: string_table.get_reader(),
+            function,
             line,
         })
     } else {
@@ -282,6 +287,7 @@ unsafe fn collect_call_frame(
     }
 }
 
+// todo: fix this to use the new string table
 #[cfg(not(php_run_time_cache))]
 unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
     if let Some(func) = execute_data.func.as_ref() {
@@ -326,14 +332,15 @@ fn collect_stack_sample_helper(
              * backend and/or frontend have the same limit, without the -1
              * then ironically the [truncated] message would be truncated.
              */
-            if samples.len() == max_depth - 1 {
-                samples.push(ZendFrame {
-                    function: COW_TRUNCATED,
-                    file: None,
-                    line: 0,
-                });
-                break;
-            }
+            // todo: re add and make sure COW_TRUNCATED is always in the string table
+            // if samples.len() == max_depth - 1 {
+            //     samples.push(ZendFrame {
+            //         function: COW_TRUNCATED,
+            //         file: None,
+            //         line: 0,
+            //     });
+            //     break;
+            // }
         }
 
         execute_data_ptr = execute_data.prev_execute_data;
@@ -371,16 +378,43 @@ mod tests {
 
             assert_eq!(stack.len(), 3);
 
-            assert_eq!(stack[0].function, "function name 003");
-            assert_eq!(stack[0].file, Some("filename-003.php".into()));
+            assert_eq!(
+                stack[0].reader.try_get_id(stack[0].function.name).unwrap(),
+                "function name 003"
+            );
+            assert_eq!(
+                stack[0]
+                    .reader
+                    .try_get_id(stack[0].function.filename)
+                    .unwrap(),
+                "filename-003.php"
+            );
             assert_eq!(stack[0].line, 0);
 
-            assert_eq!(stack[1].function, "function name 002");
-            assert_eq!(stack[1].file, Some("filename-002.php".into()));
+            assert_eq!(
+                stack[0].reader.try_get_id(stack[1].function.name).unwrap(),
+                "function name 002"
+            );
+            assert_eq!(
+                stack[0]
+                    .reader
+                    .try_get_id(stack[1].function.filename)
+                    .unwrap(),
+                "filename-002.php"
+            );
             assert_eq!(stack[1].line, 0);
 
-            assert_eq!(stack[2].function, "function name 001");
-            assert_eq!(stack[2].file, Some("filename-001.php".into()));
+            assert_eq!(
+                stack[0].reader.try_get_id(stack[2].function.name).unwrap(),
+                "function name 001"
+            );
+            assert_eq!(
+                stack[0]
+                    .reader
+                    .try_get_id(stack[2].function.filename)
+                    .unwrap(),
+                "filename-001.php"
+            );
             assert_eq!(stack[2].line, 0);
 
             // Free the allocated memory
