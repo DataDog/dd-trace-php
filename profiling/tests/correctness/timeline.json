@@ -61,6 +61,19 @@
                             ]
                         }
                     ]
+                },
+                {
+                    "regular_expression": "^\\[idle\\]$",
+                    "percent": 100,
+                    "error_margin": 100,
+                    "labels": [
+                        {
+                            "key": "event",
+                            "values": [
+                                "sleeping"
+                            ]
+                        }
+                    ]
                 }
             ]
         }
