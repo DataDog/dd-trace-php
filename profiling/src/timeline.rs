@@ -145,10 +145,11 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             return op_array;
         }
 
+        // todo: fix hardcoded stringid
         let include_type = match r#type as u32 {
-            zend::ZEND_INCLUDE => "include", // `include_once()` and `include_once()`
-            zend::ZEND_REQUIRE => "require", // `require()` and `require_once()`
-            _default => "",
+            zend::ZEND_INCLUDE => 3, // `include()` and `include_once()`
+            zend::ZEND_REQUIRE => 4, // `require()` and `require_once()`
+            _default => 0,
         };
 
         // Extract the filename from the returned op_array.

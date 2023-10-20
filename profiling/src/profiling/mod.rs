@@ -832,7 +832,7 @@ impl Profiler {
         now: i64,
         duration: i64,
         filename: String,
-        include_type: &str,
+        include_type: u32,
         locals: &RequestLocals,
     ) {
         let mut labels = Profiler::message_labels();
@@ -856,7 +856,7 @@ impl Profiler {
             vec![ZendFrame {
                 reader: CACHED_STRINGS.with(|cell| cell.borrow().get_reader()),
                 function: AbridgedFunction {
-                    name: StringId::new(3), // todo: should be variable again ;-)
+                    name: StringId::new(include_type), // todo: should be variable again ;-)
                     filename: StringId::ZERO,
                 },
                 line: 0,
