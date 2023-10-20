@@ -151,7 +151,6 @@ pub fn extract_function_name_id(
     func: &zend_function,
     string_table: &mut StringTable,
 ) -> Option<StringId> {
-    // todo: pass string table in here instead of making a temporary String
     let method_name: &[u8] = func.name().unwrap_or(b"");
 
     /* The top of the stack seems to reasonably often not have a function, but
@@ -283,13 +282,18 @@ unsafe fn handle_function_cache_slot(
     Some((AbridgedFunction { name, filename }, line))
 }
 
-unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
-    // todo: pass string table in here instead of making a temporary String
+unsafe fn extract_file_and_line(
+    execute_data: &zend_execute_data,
+    string_table: &mut StringTable,
+) -> (Option<StringId>, u32) {
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
         Some(func) if func.type_ == ZEND_USER_FUNCTION as u8 => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
-            let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
+            // todo: fix panic when full
+            let file = string_table
+                .insert(&zai_str_from_zstr(func.op_array.filename.as_mut()).to_string_lossy())
+                .unwrap();
             let lineno = match execute_data.opline.as_ref() {
                 Some(opline) => opline.lineno,
                 None => 0,
@@ -335,13 +339,9 @@ unsafe fn collect_call_frame(
 
             let function =
                 extract_function_name(func).map(|f| string_table.insert(f.as_str()).unwrap());
-            let (file, line) = extract_file_and_line(execute_data);
+            let (file, line) = extract_file_and_line(execute_data, string_table);
 
-            (
-                function,
-                file.map(|f| string_table.insert(f.as_str()).unwrap()),
-                line,
-            )
+            (function, file, line)
         }
     };
 
@@ -367,7 +367,7 @@ unsafe fn collect_call_frame(
 ) -> Option<ZendFrame> {
     if let Some(func) = execute_data.func.as_ref() {
         let function = extract_function_name_id(func, string_table);
-        let (file, line) = extract_file_and_line(execute_data);
+        let (file, line) = extract_file_and_line(execute_data, string_table);
 
         // Only create a new frame if there's file or function info.
         if file.is_some() || function.is_some() {
@@ -375,9 +375,7 @@ unsafe fn collect_call_frame(
             // todo: fix panic and hardcoded string
             let name = function.unwrap_or(StringId::new(1));
 
-            let file = file
-                .map(|f| string_table.insert(f.as_str()).unwrap())
-                .unwrap_or(StringId::ZERO);
+            let file = file.unwrap_or(StringId::ZERO);
             return Some(ZendFrame {
                 reader: string_table.get_reader(),
                 function: AbridgedFunction {
