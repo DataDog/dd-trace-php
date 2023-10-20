@@ -1,6 +1,6 @@
 {
     "name": "foobar",
-    "run": "php -d extension=../target/release/libdatadog_php_profiling benches/timeline.php",
+    "run": "php -d extension=../target/release/libdatadog_php_profiling.so benches/timeline.php",
     "timeout": 20,
     "iterations": 3,
     "env": {
