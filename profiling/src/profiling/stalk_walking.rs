@@ -146,6 +146,48 @@ pub fn extract_function_name(func: &zend_function) -> Option<String> {
     Some(String::from_utf8_lossy(buffer.as_slice()).into_owned())
 }
 
+/// todo: extract common core and document extract_function_name_id
+pub fn extract_function_name_id(
+    func: &zend_function,
+    string_table: &mut StringTable,
+) -> Option<StringId> {
+    // todo: pass string table in here instead of making a temporary String
+    let method_name: &[u8] = func.name().unwrap_or(b"");
+
+    /* The top of the stack seems to reasonably often not have a function, but
+     * still has a scope. I don't know if this intentional, or if it's more of
+     * a situation where scope is only valid if the func is present. So, I'm
+     * erring on the side of caution and returning early.
+     */
+    if method_name.is_empty() {
+        return None;
+    }
+
+    let mut buffer = Vec::<u8>::new();
+
+    // User functions do not have a "module". Maybe one day use composer info?
+    let module_name = func.module_name().unwrap_or(b"");
+    if !module_name.is_empty() {
+        buffer.extend_from_slice(module_name);
+        buffer.push(b'|');
+    }
+
+    let class_name = func.scope_name().unwrap_or(b"");
+    if !class_name.is_empty() {
+        buffer.extend_from_slice(class_name);
+        buffer.extend_from_slice(b"::");
+    }
+
+    buffer.extend_from_slice(method_name);
+
+    // todo: fix panic when full
+    Some(
+        string_table
+            .insert(&String::from_utf8_lossy(buffer.as_slice()))
+            .unwrap(),
+    )
+}
+
 // #[cfg(php_run_time_cache)]
 // #[inline]
 // unsafe fn handle_file_cache_slot_helper(
@@ -198,8 +240,7 @@ unsafe fn handle_function_cache_slot(
     cache_slot: &mut AbridgedFunction,
 ) -> Option<(AbridgedFunction, u32)> {
     let name = if cache_slot.name.is_zero() {
-        let name = extract_function_name(execute_data.func.as_ref()?)
-            .map(|f| string_table.insert(f.as_str()).unwrap());
+        let name = extract_function_name_id(execute_data.func.as_ref()?, string_table);
         if let Some(name_id) = name {
             cache_slot.name = name_id;
         }
@@ -325,16 +366,14 @@ unsafe fn collect_call_frame(
     string_table: &mut StringTable,
 ) -> Option<ZendFrame> {
     if let Some(func) = execute_data.func.as_ref() {
-        let function = extract_function_name(func);
+        let function = extract_function_name_id(func, string_table);
         let (file, line) = extract_file_and_line(execute_data);
 
         // Only create a new frame if there's file or function info.
         if file.is_some() || function.is_some() {
             // If there's no function name, use a fake name.
             // todo: fix panic and hardcoded string
-            let name = function
-                .map(|f| string_table.insert(f.as_str()).unwrap())
-                .unwrap_or(StringId::new(1));
+            let name = function.unwrap_or(StringId::new(1));
 
             let file = file
                 .map(|f| string_table.insert(f.as_str()).unwrap())
