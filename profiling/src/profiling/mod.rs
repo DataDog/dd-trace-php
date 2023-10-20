@@ -853,13 +853,14 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.send_sample(Profiler::prepare_sample_message(
-            vec![],
-            // todo: add this again
-            // vec![ZendFrame {
-            //     function: format!("[{include_type}]").into(),
-            //     file: None,
-            //     line: 0,
-            // }],
+            vec![ZendFrame {
+                reader: CACHED_STRINGS.with(|cell| cell.borrow().get_reader()),
+                function: AbridgedFunction {
+                    name: StringId::new(3), // todo: should be variable again ;-)
+                    filename: StringId::ZERO,
+                },
+                line: 0,
+            }],
             SampleValues {
                 timeline: duration,
                 ..Default::default()
