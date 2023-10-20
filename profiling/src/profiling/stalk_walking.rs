@@ -199,12 +199,13 @@ unsafe fn handle_function_cache_slot(
 ) -> Option<(AbridgedFunction, u32)> {
     let name = if cache_slot.name.is_zero() {
         let name = extract_function_name(execute_data.func.as_ref()?)
-            .map(|f| string_table.insert(f.as_str()).unwrap())
-            .unwrap_or(StringId::new(1));
-        cache_slot.name = name;
+            .map(|f| string_table.insert(f.as_str()).unwrap());
+        if let Some(name_id) = name {
+            cache_slot.name = name_id;
+        }
         name
     } else {
-        cache_slot.name
+        Some(cache_slot.name)
     };
 
     let func = &*execute_data.func;
@@ -228,6 +229,14 @@ unsafe fn handle_function_cache_slot(
         }
     } else {
         0
+    };
+
+    let name = if let Some(name_id) = name {
+        name_id
+    } else if filename.is_zero() {
+        return None;
+    } else {
+        StringId::new(1)
     };
 
     Some((AbridgedFunction { name, filename }, line))
@@ -271,9 +280,10 @@ unsafe fn collect_call_frame(
                     stats.hit += 1;
                 }
             });
-            let (function, line) =
-                handle_function_cache_slot(execute_data, string_table, cache_slot).unwrap();
-            (Some(function.name), Some(function.filename), line)
+            match handle_function_cache_slot(execute_data, string_table, cache_slot) {
+                None => (None, None, 0),
+                Some((function, line)) => (Some(function.name), Some(function.filename), line),
+            }
         }
 
         None => {
