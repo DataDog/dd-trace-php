@@ -198,10 +198,11 @@ unsafe fn handle_function_cache_slot(
     cache_slot: &mut AbridgedFunction,
 ) -> Option<(AbridgedFunction, u32)> {
     let name = if cache_slot.name.is_zero() {
-        let name = extract_function_name(execute_data.func.as_ref()?).unwrap();
-        let name_string_id = string_table.insert(name.as_str()).unwrap();
-        cache_slot.name = name_string_id;
-        name_string_id
+        let name = extract_function_name(execute_data.func.as_ref()?)
+            .map(|f| string_table.insert(f.as_str()).unwrap())
+            .unwrap_or(StringId::new(1));
+        cache_slot.name = name;
+        name
     } else {
         cache_slot.name
     };
@@ -260,7 +261,7 @@ unsafe fn collect_call_frame(
     use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
 
     let func = execute_data.func.as_ref()?;
-    let (function, line) = match ddog_php_prof_function_run_time_cache(func) {
+    let (function, filename, line) = match ddog_php_prof_function_run_time_cache(func) {
         Some(cache_slot) => {
             FUNCTION_CACHE_STATS.with(|cell| {
                 let mut stats = cell.borrow_mut();
@@ -270,7 +271,9 @@ unsafe fn collect_call_frame(
                     stats.hit += 1;
                 }
             });
-            handle_function_cache_slot(execute_data, string_table, cache_slot).unwrap()
+            let (function, line) =
+                handle_function_cache_slot(execute_data, string_table, cache_slot).unwrap();
+            (Some(function.name), Some(function.filename), line)
         }
 
         None => {
@@ -279,24 +282,25 @@ unsafe fn collect_call_frame(
                 stats.not_applicable += 1;
             });
 
-            let function = extract_function_name(func).unwrap_or_default();
+            let function =
+                extract_function_name(func).map(|f| string_table.insert(f.as_str()).unwrap());
             let (file, line) = extract_file_and_line(execute_data);
-            let function = AbridgedFunction {
-                name: string_table.insert(function.as_str()).unwrap(),
-                filename: string_table
-                    .insert(file.unwrap_or_default().as_str())
-                    .unwrap(),
-            };
 
-            (function, line)
+            (
+                function,
+                file.map(|f| string_table.insert(f.as_str()).unwrap()),
+                line,
+            )
         }
     };
 
-    // todo: re add the PHP open tag: <?php in case there is no function name and no filename
-    if !function.name.is_zero() || !function.filename.is_zero() {
+    if function.is_some() || filename.is_some() {
         Some(ZendFrame {
             reader: string_table.get_reader(),
-            function,
+            function: AbridgedFunction {
+                name: function.unwrap_or(StringId::new(1)), // todo another harcoded value
+                filename: filename.unwrap_or(StringId::ZERO),
+            },
             line,
         })
     } else {
