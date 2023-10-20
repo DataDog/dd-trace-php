@@ -84,11 +84,7 @@ class LaravelQueueIntegration extends Integration
                             $span->links[] = $newTrace->getLink();
                             $newTrace->links[] = $span->getLink();
                         } else {
-                            $ddHeaders = $payload['dd_headers'];
-                            $spanLink = new SpanLink();
-                            $spanLink->traceId = $ddHeaders[Propagator::DEFAULT_TRACE_ID_HEADER];;
-                            $spanLink->spanId = $ddHeaders[Propagator::DEFAULT_PARENT_ID_HEADER];
-                            $span->links[] = $spanLink;
+                            $span->links[] = SpanLink::fromHeaders($payload['dd_headers']);
                         }
                     }
                 },
