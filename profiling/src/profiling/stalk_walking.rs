@@ -370,15 +370,17 @@ fn collect_stack_sample_helper(
              * backend and/or frontend have the same limit, without the -1
              * then ironically the [truncated] message would be truncated.
              */
-            // todo: re add and make sure COW_TRUNCATED is always in the string table
-            // if samples.len() == max_depth - 1 {
-            //     samples.push(ZendFrame {
-            //         function: COW_TRUNCATED,
-            //         file: None,
-            //         line: 0,
-            //     });
-            //     break;
-            // }
+            if samples.len() == max_depth - 1 {
+                samples.push(ZendFrame {
+                    reader: string_table.get_reader(),
+                    function: AbridgedFunction {
+                        name: StringId::new(5), // todo fix hardcoded number
+                        filename: StringId::ZERO,
+                    },
+                    line: 0,
+                });
+                break;
+            }
         }
 
         execute_data_ptr = execute_data.prev_execute_data;
