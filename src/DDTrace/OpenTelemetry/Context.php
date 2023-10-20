@@ -162,6 +162,23 @@ final class Context implements ContextInterface
         self::deactivateEndedParents($currentSpan->parent);
     }
 
+    private static function convertDDSpanKindToOtel(string $spanKind)
+    {
+        switch ($spanKind) {
+            case Tag::SPAN_KIND_VALUE_CLIENT:
+                return API\SpanKind::KIND_CLIENT;
+            case Tag::SPAN_KIND_VALUE_SERVER:
+                return API\SpanKind::KIND_SERVER;
+            case Tag::SPAN_KIND_VALUE_PRODUCER:
+                return API\SpanKind::KIND_PRODUCER;
+            case Tag::SPAN_KIND_VALUE_CONSUMER:
+                return API\SpanKind::KIND_CONSUMER;
+            case Tag::SPAN_KIND_VALUE_INTERNAL:
+            default:
+            return API\SpanKind::KIND_INTERNAL;
+        }
+    }
+
     private static function activateParent(?SpanData $currentSpan): ContextInterface
     {
         if ($currentSpan === null) { // Terminal condition - root span
@@ -194,7 +211,7 @@ final class Context implements ContextInterface
             $currentSpan,
             API\SpanContext::create($currentTraceId, $currentSpanId, $traceFlags, $traceState), // $context
             self::getDDInstrumentationScope(), // $instrumentationScope
-            $currentSpan->meta[Tag::SPAN_KIND] ?? API\SpanKind::KIND_INTERNAL, // $kind
+            isset($currentSpan->meta[Tag::SPAN_KIND]) ? self::convertDDSpanKindToOtel($currentSpan->meta[Tag::SPAN_KIND]): API\SpanKind::KIND_INTERNAL, // $kind
             API\Span::fromContext($parentContext), // $parentSpan (TODO: Handle null parent span) ?
             $parentContext, // $parentContext
             NoopSpanProcessor::getInstance(), // $spanProcessor

@@ -85,9 +85,75 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('test.span1', 'phpunit', 'cli', 'test.span1'),
-            SpanAssertion::build('test.span2', 'phpunit', 'cli', 'test.span2'),
-            SpanAssertion::build('test.span3', 'phpunit', 'cli', 'test.span3')
+            SpanAssertion::build('test.span1', 'datadog/dd-trace-tests', 'cli', 'test.span1')
+                ->withExistingTagsNames([
+                    'service.version',
+                    'telemetry.sdk.name',
+                    'telemetry.sdk.language',
+                    'telemetry.sdk.version',
+                    'process.runtime.name',
+                    'process.runtime.version',
+                    'process.pid',
+                    'process.executable.path',
+                    'process.command',
+                    'process.command_args.0',
+                    'process.command_args.1',
+                    'process.command_args.2',
+                    'process.command_args.3',
+                    'process.owner',
+                    'os.type',
+                    'os.description',
+                    'os.name',
+                    'os.version',
+                    'host.name',
+                    'host.arch'
+                ]),
+            SpanAssertion::build('test.span2', 'datadog/dd-trace-tests', 'cli', 'test.span2')
+                ->withExistingTagsNames([
+                    'service.version',
+                    'telemetry.sdk.name',
+                    'telemetry.sdk.language',
+                    'telemetry.sdk.version',
+                    'process.runtime.name',
+                    'process.runtime.version',
+                    'process.pid',
+                    'process.executable.path',
+                    'process.command',
+                    'process.command_args.0',
+                    'process.command_args.1',
+                    'process.command_args.2',
+                    'process.command_args.3',
+                    'process.owner',
+                    'os.type',
+                    'os.description',
+                    'os.name',
+                    'os.version',
+                    'host.name',
+                    'host.arch'
+                ]),
+            SpanAssertion::build('test.span3', 'datadog/dd-trace-tests', 'cli', 'test.span3')
+                ->withExistingTagsNames([
+                    'service.version',
+                    'telemetry.sdk.name',
+                    'telemetry.sdk.language',
+                    'telemetry.sdk.version',
+                    'process.runtime.name',
+                    'process.runtime.version',
+                    'process.pid',
+                    'process.executable.path',
+                    'process.command',
+                    'process.command_args.0',
+                    'process.command_args.1',
+                    'process.command_args.2',
+                    'process.command_args.3',
+                    'process.owner',
+                    'os.type',
+                    'os.description',
+                    'os.name',
+                    'os.version',
+                    'host.name',
+                    'host.arch'
+                ])
         ]);
     }
 

@@ -85,6 +85,32 @@ final class InteroperabilityTest extends BaseTestCase
         Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
     }
 
+    public static function commonTagsList(): array
+    {
+        return [
+            'service.version',
+            'telemetry.sdk.name',
+            'telemetry.sdk.language',
+            'telemetry.sdk.version',
+            'process.runtime.name',
+            'process.runtime.version',
+            'process.pid',
+            'process.executable.path',
+            'process.command',
+            'process.command_args.0',
+            'process.command_args.1',
+            'process.command_args.2',
+            'process.command_args.3',
+            'process.owner',
+            'os.type',
+            'os.description',
+            'os.name',
+            'os.version',
+            'host.name',
+            'host.arch'
+        ];
+    }
+
     public static function getTracer()
     {
         $tracerProvider = Globals::tracerProvider();
@@ -580,6 +606,11 @@ final class InteroperabilityTest extends BaseTestCase
 
             $DDTrace1 = start_trace_span();
             $DDTrace1->name = "dd.trace1";
+
+            //$currentSpan = Span::getCurrent();
+            //$this->assertNotNull($currentSpan);
+            //$this->assertSame($DDTrace1, $currentSpan->getDDSpan());
+
             $DDChild1 = start_span();
             $DDChild1->name = "dd.child1";
 
@@ -625,25 +656,28 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('otel.trace1', 'phpunit', 'cli', 'otel.trace1')
+            SpanAssertion::build('otel.trace1', 'datadog/dd-trace-tests', 'cli', 'otel.trace1')
                 ->withExactTags([
                     'foo1' => 'bar1',
                 ])
+                ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
                     SpanAssertion::build('otel.child1', 'my.service', 'cli', 'otel.child1')
                         ->withExactTags([
                             'foo2' => 'bar2',
                         ])
+                        ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         ->withChildren(
-                            SpanAssertion::build('otel.child3', 'phpunit', 'cli', 'my.resource')
+                            SpanAssertion::build('otel.child3', 'datadog/dd-trace-tests', 'cli', 'my.resource')
                                 ->withExactTags([
                                     'foo3' => 'bar3',
                                 ])
+                                ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         )
                 ),
-            SpanAssertion::build('otel.trace2', 'phpunit', 'cli', 'otel.trace2')
+            SpanAssertion::exists('otel.trace2', 'otel.trace2', null, 'datadog/dd-trace-tests')
                 ->withChildren(
-                    SpanAssertion::build('dd.child2', 'phpunit', 'cli', 'dd.child2')
+                    SpanAssertion::exists('dd.child2', 'dd.child2', null, 'datadog/dd-trace-tests')
                 ),
             SpanAssertion::build('dd.trace1', 'phpunit', 'cli', 'dd.trace1')
                 ->withExactTags([
@@ -652,11 +686,14 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withChildren(
                     SpanAssertion::build('dd.child1', 'phpunit', 'cli', 'dd.child1')
                 ),
-            SpanAssertion::build('dd.trace2', 'phpunit', 'cli', 'dd.trace2')
+            SpanAssertion::build('dd.trace2', 'datadog/dd-trace-tests', 'cli', 'dd.trace2')
+                ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
-                    SpanAssertion::build('otel.child2', 'phpunit', 'cli', 'otel.child2')
+                    SpanAssertion::build('otel.child2', 'datadog/dd-trace-tests', 'cli', 'otel.child2')
+                        ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         ->withChildren(
-                            SpanAssertion::build('otel.child4', 'phpunit', 'cli', 'otel.child4')
+                            SpanAssertion::build('otel.child4', 'datadog/dd-trace-tests', 'cli', 'otel.child4')
+                                ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         )
                 ),
         ]);
@@ -704,15 +741,17 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('otel.root.span', 'phpunit', 'cli', 'otel.root.span')
+            SpanAssertion::build('otel.root.span', 'datadog/dd-trace-tests', 'cli', 'otel.root.span')
                 ->withExactTags([
                     '_dd.p.tid' => 'ff00000000000517'
                 ])
+                ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
-                    SpanAssertion::build('dd.child.span', 'phpunit', 'cli', 'dd.child.span')
+                    SpanAssertion::build('dd.child.span', 'datadog/dd-trace-tests', 'cli', 'dd.child.span')
                         ->withExactTags([
                             '_dd.p.tid' => 'ff00000000000517'
                         ])
+                        ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 )
         ]);
     }
@@ -759,15 +798,17 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('otel.root.span', 'phpunit', 'cli', 'otel.root.span')
+            SpanAssertion::build('otel.root.span', 'datadog/dd-trace-tests', 'cli', 'otel.root.span')
                 ->withExactTags([
                     '_dd.p.tid' => 'ff00000000000517'
                 ])
+                ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
-                    SpanAssertion::build('dd.child.span', 'phpunit', 'cli', 'dd.child.span')
+                    SpanAssertion::build('dd.child.span', 'datadog/dd-trace-tests', 'cli', 'dd.child.span')
                         ->withExactTags([
                             '_dd.p.tid' => 'ff00000000000517'
                         ])
+                        ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 )
         ]);
     }
@@ -818,15 +859,17 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('otel.root.span', 'phpunit', 'cli', 'otel.root.span')
+            SpanAssertion::build('otel.root.span', 'datadog/dd-trace-tests', 'cli', 'otel.root.span')
                 ->withExactTags([
                     '_dd.p.tid' => 'ff00000000000517'
                 ])
+                ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
-                    SpanAssertion::build('dd.child.span', 'phpunit', 'cli', 'dd.child.span')
+                    SpanAssertion::build('dd.child.span', 'datadog/dd-trace-tests', 'cli', 'dd.child.span')
                         ->withExactTags([
                             '_dd.p.tid' => 'ff00000000000517'
                         ])
+                        ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 )
         ]);
     }
@@ -862,18 +905,35 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('parent', 'phpunit', 'cli', 'parent')
+            SpanAssertion::build('parent', 'datadog/dd-trace-tests', 'cli', 'parent')
                 ->withExactTags([
                     Tag::SPAN_KIND => Tag::SPAN_KIND_VALUE_SERVER,
                     'http.method' => 'GET',
                     'http.uri' => '/parent'
                 ])
+                ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren([
-                    SpanAssertion::build('child', 'phpunit', 'cli', 'child')
+                    SpanAssertion::build('child', 'datadog/dd-trace-tests', 'cli', 'child')
                         ->withExactTags([
                             'user.id' => '1',
                         ])
+                        ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ])
         ]);
+    }
+
+    public function testScenario1()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $OTelSpan1 = $tracer->spanBuilder('otel.span1')->startSpan();
+            $OTelSpan2 = $tracer->spanBuilder('otel.span2')->startSpan();
+            $DDSpan = start_span();
+            $DDSpan->name = "dd.span1";
+
+            close_spans_until(null);
+        });
+
+        fwrite(STDERR, json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL);
     }
 }

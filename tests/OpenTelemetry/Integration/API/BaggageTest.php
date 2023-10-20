@@ -10,7 +10,6 @@ use DDTrace\Tests\Common\TracerTestTrait;
 use OpenTelemetry\API\Baggage\Baggage;
 use OpenTelemetry\API\Baggage\Propagation\BaggagePropagator;
 use OpenTelemetry\API\Trace\SpanKind;
-use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 
@@ -94,16 +93,59 @@ final class BaggageTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('parent', 'phpunit', 'cli', 'parent')
+            SpanAssertion::build('parent', 'datadog/dd-trace-tests', 'cli', 'parent')
                 ->withExactTags([
                     Tag::SPAN_KIND => Tag::SPAN_KIND_VALUE_SERVER,
                     'http.method' => 'GET',
                     'http.uri' => '/parent'
+                ])->withExistingTagsNames([
+                    'service.version',
+                    'telemetry.sdk.name',
+                    'telemetry.sdk.language',
+                    'telemetry.sdk.version',
+                    'process.runtime.name',
+                    'process.runtime.version',
+                    'process.pid',
+                    'process.executable.path',
+                    'process.command',
+                    'process.command_args.0',
+                    'process.command_args.1',
+                    'process.command_args.2',
+                    'process.command_args.3',
+                    'process.owner',
+                    'os.type',
+                    'os.description',
+                    'os.name',
+                    'os.version',
+                    'host.name',
+                    'host.arch'
                 ])
                 ->withChildren([
-                    SpanAssertion::build('child', 'phpunit', 'cli', 'child')
+                    SpanAssertion::build('child', 'datadog/dd-trace-tests', 'cli', 'child')
                         ->withExactTags([
                             'user.id' => '1',
+                        ])
+                        ->withExistingTagsNames([
+                            'service.version',
+                            'telemetry.sdk.name',
+                            'telemetry.sdk.language',
+                            'telemetry.sdk.version',
+                            'process.runtime.name',
+                            'process.runtime.version',
+                            'process.pid',
+                            'process.executable.path',
+                            'process.command',
+                            'process.command_args.0',
+                            'process.command_args.1',
+                            'process.command_args.2',
+                            'process.command_args.3',
+                            'process.owner',
+                            'os.type',
+                            'os.description',
+                            'os.name',
+                            'os.version',
+                            'host.name',
+                            'host.arch'
                         ])
                 ])
         ]);

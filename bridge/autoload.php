@@ -124,13 +124,16 @@ if (function_exists('DDTrace\\install_hook')) {
         'Composer\Autoload\ClassLoader::register',
         null,
         function (\DDTrace\HookData $hook) {
-            $prepend = $hook->args[0];
-            if ($prepend) {
-                // We need to unregister and register dd's autoload, prepending it to the list of autoloaders.
-                // This is needed because composer's autoloader is prepended to the list of autoloaders, and we need to
-                // make sure that dd's autoloader is prepended to composer's autoloader.
-                spl_autoload_unregister('DDTrace\Bridge\OptionalDepsAutoloader::load');
-                spl_autoload_register('DDTrace\Bridge\OptionalDepsAutoloader::load', true, true);
+            $args = $hook->args;
+            if (!empty($args)) {
+                $prepend = $args[0];
+                if ($prepend) {
+                    // We need to unregister and register dd's autoload, prepending it to the list of autoloaders.
+                    // This is needed because composer's autoloader is prepended to the list of autoloaders, and we need to
+                    // make sure that dd's autoloader is prepended to composer's autoloader.
+                    spl_autoload_unregister('DDTrace\Bridge\OptionalDepsAutoloader::load');
+                    spl_autoload_register('DDTrace\Bridge\OptionalDepsAutoloader::load', true, true);
+                }
             }
         }
     );

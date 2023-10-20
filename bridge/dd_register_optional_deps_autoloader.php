@@ -15,9 +15,6 @@ class OptionalDepsAutoloader
     private static $autoloaderMapping = [
         "DDTrace\\Integrations\\ZendFramework\\V1\\TraceRequest" => 'DDTrace/Integrations/ZendFramework/V1/TraceRequest.php',
         "DDTrace\\Log\\PsrLogger" => 'api/Log/PsrLogger.php',
-        "OpenTelemetry\\SDK\\Trace\\Span" => 'DDTrace/OpenTelemetry/Span.php',
-        "OpenTelemetry\\SDK\\Trace\\SpanBuilder" => 'DDTrace/OpenTelemetry/SpanBuilder.php',
-        "OpenTelemetry\\Context\\Context" => 'DDTrace/OpenTelemetry/Context.php',
         "DDTrace\\OpenTelemetry\\API\\Trace\\SpanContext" => 'DDTrace/OpenTelemetry/SpanContext.php',
         "DDTrace\\OpenTracer\\Tracer" => 'DDTrace/OpenTracer/Tracer.php',
         "DDTrace\\OpenTracer\\Span" => 'DDTrace/OpenTracer/Span.php',
@@ -39,6 +36,12 @@ class OptionalDepsAutoloader
         "DDTrace\\NoopSpanContext" => 'api/NoopSpanContext.php',
     ];
 
+    private static $otelAutoloaderMapping = [
+        "OpenTelemetry\\SDK\\Trace\\Span" => 'DDTrace/OpenTelemetry/Span.php',
+        "OpenTelemetry\\SDK\\Trace\\SpanBuilder" => 'DDTrace/OpenTelemetry/SpanBuilder.php',
+        "OpenTelemetry\\Context\\Context" => 'DDTrace/OpenTelemetry/Context.php',
+    ];
+
     /**
      * @param string $class
      */
@@ -46,6 +49,10 @@ class OptionalDepsAutoloader
     {
         if (array_key_exists($class, self::$autoloaderMapping)) {
             require __DIR__ . '/../src/' . self::$autoloaderMapping[$class];
+        }
+
+        if (function_exists('dd_trace_env_config') && dd_trace_env_config('DD_TRACE_OTEL_ENABLED') && array_key_exists($class, self::$otelAutoloaderMapping)) {
+            require __DIR__ . '/../src/' . self::$otelAutoloaderMapping[$class];
         }
     }
 }

@@ -94,6 +94,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $attributes = $attributesBuilder->build()->toArray();
         self::_setAttributes($span, $attributes);
 
+        $resourceAttributes = $resource->getAttributes()->toArray();
+        self::_setAttributes($span, $resourceAttributes);
+
         $OTelSpan = new self(
             $span,
             $context,
@@ -218,6 +221,16 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function getStartEpochNanos(): int
     {
         return $this->span->getStartTime();
+    }
+
+    public function getTotalRecordedLinks(): int
+    {
+        return 0;
+    }
+
+    public function getTotalRecordedEvents(): int
+    {
+        return 0;
     }
 
     /**

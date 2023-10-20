@@ -193,7 +193,8 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $span->name = $this->spanName;
 
         $attributesBuilder = clone $this->attributesBuilder; // According to OTel's spec, attributes can't be changed after span creation...
-        foreach ($samplingResult->getAttributes() as $key => $value) {
+        $attributes = $samplingResult->getAttributes();
+        foreach ($attributes as $key => $value) {
             $attributesBuilder[$key] = $value;
         }
 
