@@ -917,9 +917,15 @@ impl Profiler {
         });
         let n_labels = labels.len();
 
-        // todo: add fake stack frame again
         match self.send_sample(Profiler::prepare_sample_message(
-            vec![],
+            vec![ZendFrame {
+                reader: CACHED_STRINGS.with(|cell| cell.borrow().get_reader()), // todo: fix
+                function: AbridgedFunction {
+                    name: StringId::new(2),
+                    filename: StringId::ZERO,
+                },
+                line: 0,
+            }],
             SampleValues {
                 timeline: duration,
                 ..Default::default()
