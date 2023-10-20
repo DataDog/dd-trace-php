@@ -79,6 +79,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->assertEquals([[
             "name" => "pdo",
             "enabled" => true,
+            "version" => '0'
         ]], $payloads[2]["payload"]["integrations"]);
     }
 }

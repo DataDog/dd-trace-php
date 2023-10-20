@@ -1,5 +1,7 @@
 --TEST--
 Clone DDTrace\SpanData
+--SKIPIF--
+<?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %r"); ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
@@ -22,7 +24,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\SpanData)#%d (12) {
+object(DDTrace\RootSpanData)#%d (16) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -64,9 +66,19 @@ object(DDTrace\SpanData)#%d (12) {
     }
     ["active"]=>
     *RECURSION*
+  }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+  ["propagatedTags"]=>
+  array(0) {
   }
+  ["samplingPriority"]=>
+  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+  ["tracestateTags"]=>
+  array(0) {
+  }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
+  ["traceId"]=>
+  string(32) "0000000000000000%s"
 }
-object(DDTrace\SpanData)#%d (12) {
+object(DDTrace\RootSpanData)#%d (16) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -107,7 +119,7 @@ object(DDTrace\SpanData)#%d (12) {
       NULL
     }
     ["active"]=>
-    object(DDTrace\SpanData)#%d (12) {
+    object(DDTrace\RootSpanData)#%d (16) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -124,12 +136,12 @@ object(DDTrace\SpanData)#%d (12) {
       ["metrics"]=>
       array(1) {
         ["process_id"]=>
-        float(%f)
+        float(%d)
       }
       ["exception"]=>
       NULL
       ["id"]=>
-      string(%d) "%d"
+      string(%d) "%s"
       ["links"]=>
       array(0) {
       }
@@ -139,9 +151,29 @@ object(DDTrace\SpanData)#%d (12) {
       ["parent"]=>
       NULL
       ["stack"]=>
-      *RECURSION*
+      *RECURSION*%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+      ["propagatedTags"]=>
+      array(0) {
+      }
+      ["samplingPriority"]=>
+      int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+      ["tracestateTags"]=>
+      array(0) {
+      }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
+      ["traceId"]=>
+      string(32) "0000000000000000%s"
     }
+  }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+  ["propagatedTags"]=>
+  array(0) {
   }
+  ["samplingPriority"]=>
+  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+  ["tracestateTags"]=>
+  array(0) {
+  }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
+  ["traceId"]=>
+  string(32) "0000000000000000%s"
 }
 array(1) {
   [0]=>

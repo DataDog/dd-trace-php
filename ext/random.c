@@ -98,13 +98,13 @@ uint64_t ddtrace_parse_hex_span_id(zval *zid) {
 uint64_t ddtrace_generate_span_id(void) { return (uint64_t)genrand64_int64(); }
 
 uint64_t ddtrace_peek_span_id(void) {
-    ddtrace_span_data *span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->active : NULL;
-    return span ? span->span_id : DDTRACE_G(distributed_parent_trace_id);
+    ddtrace_span_properties *pspan = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->active : NULL;
+    return pspan ? SPANDATA(pspan)->span_id : DDTRACE_G(distributed_parent_trace_id);
 }
 
 ddtrace_trace_id ddtrace_peek_trace_id(void) {
-    ddtrace_span_data *span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->active : NULL;
-    return span ? span->trace_id : DDTRACE_G(distributed_trace_id);
+    ddtrace_span_properties *pspan = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->active : NULL;
+    return pspan ? SPANDATA(pspan)->root->trace_id : DDTRACE_G(distributed_trace_id);
 }
 
 int ddtrace_conv10_trace_id(ddtrace_trace_id id, uint8_t reverse[DD_TRACE_MAX_ID_LEN]) {

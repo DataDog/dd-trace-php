@@ -22,6 +22,34 @@ enum ddtrace_span_dataype {
     DDTRACE_SPAN_CLOSED,
 };
 
+typedef union ddtrace_span_properties {
+    zend_object std;
+    struct {
+        char object_placeholder[sizeof(zend_object) - sizeof(zval)];
+        zval property_name;
+        zval property_resource;
+        zval property_service;
+        zval property_type;
+        zval property_meta;
+        zval property_metrics;
+        zval property_exception;
+        union {
+            zend_string *string_id;
+            zval property_id;
+        };
+        zval property_links;
+        zval property_peer_service_sources;
+        union {
+            union ddtrace_span_properties *parent;
+            zval property_parent;
+        };
+        union {
+            struct ddtrace_span_stack *stack;
+            zval property_stack;
+        };
+    };
+} ddtrace_span_properties;
+
 // Refcounting:
 // Only internal/autoroot spans retain a ref on their own
 // Non-flushed closed spans also have a ref on their own
@@ -29,26 +57,50 @@ enum ddtrace_span_dataype {
 // Spans keep a ref to their parents (parent span property)
 // Open spans as well as flushed spans keep a reference to the span stack
 struct ddtrace_span_data {
-    zend_object std;
-    zval properties_table_placeholder[9];
-    union {
-        struct ddtrace_span_data *parent;
-        zval property_parent;
-    };
-    union {
-        struct ddtrace_span_stack *stack;
-        zval property_stack;
-    };
-    ddtrace_trace_id trace_id;
-    uint64_t parent_id;
     uint64_t span_id;
     uint64_t start;
     uint64_t duration_start;
     uint64_t duration;
     enum ddtrace_span_dataype type;
     struct ddtrace_span_data *next;
-    struct ddtrace_span_data *root;
+    struct ddtrace_root_span_data *root;
+
+    union {
+        ddtrace_span_properties;
+        ddtrace_span_properties props;
+    };
 };
+
+static inline ddtrace_span_data *OBJ_SPANDATA(zend_object *obj) {
+    return (ddtrace_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_span_data, std));
+}
+
+static inline ddtrace_span_data *SPANDATA(ddtrace_span_properties *obj) {
+    return OBJ_SPANDATA(&obj->std);
+}
+
+struct ddtrace_root_span_data {
+    ddtrace_trace_id trace_id;
+    uint64_t parent_id;
+
+    union {
+        ddtrace_span_data;
+        ddtrace_span_data span;
+    };
+
+    zval property_origin;
+    zval property_propagated_tags;
+    zval property_sampling_priority;
+    zval property_propagated_sampling_priority;
+    zval property_tracestate;
+    zval property_tracestate_tags;
+    zval property_parent_id;
+    zval property_trace_id;
+};
+
+static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
+    return (ddtrace_root_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_root_span_data, std));
+}
 
 struct ddtrace_span_stack {
     union {
@@ -61,11 +113,11 @@ struct ddtrace_span_stack {
             };
             union {
                 zval property_active;
-                struct ddtrace_span_data *active;
+                ddtrace_span_properties *active;
             };
         };
     };
-    struct ddtrace_span_data *root_span;
+    struct ddtrace_root_span_data *root_span;
     struct ddtrace_span_stack *root_stack;
     union {
         struct ddtrace_span_stack *next; // closed chunk chain
@@ -76,10 +128,10 @@ struct ddtrace_span_stack {
 #endif
         };
     };
-    struct ddtrace_span_stack *top_closed_stack;
+    ddtrace_span_stack *top_closed_stack;
     // closed ring: linked list where the last element links to the first. The last inserted element is always reachable via closed_ring->next.
-    struct ddtrace_span_data *closed_ring;
-    struct ddtrace_span_data *closed_ring_flush;
+    ddtrace_span_data *closed_ring;
+    ddtrace_span_data *closed_ring_flush;
 };
 
 struct ddtrace_span_link {
@@ -100,14 +152,17 @@ void ddtrace_init_span_stacks(void);
 void ddtrace_free_span_stacks(bool silent);
 void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack);
 
-void ddtrace_open_span(ddtrace_span_data *span);
-ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type);
+ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type);
 ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);
 void ddtrace_push_root_span(void);
 
 ddtrace_span_data *ddtrace_active_span(void);
+static inline ddtrace_span_properties *ddtrace_active_span_props(void) {
+    ddtrace_span_data *span = ddtrace_active_span();
+    return span ? &span->props : NULL;
+}
 
 ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong invocation, zend_execute_data *execute_data);
 void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
@@ -136,6 +191,11 @@ bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value);
 
 static inline bool ddtrace_span_is_dropped(ddtrace_span_data *span) {
     return span->duration == DDTRACE_DROPPED_SPAN || span->duration == DDTRACE_SILENTLY_DROPPED_SPAN;
+}
+
+static inline bool ddtrace_span_is_entrypoint_root(ddtrace_span_data *span) {
+    // The parent stack of a true top-level stack does never have a parent stack itself
+    return span->std.ce == ddtrace_ce_root_span_data && (!span->stack->parent_stack || !span->stack->parent_stack->parent_stack);
 }
 
 #endif  // DD_SPAN_H

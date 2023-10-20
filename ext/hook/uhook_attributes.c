@@ -103,27 +103,27 @@ static zval dd_uhook_save_value(zval *value) {
 
 static void dd_fill_span_data(dd_uhook_def *def, ddtrace_span_data *span) {
     if (def->name) {
-        zval *name = ddtrace_spandata_property_name(span);
+        zval *name = &span->property_name;
         zval_ptr_dtor(name);
         ZVAL_STR_COPY(name, def->name);
     }
     if (def->resource) {
-        zval *resource = ddtrace_spandata_property_resource(span);
+        zval *resource = &span->property_resource;
         zval_ptr_dtor(resource);
         ZVAL_STR_COPY(resource, def->resource);
     }
     if (def->service) {
-        zval *service = ddtrace_spandata_property_service(span);
+        zval *service = &span->property_service;
         zval_ptr_dtor(service);
         ZVAL_STR_COPY(service, def->service);
     }
     if (def->type) {
-        zval *type = ddtrace_spandata_property_type(span);
+        zval *type = &span->property_type;
         zval_ptr_dtor(type);
         ZVAL_STR_COPY(type, def->type);
     }
     if (def->tags) {
-        zend_array *meta = ddtrace_spandata_property_meta(span);
+        zend_array *meta = ddtrace_property_array(&span->property_meta);
         zend_string *key;
         zval *value;
         ZEND_HASH_FOREACH_STR_KEY_VAL(def->tags, key, value) {
@@ -201,7 +201,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
 
     dyn->span = ddtrace_alloc_execute_data_span(invocation, execute_data);
     dd_fill_span_data(def, dyn->span);
-    dd_uhook_fill_args_in_meta(def, ddtrace_spandata_property_meta(dyn->span), execute_data);
+    dd_uhook_fill_args_in_meta(def, ddtrace_property_array(&dyn->span->property_meta), execute_data);
 
     return true;
 }
@@ -226,7 +226,7 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
     dyn->span = ddtrace_alloc_execute_data_span(invocation, execute_data);
     dd_fill_span_data(def, dyn->span);
     if (def->retval) {
-        zend_array *meta = ddtrace_spandata_property_meta(dyn->span);
+        zend_array *meta = ddtrace_property_array(&dyn->span->property_meta);
         zval val = dd_uhook_save_value(value);
         zend_hash_str_update(meta, ZEND_STRL("send_value"), &val);
     }
@@ -246,7 +246,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
         dyn->span = NULL;
         ddtrace_clear_execute_data_span(invocation, false);
     } else {
-        zval *exception_zv = ddtrace_spandata_property_exception(dyn->span);
+        zval *exception_zv = &dyn->span->property_exception;
         if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
             ZVAL_OBJ_COPY(exception_zv, EG(exception));
         }
@@ -254,7 +254,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
         dd_trace_stop_span_time(dyn->span);
 
         if (def->retval) {
-            zend_array *meta = ddtrace_spandata_property_meta(dyn->span);
+            zend_array *meta = ddtrace_property_array(&dyn->span->property_meta);
             zval keyzv = dd_uhook_save_value(key);
             zend_hash_str_update(meta, ZEND_STRL("yield_key"), &keyzv);
             zval val = dd_uhook_save_value(value);
@@ -278,7 +278,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
     if (dyn->span->duration == DDTRACE_DROPPED_SPAN) {
         ddtrace_clear_execute_data_span(invocation, false);
     } else {
-        zval *exception_zv = ddtrace_spandata_property_exception(dyn->span);
+        zval *exception_zv = &dyn->span->property_exception;
         if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
             ZVAL_OBJ_COPY(exception_zv, EG(exception));
         }
@@ -286,7 +286,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         dd_trace_stop_span_time(dyn->span);
 
         if (def->retval) {
-            zend_array *meta = ddtrace_spandata_property_meta(dyn->span);
+            zend_array *meta = ddtrace_property_array(&dyn->span->property_meta);
             zval val = dd_uhook_save_value(retval);
             zend_hash_str_update(meta, ZEND_STRL("return_value"), &val);
         }
