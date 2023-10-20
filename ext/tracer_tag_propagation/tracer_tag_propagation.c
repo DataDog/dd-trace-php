@@ -10,30 +10,24 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-void ddtrace_clean_tracer_tags() {
+void ddtrace_clean_tracer_tags(zend_array *root_meta) {
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {
-        zend_hash_del(&DDTRACE_G(root_span_tags_preset), tagname);
+        zend_hash_del(root_meta, tagname);
     }
     ZEND_HASH_FOREACH_END();
     zend_hash_clean(&DDTRACE_G(propagated_root_span_tags));
 }
 
-void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
-    ddtrace_clean_tracer_tags();
+void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *root_meta) {
+    ddtrace_clean_tracer_tags(root_meta);
 
     char *header = ZSTR_VAL(headerstr), *headerend = header + ZSTR_LEN(headerstr);
-
-    zend_array *tags = &DDTRACE_G(root_span_tags_preset);
-    ddtrace_span_data *span = DDTRACE_G(active_stack)->root_span;
-    if (span) {
-        tags = ddtrace_spandata_property_meta(span);
-    }
 
     if (ZSTR_LEN(headerstr) > 512) {
         zval error_zv;
         ZVAL_STRING(&error_zv, "extract_max_size");
-        zend_hash_str_update(tags, ZEND_STRL("_dd.propagation_error"), &error_zv);
+        zend_hash_str_update(root_meta, ZEND_STRL("_dd.propagation_error"), &error_zv);
         return;
     }
 
@@ -52,7 +46,7 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
                 strncmp(ZSTR_VAL(tag_name), "_dd.p.", sizeof("_dd.p.") - 1) == 0) {
                 zval zv;
                 ZVAL_STRINGL(&zv, valuestart, header - valuestart);
-                zend_hash_update(&DDTRACE_G(root_span_tags_preset), tag_name, &zv);
+                zend_hash_update(root_meta, tag_name, &zv);
                 zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), tag_name);
             }
             zend_string_release(tag_name);
@@ -66,13 +60,13 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr) {
 
             zval error_zv;
             ZVAL_STRING(&error_zv, "decoding_error");
-            zend_hash_str_update(tags, ZEND_STRL("_dd.propagation_error"), &error_zv);
+            zend_hash_str_update(root_meta, ZEND_STRL("_dd.propagation_error"), &error_zv);
         }
     }
 }
 
-void ddtrace_add_tracer_tags_from_array(zend_array *array) {
-    ddtrace_clean_tracer_tags();
+void ddtrace_add_tracer_tags_from_array(zend_array *array, zend_array *root_meta) {
+    ddtrace_clean_tracer_tags(root_meta);
 
     zend_string *tagname;
     zval *tag;
@@ -80,7 +74,7 @@ void ddtrace_add_tracer_tags_from_array(zend_array *array) {
         if (tagname) {
             zval tagstr;
             ddtrace_convert_to_string(&tagstr, tag);
-            zend_hash_update(&DDTRACE_G(root_span_tags_preset), tagname, &tagstr);
+            zend_hash_update(root_meta, tagname, &tagstr);
             zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), tagname);
         }
     }
@@ -88,10 +82,16 @@ void ddtrace_add_tracer_tags_from_array(zend_array *array) {
 }
 
 void ddtrace_get_propagated_tags(zend_array *tags) {
+    zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    if (root_span) {
+        root_meta = ddtrace_property_array(&root_span->property_meta);
+    }
+
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {
         zval *tag;
-        if ((tag = zend_hash_find(&DDTRACE_G(root_span_tags_preset), tagname))) {
+        if ((tag = zend_hash_find(root_meta, tagname))) {
             Z_TRY_ADDREF_P(tag);
             zend_hash_update(tags, tagname, tag);
         }
@@ -107,9 +107,9 @@ zend_string *ddtrace_format_propagated_tags(void) {
     zend_hash_str_add_empty_element(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.dm"));
 
     zend_array *tags = &DDTRACE_G(root_span_tags_preset);
-    ddtrace_span_data *span = DDTRACE_G(active_stack)->root_span;
+    ddtrace_root_span_data *span = DDTRACE_G(active_stack)->root_span;
     if (span) {
-        tags = ddtrace_spandata_property_meta(span);
+        tags = ddtrace_property_array(&span->property_meta);
     }
 
     smart_str taglist = {0};

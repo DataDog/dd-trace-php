@@ -258,7 +258,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
 
     ddtrace_span_data *span = dyn->hook_data->span;
     if (span && span->duration != DDTRACE_DROPPED_SPAN && span->duration != DDTRACE_SILENTLY_DROPPED_SPAN) {
-        zval *exception_zv = ddtrace_spandata_property_exception(span);
+        zval *exception_zv = &span->property_exception;
         if (EG(exception) && Z_TYPE_P(exception_zv) <= IS_FALSE) {
             ZVAL_OBJ_COPY(exception_zv, EG(exception));
         }
@@ -574,10 +574,10 @@ void dd_uhook_span(INTERNAL_FUNCTION_PARAMETERS, bool unlimited) {
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
         DD_PARAM_PROLOGUE(0, 0);
-        if (Z_TYPE_P(_arg) == IS_OBJECT && (Z_OBJCE_P(_arg) == ddtrace_ce_span_data || Z_OBJCE_P(_arg) == ddtrace_ce_span_stack)) {
+        if (Z_TYPE_P(_arg) == IS_OBJECT && (instanceof_function(Z_OBJCE_P(_arg), ddtrace_ce_span_data) || Z_OBJCE_P(_arg) == ddtrace_ce_span_stack)) {
             stack = (ddtrace_span_stack *) Z_OBJ_P(_arg);
-            if (Z_OBJCE_P(_arg) == ddtrace_ce_span_data) {
-                stack = ((ddtrace_span_data *)stack)->stack;
+            if (instanceof_function(Z_OBJCE_P(_arg), ddtrace_ce_span_data)) {
+                stack = OBJ_SPANDATA(Z_OBJ_P(_arg))->stack;
             }
         } else {
             zend_argument_type_error(1, "must be of type DDTrace\\SpanData|DDTrace\\SpanStack, %s given", zend_zval_value_name(_arg));

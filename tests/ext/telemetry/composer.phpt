@@ -40,7 +40,7 @@ for ($i = 0; $i < 100; ++$i) {
 }
 
 ?>
---EXPECT--
+--EXPECTF--
 Included
 Array
 (
@@ -52,6 +52,12 @@ Array
                     [version] => dev-master
                 )
 
+            [1] => Array
+                (
+                    [name] => ext-Core
+                    [version] => %s
+                )
+%a
         )
 
 )

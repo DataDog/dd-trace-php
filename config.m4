@@ -61,6 +61,9 @@ if test "$PHP_DDTRACE" != "no"; then
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
   fi
 
+  CFLAGS="$CFLAGS -fms-extensions"
+  EXTRA_CFLAGS="$EXTRA_CFLAGS -fms-extensions"
+
   DD_TRACE_VENDOR_SOURCES="\
     ext/vendor/mpack/mpack.c \
     ext/vendor/mt19937/mt19937-64.c \

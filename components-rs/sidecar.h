@@ -105,7 +105,8 @@ ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(ddog_SidecarTransport **
                                                         const struct ddog_InstanceId *instance_id,
                                                         const ddog_QueueId *queue_id,
                                                         const struct ddog_RuntimeMeta *runtime_meta,
-                                                        ddog_CharSlice service_name);
+                                                        ddog_CharSlice service_name,
+                                                        ddog_CharSlice env_name);
 
 ddog_MaybeError ddog_sidecar_telemetry_end(ddog_SidecarTransport **transport,
                                            const struct ddog_InstanceId *instance_id,
