@@ -327,7 +327,10 @@ unsafe fn collect_call_frame(
                 .unwrap_or(StringId::ZERO);
             return Some(ZendFrame {
                 reader: string_table.get_reader(),
-                function: AbridgedFunction { name, filename },
+                function: AbridgedFunction {
+                    name,
+                    filename: file,
+                },
                 line,
             });
         }
