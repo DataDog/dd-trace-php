@@ -39,10 +39,10 @@ array(1) {
     array(3) {
       ["runtime-id"]=>
       string(36) "%s"
-      ["_dd.origin"]=>
-      string(7) "datadog"
       ["_dd.p.dm"]=>
       string(2) "-1"
+      ["_dd.origin"]=>
+      string(7) "datadog"
     }
     ["metrics"]=>
     array(4) {

@@ -12,6 +12,8 @@ $primary_trace = DDTrace\start_span();
 $primary_active = DDTrace\start_span();
 
 $new_root = DDTrace\start_trace_span();
+$new_root->name = "other root";
+
 echo 'New trace span is reflected in DDTrace\root_span(): '; var_dump($new_root == DDTrace\root_span());
 echo 'New trace span is reflected in DDTrace\active_stack(): '; var_dump($new_root->stack == DDTrace\active_stack());
 echo 'New trace span stack has a parent (a target to switch to on close): '; var_dump($new_root->stack->parent == $primary_active->stack);
@@ -60,7 +62,7 @@ spans(\DDTrace\SpanData) (2) {
     _dd.p.dm => -1
      (start_span_new_trace.php, cli)
        (start_span_new_trace.php, cli)
-  start_span_new_trace.php (start_span_new_trace.php, start_span_new_trace.php, cli)
+  other root (start_span_new_trace.php, other root, cli)
     _dd.p.dm => -1
      (start_span_new_trace.php, cli)
 }
