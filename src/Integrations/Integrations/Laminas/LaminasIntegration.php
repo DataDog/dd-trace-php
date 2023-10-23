@@ -25,6 +25,15 @@ class LaminasIntegration extends Integration
 {
     const NAME = 'laminas';
 
+    static $ERROR_TYPES = [
+        \Laminas\Mvc\Application::ERROR_CONTROLLER_CANNOT_DISPATCH,
+        \Laminas\Mvc\Application::ERROR_CONTROLLER_NOT_FOUND,
+        \Laminas\Mvc\Application::ERROR_CONTROLLER_INVALID,
+        \Laminas\Mvc\Application::ERROR_EXCEPTION,
+        \Laminas\Mvc\Application::ERROR_ROUTER_NO_MATCH,
+        \Laminas\Mvc\Application::ERROR_MIDDLEWARE_CANNOT_DISPATCH
+    ];
+
     public function getName()
     {
         return self::NAME;
@@ -424,6 +433,12 @@ class LaminasIntegration extends Integration
 
                 /** @var MvcEvent $event */
                 $event = $retval;
+
+                /** @var string $errorType */
+                $errorType = $args[0];
+                if (isset($errorType, LaminasIntegration::$ERROR_TYPES)) {
+                    $span->resource = $errorType;
+                }
 
                 $exception = $event->getParam('exception');
                 if ($exception) {
