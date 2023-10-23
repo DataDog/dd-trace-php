@@ -5,18 +5,17 @@
     "resource": "Application\\Controller\\CommonSpecsController@view simpleView",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 10823655239279667906,
+    "parent_id": 3103401253233543803,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-1",
       "component": "laminas",
       "http.method": "GET",
+      "laminas.route.name": "simpleView",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple_view?key=value&<redacted>",
       "http.version": "1.1",
       "laminas.route.action": "Application\\Controller\\CommonSpecsController@view",
-      "laminas.route.name": "simpleView",
-      "runtime-id": "10c2c149-9e01-44e9-adce-200e8906adab",
       "span.kind": "server"
     },
     "metrics": {
