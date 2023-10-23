@@ -636,10 +636,14 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Framework\Event\ObserverInterface',
             'execute',
-            function (SpanData $span) {
+            function (SpanData $span, $args) {
                 $class = get_class($this);
                 if ($class !== 'Magento\PageCache\Observer\ProcessLayoutRenderElement') {
                     MagentoIntegration::setCommonSpanInfo($span, 'magento.event.execute', $class);
+
+                    /** @var \Magento\Framework\Event\Observer $observer */
+                    $observer = $args[0];
+                    $span->meta['magento.event.name'] = $observer->getEvent()->getName();
                 } else {
                     // If this is an instance of \Magento\PageCache\Observer\ProcessLayoutRenderElement, then return false
                     // to prevent the original execute method from being traced.

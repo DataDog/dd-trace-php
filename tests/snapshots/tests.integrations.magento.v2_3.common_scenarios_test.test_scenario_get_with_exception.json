@@ -5,7 +5,7 @@
     "resource": "datadog/error/index",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 9518402041931419535,
+    "parent_id": 17528188283766325777,
     "type": "web",
     "error": 1,
     "meta": {
@@ -22,7 +22,7 @@
       "magento.frontname": "datadog",
       "magento.pathinfo": "datadog/error/index",
       "magento.route": "datadog",
-      "runtime-id": "945b3acb-5696-46ee-ad5e-59d88c944c6a",
+      "runtime-id": "283fd2d2-90de-464c-b005-8ee79bbfbbfe",
       "span.kind": "server"
     },
     "metrics": {
@@ -176,7 +176,8 @@
                    "parent_id": 11,
                    "type": "web",
                    "meta": {
-                     "component": "magento"
+                     "component": "magento",
+                     "magento.event.name": "controller_action_predispatch"
                    }
                  },
                  {
@@ -188,7 +189,8 @@
                    "parent_id": 11,
                    "type": "web",
                    "meta": {
-                     "component": "magento"
+                     "component": "magento",
+                     "magento.event.name": "controller_action_predispatch"
                    }
                  },
                  {
@@ -200,7 +202,8 @@
                    "parent_id": 11,
                    "type": "web",
                    "meta": {
-                     "component": "magento"
+                     "component": "magento",
+                     "magento.event.name": "controller_action_predispatch"
                    }
                  },
                  {
@@ -212,7 +215,8 @@
                    "parent_id": 11,
                    "type": "web",
                    "meta": {
-                     "component": "magento"
+                     "component": "magento",
+                     "magento.event.name": "controller_action_predispatch"
                    }
                  },
                  {
@@ -224,7 +228,8 @@
                    "parent_id": 11,
                    "type": "web",
                    "meta": {
-                     "component": "magento"
+                     "component": "magento",
+                     "magento.event.name": "controller_action_predispatch"
                    }
                  },
                  {
@@ -236,7 +241,8 @@
                    "parent_id": 11,
                    "type": "web",
                    "meta": {
-                     "component": "magento"
+                     "component": "magento",
+                     "magento.event.name": "controller_action_predispatch"
                    }
                  },
                  {
@@ -248,7 +254,8 @@
                    "parent_id": 11,
                    "type": "web",
                    "meta": {
-                     "component": "magento"
+                     "component": "magento",
+                     "magento.event.name": "controller_action_predispatch"
                    }
                  },
                  {
@@ -260,7 +267,8 @@
                    "parent_id": 11,
                    "type": "web",
                    "meta": {
-                     "component": "magento"
+                     "component": "magento",
+                     "magento.event.name": "controller_action_predispatch"
                    }
                  },
                  {
