@@ -76,7 +76,6 @@ Array
                 (
                     [name] => ddtrace\test\testsandboxedintegration
                     [enabled] => 1
-                    [version] => 0
                 )
 
         )
