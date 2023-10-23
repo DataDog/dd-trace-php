@@ -342,8 +342,7 @@ class LaminasIntegration extends Integration
                     $nameOrModel = $args[0];
                     if (is_string($nameOrModel)) {
                         $span->resource = $nameOrModel;
-                    } else {
-                        /** @var ModelInterface $nameOrModel */
+                    } elseif ($nameOrModel instanceof ModelInterface) {
                         $span->resource = $nameOrModel->getTemplate();
                     }
                 },
