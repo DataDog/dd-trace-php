@@ -170,6 +170,7 @@ final class MemcacheTest extends IntegrationTestCase
 
     public function testGet()
     {
+        $this->putEnv('DD_TRACE_GENERATE_ROOT_SPAN=true');
         $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
 
@@ -183,6 +184,7 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'get ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'get',
                     Tag::SPAN_KIND => 'client',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
@@ -191,6 +193,7 @@ final class MemcacheTest extends IntegrationTestCase
 
     public function testGetMissingKey()
     {
+        $this->putEnv('DD_TRACE_GENERATE_ROOT_SPAN=true');
         $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
 
@@ -204,6 +207,7 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'get ' . Obfuscation::toObfuscatedString('missing_key'),
                     'memcache.command' => 'get',
                     Tag::SPAN_KIND => 'client',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 0,
                 ]),
