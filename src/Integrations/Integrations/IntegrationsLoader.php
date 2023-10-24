@@ -71,8 +71,6 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration';
             $this->integrations[CurlIntegration::NAME] =
                 '\DDTrace\Integrations\Curl\CurlIntegration';
-            $this->integrations[DrupalIntegration::NAME] =
-                '\DDTrace\Integrations\Drupal\DrupalIntegration';
             $this->integrations[ElasticSearchIntegration::NAME] =
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration';
             $this->integrations[EloquentIntegration::NAME] =
