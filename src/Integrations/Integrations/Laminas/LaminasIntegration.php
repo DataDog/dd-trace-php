@@ -29,13 +29,14 @@ class LaminasIntegration extends Integration
 {
     const NAME = 'laminas';
 
+    // \Laminas\Mvc\Application is not necessarily loaded (e.g., Laminas Log), hence the raw strings
     static $ERROR_TYPES = [
-        \Laminas\Mvc\Application::ERROR_CONTROLLER_CANNOT_DISPATCH,
-        \Laminas\Mvc\Application::ERROR_CONTROLLER_NOT_FOUND,
-        \Laminas\Mvc\Application::ERROR_CONTROLLER_INVALID,
-        \Laminas\Mvc\Application::ERROR_EXCEPTION,
-        \Laminas\Mvc\Application::ERROR_ROUTER_NO_MATCH,
-        \Laminas\Mvc\Application::ERROR_MIDDLEWARE_CANNOT_DISPATCH
+        'error-controller-cannot-dispatch',
+        'error-controller-not-found',
+        'error-controller-invalid',
+        'error-exception',
+        'error-router-no-match',
+        'error-middleware-cannot-dispatch'
     ];
 
     static $EVENT_TYPES = [
