@@ -84,6 +84,9 @@
             "php -r \"if (file_exists('src/remove-package-artifacts.php')) include 'src/remove-package-artifacts.php';\"",
             "php -r \"if (file_exists('CHANGELOG.md')) unlink('CHANGELOG.md');\""
         ],
+        "post-autoload-dump": [
+            "chmod 755 data/cache"
+        ],
         "serve": "php -S 0.0.0.0:8080 -t public/ public/index.php",
         "test": "phpunit"
     }
