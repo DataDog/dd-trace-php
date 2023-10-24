@@ -35,6 +35,14 @@
         <testsuite name="composer-tests">
             <directory>./Composer</directory>
         </testsuite>
+        <testsuite name="laminas-14-test">
+            <directory>./Integrations/Laminas/V1_4</directory>
+            <directory>./Integrations/Laminas/ApiTools/V1_9</directory>
+        </testsuite>
+        <testsuite name="laminas-20-test">
+            <directory>./Integrations/Laminas/V2_0</directory>
+            <directory>./Integrations/Laminas/ApiTools/V1_9</directory>
+        </testsuite>
         <testsuite name="laravel-58-test">
             <directory>./Integrations/Laravel/V5_8</directory>
             <directory>./Integrations/CLI/Laravel/V5_8</directory>
