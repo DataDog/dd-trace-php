@@ -45,6 +45,7 @@ static mut TIME_SLEEP_UNTIL_HANDLER: InternalFunctionHandler = None;
 
 // handlers for stream blocking functions
 static mut STREAM_SELECT_HANDLER: InternalFunctionHandler = None;
+static mut SOCKET_SELECT_HANDLER: InternalFunctionHandler = None;
 static mut UV_RUN_HANDLER: InternalFunctionHandler = None;
 static mut EVENT_BASE_LOOP_HANDLER: InternalFunctionHandler = None;
 static mut EV_LOOP_RUN_HANDLER: InternalFunctionHandler = None;
@@ -133,6 +134,14 @@ unsafe extern "C" fn php_stream_select(
     report_wait_time(STREAM_SELECT_HANDLER, execute_data, return_value, "select");
 }
 
+/// Wrapping the PHP `socket_select()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_socket_select(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    report_wait_time(SOCKET_SELECT_HANDLER, execute_data, return_value, "select");
+}
+
 /// Wrapping the PHP `uv_run()` function to take the time it is blocking the current thread
 unsafe extern "C" fn php_uv_run(
     execute_data: *mut zend::zend_execute_data,
@@ -200,6 +209,11 @@ pub unsafe fn timeline_startup() {
             CStr::from_bytes_with_nul_unchecked(b"stream_select\0"),
             &mut STREAM_SELECT_HANDLER,
             Some(php_stream_select),
+        ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"socket_select\0"),
+            &mut SOCKET_SELECT_HANDLER,
+            Some(php_socket_select),
         ),
         // provided by `ext-uv` from https://pecl.php.net/package/uv
         zend::datadog_php_zif_handler::new(
