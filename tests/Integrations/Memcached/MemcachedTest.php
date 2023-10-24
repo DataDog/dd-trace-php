@@ -28,6 +28,8 @@ final class MemcachedTest extends IntegrationTestCase
             // Cleaning up existing data from previous tests
             $this->client->flush();
         });
+
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
     }
 
     protected function envsToCleanUpAtTearDown()
@@ -36,6 +38,7 @@ final class MemcachedTest extends IntegrationTestCase
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_TRACE_GENERATE_ROOT_SPAN',
         ];
     }
 
@@ -75,6 +78,8 @@ final class MemcachedTest extends IntegrationTestCase
     /** Should fail because memcached is compressed by default */
     public function testAppendCompressed()
     {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $traces = $this->isolateTracer(function () {
             try {
                 $this->client->append('key', 'value');
@@ -89,6 +94,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'append ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'append',
                     Tag::SPAN_KIND => 'client',
+                    '_dd.base_service' => 'phpunit',
                 ]))
                 ->withExistingTagsNames(['process_id', Tag::ERROR_MSG, 'error.type', 'error.stack']),
         ]);
@@ -113,6 +119,8 @@ final class MemcachedTest extends IntegrationTestCase
     /** Should fail because memcached is compressed by default */
     public function testAppendByKeyCompressed()
     {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $traces = $this->isolateTracer(function () {
             try {
                 $this->client->appendByKey('my_server', 'key', 'value');
@@ -128,6 +136,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'appendByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
+                    '_dd.base_service' => 'phpunit',
                 ]))
                 ->withExistingTagsNames(['process_id', Tag::ERROR_MSG, 'error.type', 'error.stack']),
         ]);
@@ -469,6 +478,8 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGet()
     {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
 
@@ -482,6 +493,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'get ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'get',
                     Tag::SPAN_KIND => 'client',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
@@ -490,6 +502,8 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGetMissingKey()
     {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
 
@@ -503,6 +517,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.query' => 'get ' . Obfuscation::toObfuscatedString('missing_key'),
                     'memcached.command' => 'get',
                     Tag::SPAN_KIND => 'client',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 0,
                 ]),
@@ -511,6 +526,8 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGetMulti()
     {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $traces = $this->isolateTracer(function () {
             $this->client->add('key1', 'value1');
             $this->client->add('key2', 'value2');
@@ -524,6 +541,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
                 ]),
@@ -532,6 +550,8 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGetMultiNotAllExist()
     {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $traces = $this->isolateTracer(function () {
             $this->client->add('key1', 'value1');
             $this->client->add('key2', 'value2');
@@ -545,6 +565,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'missing_key'], ','),
                     'memcached.command' => 'getMulti',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
@@ -553,6 +574,8 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGetMultiNoneExist()
     {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $traces = $this->isolateTracer(function () {
             $this->assertEquals([], $this->client->getMulti(['key1', 'key2']));
         });
@@ -561,6 +584,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 0,
                 ]),
@@ -569,6 +593,8 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGetByKey()
     {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
             $this->assertSame('value', $this->client->getByKey('my_server', 'key'));
@@ -582,6 +608,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
@@ -590,6 +617,8 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGetMultiByKey()
     {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key1', 'value1');
             $this->client->addByKey('my_server', 'key2', 'value2');
@@ -608,6 +637,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMultiByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
                 ]),
@@ -863,7 +893,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testMultiPeerServiceEnabled()
     {
-        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
 
         $traces = $this->isolateTracer(function () {
             $this->client->add('key1', 'value1');
@@ -878,6 +908,7 @@ final class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(true), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
                 ]),
@@ -886,7 +917,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testMultiByKeyPeerServiceEnabled()
     {
-        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
 
         $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key1', 'value1');
@@ -906,6 +937,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMultiByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
+                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
                 ]),
@@ -988,6 +1020,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig([
             'DD_SERVICE=configured_service',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+            'DD_TRACE_GENERATE_ROOT_SPAN=true'
         ]);
 
         $traces = $this->isolateTracer(function () {
