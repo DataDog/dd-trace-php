@@ -40,6 +40,8 @@ class MongoDBTest extends IntegrationTestCase
             $this->markTestSkipped('Mongodb Integration only enabled on 7+');
         }
 
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
+
         $this->client()->test_db->cars->drop();
         $this->client()->test_db->my_collection->drop();
 
@@ -61,6 +63,7 @@ class MongoDBTest extends IntegrationTestCase
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_TRACE_GENERATE_ROOT_SPAN',
         ];
     }
 
