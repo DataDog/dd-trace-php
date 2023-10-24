@@ -37,8 +37,13 @@ pub fn timeline_minit() {
     }
 }
 
+// handlers for functions that sleep
 static mut SLEEP_HANDLER: InternalFunctionHandler = None;
 static mut USLEEP_HANDLER: InternalFunctionHandler = None;
+static mut TIME_NANOSLEEP_HANDLER: InternalFunctionHandler = None;
+static mut TIME_SLEEP_UNTIL_HANDLER: InternalFunctionHandler = None;
+
+// handlers for stream blocking functions
 static mut STREAM_SELECT_HANDLER: InternalFunctionHandler = None;
 static mut UV_RUN_HANDLER: InternalFunctionHandler = None;
 static mut EVENT_BASE_LOOP_HANDLER: InternalFunctionHandler = None;
@@ -92,6 +97,32 @@ unsafe extern "C" fn php_usleep(
     return_value: *mut zend::zval,
 ) {
     report_wait_time(USLEEP_HANDLER, execute_data, return_value, "sleeping");
+}
+
+/// Wrapping the PHP `time_nanosleep()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_time_nanosleep(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    report_wait_time(
+        TIME_NANOSLEEP_HANDLER,
+        execute_data,
+        return_value,
+        "sleeping",
+    );
+}
+
+/// Wrapping the PHP `time_sleep_until()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_time_sleep_until(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    report_wait_time(
+        TIME_SLEEP_UNTIL_HANDLER,
+        execute_data,
+        return_value,
+        "sleeping",
+    );
 }
 
 /// Wrapping the PHP `stream_select()` function to take the time it is blocking the current thread
@@ -153,6 +184,16 @@ pub unsafe fn timeline_startup() {
             CStr::from_bytes_with_nul_unchecked(b"usleep\0"),
             &mut USLEEP_HANDLER,
             Some(php_usleep),
+        ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"time_nanosleep\0"),
+            &mut TIME_NANOSLEEP_HANDLER,
+            Some(php_time_nanosleep),
+        ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"time_sleep_until\0"),
+            &mut TIME_SLEEP_UNTIL_HANDLER,
+            Some(php_time_sleep_until),
         ),
         // functions that block on a stream to become read-/writeable
         zend::datadog_php_zif_handler::new(
