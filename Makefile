@@ -1056,10 +1056,12 @@ test_web_drupal_101: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/Drupal/V10_1)
 test_web_laminas_14: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_1_4 update
-	$(call run_tests,tests/Integrations/Laminas/V1_4)
+	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/ApiTools/Version_1_9 update
+	$(call run_tests,--testsuite=laminas-14-test)
 test_web_laminas_20: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_2_0 update
-	$(call run_tests,tests/Integrations/Laminas/V2_0)
+	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/ApiTools/Version_1_9 update
+	$(call run_tests,--testsuite=laminas-20-test)
 test_web_laravel_42: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_4_2 update
 	php tests/Frameworks/Laravel/Version_4_2/artisan optimize

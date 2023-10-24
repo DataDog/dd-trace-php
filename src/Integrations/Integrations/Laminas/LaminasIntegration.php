@@ -232,7 +232,6 @@ class LaminasIntegration extends Integration
                 'prehook' => function (SpanData $span) {
                     $service = \ddtrace_config_app_name('laminas');
                     $span->name = 'laminas.application.run';
-                    $span->resource = get_class($this);
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
                     $span->meta[Tag::COMPONENT] = 'laminas';
@@ -535,7 +534,7 @@ class LaminasIntegration extends Integration
                 $detail = $args[1] ?? null;
                 $activeSpan = active_span();
                 if ($detail instanceof \Throwable || $detail instanceof \Exception) {
-                    if ($activeSpan !== null) {
+                    if ($activeSpan !== null && !isset($activeSpan->meta[Tag::ERROR_TYPE])) {
                         $integration->setError($activeSpan, $detail);
                     }
                 } elseif (is_string($detail)) {
@@ -547,7 +546,7 @@ class LaminasIntegration extends Integration
 
                     ObjectKVStore::put($this, 'backtrace', $backtrace);
 
-                    if ($activeSpan !== null) {
+                    if ($activeSpan !== null && !isset($activeSpan->meta[Tag::ERROR_TYPE])) {
                         $activeSpan->meta[Tag::ERROR_TYPE] = 'ApiProblem';
                         $activeSpan->meta[Tag::ERROR_MSG] = $detail;
                         $activeSpan->meta[Tag::ERROR_STACK] = $backtrace;
@@ -571,12 +570,17 @@ class LaminasIntegration extends Integration
                 $response = $e->getResponse();
                 if ($response instanceof ApiProblemResponse) {
                     $apiProblem = $response->getApiProblem();
-                    $problem = $apiProblem->toArray();
-                    $detail = $problem['detail'] ?? null;
+                    $detail = $apiProblem->detail; // __get
+                    $status = $apiProblem->status; // __get
+                    if ($status < 500) {
+                        return; // Only set 5xx on the root span
+                    }
+
                     if ($detail instanceof \Throwable || $detail instanceof \Exception) {
                         $integration->setError($rootSpan, $detail);
                     } elseif (is_string($detail)) {
-                        $rootSpan->meta[Tag::ERROR_TYPE] = 'ApiProblem';
+                        $title = $apiProblem->title; // __get
+                        $rootSpan->meta[Tag::ERROR_TYPE] = $title ?: 'ApiProblem';
                         $rootSpan->meta[Tag::ERROR_MSG] = $detail;
 
                         $backtrace = ObjectKVStore::get($apiProblem, 'backtrace');
@@ -607,7 +611,7 @@ class LaminasIntegration extends Integration
             if (isset($frame['class'])) {
                 $result .= $frame['class'] . $frame['type'];
             }
-            $result .= $frame['function'] . "()\n";
+            $result .= $frame['function'] . "()\n"; // Args aren't shown
         }
         return $result;
     }
