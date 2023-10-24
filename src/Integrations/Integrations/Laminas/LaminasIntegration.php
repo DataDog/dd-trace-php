@@ -17,6 +17,7 @@ use Laminas\Router\RouteMatch;
 use Laminas\Stdlib\RequestInterface;
 use Laminas\View\Model\ModelInterface;
 
+use function DDTrace\active_span;
 use function DDTrace\hook_method;
 use function DDTrace\install_hook;
 use function DDTrace\logs_correlation_trace_id;
@@ -529,18 +530,28 @@ class LaminasIntegration extends Integration
         // ApiProblem
         install_hook(
             'Laminas\ApiTools\ApiProblem\ApiProblem::__construct',
-            function (HookData $hook) {
+            function (HookData $hook) use ($integration) {
                 $args = $hook->args;
                 $detail = $args[1] ?? null;
+                $activeSpan = active_span();
                 if ($detail instanceof \Throwable || $detail instanceof \Exception) {
-                    return;
+                    if ($activeSpan !== null) {
+                        $integration->setError($activeSpan, $detail);
+                    }
                 } elseif (is_string($detail)) {
-                    ob_start();
-                    debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-                    $stackTrace = ob_get_clean();
                     // Removes the first two frames, which are the constructor and the hook
-                    $backtrace = preg_replace('/^#0\s+.+\n#1\s+.+\n/', '', $stackTrace);
+                    $stack = debug_backtrace();
+                    array_shift($stack);
+                    array_shift($stack);
+                    $backtrace = LaminasIntegration::debugBacktraceToString($stack);
+
                     ObjectKVStore::put($this, 'backtrace', $backtrace);
+
+                    if ($activeSpan !== null) {
+                        $activeSpan->meta[Tag::ERROR_TYPE] = 'ApiProblem';
+                        $activeSpan->meta[Tag::ERROR_MSG] = $detail;
+                        $activeSpan->meta[Tag::ERROR_STACK] = $backtrace;
+                    }
                 } // There shouldn't be any other case, per the ApiProblem spec
             }
         );
@@ -579,5 +590,25 @@ class LaminasIntegration extends Integration
 
 
         return Integration::LOADED;
+    }
+
+    public static function debugBacktraceToString(array $backtrace)
+    {
+        // (methods) #<frame index> <file>(line): <class><type><function>()\n
+        // (functions) #<frame index> <file>(line): <function>()\n
+        $result = '';
+        foreach ($backtrace as $idx => $frame) {
+            $result .= sprintf(
+                "#%d %s(%d): ",
+                $idx,
+                $frame['file'] ?? '<unknown file>',
+                $frame['line'] ?? '?'
+            );
+            if (isset($frame['class'])) {
+                $result .= $frame['class'] . $frame['type'];
+            }
+            $result .= $frame['function'] . "()\n";
+        }
+        return $result;
     }
 }
