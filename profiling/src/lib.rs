@@ -139,10 +139,11 @@ extern "C" {
 /// consecutive return value.
 #[no_mangle]
 pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
-    static DEPS: [zend::ModuleDep; 4] = [
+    static DEPS: [zend::ModuleDep; 5] = [
         zend::ModuleDep::required(cstr!("standard")),
         zend::ModuleDep::required(cstr!("json")),
         zend::ModuleDep::optional(cstr!("ddtrace")),
+        zend::ModuleDep::required(cstr!("event")),
         zend::ModuleDep::end(),
     ];
 

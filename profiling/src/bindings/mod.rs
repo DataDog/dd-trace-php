@@ -381,6 +381,26 @@ impl datadog_php_zif_handler {
     }
 }
 
+impl datadog_php_zim_handler {
+    pub fn new(
+        class: &'static CStr,
+        name: &'static CStr,
+        old_handler: &'static mut InternalFunctionHandler,
+        new_handler: InternalFunctionHandler,
+    ) -> Self {
+        let name = name.to_bytes();
+        let class = class.to_bytes();
+        Self {
+            class_name: class.as_ptr() as *const c_char,
+            class_name_len: class.len(),
+            name: name.as_ptr() as *const c_char,
+            name_len: name.len(),
+            old_handler,
+            new_handler,
+        }
+    }
+}
+
 impl<'a> TryFrom<&'a mut zval> for &'a mut zend_long {
     type Error = u8;
 

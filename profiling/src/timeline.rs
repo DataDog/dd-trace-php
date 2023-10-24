@@ -37,23 +37,24 @@ pub fn timeline_minit() {
     }
 }
 
-const STREAM_SELECT: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"stream_select\0") };
-const SLEEP: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"sleep\0") };
-const USLEEP: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"usleep\0") };
-
-static mut STREAM_SELECT_HANDLER: InternalFunctionHandler = None;
 static mut SLEEP_HANDLER: InternalFunctionHandler = None;
 static mut USLEEP_HANDLER: InternalFunctionHandler = None;
+static mut STREAM_SELECT_HANDLER: InternalFunctionHandler = None;
+static mut UV_RUN_HANDLER: InternalFunctionHandler = None;
+static mut EVENT_BASE_LOOP_HANDLER: InternalFunctionHandler = None;
+static mut EV_LOOP_RUN_HANDLER: InternalFunctionHandler = None;
+static mut EVENT_LOOP_HANDLER: InternalFunctionHandler = None;
 
-/// Wrapping the PHP `stream_select()` function to take the time it is blocking the current thread
-unsafe extern "C" fn php_stream_select(
+fn report_wait_time(
+    handler: InternalFunctionHandler,
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
+    reason: &'static str,
 ) {
     let start = Instant::now();
 
-    if let Some(func) = STREAM_SELECT_HANDLER {
-        func(execute_data, return_value);
+    if let Some(func) = handler {
+        unsafe { func(execute_data, return_value) };
     }
 
     let duration = start.elapsed();
@@ -70,7 +71,7 @@ unsafe extern "C" fn php_stream_select(
                 // Safety: checked for `is_err()` above
                 now.unwrap().as_nanos() as i64,
                 duration.as_nanos() as i64,
-                "select",
+                reason,
                 &locals,
             );
         }
@@ -82,31 +83,7 @@ unsafe extern "C" fn php_sleep(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
-    let start = Instant::now();
-
-    if let Some(func) = SLEEP_HANDLER {
-        func(execute_data, return_value);
-    }
-
-    let duration = start.elapsed();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH);
-
-    REQUEST_LOCALS.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
-            return;
-        };
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            profiler.collect_idle(
-                // Safety: checked for `is_err()` above
-                now.unwrap().as_nanos() as i64,
-                duration.as_nanos() as i64,
-                "sleeping",
-                &locals,
-            );
-        }
-    });
+    report_wait_time(SLEEP_HANDLER, execute_data, return_value, "sleeping");
 }
 
 /// Wrapping the PHP `usleep()` function to take the time it is blocking the current thread
@@ -114,49 +91,114 @@ unsafe extern "C" fn php_usleep(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
-    let start = Instant::now();
+    report_wait_time(USLEEP_HANDLER, execute_data, return_value, "sleeping");
+}
 
-    if let Some(func) = USLEEP_HANDLER {
-        func(execute_data, return_value);
-    }
+/// Wrapping the PHP `stream_select()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_stream_select(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    report_wait_time(STREAM_SELECT_HANDLER, execute_data, return_value, "select");
+}
 
-    let duration = start.elapsed();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+/// Wrapping the PHP `uv_run()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_uv_run(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    report_wait_time(UV_RUN_HANDLER, execute_data, return_value, "select");
+}
 
-    REQUEST_LOCALS.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
-            return;
-        };
+/// Wrapping the PHP `event_base_loop()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_event_base_loop(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    report_wait_time(
+        EVENT_BASE_LOOP_HANDLER,
+        execute_data,
+        return_value,
+        "select",
+    );
+}
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            profiler.collect_idle(
-                // Safety: checked for `is_err()` above
-                now.unwrap().as_nanos() as i64,
-                duration.as_nanos() as i64,
-                "sleeping",
-                &locals,
-            );
-        }
-    });
+/// Wrapping the PHP `\EventBase\loop()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_event_loop(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    report_wait_time(EVENT_LOOP_HANDLER, execute_data, return_value, "select");
+}
+
+/// Wrapping the PHP `\EvLoop\run()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_ev_loop_run(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    report_wait_time(EV_LOOP_RUN_HANDLER, execute_data, return_value, "select");
 }
 
 /// This function is run during the STARTUP phase and hooks into the execution of some functions
 /// that we'd like to observe in regards of visualization on the timeline
 pub unsafe fn timeline_startup() {
     let handlers = [
+        // functions that put the thread into sleep
         zend::datadog_php_zif_handler::new(
-            STREAM_SELECT,
+            CStr::from_bytes_with_nul_unchecked(b"sleep\0"),
+            &mut SLEEP_HANDLER,
+            Some(php_sleep),
+        ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"usleep\0"),
+            &mut USLEEP_HANDLER,
+            Some(php_usleep),
+        ),
+        // functions that block on a stream to become read-/writeable
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"stream_select\0"),
             &mut STREAM_SELECT_HANDLER,
             Some(php_stream_select),
         ),
-        zend::datadog_php_zif_handler::new(SLEEP, &mut SLEEP_HANDLER, Some(php_sleep)),
-        zend::datadog_php_zif_handler::new(USLEEP, &mut USLEEP_HANDLER, Some(php_usleep)),
+        // provided by `ext-uv` from https://pecl.php.net/package/uv
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"uv_run\0"),
+            &mut UV_RUN_HANDLER,
+            Some(php_uv_run),
+        ),
+        // provided by `ext-libevent` from https://pecl.php.net/package/libevent
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"event_base_loop\0"),
+            &mut EVENT_BASE_LOOP_HANDLER,
+            Some(php_event_base_loop),
+        ),
     ];
 
     for handler in handlers.into_iter() {
         // Safety: we've set all the parameters correctly for this C call.
         zend::datadog_php_install_handler(handler);
+    }
+
+    let handlers = [
+        // provided by `ext-ev` from https://pecl.php.net/package/ev
+        zend::datadog_php_zim_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"evloop\0"),
+            CStr::from_bytes_with_nul_unchecked(b"run\0"),
+            &mut EV_LOOP_RUN_HANDLER,
+            Some(php_ev_loop_run),
+        ),
+        // provided by `ext-event` from https://pecl.php.net/package/event
+        zend::datadog_php_zim_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"eventbase\0"),
+            CStr::from_bytes_with_nul_unchecked(b"loop\0"),
+            &mut EVENT_LOOP_HANDLER,
+            Some(php_event_loop),
+        ),
+    ];
+
+    for handler in handlers.into_iter() {
+        // Safety: we've set all the parameters correctly for this C call.
+        zend::datadog_php_install_method_handler(handler);
     }
 }
 
