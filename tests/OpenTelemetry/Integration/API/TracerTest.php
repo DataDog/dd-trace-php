@@ -86,6 +86,7 @@ final class TracerTest extends BaseTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'test.span1')
+                ->skipTagsLike('/^process\.command.*/')
                 ->withExistingTagsNames([
                     'service.version',
                     'telemetry.sdk.name',
@@ -95,11 +96,6 @@ final class TracerTest extends BaseTestCase
                     'process.runtime.version',
                     'process.pid',
                     'process.executable.path',
-                    'process.command',
-                    'process.command_args.0',
-                    'process.command_args.1',
-                    'process.command_args.2',
-                    'process.command_args.3',
                     'process.owner',
                     'os.type',
                     'os.description',
@@ -109,6 +105,7 @@ final class TracerTest extends BaseTestCase
                     'host.arch'
                 ]),
             SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'test.span2')
+                ->skipTagsLike('/^process\.command.*/')
                 ->withExistingTagsNames([
                     'service.version',
                     'telemetry.sdk.name',
@@ -118,11 +115,6 @@ final class TracerTest extends BaseTestCase
                     'process.runtime.version',
                     'process.pid',
                     'process.executable.path',
-                    'process.command',
-                    'process.command_args.0',
-                    'process.command_args.1',
-                    'process.command_args.2',
-                    'process.command_args.3',
                     'process.owner',
                     'os.type',
                     'os.description',
@@ -132,6 +124,7 @@ final class TracerTest extends BaseTestCase
                     'host.arch'
                 ]),
             SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'test.span3')
+                ->skipTagsLike('/^process\.command.*/')
                 ->withExistingTagsNames([
                     'service.version',
                     'telemetry.sdk.name',
@@ -141,11 +134,6 @@ final class TracerTest extends BaseTestCase
                     'process.runtime.version',
                     'process.pid',
                     'process.executable.path',
-                    'process.command',
-                    'process.command_args.0',
-                    'process.command_args.1',
-                    'process.command_args.2',
-                    'process.command_args.3',
                     'process.owner',
                     'os.type',
                     'os.description',

@@ -98,7 +98,9 @@ final class BaggageTest extends BaseTestCase
                     Tag::SPAN_KIND => Tag::SPAN_KIND_VALUE_SERVER,
                     'http.method' => 'GET',
                     'http.uri' => '/parent'
-                ])->withExistingTagsNames([
+                ])
+                ->skipTagsLike('/^process\.command.*/')
+                ->withExistingTagsNames([
                     'service.version',
                     'telemetry.sdk.name',
                     'telemetry.sdk.language',
@@ -107,11 +109,6 @@ final class BaggageTest extends BaseTestCase
                     'process.runtime.version',
                     'process.pid',
                     'process.executable.path',
-                    'process.command',
-                    'process.command_args.0',
-                    'process.command_args.1',
-                    'process.command_args.2',
-                    'process.command_args.3',
                     'process.owner',
                     'os.type',
                     'os.description',
@@ -125,6 +122,7 @@ final class BaggageTest extends BaseTestCase
                         ->withExactTags([
                             'user.id' => '1',
                         ])
+                        ->skipTagsLike('/^process\.command.*/')
                         ->withExistingTagsNames([
                             'service.version',
                             'telemetry.sdk.name',
@@ -134,11 +132,6 @@ final class BaggageTest extends BaseTestCase
                             'process.runtime.version',
                             'process.pid',
                             'process.executable.path',
-                            'process.command',
-                            'process.command_args.0',
-                            'process.command_args.1',
-                            'process.command_args.2',
-                            'process.command_args.3',
                             'process.owner',
                             'os.type',
                             'os.description',

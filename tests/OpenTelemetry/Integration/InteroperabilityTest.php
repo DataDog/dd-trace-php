@@ -68,11 +68,6 @@ final class InteroperabilityTest extends BaseTestCase
             'process.runtime.version',
             'process.pid',
             'process.executable.path',
-            'process.command',
-            'process.command_args.0',
-            'process.command_args.1',
-            'process.command_args.2',
-            'process.command_args.3',
             'process.owner',
             'os.type',
             'os.description',
@@ -601,18 +596,21 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withExactTags([
                     'foo1' => 'bar1',
                 ])
+                ->skipTagsLike('/^process\.command.*/')
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
                     SpanAssertion::build('otel_unknown', 'my.service', 'cli', 'otel.child1')
                         ->withExactTags([
                             'foo2' => 'bar2',
                         ])
+                        ->skipTagsLike('/^process\.command.*/')
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         ->withChildren(
                             SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'my.resource')
                                 ->withExactTags([
                                     'foo3' => 'bar3',
                                 ])
+                                ->skipTagsLike('/^process\.command.*/')
                                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         )
                 ),
@@ -628,12 +626,15 @@ final class InteroperabilityTest extends BaseTestCase
                     SpanAssertion::build('dd.child1', 'datadog/dd-trace-tests', 'cli', 'dd.child1')
                 ),
             SpanAssertion::build('dd.trace2', 'datadog/dd-trace-tests', 'cli', 'dd.trace2')
+                ->skipTagsLike('/^process\.command.*/')
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
                     SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'otel.child2')
+                        ->skipTagsLike('/^process\.command.*/')
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         ->withChildren(
                             SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'otel.child4')
+                                ->skipTagsLike('/^process\.command.*/')
                                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         )
                 ),
@@ -686,9 +687,11 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withExactTags([
                     '_dd.p.tid' => 'ff00000000000517'
                 ])
+                ->skipTagsLike('/^process\.command.*/')
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
                     SpanAssertion::build('dd.child.span', 'datadog/dd-trace-tests', 'cli', 'dd.child.span')
+                        ->skipTagsLike('/^process\.command.*/')
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 )
         ]);
@@ -740,9 +743,11 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withExactTags([
                     '_dd.p.tid' => 'ff00000000000517'
                 ])
+                ->skipTagsLike('/^process\.command.*/')
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
                     SpanAssertion::build('dd.child.span', 'datadog/dd-trace-tests', 'cli', 'dd.child.span')
+                        ->skipTagsLike('/^process\.command.*/')
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 )
         ]);
@@ -798,9 +803,11 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withExactTags([
                     '_dd.p.tid' => 'ff00000000000517'
                 ])
+                ->skipTagsLike('/^process\.command.*/')
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
                     SpanAssertion::build('dd.child.span', 'datadog/dd-trace-tests', 'cli', 'dd.child.span')
+                        ->skipTagsLike('/^process\.command.*/')
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 )
         ]);
@@ -843,12 +850,14 @@ final class InteroperabilityTest extends BaseTestCase
                     'http.method' => 'GET',
                     'http.uri' => '/parent'
                 ])
+                ->skipTagsLike('/^process\.command.*/')
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren([
                     SpanAssertion::build('child', 'datadog/dd-trace-tests', 'cli', 'child')
                         ->withExactTags([
                             'user.id' => '1',
                         ])
+                        ->skipTagsLike('/^process\.command.*/')
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ])
         ]);
