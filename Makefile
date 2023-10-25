@@ -688,6 +688,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
+	test_opentelemetry_1 \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -753,6 +754,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
+	test_opentelemetry_1 \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_guzzle5 \
@@ -799,6 +801,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_monolog2 \
 	test_integrations_monolog3 \
 	test_integrations_mysqli \
+	test_opentelemetry_1 \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -842,6 +845,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_monolog2 \
 	test_integrations_monolog3 \
 	test_integrations_mysqli \
+	test_opentelemetry_1 \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
