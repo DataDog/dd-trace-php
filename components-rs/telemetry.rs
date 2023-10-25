@@ -118,6 +118,22 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addIntegration_buffer(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_addDependency_buffer(
+    buffer: &mut TelemetryActionsBuffer,
+    dependency_name: CharSlice,
+    dependency_version: CharSlice,
+) {
+    let version = (!dependency_version.is_empty())
+        .then(|| dependency_version.to_utf8_lossy().into_owned());
+
+    let action = TelemetryActions::AddDependecy(Dependency {
+        name: dependency_name.to_utf8_lossy().into_owned(),
+        version,
+    });
+    buffer.buffer.push(action);
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
     buffer: &mut TelemetryActionsBuffer,
     config_key: CharSlice,

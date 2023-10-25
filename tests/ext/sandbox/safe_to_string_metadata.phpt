@@ -57,6 +57,9 @@ foreach ($span['meta'] as $key => $value) {
     $index = (int)substr($key, 4);
     if ($last != $index) {
         echo PHP_EOL;
+        if ($index == 0) {
+            unset($allTheTypes[$index][1]); // *RECURSION* is inconsistent across PHP versions
+        }
         var_dump($allTheTypes[$index]);
         $last = $index;
     }
@@ -66,11 +69,9 @@ foreach ($span['meta'] as $key => $value) {
 ?>
 --EXPECTF--
 
-array(2) {
+array(1) {
   [0]=>
   string(9) "recursive"
-  [1]=>
-  %aRECURSION%a
 }
 arg.0.0: string(9) "recursive"
 arg.0.1: string(0) ""

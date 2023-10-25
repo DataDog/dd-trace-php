@@ -41,16 +41,22 @@ class PHPRedisIntegration extends Integration
         return self::NAME;
     }
 
+    public static function handleOrphan(SpanData $span)
+    {
+        if (dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+            && (
+                \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                || \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_USER_KEEP
+            ) && \DDTrace\trace_id() == $span->id
+        ) {
+            \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+        }
+    }
+
     public function init()
     {
         $traceConnectOpen = function (SpanData $span, $args) {
-            if (
-                dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
-                && \DDTrace\trace_id() == $span->id
-            ) {
-                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
-            }
+            PHPRedisIntegration::handleOrphan($span);
 
             $hostOrUDS = (isset($args[0]) && \is_string($args[0])) ? $args[0] : PHPRedisIntegration::DEFAULT_HOST;
             $span->meta[Tag::TARGET_HOST] = $hostOrUDS;
@@ -75,6 +81,8 @@ class PHPRedisIntegration extends Integration
         \DDTrace\trace_method('Redis', 'popen', $traceConnectOpen);
 
         $traceNewCluster = function (SpanData $span, $args) {
+            PHPRedisIntegration::handleOrphan($span);
+
             if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
                 $firstHostOrUDS = $args[1][0];
             } else {
@@ -122,13 +130,7 @@ class PHPRedisIntegration extends Integration
         self::traceMethodNoArgs('restore');
 
         \DDTrace\trace_method('Redis', 'select', function (SpanData $span, $args) {
-            if (
-                dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
-                && \DDTrace\trace_id() == $span->id
-            ) {
-                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
-            }
+            PHPRedisIntegration::handleOrphan($span);
 
             PHPRedisIntegration::enrichSpan($span, $this, 'Redis');
             if (isset($args[0]) && \is_numeric($args[0])) {
@@ -376,6 +378,8 @@ class PHPRedisIntegration extends Integration
     public static function traceMethodNoArgs($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
+            PHPRedisIntegration::handleOrphan($span);
+
             PHPRedisIntegration::enrichSpan($span, $this, 'Redis', $method);
 
             $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
@@ -385,6 +389,8 @@ class PHPRedisIntegration extends Integration
             }
         });
         \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
+            PHPRedisIntegration::handleOrphan($span);
+
             PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster', $method);
             if (\PHP_MAJOR_VERSION > 5) {
                 if ($clusterName = ObjectKVStore::get($this, PHPRedisIntegration::KEY_CLUSTER_NAME)) {
@@ -400,13 +406,7 @@ class PHPRedisIntegration extends Integration
     public static function traceMethodAsCommand($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
-            if (
-                dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
-                && \DDTrace\trace_id() == $span->id
-            ) {
-                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
-            }
+            PHPRedisIntegration::handleOrphan($span);
 
             PHPRedisIntegration::enrichSpan($span, $this, 'Redis', $method);
             $normalizedArgs = PHPRedisIntegration::normalizeArgs($args);
@@ -421,13 +421,7 @@ class PHPRedisIntegration extends Integration
             }
         });
         \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
-            if (
-                dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
-                && \DDTrace\trace_id() == $span->id
-            ) {
-                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
-            }
+            PHPRedisIntegration::handleOrphan($span);
 
             PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster', $method);
             $normalizedArgs = PHPRedisIntegration::normalizeArgs($args);

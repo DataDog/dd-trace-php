@@ -167,6 +167,10 @@ void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_TelemetryActionsBu
                                                   ddog_CharSlice integration_version,
                                                   bool integration_enabled);
 
+void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_TelemetryActionsBuffer *buffer,
+                                                 ddog_CharSlice dependency_name,
+                                                 ddog_CharSlice dependency_version);
+
 void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_TelemetryActionsBuffer *buffer,
                                                  ddog_CharSlice config_key,
                                                  ddog_CharSlice config_value,
