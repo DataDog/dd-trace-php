@@ -68,6 +68,10 @@ jobs:
           name: package
           path: binaries/
 
+      - name: Download tracer
+        run: wget https://output.circle-artifacts.com/output/job/368279ca-1b4c-483e-8b86-089578b2afe5/artifacts/0/datadog-php-tracer-0.92.0+7fd21cb7039ad8c6e4264811adace6ccad31aed2.x86_64.tar.gz
+        working-directory: binaries
+
       - name: Remove debug package
         run: |
           ls -la binaries/

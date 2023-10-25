@@ -1,5 +1,5 @@
 option(DD_APPSEC_BUILD_TRACER "Whether to build the tracer from source" ON)
-set(DD_APPSEC_TRACER_VERSION "0.91.0" CACHE STRING "The tracer version to download")
+set(DD_APPSEC_TRACER_VERSION "7fd21cb7039ad8c6e4264811adace6ccad31aed2" CACHE STRING "The tracer version to download")
 
 add_library(tracer SHARED IMPORTED GLOBAL)
 
@@ -41,7 +41,7 @@ if(DD_APPSEC_BUILD_TRACER)
 else()
     include(ExternalProject)
     ExternalProject_Add(proj_tracer
-        URL https://github.com/DataDog/dd-trace-php/releases/download/${DD_APPSEC_TRACER_VERSION}/datadog-php-tracer-${DD_APPSEC_TRACER_VERSION}.x86_64.tar.gz
+        URL https://output.circle-artifacts.com/output/job/368279ca-1b4c-483e-8b86-089578b2afe5/artifacts/0/datadog-php-tracer-0.92.0+7fd21cb7039ad8c6e4264811adace6ccad31aed2.x86_64.tar.gz
         PREFIX  proj_tracer_release
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""

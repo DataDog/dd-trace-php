@@ -9,6 +9,19 @@
 #include <stdbool.h>
 #include <zend.h>
 
+static const int PRIORITY_SAMPLING_AUTO_KEEP = 1;
+static const int PRIORITY_SAMPLING_AUTO_REJECT = 0;
+static const int PRIORITY_SAMPLING_USER_KEEP = 2;
+static const int PRIORITY_SAMPLING_USER_REJECT = -1;
+
+enum dd_sampling_mechanism {
+    DD_MECHANISM_DEFAULT = 0,
+    DD_MECHANISM_AGENT_RATE = 1,
+    DD_MECHANISM_REMOTE_RATE = 2,
+    DD_MECHANISM_RULE = 3,
+    DD_MECHANISM_MANUAL = 4,
+};
+
 typedef zend_object root_span_t;
 
 void dd_trace_startup(void);
@@ -37,3 +50,7 @@ void dd_trace_close_all_spans_and_flush(void);
 zval *nullable dd_trace_root_span_get_meta(void);
 zval *nullable dd_trace_root_span_get_metrics(void);
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
+
+// Set sampling priority on root span
+void dd_trace_set_priority_sampling_on_root(zend_long priority,
+    enum dd_sampling_mechanism mechanism);

@@ -20,6 +20,8 @@ var_dump(rshutdown());
 
 echo "root_span_get_metrics():\n";
 print_r(root_span_get_metrics());
+
+var_dump(\DDTrace\get_priority_sampling());
 ?>
 --EXPECTF--
 bool(true)
@@ -29,5 +31,5 @@ Array
 (
     [%s] => %d
     [_dd.appsec.enabled] => 1
-    [_sampling_priority_v1] => 2
 )
+int(2)

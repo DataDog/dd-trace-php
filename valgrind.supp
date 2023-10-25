@@ -183,4 +183,11 @@
    fun:zend_e
    fun:php_request_startup
 }
-
+{
+   <regex uninitialised move from tracer>
+   Memcheck:Cond
+   ...
+   fun:dd_initialize_request
+   fun:zm_activate_ddtrace
+   ...
+}

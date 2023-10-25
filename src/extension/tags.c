@@ -41,7 +41,6 @@
 #define DD_TAG_USER_ID "usr.id"
 #define DD_MULTIPLE_IP_HEADERS "_dd.multiple-ip-headers"
 #define DD_METRIC_ENABLED "_dd.appsec.enabled"
-#define DD_METRIC_SAMPLING_PRIORITY "_sampling_priority_v1"
 #define DD_APPSEC_EVENTS_PREFIX "appsec.events."
 #define DD_SIGNUP_EVENT DD_APPSEC_EVENTS_PREFIX "users.signup"
 #define DD_LOGIN_SUCCESS_EVENT DD_APPSEC_EVENTS_PREFIX "users.login.success"
@@ -57,7 +56,6 @@
     "_dd.appsec.events.users.login.success.sdk"
 #define DD_EVENTS_USER_LOGIN_FAILURE_SDK                                       \
     "_dd.appsec.events.users.login.failure.sdk"
-#define DD_SAMPLING_PRIORITY_USER_KEEP 2
 
 typedef enum _automated_user_events_tracking_mode {
     NOT_ENABLED = 0,
@@ -86,7 +84,6 @@ static zend_string *_dd_tag_rh_content_language; // response
 static zend_string *_dd_tag_user_id;
 static zend_string *_dd_multiple_ip_headers;
 static zend_string *_dd_metric_enabled;
-static zend_string *_dd_metric_sampling_prio_zstr;
 static zend_string *_dd_signup_event;
 static zend_string *_dd_login_success_event;
 static zend_string *_dd_login_failure_event;
@@ -124,7 +121,6 @@ static void _add_basic_ancillary_tags(void);
 static bool _add_all_ancillary_tags(void);
 void _set_runtime_family(void);
 static bool _set_appsec_enabled(zval *metrics_zv);
-static void _set_sampling_priority(zval *metrics_zv);
 static void _register_functions(void);
 static void _register_test_functions(void);
 
@@ -167,8 +163,6 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_MULTIPLE_IP_HEADERS), 1);
     _dd_metric_enabled =
         zend_string_init_interned(LSTRARG(DD_METRIC_ENABLED), 1);
-    _dd_metric_sampling_prio_zstr =
-        zend_string_init_interned(LSTRARG(DD_METRIC_SAMPLING_PRIORITY), 1);
 
     _key_request_uri_zstr =
         zend_string_init_interned(LSTRARG("REQUEST_URI"), 1);
@@ -339,11 +333,10 @@ void dd_tags_add_tags()
     // tag _dd.runtime_family
     _set_runtime_family();
 
-    // metric _sampling_priority_v1
-    if (metrics_zv && _force_keep) {
-        _set_sampling_priority(metrics_zv);
-        mlog(dd_log_debug, "Added/updated metric %s",
-            DD_METRIC_SAMPLING_PRIORITY);
+    if (_force_keep) {
+        dd_trace_set_priority_sampling_on_root(
+            PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_MANUAL);
+        mlog(dd_log_debug, "Updated sampling priority to user_keep");
     }
 
     if (zend_llist_count(&_appsec_json_frags) == 0) {
@@ -1184,14 +1177,6 @@ bool dd_parse_automated_user_events_tracking(
     }
 
     return result;
-}
-
-static void _set_sampling_priority(zval *metrics_zv)
-{
-    zval zv;
-    ZVAL_LONG(&zv, DD_SAMPLING_PRIORITY_USER_KEEP);
-    zend_hash_update(
-        Z_ARRVAL_P(metrics_zv), _dd_metric_sampling_prio_zstr, &zv);
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_add_all_ancillary_tags)

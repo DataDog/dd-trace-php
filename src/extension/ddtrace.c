@@ -36,6 +36,8 @@ static void _register_testing_objects(void);
 static zval *(*nullable _ddtrace_root_span_get_meta)();
 static zval *(*nullable _ddtrace_root_span_get_metrics)();
 static void (*nullable _ddtrace_close_all_spans_and_flush)();
+static void (*nullable _ddtrace_set_priority_sampling_on_root)(
+    zend_long priority, enum dd_sampling_mechanism mechanism);
 
 static void dd_trace_load_symbols(void)
 {
@@ -78,6 +80,14 @@ static void dd_trace_load_symbols(void)
         mlog(dd_log_debug, "Failed to load ddtrace_runtime_id: %s", dlerror());
     }
 
+    _ddtrace_set_priority_sampling_on_root =
+        dlsym(handle, "ddtrace_set_priority_sampling_on_root");
+    if (_ddtrace_set_priority_sampling_on_root == NULL) {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        mlog(dd_log_error,
+            "Failed to load ddtrace_set_priority_sampling_on_root: %s",
+            dlerror());
+    }
     dlclose(handle);
 }
 
@@ -278,6 +288,16 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
     return encoded_id;
 }
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
+void dd_trace_set_priority_sampling_on_root(
+    zend_long priority, enum dd_sampling_mechanism mechanism)
+{
+    if (_ddtrace_set_priority_sampling_on_root == NULL) {
+        return;
+    }
+
+    _ddtrace_set_priority_sampling_on_root(priority, mechanism);
+}
 
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)
 {
