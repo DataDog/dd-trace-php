@@ -35,6 +35,7 @@ final class PDOTest extends IntegrationTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         $this->setUpDatabase();
     }
 
@@ -51,11 +52,14 @@ final class PDOTest extends IntegrationTestCase
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_TRACE_GENERATE_ROOT_SPAN'
         ];
     }
 
     public function testCustomPDOPrepareWithStringableStatement()
     {
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = new CustomPDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
@@ -72,7 +76,9 @@ final class PDOTest extends IntegrationTestCase
                 'pdo',
                 'sql',
                 $query
-            )->withExactTags($this->baseTags()),
+            )->withExactTags(array_merge(self::baseTags(), [
+                '_dd.base_service' => 'phpunit',
+            ])),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo',
@@ -80,7 +86,9 @@ final class PDOTest extends IntegrationTestCase
                 $query
             )
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags($this->baseTags())
+                ->withExactTags(array_merge(self::baseTags(), [
+                    '_dd.base_service' => 'phpunit',
+                ]))
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
@@ -180,6 +188,8 @@ final class PDOTest extends IntegrationTestCase
 
     public function testPDOExecOk()
     {
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
@@ -192,7 +202,9 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags($this->baseTags())
+                ->withExactTags(array_merge(self::baseTags(), [
+                    '_dd.base_service' => 'phpunit',
+                ]))
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
             SpanAssertion::exists('PDO.commit'),
         ]);
@@ -247,6 +259,8 @@ final class PDOTest extends IntegrationTestCase
 
     public function testPDOQuery()
     {
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $query = "SELECT * FROM tests WHERE id=1";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
@@ -257,14 +271,16 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags($this->baseTags())
+                ->withExactTags(array_merge(self::baseTags(), [
+                    '_dd.base_service' => 'phpunit',
+                ]))
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 
     public function testPDOQueryPeerServiceEnabled()
     {
-        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
 
         $query = "SELECT * FROM tests WHERE id=1";
         $traces = $this->isolateTracer(function () use ($query) {
@@ -276,7 +292,9 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags($this->baseTags(true))
+                ->withExactTags(array_merge(self::baseTags(true), [
+                    '_dd.base_service' => 'phpunit',
+                ]))
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
@@ -366,6 +384,8 @@ final class PDOTest extends IntegrationTestCase
 
     public function testPDOStatementOk()
     {
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
@@ -384,7 +404,9 @@ final class PDOTest extends IntegrationTestCase
                 'pdo',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags(array_merge(self::baseTags(), [
+                '_dd.base_service' => 'phpunit',
+            ])),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo',
@@ -392,14 +414,16 @@ final class PDOTest extends IntegrationTestCase
                 "SELECT * FROM tests WHERE id = ?"
             )
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags($this->baseTags())
+                ->withExactTags(array_merge(self::baseTags(), [
+                    '_dd.base_service' => 'phpunit',
+                ]))
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 
     public function testPDOStatementOkPeerServiceEnabled()
     {
-        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
 
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
@@ -419,7 +443,9 @@ final class PDOTest extends IntegrationTestCase
                 'pdo',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags(array_merge(self::baseTags(), [
+                '_dd.base_service' => 'phpunit',
+            ])),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo',
@@ -427,14 +453,17 @@ final class PDOTest extends IntegrationTestCase
                 "SELECT * FROM tests WHERE id = ?"
             )
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags($this->baseTags(true))
+                ->withExactTags(array_merge(self::baseTags(true), [
+                    '_dd.base_service' => 'phpunit',
+                ]))
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
 
     public function testPDOStatementSplitByDomain()
     {
-        self::putEnv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true');
+        $this->putEnv(['DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
+
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
@@ -452,7 +481,9 @@ final class PDOTest extends IntegrationTestCase
                 'pdo-mysql_integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags(array_merge(self::baseTags(), [
+                '_dd.base_service' => 'phpunit',
+            ])),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo-mysql_integration',
@@ -460,7 +491,9 @@ final class PDOTest extends IntegrationTestCase
                 "SELECT * FROM tests WHERE id = ?"
             )
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags($this->baseTags())
+                ->withExactTags(array_merge(self::baseTags(), [
+                    '_dd.base_service' => 'phpunit',
+                ]))
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
         ]);
     }
@@ -607,6 +640,7 @@ final class PDOTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig([
             'DD_SERVICE=configured_service',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+            'DD_TRACE_GENERATE_ROOT_SPAN=true',
         ]);
 
         $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
