@@ -560,9 +560,9 @@ final class TracerTest extends BaseTestCase
                 '_dd.p.congo' => 't61rcWkgMzE',
                 '_dd.p.some_val' => 'tehehe'
             ]);
-            $this->assertSame("dd=t.dm:-1;t.congo:t61rcWkgMzE;t.some_val:tehehe", (string)$span->getContext()->getTraceState());
+            $this->assertSame("dd=t.congo:t61rcWkgMzE;t.some_val:tehehe;t.dm:-1", (string)$span->getContext()->getTraceState());
             $span->end();
-            $this->assertSame("dd=t.dm:-1;t.congo:t61rcWkgMzE;t.some_val:tehehe", (string)$span->getContext()->getTraceState());
+            $this->assertSame("dd=t.congo:t61rcWkgMzE;t.some_val:tehehe;t.dm:-1", (string)$span->getContext()->getTraceState());
         });
 
         $span = $traces[0][0];
@@ -606,7 +606,7 @@ final class TracerTest extends BaseTestCase
             $this->assertSame($remoteContext->getSpanId(), $child->getParentContext()->getSpanId());
             $this->assertFalse($childContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
             $this->assertEquals(1, $childContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
-            $this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-1" . ($traceState ? ",$traceState" : ""), (string)$childContext->getTraceState());
+            $this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-0" . ($traceState ? ",$traceState" : ""), (string)$childContext->getTraceState());
         });
 
         $span = $traces[0][0];

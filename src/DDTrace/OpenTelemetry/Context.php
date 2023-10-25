@@ -35,36 +35,6 @@ final class Context implements ContextInterface
     /** @var array<int, ContextKeyInterface> */
     private array $contextKeys = [];
 
-    // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
-    private static function largeBaseConvert($numString, $fromBase, $toBase)
-    {
-        $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
-        $toString = substr($chars, 0, $toBase);
-
-        $length = strlen($numString);
-        $result = '';
-        for ($i = 0; $i < $length; $i++) {
-            $number[$i] = strpos($chars, $numString[$i]);
-        }
-        do {
-            $divide = 0;
-            $newLen = 0;
-            for ($i = 0; $i < $length; $i++) {
-                $divide = $divide * $fromBase + $number[$i];
-                if ($divide >= $toBase) {
-                    $number[$newLen++] = (int)($divide / $toBase);
-                    $divide = $divide % $toBase;
-                } elseif ($newLen > 0) {
-                    $number[$newLen++] = 0;
-                }
-            }
-            $length = $newLen;
-            $result = $toString[$divide] . $result;
-        } while ($newLen != 0);
-
-        return $result;
-    }
-
     private function __construct()
     {
         self::$spanContextKey = ContextKeys::span();
@@ -199,8 +169,8 @@ final class Context implements ContextInterface
         $parentContext = self::activateParent($currentSpan->parent); // Activates the ancestors first
 
         // Create a new span from the current span
-        $currentSpanId = str_pad(self::largeBaseConvert($currentSpan->id, 10, 16), 16, '0', STR_PAD_LEFT);
-        $currentTraceId = str_pad(self::largeBaseConvert(trace_id(), 10, 16), 32, '0', STR_PAD_LEFT);
+        $currentSpanId = $currentSpan->hexId();
+        $currentTraceId = \DDTrace\root_span()->traceId;
         $traceContext = generate_distributed_tracing_headers(['tracecontext']);
         $traceFlags = isset($traceContext['traceparent'])
             ? (substr($traceContext['traceparent'], -2) === '01' ? API\TraceFlags::SAMPLED : API\TraceFlags::DEFAULT)

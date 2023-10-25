@@ -388,7 +388,7 @@ namespace DDTrace {
      * @return SpanData|null 'null' if tracing isn't enabled or if the active stack doesn't have a root span,
      * else the root span of the active stack
      */
-    function root_span(): null|SpanData {}
+    function root_span(): null|RootSpanData {}
 
     /**
      * Start a new custom user-span on the top of the stack. If no active span exists, the new created span will be a

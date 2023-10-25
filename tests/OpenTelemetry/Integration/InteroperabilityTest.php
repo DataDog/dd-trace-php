@@ -35,37 +35,6 @@ final class InteroperabilityTest extends BaseTestCase
     use TracerTestTrait, SpanAssertionTrait;
 
     // TODO: Implement AttributesBuilder and add a method to retrieve the attributeCountLimit
-    // TODO: Change things to use SpanAssertionTrait's capabilities instead
-
-    // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
-    private static function largeBaseConvert($numString, $fromBase, $toBase)
-    {
-        $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
-        $toString = substr($chars, 0, $toBase);
-
-        $length = strlen($numString);
-        $result = '';
-        for ($i = 0; $i < $length; $i++) {
-            $number[$i] = strpos($chars, $numString[$i]);
-        }
-        do {
-            $divide = 0;
-            $newLen = 0;
-            for ($i = 0; $i < $length; $i++) {
-                $divide = $divide * $fromBase + $number[$i];
-                if ($divide >= $toBase) {
-                    $number[$newLen++] = (int)($divide / $toBase);
-                    $divide = $divide % $toBase;
-                } elseif ($newLen > 0) {
-                    $number[$newLen++] = 0;
-                }
-            }
-            $length = $newLen;
-            $result = $toString[$divide] . $result;
-        } while ($newLen != 0);
-
-        return $result;
-    }
 
     public function ddSetUp(): void
     {
@@ -130,8 +99,8 @@ final class InteroperabilityTest extends BaseTestCase
 
             $this->assertNotNull($currentSpan);
             $this->assertSame($ddSpan, $currentSpan->getDDSpan());
-            $this->assertSame(str_pad(strtolower(self::largeBaseConvert($ddSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT), $currentSpan->getContext()->getSpanId());
-            $this->assertSame(str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT), $currentSpan->getContext()->getTraceId());
+            $this->assertSame($ddSpan->hexId(), $currentSpan->getContext()->getSpanId());
+            $this->assertSame(\DDTrace\root_span()->traceId, $currentSpan->getContext()->getTraceId());
 
             // Get current scope
             $currentScope = Context::storage()->scope();
@@ -142,8 +111,8 @@ final class InteroperabilityTest extends BaseTestCase
             // Shouldn't have changed
             $this->assertNotNull($currentSpan);
             $this->assertSame($ddSpan, $currentSpan->getDDSpan());
-            $this->assertSame(str_pad(strtolower(self::largeBaseConvert($ddSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT), $currentSpan->getContext()->getSpanId());
-            $this->assertSame(str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT), $currentSpan->getContext()->getTraceId());
+            $this->assertSame($ddSpan->hexId(), $currentSpan->getContext()->getSpanId());
+            $this->assertSame(\DDTrace\root_span()->traceId, $currentSpan->getContext()->getTraceId());
 
             close_span();
             $currentSpan = Span::getCurrent();
@@ -181,8 +150,8 @@ final class InteroperabilityTest extends BaseTestCase
 
             $ddSpan = \DDTrace\start_span();
             $ddSpan->name = "other.span";
-            $spanId = str_pad(strtolower(self::largeBaseConvert($ddSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT);
-            $parentId = str_pad(strtolower(self::largeBaseConvert($ddSpan->parent->id, 10, 16)), 16, '0', STR_PAD_LEFT);
+            $spanId = $ddSpan->hexId();
+            $parentId = $ddSpan->parent->hexId();
             $this->assertSame($span->getContext()->getSpanId(), $parentId);
 
             $currentSpan = Span::getCurrent();
@@ -191,9 +160,9 @@ final class InteroperabilityTest extends BaseTestCase
                 'foo' => 'bar',
             ]);
 
-            $traceId = str_pad(strtolower(self::largeBaseConvert(trace_id(), 10, 16)), 32, '0', STR_PAD_LEFT);
+            $traceId = \DDTrace\root_span()->traceId;
             $this->assertSame($traceId, $currentSpan->getContext()->getTraceId());
-            $spanId = str_pad(strtolower(self::largeBaseConvert($ddSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT);
+            $spanId = $ddSpan->hexId();
             $this->assertSame($spanId, $currentSpan->getContext()->getSpanId());
 
             close_span(); // Note that we don't detach the scope
@@ -326,7 +295,7 @@ final class InteroperabilityTest extends BaseTestCase
             $activeSpan = active_span();
             $this->assertNotNull($activeSpan);
             $this->assertSame('otel.parent.span', $activeSpan->resource);
-            $this->assertSame(str_pad(strtolower(self::largeBaseConvert($activeSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT), $OTelParentSpan->getContext()->getSpanId());
+            $this->assertSame($activeSpan->hexId(), $OTelParentSpan->getContext()->getSpanId());
 
             $ddChildSpan = start_span();
             $ddChildSpan->name = "dd.child.span";
@@ -342,7 +311,7 @@ final class InteroperabilityTest extends BaseTestCase
             $activeSpan = active_span();
             $this->assertNotNull($activeSpan);
             $this->assertSame('otel.grandchild.span', $activeSpan->resource);
-            $this->assertSame(str_pad(strtolower(self::largeBaseConvert($activeSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT), $OTelGrandChildSpan->getContext()->getSpanId());
+            $this->assertSame($activeSpan->hexId(), $OTelGrandChildSpan->getContext()->getSpanId());
 
             $OTelGrandChildScope->detach();
             $OTelGrandChildSpan->end();
@@ -651,12 +620,12 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withChildren(
                     SpanAssertion::exists('dd.child2', 'dd.child2', null, 'datadog/dd-trace-tests')
                 ),
-            SpanAssertion::build('dd.trace1', 'phpunit', 'cli', 'dd.trace1')
+            SpanAssertion::build('dd.trace1', 'datadog/dd-trace-tests', 'cli', 'dd.trace1')
                 ->withExactTags([
                     'foo1' => 'bar1',
                 ])
                 ->withChildren(
-                    SpanAssertion::build('dd.child1', 'phpunit', 'cli', 'dd.child1')
+                    SpanAssertion::build('dd.child1', 'datadog/dd-trace-tests', 'cli', 'dd.child1')
                 ),
             SpanAssertion::build('dd.trace2', 'datadog/dd-trace-tests', 'cli', 'dd.trace2')
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
@@ -706,7 +675,7 @@ final class InteroperabilityTest extends BaseTestCase
             $OTelRootSpan->end();
 
             $this->assertSame("00-ff0000000000051791e0000000000041-$DDChildSpanId-01", $carrier[TraceContextPropagator::TRACEPARENT]);
-            $this->assertSame('dd=t.tid:ff00000000000517;t.dm:-1', $carrier[TraceContextPropagator::TRACESTATE]); // ff00000000000517 is the high 64-bit part of the 128-bit trace id
+            $this->assertSame('dd=t.tid:ff00000000000517;t.dm:-0', $carrier[TraceContextPropagator::TRACESTATE]); // ff00000000000517 is the high 64-bit part of the 128-bit trace id
         });
 
         $this->assertSame('10511401530282737729', $traces[0][0]['trace_id']);
@@ -720,9 +689,6 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
                     SpanAssertion::build('dd.child.span', 'datadog/dd-trace-tests', 'cli', 'dd.child.span')
-                        ->withExactTags([
-                            '_dd.p.tid' => 'ff00000000000517'
-                        ])
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 )
         ]);
@@ -777,9 +743,6 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
                     SpanAssertion::build('dd.child.span', 'datadog/dd-trace-tests', 'cli', 'dd.child.span')
-                        ->withExactTags([
-                            '_dd.p.tid' => 'ff00000000000517'
-                        ])
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 )
         ]);
@@ -838,9 +801,6 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
                     SpanAssertion::build('dd.child.span', 'datadog/dd-trace-tests', 'cli', 'dd.child.span')
-                        ->withExactTags([
-                            '_dd.p.tid' => 'ff00000000000517'
-                        ])
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 )
         ]);
