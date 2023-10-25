@@ -25,6 +25,12 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         IntegrationsLoader::load();
     }
 
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
+    }
+
     protected function getMockedClient(array $responseStack = null)
     {
         $responseStack = null === $responseStack ? [new Response(200)] : $responseStack;
@@ -45,6 +51,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_TRACE_GENERATE_ROOT_SPAN',
         ];
     }
 
@@ -386,6 +393,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             [
                 'DD_SERVICE' => 'top_level_app',
                 'DD_TRACE_NO_AUTOLOADER' => true,
+                'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
 
@@ -401,7 +409,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                             'network.destination.name' => 'httpbin_integration',
                             TAG::SPAN_KIND => 'client',
-                            Tag::COMPONENT => 'guzzle'
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('GuzzleHttp\Client.transfer')

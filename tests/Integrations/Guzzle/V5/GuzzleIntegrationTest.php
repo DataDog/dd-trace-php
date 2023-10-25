@@ -34,6 +34,12 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         IntegrationsLoader::load();
     }
 
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
+    }
+
     /**
      * @param array|null $responseStack
      * @return Client
@@ -53,6 +59,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
             'DD_TRACE_MEMORY_LIMIT',
             'DD_TRACE_SPANS_LIMIT',
+            'DD_TRACE_GENERATE_ROOT_SPAN',
         ];
     }
 
@@ -369,6 +376,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             [
                 'DD_SERVICE' => 'top_level_app',
                 'DD_TRACE_NO_AUTOLOADER' => true,
+                'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
 
@@ -384,7 +392,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                             'network.destination.name' => 'httpbin_integration',
                             TAG::SPAN_KIND => 'client',
-                            Tag::COMPONENT => 'guzzle'
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('curl_exec'),
