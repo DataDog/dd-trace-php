@@ -22,8 +22,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['http.request.method'] = 'GET';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('http.server.request', $spanConvention->defaultOperationName($span));
+        $this->assertSame('http.server.request', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -34,8 +33,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['http.request.method'] = 'GET';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('http.client.request', $spanConvention->defaultOperationName($span));
+        $this->assertSame('http.client.request', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -46,8 +44,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['db.system'] = 'mysql';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('mysql.query', $spanConvention->defaultOperationName($span));
+        $this->assertSame('mysql.query', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -58,8 +55,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['graphql.operation.type'] = 'query';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('graphql.server.request', $spanConvention->defaultOperationName($span));
+        $this->assertSame('graphql.server.request', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -70,8 +66,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['rpc.system'] = 'grpc';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('grpc.server.request', $spanConvention->defaultOperationName($span));
+        $this->assertSame('grpc.server.request', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -82,8 +77,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['rpc.system'] = 'grpc';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('grpc.client.request', $spanConvention->defaultOperationName($span));
+        $this->assertSame('grpc.client.request', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -95,8 +89,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['rpc.service'] = 'DynamoDB';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('aws.dynamodb.request', $spanConvention->defaultOperationName($span));
+        $this->assertSame('aws.dynamodb.request', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -108,8 +101,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['messaging.operation'] = 'receive';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CONSUMER;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('kafka.receive', $spanConvention->defaultOperationName($span));
+        $this->assertSame('kafka.receive', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -121,8 +113,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['messaging.operation'] = 'send';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('kafka.send', $spanConvention->defaultOperationName($span));
+        $this->assertSame('kafka.send', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -134,8 +125,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['messaging.operation'] = 'send';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_PRODUCER;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('kafka.send', $spanConvention->defaultOperationName($span));
+        $this->assertSame('kafka.send', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -146,8 +136,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['faas.trigger'] = 'http';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('http.invoke', $spanConvention->defaultOperationName($span));
+        $this->assertSame('http.invoke', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -159,8 +148,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['faas.invoked_name'] = 'lambda';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('aws.lambda.invoke', $spanConvention->defaultOperationName($span));
+        $this->assertSame('aws.lambda.invoke', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -171,8 +159,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['network.protocol.name'] = 'http';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('http.server.request', $spanConvention->defaultOperationName($span));
+        $this->assertSame('http.server.request', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -183,8 +170,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['network.protocol.name'] = 'http';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('http.client.request', $spanConvention->defaultOperationName($span));
+        $this->assertSame('http.client.request', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -195,8 +181,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['network.protocol.name'] = 'http';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_INTERNAL;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('http.internal.request', $spanConvention->defaultOperationName($span));
+        $this->assertSame('http.internal.request', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -206,8 +191,7 @@ final class ConventionTest extends BaseTestCase
         $span = start_span();
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_INTERNAL;
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('internal.request', $spanConvention->defaultOperationName($span));
+        $this->assertSame('internal.request', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -216,8 +200,7 @@ final class ConventionTest extends BaseTestCase
     {
         $span = start_span();
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('otel_unknown', $spanConvention->defaultOperationName($span));
+        $this->assertSame('otel_unknown', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -227,8 +210,7 @@ final class ConventionTest extends BaseTestCase
         $span = start_span();
         $span->meta['db.system'] = 'https';
 
-        $spanConvention = Convention::conventionOf($span);
-        $this->assertSame('otel_unknown', $spanConvention->defaultOperationName($span));
+        $this->assertSame('otel_unknown', Convention::defaultOperationName($span));
 
         close_span();
     }

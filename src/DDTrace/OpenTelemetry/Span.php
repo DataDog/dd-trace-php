@@ -105,7 +105,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             // *: This is a bit false. For instance, a span created using the OTel API and DD_TRACE_GENERATE_ROOT_SPAN=0
             // under a cli (e.g., phpunit) process would have a default operation name set (e.g., phpunit). This is
             // done in serializer.c:ddtrace_set_root_span_properties (as of v0.92.0)
-            $span->name = Convention::conventionOf($span)->defaultOperationName($span);
+            $span->name = Convention::defaultOperationName($span);
         }
 
         $OTelSpan = new self(
@@ -365,7 +365,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         self::_setAttributes($this->span, $attributes);
 
         if (empty($this->span->name)) { // Honor set operation name
-            $this->span->name = Convention::conventionOf($this->span)->defaultOperationName($this->span);
+            $this->span->name = Convention::defaultOperationName($this->span);
         }
 
         // After closing the span, the context won't change, but would otherwise be lost

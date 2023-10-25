@@ -6,92 +6,42 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 
 // Operation Name Conventions
-enum Convention
+class Convention
 {
-    case HTTP_SERVER;
-    case HTTP_CLIENT;
-    case DATABASE;
-    case GRAPHQL_SERVER;
-    case RPC_SERVER;
-    case RPC_CLIENT;
-    case AWS_CLIENT;
-    case MESSAGE_PRODUCER;
-    case MESSAGE_CONSUMER;
-    case FAAS_SERVER;
-    case FAAS_CLIENT;
-    case GENERIC_SERVER;
-    case GENERIC_CLIENT;
-    case GENERIC_INTERNAL;
-    case GENERIC_PRODUCER;
-    case GENERIC_CONSUMER;
-    case OT_UNKNOWN;
-
-    public function defaultOperationName(SpanData $span): string
-    {
-        // Note: Assumes metadata is set
-        $meta = $span->meta;
-        return match($this) {
-            self::HTTP_SERVER => 'http.server.request',
-            self::HTTP_CLIENT => 'http.client.request',
-            self::DATABASE => $meta['db.system'] . '.query',
-            self::GRAPHQL_SERVER => 'graphql.server.request',
-            self::RPC_SERVER => $meta['rpc.system'] . '.server.request',
-            self::RPC_CLIENT => $meta['rpc.system'] . '.client.request',
-            self::AWS_CLIENT => isset($meta['rpc.service'])
-                ? 'aws.' . strtolower($meta['rpc.service']) . '.request'
-                : 'aws.request', // fallback
-            self::MESSAGE_PRODUCER, self::MESSAGE_CONSUMER => strtolower($meta['messaging.system']) . '.' . $meta['messaging.operation'],
-            self::FAAS_SERVER => $meta['faas.trigger'] . '.invoke',
-            self::FAAS_CLIENT => $meta['faas.invoked_provider'] . '.' . $meta['faas.invoked_name'] . '.invoke',
-            self::GENERIC_SERVER => isset($meta['network.protocol.name'])
-                ? $meta['network.protocol.name'] . '.server.request'
-                : 'server.request', // fallback
-            self::GENERIC_CLIENT => isset($meta['network.protocol.name'])
-                ? $meta['network.protocol.name'] . '.client.request'
-                : 'client.request', // fallback
-            self::GENERIC_INTERNAL => isset($meta['network.protocol.name'])
-                ? $meta['network.protocol.name'] . '.internal.request'
-                : 'internal.request', // fallback
-            self::GENERIC_PRODUCER => isset($meta['network.protocol.name'])
-                ? $meta['network.protocol.name'] . '.producer.request'
-                : 'producer.request', // fallback
-            self::GENERIC_CONSUMER => isset($meta['network.protocol.name'])
-                ? $meta['network.protocol.name'] . '.consumer.request'
-                : 'consumer.request', // fallback
-            self::OT_UNKNOWN => 'otel_unknown',
-            default => 'otel_unknown',
-        };
-    }
-
-    public static function conventionOf(SpanData $span): Convention
+    public static function defaultOperationName(SpanData $span): string
     {
         $meta = $span->meta;
-        if (!isset($meta[Tag::SPAN_KIND])) {
-            return match(true) {
-                isset($meta['graphql.operation.type']) => self::GRAPHQL_SERVER,
-                default => self::OT_UNKNOWN,
-            };
+        $spanKind = $meta[Tag::SPAN_KIND] ?? null;
+
+        switch (true) {
+            case isset($meta['http.request.method']) && $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // HTTP Server
+                return 'http.server.request';
+            case isset($meta['http.request.method']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // HTTP Client
+                return 'http.client.request';
+            case isset($meta['db.system']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // Database
+                return ($meta['db.system'] ?? 'otel_unknown') . '.query';
+            case isset($meta['messaging.system'], $meta['messaging.operation']) && $spanKind === Tag::SPAN_KIND_VALUE_CONSUMER: // Message Consumer
+            case isset($meta['messaging.system'], $meta['messaging.operation']) && $spanKind === Tag::SPAN_KIND_VALUE_PRODUCER: // Message Producer
+            case isset($meta['messaging.system'], $meta['messaging.operation']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // Message Consumer
+                return (strtolower($meta['messaging.system'] ?? 'otel_unknown')) . '.' . ($meta['messaging.operation'] ?? 'otel_unknown');
+            case isset($meta['rpc.system']) && $meta['rpc.system'] === 'aws-api' && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // AWS Client
+                return isset($meta['rpc.service'])
+                    ? 'aws.' . strtolower($meta['rpc.service']) . '.request'
+                    : 'aws.request';
+            case isset($meta['rpc.system']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // RPC Client
+                return ($meta['rpc.system'] ?? 'otel_unknown') . '.client.request';
+            case isset($meta['rpc.system']) && $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // RPC Server
+                return ($meta['rpc.system'] ?? 'otel_unknown') . '.server.request';
+            case isset($meta['faas.trigger']) && $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // FaaS Server
+                return ($meta['faas.trigger'] ?? 'otel_unknown') . '.invoke';
+            case isset($meta['faas.invoked_provider']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // FaaS Client
+                return ($meta['faas.invoked_provider'] ?? 'otel_unknown') . '.' . ($meta['faas.invoked_name'] ?? 'otel_unknown') . '.invoke';
+            case isset($meta['graphql.operation.type']):
+                return 'graphql.server.request';
+            case !empty($spanKind): // Generic Span
+                return isset($meta['network.protocol.name']) ? "{$meta['network.protocol.name']}.{$spanKind}.request" : "{$spanKind}.request";
+            default: // If all else fails, we still shouldn't use the resource name
+                return 'otel_unknown';
         }
-
-        return match(true) {
-            isset($meta['http.request.method']) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_SERVER => self::HTTP_SERVER,
-            isset($meta['http.request.method']) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_CLIENT => self::HTTP_CLIENT,
-            isset($meta['db.system']) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_CLIENT => self::DATABASE,
-            isset($meta['messaging.system'], $meta['messaging.operation']) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_CLIENT => self::MESSAGE_CONSUMER,
-            isset($meta['messaging.system'], $meta['messaging.operation']) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_CONSUMER => self::MESSAGE_CONSUMER,
-            isset($meta['messaging.system'], $meta['messaging.operation']) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_PRODUCER => self::MESSAGE_PRODUCER,
-            isset($meta['rpc.system']) && $meta['rpc.system'] === 'aws-api' && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_CLIENT => self::AWS_CLIENT,
-            isset($meta['rpc.system']) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_CLIENT => self::RPC_CLIENT,
-            isset($meta['rpc.system']) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_SERVER => self::RPC_SERVER,
-            isset($meta['faas.trigger']) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_SERVER => self::FAAS_SERVER,
-            isset($meta['faas.invoked_provider']) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_CLIENT => self::FAAS_CLIENT,
-            isset($meta['graphql.operation.type']) => self::GRAPHQL_SERVER,
-            isset($meta[Tag::SPAN_KIND]) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_SERVER => self::GENERIC_SERVER,
-            isset($meta[Tag::SPAN_KIND]) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_CLIENT => self::GENERIC_CLIENT,
-            isset($meta[Tag::SPAN_KIND]) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_INTERNAL => self::GENERIC_INTERNAL,
-            isset($meta[Tag::SPAN_KIND]) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_PRODUCER => self::GENERIC_PRODUCER,
-            isset($meta[Tag::SPAN_KIND]) && $meta[Tag::SPAN_KIND] === Tag::SPAN_KIND_VALUE_CONSUMER => self::GENERIC_CONSUMER,
-            default => self::OT_UNKNOWN,
-        };
     }
 }
