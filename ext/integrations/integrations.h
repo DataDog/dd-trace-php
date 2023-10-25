@@ -27,7 +27,6 @@
     INTEGRATION(MONGODB, "mongodb")             \
     INTEGRATION(MYSQLI, "mysqli")               \
     INTEGRATION(NETTE, "nette")                 \
-    INTEGRATION(OPENTELEMETRY, "opentelemetry") \
     INTEGRATION(PCNTL, "pcntl")                 \
     INTEGRATION(PDO, "pdo")                     \
     INTEGRATION(PHPREDIS, "phpredis")           \

@@ -15,7 +15,6 @@ use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\Nette\NetteIntegration;
-use DDTrace\Integrations\OpenTelemetry\OpenTelemetryIntegration;
 use DDTrace\Integrations\Pcntl\PcntlIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
@@ -90,8 +89,6 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Mongo\MongoIntegration';
             $this->integrations[MysqliIntegration::NAME] =
                 '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-            $this->integrations[OpenTelemetryIntegration::NAME] =
-                '\DDTrace\Integrations\OpenTelemetry\OpenTelemetryIntegration';
             $this->integrations[PDOIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOIntegration';
             $this->integrations[PredisIntegration::NAME] =
