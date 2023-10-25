@@ -1,5 +1,10 @@
 # Datadog AppSec for PHP Release
 
+### v0.14.3
+
+#### Fixes
+- ([#311](https://github.com/DataDog/dd-appsec-php/pull/311)) Set sampling priority using `ddtrace_set_priority_sampling_on_root`
+
 ### v0.14.2
 
 #### Fixes
