@@ -462,7 +462,7 @@ final class PDOTest extends IntegrationTestCase
 
     public function testPDOStatementSplitByDomain()
     {
-        $this->putEnv(['DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
+        $this->putEnvAndReloadConfig(['DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
 
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
