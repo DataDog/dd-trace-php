@@ -85,7 +85,7 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('test.span1', 'datadog/dd-trace-tests', 'cli', 'test.span1')
+            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'test.span1')
                 ->withExistingTagsNames([
                     'service.version',
                     'telemetry.sdk.name',
@@ -108,7 +108,7 @@ final class TracerTest extends BaseTestCase
                     'host.name',
                     'host.arch'
                 ]),
-            SpanAssertion::build('test.span2', 'datadog/dd-trace-tests', 'cli', 'test.span2')
+            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'test.span2')
                 ->withExistingTagsNames([
                     'service.version',
                     'telemetry.sdk.name',
@@ -131,7 +131,7 @@ final class TracerTest extends BaseTestCase
                     'host.name',
                     'host.arch'
                 ]),
-            SpanAssertion::build('test.span3', 'datadog/dd-trace-tests', 'cli', 'test.span3')
+            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'test.span3')
                 ->withExistingTagsNames([
                     'service.version',
                     'telemetry.sdk.name',
@@ -170,7 +170,7 @@ final class TracerTest extends BaseTestCase
         $this->assertNotEmpty($span['trace_id']);
         $this->assertSame($span['trace_id'], $span['span_id']);
         $this->assertNotEquals(0, $span['duration']);
-        $this->assertSame('test.span', $span['name']);
+        $this->assertSame('otel_unknown', $span['name']);
         $this->assertSame('test.span', $span['resource']);
         $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
     }
@@ -192,7 +192,7 @@ final class TracerTest extends BaseTestCase
         $this->assertNotEmpty($span['trace_id']);
         $this->assertSame($span['trace_id'], $span['span_id']);
         $this->assertNotEquals(0, $span['duration']);
-        $this->assertSame('test.span', $span['name']);
+        $this->assertSame('otel_unknown', $span['name']);
         $this->assertSame('test.span', $span['resource']);
         $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
         $this->assertSame('bar', $span['meta']['foo']);
@@ -216,7 +216,7 @@ final class TracerTest extends BaseTestCase
         $this->assertNotEmpty($span['trace_id']);
         $this->assertSame($span['trace_id'], $span['span_id']);
         $this->assertNotEquals(0, $span['duration']);
-        $this->assertSame('test.span', $span['name']);
+        $this->assertSame('otel_unknown', $span['name']);
         $this->assertSame('test.span', $span['resource']);
         $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
         $this->assertSame('bar', $span['meta']['foo']);
@@ -407,7 +407,7 @@ final class TracerTest extends BaseTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertSame('test.span', $span['name']);
+        $this->assertSame('otel_unknown', $span['name']);
         $this->assertSame('test.span', $span['resource']);
         $this->assertSame('error message', $span['meta']['error.message']);
         $this->assertEquals(1, $span['error']);
@@ -432,7 +432,7 @@ final class TracerTest extends BaseTestCase
         $span = $traces[0][0];
         $this->assertArrayNotHasKey("error", $span);
         $this->assertArrayNotHasKey("error.message", $span['meta']);
-        $this->assertSame("test.span", $span['name']);
+        $this->assertSame("otel_unknown", $span['name']);
         $this->assertSame("test.span", $span['resource']);
     }
 
@@ -446,7 +446,7 @@ final class TracerTest extends BaseTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertSame('test.span', $span['name']);
+        $this->assertSame('otel_unknown', $span['name']);
         $this->assertSame('test.span', $span['resource']);
         $this->assertSame('exception message', $span['meta'][Tag::ERROR_MSG]);
         $this->assertSame('RuntimeException', $span['meta'][Tag::ERROR_TYPE]);
@@ -466,7 +466,7 @@ final class TracerTest extends BaseTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertSame('new.name', $span['name']);
+        $this->assertSame('new.name', $span['resource']);
     }
 
     public function testSpanUpdateAfterEnd()
@@ -487,7 +487,7 @@ final class TracerTest extends BaseTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertSame('test.span', $span['name']);
+        $this->assertSame('otel_unknown', $span['name']);
         $this->assertSame('test.span', $span['resource']);
         $this->assertSame('error message', $span['meta']['error.message']);
         $this->assertEquals(1, $span['error']);
@@ -543,7 +543,7 @@ final class TracerTest extends BaseTestCase
             $this->assertSame($traceId, $httpSpan['trace_id']);
             $this->assertSame($rootSpan['span_id'], $httpSpan['parent_id']);
 
-            $this->assertSame("http-$i", $httpSpan['name']);
+            $this->assertSame("http-$i", $httpSpan['resource']);
             $this->assertSame("GET", $httpSpan['meta']['http.method']);
             $this->assertSame("example.com/$i", $httpSpan['meta']['http.url']);
             $this->assertSame('200', $httpSpan['meta']['http.status_code']);

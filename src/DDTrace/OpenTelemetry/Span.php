@@ -6,6 +6,7 @@ namespace OpenTelemetry\SDK\Trace;
 
 use DDTrace\SpanData;
 use DDTrace\Tag;
+use DDTrace\Util\Convention;
 use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
@@ -43,6 +44,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     private AttributesBuilderInterface $attributesBuilder;
     private StatusDataInterface $status;
     private bool $hasEnded = false;
+    private string $initialOperationName = "";
 
     private function __construct(
         SpanData $span,
@@ -89,13 +91,22 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         AttributesBuilderInterface $attributesBuilder,
         array $links,
         int $totalRecordedLinks,
-        float $startEpochNanos = 0
+        float $startEpochNanos = 0,
+        bool $isRemapped = true // Answers the question "Was the span created using the OTel API?"
     ): self {
         $attributes = $attributesBuilder->build()->toArray();
         self::_setAttributes($span, $attributes);
 
         $resourceAttributes = $resource->getAttributes()->toArray();
         self::_setAttributes($span, $resourceAttributes);
+
+        if ($isRemapped || empty($span->name)) {
+            // Since the span was created using the OTel API, it doesn't have an operation name*
+            // *: This is a bit false. For instance, a span created using the OTel API and DD_TRACE_GENERATE_ROOT_SPAN=0
+            // under a cli (e.g., phpunit) process would have a default operation name set (e.g., phpunit). This is
+            // done in serializer.c:ddtrace_set_root_span_properties (as of v0.92.0)
+            $span->name = Convention::conventionOf($span)->defaultOperationName($span);
+        }
 
         $OTelSpan = new self(
             $span,
@@ -118,7 +129,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     public function getName(): string
     {
-        return $this->span->name;
+        return $this->span->resource ?: $this->span->name;
     }
 
     // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
@@ -322,8 +333,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function updateName(string $name): SpanInterface
     {
+        // OTel.name => DD.resource
         if (!$this->hasEnded) {
-            $this->span->name = $name;
+            $this->span->resource = $name;
         }
 
         return $this;
@@ -381,6 +393,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         $attributes = $this->attributesBuilder->build()->toArray();
         self::_setAttributes($this->span, $attributes);
+
+        if (empty($this->span->name)) { // Honor set operation name
+            $this->span->name = Convention::conventionOf($this->span)->defaultOperationName($this->span);
+        }
 
         // After closing the span, the context won't change, but would otherwise be lost
         $this->context = API\SpanContext::create(

@@ -219,7 +219,8 @@ final class Context implements ContextInterface
             (new AttributesFactory())->builder(), // $attributesBuilder
             [], // TODO: Handle Span Links
             0, // TODO: Handle Span Links
-            $currentSpan->getStartTime()
+            $currentSpan->getStartTime(),
+            false // The span was created using the DD Api
         );
         ObjectKVStore::put($currentSpan, 'otel_span', $OTelCurrentSpan);
         $currentContext = $parentContext->with(self::$spanContextKey, $OTelCurrentSpan); // Sets the current span in the context

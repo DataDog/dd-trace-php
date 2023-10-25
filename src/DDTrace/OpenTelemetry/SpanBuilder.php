@@ -190,7 +190,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
             return Span::wrap($spanContext);
         }
 
-        $span->name = $this->spanName;
+        $span->resource = $this->spanName; // OTel.name => DD.resource
 
         $attributesBuilder = clone $this->attributesBuilder; // According to OTel's spec, attributes can't be changed after span creation...
         $attributes = $samplingResult->getAttributes();

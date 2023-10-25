@@ -93,7 +93,7 @@ final class BaggageTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('parent', 'datadog/dd-trace-tests', 'cli', 'parent')
+            SpanAssertion::build('server.request', 'datadog/dd-trace-tests', 'cli', 'parent')
                 ->withExactTags([
                     Tag::SPAN_KIND => Tag::SPAN_KIND_VALUE_SERVER,
                     'http.method' => 'GET',
@@ -121,7 +121,7 @@ final class BaggageTest extends BaseTestCase
                     'host.arch'
                 ])
                 ->withChildren([
-                    SpanAssertion::build('child', 'datadog/dd-trace-tests', 'cli', 'child')
+                    SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'child')
                         ->withExactTags([
                             'user.id' => '1',
                         ])

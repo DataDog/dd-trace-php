@@ -205,8 +205,10 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertCount(2, $spans);
 
         list($parent, $child) = $spans;
-        $this->assertSame('test.span', $parent['name']);
+        $this->assertSame('otel_unknown', $parent['name']);
+        $this->assertSame('test.span', $parent['resource']);
         $this->assertSame('other.span', $child['name']);
+        $this->assertSame('other.span', $child['resource']);
         $this->assertSame($parent['span_id'], $child['parent_id']);
         $this->assertSame($parent['trace_id'], $child['trace_id']);
         $this->assertSame('bar', $child['meta']['foo']);
@@ -225,7 +227,7 @@ final class InteroperabilityTest extends BaseTestCase
             /** @var \OpenTelemetry\SDK\Trace\Span $currentSpan */
             $currentSpan = Span::getCurrent();
 
-            $this->assertNotEmpty($currentSpan);
+            $this->assertNotNull($currentSpan);
             $this->assertSame($currentSpan->getDDSpan(), $ddSpan); // The OTel span wasn't activated, so the current span is the DDTrace span
 
             $ddOTelSpan = $currentSpan;
@@ -234,7 +236,7 @@ final class InteroperabilityTest extends BaseTestCase
             /** @var \OpenTelemetry\SDK\Trace\Span $currentSpan */
             $currentSpan = Span::getCurrent();
 
-            $this->assertNotEmpty($currentSpan);
+            $this->assertNotNull($currentSpan);
             $this->assertSame($OTelSpan, $currentSpan);
             $this->assertSame($ddOTelSpan->getContext()->getSpanId(), $currentSpan->getParentContext()->getSpanId());
 
@@ -244,13 +246,13 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $spans = $traces[0];
-        $this->assertCount(2, $spans);
 
-        list($ddSpan, $OTelSpan) = $spans;
-        $this->assertSame('dd.span', $ddSpan['name']);
-        $this->assertSame('otel.span', $OTelSpan['name']);
-        $this->assertSame($ddSpan['span_id'], $OTelSpan['parent_id']);
-        $this->assertSame($ddSpan['trace_id'], $OTelSpan['trace_id']);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('dd.span', 'dd.span')
+                ->withChildren([
+                    SpanAssertion::exists('otel_unknown', 'otel.span')
+                ])
+        ]);
     }
 
     public function testCloseSpansUntilWithOnlyDatadogSpans()
@@ -304,11 +306,12 @@ final class InteroperabilityTest extends BaseTestCase
         $spans = $traces[0];
         $this->assertCount(2, $spans);
 
-        list($OTelSpan, $ddSpan) = $spans;
-        $this->assertSame('otel.span', $OTelSpan['name']);
-        $this->assertSame('dd.span', $ddSpan['name']);
-        $this->assertSame($OTelSpan['span_id'], $ddSpan['parent_id']);
-        $this->assertSame($OTelSpan['trace_id'], $ddSpan['trace_id']);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('otel_unknown', 'otel.span')
+                ->withChildren([
+                    SpanAssertion::exists('dd.span', 'dd.span')
+                ])
+        ]);
 
         $this->markTestIncomplete("Behavior to ack");
     }
@@ -322,7 +325,7 @@ final class InteroperabilityTest extends BaseTestCase
 
             $activeSpan = active_span();
             $this->assertNotNull($activeSpan);
-            $this->assertSame('otel.parent.span', $activeSpan->name);
+            $this->assertSame('otel.parent.span', $activeSpan->resource);
             $this->assertSame(str_pad(strtolower(self::largeBaseConvert($activeSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT), $OTelParentSpan->getContext()->getSpanId());
 
             $ddChildSpan = start_span();
@@ -338,7 +341,7 @@ final class InteroperabilityTest extends BaseTestCase
 
             $activeSpan = active_span();
             $this->assertNotNull($activeSpan);
-            $this->assertSame('otel.grandchild.span', $activeSpan->name);
+            $this->assertSame('otel.grandchild.span', $activeSpan->resource);
             $this->assertSame(str_pad(strtolower(self::largeBaseConvert($activeSpan->id, 10, 16)), 16, '0', STR_PAD_LEFT), $OTelGrandChildSpan->getContext()->getSpanId());
 
             $OTelGrandChildScope->detach();
@@ -348,19 +351,15 @@ final class InteroperabilityTest extends BaseTestCase
             $OTelParentSpan->end();
         });
 
-        $spans = $traces[0];
-        $this->assertCount(3, $spans);
-
-        list($OTelParentSpan, $ddChildSpan, $OTelGrandChildSpan) = $spans;
-        $this->assertSame('otel.parent.span', $OTelParentSpan['name']);
-        $this->assertSame('dd.child.span', $ddChildSpan['name']);
-        $this->assertSame('otel.grandchild.span', $OTelGrandChildSpan['name']);
-
-        $this->assertSame($OTelParentSpan['span_id'], $ddChildSpan['parent_id']);
-        $this->assertSame($OTelParentSpan['trace_id'], $ddChildSpan['trace_id']);
-
-        $this->assertSame($ddChildSpan['span_id'], $OTelGrandChildSpan['parent_id']);
-        $this->assertSame($OTelParentSpan['trace_id'], $OTelGrandChildSpan['trace_id']);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('otel_unknown', 'otel.parent.span')
+                ->withChildren([
+                    SpanAssertion::exists('dd.child.span', 'dd.child.span')
+                        ->withChildren([
+                            SpanAssertion::exists('otel_unknown', 'otel.grandchild.span')
+                        ])
+                ])
+        ]);
     }
 
     public function testStartNewTraces()
@@ -415,32 +414,22 @@ final class InteroperabilityTest extends BaseTestCase
             $OTelRootSpan->end();
         });
 
-        $spans = $traces[0];
-        $this->assertCount(6, $spans);
-
-        list($OTelRootSpan, $OTelChildSpan, $DDChildSpan, $DDRootSpan, $DDRootOTelSpan, $DDRootChildSpan) = $spans;
-        $this->assertSame('otel.root.span', $OTelRootSpan['name']);
-        $this->assertSame('otel.child.span', $OTelChildSpan['name']);
-        $this->assertSame('dd.child.span', $DDChildSpan['name']);
-
-        $this->assertSame('dd.root.span', $DDRootSpan['name']);
-        $this->assertSame('dd.root.otel.span', $DDRootOTelSpan['name']);
-        $this->assertSame('dd.root.child.span', $DDRootChildSpan['name']);
-
-        $this->assertSame($OTelRootSpan['trace_id'], $OTelChildSpan['trace_id']);
-        $this->assertSame($OTelRootSpan['span_id'], $OTelChildSpan['parent_id']);
-
-        $this->assertSame($OTelRootSpan['trace_id'], $DDChildSpan['trace_id']);
-        $this->assertSame($OTelChildSpan['span_id'], $DDChildSpan['parent_id']);
-
-        $this->assertNotSame($OTelRootSpan['trace_id'], $DDRootSpan['trace_id']);
-        $this->assertArrayNotHasKey('parent_id', $DDRootSpan['meta']);
-
-        $this->assertSame($DDRootSpan['trace_id'], $DDRootOTelSpan['trace_id']);
-        $this->assertSame($DDRootSpan['span_id'], $DDRootOTelSpan['parent_id']);
-
-        $this->assertSame($DDRootSpan['trace_id'], $DDRootChildSpan['trace_id']);
-        $this->assertSame($DDRootOTelSpan['span_id'], $DDRootChildSpan['parent_id']);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('otel_unknown', 'otel.root.span')
+                ->withChildren([
+                    SpanAssertion::exists('otel_unknown', 'otel.child.span')
+                        ->withChildren([
+                            SpanAssertion::exists('dd.child.span', 'dd.child.span')
+                        ])
+                ]),
+            SpanAssertion::exists('dd.root.span', 'dd.root.span')
+                ->withChildren([
+                    SpanAssertion::exists('otel_unknown', 'dd.root.otel.span')
+                        ->withChildren([
+                            SpanAssertion::exists('dd.root.child.span', 'dd.root.child.span')
+                        ])
+                ])
+        ]);
     }
 
     public function testStartNewTracesWithCloseSpansUntil()
@@ -491,32 +480,22 @@ final class InteroperabilityTest extends BaseTestCase
             close_spans_until(null); // Closes OTelChildSpan and OTelRootSpan
         });
 
-        $spans = $traces[0];
-        $this->assertCount(6, $spans);
-
-        list($OTelRootSpan, $OTelChildSpan, $DDChildSpan, $DDRootSpan, $DDRootOTelSpan, $DDRootChildSpan) = $spans;
-        $this->assertSame('otel.root.span', $OTelRootSpan['name']);
-        $this->assertSame('otel.child.span', $OTelChildSpan['name']);
-        $this->assertSame('dd.child.span', $DDChildSpan['name']);
-
-        $this->assertSame('dd.root.span', $DDRootSpan['name']);
-        $this->assertSame('dd.root.otel.span', $DDRootOTelSpan['name']);
-        $this->assertSame('dd.root.child.span', $DDRootChildSpan['name']);
-
-        $this->assertSame($OTelRootSpan['trace_id'], $OTelChildSpan['trace_id']);
-        $this->assertSame($OTelRootSpan['span_id'], $OTelChildSpan['parent_id']);
-
-        $this->assertSame($OTelRootSpan['trace_id'], $DDChildSpan['trace_id']);
-        $this->assertSame($OTelChildSpan['span_id'], $DDChildSpan['parent_id']);
-
-        $this->assertNotSame($OTelRootSpan['trace_id'], $DDRootSpan['trace_id']);
-        $this->assertArrayNotHasKey('parent_id', $DDRootSpan['meta']);
-
-        $this->assertSame($DDRootSpan['trace_id'], $DDRootOTelSpan['trace_id']);
-        $this->assertSame($DDRootSpan['span_id'], $DDRootOTelSpan['parent_id']);
-
-        $this->assertSame($DDRootSpan['trace_id'], $DDRootChildSpan['trace_id']);
-        $this->assertSame($DDRootOTelSpan['span_id'], $DDRootChildSpan['parent_id']);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('otel_unknown', 'otel.root.span')
+                ->withChildren([
+                    SpanAssertion::exists('otel_unknown', 'otel.child.span')
+                        ->withChildren([
+                            SpanAssertion::exists('dd.child.span', 'dd.child.span')
+                        ])
+                ]),
+            SpanAssertion::exists('dd.root.span', 'dd.root.span')
+                ->withChildren([
+                    SpanAssertion::exists('otel_unknown', 'dd.root.otel.span')
+                        ->withChildren([
+                            SpanAssertion::exists('otel_unknown', 'dd.root.child.span')
+                        ])
+                ])
+        ]);
     }
 
     public function testMixingSetParentContext()
@@ -563,32 +542,22 @@ final class InteroperabilityTest extends BaseTestCase
             $OTelRootSpan->end();
         });
 
-        $spans = $traces[0];
-        $this->assertCount(6, $spans);
-
-        list($OTelRootSpan, $DDRootSpan, $OTelChildSpan, $DDChildSpan, $OTelGrandChildSpan, $DDGrandChildSpan) = $spans;
-
-        $this->assertSame('otel.root.span', $OTelRootSpan['name']);
-        $this->assertSame('dd.root.span', $DDRootSpan['name']);
-        $this->assertSame('otel.child.span', $OTelChildSpan['name']);
-        $this->assertSame('dd.child.span', $DDChildSpan['name']);
-        $this->assertSame('otel.grandchild.span', $OTelGrandChildSpan['name']);
-        $this->assertSame('dd.grandchild.span', $DDGrandChildSpan['name']);
-
-        $this->assertSame($OTelRootSpan['trace_id'], $OTelChildSpan['trace_id']);
-        $this->assertSame($OTelRootSpan['span_id'], $OTelChildSpan['parent_id']);
-
-        $this->assertSame($OTelRootSpan['trace_id'], $DDChildSpan['trace_id']);
-        $this->assertSame($OTelChildSpan['span_id'], $DDChildSpan['parent_id']);
-
-        $this->assertNotSame($OTelRootSpan['trace_id'], $DDRootSpan['trace_id']);
-        $this->assertArrayNotHasKey('parent_id', $DDRootSpan['meta']);
-
-        $this->assertSame($DDRootSpan['trace_id'], $OTelGrandChildSpan['trace_id']);
-        $this->assertSame($DDRootSpan['span_id'], $OTelGrandChildSpan['parent_id']);
-
-        $this->assertSame($DDRootSpan['trace_id'], $DDGrandChildSpan['trace_id']);
-        $this->assertSame($OTelGrandChildSpan['span_id'], $DDGrandChildSpan['parent_id']);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('otel_unknown', 'otel.root.span')
+                ->withChildren([
+                    SpanAssertion::exists('otel_unknown', 'otel.child.span')
+                        ->withChildren([
+                            SpanAssertion::exists('dd.child.span', 'dd.child.span')
+                        ])
+                ]),
+            SpanAssertion::exists('dd.root.span', 'dd.root.span')
+                ->withChildren([
+                    SpanAssertion::exists('otel_unknown', 'otel.grandchild.span')
+                        ->withChildren([
+                            SpanAssertion::exists('dd.grandchild.span', 'dd.grandchild.span')
+                        ])
+                ])
+        ]);
     }
 
     public function testMixingMultipleTraces()
@@ -659,26 +628,26 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('otel.trace1', 'datadog/dd-trace-tests', 'cli', 'otel.trace1')
+            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'otel.trace1')
                 ->withExactTags([
                     'foo1' => 'bar1',
                 ])
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
-                    SpanAssertion::build('otel.child1', 'my.service', 'cli', 'otel.child1')
+                    SpanAssertion::build('otel_unknown', 'my.service', 'cli', 'otel.child1')
                         ->withExactTags([
                             'foo2' => 'bar2',
                         ])
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         ->withChildren(
-                            SpanAssertion::build('otel.child3', 'datadog/dd-trace-tests', 'cli', 'my.resource')
+                            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'my.resource')
                                 ->withExactTags([
                                     'foo3' => 'bar3',
                                 ])
                                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         )
                 ),
-            SpanAssertion::exists('otel.trace2', 'otel.trace2', null, 'datadog/dd-trace-tests')
+            SpanAssertion::exists('otel_unknown', 'otel.trace2', null, 'datadog/dd-trace-tests')
                 ->withChildren(
                     SpanAssertion::exists('dd.child2', 'dd.child2', null, 'datadog/dd-trace-tests')
                 ),
@@ -692,10 +661,10 @@ final class InteroperabilityTest extends BaseTestCase
             SpanAssertion::build('dd.trace2', 'datadog/dd-trace-tests', 'cli', 'dd.trace2')
                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                 ->withChildren(
-                    SpanAssertion::build('otel.child2', 'datadog/dd-trace-tests', 'cli', 'otel.child2')
+                    SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'otel.child2')
                         ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         ->withChildren(
-                            SpanAssertion::build('otel.child4', 'datadog/dd-trace-tests', 'cli', 'otel.child4')
+                            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'otel.child4')
                                 ->withExistingTagsNames(InteroperabilityTest::commonTagsList())
                         )
                 ),
@@ -744,7 +713,7 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('otel.root.span', 'datadog/dd-trace-tests', 'cli', 'otel.root.span')
+            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'otel.root.span')
                 ->withExactTags([
                     '_dd.p.tid' => 'ff00000000000517'
                 ])
@@ -801,7 +770,7 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('otel.root.span', 'datadog/dd-trace-tests', 'cli', 'otel.root.span')
+            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'otel.root.span')
                 ->withExactTags([
                     '_dd.p.tid' => 'ff00000000000517'
                 ])
@@ -862,7 +831,7 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('otel.root.span', 'datadog/dd-trace-tests', 'cli', 'otel.root.span')
+            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'otel.root.span')
                 ->withExactTags([
                     '_dd.p.tid' => 'ff00000000000517'
                 ])
@@ -908,7 +877,7 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('parent', 'datadog/dd-trace-tests', 'cli', 'parent')
+            SpanAssertion::build('server.request', 'datadog/dd-trace-tests', 'cli', 'parent')
                 ->withExactTags([
                     Tag::SPAN_KIND => Tag::SPAN_KIND_VALUE_SERVER,
                     'http.method' => 'GET',
@@ -1046,10 +1015,10 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('parent')->withChildren([
+            SpanAssertion::exists('server.request', 'parent')->withChildren([
                     SpanAssertion::exists('fiber.start')->withChildren([
                             SpanAssertion::exists('inFiber')->withChildren([
-                                    SpanAssertion::exists('otel.inFiber')->withChildren([
+                                    SpanAssertion::exists('otel_unknown', 'otel.inFiber')->withChildren([
                                             SpanAssertion::exists('otherFiber')->withChildren([
                                                 SpanAssertion::exists('dd.otherFiber')->withChildren([
                                                     SpanAssertion::exists('fiber.suspend')
