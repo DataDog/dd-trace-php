@@ -63,6 +63,36 @@ final class TracerTest extends BaseTestCase
         return $tracer;
     }
 
+    public function testBasic()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $rootOne = $tracer->spanBuilder('root_one')->startSpan();
+            $rootOneScope = $rootOne->activate();
+
+            $child = $tracer->spanBuilder('child')->startSpan();
+            $childScope = $child->activate();
+            $childScope->detach();
+            $child->end();
+
+            $rootOneScope->detach();
+            $rootOne->end();
+
+            $rootTwo = $tracer->spanBuilder('root_two')->startSpan();
+            $rootTwoScope = $rootTwo->activate();
+
+            $child = $tracer->spanBuilder('child')->startSpan();
+            $childScope = $child->activate();
+            $childScope->detach();
+            $child->end();
+
+            $rootTwoScope->detach();
+            $rootTwo->end();
+        });
+
+        fwrite(STDERR, json_encode($traces, JSON_PRETTY_PRINT));
+    }
+
     public function testUnorderedOtelSpanActivation()
     {
         $traces = $this->isolateTracer(function () {
@@ -519,7 +549,7 @@ final class TracerTest extends BaseTestCase
 
         $spans = $traces[0];
         $rootSpan = $spans[0];
-        $httpSpans = [$spans[1], $spans[2], $spans[3]];
+        $httpSpans = [$spans[3], $spans[2], $spans[1]];
         $this->assertCount(4, $spans);
 
         $traceId = $rootSpan['trace_id'];

@@ -18,6 +18,7 @@ use OpenTelemetry\API\Trace as API;
 use Throwable;
 
 use function DDTrace\close_span;
+use function DDTrace\switch_stack;
 
 final class Span extends API\Span implements ReadWriteSpanInterface
 {
@@ -352,6 +353,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         // TODO: Actually check if the span was closed (change extension to return a boolean?)
         //close_span();
+        switch_stack($this->span);
         close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
     }
 
