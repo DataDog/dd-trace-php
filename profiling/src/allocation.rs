@@ -5,6 +5,7 @@ use crate::REQUEST_LOCALS;
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, error, trace, warn};
+use rand::rngs::ThreadRng;
 use std::cell::RefCell;
 use std::ffi::CStr;
 
@@ -38,19 +39,25 @@ pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 2048.0;
 pub struct AllocationProfilingStats {
     /// number of bytes until next sample collection
     next_sample: i64,
+    poisson: Poisson<f64>,
+    rng: ThreadRng,
 }
 
 impl AllocationProfilingStats {
     fn new() -> AllocationProfilingStats {
-        AllocationProfilingStats {
-            next_sample: AllocationProfilingStats::next_sampling_interval(),
-        }
+        // Safety: this will only error if lambda <= 0
+        let poisson = Poisson::new(ALLOCATION_PROFILING_INTERVAL).unwrap();
+        let mut stats = AllocationProfilingStats {
+            next_sample: 0,
+            poisson,
+            rng: rand::thread_rng(),
+        };
+        stats.next_sampling_interval();
+        stats
     }
 
-    fn next_sampling_interval() -> i64 {
-        Poisson::new(ALLOCATION_PROFILING_INTERVAL)
-            .unwrap()
-            .sample(&mut rand::thread_rng()) as i64
+    fn next_sampling_interval(&mut self) {
+        self.next_sample = self.poisson.sample(&mut self.rng) as i64;
     }
 
     fn track_allocation(&mut self, len: size_t) {
@@ -60,7 +67,7 @@ impl AllocationProfilingStats {
             return;
         }
 
-        self.next_sample = AllocationProfilingStats::next_sampling_interval();
+        self.next_sampling_interval();
 
         REQUEST_LOCALS.with(|cell| {
             let Ok(locals) = cell.try_borrow() else {

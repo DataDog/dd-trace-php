@@ -21,6 +21,7 @@
     INTEGRATION(LARAVELQUEUE, "laravelqueue")   \
     INTEGRATION(LOGS, "logs", DD_LOGS_INJECTION) \
     INTEGRATION(LUMEN, "lumen")                 \
+    INTEGRATION(MAGENTO, "magento")            \
     INTEGRATION(MEMCACHE, "memcache")           \
     INTEGRATION(MEMCACHED, "memcached")         \
     INTEGRATION(MONGO, "mongo")                 \

@@ -11,6 +11,7 @@ use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleIntegration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Integrations\Lumen\LumenIntegration;
+use DDTrace\Integrations\Magento\MagentoIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
@@ -83,6 +84,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Laravel\LaravelIntegration';
             $this->integrations[LumenIntegration::NAME] =
                 '\DDTrace\Integrations\Lumen\LumenIntegration';
+            $this->integrations[MagentoIntegration::NAME] =
+                '\DDTrace\Integrations\Magento\MagentoIntegration';
             $this->integrations[MemcachedIntegration::NAME] =
                 '\DDTrace\Integrations\Memcached\MemcachedIntegration';
             $this->integrations[MongoIntegration::NAME] =
