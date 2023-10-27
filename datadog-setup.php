@@ -499,10 +499,12 @@ function install($options)
         "Cannot copy files from '$tmpBridgeDir' to '$installDirSourcesDir'",
         "cp -r " . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirSourcesDir)
     );
-    execute_or_exit(
-        "Cannot copy files from '$tmpSrcDir' to '$installDirSourcesDir'",
-        "cp -r " . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSourcesDir)
-    );
+    if (file_exists($tmpSrcDir)) {
+        execute_or_exit(
+            "Cannot copy files from '$tmpSrcDir' to '$installDirSourcesDir'",
+            "cp -r " . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSourcesDir)
+        );
+    }
     echo "Installed required source files to '$installDir'\n";
 
     // Appsec helper and rules

@@ -63,6 +63,21 @@ final class TracerTest extends BaseTestCase
         return $tracer;
     }
 
+    public function testOtelSetSpanStatusError()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $errorSpan = $tracer->spanBuilder('error_span')->startSpan();
+            $errorSpanScope = $errorSpan->activate();
+            $errorSpan->setStatus(StatusCode::STATUS_ERROR, "error_desc");
+            $errorSpan->setStatus(StatusCode::STATUS_UNSET, "unset_desc");
+            $errorSpanScope->detach();
+            $errorSpan->end();
+        });
+
+        $this->assertSame('error_desc', $traces[0][0]['meta']['error.message']);
+    }
+
     public function testUnorderedOtelSpanActivation()
     {
         $traces = $this->isolateTracer(function () {
