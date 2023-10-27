@@ -457,8 +457,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         unsafe { bindings::zai_config_first_time_rinit() };
-        #[cfg(feature = "exception_profiling")]
-        exception::exception_profiling_first_rinit();
     });
 
     unsafe { bindings::zai_config_rinit() };
@@ -575,6 +573,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 info!("CPU Time profiling enabled.");
             }
         }
+
+        #[cfg(feature = "exception_profiling")]
+        exception::exception_profiling_first_rinit();
     });
 
     // Preloading happens before zend_post_startup_cb is called for the first

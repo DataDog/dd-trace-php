@@ -41,7 +41,8 @@ impl ExceptionProfilingStats {
     }
 
     fn track_exception(&mut self, name: String) {
-        if self.next_sample.checked_sub(1).is_none() {
+        if let Some(next_sample) = self.next_sample.checked_sub(1) {
+            self.next_sample = next_sample;
             return;
         }
 

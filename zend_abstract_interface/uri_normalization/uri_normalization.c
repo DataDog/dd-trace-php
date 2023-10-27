@@ -150,12 +150,18 @@ zend_string *zai_filter_query_string(zai_str queryString, zend_array *whitelist,
             zend_string *qs = zend_string_init(queryString.ptr, queryString.len, 0);
             if (pattern) {
                 zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
-                zend_string *regex = zend_strpprintf(0, "(%.*s)", (int)ZSTR_LEN(pattern), ZSTR_VAL(pattern));
+
+                smart_str regex = {0};
+                smart_str_alloc(&regex, ZSTR_LEN(pattern) + 2, 0);
+                smart_str_appendc(&regex, '(');
+                smart_str_appendl(&regex, ZSTR_VAL(pattern), ZSTR_LEN(pattern));
+                smart_str_appendc(&regex, ')');
+                smart_str_0(&regex);
 
                 zend_string *redacted_qs =
-                    php_pcre_replace(regex, qs, ZSTR_VAL(qs), ZSTR_LEN(qs), replacement, -1, NULL);
+                    php_pcre_replace(regex.s, qs, ZSTR_VAL(qs), ZSTR_LEN(qs), replacement, -1, NULL);
 
-                zend_string_release(regex);
+                smart_str_free(&regex);
                 zend_string_release(replacement);
 
                 if (redacted_qs) {
