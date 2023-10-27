@@ -888,10 +888,6 @@ impl Profiler {
             key: "event",
             value: LabelValue::Str(reason.into()),
         });
-        labels.push(Label {
-            key: "end_timestamp_ns",
-            value: LabelValue::Num(now, None),
-        });
 
         let n_labels = labels.len();
 
@@ -907,6 +903,7 @@ impl Profiler {
             },
             labels,
             locals,
+            now,
         )) {
             Ok(_) => {
                 trace!("Sent event 'idle' with {n_labels} labels to profiler.")
