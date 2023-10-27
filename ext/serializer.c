@@ -235,9 +235,9 @@ static zend_result dd_exception_to_error_msg(zend_object *exception, void *conte
         default: exception_type = "Thrown"; break;
     }
 
-    int error_len = asprintf(&error_text, "%s %s%s%s%.*s in %s:" ZEND_LONG_FMT, exception_type,
+    int error_len = asprintf(&error_text, "%s %s%s%s%s in %s:" ZEND_LONG_FMT, exception_type,
                              ZSTR_VAL(exception->ce->name), status_line ? status_line : "", ZSTR_LEN(msg) > 0 ? ": " : "",
-                             (int)ZSTR_LEN(msg), ZSTR_VAL(msg), ZSTR_VAL(file), line);
+                             ZSTR_VAL(msg), ZSTR_VAL(file), line);
 
     free(status_line);
 
@@ -603,8 +603,8 @@ static zend_string *dd_build_req_url() {
     }
 
     zend_string *url =
-        zend_strpprintf(0, "http%s://%s%.*s%s%.*s", is_https ? "s" : "", Z_STRVAL_P(host_zv), uri_len, uri,
-                        ZSTR_LEN(query_string) ? "?" : "", (int)ZSTR_LEN(query_string), ZSTR_VAL(query_string));
+        zend_strpprintf(0, "http%s://%s%.*s%s%s", is_https ? "s" : "", Z_STRVAL_P(host_zv), uri_len, uri,
+                        ZSTR_LEN(query_string) ? "?" : "", ZSTR_VAL(query_string));
 
     zend_string_release(query_string);
 
@@ -699,9 +699,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
                                                         get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
                     }
 
-                    ZVAL_STR(prop_resource, zend_strpprintf(0, "%s %s%s%.*s", method, ZSTR_VAL(normalized),
-                                                            ZSTR_LEN(query_string) ? "?" : "", (int) ZSTR_LEN(query_string),
-                                                            ZSTR_VAL(query_string)));
+                    ZVAL_STR(prop_resource, zend_strpprintf(0, "%s %s%s%s", method, ZSTR_VAL(normalized), ZSTR_LEN(query_string) ? "?" : "", ZSTR_VAL(query_string)));
                     zend_string_release(query_string);
                     zend_string_release(normalized);
                     zend_string_release(path);
