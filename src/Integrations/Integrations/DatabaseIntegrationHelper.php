@@ -77,6 +77,10 @@ class DatabaseIntegrationHelper
             $service = ddtrace_config_app_name();
         }
         if ($service != "") {
+            $mapping = dd_trace_env_config('DD_SERVICE_MAPPING');
+            if (isset($mapping[$service])) {
+                $service = $mapping[$service];
+            }
             $tags["ddps"] = $service;
         }
 
