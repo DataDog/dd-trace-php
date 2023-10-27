@@ -963,9 +963,18 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     zend_array *span_links = ddtrace_property_array(&span->property_links);
     if (zend_hash_num_elements(span_links) > 0) {
+        // Save the current exception, if any, and clear it for php_json_encode_serializable_object not to fail
+        // and zend_call_function to actually call the jsonSerialize method
+        // Restored after span links are serialized
+        zend_object* current_exception = EG(exception);
+        EG(exception) = NULL;
+
         smart_str buf = {0};
         _dd_serialize_json(span_links, &buf, 0);
         add_assoc_str(meta, "_dd.span_links", buf.s);
+
+        // Restore the exception
+        EG(exception) = current_exception;
     }
 
     if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) { // opt-in
