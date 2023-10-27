@@ -96,10 +96,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         bool $isRemapped = true // Answers the question "Was the span created using the OTel API?"
     ): self {
         $attributes = $attributesBuilder->build()->toArray();
-        self::_setAttributes($span, $attributes);
+        self::_setAttributes($span, $attributes); // Counts towards the attribute limit since it's derived from the builder
 
         $resourceAttributes = $resource->getAttributes()->toArray();
-        self::_setAttributes($span, $resourceAttributes);
+        self::_setAttributes($span, $resourceAttributes); // Doesn't count towards the attribute limit, and shouldn't - special case
 
         if ($isRemapped || empty($span->name)) {
             // Since the span was created using the OTel API, it doesn't have an operation name*
@@ -253,21 +253,21 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $this->span->resource = $value;
             } elseif ($key === Tag::SERVICE_NAME) {
                 $this->span->service = $value;
-            } elseif (strpos($key, '_dd.p.') === 0) {
-                $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
-                \DDTrace\add_distributed_tag($distributedKey, $value);
-                //$this->attributesBuilder[$key] = $value; // Counts towards the attribute limit
-            } elseif ($this->instrumentationScope->getName() === 'datadog') {
-                if (is_float($value)
-                    || is_int($value)
-                    || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
-                    $this->span->metrics[$key] = $value;
-                } else {
-                    $this->span->meta[$key] = $value;
+            } else {
+                $this->attributesBuilder[$key] = $value;
+                if ($this->attributesBuilder[$key] !== null || $value === null) {
+                    // The key-value pair was set - i.e., we don't set a tag on the span if the attribute count limit was hit
+                    if (strpos($key, '_dd.p.') === 0) {
+                        $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
+                        \DDTrace\add_distributed_tag($distributedKey, $value);
+                    } elseif (is_float($value)
+                        || is_int($value)
+                        || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
+                        $this->span->metrics[$key] = $value;
+                    } else {
+                        $this->span->meta[$key] = $value;
+                    }
                 }
-                $this->attributesBuilder[$key] = $value;
-            } else {// TODO: Horrible workaround for now
-                $this->attributesBuilder[$key] = $value;
             }
         }
 
