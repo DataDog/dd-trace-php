@@ -867,7 +867,7 @@ static void _dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
     smart_str_0(buf);
 }
 
-static void dd_serialize_array_meta_recursively(zend_array *target, zend_string *str, zval *value) {
+static void dd_serialize_array_recursively(zend_array *target, zend_string *str, zval *value, bool convert_to_double) {
     ZVAL_DEREF(value);
     if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
         zend_array *arr;
@@ -897,7 +897,7 @@ static void dd_serialize_array_meta_recursively(zend_array *target, zend_string 
                 } else {
                     key = zend_strpprintf(0, "%.*s." ZEND_LONG_FMT, (int)ZSTR_LEN(str), ZSTR_VAL(str), num_key);
                 }
-                dd_serialize_array_meta_recursively(target, key, val);
+                dd_serialize_array_recursively(target, key, val, convert_to_double);
                 zend_string_release(key);
             } ZEND_HASH_FOREACH_END();
 
@@ -913,11 +913,23 @@ static void dd_serialize_array_meta_recursively(zend_array *target, zend_string 
             zend_release_properties(arr);
         }
 #endif
+    } else if (convert_to_double) {
+        zval val_as_double;
+        ZVAL_DOUBLE(&val_as_double, zval_get_double(value));
+        zend_hash_update(target, str, &val_as_double);
     } else {
         zval val_as_string;
         ddtrace_convert_to_string(&val_as_string, value);
         zend_hash_update(target, str, &val_as_string);
     }
+}
+
+static void dd_serialize_array_meta_recursively(zend_array *target, zend_string *str, zval *value) {
+    dd_serialize_array_recursively(target, str, value, false);
+}
+
+static void dd_serialize_array_metrics_recursively(zend_array *target, zend_string *str, zval *value) {
+    dd_serialize_array_recursively(target, str, value, true);
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_data *span) {
@@ -1405,7 +1417,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     zval *val;
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(metrics, str_key, val) {
         if (str_key) {
-            add_assoc_double(&metrics_zv, ZSTR_VAL(str_key), zval_get_double(val));
+            dd_serialize_array_metrics_recursively(Z_ARRVAL(metrics_zv), str_key, val);
         }
     } ZEND_HASH_FOREACH_END();
 
