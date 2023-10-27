@@ -122,6 +122,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, false))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -142,6 +144,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -206,6 +210,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -230,6 +236,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -249,6 +257,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -270,6 +280,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -293,6 +305,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -318,6 +332,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -506,9 +522,13 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(array_merge(self::baseTags(), [
+                    '_dd.base_service' => 'phpunit',
+                ])),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(array_merge(self::baseTags(), [
+                    '_dd.base_service' => 'phpunit',
+                ])),
         ]);
     }
 
