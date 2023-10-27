@@ -233,6 +233,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             } elseif (strpos($key, '_dd.p.') === 0) {
                 $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
                 \DDTrace\add_distributed_tag($distributedKey, $value);
+            } elseif (is_float($value)
+                || is_int($value)
+                || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
+                $span->metrics[$key] = $value;
             } else {
                 $span->meta[$key] = $value;
             }
@@ -254,7 +258,13 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 \DDTrace\add_distributed_tag($distributedKey, $value);
                 //$this->attributesBuilder[$key] = $value; // Counts towards the attribute limit
             } elseif ($this->instrumentationScope->getName() === 'datadog') {
-                $this->span->meta[$key] = $value;
+                if (is_float($value)
+                    || is_int($value)
+                    || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
+                    $this->span->metrics[$key] = $value;
+                } else {
+                    $this->span->meta[$key] = $value;
+                }
                 $this->attributesBuilder[$key] = $value;
             } else {// TODO: Horrible workaround for now
                 $this->attributesBuilder[$key] = $value;
@@ -333,10 +343,15 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         if ($this->status->getCode() === API\StatusCode::STATUS_UNSET && $code === API\StatusCode::STATUS_ERROR) {
             $this->span->meta[Tag::ERROR_MSG] = $description;
+            $this->attributesBuilder[Tag::ERROR_MSG] = $description;
         } elseif ($this->status->getCode() === API\StatusCode::STATUS_ERROR && $code === API\StatusCode::STATUS_OK) {
             unset($this->span->meta[Tag::ERROR_MSG]);
             unset($this->span->meta[Tag::ERROR_TYPE]);
             unset($this->span->meta[Tag::ERROR_STACK]);
+
+            unset($this->attributesBuilder[Tag::ERROR_MSG]);
+            unset($this->attributesBuilder[Tag::ERROR_TYPE]);
+            unset($this->attributesBuilder[Tag::ERROR_STACK]);
         }
 
         $this->status = StatusData::create($code, $description);
@@ -352,7 +367,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->endOTelSpan($endEpochNanos);
 
         // TODO: Actually check if the span was closed (change extension to return a boolean?)
-        //close_span();
         switch_stack($this->span);
         close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
     }

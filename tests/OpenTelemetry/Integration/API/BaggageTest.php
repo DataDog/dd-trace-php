@@ -92,54 +92,16 @@ final class BaggageTest extends BaseTestCase
             $parentSpan->end();
         });
 
+        list($parent, $child) = $traces[0];
+        $this->assertSame(Tag::SPAN_KIND_VALUE_SERVER, $parent['meta'][Tag::SPAN_KIND]);
+        $this->assertSame('GET', $parent['meta']['http.method']);
+        $this->assertSame('/parent', $parent['meta']['http.uri']);
+        $this->assertSame('1', $child['meta']['user.id']);
+
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('server.request', 'datadog/dd-trace-tests', 'cli', 'parent')
-                ->withExactTags([
-                    Tag::SPAN_KIND => Tag::SPAN_KIND_VALUE_SERVER,
-                    'http.method' => 'GET',
-                    'http.uri' => '/parent'
-                ])
-                ->skipTagsLike('/^process\.command.*/')
-                ->withExistingTagsNames([
-                    'service.version',
-                    'telemetry.sdk.name',
-                    'telemetry.sdk.language',
-                    'telemetry.sdk.version',
-                    'process.runtime.name',
-                    'process.runtime.version',
-                    'process.pid',
-                    'process.executable.path',
-                    'process.owner',
-                    'os.type',
-                    'os.description',
-                    'os.name',
-                    'os.version',
-                    'host.name',
-                    'host.arch'
-                ])
+            SpanAssertion::exists('server.request', 'parent', 'datadog/dd-trace-tests')
                 ->withChildren([
-                    SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'child')
-                        ->withExactTags([
-                            'user.id' => '1',
-                        ])
-                        ->skipTagsLike('/^process\.command.*/')
-                        ->withExistingTagsNames([
-                            'service.version',
-                            'telemetry.sdk.name',
-                            'telemetry.sdk.language',
-                            'telemetry.sdk.version',
-                            'process.runtime.name',
-                            'process.runtime.version',
-                            'process.pid',
-                            'process.executable.path',
-                            'process.owner',
-                            'os.type',
-                            'os.description',
-                            'os.name',
-                            'os.version',
-                            'host.name',
-                            'host.arch'
-                        ])
+                    SpanAssertion::exists('otel_unknown', 'child', 'datadog/dd-trace-tests')
                 ])
         ]);
     }

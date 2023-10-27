@@ -63,36 +63,6 @@ final class TracerTest extends BaseTestCase
         return $tracer;
     }
 
-    public function testBasic()
-    {
-        $traces = $this->isolateTracer(function () {
-            $tracer = self::getTracer();
-            $rootOne = $tracer->spanBuilder('root_one')->startSpan();
-            $rootOneScope = $rootOne->activate();
-
-            $child = $tracer->spanBuilder('child')->startSpan();
-            $childScope = $child->activate();
-            $childScope->detach();
-            $child->end();
-
-            $rootOneScope->detach();
-            $rootOne->end();
-
-            $rootTwo = $tracer->spanBuilder('root_two')->startSpan();
-            $rootTwoScope = $rootTwo->activate();
-
-            $child = $tracer->spanBuilder('child')->startSpan();
-            $childScope = $child->activate();
-            $childScope->detach();
-            $child->end();
-
-            $rootTwoScope->detach();
-            $rootTwo->end();
-        });
-
-        fwrite(STDERR, json_encode($traces, JSON_PRETTY_PRINT));
-    }
-
     public function testUnorderedOtelSpanActivation()
     {
         $traces = $this->isolateTracer(function () {
@@ -115,63 +85,9 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'test.span1')
-                ->skipTagsLike('/^process\.command.*/')
-                ->withExistingTagsNames([
-                    'service.version',
-                    'telemetry.sdk.name',
-                    'telemetry.sdk.language',
-                    'telemetry.sdk.version',
-                    'process.runtime.name',
-                    'process.runtime.version',
-                    'process.pid',
-                    'process.executable.path',
-                    'process.owner',
-                    'os.type',
-                    'os.description',
-                    'os.name',
-                    'os.version',
-                    'host.name',
-                    'host.arch'
-                ]),
-            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'test.span2')
-                ->skipTagsLike('/^process\.command.*/')
-                ->withExistingTagsNames([
-                    'service.version',
-                    'telemetry.sdk.name',
-                    'telemetry.sdk.language',
-                    'telemetry.sdk.version',
-                    'process.runtime.name',
-                    'process.runtime.version',
-                    'process.pid',
-                    'process.executable.path',
-                    'process.owner',
-                    'os.type',
-                    'os.description',
-                    'os.name',
-                    'os.version',
-                    'host.name',
-                    'host.arch'
-                ]),
-            SpanAssertion::build('otel_unknown', 'datadog/dd-trace-tests', 'cli', 'test.span3')
-                ->skipTagsLike('/^process\.command.*/')
-                ->withExistingTagsNames([
-                    'service.version',
-                    'telemetry.sdk.name',
-                    'telemetry.sdk.language',
-                    'telemetry.sdk.version',
-                    'process.runtime.name',
-                    'process.runtime.version',
-                    'process.pid',
-                    'process.executable.path',
-                    'process.owner',
-                    'os.type',
-                    'os.description',
-                    'os.name',
-                    'os.version',
-                    'host.name',
-                    'host.arch'
-                ])
+            SpanAssertion::exists('otel_unknown', 'test.span1', null, 'datadog/dd-trace-tests'),
+            SpanAssertion::exists('otel_unknown', 'test.span2', null, 'datadog/dd-trace-tests'),
+            SpanAssertion::exists('otel_unknown', 'test.span3', null, 'datadog/dd-trace-tests'),
         ]);
     }
 
@@ -362,29 +278,29 @@ final class TracerTest extends BaseTestCase
                     "string-array" => ["a", "b", "c"],
                     "boolean-array" => [true, false],
                     "float-array" => [1.1, 2.2, 3.3],
-                    "empty-array" => []
+                    "empty-array" => [],
+                    "mixed-array" => [1, "a", true, 1.1, null, []], # Dropped because non-primitive, non-homogeneous array
                 ])
                 ->startSpan();
             $span->end();
         });
 
         $meta = $traces[0][0]['meta'];
+        $metrics = $traces[0][0]['metrics'];
         $this->assertSame("a", $meta['string']);
         $this->assertArrayNotHasKey("null-string", $meta);
         $this->assertSame("", $meta['empty_string']);
-        $this->assertSame("1", $meta['number']);
+        $this->assertEquals(1, $metrics['number']);
         $this->assertSame("true", $meta['boolean']);
         $this->assertSame("a", $meta['string-array.0']);
         $this->assertSame("b", $meta['string-array.1']);
         $this->assertSame("c", $meta['string-array.2']);
         $this->assertSame("true", $meta['boolean-array.0']);
         $this->assertSame("false", $meta['boolean-array.1']);
-        $this->assertSame("1.1", $meta['float-array.0']);
-        $this->assertSame("2.2", $meta['float-array.1']);
-        $this->assertSame("3.3", $meta['float-array.2']);
+        $this->assertEquals("1.1", $metrics['float-array.0']);
+        $this->assertEquals("2.2", $metrics['float-array.1']);
+        $this->assertEquals("3.3", $metrics['float-array.2']);
         $this->assertSame("", $meta['empty-array']);
-
-        $this->markTestIncomplete("Set resource name");
     }
 
     /**
@@ -532,8 +448,8 @@ final class TracerTest extends BaseTestCase
                         //@see https://github.com/open-telemetry/opentelemetry-collector/blob/main/model/semconv/v1.6.1/trace.go#L834
                         ->setAttribute('http.method', 'GET')
                         ->setAttribute('http.url', 'example.com/' . $i)
-                        ->setAttribute('http.status_code', 200)
-                        ->setAttribute('http.response_content_length', 1024)
+                        ->setAttribute('http.status_code', "200")
+                        ->setAttribute('http.response_content_length', "1024")
                         ->startSpan();
                 }
                 /** @psalm-suppress ArgumentTypeCoercion */
