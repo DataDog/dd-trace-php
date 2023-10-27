@@ -49,7 +49,7 @@ static mut SOCKET_SELECT_HANDLER: InternalFunctionHandler = None;
 static mut UV_RUN_HANDLER: InternalFunctionHandler = None;
 static mut EVENT_BASE_LOOP_HANDLER: InternalFunctionHandler = None;
 static mut EV_LOOP_RUN_HANDLER: InternalFunctionHandler = None;
-static mut EVENT_LOOP_HANDLER: InternalFunctionHandler = None;
+static mut EVENTBASE_LOOP_HANDLER: InternalFunctionHandler = None;
 
 fn report_wait_time(
     handler: InternalFunctionHandler,
@@ -163,15 +163,15 @@ unsafe extern "C" fn php_event_base_loop(
     );
 }
 
-/// Wrapping the PHP `\EventBase\loop()` function to take the time it is blocking the current thread
-unsafe extern "C" fn php_event_loop(
+/// Wrapping the PHP `\EventBase\loop()` method to take the time it is blocking the current thread
+unsafe extern "C" fn php_eventbase_loop(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
-    report_wait_time(EVENT_LOOP_HANDLER, execute_data, return_value, "select");
+    report_wait_time(EVENTBASE_LOOP_HANDLER, execute_data, return_value, "select");
 }
 
-/// Wrapping the PHP `\EvLoop\run()` function to take the time it is blocking the current thread
+/// Wrapping the PHP `\EvLoop\run()` method to take the time it is blocking the current thread
 unsafe extern "C" fn php_ev_loop_run(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
@@ -246,8 +246,8 @@ pub unsafe fn timeline_startup() {
         zend::datadog_php_zim_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"eventbase\0"),
             CStr::from_bytes_with_nul_unchecked(b"loop\0"),
-            &mut EVENT_LOOP_HANDLER,
-            Some(php_event_loop),
+            &mut EVENTBASE_LOOP_HANDLER,
+            Some(php_eventbase_loop),
         ),
     ];
 
