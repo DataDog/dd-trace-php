@@ -34,12 +34,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         IntegrationsLoader::load();
     }
 
-    protected function ddSetUp()
-    {
-        parent::ddSetUp();
-        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-    }
-
     /**
      * @param array|null $responseStack
      * @return Client
@@ -59,7 +53,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
             'DD_TRACE_MEMORY_LIMIT',
             'DD_TRACE_SPANS_LIMIT',
-            'DD_TRACE_GENERATE_ROOT_SPAN',
         ];
     }
 

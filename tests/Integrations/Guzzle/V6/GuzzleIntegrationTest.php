@@ -25,12 +25,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         IntegrationsLoader::load();
     }
 
-    protected function ddSetUp()
-    {
-        parent::ddSetUp();
-        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-    }
-
     protected function getMockedClient(array $responseStack = null)
     {
         $responseStack = null === $responseStack ? [new Response(200)] : $responseStack;
@@ -51,7 +45,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
-            'DD_TRACE_GENERATE_ROOT_SPAN',
         ];
     }
 

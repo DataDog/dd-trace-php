@@ -29,8 +29,6 @@ final class MemcacheTest extends IntegrationTestCase
             // Cleaning up existing data from previous tests
             $this->client->flush();
         });
-
-        $this->putEnv('DD_TRACE_GENERATE_ROOT_SPAN=0');
     }
 
     protected function envsToCleanUpAtTearDown()
@@ -170,7 +168,6 @@ final class MemcacheTest extends IntegrationTestCase
 
     public function testGet()
     {
-        $this->putEnv('DD_TRACE_GENERATE_ROOT_SPAN=true');
         $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
 
@@ -184,16 +181,16 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'get ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'get',
                     Tag::SPAN_KIND => 'client',
-                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
 
     public function testGetMissingKey()
     {
-        $this->putEnv('DD_TRACE_GENERATE_ROOT_SPAN=true');
         $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
 
@@ -207,9 +204,10 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'get ' . Obfuscation::toObfuscatedString('missing_key'),
                     'memcache.command' => 'get',
                     Tag::SPAN_KIND => 'client',
-                    '_dd.base_service' => 'phpunit',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 0,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }

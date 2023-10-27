@@ -21,8 +21,6 @@ final class AMQPTest extends IntegrationTestCase
 
     public function testConnectError()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             try {
                 $connection = new AMQPStreamConnection('rabbitmq_integration', 5673, 'guest', 'guest'); // wrong port
@@ -55,8 +53,6 @@ final class AMQPTest extends IntegrationTestCase
 
     public function testHelloWorld()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $receivedMessage = false;
         // The simplest thing that does something
         $traces = $this->isolateTracer(function () use (&$receivedMessage) {
@@ -237,8 +233,6 @@ final class AMQPTest extends IntegrationTestCase
 
     public function testRouting()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         // Receiving messages selectively
         // @see https://www.rabbitmq.com/tutorials/tutorial-four-php.html
         $receivedMessage = false;
@@ -495,8 +489,6 @@ final class AMQPTest extends IntegrationTestCase
 
     public function testCancel()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $connection = $this->connectionToServer();
             $channel = $connection->channel();
@@ -602,8 +594,6 @@ final class AMQPTest extends IntegrationTestCase
 
     public function testPublishOnClosedChannel()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $connection = $this->connectionToServer();
             $channel = $connection->channel();
@@ -676,8 +666,6 @@ final class AMQPTest extends IntegrationTestCase
 
     public function testReconnect()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $connection = $this->connectionToServer();
             $channel = $connection->channel();
@@ -749,8 +737,6 @@ final class AMQPTest extends IntegrationTestCase
 
     public function testBasicGet()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-        
         $traces = $this->isolateTracer(function () {
             $exchange = 'basic_get_test';
             $queue = 'basic_get_queue';

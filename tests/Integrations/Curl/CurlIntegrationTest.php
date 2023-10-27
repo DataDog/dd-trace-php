@@ -49,7 +49,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
             'DD_TRACE_MEMORY_LIMIT',
             'DD_TRACE_SPANS_LIMIT',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
-            'DD_TRACE_GENERATE_ROOT_SPAN',
         ];
     }
 
@@ -71,8 +70,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testLoad200UrlOnInit()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $ch = curl_init(self::URL . '/status/200');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -122,8 +119,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testLoad200UrlAsOpt()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, self::URL . '/status/200');
@@ -150,8 +145,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testInlineCredentials()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, self::URL_WITH_CREDENTIALS . '/basic-auth/my_user/my_password');
@@ -178,8 +171,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testCredentialsViaBasicAuth()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, self::URL . '/basic-auth/my_user/my_password');
@@ -215,6 +206,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             [
                 'DD_SERVICE' => 'top_level_app',
                 'DD_TRACE_NO_AUTOLOADER' => true,
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             ]
         );
 
@@ -229,8 +221,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                             'span.kind' => 'client',
                             'network.destination.name' => 'httpbin_integration',
-                            '_dd.base_service' => 'top_level_app',
                             Tag::COMPONENT => 'curl',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),
@@ -240,8 +232,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testPrivateCallbackForResponseHeaders()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $foo = new PrivateCallbackRequest();
             $response = $foo->request();
@@ -265,8 +255,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testLoad404UrlOnInit()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $ch = curl_init(self::URL . '/status/404');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -292,8 +280,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testLoadUnroutableIP()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, "http://10.255.255.1/");
@@ -322,8 +308,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testLoadOperationTimeout()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, "http://10.255.255.1/");
@@ -352,8 +336,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testNonExistingHost()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-
         $traces = $this->isolateTracer(function () {
             $ch = curl_init(self::URL_NOT_EXISTS);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -393,7 +375,10 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     ]
                 )), 1);
             },
-            __DIR__ . '/curl_request_headers.php'
+            __DIR__ . '/curl_request_headers.php',
+            [
+                'DD_TRACE_GENERATE_ROOT_SPAN' => true,
+            ]
         );
 
         $this->assertSame('foo_origin', $found['headers']['X-Datadog-Origin']);
@@ -486,7 +471,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testAppendHostnameToServiceName()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
 
         $traces = $this->isolateTracer(function () {
@@ -519,7 +503,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testAppendHostnameToServiceNameInlineCredentials()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         self::putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
 
         $traces = $this->isolateTracer(function () {
@@ -574,7 +557,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
      */
     public function testTraceAnalytics($envsOverride, $expectedSampleRate)
     {
-        $env = array_merge(['DD_SERVICE' => 'top_level_app'], $envsOverride);
+        $env = array_merge(['DD_SERVICE' => 'top_level_app', 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true'], $envsOverride);
 
         $traces = $this->inWebServer(
             function ($execute) {
@@ -601,8 +584,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                             'span.kind' => 'client',
                             'network.destination.name' => 'httpbin_integration',
-                            '_dd.base_service' => 'top_level_app',
                             Tag::COMPONENT => 'curl',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),
@@ -695,7 +678,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     'peer.service' => 'httpbin_integration',
                     '_dd.peer.service.source' => 'network.destination.name',
-                    '_dd.base_service' => 'phpunit'
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -707,6 +689,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig([
             'DD_SERVICE=configured_service',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+            'DD_TRACE_GENERATE_ROOT_SPAN=true',
         ]);
 
         $traces = $this->isolateTracer(function () {
