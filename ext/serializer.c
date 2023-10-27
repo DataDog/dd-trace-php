@@ -915,7 +915,6 @@ static void dd_serialize_array_recursively(zend_array *target, zend_string *str,
 #endif
     } else if (convert_to_double) {
         zval val_as_double;
-        zval_dtor(value);
         ZVAL_DOUBLE(&val_as_double, zval_get_double(value));
         zend_hash_update(target, str, &val_as_double);
     } else {
