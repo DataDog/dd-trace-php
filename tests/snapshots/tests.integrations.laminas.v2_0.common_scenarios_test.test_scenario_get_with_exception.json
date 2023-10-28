@@ -245,7 +245,7 @@
               {
                 "name": "laminas.mvcEvent.setError",
                 "service": "test_laminas_20",
-                "resource": "laminas.mvcEvent.setError",
+                "resource": "error-exception",
                 "trace_id": 0,
                 "span_id": 20,
                 "parent_id": 14,

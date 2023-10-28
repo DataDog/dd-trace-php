@@ -49,6 +49,14 @@
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 
+static inline zval *ddtrace_assign_variable(zval *variable_ptr, zval *value) {
+#if PHP_VERSION_ID < 70400
+    return zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR);
+#else
+    return zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, false);
+#endif
+}
+
 #if PHP_VERSION_ID < 70100
 #define IS_VOID 0
 #define MAY_BE_NULL 0

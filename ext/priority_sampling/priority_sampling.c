@@ -37,8 +37,8 @@ void ddtrace_try_read_agent_rate(void) {
 static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span, enum dd_sampling_mechanism mechanism) {
     zend_array *meta = ddtrace_property_array(&root_span->property_meta);
 
-    zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_span(root_span);
-    if (DDTRACE_G(propagated_priority_sampling) == sampling_priority) {
+    zend_long sampling_priority = ddtrace_fetch_priority_sampling_from_span(root_span);
+    if (Z_TYPE(root_span->property_propagated_sampling_priority) != IS_UNDEF && zval_get_long(&root_span->property_propagated_sampling_priority) == sampling_priority) {
         return;
     }
 
@@ -153,13 +153,12 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
     zval priority_zv;
     ZVAL_LONG(&priority_zv, priority);
-    zend_hash_str_update(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_sampling_priority_v1"),
-                         &priority_zv);
+    ddtrace_assign_variable(&span->property_sampling_priority, &priority_zv);
 
     dd_update_decision_maker_tag(span, mechanism);
 }
 
-zend_long ddtrace_fetch_prioritySampling_from_root(void) {
+zend_long ddtrace_fetch_priority_sampling_from_root(void) {
     if (!DDTRACE_G(active_stack)->root_span) {
         if (DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNSET) {
             return DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
@@ -167,39 +166,42 @@ zend_long ddtrace_fetch_prioritySampling_from_root(void) {
         return DDTRACE_G(default_priority_sampling);
     }
 
-    return ddtrace_fetch_prioritySampling_from_span(DDTRACE_G(active_stack)->root_span);
+    return ddtrace_fetch_priority_sampling_from_span(DDTRACE_G(active_stack)->root_span);
 }
 
-zend_long ddtrace_fetch_prioritySampling_from_span(ddtrace_root_span_data *root_span) {
-    zval *priority_zv;
-    zend_array *root_metrics = ddtrace_property_array(&root_span->property_metrics);
-    if (!(priority_zv = zend_hash_str_find(root_metrics, ZEND_STRL("_sampling_priority_v1")))) {
-        if (DDTRACE_G(default_priority_sampling) == DDTRACE_PRIORITY_SAMPLING_UNSET) {
-            return DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
-        }
-
-        dd_decide_on_sampling(root_span);
-        priority_zv = zend_hash_str_find(root_metrics, ZEND_STRL("_sampling_priority_v1"));
+zend_long ddtrace_fetch_priority_sampling_from_span(ddtrace_root_span_data *root_span) {
+    if (Z_TYPE(root_span->property_sampling_priority) == IS_UNDEF) {
+        return DDTRACE_PRIORITY_SAMPLING_UNSET;
     }
 
-    return zval_get_long(priority_zv);
+    int sampling_priority = zval_get_long(&root_span->property_sampling_priority);
+    if (sampling_priority == DDTRACE_PRIORITY_SAMPLING_UNKNOWN && DDTRACE_G(default_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
+        dd_decide_on_sampling(root_span);
+        sampling_priority = zval_get_long(&root_span->property_sampling_priority);
+    }
+    return sampling_priority;
 }
 
-void ddtrace_set_prioritySampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism) {
+DDTRACE_PUBLIC void ddtrace_set_priority_sampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism) {
     ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
 
     if (!root_span) {
         return;
     }
 
-    zend_array *root_metrics = ddtrace_property_array(&root_span->property_metrics);
-    if (priority == DDTRACE_PRIORITY_SAMPLING_UNKNOWN || priority == DDTRACE_PRIORITY_SAMPLING_UNSET) {
-        zend_hash_str_del(root_metrics, ZEND_STRL("_sampling_priority_v1"));
-    } else {
-        zval zv;
-        ZVAL_LONG(&zv, priority);
-        zend_hash_str_update(root_metrics, ZEND_STRL("_sampling_priority_v1"), &zv);
+    ddtrace_set_priority_sampling_on_span(root_span, priority, mechanism);
+}
 
+void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, zend_long priority, enum dd_sampling_mechanism mechanism) {
+    zval zv;
+    if (priority == DDTRACE_PRIORITY_SAMPLING_UNSET) {
+        ZVAL_UNDEF(&zv);
+    } else {
+        ZVAL_LONG(&zv, priority);
+    }
+    ddtrace_assign_variable(&root_span->property_sampling_priority, &zv);
+
+    if (priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN && priority != DDTRACE_PRIORITY_SAMPLING_UNSET) {
         dd_update_decision_maker_tag(root_span, mechanism);
     }
 }

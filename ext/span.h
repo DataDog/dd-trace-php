@@ -57,8 +57,6 @@ typedef union ddtrace_span_properties {
 // Spans keep a ref to their parents (parent span property)
 // Open spans as well as flushed spans keep a reference to the span stack
 struct ddtrace_span_data {
-    ddtrace_trace_id trace_id;
-    uint64_t parent_id;
     uint64_t span_id;
     uint64_t start;
     uint64_t duration_start;
@@ -82,10 +80,22 @@ static inline ddtrace_span_data *SPANDATA(ddtrace_span_properties *obj) {
 }
 
 struct ddtrace_root_span_data {
+    ddtrace_trace_id trace_id;
+    uint64_t parent_id;
+
     union {
         ddtrace_span_data;
         ddtrace_span_data span;
     };
+
+    zval property_origin;
+    zval property_propagated_tags;
+    zval property_sampling_priority;
+    zval property_propagated_sampling_priority;
+    zval property_tracestate;
+    zval property_tracestate_tags;
+    zval property_parent_id;
+    zval property_trace_id;
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
@@ -181,6 +191,11 @@ bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value);
 
 static inline bool ddtrace_span_is_dropped(ddtrace_span_data *span) {
     return span->duration == DDTRACE_DROPPED_SPAN || span->duration == DDTRACE_SILENTLY_DROPPED_SPAN;
+}
+
+static inline bool ddtrace_span_is_entrypoint_root(ddtrace_span_data *span) {
+    // The parent stack of a true top-level stack does never have a parent stack itself
+    return span->std.ce == ddtrace_ce_root_span_data && (!span->stack->parent_stack || !span->stack->parent_stack->parent_stack);
 }
 
 #endif  // DD_SPAN_H

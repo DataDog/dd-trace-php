@@ -139,6 +139,7 @@ static ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type, zend
 
 ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     ddtrace_span_stack *stack = DDTRACE_G(active_stack);
+    // The primary stack is ancestor to all stacks, which signifies that any root spans created on top of it will inherit the distributed tracing context
     bool primary_stack = stack->parent_stack == NULL;
 
     if (primary_stack) {
@@ -163,23 +164,6 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 
     span->span_id = ddtrace_generate_span_id();
-    // if not a root span or the true root span (distributed tracing)
-    if (!root_span || primary_stack) {
-        // Inherit from our current parent
-        span->parent_id = ddtrace_peek_span_id();
-        span->trace_id = ddtrace_peek_trace_id();
-        if (span->trace_id.high == 0 && span->trace_id.low == 0) {
-            goto set_trace_id_from_span_id;
-        }
-    } else {
-        // custom new traces
-        span->parent_id = 0;
-set_trace_id_from_span_id:
-        span->trace_id = (ddtrace_trace_id){
-            .low = span->span_id,
-            .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / UINT64_C(1000000000) : 0,
-        };
-    }
 
     ddtrace_span_data *parent_span = SPANDATA(DDTRACE_G(active_stack)->active);
     ZVAL_OBJ(&DDTRACE_G(active_stack)->property_active, &span->std);
@@ -189,12 +173,24 @@ set_trace_id_from_span_id:
     GC_ADDREF(&span->std);
 
     if (root_span) {
-        DDTRACE_G(active_stack)->root_span = ROOTSPANDATA(&span->std);
+        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
+        DDTRACE_G(active_stack)->root_span = root;
+
+        if (primary_stack && (DDTRACE_G(distributed_trace_id).low || DDTRACE_G(distributed_trace_id).high)) {
+            root->trace_id = DDTRACE_G(distributed_trace_id);
+            root->parent_id = DDTRACE_G(distributed_parent_trace_id);
+        } else {
+            root->trace_id = (ddtrace_trace_id) {
+                    .low = span->span_id,
+                    .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / UINT64_C(1000000000) : 0,
+            };
+            root->parent_id = 0;
+        }
 
         ZVAL_NULL(&span->property_parent);
         span->parent = NULL;
 
-        ddtrace_set_root_span_properties(span);
+        ddtrace_set_root_span_properties(root);
     } else {
         // do not copy the parent, it was active span before, just transfer that reference
         ZVAL_OBJ(&span->property_parent, &parent_span->std);
@@ -216,12 +212,6 @@ set_trace_id_from_span_id:
         if ((env = zend_hash_str_find(parent_meta, ZEND_STRL("env")))) {
             Z_TRY_ADDREF_P(env);
             zend_hash_str_add_new(meta, ZEND_STRL("env"), env);
-        }
-
-        zval *origin;
-        if ((origin = zend_hash_str_find(parent_meta, ZEND_STRL("_dd.origin")))) {
-            Z_TRY_ADDREF_P(origin);
-            zend_hash_str_add_new(meta, ZEND_STRL("_dd.origin"), origin);
         }
     }
 
@@ -527,7 +517,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
             stack->root_span = NULL;
 
             // Enforce a sampling decision here
-            ddtrace_fetch_prioritySampling_from_span(root_span);
+            ddtrace_fetch_priority_sampling_from_span(root_span);
         }
         if (stack == stack->root_stack && DDTRACE_G(active_stack) == stack) {
             // We are always active stack except if ddtrace_close_top_span_without_stack_swap is used
@@ -665,7 +655,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     // As a special case dropping a root span rejects it to avoid traces without root span
     // It's safe to just drop RC=2 root spans, they're referenced nowhere else
     if (&stack->root_span->span == span && GC_REFCOUNT(&span->std) > 2) {
-        ddtrace_set_prioritySampling_on_root(PRIORITY_SAMPLING_USER_REJECT, DD_MECHANISM_MANUAL);
+        ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_USER_REJECT, DD_MECHANISM_MANUAL);
         dd_trace_stop_span_time(span);
         ddtrace_close_span(span);
         return;

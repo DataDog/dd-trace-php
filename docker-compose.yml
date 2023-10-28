@@ -106,13 +106,19 @@ services:
 
   elasticsearch7_integration:
     image: "elasticsearch:7.17.0"
+    container_name: "elasticsearch7_integration"
     environment:
       - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
     cap_add:
       - IPC_LOCK
     ports:
       - "9200:9200"
       - "9300:9300"
+    ulimits:
+        memlock:
+            soft: -1
+            hard: -1
 
   mongodb_integration:
     image: "circleci/mongo:4.0"

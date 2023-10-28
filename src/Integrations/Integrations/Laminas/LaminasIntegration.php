@@ -9,21 +9,47 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
+use DDTrace\Util\ObjectKVStore;
+use Laminas\ApiTools\ApiProblem\ApiProblemResponse;
 use Laminas\EventManager\EventInterface;
 use Laminas\Mvc\MvcEvent;
 use Laminas\Router\RouteMatch;
 use Laminas\Stdlib\RequestInterface;
 use Laminas\View\Model\ModelInterface;
 
+use function DDTrace\active_span;
 use function DDTrace\hook_method;
 use function DDTrace\install_hook;
 use function DDTrace\logs_correlation_trace_id;
+use function DDTrace\remove_hook;
 use function DDTrace\root_span;
 use function DDTrace\trace_method;
 
 class LaminasIntegration extends Integration
 {
     const NAME = 'laminas';
+
+    // \Laminas\Mvc\Application is not necessarily loaded (e.g., Laminas Log), hence the raw strings
+    static $ERROR_TYPES = [
+        'error-controller-cannot-dispatch',
+        'error-controller-not-found',
+        'error-controller-invalid',
+        'error-exception',
+        'error-router-no-match',
+        'error-middleware-cannot-dispatch'
+    ];
+
+    static $EVENT_TYPES = [
+        'create',
+        'delete',
+        'deleteList',
+        'fetch',
+        'fetchAll',
+        'patch',
+        'patchList',
+        'replaceList',
+        'update'
+    ];
 
     public function getName()
     {
@@ -159,6 +185,12 @@ class LaminasIntegration extends Integration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->meta[Tag::COMPONENT] = 'laminas';
+
+                $rootSpan = root_span();
+                $rootSpan->name = 'laminas.request';
+                $rootSpan->service = \ddtrace_config_app_name('laminas');
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->meta[Tag::COMPONENT] = LaminasIntegration::NAME;
             }
         );
 
@@ -201,17 +233,9 @@ class LaminasIntegration extends Integration
                 'prehook' => function (SpanData $span) {
                     $service = \ddtrace_config_app_name('laminas');
                     $span->name = 'laminas.application.run';
-                    $span->resource = 'laminas.application.run';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
                     $span->meta[Tag::COMPONENT] = 'laminas';
-
-
-                    $rootSpan = root_span();
-                    $rootSpan->name = 'laminas.request';
-                    $rootSpan->service = $service;
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    $rootSpan->meta[Tag::COMPONENT] = LaminasIntegration::NAME;
                 }
             ]
         );
@@ -342,8 +366,7 @@ class LaminasIntegration extends Integration
                     $nameOrModel = $args[0];
                     if (is_string($nameOrModel)) {
                         $span->resource = $nameOrModel;
-                    } else {
-                        /** @var ModelInterface $nameOrModel */
+                    } elseif ($nameOrModel instanceof ModelInterface) {
                         $span->resource = $nameOrModel->getTemplate();
                     }
                 },
@@ -426,6 +449,12 @@ class LaminasIntegration extends Integration
                 /** @var MvcEvent $event */
                 $event = $retval;
 
+                /** @var string $errorType */
+                $errorType = $args[0];
+                if (isset($errorType, LaminasIntegration::$ERROR_TYPES)) {
+                    $span->resource = $errorType;
+                }
+
                 $exception = $event->getParam('exception');
                 if ($exception) {
                     $integration->setError(root_span(), $exception);
@@ -463,6 +492,128 @@ class LaminasIntegration extends Integration
             }
         );
 
+        // REST
+        hook_method(
+            'Laminas\ApiTools\Rest\AbstractResourceListener',
+            'dispatch',
+            function ($This, $scope, $args) use ($integration) {
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return false;
+                }
+
+                /** @var \Laminas\ApiTools\Rest\ResourceEvent $event */
+                $event = $args[0];
+                $eventName = $event->getName();
+                $controller = $scope;
+                $routeName = $event->getRouteMatch()->getMatchedRouteName();
+
+                $rootSpan->resource = "$controller@$eventName $routeName";
+                $rootSpan->meta['laminas.route.name'] = $routeName;
+                $rootSpan->meta['laminas.route.action'] = $controller . '@' . $eventName;
+
+                if (isset($eventName, LaminasIntegration::$EVENT_TYPES)) {
+                    install_hook(
+                        "$controller::$eventName",
+                        function (HookData $hook) use ($controller, $eventName) {
+                            $span = $hook->span();
+                            $span->name = 'laminas.controller.action';
+                            $span->resource = "$controller@$eventName";
+                            $span->meta[Tag::COMPONENT] = 'laminas';
+                            remove_hook($hook->id);
+                        }
+                    );
+                }
+            }
+        );
+
+        // ApiProblem
+        install_hook(
+            'Laminas\ApiTools\ApiProblem\ApiProblem::__construct',
+            function (HookData $hook) use ($integration) {
+                $args = $hook->args;
+                $detail = $args[1] ?? null;
+                $activeSpan = active_span();
+                if ($detail instanceof \Throwable || $detail instanceof \Exception) {
+                    if ($activeSpan !== null && !isset($activeSpan->meta[Tag::ERROR_TYPE])) {
+                        $integration->setError($activeSpan, $detail);
+                    }
+                } elseif (is_string($detail)) {
+                    // Removes the first two frames, which are the constructor and the hook
+                    $stack = debug_backtrace();
+                    array_shift($stack);
+                    array_shift($stack);
+                    $backtrace = LaminasIntegration::debugBacktraceToString($stack);
+
+                    ObjectKVStore::put($this, 'backtrace', $backtrace);
+
+                    if ($activeSpan !== null && !isset($activeSpan->meta[Tag::ERROR_TYPE])) {
+                        $activeSpan->meta[Tag::ERROR_TYPE] = 'ApiProblem';
+                        $activeSpan->meta[Tag::ERROR_MSG] = $detail;
+                        $activeSpan->meta[Tag::ERROR_STACK] = $backtrace;
+                    }
+                } // There shouldn't be any other case, per the ApiProblem spec
+            }
+        );
+
+        hook_method(
+            'Laminas\ApiTools\ApiProblem\Listener\SendApiProblemResponseListener',
+            'sendContent',
+            null,
+            function ($This, $scope, $args) use ($integration) {
+                $rootSpan = root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
+                /** @var \Laminas\Mvc\ResponseSender\SendResponseEvent $e */
+                $e = $args[0];
+                $response = $e->getResponse();
+                if ($response instanceof ApiProblemResponse) {
+                    $apiProblem = $response->getApiProblem();
+                    $detail = $apiProblem->detail; // __get
+                    $status = $apiProblem->status; // __get
+                    if ($status < 500) {
+                        return; // Only set 5xx on the root span
+                    }
+
+                    if ($detail instanceof \Throwable || $detail instanceof \Exception) {
+                        $integration->setError($rootSpan, $detail);
+                    } elseif (is_string($detail)) {
+                        $title = $apiProblem->title; // __get
+                        $rootSpan->meta[Tag::ERROR_TYPE] = $title ?: 'ApiProblem';
+                        $rootSpan->meta[Tag::ERROR_MSG] = $detail;
+
+                        $backtrace = ObjectKVStore::get($apiProblem, 'backtrace');
+                        if ($backtrace !== null) {
+                            $rootSpan->meta[Tag::ERROR_STACK] = $backtrace;
+                        }
+                    } // There shouldn't be any other case, per the ApiProblem spec
+                }
+            }
+        );
+
+
         return Integration::LOADED;
+    }
+
+    public static function debugBacktraceToString(array $backtrace)
+    {
+        // (methods) #<frame index> <file>(line): <class><type><function>()\n
+        // (functions) #<frame index> <file>(line): <function>()\n
+        $result = '';
+        foreach ($backtrace as $idx => $frame) {
+            $result .= sprintf(
+                "#%d %s(%d): ",
+                $idx,
+                $frame['file'] ?? '<unknown file>',
+                $frame['line'] ?? '?'
+            );
+            if (isset($frame['class'])) {
+                $result .= $frame['class'] . $frame['type'];
+            }
+            $result .= $frame['function'] . "()\n"; // Args aren't shown
+        }
+        return $result;
     }
 }

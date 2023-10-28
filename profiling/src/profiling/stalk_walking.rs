@@ -359,7 +359,6 @@ unsafe fn collect_call_frame(
     }
 }
 
-// todo: fix this to use the new string table
 #[cfg(not(php_run_time_cache))]
 unsafe fn collect_call_frame(
     execute_data: &zend_execute_data,
@@ -372,7 +371,7 @@ unsafe fn collect_call_frame(
         // Only create a new frame if there's file or function info.
         if file.is_some() || function.is_some() {
             // If there's no function name, use a fake name.
-            // todo: fix panic and hardcoded string
+            // todo: fix hard-coded string.
             let name = function.unwrap_or(StringId::new(1));
 
             let file = file.unwrap_or(StringId::ZERO);

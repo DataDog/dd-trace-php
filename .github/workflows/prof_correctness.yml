@@ -60,7 +60,7 @@ jobs:
           export DD_PROFILING_LOG_LEVEL=trace
           export DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED=1
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=1
-          export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMLPING_DISTANCE=1
+          export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
           php -d extension=target/release/libdatadog_php_profiling.so -v
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
               mkdir -p profiling/tests/correctness/"$test_case"/

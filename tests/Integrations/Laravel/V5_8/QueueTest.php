@@ -186,7 +186,6 @@ class QueueTest extends WebFrameworkTestCase
             $processTrace1,
             [
                 $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
-                    ->withExistingTagsNames([Tag::HTTP_URL, Tag::HTTP_METHOD, Tag::HTTP_STATUS_CODE])
                     ->setError('Exception', 'Triggered Exception', true)
                     ->withChildren([
                         $this->spanQueueResolve('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails'),
@@ -374,18 +373,15 @@ class QueueTest extends WebFrameworkTestCase
     protected function spanProcessOneJob(
         $connection = 'database',
         $queue = 'emails',
-        $resourceDetails = 'App\Jobs\SendVerificationEmail'
+        $resourceDetails = 'App\Jobs\SendVerificationEmail',
+        $isRootSpan = false
     ) {
         return SpanAssertion::build(
             'laravel.queue.process',
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags([
-            Tag::HTTP_URL => 'http://localhost:9999/queue/workOn',
-            Tag::HTTP_METHOD => 'GET',
-            Tag::HTTP_STATUS_CODE => 200
-        ])->withExactTags(
+        )->withExactTags(
             $this->getCommonTags('receive', $queue, $connection)
         )->withExistingTagsNames([
             Tag::MQ_MESSAGE_ID,

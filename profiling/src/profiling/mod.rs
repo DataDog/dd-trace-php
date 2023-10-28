@@ -48,6 +48,9 @@ use crate::exception::EXCEPTION_PROFILING_INTERVAL;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
+#[cfg(feature = "timeline")]
+pub const NO_TIMESTAMP: i64 = 0;
+
 // Guide: upload period / upload timeout should give about the order of
 // magnitude for the capacity.
 const UPLOAD_CHANNEL_CAPACITY: usize = 8;
@@ -714,7 +717,7 @@ impl Profiler {
                     },
                     labels,
                     locals,
-                    0,
+                    NO_TIMESTAMP,
                 )) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler."
@@ -758,7 +761,7 @@ impl Profiler {
                     },
                     labels,
                     locals,
-                    0,
+                    NO_TIMESTAMP,
                 )) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels with Exception {exception} to profiler."
@@ -1115,7 +1118,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
 
         assert_eq!(message.key.sample_types, vec![]);
         let expected: Vec<i64> = vec![];
@@ -1133,7 +1136,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
 
         assert_eq!(
             message.key.sample_types,
@@ -1156,7 +1159,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
 
         assert_eq!(
             message.key.sample_types,
@@ -1180,7 +1183,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
 
         assert_eq!(
             message.key.sample_types,
@@ -1205,7 +1208,7 @@ mod tests {
         locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
 
         assert_eq!(
             message.key.sample_types,
@@ -1259,7 +1262,7 @@ mod tests {
         locals.profiling_experimental_exception_enabled = true;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, 0);
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
 
         assert_eq!(
             message.key.sample_types,

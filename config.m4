@@ -133,6 +133,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/coms.c \
     ext/configuration.c \
     ext/ddshared.c \
+    ext/distributed_tracing_headers.c \
     ext/dogstatsd_client.c \
     ext/engine_api.c \
     ext/engine_hooks.c \

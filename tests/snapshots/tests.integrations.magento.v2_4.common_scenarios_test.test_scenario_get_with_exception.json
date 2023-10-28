@@ -1,0 +1,301 @@
+[[
+  {
+    "name": "magento.request",
+    "service": "magento",
+    "resource": "datadog/error/index",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 17066559654549918685,
+    "type": "web",
+    "error": 1,
+    "meta": {
+      "_dd.p.dm": "-1",
+      "component": "magento",
+      "error.message": "Caught Exception (500): This is an exception in /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/CustomElement/Datadog/Controller/error/Index.php:15",
+      "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): CustomElement\\Datadog\\Controller\\Error\\Index->execute()\n#1 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#2 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#3 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(23): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#4 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Action/Action.php(111): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->execute()\n#5 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\Action\\Action->dispatch()\n#6 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#7 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#8 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(32): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#9 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(245): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->dispatch()\n#10 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(212): Magento\\Framework\\App\\FrontController->getActionResponse()\n#11 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(147): Magento\\Framework\\App\\FrontController->processRequest()\n#12 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\FrontController->dispatch()\n#13 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): Magento\\Framework\\App\\FrontController\\Interceptor->___callParent()\n#14 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/Store/App/FrontController/Plugin/RequestPreprocessor.php(99): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#15 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\Store\\App\\FrontController\\Plugin\\RequestPreprocessor->aroundDispatch()\n#16 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/PageCache/Model/App/FrontController/BuiltinPlugin.php(75): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#17 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\PageCache\\Model\\App\\FrontController\\BuiltinPlugin->aroundDispatch()\n#18 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#19 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/FrontController/Interceptor.php(23): Magento\\Framework\\App\\FrontController\\Interceptor->___callPlugins()\n#20 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Http.php(116): Magento\\Framework\\App\\FrontController\\Interceptor->dispatch()\n#21 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/Http/Interceptor.php(23): Magento\\Framework\\App\\Http->launch()\n#22 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Bootstrap.php(264): Magento\\Framework\\App\\Http\\Interceptor->launch()\n#23 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/pub/index.php(30): Magento\\Framework\\App\\Bootstrap->run()\n#24 {main}",
+      "error.type": "Exception",
+      "http.method": "GET",
+      "http.status_code": "500",
+      "http.url": "http://localhost:9999/datadog/error/index?key=value&<redacted>",
+      "magento.area": "frontend",
+      "magento.cached": "false",
+      "magento.frontname": "datadog",
+      "magento.pathinfo": "datadog/error/index",
+      "magento.route": "datadog",
+      "runtime-id": "62062b5c-c5d9-4cef-940b-611b74ad91b5",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "magento.bootstrap",
+       "service": "magento",
+       "resource": "magento.bootstrap",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "magento"
+       }
+     },
+     {
+       "name": "magento.create.application",
+       "service": "magento",
+       "resource": "Magento\\Framework\\App\\Http",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "magento"
+       }
+     },
+     {
+       "name": "magento.launch",
+       "service": "magento",
+       "resource": "Magento\\Framework\\App\\Http",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "web",
+       "error": 1,
+       "meta": {
+         "component": "magento",
+         "error.message": "Thrown Exception (500): This is an exception in /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/CustomElement/Datadog/Controller/error/Index.php:15",
+         "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): CustomElement\\Datadog\\Controller\\Error\\Index->execute()\n#1 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#2 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#3 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(23): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#4 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Action/Action.php(111): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->execute()\n#5 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\Action\\Action->dispatch()\n#6 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#7 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#8 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(32): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#9 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(245): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->dispatch()\n#10 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(212): Magento\\Framework\\App\\FrontController->getActionResponse()\n#11 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(147): Magento\\Framework\\App\\FrontController->processRequest()\n#12 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\FrontController->dispatch()\n#13 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): Magento\\Framework\\App\\FrontController\\Interceptor->___callParent()\n#14 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/Store/App/FrontController/Plugin/RequestPreprocessor.php(99): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#15 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\Store\\App\\FrontController\\Plugin\\RequestPreprocessor->aroundDispatch()\n#16 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/PageCache/Model/App/FrontController/BuiltinPlugin.php(75): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#17 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\PageCache\\Model\\App\\FrontController\\BuiltinPlugin->aroundDispatch()\n#18 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#19 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/FrontController/Interceptor.php(23): Magento\\Framework\\App\\FrontController\\Interceptor->___callPlugins()\n#20 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Http.php(116): Magento\\Framework\\App\\FrontController\\Interceptor->dispatch()\n#21 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/Http/Interceptor.php(23): Magento\\Framework\\App\\Http->launch()\n#22 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Bootstrap.php(264): Magento\\Framework\\App\\Http\\Interceptor->launch()\n#23 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/pub/index.php(30): Magento\\Framework\\App\\Bootstrap->run()\n#24 {main}",
+         "error.type": "Exception"
+       }
+     },
+        {
+          "name": "magento.area.get",
+          "service": "magento",
+          "resource": "datadog:frontend",
+          "trace_id": 0,
+          "span_id": 6,
+          "parent_id": 4,
+          "type": "web",
+          "meta": {
+            "component": "magento",
+            "magento.area": "frontend",
+            "magento.frontname": "datadog"
+          }
+        },
+        {
+          "name": "magento.dispatch",
+          "service": "magento",
+          "resource": "Magento\\Framework\\App\\FrontController",
+          "trace_id": 0,
+          "span_id": 7,
+          "parent_id": 4,
+          "type": "web",
+          "error": 1,
+          "meta": {
+            "component": "magento",
+            "error.message": "Thrown Exception (500): This is an exception in /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/CustomElement/Datadog/Controller/error/Index.php:15",
+            "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): CustomElement\\Datadog\\Controller\\Error\\Index->execute()\n#1 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#2 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#3 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(23): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#4 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Action/Action.php(111): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->execute()\n#5 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\Action\\Action->dispatch()\n#6 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#7 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#8 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(32): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#9 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(245): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->dispatch()\n#10 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(212): Magento\\Framework\\App\\FrontController->getActionResponse()\n#11 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(147): Magento\\Framework\\App\\FrontController->processRequest()\n#12 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\FrontController->dispatch()\n#13 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): Magento\\Framework\\App\\FrontController\\Interceptor->___callParent()\n#14 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/Store/App/FrontController/Plugin/RequestPreprocessor.php(99): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#15 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\Store\\App\\FrontController\\Plugin\\RequestPreprocessor->aroundDispatch()\n#16 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/PageCache/Model/App/FrontController/BuiltinPlugin.php(75): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#17 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\PageCache\\Model\\App\\FrontController\\BuiltinPlugin->aroundDispatch()\n#18 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#19 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/FrontController/Interceptor.php(23): Magento\\Framework\\App\\FrontController\\Interceptor->___callPlugins()\n#20 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Http.php(116): Magento\\Framework\\App\\FrontController\\Interceptor->dispatch()\n#21 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/Http/Interceptor.php(23): Magento\\Framework\\App\\Http->launch()\n#22 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Bootstrap.php(264): Magento\\Framework\\App\\Http\\Interceptor->launch()\n#23 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/pub/index.php(30): Magento\\Framework\\App\\Bootstrap->run()\n#24 {main}",
+            "error.type": "Exception"
+          }
+        },
+           {
+             "name": "magento.urlrewrite.match",
+             "service": "magento",
+             "resource": "magento.urlrewrite.match",
+             "trace_id": 0,
+             "span_id": 8,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "magento",
+               "magento.urlrewrite.path": "/datadog/error/index"
+             }
+           },
+           {
+             "name": "magento.router.match",
+             "service": "magento",
+             "resource": "datadog/error/index",
+             "trace_id": 0,
+             "span_id": 9,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "magento",
+               "magento.router.action": "index",
+               "magento.router.controller": "error",
+               "magento.router.controller_module": "CustomElement_Datadog",
+               "magento.router.frontname": "datadog",
+               "magento.router.module": "datadog",
+               "magento.router.route": "datadog"
+             }
+           },
+           {
+             "name": "magento.process.request",
+             "service": "magento",
+             "resource": "Magento\\Framework\\App\\FrontController",
+             "trace_id": 0,
+             "span_id": 10,
+             "parent_id": 7,
+             "type": "web",
+             "error": 1,
+             "meta": {
+               "component": "magento",
+               "error.message": "Thrown Exception (500): This is an exception in /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/CustomElement/Datadog/Controller/error/Index.php:15",
+               "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): CustomElement\\Datadog\\Controller\\Error\\Index->execute()\n#1 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#2 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#3 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(23): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#4 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Action/Action.php(111): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->execute()\n#5 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\Action\\Action->dispatch()\n#6 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#7 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#8 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(32): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#9 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(245): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->dispatch()\n#10 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(212): Magento\\Framework\\App\\FrontController->getActionResponse()\n#11 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(147): Magento\\Framework\\App\\FrontController->processRequest()\n#12 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\FrontController->dispatch()\n#13 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): Magento\\Framework\\App\\FrontController\\Interceptor->___callParent()\n#14 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/Store/App/FrontController/Plugin/RequestPreprocessor.php(99): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#15 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\Store\\App\\FrontController\\Plugin\\RequestPreprocessor->aroundDispatch()\n#16 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/PageCache/Model/App/FrontController/BuiltinPlugin.php(75): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#17 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\PageCache\\Model\\App\\FrontController\\BuiltinPlugin->aroundDispatch()\n#18 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#19 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/FrontController/Interceptor.php(23): Magento\\Framework\\App\\FrontController\\Interceptor->___callPlugins()\n#20 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Http.php(116): Magento\\Framework\\App\\FrontController\\Interceptor->dispatch()\n#21 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/Http/Interceptor.php(23): Magento\\Framework\\App\\Http->launch()\n#22 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Bootstrap.php(264): Magento\\Framework\\App\\Http\\Interceptor->launch()\n#23 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/pub/index.php(30): Magento\\Framework\\App\\Bootstrap->run()\n#24 {main}",
+               "error.type": "Exception"
+             }
+           },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Customer\\Observer\\Visitor\\InitByRequestObserver",
+                "trace_id": 0,
+                "span_id": 11,
+                "parent_id": 10,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\NewRelicReporting\\Model\\Observer\\ReportConcurrentUsers",
+                "trace_id": 0,
+                "span_id": 12,
+                "parent_id": 10,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\NewRelicReporting\\Model\\Observer\\ReportConcurrentUsersToNewRelic",
+                "trace_id": 0,
+                "span_id": 13,
+                "parent_id": 10,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Persistent\\Observer\\SynchronizePersistentInfoObserver",
+                "trace_id": 0,
+                "span_id": 14,
+                "parent_id": 10,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Persistent\\Observer\\EmulateQuoteObserver",
+                "trace_id": 0,
+                "span_id": 15,
+                "parent_id": 10,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Persistent\\Observer\\RenewCookieObserver",
+                "trace_id": 0,
+                "span_id": 16,
+                "parent_id": 10,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Persistent\\Observer\\CheckExpirePersistentQuoteObserver",
+                "trace_id": 0,
+                "span_id": 17,
+                "parent_id": 10,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Persistent\\Observer\\EmulateCustomerObserver",
+                "trace_id": 0,
+                "span_id": 18,
+                "parent_id": 10,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.action.dispatch",
+                "service": "magento",
+                "resource": "datadog/error/index",
+                "trace_id": 0,
+                "span_id": 19,
+                "parent_id": 10,
+                "type": "web",
+                "error": 1,
+                "meta": {
+                  "component": "magento",
+                  "error.message": "Thrown Exception (500): This is an exception in /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/CustomElement/Datadog/Controller/error/Index.php:15",
+                  "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): CustomElement\\Datadog\\Controller\\Error\\Index->execute()\n#1 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#2 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#3 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(23): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#4 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Action/Action.php(111): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->execute()\n#5 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\Action\\Action->dispatch()\n#6 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#7 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#8 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(32): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#9 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(245): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->dispatch()\n#10 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(212): Magento\\Framework\\App\\FrontController->getActionResponse()\n#11 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(147): Magento\\Framework\\App\\FrontController->processRequest()\n#12 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\FrontController->dispatch()\n#13 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): Magento\\Framework\\App\\FrontController\\Interceptor->___callParent()\n#14 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/Store/App/FrontController/Plugin/RequestPreprocessor.php(99): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#15 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\Store\\App\\FrontController\\Plugin\\RequestPreprocessor->aroundDispatch()\n#16 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/PageCache/Model/App/FrontController/BuiltinPlugin.php(75): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#17 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\PageCache\\Model\\App\\FrontController\\BuiltinPlugin->aroundDispatch()\n#18 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#19 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/FrontController/Interceptor.php(23): Magento\\Framework\\App\\FrontController\\Interceptor->___callPlugins()\n#20 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Http.php(116): Magento\\Framework\\App\\FrontController\\Interceptor->dispatch()\n#21 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/Http/Interceptor.php(23): Magento\\Framework\\App\\Http->launch()\n#22 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Bootstrap.php(264): Magento\\Framework\\App\\Http\\Interceptor->launch()\n#23 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/pub/index.php(30): Magento\\Framework\\App\\Bootstrap->run()\n#24 {main}",
+                  "error.type": "Exception",
+                  "magento.action": "index",
+                  "magento.controller": "error",
+                  "magento.frontname": "datadog",
+                  "magento.module": "datadog",
+                  "magento.route": "datadog"
+                }
+              },
+                 {
+                   "name": "magento.controller.execute",
+                   "service": "magento",
+                   "resource": "CustomElement\\Datadog\\Controller\\Error\\Index",
+                   "trace_id": 0,
+                   "span_id": 20,
+                   "parent_id": 19,
+                   "type": "web",
+                   "error": 1,
+                   "meta": {
+                     "component": "magento",
+                     "error.message": "Thrown Exception (500): This is an exception in /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/CustomElement/Datadog/Controller/error/Index.php:15",
+                     "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): CustomElement\\Datadog\\Controller\\Error\\Index->execute()\n#1 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#2 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#3 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(23): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#4 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Action/Action.php(111): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->execute()\n#5 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\Action\\Action->dispatch()\n#6 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callParent()\n#7 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#8 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/CustomElement/Datadog/Controller/error/Index/Interceptor.php(32): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->___callPlugins()\n#9 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(245): CustomElement\\Datadog\\Controller\\error\\Index\\Interceptor->dispatch()\n#10 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(212): Magento\\Framework\\App\\FrontController->getActionResponse()\n#11 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/FrontController.php(147): Magento\\Framework\\App\\FrontController->processRequest()\n#12 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(58): Magento\\Framework\\App\\FrontController->dispatch()\n#13 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(138): Magento\\Framework\\App\\FrontController\\Interceptor->___callParent()\n#14 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/Store/App/FrontController/Plugin/RequestPreprocessor.php(99): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#15 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\Store\\App\\FrontController\\Plugin\\RequestPreprocessor->aroundDispatch()\n#16 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/app/code/Magento/PageCache/Model/App/FrontController/BuiltinPlugin.php(75): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#17 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(135): Magento\\PageCache\\Model\\App\\FrontController\\BuiltinPlugin->aroundDispatch()\n#18 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/Interception/Interceptor.php(153): Magento\\Framework\\App\\FrontController\\Interceptor->Magento\\Framework\\Interception\\{closure}()\n#19 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/FrontController/Interceptor.php(23): Magento\\Framework\\App\\FrontController\\Interceptor->___callPlugins()\n#20 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Http.php(116): Magento\\Framework\\App\\FrontController\\Interceptor->dispatch()\n#21 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/generated/code/Magento/Framework/App/Http/Interceptor.php(23): Magento\\Framework\\App\\Http->launch()\n#22 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/lib/internal/Magento/Framework/App/Bootstrap.php(264): Magento\\Framework\\App\\Http\\Interceptor->launch()\n#23 /home/circleci/datadog/tests/Frameworks/Magento/Version_2_4/pub/index.php(30): Magento\\Framework\\App\\Bootstrap->run()\n#24 {main}",
+                     "error.type": "Exception"
+                   }
+                 },
+     {
+       "name": "magento.response.send",
+       "service": "magento",
+       "resource": "magento.response.send",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "magento"
+       }
+     }]]

@@ -4,9 +4,10 @@ namespace DDTrace\Integrations\LaravelQueue;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Propagator;
 use DDTrace\SpanData;
+use DDTrace\SpanLink;
 use DDTrace\Tag;
-use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Jobs\JobName;
@@ -74,16 +75,17 @@ class LaravelQueueIntegration extends Integration
 
                     $integration->setSpanAttributes($span, 'laravel.queue.process', 'receive', $job);
 
-                    // Create a new trace
                     $payload = $job->payload();
                     if (isset($payload['dd_headers'])) {
-                        $newTrace = start_trace_span();
-
-                        $integration->setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
-
-                        $integration->extractContext($payload);
-                        $span->links[] = $newTrace->getLink();
-                        $newTrace->links[] = $span->getLink();
+                        if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')) {
+                            $newTrace = start_trace_span();
+                            $integration->setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
+                            $integration->extractContext($payload);
+                            $span->links[] = $newTrace->getLink();
+                            $newTrace->links[] = $span->getLink();
+                        } else {
+                            $span->links[] = SpanLink::fromHeaders($payload['dd_headers']);
+                        }
                     }
                 },
                 'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration, &$newTrace) {
@@ -103,7 +105,10 @@ class LaravelQueueIntegration extends Integration
                     }
 
                     $activeSpan = active_span(); // This is the span created in the prehook, if any
-                    if ($activeSpan !== $span && $activeSpan == $newTrace) {
+                    if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')
+                        && $activeSpan !== $span
+                        && $activeSpan == $newTrace
+                    ) {
                         $integration->setSpanAttributes(
                             $activeSpan,
                             'laravel.queue.process',

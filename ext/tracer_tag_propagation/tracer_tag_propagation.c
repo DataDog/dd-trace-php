@@ -10,17 +10,16 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-void ddtrace_clean_tracer_tags(zend_array *root_meta) {
+void ddtrace_clean_tracer_tags(zend_array *root_meta, zend_array *propagated_tags) {
     zend_string *tagname;
-    ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {
+    ZEND_HASH_FOREACH_STR_KEY(propagated_tags, tagname) {
         zend_hash_del(root_meta, tagname);
-    }
-    ZEND_HASH_FOREACH_END();
-    zend_hash_clean(&DDTRACE_G(propagated_root_span_tags));
+    } ZEND_HASH_FOREACH_END();
+    zend_hash_clean(propagated_tags);
 }
 
-void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *root_meta) {
-    ddtrace_clean_tracer_tags(root_meta);
+void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *root_meta, zend_array *propagated_tags) {
+    ddtrace_clean_tracer_tags(root_meta, propagated_tags);
 
     char *header = ZSTR_VAL(headerstr), *headerend = header + ZSTR_LEN(headerstr);
 
@@ -47,15 +46,14 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *roo
                 zval zv;
                 ZVAL_STRINGL(&zv, valuestart, header - valuestart);
                 zend_hash_update(root_meta, tag_name, &zv);
-                zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), tag_name);
+                zend_hash_add_empty_element(propagated_tags, tag_name);
             }
             zend_string_release(tag_name);
 
             tagstart = ++header;
         } else if (*header == ',') {
             // we skip invalid tags without = within
-            LOG(Warn, "Found x-datadog-tags header without key-separating equals character; raw input: %.*s",
-                               ZSTR_LEN(headerstr), ZSTR_VAL(headerstr));
+            LOG(Warn, "Found x-datadog-tags header without key-separating equals character; raw input: %s", ZSTR_VAL(headerstr));
             tagstart = ++header;
 
             zval error_zv;
@@ -65,8 +63,8 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *roo
     }
 }
 
-void ddtrace_add_tracer_tags_from_array(zend_array *array, zend_array *root_meta) {
-    ddtrace_clean_tracer_tags(root_meta);
+void ddtrace_add_tracer_tags_from_array(zend_array *array, zend_array *root_meta, zend_array *propagated_tags) {
+    ddtrace_clean_tracer_tags(root_meta, propagated_tags);
 
     zend_string *tagname;
     zval *tag;
@@ -75,21 +73,23 @@ void ddtrace_add_tracer_tags_from_array(zend_array *array, zend_array *root_meta
             zval tagstr;
             ddtrace_convert_to_string(&tagstr, tag);
             zend_hash_update(root_meta, tagname, &tagstr);
-            zend_hash_add_empty_element(&DDTRACE_G(propagated_root_span_tags), tagname);
+            zend_hash_add_empty_element(propagated_tags, tagname);
         }
     }
     ZEND_HASH_FOREACH_END();
 }
 
 void ddtrace_get_propagated_tags(zend_array *tags) {
+    zend_array *propagated = &DDTRACE_G(propagated_root_span_tags);
     zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
     ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
     if (root_span) {
         root_meta = ddtrace_property_array(&root_span->property_meta);
+        propagated = ddtrace_property_array(&root_span->property_propagated_tags);
     }
 
     zend_string *tagname;
-    ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {
+    ZEND_HASH_FOREACH_STR_KEY(propagated, tagname) {
         zval *tag;
         if ((tag = zend_hash_find(root_meta, tagname))) {
             Z_TRY_ADDREF_P(tag);
@@ -99,18 +99,24 @@ void ddtrace_get_propagated_tags(zend_array *tags) {
     ZEND_HASH_FOREACH_END();
 }
 
-zend_string *ddtrace_format_propagated_tags(void) {
-    // we propagate all tags on the current root span which were originally propagated, including the explicitly
-    // defined tags here
-    zend_hash_str_del(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.upstream_services"));
-    zend_hash_str_del(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.tid"));
-    zend_hash_str_add_empty_element(&DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.dm"));
-
+zend_string *ddtrace_format_root_propagated_tags(void) {
+    zend_array *propagated = &DDTRACE_G(propagated_root_span_tags);
     zend_array *tags = &DDTRACE_G(root_span_tags_preset);
     ddtrace_root_span_data *span = DDTRACE_G(active_stack)->root_span;
     if (span) {
         tags = ddtrace_property_array(&span->property_meta);
+        propagated = ddtrace_property_array(&span->property_propagated_tags);
     }
+
+    return ddtrace_format_propagated_tags(propagated, tags);
+}
+
+zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *tags) {
+    // we propagate all tags on the current root span which were originally propagated, including the explicitly
+    // defined tags here
+    zend_hash_str_del(propagated, ZEND_STRL("_dd.p.upstream_services"));
+    zend_hash_str_del(propagated, ZEND_STRL("_dd.p.tid"));
+    zend_hash_str_add_empty_element(propagated, ZEND_STRL("_dd.p.dm"));
 
     smart_str taglist = {0};
 
@@ -120,7 +126,7 @@ zend_string *ddtrace_format_propagated_tags(void) {
     }
 
     zend_string *tagname;
-    ZEND_HASH_FOREACH_STR_KEY(&DDTRACE_G(propagated_root_span_tags), tagname) {
+    ZEND_HASH_FOREACH_STR_KEY(propagated, tagname) {
         zval *tag = zend_hash_find(tags, tagname), error_zv = {0};
         if (tag) {
             zend_string *str = ddtrace_convert_to_str(tag);
@@ -136,8 +142,8 @@ zend_string *ddtrace_format_propagated_tags(void) {
 
             for (char *cur = ZSTR_VAL(str), *end = cur + ZSTR_LEN(str); cur < end; ++cur) {
                 if (*cur < 0x20 || *cur > 0x7E || *cur == ',') {
-                    LOG(Error, "The to be propagated tag '%s=%.*s' value is invalid and is thus dropped.",
-                                     ZSTR_VAL(tagname), ZSTR_LEN(str), ZSTR_VAL(str));
+                    LOG(Error, "The to be propagated tag '%s=%s' value is invalid and is thus dropped.",
+                                     ZSTR_VAL(tagname), ZSTR_VAL(str));
                     ZVAL_STRING(&error_zv, "encoding_error");
                     goto error;
                 }
@@ -153,9 +159,9 @@ zend_string *ddtrace_format_propagated_tags(void) {
                 smart_str_append(&taglist, str);
             } else if (get_DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH()) {
                 LOG(Error,
-                    "The to be propagated tag '%s=%.*s' is too long and exceeds the maximum limit of " ZEND_LONG_FMT
+                    "The to be propagated tag '%s=%s' is too long and exceeds the maximum limit of " ZEND_LONG_FMT
                     " characters and is thus dropped.",
-                    ZSTR_VAL(tagname), ZSTR_LEN(str), ZSTR_VAL(str), get_DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH());
+                    ZSTR_VAL(tagname), ZSTR_VAL(str), get_DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH());
                 ZVAL_STRING(&error_zv, "inject_max_size");
             } else {
                 ZVAL_STRING(&error_zv, "disabled");
