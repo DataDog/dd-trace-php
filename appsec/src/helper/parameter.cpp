@@ -87,6 +87,27 @@ parameter parameter::string(std::string_view str) noexcept
     return parameter{obj};
 }
 
+parameter parameter::boolean(bool value) noexcept
+{
+    ddwaf_object obj;
+    ddwaf_object_bool(&obj, value);
+    return parameter{obj};
+}
+
+parameter parameter::float64(float value) noexcept
+{
+    ddwaf_object obj;
+    ddwaf_object_float(&obj, value);
+    return parameter{obj};
+}
+
+parameter parameter::null() noexcept
+{
+    ddwaf_object obj;
+    ddwaf_object_null(&obj);
+    return parameter{obj};
+}
+
 bool parameter::add(parameter &&entry) noexcept
 {
     if (!ddwaf_object_array_add(this, entry)) {

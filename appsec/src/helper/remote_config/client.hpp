@@ -19,6 +19,7 @@
 #include "protocol/client.hpp"
 #include "protocol/tuf/get_configs_request.hpp"
 #include "protocol/tuf/get_configs_response.hpp"
+#include "runtime_id_pool.hpp"
 #include "service_config.hpp"
 #include "settings.hpp"
 #include "utils.hpp"
@@ -42,7 +43,7 @@ public:
     virtual ~client() = default;
 
     client(const client &) = delete;
-    client(client &&) = default;
+    client(client &&) = delete;
     client &operator=(const client &) = delete;
     client &operator=(client &&) = delete;
 
@@ -63,6 +64,12 @@ public:
         return sid_;
     }
 
+    virtual void register_runtime_id(const std::string &id) { ids_.add(id); }
+    virtual void unregister_runtime_id(const std::string &id)
+    {
+        ids_.remove(id);
+    }
+
 protected:
     [[nodiscard]] protocol::get_configs_request generate_request() const;
     bool process_response(const protocol::get_configs_response &response);
@@ -70,6 +77,7 @@ protected:
     std::unique_ptr<http_api> api_;
 
     std::string id_;
+    runtime_id_pool ids_;
     const service_identifier sid_;
     const remote_config::settings settings_;
 

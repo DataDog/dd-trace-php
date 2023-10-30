@@ -575,3 +575,33 @@
    fun:_ZN3re23DFA14FastSearchLoopEPNS0_12SearchParamsE
    fun:_ZN3re23DFA6SearchERKNS_11StringPieceES3_bbbPbPPKcPNS_10SparseSetTIvEE
 }
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re211SparseArrayIiE11SetInternalEbiRKi
+   fun:_ZN3re211SparseArrayIiE7set_newEiRKi
+   fun:_ZN3re24Prog13MarkDominatorEiPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   fun:_ZN3re211SparseArrayIiE11SetInternalEbiRKi
+   fun:_ZN3re211SparseArrayIiE7set_newEiRKi
+   fun:_ZN3re24Prog13MarkDominatorEiPNS_11SparseArrayIiEES3_PSt6vectorIS4_IiSaIiEESaIS6_EEPNS_10SparseSetTIvEEPS6_
+   fun:_ZN3re24Prog7FlattenEv
+   fun:_ZN3re28Compiler6FinishEPNS_6RegexpE
+   fun:_ZN3re28Compiler7CompileEPNS_6RegexpEbl
+   fun:_ZN3re26Regexp13CompileToProgEl
+   fun:_ZN3re23RE24InitERKNS_11StringPieceERKNS0_7OptionsE
+   fun:_ZN3re23RE2C1ERKNS_11StringPieceERKNS0_7OptionsE
+   ...
+}
