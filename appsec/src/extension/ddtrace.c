@@ -6,6 +6,7 @@
 #include "ddtrace.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include <zend_API.h>
 
 #include "configuration.h"
 #include "ddappsec.h"
@@ -19,13 +20,14 @@ static int (*_orig_ddtrace_shutdown)(SHUTDOWN_FUNC_ARGS);
 static int _mod_type;
 static int _mod_number;
 static const char *_mod_version;
-static bool _ddtrace_enabled;
+static bool _ddtrace_loaded;
 static zend_string *_ddtrace_root_span_fname;
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
 static THREAD_LOCAL_ON_ZTS zval *_span_meta;
 static THREAD_LOCAL_ON_ZTS zval *_span_metrics;
+static uint8_t *_ddtrace_runtime_id = NULL;
 
 static zend_module_entry *_find_ddtrace_module(void);
 static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS);
@@ -34,6 +36,8 @@ static void _register_testing_objects(void);
 static zval *(*nullable _ddtrace_root_span_get_meta)();
 static zval *(*nullable _ddtrace_root_span_get_metrics)();
 static void (*nullable _ddtrace_close_all_spans_and_flush)();
+static void (*nullable _ddtrace_set_priority_sampling_on_root)(
+    zend_long priority, enum dd_sampling_mechanism mechanism);
 
 static void dd_trace_load_symbols(void)
 {
@@ -70,16 +74,25 @@ static void dd_trace_load_symbols(void)
             dlerror());
     }
 
+    _ddtrace_runtime_id = dlsym(handle, "ddtrace_runtime_id");
+    if (_ddtrace_runtime_id == NULL) {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        mlog(dd_log_debug, "Failed to load ddtrace_runtime_id: %s", dlerror());
+    }
+
+    _ddtrace_set_priority_sampling_on_root =
+        dlsym(handle, "ddtrace_set_priority_sampling_on_root");
+    if (_ddtrace_set_priority_sampling_on_root == NULL) {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        mlog(dd_log_error,
+            "Failed to load ddtrace_set_priority_sampling_on_root: %s",
+            dlerror());
+    }
     dlclose(handle);
 }
 
 void dd_trace_startup()
 {
-    _ddtrace_enabled = false;
-    if (!get_global_DD_TRACE_ENABLED()) {
-        return;
-    }
-
     _ddtrace_root_span_fname = zend_string_init_interned(
         LSTRARG("ddtrace\\root_span"), 1 /* permanent */);
     _meta_propname = zend_string_init_interned(LSTRARG("meta"), 1);
@@ -90,14 +103,16 @@ void dd_trace_startup()
     }
 
     zend_module_entry *mod = _find_ddtrace_module();
-    if (!mod) {
+    if (mod == NULL) {
         mlog(dd_log_debug, "Cannot find ddtrace extension");
+        _ddtrace_loaded = false;
         return;
     }
+
+    _ddtrace_loaded = true;
     _mod_type = mod->type;
     _mod_number = mod->module_number;
     _mod_version = mod->version;
-    _ddtrace_enabled = true;
 
     dd_trace_load_symbols();
 
@@ -112,7 +127,7 @@ void dd_trace_rinit()
     _span_meta = NULL;
     _span_metrics = NULL;
     // DDTrace might not be loaded during tests
-    if (!_ddtrace_enabled) {
+    if (!dd_trace_enabled()) {
         return;
     }
     _span_meta = dd_trace_root_span_get_meta();
@@ -151,7 +166,8 @@ static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS)
 
 const char *nullable dd_trace_version() { return _mod_version; }
 
-bool dd_trace_enabled() { return _ddtrace_enabled; }
+bool dd_trace_loaded() { return _ddtrace_loaded; }
+bool dd_trace_enabled() { return _ddtrace_loaded && get_DD_TRACE_ENABLED(); }
 
 bool dd_trace_root_span_add_tag(zend_string *nonnull tag, zval *nonnull value)
 {
@@ -245,6 +261,44 @@ zval *nullable dd_trace_root_span_get_metrics()
     return _ddtrace_root_span_get_metrics();
 }
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
+{
+    if (_ddtrace_runtime_id == NULL) {
+        return NULL;
+    }
+
+    zend_string *encoded_id = zend_string_alloc(36, persistent);
+
+    size_t length = sprintf(ZSTR_VAL(encoded_id),
+        "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+        _ddtrace_runtime_id[0], _ddtrace_runtime_id[1], _ddtrace_runtime_id[2],
+        _ddtrace_runtime_id[3], _ddtrace_runtime_id[4], _ddtrace_runtime_id[5],
+        _ddtrace_runtime_id[6], _ddtrace_runtime_id[7], _ddtrace_runtime_id[8],
+        _ddtrace_runtime_id[9], _ddtrace_runtime_id[10],
+        _ddtrace_runtime_id[11], _ddtrace_runtime_id[12],
+        _ddtrace_runtime_id[13], _ddtrace_runtime_id[14],
+        _ddtrace_runtime_id[15]);
+
+    if (length != 36) {
+        zend_string_free(encoded_id);
+        encoded_id = NULL;
+    }
+
+    return encoded_id;
+}
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
+void dd_trace_set_priority_sampling_on_root(
+    zend_long priority, enum dd_sampling_mechanism mechanism)
+{
+    if (_ddtrace_set_priority_sampling_on_root == NULL) {
+        return;
+    }
+
+    _ddtrace_set_priority_sampling_on_root(priority, mechanism);
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -309,12 +363,29 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_metrics) // NOLINT
     }
 }
 
+static PHP_FUNCTION(datadog_appsec_testing_get_formatted_runtime_id) // NOLINT
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    zend_string *id = dd_trace_get_formatted_runtime_id(false);
+    if (id != NULL) {
+        RETURN_STR(id);
+    }
+    RETURN_EMPTY_STRING();
+}
+
 // clang-format off
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(void_ret_bool_arginfo, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(void_ret_nullable_array, 0, 0, IS_ARRAY, 1)
 ZEND_END_ARG_INFO()
+
+    ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(void_ret_nullable_string, 0, 0, IS_STRING, 1)
+ZEND_END_ARG_INFO()
+
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_root_span_add_tag, 0, 0, _IS_BOOL, 2)
 ZEND_ARG_TYPE_INFO(0, tag, IS_STRING, 0)
@@ -326,6 +397,7 @@ static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_tag", PHP_FN(datadog_appsec_testing_root_span_add_tag), arginfo_root_span_add_tag, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta", PHP_FN(datadog_appsec_testing_root_span_get_meta), void_ret_nullable_array, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_metrics", PHP_FN(datadog_appsec_testing_root_span_get_metrics), void_ret_nullable_array, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "get_formatted_runtime_id", PHP_FN(datadog_appsec_testing_get_formatted_runtime_id), void_ret_nullable_string, 0)
     PHP_FE_END
 };
 // clang-format on

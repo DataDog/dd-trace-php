@@ -75,7 +75,7 @@ client::ptr client::from_settings(service_identifier &&sid,
         }
     }
 
-    const protocol::client_tracer ct{sid_.runtime_id, sid_.tracer_version,
+    const protocol::client_tracer ct{std::move(ids_.get()), sid_.tracer_version,
         sid_.service, sid_.extra_services, sid_.env, sid_.app_version};
 
     const protocol::client_state cs{targets_version_, config_states,
@@ -213,7 +213,9 @@ bool client::is_remote_config_available()
 
 bool client::poll()
 {
-    if (api_ == nullptr) {
+    // Wait until we have a valid runtime ID, once this ID is available,
+    // it'll always have a value, even if all extensions have disconnected
+    if (api_ == nullptr || !ids_.has_value()) {
         return false;
     }
 

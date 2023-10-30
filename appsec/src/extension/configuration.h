@@ -31,7 +31,7 @@ extern bool runtime_config_first_init;
 
 // clang-format off
 #define DD_CONFIGURATION \
-    SYSCFG(BOOL, DD_APPSEC_ENABLED, "false")                                                                                          \
+    CONFIG(BOOL, DD_APPSEC_ENABLED, "false")                                                                                          \
     SYSCFG(STRING, DD_APPSEC_RULES, "")                                                                                               \
     SYSCFG(CUSTOM(uint64_t), DD_APPSEC_WAF_TIMEOUT, "10000", .parser = _parse_uint64)                                                 \
     SYSCFG(CUSTOM(uint32_t), DD_APPSEC_TRACE_RATE_LIMIT, "100", .parser = _parse_uint32)                                              \
@@ -47,7 +47,7 @@ extern bool runtime_config_first_init;
     CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/ddappsec-helper"))                                                             \
     CONFIG(STRING, DD_APPSEC_HELPER_RUNTIME_PATH, "/tmp", .ini_change = dd_on_runtime_path_update)                                    \
     SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                                            \
-    CONFIG(CUSTOM(SET), DD_EXTRA_SERVICES, "", .parser = _parse_list)                                                                  \
+    CONFIG(CUSTOM(SET), DD_EXTRA_SERVICES, "", .parser = _parse_list)                                                                 \
     CONFIG(STRING, DD_APPSEC_HELPER_EXTRA_ARGS, "")                                                                                   \
     CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                                       \
     CONFIG(STRING, DD_ENV, "")                                                                                                        \
@@ -61,7 +61,9 @@ extern bool runtime_config_first_init;
     CONFIG(BOOL, DD_TRACE_ENABLED, "true")                                                                                            \
     CONFIG(CUSTOM(STRING), DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING, "safe", .parser = dd_parse_automated_user_events_tracking)       \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                                          \
-    CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")
+    CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")                                                                          \
+    CONFIG(BOOL, DD_EXPERIMENTAL_API_SECURITY_ENABLED, "false")                                                                       \
+    CONFIG(DOUBLE, DD_API_SECURITY_REQUEST_SAMPLE_RATE, "0.1")
 // clang-format on
 
 #define CALIAS CONFIG

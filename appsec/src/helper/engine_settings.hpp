@@ -14,6 +14,15 @@
 
 namespace dds {
 
+struct schema_extraction_settings {
+    static constexpr double default_sample_rate = 0.1; // 10% of requests
+
+    bool enabled = false;
+    double sample_rate = default_sample_rate;
+
+    MSGPACK_DEFINE_MAP(enabled, sample_rate);
+};
+
 /* engine_settings are currently the same for the whole client session.
  * If this changes in the future, it will make sense to create a separation
  * between 1) settings used for creating the engine and 2) settings used after,
@@ -27,6 +36,9 @@ struct engine_settings {
     std::uint32_t trace_rate_limit = default_trace_rate_limit;
     std::string obfuscator_key_regex;
     std::string obfuscator_value_regex;
+    schema_extraction_settings schema_extraction;
+
+    virtual ~engine_settings() = default;
 
     static const std::string &default_rules_file();
 
@@ -40,7 +52,7 @@ struct engine_settings {
     }
 
     MSGPACK_DEFINE_MAP(rules_file, waf_timeout_us, trace_rate_limit,
-        obfuscator_key_regex, obfuscator_value_regex);
+        obfuscator_key_regex, obfuscator_value_regex, schema_extraction);
 
     bool operator==(const engine_settings &oth) const noexcept
     {
@@ -48,7 +60,10 @@ struct engine_settings {
                waf_timeout_us == oth.waf_timeout_us &&
                trace_rate_limit == oth.trace_rate_limit &&
                obfuscator_key_regex == oth.obfuscator_key_regex &&
-               obfuscator_value_regex == oth.obfuscator_value_regex;
+               obfuscator_value_regex == oth.obfuscator_value_regex &&
+               schema_extraction.enabled == oth.schema_extraction.enabled &&
+               schema_extraction.sample_rate ==
+                   oth.schema_extraction.sample_rate;
     }
 
     friend auto &operator<<(std::ostream &os, const engine_settings &c)
@@ -58,14 +73,18 @@ struct engine_settings {
                   << ", trace_rate_limit=" << c.trace_rate_limit
                   << ", obfuscator_key_regex=" << c.obfuscator_key_regex
                   << ", obfuscator_value_regex=" << c.obfuscator_value_regex
-                  << "}";
+                  << ", schema_extraction.enabled="
+                  << c.schema_extraction.enabled
+                  << ", schema_extraction.sample_rate=" << std::fixed
+                  << c.schema_extraction.sample_rate << "}";
     }
 
     struct settings_hash {
         std::size_t operator()(const engine_settings &s) const noexcept
         {
             return hash(s.rules_file, s.waf_timeout_us, s.trace_rate_limit,
-                s.obfuscator_key_regex, s.obfuscator_value_regex);
+                s.obfuscator_key_regex, s.obfuscator_value_regex,
+                s.schema_extraction.enabled, s.schema_extraction.sample_rate);
         }
     };
 };
