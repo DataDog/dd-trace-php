@@ -1258,7 +1258,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         add_assoc_zval(el, "service", &prop_service_as_string);
 
         // Add _dd.base_service if service name differs from mapped root service name
-        zval *prop_root_service = ddtrace_spandata_property_service(span->root);
+        zval *prop_root_service = &span->root->property_service;
         ZVAL_DEREF(prop_root_service);
         zval prop_root_service_as_string;
         ddtrace_convert_to_string(&prop_root_service_as_string, prop_root_service);
@@ -1270,7 +1270,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         }
 
         if (strcasecmp(Z_STRVAL(prop_service_as_string), Z_STRVAL(prop_root_service_as_string)) != 0) {
-            zval *meta = ddtrace_spandata_property_meta_zval(span);
+            zval *meta = &span->property_meta;
             add_assoc_zval(meta, "_dd.base_service", &prop_root_service_as_string);
         } else {
             zend_string_release(Z_STR(prop_root_service_as_string));
