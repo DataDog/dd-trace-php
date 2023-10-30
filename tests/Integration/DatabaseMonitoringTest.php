@@ -17,6 +17,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN");
         self::putEnv("DD_ENV");
         self::putEnv("DD_SERVICE");
+        self::putEnv("DD_SERVICE_MAPPING");
         self::putEnv("DD_VERSION");
     }
 
@@ -48,7 +49,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         $this->assertSame("/*dddbs='testdb',ddps='phpunit',traceparent='00-0000000000000000c151df7d6ee5e2d6-a3978fb9b92502a8-01'*/ SELECT 1", $commentedQuery);
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists("phpunit")->withChildren([
+            SpanAssertion::exists("")->withChildren([
                 SpanAssertion::exists('instrumented')->withExactTags([
                     "_dd.dbm_trace_injected" => "true"
                 ])
@@ -67,6 +68,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
             });
             self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
             self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            self::putEnv("DD_SERVICE_MAPPING=phpunit:mapped-service");
             $traces = $this->isolateTracer(function () use (&$commentedQuery) {
                 \DDTrace\start_trace_span();
                 $commentedQuery = $this->instrumented(0, "SELECT 1");
@@ -77,10 +79,10 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         }
 
         // phpcs:disable Generic.Files.LineLength.TooLong
-        $this->assertSame("/*dddbs='dbinstance',ddps='phpunit',traceparent='00-0000000000000000c151df7d6ee5e2d6-a3978fb9b92502a8-01'*/ SELECT 1", $commentedQuery);
+        $this->assertSame("/*dddbs='dbinstance',ddps='mapped-service',traceparent='00-0000000000000000c151df7d6ee5e2d6-a3978fb9b92502a8-01'*/ SELECT 1", $commentedQuery);
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists("phpunit")->withChildren([
+            SpanAssertion::exists("")->withChildren([
                 SpanAssertion::exists('instrumented')->withExactTags([
                     "_dd.dbm_trace_injected" => "true"
                 ])

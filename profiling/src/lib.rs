@@ -383,27 +383,46 @@ pub struct RequestLocals {
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
+impl RequestLocals {
+    pub fn disable(&mut self) {
+        self.profiling_enabled = false;
+        self.profiling_endpoint_collection_enabled = false;
+        self.profiling_experimental_cpu_time_enabled = false;
+        self.profiling_allocation_enabled = false;
+        self.profiling_experimental_timeline_enabled = false;
+        self.profiling_experimental_exception_enabled = false;
+    }
+}
+
+impl Default for RequestLocals {
+    fn default() -> RequestLocals {
+        RequestLocals {
+            env: None,
+            interrupt_count: AtomicU32::new(0),
+            profiling_enabled: false,
+            profiling_endpoint_collection_enabled: true,
+            profiling_experimental_cpu_time_enabled: true,
+            profiling_allocation_enabled: true,
+            profiling_experimental_timeline_enabled: true,
+            profiling_experimental_exception_enabled: false,
+            profiling_experimental_exception_sampling_distance: 100,
+            profiling_log_level: LevelFilter::Off,
+            service: None,
+            uri: Box::<AgentEndpoint>::default(),
+            version: None,
+            vm_interrupt_addr: std::ptr::null_mut(),
+        }
+    }
+}
+
 thread_local! {
     static CLOCKS: RefCell<Clocks> = RefCell::new(Clocks {
         cpu_time: None,
         wall_time: Instant::now(),
     });
 
-    static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals {
-        env: None,
-        interrupt_count: AtomicU32::new(0),
-        profiling_enabled: false,
-        profiling_endpoint_collection_enabled: true,
-        profiling_experimental_cpu_time_enabled: true,
-        profiling_allocation_enabled: true,
-        profiling_experimental_timeline_enabled: true,
-        profiling_experimental_exception_enabled: false,
-        profiling_experimental_exception_sampling_distance: 100,
-        profiling_log_level: LevelFilter::Off,
-        service: None,
-        uri: Box::<AgentEndpoint>::default(),
-        version: None,
-        vm_interrupt_addr: std::ptr::null_mut(),
+    static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals{
+        ..Default::default()
     });
 
     /// The tags for this thread/request. These get sent to other threads,
@@ -438,8 +457,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         unsafe { bindings::zai_config_first_time_rinit() };
-        #[cfg(feature = "exception_profiling")]
-        exception::exception_profiling_first_rinit();
     });
 
     unsafe { bindings::zai_config_rinit() };
@@ -556,6 +573,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 info!("CPU Time profiling enabled.");
             }
         }
+
+        #[cfg(feature = "exception_profiling")]
+        exception::exception_profiling_first_rinit();
     });
 
     // Preloading happens before zend_post_startup_cb is called for the first

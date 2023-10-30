@@ -1,5 +1,7 @@
 --TEST--
 DDTrace\active_span basic functionality
+--SKIPIF--
+<?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %r"); ?>
 --FILE--
 <?php
 
@@ -26,7 +28,7 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\SpanData)#%d (12) {
+object(DDTrace\RootSpanData)#%d (16) {
   ["name"]=>
   string(15) "active_span.php"
   ["resource"]=>
@@ -68,6 +70,16 @@ object(DDTrace\SpanData)#%d (12) {
     }
     ["active"]=>
     *RECURSION*
+  }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+  ["propagatedTags"]=>
+  array(0) {
   }
+  ["samplingPriority"]=>
+  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+  ["tracestateTags"]=>
+  array(0) {
+  }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
+  ["traceId"]=>
+  string(32) "0000000000000000%s"
 }
 bool(true)

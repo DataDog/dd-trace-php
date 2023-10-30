@@ -2,6 +2,7 @@ use crate::bindings as zend;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
 use log::{error, info};
+use rand::rngs::ThreadRng;
 use std::cell::RefCell;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -17,28 +18,35 @@ pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 = AtomicU32::new(100);
 pub struct ExceptionProfilingStats {
     /// number of exceptions until next sample collection
     next_sample: u32,
+    poisson: Poisson<f64>,
+    rng: ThreadRng,
 }
 
 impl ExceptionProfilingStats {
     fn new() -> ExceptionProfilingStats {
-        ExceptionProfilingStats {
-            next_sample: ExceptionProfilingStats::next_sampling_interval(),
-        }
+        // Safety: this will only error if lambda <= 0
+        let poisson =
+            Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64).unwrap();
+        let mut stats = ExceptionProfilingStats {
+            next_sample: 0,
+            poisson,
+            rng: rand::thread_rng(),
+        };
+        stats.next_sampling_interval();
+        stats
     }
 
-    fn next_sampling_interval() -> u32 {
-        // Panic: `unwrap()` only panics if lambda <= 0 and in the parser we ensure it is not
-        Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f32)
-            .unwrap()
-            .sample(&mut rand::thread_rng()) as u32
+    fn next_sampling_interval(&mut self) {
+        self.next_sample = self.poisson.sample(&mut self.rng) as u32;
     }
 
     fn track_exception(&mut self, name: String) {
-        if self.next_sample.checked_sub(1).is_none() {
+        if let Some(next_sample) = self.next_sample.checked_sub(1) {
+            self.next_sample = next_sample;
             return;
         }
 
-        self.next_sample = ExceptionProfilingStats::next_sampling_interval();
+        self.next_sampling_interval();
 
         REQUEST_LOCALS.with(|cell| {
             // try to borrow and bail out if not successful
@@ -87,7 +95,7 @@ pub fn exception_profiling_first_rinit() {
 
     EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::SeqCst);
 
-    info!("Exception profiling sampling disance initialized to {sampling_distance}");
+    info!("Exception profiling sampling distance initialized to {sampling_distance}");
 }
 
 pub fn exception_profiling_mshutdown() {

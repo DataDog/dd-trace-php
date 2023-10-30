@@ -19,4 +19,4 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']["http.url"]);
 ?>
 --EXPECT--
-string(107) "https://localhost:9999/foo?key1=val1&<redacted>&key2=val2&<redacted>&key=%7B%20%22<redacted>%7D&other=value"
+string(104) "https://localhost:9999/foo?key1=val1&<redacted>&key2=val2&<redacted>&key=%7B%20<redacted>%7D&other=value"

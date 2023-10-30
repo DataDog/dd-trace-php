@@ -49,6 +49,14 @@
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 
+static inline zval *ddtrace_assign_variable(zval *variable_ptr, zval *value) {
+#if PHP_VERSION_ID < 70400
+    return zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR);
+#else
+    return zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, false);
+#endif
+}
+
 #if PHP_VERSION_ID < 70100
 #define IS_VOID 0
 #define MAY_BE_NULL 0
@@ -121,9 +129,13 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
     } while (0)
 #define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
 
-#define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
-#define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)
-#define Z_UNPROTECT_RECURSION_P(zv) (--Z_OBJPROP_P(zv)->u.v.nApplyCount)
+#define GC_IS_RECURSIVE(gc) ((gc)->u.v.nApplyCount > 0)
+#define GC_PROTECT_RECURSION(gc) (++(gc)->u.v.nApplyCount)
+#define GC_UNPROTECT_RECURSION(gc) (--(gc)->u.v.nApplyCount)
+
+#define Z_IS_RECURSIVE_P(zv) GC_IS_RECURSIVE(Z_OBJPROP_P(zv))
+#define Z_PROTECT_RECURSION_P(zv) GC_PROTECT_RECURSION(Z_OBJPROP_P(zv))
+#define Z_UNPROTECT_RECURSION_P(zv) GC_UNPROTECT_RECURSION(Z_OBJPROP_P(zv))
 
 #define ZEND_CLOSURE_OBJECT(op_array) \
     ((zend_object*)((char*)(op_array) - sizeof(zend_object)))

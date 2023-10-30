@@ -22,7 +22,7 @@ function query_headers() {
 }
 
 $rootSpan = DDTrace\active_span();
-$rootSpan->metrics["_sampling_priority_v1"] = 2;
+$rootSpan->samplingPriority = 2;
 
 dt_dump_headers_from_httpbin(query_headers(), ['x-datadog-sampling-priority']);
 
