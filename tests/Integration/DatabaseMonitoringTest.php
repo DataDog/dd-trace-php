@@ -45,7 +45,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         }
 
         // phpcs:disable Generic.Files.LineLength.TooLong
-        $this->assertSame("/*dddbs='testdb',ddps='phpunit',traceparent='00-0000000000000000c08c967f0e5e7b0a-22e2c43f8a1ad34e-01'*/ SELECT 1", $commentedQuery);
+        $this->assertSame("/*dddbs='testdb',ddps='phpunit',traceparent='00-0000000000000000c151df7d6ee5e2d6-a3978fb9b92502a8-01'*/ SELECT 1", $commentedQuery);
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists("phpunit")->withChildren([
@@ -77,7 +77,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         }
 
         // phpcs:disable Generic.Files.LineLength.TooLong
-        $this->assertSame("/*dddbs='dbinstance',ddps='phpunit',traceparent='00-0000000000000000c08c967f0e5e7b0a-22e2c43f8a1ad34e-01'*/ SELECT 1", $commentedQuery);
+        $this->assertSame("/*dddbs='dbinstance',ddps='phpunit',traceparent='00-0000000000000000c151df7d6ee5e2d6-a3978fb9b92502a8-01'*/ SELECT 1", $commentedQuery);
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists("phpunit")->withChildren([
