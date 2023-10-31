@@ -103,6 +103,8 @@ class DatabaseMonitoringTest extends IntegrationTestCase
 
     public function testRootSpanPropagation()
     {
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+
         $rootSpan = \DDTrace\root_span();
         $rootSpan->service = "";
         $rootSpan->meta["version"] = "0";
