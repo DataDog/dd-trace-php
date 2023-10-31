@@ -148,7 +148,6 @@ pub fn extract_function_name(func: &zend_function) -> Option<String> {
     Some(String::from_utf8_lossy(buffer.as_slice()).into_owned())
 }
 
-/// todo: extract common core and document extract_function_name_id
 pub fn extract_function_name_id(
     func: &zend_function,
     string_table: &mut StringTable,
@@ -339,8 +338,7 @@ unsafe fn collect_call_frame(
                 stats.not_applicable += 1;
             });
 
-            let function =
-                extract_function_name(func).map(|f| string_table.insert(f.as_str()).unwrap());
+            let function = extract_function_name_id(func, string_table);
             let (file, line) = extract_file_and_line(execute_data, string_table);
 
             (function, file, line)
