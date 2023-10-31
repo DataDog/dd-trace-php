@@ -2,7 +2,7 @@ use datadog_profiling::collections::identifiable::{
     small_non_zero_pprof_id, Id, Item, StringId, StringTable, StringTableReader, Table,
 };
 
-use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function, ZEND_USER_FUNCTION};
+use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function};
 use std::cell::RefCell;
 use std::num::NonZeroU32;
 use std::str::Utf8Error;
@@ -254,8 +254,10 @@ unsafe fn handle_function_cache_slot(
         if func.is_user_code() {
             StringId::ZERO
         } else {
-            let filename = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
-            let filename_string_id = string_table.insert(filename.as_str()).unwrap();
+            let filename = zai_str_from_zstr(func.op_array.filename.as_mut());
+            let filename_string_id = string_table
+                .insert(filename.to_string_lossy().as_ref())
+                .unwrap(); // todo: fix potential panic from string insert
             cache_slot.filename = filename_string_id;
             filename_string_id
         }
