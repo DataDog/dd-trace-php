@@ -279,7 +279,7 @@ unsafe fn handle_function_cache_slot(
     } else if filename.is_zero() {
         return None;
     } else {
-        StringId::new(1)
+        STR_ID_PHP_OPEN
     };
 
     Some((AbridgedFunction { name, filename }, line))
