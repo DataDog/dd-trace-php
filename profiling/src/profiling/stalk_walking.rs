@@ -3,7 +3,6 @@ use datadog_profiling::collections::identifiable::{
 };
 
 use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function, ZEND_USER_FUNCTION};
-use std::borrow::Cow;
 use std::cell::RefCell;
 use std::num::NonZeroU32;
 use std::str::Utf8Error;
@@ -63,13 +62,22 @@ impl Id for FunctionId {
     }
 }
 
+pub const STR_ID_PHP_OPEN: StringId = StringId::new(1);
+pub const STR_ID_GC: StringId = StringId::new(2);
+pub const STR_ID_INCLUDE: StringId = StringId::new(3);
+pub const STR_ID_REQUIRE: StringId = StringId::new(4);
+pub const STR_ID_TRUNCATED: StringId = StringId::new(5);
+
+#[cfg(feature = "timeline")]
+pub const STR_ID_EVAL: StringId = StringId::new(6);
+
 fn new_string_table_with_known_strings(capacity: usize) -> anyhow::Result<StringTable> {
     let mut table = StringTable::with_capacity(capacity)?;
-    assert_eq!(StringId::new(1), table.insert("<?php")?);
-    assert_eq!(StringId::new(2), table.insert("[gc]")?);
-    assert_eq!(StringId::new(3), table.insert("[include]")?);
-    assert_eq!(StringId::new(4), table.insert("[require]")?);
-    assert_eq!(StringId::new(5), table.insert("[truncated]")?);
+    assert_eq!(STR_ID_PHP_OPEN, table.insert("<?php")?);
+    assert_eq!(STR_ID_GC, table.insert("[gc]")?);
+    assert_eq!(STR_ID_INCLUDE, table.insert("[include]")?);
+    assert_eq!(STR_ID_REQUIRE, table.insert("[require]")?);
+    assert_eq!(STR_ID_TRUNCATED, table.insert("[truncated]")?);
 
     #[cfg(feature = "timeline")]
     assert_eq!(StringId::new(6), table.insert("[eval]")?);
@@ -91,12 +99,6 @@ pub unsafe fn activate_run_time_cache() {
     CACHED_STRINGS
         .with(|cell| cell.replace(new_string_table_with_known_strings(1024 * 1024 * 8).unwrap()));
 }
-
-const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
-const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
-
-#[cfg(feature = "timeline")]
-pub const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 
 pub struct ZendFrame {
     pub reader: StringTableReader,
@@ -349,7 +351,7 @@ unsafe fn collect_call_frame(
         Some(ZendFrame {
             reader: string_table.get_reader(),
             function: AbridgedFunction {
-                name: function.unwrap_or(StringId::new(1)), // todo another harcoded value
+                name: function.unwrap_or(STR_ID_PHP_OPEN),
                 filename: filename.unwrap_or(StringId::ZERO),
             },
             line,
@@ -371,8 +373,7 @@ unsafe fn collect_call_frame(
         // Only create a new frame if there's file or function info.
         if file.is_some() || function.is_some() {
             // If there's no function name, use a fake name.
-            // todo: fix hard-coded string.
-            let name = function.unwrap_or(StringId::new(1));
+            let name = function.unwrap_or(STR_ID_PHP_OPEN);
 
             let file = file.unwrap_or(StringId::ZERO);
             return Some(ZendFrame {
@@ -410,7 +411,7 @@ fn collect_stack_sample_helper(
                 samples.push(ZendFrame {
                     reader: string_table.get_reader(),
                     function: AbridgedFunction {
-                        name: StringId::new(5), // todo fix hardcoded number
+                        name: STR_ID_TRUNCATED,
                         filename: StringId::ZERO,
                     },
                     line: 0,
@@ -433,13 +434,12 @@ pub fn collect_stack_sample(
     })
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "stack_walking_tests"))]
 mod tests {
     use super::*;
     use crate::bindings as zend;
 
     #[test]
-    #[cfg(feature = "stack_walking_tests")]
     fn test_collect_stack_sample() {
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);

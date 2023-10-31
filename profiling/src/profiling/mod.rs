@@ -799,13 +799,11 @@ impl Profiler {
         labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
-        // todo: add fake stack frame back
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
                 reader: string_table.get_reader(),
                 function: AbridgedFunction {
-                    // todo: fix magic number
-                    name: StringId::new(6),
+                    name: STR_ID_EVAL,
                     filename,
                 },
                 line,
@@ -835,7 +833,7 @@ impl Profiler {
         now: i64,
         duration: i64,
         filename: String,
-        include_type: u32,
+        include_type: StringId,
         locals: &RequestLocals,
     ) {
         let mut labels = Profiler::message_labels();
@@ -859,7 +857,7 @@ impl Profiler {
             vec![ZendFrame {
                 reader: CACHED_STRINGS.with(|cell| cell.borrow().get_reader()),
                 function: AbridgedFunction {
-                    name: StringId::new(include_type), // todo: should be variable again ;-)
+                    name: include_type,
                     filename: StringId::ZERO,
                 },
                 line: 0,

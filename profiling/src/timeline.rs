@@ -1,7 +1,8 @@
 use crate::bindings as zend;
-use crate::profiling::CACHED_STRINGS;
+use crate::profiling::{CACHED_STRINGS, STR_ID_INCLUDE, STR_ID_REQUIRE};
 use crate::zend::{zai_str_from_zstr, zend_get_executed_filename_ex};
 use crate::{PROFILER, REQUEST_LOCALS};
+use datadog_profiling::collections::identifiable::StringId;
 use libc::c_char;
 use log::{error, trace};
 use std::mem::MaybeUninit;
@@ -145,11 +146,12 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             return op_array;
         }
 
-        // todo: fix hardcoded stringid
-        let include_type = match r#type as u32 {
-            zend::ZEND_INCLUDE => 3, // `include()` and `include_once()`
-            zend::ZEND_REQUIRE => 4, // `require()` and `require_once()`
-            _default => 0,
+        let (include_type_id, include_type_str) = match r#type as u32 {
+            // `include()` and `include_once()`
+            zend::ZEND_INCLUDE => (STR_ID_INCLUDE, "include"),
+            // `require()` and `require_once()`
+            zend::ZEND_REQUIRE => (STR_ID_REQUIRE, "require"),
+            _default => (StringId::ZERO, "unknown"),
         };
 
         // Extract the filename from the returned op_array.
@@ -161,7 +163,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         let filename = zai_str_from_zstr((*op_array).filename.as_mut()).into_string();
 
         trace!(
-            "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
+            "Compile file \"{filename}\" with include type \"{include_type_str}\" took {} nanoseconds",
             duration.as_nanos(),
         );
         REQUEST_LOCALS.with(|cell| {
@@ -176,7 +178,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
                     now.unwrap().as_nanos() as i64,
                     duration.as_nanos() as i64,
                     filename,
-                    include_type,
+                    include_type_id,
                     &locals,
                 );
             }
