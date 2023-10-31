@@ -62,54 +62,9 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This release adds support for PHP 8.3 for the tracer and the profiler. Please be aware that we are currently building against PHP 8.3.0 RC3.
-
 ## Tracer
-### Added
-- Add Magento 2 Integration #2274
-- Support for PHP 8.3 #2098, #2282
-- Add a configuration flag to disable laravel queue distributed tracing #2304
-- Laminas RESTful methods handling #2322
-- Expand arrays in meta and metrics into nested-tag format #2302, #2333
-- Report extensions used in telemetry #2295
-
-### Changed
-- Redis Span Removal and Priority Sampling Orphans Cleanup #2306
-- Subclass SpanData with RootSpanData #2309
-- Refactor tightly coupled extraction state #2314
-
 ### Fixed
-- Propagate env to telemetry #2313
-- Fix ZAI config handling for .htaccess with php-fpm #2298
-- Explicitly drop dd.p.dm if provided in propagated tags when the incoming sampling priority is reject #2310
-- Strictly validate dd.p.tid #2303
-- Fix PHP 5: The Drupal integration is not part of PHP 5 #2326
-- Avoid %.*s in places where longer strings are used #2330
-- Respect service mapping when propagating for DBM #2321
-- Specify the odbc driver in db.system and exclude the Ingres driver from DBM #2334
-- Fix daemonization of sidecar closing stderr properly DataDog/libdatadog#271
-
-## Profiling
-
-### Added
-- Support for PHP 8.3 #2098, #2282
-
-### Fixed
-- neighboring extension handling in `gc_mem_caches()` #2297
-- panic after shutdown of forked child when `USE_ZEND_ALLOC=0` #2301
-- fix typo in info log message #2307
-- sampling distance in exception profiling #2323
-- reuse thread RNG and poisson sampler #2320
-
-### Internal changes
-- fix reliability environment deployment #2289
-- upgrade to `libdatadog` v5 #2299
-- add memory benchmark #2319
-- fix flaky exception correctness test #2331
-
-## Application Security Management (0.14.3)
-### Fixed
-- Set sampling priority using ddtrace_set_priority_sampling_on_root DataDog/dd-appsec-php#311
+- Reset distributed context on request init #2340
 ]]></notes>
     <contents>
         <dir name="/">
