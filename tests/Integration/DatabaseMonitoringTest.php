@@ -14,7 +14,6 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         parent::ddTearDown();
         self::putenv('DD_TRACE_DEBUG_PRNG_SEED');
         self::putenv('DD_DBM_PROPAGATION_MODE');
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN");
         self::putEnv("DD_ENV");
         self::putEnv("DD_SERVICE");
         self::putEnv("DD_SERVICE_MAPPING");
@@ -49,10 +48,10 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         $this->assertSame("/*dddbs='testdb',ddps='phpunit',traceparent='00-0000000000000000c151df7d6ee5e2d6-a3978fb9b92502a8-01'*/ SELECT 1", $commentedQuery);
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists("")->withChildren([
+            SpanAssertion::exists("phpunit")->withChildren([
                 SpanAssertion::exists('instrumented')->withExactTags([
                     "_dd.dbm_trace_injected" => "true",
-                    "_dd.base_service" => "phpservice",
+                    "_dd.base_service" => "phpunit",
                 ])
             ])
         ]);
@@ -83,9 +82,10 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         $this->assertSame("/*dddbs='dbinstance',ddps='mapped-service',traceparent='00-0000000000000000c151df7d6ee5e2d6-a3978fb9b92502a8-01'*/ SELECT 1", $commentedQuery);
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists("")->withChildren([
+            SpanAssertion::exists("phpunit")->withChildren([
                 SpanAssertion::exists('instrumented')->withExactTags([
                     "_dd.dbm_trace_injected" => "true",
+                    "peer.service" => "dbinstance",
                     "_dd.base_service" => "mapped-service",
                 ])
             ])
@@ -94,7 +94,6 @@ class DatabaseMonitoringTest extends IntegrationTestCase
 
     public function testEnvPropagation()
     {
-        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         self::putEnv("DD_ENV=envtest");
         self::putEnv("DD_SERVICE=service \'test");
         self::putEnv("DD_VERSION=0");
