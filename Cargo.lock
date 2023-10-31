@@ -708,7 +708,7 @@ dependencies = [
 [[package]]
 name = "datadog-profiling"
 version = "5.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=levi/alloc-paris#0bff861cf7e16a89bc10a5f91c4222c95567c31a"
+source = "git+https://github.com/DataDog/libdatadog?rev=1e8d91b#1e8d91b1cb33dcde7eff54e51d8569b49a4a7fe6"
 dependencies = [
  "anyhow",
  "bitmaps",
@@ -876,7 +876,7 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "5.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=levi/alloc-paris#0bff861cf7e16a89bc10a5f91c4222c95567c31a"
+source = "git+https://github.com/DataDog/libdatadog?rev=1e8d91b#1e8d91b1cb33dcde7eff54e51d8569b49a4a7fe6"
 dependencies = [
  "anyhow",
  "futures",

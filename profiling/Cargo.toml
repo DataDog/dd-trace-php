@@ -18,8 +18,8 @@ bumpalo = { version = "3.12", features = ["collections"] }
 cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", branch = "levi/alloc-paris" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", branch = "levi/alloc-paris" }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", rev = "1e8d91b" }
+ddcommon = { git = "https://github.com/DataDog/libdatadog", rev = "1e8d91b" }
 env_logger = { version = "0.10" }
 indexmap = { version = "2.0.0" }
 lazy_static = { version = "1.4" }
