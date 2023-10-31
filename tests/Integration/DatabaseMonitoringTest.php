@@ -52,7 +52,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
             SpanAssertion::exists("")->withChildren([
                 SpanAssertion::exists('instrumented')->withExactTags([
                     "_dd.dbm_trace_injected" => "true",
-                    "_dd.base_service" => "mapped-service",
+                    "_dd.base_service" => "phpservice",
                 ])
             ])
         ]);
@@ -85,7 +85,8 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists("")->withChildren([
                 SpanAssertion::exists('instrumented')->withExactTags([
-                    "_dd.dbm_trace_injected" => "true"
+                    "_dd.dbm_trace_injected" => "true",
+                    "_dd.base_service" => "mapped-service",
                 ])
             ])
         ]);
