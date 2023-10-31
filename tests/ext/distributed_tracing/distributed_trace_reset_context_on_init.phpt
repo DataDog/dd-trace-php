@@ -9,7 +9,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 var_dump(DDTrace\current_context());
 
 // Update distributed tracing context 
-DDTrace\set_distributed_tracing_context("123", "321", "foo", ["a" => "b"]);
+DDTrace\set_distributed_tracing_context("123", "321");
 var_dump(DDTrace\current_context());
 
 // Reinitialize request to clear the distributed context state
@@ -33,7 +33,7 @@ array(5) {
   array(0) {
   }
 }
-array(7) {
+array(6) {
   ["trace_id"]=>
   string(3) "123"
   ["span_id"]=>
@@ -42,14 +42,10 @@ array(7) {
   NULL
   ["env"]=>
   NULL
-  ["distributed_tracing_origin"]=>
-  string(3) "foo"
   ["distributed_tracing_parent_id"]=>
   string(3) "321"
   ["distributed_tracing_propagated_tags"]=>
-  array(1) {
-    ["a"]=>
-    string(1) "b"
+  array(0) {
   }
 }
 array(5) {
