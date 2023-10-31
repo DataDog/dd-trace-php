@@ -1786,10 +1786,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
             ddtrace_coms_synchronous_flush(timeout);
             RETVAL_TRUE;
-        } else if (FUNCTION_NAME_MATCHES("initialize_request")) {
-            dd_clean_globals();
-            dd_initialize_request();
-            RETVAL_TRUE;
         }
     }
 }

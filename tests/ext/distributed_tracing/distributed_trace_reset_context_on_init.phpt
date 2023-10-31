@@ -4,7 +4,6 @@ Reset distributed tracing context on request init
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
-
 // Initial state
 var_dump(DDTrace\current_context());
 
@@ -13,7 +12,8 @@ DDTrace\set_distributed_tracing_context("123", "321");
 var_dump(DDTrace\current_context());
 
 // Reinitialize request to clear the distributed context state
-dd_trace_internal_fn('initialize_request');
+ini_set("datadog.trace.enabled", 0);
+ini_set("datadog.trace.enabled", 1);
 
 // Reinitialized state
 var_dump(DDTrace\current_context());
