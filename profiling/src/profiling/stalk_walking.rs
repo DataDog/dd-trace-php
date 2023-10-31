@@ -251,7 +251,7 @@ unsafe fn handle_function_cache_slot(
 
     let func = &*execute_data.func;
     let filename = if cache_slot.filename.is_zero() {
-        if func.type_ != ZEND_USER_FUNCTION as u8 {
+        if func.is_user_code() {
             StringId::ZERO
         } else {
             let filename = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
@@ -263,7 +263,7 @@ unsafe fn handle_function_cache_slot(
         cache_slot.filename
     };
 
-    let line = if func.type_ == ZEND_USER_FUNCTION as u8 {
+    let line = if func.is_user_code() {
         match execute_data.opline.as_ref() {
             Some(opline) => opline.lineno,
             None => 0,
@@ -289,7 +289,7 @@ unsafe fn extract_file_and_line(
 ) -> (Option<StringId>, u32) {
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
-        Some(func) if func.type_ == ZEND_USER_FUNCTION as u8 => {
+        Some(func) if func.is_user_code() => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
             // todo: fix panic when full
             let file = string_table
