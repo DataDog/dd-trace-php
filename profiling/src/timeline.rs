@@ -37,45 +37,10 @@ pub fn timeline_minit() {
     }
 }
 
-const STREAM_SELECT: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"stream_select\0") };
-const SLEEP: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"sleep\0") };
-const USLEEP: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"usleep\0") };
-
-static mut STREAM_SELECT_HANDLER: InternalFunctionHandler = None;
 static mut SLEEP_HANDLER: InternalFunctionHandler = None;
 static mut USLEEP_HANDLER: InternalFunctionHandler = None;
-
-/// Wrapping the PHP `stream_select()` function to take the time it is blocking the current thread
-unsafe extern "C" fn php_stream_select(
-    execute_data: *mut zend::zend_execute_data,
-    return_value: *mut zend::zval,
-) {
-    let start = Instant::now();
-
-    if let Some(func) = STREAM_SELECT_HANDLER {
-        func(execute_data, return_value);
-    }
-
-    let duration = start.elapsed();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH);
-
-    REQUEST_LOCALS.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
-            return;
-        };
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            profiler.collect_idle(
-                // Safety: checked for `is_err()` above
-                now.unwrap().as_nanos() as i64,
-                duration.as_nanos() as i64,
-                "select",
-                &locals,
-            );
-        }
-    });
-}
+static mut TIME_NANOSLEEP_HANDLER: InternalFunctionHandler = None;
+static mut TIME_SLEEP_UNTIL_HANDLER: InternalFunctionHandler = None;
 
 /// Wrapping the PHP `sleep()` function to take the time it is blocking the current thread
 unsafe extern "C" fn php_sleep(
@@ -141,17 +106,94 @@ unsafe extern "C" fn php_usleep(
     });
 }
 
+/// Wrapping the PHP `time_nanosleep()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_time_nanosleep(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    let start = Instant::now();
+
+    if let Some(func) = TIME_NANOSLEEP_HANDLER {
+        func(execute_data, return_value);
+    }
+
+    let duration = start.elapsed();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+
+    REQUEST_LOCALS.with(|cell| {
+        // try to borrow and bail out if not successful
+        let Ok(locals) = cell.try_borrow() else {
+            return;
+        };
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            profiler.collect_idle(
+                // Safety: checked for `is_err()` above
+                now.unwrap().as_nanos() as i64,
+                duration.as_nanos() as i64,
+                "sleeping",
+                &locals,
+            );
+        }
+    });
+}
+
+/// Wrapping the PHP `time_sleep_until()` function to take the time it is blocking the current thread
+unsafe extern "C" fn php_time_sleep_until(
+    execute_data: *mut zend::zend_execute_data,
+    return_value: *mut zend::zval,
+) {
+    let start = Instant::now();
+
+    if let Some(func) = TIME_SLEEP_UNTIL_HANDLER {
+        func(execute_data, return_value);
+    }
+
+    let duration = start.elapsed();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+
+    REQUEST_LOCALS.with(|cell| {
+        // try to borrow and bail out if not successful
+        let Ok(locals) = cell.try_borrow() else {
+            return;
+        };
+
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            profiler.collect_idle(
+                // Safety: checked for `is_err()` above
+                now.unwrap().as_nanos() as i64,
+                duration.as_nanos() as i64,
+                "sleeping",
+                &locals,
+            );
+        }
+    });
+}
+
 /// This function is run during the STARTUP phase and hooks into the execution of some functions
 /// that we'd like to observe in regards of visualization on the timeline
 pub unsafe fn timeline_startup() {
     let handlers = [
         zend::datadog_php_zif_handler::new(
-            STREAM_SELECT,
-            &mut STREAM_SELECT_HANDLER,
-            Some(php_stream_select),
+            CStr::from_bytes_with_nul_unchecked(b"sleep\0"),
+            &mut SLEEP_HANDLER,
+            Some(php_sleep),
         ),
-        zend::datadog_php_zif_handler::new(SLEEP, &mut SLEEP_HANDLER, Some(php_sleep)),
-        zend::datadog_php_zif_handler::new(USLEEP, &mut USLEEP_HANDLER, Some(php_usleep)),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"usleep\0"),
+            &mut USLEEP_HANDLER,
+            Some(php_usleep),
+        ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"time_nanosleep\0"),
+            &mut TIME_NANOSLEEP_HANDLER,
+            Some(php_time_nanosleep),
+        ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"time_sleep_until\0"),
+            &mut TIME_SLEEP_UNTIL_HANDLER,
+            Some(php_time_sleep_until),
+        ),
     ];
 
     for handler in handlers.into_iter() {
