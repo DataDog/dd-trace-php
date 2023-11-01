@@ -4,30 +4,19 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include "remote_config/mocks.hpp"
 #include <remote_config/client.hpp>
 #include <service.hpp>
 #include <stdexcept>
 
 namespace dds {
 
-namespace mock {
-class client : public remote_config::client {
-public:
-    client(service_identifier &sid)
-        : remote_config::client(nullptr, std::move(sid), {})
-    {}
-    ~client() = default;
-    MOCK_METHOD0(poll, bool());
-    MOCK_METHOD0(is_remote_config_available, bool());
-};
-} // namespace mock
-
 TEST(ServiceTest, NullEngine)
 {
     service_identifier sid{"service", {"extra01", "extra02"}, "env",
         "tracer_version", "app_version", "runtime_id"};
     std::shared_ptr<engine> engine;
-    auto client = std::make_unique<mock::client>(sid);
+    auto client = std::make_unique<remote_config::mock::client>(sid);
     EXPECT_CALL(*client, poll).Times(0);
 
     auto service_config = std::make_shared<dds::service_config>();

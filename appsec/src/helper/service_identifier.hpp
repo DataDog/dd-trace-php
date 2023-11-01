@@ -23,9 +23,7 @@ struct service_identifier {
 
     bool operator==(const service_identifier &oth) const noexcept
     {
-        return service == oth.service && env == oth.env &&
-               tracer_version == oth.tracer_version &&
-               app_version == oth.app_version && runtime_id == oth.runtime_id;
+        return service == oth.service && env == oth.env;
     }
 
     friend auto &operator<<(std::ostream &os, const service_identifier &id)
@@ -50,8 +48,7 @@ struct service_identifier {
     struct hash {
         std::size_t operator()(const service_identifier &id) const noexcept
         {
-            return dds::hash(id.service, id.env, id.tracer_version,
-                id.app_version, id.runtime_id);
+            return dds::hash(id.service, id.env);
         }
     };
 };

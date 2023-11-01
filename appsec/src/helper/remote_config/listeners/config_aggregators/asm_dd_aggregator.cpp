@@ -28,13 +28,10 @@ void dds::remote_config::asm_dd_aggregator::remove(const config & /*config*/)
         return;
     }
 
+    auto ruleset = engine_ruleset::from_path(fallback_rules_file_);
+
     rapidjson::Document doc(&ruleset_.GetAllocator());
-    auto ruleset = read_file(fallback_rules_file_);
-    rapidjson::ParseResult const result = doc.Parse(ruleset.data());
-    if ((result == nullptr) || !doc.IsObject()) {
-        throw error_applying_config(
-            "Invalid fallback rule file " + fallback_rules_file_);
-    }
+    doc.CopyFrom(ruleset.get_document(), doc.GetAllocator());
 
     ruleset_ = std::move(doc);
 }

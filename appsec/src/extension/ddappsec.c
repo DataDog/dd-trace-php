@@ -247,13 +247,7 @@ static PHP_RINIT_FUNCTION(ddappsec)
     pthread_once(&_rinit_once_control, _rinit_once);
     zai_config_rinit();
 
-    //_check_enabled should be run only once. However, pthread_once approach
-    // does not work with ZTS.
-    if (DDAPPSEC_G(enabled) == NOT_CONFIGURED) {
-        mlog_g(
-            dd_log_trace, "Enabled not configured, computing enabled status");
-        _check_enabled();
-    }
+    _check_enabled();
 
     if (DDAPPSEC_G(enabled_by_configuration) == DISABLED) {
         return SUCCESS;
@@ -446,11 +440,11 @@ static void _check_enabled()
 {
     if (!get_global_DD_APPSEC_TESTING() &&
         (!dd_trace_enabled() || strcmp(sapi_module.name, "cli") == 0 ||
-            sapi_module.phpinfo_as_text)) {
+            (sapi_module.phpinfo_as_text != 0))) {
         DDAPPSEC_G(enabled_by_configuration) = DISABLED;
     } else if (!dd_is_config_using_default(DDAPPSEC_CONFIG_DD_APPSEC_ENABLED)) {
         DDAPPSEC_G(enabled_by_configuration) =
-            get_global_DD_APPSEC_ENABLED() ? ENABLED : DISABLED;
+            get_DD_APPSEC_ENABLED() ? ENABLED : DISABLED;
     } else {
         DDAPPSEC_G(enabled_by_configuration) = NOT_CONFIGURED;
     };

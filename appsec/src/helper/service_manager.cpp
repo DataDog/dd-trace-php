@@ -19,9 +19,13 @@ std::shared_ptr<service> service_manager::create_service(
     if (hit != cache_.end()) {
         auto service_ptr = hit->second.lock();
         if (service_ptr) { // not expired
+            SPDLOG_DEBUG(
+                "Found an existing service for {}::{}", id.service, id.env);
             return service_ptr;
         }
     }
+
+    SPDLOG_DEBUG("Creating a service for {}::{}", id.service, id.env);
 
     auto service_ptr = service::from_settings(service_identifier(id), settings,
         rc_settings, meta, metrics, dynamic_enablement);
