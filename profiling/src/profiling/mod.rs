@@ -923,7 +923,7 @@ impl Profiler {
             vec![ZendFrame {
                 reader: CACHED_STRINGS.with(|cell| cell.borrow().get_reader()), // todo: fix
                 function: AbridgedFunction {
-                    name: StringId::new(2),
+                    name: STR_ID_GC,
                     filename: StringId::ZERO,
                 },
                 line: 0,

@@ -63,10 +63,16 @@ impl Id for FunctionId {
 }
 
 pub const STR_ID_PHP_OPEN: StringId = StringId::new(1);
-pub const STR_ID_GC: StringId = StringId::new(2);
-pub const STR_ID_INCLUDE: StringId = StringId::new(3);
-pub const STR_ID_REQUIRE: StringId = StringId::new(4);
-pub const STR_ID_TRUNCATED: StringId = StringId::new(5);
+pub const STR_ID_TRUNCATED: StringId = StringId::new(2);
+
+#[cfg(feature = "timeline")]
+pub const STR_ID_GC: StringId = StringId::new(3);
+
+#[cfg(feature = "timeline")]
+pub const STR_ID_INCLUDE: StringId = StringId::new(4);
+
+#[cfg(feature = "timeline")]
+pub const STR_ID_REQUIRE: StringId = StringId::new(5);
 
 #[cfg(feature = "timeline")]
 pub const STR_ID_EVAL: StringId = StringId::new(6);
@@ -74,13 +80,15 @@ pub const STR_ID_EVAL: StringId = StringId::new(6);
 fn new_string_table_with_known_strings(capacity: usize) -> anyhow::Result<StringTable> {
     let mut table = StringTable::with_capacity(capacity)?;
     assert_eq!(STR_ID_PHP_OPEN, table.insert("<?php")?);
-    assert_eq!(STR_ID_GC, table.insert("[gc]")?);
-    assert_eq!(STR_ID_INCLUDE, table.insert("[include]")?);
-    assert_eq!(STR_ID_REQUIRE, table.insert("[require]")?);
     assert_eq!(STR_ID_TRUNCATED, table.insert("[truncated]")?);
 
     #[cfg(feature = "timeline")]
-    assert_eq!(StringId::new(6), table.insert("[eval]")?);
+    {
+        assert_eq!(STR_ID_GC, table.insert("[gc]")?);
+        assert_eq!(STR_ID_INCLUDE, table.insert("[include]")?);
+        assert_eq!(STR_ID_REQUIRE, table.insert("[require]")?);
+        assert_eq!(STR_ID_EVAL, table.insert("[eval]")?);
+    }
 
     Ok(table)
 }
