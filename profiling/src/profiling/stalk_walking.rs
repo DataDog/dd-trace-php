@@ -250,28 +250,22 @@ unsafe fn handle_function_cache_slot(
     };
 
     let func = &*execute_data.func;
-    let filename = if cache_slot.filename.is_zero() {
-        if func.is_user_code() {
-            StringId::ZERO
+    let (filename, line) = if cache_slot.filename.is_zero() {
+        if func.is_internal() {
+            (StringId::ZERO, 0)
         } else {
-            let filename = zai_str_from_zstr(func.op_array.filename.as_mut());
-            let filename_string_id = string_table
-                .insert(filename.to_string_lossy().as_ref())
-                .unwrap(); // todo: fix potential panic from string insert
-            cache_slot.filename = filename_string_id;
-            filename_string_id
+            match extract_file_and_line(execute_data, string_table) {
+                (Some(string_id), line) => {
+                    cache_slot.filename = string_id;
+                    (string_id, line)
+                }
+                _ => (StringId::ZERO, 0),
+            }
         }
     } else {
-        cache_slot.filename
-    };
-
-    let line = if func.is_user_code() {
-        match execute_data.opline.as_ref() {
-            Some(opline) => opline.lineno,
-            None => 0,
-        }
-    } else {
-        0
+        // SAFETY: non-zero filename means there is a frame, so there is an opline.
+        let line = assume_user_code_and_extract_line(execute_data);
+        (cache_slot.filename, line)
     };
 
     let name = if let Some(name_id) = name {
@@ -285,6 +279,17 @@ unsafe fn handle_function_cache_slot(
     Some((AbridgedFunction { name, filename }, line))
 }
 
+/// Extract the line number from the opline.
+/// # Safety
+/// Call only when the frame should have a valid opline, such as when the
+/// frame has a func which is user code.
+unsafe fn assume_user_code_and_extract_line(execute_data: &zend_execute_data) -> u32 {
+    match execute_data.opline.as_ref() {
+        Some(opline) => opline.lineno,
+        None => 0,
+    }
+}
+
 unsafe fn extract_file_and_line(
     execute_data: &zend_execute_data,
     string_table: &mut StringTable,
@@ -293,14 +298,12 @@ unsafe fn extract_file_and_line(
     match execute_data.func.as_ref() {
         Some(func) if func.is_user_code() => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
-            // todo: fix panic when full
             let file = string_table
                 .insert(&zai_str_from_zstr(func.op_array.filename.as_mut()).to_string_lossy())
+                // todo: fix panic when string table is full
                 .unwrap();
-            let lineno = match execute_data.opline.as_ref() {
-                Some(opline) => opline.lineno,
-                None => 0,
-            };
+            // Safety: func is checked to be user code above.
+            let lineno = assume_user_code_and_extract_line(execute_data);
             (Some(file), lineno)
         }
         _ => (None, 0),
