@@ -2431,7 +2431,8 @@ jobs:
           command: |
             set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
             switch-php << parameters.php_version >>
-            cd appsec ; mkdir build ; cmake .. -DCMAKE_BUILD_TYPE=Release -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
+            cd appsec ; mkdir build ; cd build
+            cmake .. -DCMAKE_BUILD_TYPE=Release -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
 
   "Prepare Code":
     working_directory: ~/datadog
