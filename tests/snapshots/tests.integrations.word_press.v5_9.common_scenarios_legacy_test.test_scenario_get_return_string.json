@@ -62,7 +62,8 @@
           "span_id": 17,
           "parent_id": 2,
           "type": "sql",
-          "meta": {"_dd.base_service": "wordpress_59_test_app",
+          "meta": {
+            "_dd.base_service": "wordpress_59_test_app",
             "component": "mysqli",
             "db.system": "mysql",
             "db.type": "mysql",
