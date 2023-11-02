@@ -52,6 +52,7 @@
        "parent_id": 1,
        "type": "sql",
        "meta": {
+         "_dd.base_service": "wordpress_test_app",
          "component": "mysqli",
          "db.system": "mysql",
          "db.type": "mysql",
