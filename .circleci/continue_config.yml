@@ -2425,14 +2425,13 @@ jobs:
               mkdir -p /opt/cmake/<< parameters.cmake_version >>
               cd /opt/cmake/<< parameters.cmake_version >> && tar -xf /tmp/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz --strip 1
             fi
-            PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
       - run:
           name: Build ndebug, nts configuration
           command: |
             set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
             switch-php << parameters.php_version >>
             cd appsec ; mkdir build ; cd build
-            cmake .. -DCMAKE_BUILD_TYPE=Release -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
+            PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH" cmake .. -DCMAKE_BUILD_TYPE=Release -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
 
   "Prepare Code":
     working_directory: ~/datadog
