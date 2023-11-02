@@ -21,9 +21,11 @@ target_link_libraries(extension PRIVATE mpack PhpConfig)
 
 target_include_directories(extension PRIVATE ../zend_abstract_interface)
 
-if(DD_APPSEC_ENABLE_COVERAGE)
-    target_compile_options(extension PRIVATE --coverage)
-    target_link_options(extension PRIVATE --coverage)
-endif()
+if(DD_APPSEC_TESTING)
+    if(DD_APPSEC_ENABLE_COVERAGE)
+        target_compile_options(extension PRIVATE --coverage)
+        target_link_options(extension PRIVATE --coverage)
+    endif()
 
-include(cmake/run_tests.cmake)
+    include(cmake/run_tests.cmake)
+endif()

@@ -2388,6 +2388,51 @@ jobs:
           root: '.'
           paths: [ './extensions_*' ]
 
+  compile_appsec_extension_centos:
+    working_directory: ~/datadog
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+      docker_image:
+        type: string
+      so_suffix:
+        type: string
+        default: unknown
+      catch_warnings:
+        type: boolean
+        default: true
+      php_version:
+        type: string
+      cmake_version:
+        type: string
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: << parameters.docker_image >>
+      - run: mkdir -p extensions_$(uname -m)
+      - run:
+          name: Install cmake << parameters.cmake_version >>
+          command: |
+            if [ ! -d "/opt/cmake/<< parameters.cmake_version >>" ]
+            then
+              cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz
+              mkdir -p /opt/cmake/<< parameters.cmake_version >>
+              cd /opt/cmake/<< parameters.cmake_version >> && tar -xf /tmp/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz --strip 1
+            fi
+            PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+      - run:
+          name: Build ndebug, nts configuration
+          command: |
+            set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
+            switch-php << parameters.php_version >>
+            cd appsec ; mkdir build ; cmake .. -DCMAKE_BUILD_TYPE=Release -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
+
   "Prepare Code":
     working_directory: ~/datadog
     docker: [ image: 'cimg/php:7.3' ]
@@ -2871,6 +2916,14 @@ workflows:
           abi_no: "20230831"
           triplet: "aarch64-unknown-linux-gnu"
           resource_class: "arm.medium"
+
+      - compile_appsec_extension_centos:
+          requires: [ 'Prepare Code' ]
+          name: "Compile AppSec x86_64 PHP 70 nts + zts + debug"
+          php_version: "7.0"
+          docker_image: "datadog/dd-trace-ci:php-7.0_centos-7"
+          so_suffix: "20151012"
+          cmake_version: "3.24.4"
 
       - compile_alpine:
           requires: [ 'Prepare Code' ]
