@@ -2407,7 +2407,7 @@ jobs:
           docker_image: "datadog/dd-trace-ci:php-<< parameters.php_version >>_centos-7"
       - run: mkdir -p appsec_$(uname -m)
       - run:
-          name: Install cmake << parameters.cmake_version >>
+          name: Install cmake 3.24.4
           command: |
             if [ ! -d "/opt/cmake/3.24.4" ]
             then
@@ -2415,7 +2415,7 @@ jobs:
               mkdir -p /opt/cmake/3.24.4
               cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
             fi
-            echo 'export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"' >> "$BASH_ENV"
+            echo 'export PATH="/opt/cmake/3.24.4/bin:$PATH"' >> "$BASH_ENV"
             echo 'export PHP_API_SUFFIX=$(php -i | grep "PHP Extension => " | sed "s/PHP Extension => //g")' >> "$BASH_ENV"
             source "$BASH_ENV"
       - run:
