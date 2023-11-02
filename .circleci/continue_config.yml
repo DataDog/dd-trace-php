@@ -2924,103 +2924,21 @@ workflows:
 
       - compile_appsec_extension_centos:
           requires: [ 'Prepare Code' ]
-          name: "AppSec x86_64 PHP 7.0 nts + zts"
-          php_version: "7.0"
-          so_suffix: "20151012"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec aarch64 PHP 7.0 nts + zts"
-          php_version: "7.0"
-          so_suffix: "20151012"
-          resource_class: "arm.medium"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec x86_64 PHP 7.1 nts + zts"
-          php_version: "7.1"
-          so_suffix: "20160303"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec aarch64 PHP 7.1 nts + zts"
-          php_version: "7.1"
-          so_suffix: "20160303"
-          resource_class: "arm.medium"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec x86_64 PHP 7.2 nts + zts"
-          php_version: "7.2"
-          so_suffix: "20170718"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec aarch64 PHP 7.2 nts + zts"
-          php_version: "7.2"
-          so_suffix: "20170718"
-          resource_class: "arm.medium"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec x86_64 PHP 7.3 nts + zts"
-          php_version: "7.3"
-          so_suffix: "20180731"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec aarch64 PHP 7.3 nts + zts"
-          php_version: "7.3"
-          so_suffix: "20180731"
-          resource_class: "arm.medium"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec x86_64 PHP 7.4 nts + zts"
-          php_version: "7.4"
-          so_suffix: "20190902"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec aarch64 PHP 7.4 nts + zts"
-          php_version: "7.4"
-          so_suffix: "20190902"
-          resource_class: "arm.medium"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec x86_64 PHP 8.0 nts + zts"
-          php_version: "8.0"
-          so_suffix: "20200930"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec aarch64 PHP 8.0 nts + zts"
-          php_version: "8.0"
-          so_suffix: "20200930"
-          resource_class: "arm.medium"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec x86_64 PHP 8.1 nts + zts"
-          php_version: "8.1"
-          so_suffix: "20190902"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec aarch64 PHP 8.1 nts + zts"
-          php_version: "8.1"
-          so_suffix: "20210902"
-          resource_class: "arm.medium"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec x86_64 PHP 8.2 nts + zts"
-          php_version: "8.2"
-          so_suffix: "20220829"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec aarch64 PHP 8.2 nts + zts"
-          php_version: "8.2"
-          so_suffix: "20220829"
-          resource_class: "arm.medium"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec x86_64 PHP 8.3 nts + zts"
-          php_version: "8.3"
-          so_suffix: "20230831"
-      - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
-          name: "AppSec aarch64 PHP 8.3 nts + zts"
-          php_version: "8.3"
-          so_suffix: "20230831"
-          resource_class: "arm.medium"
+          matrix:
+            parameters:
+              php_major_minor:
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
+                - '8.1'
+                - '8.2'
+                - '8.3'
+              resource_class:
+                - "medium"
+                - "arm.medium"
 
       - compile_alpine:
           requires: [ 'Prepare Code' ]
