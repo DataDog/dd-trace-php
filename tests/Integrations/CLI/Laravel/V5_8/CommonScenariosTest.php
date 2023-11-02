@@ -26,35 +26,30 @@ class CommonScenariosTest extends CLITestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                'laravel.artisan',
+                'laravel.provider.load',
                 'artisan_test_app',
                 'cli',
-                'artisan'
+                'Illuminate\Foundation\ProviderRepository::load',
             )->withExactTags([
                 Tag::COMPONENT => 'laravel',
-            ])->withChildren([
-                SpanAssertion::exists(
-                    'laravel.provider.load',
-                    'Illuminate\Foundation\ProviderRepository::load'
-                ),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
             ]),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
         ]);
     }
 
@@ -70,29 +65,24 @@ class CommonScenariosTest extends CLITestCase
                 'artisan route:list'
             )->withExactTags([
                 Tag::COMPONENT => 'laravel',
-            ])->withChildren([
-                SpanAssertion::exists(
-                    'laravel.provider.load',
-                    'Illuminate\Foundation\ProviderRepository::load'
-                ),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
             ]),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
         ]);
     }
 
