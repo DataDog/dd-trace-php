@@ -29,7 +29,7 @@ class CommonScenariosTest extends CLITestCase
                 'laravel.provider.load',
                 'artisan_test_app',
                 'cli',
-                'Illuminate\Foundation\ProviderRepository::load',
+                'Illuminate\Foundation\ProviderRepository::load'
             )->withExactTags([
                 Tag::COMPONENT => 'laravel',
             ]),
