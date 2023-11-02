@@ -2433,7 +2433,7 @@ jobs:
             switch-php << parameters.php_version >>
             mkdir -p appsec/build-release ; cd appsec/build-release
             PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH" cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
-            cp -v ddappsec.so appsec_$(uname -m)/ddappsec-<< parameters.so_suffix >>.so
+            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-<< parameters.so_suffix >>.so
       - run:
           name: Build ndebug, zts configuration
           command: |
@@ -2441,7 +2441,7 @@ jobs:
             switch-php << parameters.php_version >>-zts
             mkdir -p appsec/build-release-zts ; cd appsec/build-release-zts
             PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH" cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
-            cp -v ddappsec.so appsec_$(uname -m)/ddappsec-<< parameters.so_suffix >>-zts.so
+            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-<< parameters.so_suffix >>-zts.so
       - persist_to_workspace:
           root: '.'
           paths: [ './appsec_*' ]
