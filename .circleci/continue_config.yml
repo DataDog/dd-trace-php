@@ -2398,9 +2398,6 @@ jobs:
         type: string
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - restore_cache:
-          keys:
-            - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
@@ -2416,7 +2413,7 @@ jobs:
               cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
             fi
             echo 'export PATH="/opt/cmake/3.24.4/bin:$PATH"' >> "$BASH_ENV"
-            echo 'export PHP_API_SUFFIX=$(php -i | grep "PHP Extension => " | sed "s/PHP Extension => //g")' >> "$BASH_ENV"
+            echo 'export PHP_API=$(php -i | grep "PHP Extension => " | sed "s/PHP Extension => //g")' >> "$BASH_ENV"
             source "$BASH_ENV"
       - run:
           name: Build ndebug, nts configuration
@@ -2425,7 +2422,7 @@ jobs:
             switch-php << parameters.php_version >>
             mkdir -p appsec/build-release ; cd appsec/build-release
             cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
-            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API_SUFFIX.so
+            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API.so
       - run:
           name: Build ndebug, zts configuration
           command: |
@@ -2433,7 +2430,38 @@ jobs:
             switch-php << parameters.php_version >>-zts
             mkdir -p appsec/build-release-zts ; cd appsec/build-release-zts
             cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
-            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API_SUFFIX-zts.so
+            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API-zts.so
+      - persist_to_workspace:
+          root: '.'
+          paths: [ './appsec_*' ]
+
+  compile_appsec_extension_alpine:
+    working_directory: ~/datadog
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+      php_version:
+        type: string
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_version >>"
+      - run: mkdir -p appsec_$(uname -m)
+      - run:
+          name: Install dependencies
+          command: |
+            apk add cmake gcc g++ git python3 autoconf coreutils
+            echo 'export PHP_API=$(php -i | grep "PHP Extension => " | sed "s/PHP Extension => //g")' >> "$BASH_ENV"
+            source "$BASH_ENV"
+      - run:
+          name: Build
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
+            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API-alpine.so
       - persist_to_workspace:
           root: '.'
           paths: [ './appsec_*' ]
@@ -2923,6 +2951,24 @@ workflows:
           resource_class: "arm.medium"
 
       - compile_appsec_extension_centos:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_version:
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
+                - '8.1'
+                - '8.2'
+                - '8.3'
+              resource_class:
+                - "medium"
+                - "arm.medium"
+
+      - compile_appsec_extension_alpine:
           requires: [ 'Prepare Code' ]
           matrix:
             parameters:
