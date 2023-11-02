@@ -2394,14 +2394,8 @@ jobs:
       resource_class:
         type: string
         default: medium
-      so_suffix:
-        type: string
-        default: unknown
       php_version:
         type: string
-      cmake_version:
-        type: string
-        default: "3.24.4"
     <<: *BARE_DOCKER_MACHINE
     steps:
       - restore_cache:
@@ -2415,28 +2409,31 @@ jobs:
       - run:
           name: Install cmake << parameters.cmake_version >>
           command: |
-            if [ ! -d "/opt/cmake/<< parameters.cmake_version >>" ]
+            if [ ! -d "/opt/cmake/3.24.4" ]
             then
-              cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>-Linux-$(uname -m).tar.gz
-              mkdir -p /opt/cmake/<< parameters.cmake_version >>
-              cd /opt/cmake/<< parameters.cmake_version >> && tar -xf /tmp/cmake-<< parameters.cmake_version >>-Linux-$(uname -m).tar.gz --strip 1
+              cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v3.24.4/cmake-3.24.4-Linux-$(uname -m).tar.gz
+              mkdir -p /opt/cmake/3.24.4
+              cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
             fi
+            echo 'export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"' >> "$BASH_ENV"
+            echo 'export PHP_API_SUFFIX=$(php -i | grep "PHP Extension => " | sed "s/PHP Extension => //g")' >> "$BASH_ENV"
+            source "$BASH_ENV"
       - run:
           name: Build ndebug, nts configuration
           command: |
             set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
             switch-php << parameters.php_version >>
             mkdir -p appsec/build-release ; cd appsec/build-release
-            PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH" cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
-            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-<< parameters.so_suffix >>.so
+            cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
+            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API_SUFFIX.so
       - run:
           name: Build ndebug, zts configuration
           command: |
             set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
             switch-php << parameters.php_version >>-zts
             mkdir -p appsec/build-release-zts ; cd appsec/build-release-zts
-            PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH" cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
-            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-<< parameters.so_suffix >>-zts.so
+            cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
+            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API_SUFFIX-zts.so
       - persist_to_workspace:
           root: '.'
           paths: [ './appsec_*' ]
