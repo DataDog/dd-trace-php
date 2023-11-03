@@ -156,11 +156,19 @@ bool client::handle_command(const network::client_init::request &command)
     bool has_errors = false;
 
     client_enabled_conf = command.enabled_configuration;
+    if (service_id.runtime_id.empty()) {
+        service_id.runtime_id = generate_random_uuid();
+    }
+    runtime_id_ = service_id.runtime_id;
 
     try {
         service_ = service_manager_->create_service(std::move(service_id),
             eng_settings, command.rc_settings, meta, metrics,
             !client_enabled_conf.has_value());
+        if (service_) {
+            // This null check is only needed due to some tests
+            service_->register_runtime_id(runtime_id_);
+        }
     } catch (std::system_error &e) {
         // TODO: logging should happen at WAF impl
         DD_STDLOG(DD_STDLOG_RULES_FILE_NOT_FOUND,
@@ -499,6 +507,12 @@ bool client::run_request()
 
 void client::run(worker::queue_consumer &q)
 {
+    const defer on_exit{[this]() {
+        if (this->service_) {
+            this->service_->unregister_runtime_id(this->runtime_id_);
+        }
+    }};
+
     if (q.running()) {
         if (!run_client_init()) {
             SPDLOG_DEBUG("Finished handling client (client_init failed)");

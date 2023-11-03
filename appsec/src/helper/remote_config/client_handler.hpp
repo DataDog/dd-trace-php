@@ -46,6 +46,19 @@ public:
 
     remote_config::client *get_client() { return rc_client_.get(); }
 
+    void register_runtime_id(const std::string &id)
+    {
+        if (rc_client_) {
+            rc_client_->register_runtime_id(id);
+        }
+    }
+    void unregister_runtime_id(const std::string &id)
+    {
+        if (rc_client_) {
+            rc_client_->unregister_runtime_id(id);
+        }
+    }
+
 protected:
     void run(std::future<bool> &&exit_signal);
     void handle_error();

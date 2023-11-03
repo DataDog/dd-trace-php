@@ -69,6 +69,7 @@ protected:
     std::optional<engine::context> context_;
     std::optional<bool> client_enabled_conf;
     bool request_enabled_ = {false};
+    std::string runtime_id_;
 };
 
 } // namespace dds

@@ -108,4 +108,24 @@ TEST(ServiceManagerTest, BadRulesFile)
         },
         dds::parsing_error);
 }
+
+TEST(ServiceManagerTest, UniqueServices)
+{
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    service_manager_exp manager;
+    auto fn = create_sample_rules_ok();
+    dds::engine_settings engine_settings;
+    engine_settings.rules_file = fn;
+
+    auto service1 = manager.create_service(
+        {"service", {}, "env", "1.0", "2.0", "runtime ID 0"}, engine_settings,
+        {}, meta, metrics, {});
+    auto service2 = manager.create_service(
+        {"service", {}, "env", "1.1", "3.0", "runtime ID 1"}, engine_settings,
+        {}, meta, metrics, {});
+
+    EXPECT_EQ(service1.get(), service2.get());
+}
 } // namespace dds
