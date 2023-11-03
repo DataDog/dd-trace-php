@@ -161,6 +161,7 @@ array(5) {
     string(29) "dd_trace_function_complex.php"
     ["type"]=>
     string(3) "cli"
+    ["meta"]=>
     array(1) {
       ["_dd.base_service"]=>
       string(10) "BarService"
@@ -186,6 +187,7 @@ array(5) {
     string(29) "dd_trace_function_complex.php"
     ["type"]=>
     string(3) "cli"
+    ["meta"]=>
     array(1) {
       ["_dd.base_service"]=>
       string(10) "BarService"
