@@ -2466,6 +2466,42 @@ jobs:
           root: '.'
           paths: [ './appsec_*' ]
 
+  compile_appsec_helper:
+    working_directory: ~/datadog
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: "datadog/libddwaf:toolchain"
+      - run: mkdir -p appsec_$(uname -m)
+      - run:
+          name: Create clang symlinks
+          command: |
+            ln -s /usr/bin/clang++-16 /usr/bin/clang++
+            ln -s /usr/bin/clang-16 /usr/bin/clang
+            ln -s /usr/bin/clang-cpp-16 /usr/bin/clang-cpp
+      - run:
+          name: Build
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_TOOLCHAIN_FILE=~/datadog/appsec/cmake/Toolchain.$(uname -m).cmake
+            make -j $(nproc)
+            cp -v ddappsec-helper ../../appsec_$(uname -m)/ddappsec-helper
+      - run:
+          name: Test
+          command: |
+            cd appsec/build
+            make -j $(nproc) ddappsec_helper_test
+            ./tests/helper/ddappsec_helper_test
+      - persist_to_workspace:
+          root: '.'
+          paths: [ './appsec_*' ]
+
   "Prepare Code":
     working_directory: ~/datadog
     docker: [ image: 'cimg/php:7.3' ]
@@ -2982,6 +3018,14 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+              resource_class:
+                - "medium"
+                - "arm.medium"
+
+      - compile_appsec_helper:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
               resource_class:
                 - "medium"
                 - "arm.medium"
