@@ -162,8 +162,8 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     array(1) {
-        ["_dd.base_service"]=>
-        string(10) "BarService"
+      ["_dd.base_service"]=>
+      string(10) "BarService"
     }
   }
   [2]=>
@@ -187,8 +187,8 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     array(1) {
-        ["_dd.base_service"]=>
-        string(10) "BarService"
+      ["_dd.base_service"]=>
+      string(10) "BarService"
     }
   }
   [3]=>
