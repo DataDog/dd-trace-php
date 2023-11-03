@@ -151,6 +151,9 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define zend_hash_str_add_new(...) _zend_hash_str_add_new(__VA_ARGS__ ZEND_FILE_LINE_CC)
 
 #define smart_str_free_ex(str, persistent) smart_str_free(str)
+
+#define Z_TYPE_EXTRA(zval)			(zval).u1.v.reserved
+#define Z_TYPE_EXTRA_P(zval_p)		Z_TYPE_EXTRA(*(zval_p))
 #endif
 
 #if PHP_VERSION_ID < 70400
@@ -280,6 +283,11 @@ static zend_always_inline void zend_array_release(zend_array *array)
         }
     }
 }
+
+#if PHP_VERSION_ID >= 70300
+#define Z_TYPE_EXTRA(zval)			(zval).u1.v.u.extra
+#define Z_TYPE_EXTRA_P(zval_p)		Z_TYPE_EXTRA(*(zval_p))
+#endif
 #endif
 
 #if PHP_VERSION_ID < 80100
@@ -290,6 +298,16 @@ static zend_always_inline void zend_array_release(zend_array *array)
 #define ZEND_ATOL(s) atol((s))
 #endif
 #define ZEND_ACC_READONLY 0
+
+#define add_assoc_array(__arg, __key, __arr) add_assoc_array_ex(__arg, __key, strlen(__key), __arr)
+static zend_always_inline void add_assoc_array_ex(zval *arg, const char *key, size_t key_len, zend_array *arr)
+{
+    zval tmp;
+
+    ZVAL_ARR(&tmp, arr);
+    zend_symtable_str_update(Z_ARRVAL_P(arg), key, key_len, &tmp);
+}
+
 #endif
 
 #if PHP_VERSION_ID < 80200
@@ -356,6 +374,11 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
 }
 
 #define zend_zval_value_name zend_zval_type_name
+
+#if PHP_VERSION_ID >= 80000
+#define Z_TYPE_EXTRA(zval)			(zval).u1.v.u.extra
+#define Z_TYPE_EXTRA_P(zval_p)		Z_TYPE_EXTRA(*(zval_p))
+#endif
 #endif
 
 #endif  // DD_COMPATIBILITY_H

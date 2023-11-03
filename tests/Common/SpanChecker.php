@@ -91,6 +91,12 @@ final class SpanChecker
                     $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . "\n";
                 }
             }
+            if (isset($span["span_links"])) {
+                $out .= str_repeat(' ', $indent) . "  span_links:\n";
+                foreach ($span["span_links"] as $link) {
+                    $out .= str_repeat(' ', $indent) . '    attributes: ' . \GuzzleHttp\json_encode($link["attributes"] ?? []) . "\n";
+                }
+            }
             $out .= self::dumpSpansGraph($node['children'], $indent + 2);
         }
         return $out;
@@ -417,6 +423,7 @@ final class SpanChecker
             isset($span['error']) && 1 === $span['error'],
             $namePrefix . "Wrong value for 'error': " . print_r($span, true)
         );
+        TestCase::assertCount($exp->getSpanLinksCount(), $span["span_links"] ?? []);
         if ($exp->getExactTags() !== SpanAssertion::NOT_TESTED) {
             $filtered = [];
             foreach ($spanMeta as $key => $value) {

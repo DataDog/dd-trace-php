@@ -20,6 +20,7 @@ typedef struct ddtrace_span_data ddtrace_span_data;
 typedef struct ddtrace_root_span_data ddtrace_root_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 typedef struct ddtrace_span_link ddtrace_span_link;
+typedef struct ddtrace_parsed_span_link ddtrace_parsed_span_link;
 
 static inline zend_array *ddtrace_property_array(zval *zv) {
     ZVAL_DEREF(zv);

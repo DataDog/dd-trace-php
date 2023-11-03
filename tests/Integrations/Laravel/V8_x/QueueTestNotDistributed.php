@@ -207,8 +207,7 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
         } else {
             return $span->withExistingTagsNames([
                 Tag::MQ_MESSAGE_ID,
-                '_dd.span_links'
-            ]);
+            ])->withSpanLinksCount(1);
         }
     }
 }

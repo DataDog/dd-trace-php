@@ -44,12 +44,17 @@ namespace DDTrace {
         /**
          * @var string[] $attributes
          */
-        public array $attributes;
+        public array $attributes = [];
 
         /**
          * @var int $droppedAttributesCount
          */
         public int $droppedAttributesCount;
+
+        /**
+         * @var int $flags
+         */
+        public int $flags;
 
         /**
          * @return mixed
@@ -63,6 +68,18 @@ namespace DDTrace {
          * or a callback, which given a header name for distributed tracing, returns the value it should be updated to.
          */
         public static function fromHeaders(array|callable $headersOrCallback): SpanLink {}
+    }
+
+    class ParsedSpanLink extends SpanLink {
+        /**
+         * @var int $samplingPriority The sampling priority, as parsed from a tracestate.
+         */
+        public int $samplingPriority;
+
+        /**
+         * @var string[] $extractedAttributes
+         */
+        public array $extractedAttributes = [];
     }
 
     class SpanData {

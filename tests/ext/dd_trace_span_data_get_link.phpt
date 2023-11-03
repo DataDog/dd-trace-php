@@ -26,6 +26,6 @@ greet('Datadog');
 --EXPECTF--
 Hello, Datadog.
 greet tracer.
-string(76) "{"trace_id":"0000000000000000c151df7d6ee5e2d6","span_id":"a3978fb9b92502a8"}"
+string(92) "{"trace_id":"0000000000000000c151df7d6ee5e2d6","span_id":"a3978fb9b92502a8","attributes":[]}"
 string(20) "11788048577503494824"
 string(20) "13930160852258120406"

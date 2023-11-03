@@ -187,6 +187,9 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
             result.trace_id = trace_id;
             result.parent_id = parent_id;
             result.priority_sampling = (tracedata->trace_flags[1] & 1) == (tracedata->trace_flags[1] <= '9'); // ('a' & 1) == 1
+            result.flags = (((tracedata->trace_flags[0] - (tracedata->trace_flags[0] > '9' ? 'a' : '0')) << 4)
+                    + tracedata->trace_flags[1] - (tracedata->trace_flags[1] > '9' ? 'a' : '0'));
+            result.flags_set = true;
         } while (0);
         zend_string_release(traceparent);
 
@@ -273,9 +276,11 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 last_comma = *ptr == ',';
                 // preserve only up to 31 vendor specific values, excluding our own
                 if (last_comma && ++commas == 30) {
-                    --persist;
                     break;
                 }
+            }
+            if (last_comma && persist != ZSTR_VAL(result.tracestate)) {
+                --persist;
             }
             *persist = 0; // and zero-terminate it
             ZSTR_LEN(result.tracestate) = persist - ZSTR_VAL(result.tracestate);

@@ -54,7 +54,7 @@ $span = $root[0]['0'];
 var_dump($span['meta']['error.message']);
 var_dump($span['meta']['error.type']);
 var_dump($span['meta']['error.stack']);
-var_dump($span['meta']['_dd.span_links']);
+var_dump($span['span_links']);
 ?>
 --EXPECTF--
 Caught exception: Oops!
@@ -63,4 +63,12 @@ string(9) "Exception"
 string(%d) "#0 %s/dd_trace_span_link_with_exception.php(12): Foo->doException()
 #1 %s/dd_trace_span_link_with_exception.php(33): Foo->bar()
 #2 {main}"
-string(33) "[{"trace_id":"42","span_id":"6"}]"
+array(1) {
+  [0]=>
+  array(2) {
+    ["trace_id"]=>
+    int(66)
+    ["span_id"]=>
+    int(6)
+  }
+}

@@ -139,10 +139,7 @@ class QueueTest extends WebFrameworkTestCase
         });
         $processSpanFromArtisanTrace = array_values($processSpanFromArtisanTrace)[0];
 
-        $spanLinks = $processSpanFromArtisanTrace['meta']['_dd.span_links'];
-        $spanLinks = json_decode($spanLinks, true)[0];
-        $spanLinksTraceId = ltrim($spanLinks['trace_id'], '0');
-        $spanLinksSpanId = ltrim($spanLinks['span_id'], '0');
+        $spanLinks = $processSpanFromArtisanTrace['span_links'][0];
 
         $processSpanFromProcessTrace = array_filter($processTrace1[0], function ($span) {
             return $span['name'] === 'laravel.queue.process';
@@ -152,11 +149,8 @@ class QueueTest extends WebFrameworkTestCase
         $processSpanId = $processSpanFromProcessTrace['span_id'];
         $processParentId = $processSpanFromProcessTrace['parent_id'];
 
-        $hexProcessTraceId = self::largeBaseConvert($processTraceId, 10, 16);
-        $hexProcessSpanId = self::largeBaseConvert($processSpanId, 10, 16);
-
-        $this->assertTrue($spanLinksTraceId == $hexProcessTraceId);
-        $this->assertTrue($spanLinksSpanId == $hexProcessSpanId);
+        $this->assertTrue($spanLinks['trace_id'] == $processTraceId);
+        $this->assertTrue($spanLinks['span_id'] == $processSpanId);
 
         $pushSpanFromCreateTrace = array_filter($createTraces[0], function ($span) {
             return $span['name'] === 'laravel.queue.push';
@@ -478,8 +472,7 @@ class QueueTest extends WebFrameworkTestCase
         } else {
             return $span->withExistingTagsNames([
                 Tag::MQ_MESSAGE_ID,
-                '_dd.span_links'
-            ]);
+            ])->withSpanLinksCount(1);
         }
     }
 
@@ -498,7 +491,6 @@ class QueueTest extends WebFrameworkTestCase
             $this->getCommonTags('receive', $queue, $connection)
         )->withExistingTagsNames([
             Tag::MQ_MESSAGE_ID,
-            '_dd.span_links'
         ])->withChildren([
             $this->spanEventJobProcessing(),
             $this->spanQueueFire($connection, $queue, $resourceDetails)
@@ -517,7 +509,7 @@ class QueueTest extends WebFrameworkTestCase
                     )
                 ]),
             $this->spanEventJobProcessed()
-        ]);
+        ])->withSpanLinksCount(1);
     }
 
     protected function spanQueuePush(

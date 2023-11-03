@@ -354,17 +354,19 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
 
 /* DDTrace\SpanLink */
 zend_class_entry *ddtrace_ce_span_link;
+zend_class_entry *ddtrace_ce_parsed_span_link;
 
 PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
     ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(ZEND_THIS);
 
-    zend_array *array = zend_new_array(5);
+    zend_array *array = zend_new_array(6);
 
     zend_string *trace_id = zend_string_init("trace_id", sizeof("trace_id") - 1, 0);
     zend_string *span_id = zend_string_init("span_id", sizeof("span_id") - 1, 0);
     zend_string *trace_state = zend_string_init("trace_state", sizeof("trace_state") - 1, 0);
     zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
     zend_string *dropped_attributes_count = zend_string_init("dropped_attributes_count", sizeof("dropped_attributes_count") - 1, 0);
+    zend_string *flags = zend_string_init("flags", sizeof("flags") - 1, 0);
 
     Z_TRY_ADDREF(link->property_trace_id);
     zend_hash_add(array, trace_id, &link->property_trace_id);
@@ -376,12 +378,15 @@ PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
     zend_hash_add(array, attributes, &link->property_attributes);
     Z_TRY_ADDREF(link->property_dropped_attributes_count);
     zend_hash_add(array, dropped_attributes_count, &link->property_dropped_attributes_count);
+    Z_TRY_ADDREF(link->property_flags);
+    zend_hash_add(array, flags, &link->property_flags);
 
     zend_string_release(trace_id);
     zend_string_release(span_id);
     zend_string_release(trace_state);
     zend_string_release(attributes);
     zend_string_release(dropped_attributes_count);
+    zend_string_release(flags);
 
     RETURN_ARR(array);
 }
@@ -394,23 +399,32 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
         RETURN_NULL();
     }
 
-    object_init_ex(return_value, ddtrace_ce_span_link);
-    ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(return_value);
+    object_init_ex(return_value, ddtrace_ce_parsed_span_link);
+    ddtrace_parsed_span_link *link = (ddtrace_parsed_span_link *)Z_OBJ_P(return_value);
     if (!get_DD_TRACE_ENABLED()) {
         return;
     }
 
     ZVAL_STR(&link->property_trace_id, ddtrace_trace_id_as_hex_string(result.trace_id));
     ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(result.parent_id));
-    array_init(&link->property_attributes);
-    zend_hash_copy(Z_ARR(link->property_attributes), &result.meta_tags, NULL);
+
+    if (result.flags_set) {
+        ZVAL_LONG(&link->property_flags, result.flags);
+    }
 
     zend_string *propagated_tags = ddtrace_format_propagated_tags(&result.propagated_tags, &result.meta_tags);
     zend_string *full_tracestate = ddtrace_format_tracestate(result.tracestate, result.origin, result.priority_sampling, propagated_tags, &result.tracestate_unknown_dd_keys);
-    zend_string_release(propagated_tags);
+    if (propagated_tags) {
+        zend_string_release(propagated_tags);
+    }
     if (full_tracestate) {
         ZVAL_STR(&link->property_trace_state, full_tracestate);
     }
+
+    ZVAL_LONG(&link->property_sampling_priority, result.priority_sampling);
+
+    SEPARATE_ARRAY(&link->property_extracted_attributes);
+    zend_hash_copy(Z_ARR(link->property_extracted_attributes), &result.meta_tags, NULL);
 
     result.meta_tags.pDestructor = NULL; // we moved values directly
     zend_hash_destroy(&result.meta_tags);
@@ -429,6 +443,7 @@ zend_class_entry *ddtrace_ce_span_data;
 zend_class_entry *ddtrace_ce_root_span_data;
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
 HashTable dd_root_span_data_duplicated_properties_table;
+HashTable dd_parsed_span_link_duplicated_properties_table;
 #endif
 zend_class_entry *ddtrace_ce_span_stack;
 zend_object_handlers ddtrace_span_data_handlers;
@@ -706,7 +721,45 @@ PHP_METHOD(DDTrace_SpanData, hexId) {
     RETURN_STR(ddtrace_span_id_as_hex_string(span->span_id));
 }
 
-static void dd_register_span_data_ce(void) {
+#if PHP_VERSION_ID < 80000
+static zend_object *dd_span_link_init(size_t size, zend_class_entry *class_type) {
+    ddtrace_span_link *link = ecalloc(1, size);
+    link->std.handlers = zend_get_std_object_handlers();
+    zend_object_std_init(&link->std, class_type);
+    object_properties_init(&link->std, class_type);
+    // Not handled in arginfo on these old versions
+    array_init(&link->property_attributes);
+    return &link->std;
+}
+
+static zend_object *ddtrace_span_link_create(zend_class_entry *class_type) {
+    return dd_span_link_init(sizeof(ddtrace_span_link), class_type);
+}
+
+static zend_object *ddtrace_parsed_span_link_create(zend_class_entry *class_type) {
+    ddtrace_parsed_span_link *link = (ddtrace_parsed_span_link *) dd_span_link_init(sizeof(ddtrace_parsed_span_link), class_type);
+    // Not handled in arginfo on these old versions
+    array_init(&link->property_extracted_attributes);
+    return &link->std;
+}
+#endif
+
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
+// Work around wrong reference source for typed internal properties by preventing duplication of them
+// php -d extension=zend_test -r '$c = new _ZendTestChildClass; $i = &$c->intProp;'
+// php: /usr/local/src/php/Zend/zend_execute.c:3390: zend_ref_del_type_source: Assertion `source_list->ptr == prop' failed.
+static void dd_fixup_property_references(zend_class_entry *ce, zend_class_entry *parent_ce, HashTable *duplicates) {
+    zend_hash_init(duplicates, zend_hash_num_elements(&parent_ce->properties_info), NULL, NULL, true);
+    for (uint32_t i = 0; i < zend_hash_num_elements(&parent_ce->properties_info); ++i) {
+        Bucket *bucket = &ce->properties_info.arData[i];
+        zend_hash_add_ptr(duplicates, bucket->key, Z_PTR(bucket->val));
+        Z_PTR(bucket->val) = ce->properties_info_table[i] = Z_PTR(parent_ce->properties_info.arData[i].val);
+    }
+}
+#endif
+
+
+static void dd_register_ce(void) {
     ddtrace_ce_span_data = register_class_DDTrace_SpanData();
     ddtrace_ce_span_data->create_object = ddtrace_span_data_create;
 
@@ -719,17 +772,8 @@ static void dd_register_span_data_ce(void) {
 
     ddtrace_ce_root_span_data = register_class_DDTrace_RootSpanData(ddtrace_ce_span_data);
     ddtrace_ce_root_span_data->create_object = ddtrace_root_span_data_create;
-
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
-    // Work around wrong reference source for typed internal properties by preventing duplication of them
-    // php -d extension=zend_test -r '$c = new _ZendTestChildClass; $i = &$c->intProp;'
-    // php: /usr/local/src/php/Zend/zend_execute.c:3390: zend_ref_del_type_source: Assertion `source_list->ptr == prop' failed.
-    zend_hash_init(&dd_root_span_data_duplicated_properties_table, zend_hash_num_elements(&ddtrace_ce_span_data->properties_info), NULL, NULL, true);
-    for (uint32_t i = 0; i < zend_hash_num_elements(&ddtrace_ce_span_data->properties_info); ++i) {
-        Bucket *bucket = &ddtrace_ce_root_span_data->properties_info.arData[i];
-        zend_hash_add_ptr(&dd_root_span_data_duplicated_properties_table, bucket->key, Z_PTR(bucket->val));
-        Z_PTR(bucket->val) = ddtrace_ce_root_span_data->properties_info_table[i] = Z_PTR(ddtrace_ce_span_data->properties_info.arData[i].val);
-    }
+    dd_fixup_property_references(ddtrace_ce_root_span_data, ddtrace_ce_span_data, &dd_root_span_data_duplicated_properties_table);
 #endif
 
     memcpy(&ddtrace_root_span_data_handlers, &ddtrace_span_data_handlers, sizeof(zend_object_handlers));
@@ -745,6 +789,17 @@ static void dd_register_span_data_ce(void) {
     ddtrace_span_stack_handlers.dtor_obj = ddtrace_span_stack_dtor_obj;
     ddtrace_span_stack_handlers.write_property = ddtrace_span_stack_readonly;
 
+    ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
+#if PHP_VERSION_ID < 80000
+    ddtrace_ce_span_link->create_object = ddtrace_span_link_create;
+#endif
+    ddtrace_ce_parsed_span_link = register_class_DDTrace_ParsedSpanLink(ddtrace_ce_span_link);
+#if PHP_VERSION_ID < 80000
+    ddtrace_ce_parsed_span_link->create_object = ddtrace_parsed_span_link_create;
+#endif
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
+    dd_fixup_property_references(ddtrace_ce_parsed_span_link, ddtrace_ce_span_link, &dd_parsed_span_link_duplicated_properties_table);
+#endif
 }
 
 /* DDTrace\FatalError */
@@ -850,9 +905,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_dogstatsd_client_minit();
     ddshared_minit();
 
-    dd_register_span_data_ce();
+    dd_register_ce();
     dd_register_fatal_error_ce();
-    ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
 
     ddtrace_engine_hooks_minit();
 
@@ -908,6 +962,9 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     void *prop_info;
     ZEND_HASH_FOREACH_STR_KEY_PTR(&dd_root_span_data_duplicated_properties_table, key, prop_info) {
         ZVAL_PTR(zend_hash_find(&ddtrace_ce_root_span_data->properties_info, key), prop_info); // no update to avoid dtor
+    } ZEND_HASH_FOREACH_END();
+    ZEND_HASH_FOREACH_STR_KEY_PTR(&dd_parsed_span_link_duplicated_properties_table, key, prop_info) {
+        ZVAL_PTR(zend_hash_find(&ddtrace_ce_parsed_span_link->properties_info, key), prop_info); // no update to avoid dtor
     } ZEND_HASH_FOREACH_END();
 #endif
 

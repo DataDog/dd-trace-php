@@ -67,6 +67,20 @@ ddtrace_trace_id ddtrace_parse_userland_trace_id(zend_string *tid) {
     return num;
 }
 
+ddtrace_trace_id ddtrace_parse_hex_trace_id_str(const char *id, size_t len) {
+    return (ddtrace_trace_id){
+        .low = ddtrace_parse_hex_span_id_str(id + (len > 16 ? len - 16 : 0), MIN(len, 16)),
+        .high = len > 16 ? ddtrace_parse_hex_span_id_str(id, len - 16) : 0,
+    };
+}
+
+ddtrace_trace_id ddtrace_parse_hex_trace_id(zval *zid) {
+    if (!zid || Z_TYPE_P(zid) != IS_STRING) {
+        return (ddtrace_trace_id){0};
+    }
+    return ddtrace_parse_hex_trace_id_str(Z_STRVAL_P(zid), Z_STRLEN_P(zid));
+}
+
 uint64_t ddtrace_parse_hex_span_id_str(const char *id, size_t len) {
     if (len == 0) {
         return 0U;

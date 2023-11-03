@@ -14,6 +14,8 @@ typedef struct {
     HashTable propagated_tags;
     HashTable meta_tags;
     int priority_sampling;
+    int flags;
+    bool flags_set;
     enum dd_sampling_mechanism sampling_mechanism;
     bool conflicting_sampling_priority; // propagated priorty does not match tracestate priority
 } ddtrace_distributed_tracing_result;

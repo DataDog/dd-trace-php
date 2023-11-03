@@ -203,8 +203,7 @@ final class AMQPTest extends IntegrationTestCase
                     Tag::RABBITMQ_EXCHANGE          => '<default>',
                 ])->withExistingTagsNames([
                     Tag::MQ_CONSUMER_ID,
-                    '_dd.span_links'
-                ])
+                ])->withSpanLinksCount(1)
             ]),
             SpanAssertion::build(
                 'amqp.basic.deliver',
@@ -224,8 +223,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::RABBITMQ_EXCHANGE          => '<default>',
             ])->withExistingTagsNames([
                 Tag::MQ_CONSUMER_ID,
-                '_dd.span_links'
-            ])
+            ])->withSpanLinksCount(1)
         ]);
 
         $this->assertTrue($receivedMessage);
@@ -459,8 +457,7 @@ final class AMQPTest extends IntegrationTestCase
                     Tag::MQ_OPERATION               => 'receive',
                 ])->withExistingTagsNames([
                     Tag::MQ_CONSUMER_ID,
-                    '_dd.span_links'
-                ])
+                ])->withSpanLinksCount(1)
             ]),
             SpanAssertion::build(
                 'amqp.basic.deliver',
@@ -480,8 +477,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_OPERATION               => 'receive',
             ])->withExistingTagsNames([
                 Tag::MQ_CONSUMER_ID,
-                '_dd.span_links'
-            ])
+            ])->withSpanLinksCount(1)
         ]);
 
         $this->assertTrue($receivedMessage);
@@ -851,9 +847,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::RABBITMQ_ROUTING_KEY       => '<all>',
                 Tag::RABBITMQ_EXCHANGE          => 'basic_get_test',
                 Tag::RABBITMQ_DELIVERY_MODE     => '2'
-            ])->withExistingTagsNames([
-                '_dd.span_links'
-            ]),
+            ])->withSpanLinksCount(1),
             SpanAssertion::build(
                 'amqp.basic.ack',
                 'amqp',

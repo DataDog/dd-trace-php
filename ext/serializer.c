@@ -40,6 +40,7 @@ extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
 
 #define MAX_ID_BUFSIZ 40  // 3.4e^38 = 39 chars + 1 terminator
 #define KEY_TRACE_ID "trace_id"
+#define KEY_TRACE_ID_HIGH "trace_id_high"
 #define KEY_SPAN_ID "span_id"
 #define KEY_PARENT_ID "parent_id"
 
@@ -116,7 +117,11 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
             mpack_write_double(writer, Z_DVAL_P(trace));
             break;
         case IS_LONG:
-            mpack_write_int(writer, Z_LVAL_P(trace));
+            if (Z_TYPE_EXTRA_P(trace)) {
+                mpack_write_u64(writer, Z_LVAL_P(trace));
+            } else {
+                mpack_write_int(writer, Z_LVAL_P(trace));
+            }
             break;
         case IS_NULL:
             mpack_write_nil(writer);
@@ -860,13 +865,6 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
 }
 
-static void _dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
-    zval zv;
-    ZVAL_ARR(&zv, arr);
-    zai_json_encode(buf, &zv, options);
-    smart_str_0(buf);
-}
-
 static void dd_serialize_array_recursively(zend_array *target, zend_string *str, zval *value, bool convert_to_double) {
     ZVAL_DEREF(value);
     if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
@@ -975,18 +973,87 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     zend_array *span_links = ddtrace_property_array(&span->property_links);
     if (zend_hash_num_elements(span_links) > 0) {
-        // Save the current exception, if any, and clear it for php_json_encode_serializable_object not to fail
-        // and zend_call_function to actually call the jsonSerialize method
-        // Restored after span links are serialized
-        zend_object* current_exception = EG(exception);
-        EG(exception) = NULL;
+        zend_array *links = zend_new_array(zend_hash_num_elements(span_links));
 
-        smart_str buf = {0};
-        _dd_serialize_json(span_links, &buf, 0);
-        add_assoc_str(meta, "_dd.span_links", buf.s);
+        zend_string *trace_id = zend_string_init("trace_id", sizeof("trace_id") - 1, 0);
+        zend_string *trace_id_high = zend_string_init("trace_id_high", sizeof("trace_id_high") - 1, 0);
+        zend_string *span_id = zend_string_init("span_id", sizeof("span_id") - 1, 0);
+        zend_string *tracestate = zend_string_init("tracestate", sizeof("tracestate") - 1, 0);
+        zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
+        zend_string *flags = zend_string_init("flags", sizeof("flags") - 1, 0);
 
-        // Restore the exception
-        EG(exception) = current_exception;
+        zval *span_link;
+        ZEND_HASH_FOREACH_VAL(span_links, span_link) {
+            ZVAL_DEREF(span_link);
+            if (Z_TYPE_P(span_link) == IS_OBJECT && instanceof_function(Z_OBJCE_P(span_link), ddtrace_ce_span_link)) {
+                zval zv, *zvp;
+                ddtrace_span_link *link = (ddtrace_span_link *) Z_OBJ_P(span_link);
+
+                if (Z_TYPE(link->property_trace_id) == IS_STRING && Z_TYPE(link->property_span_id) == IS_STRING) {
+                    ddtrace_trace_id trace_id_val = ddtrace_parse_hex_trace_id(&link->property_trace_id);
+                    uint64_t span_id_val = ddtrace_parse_hex_span_id(&link->property_span_id);
+                    if ((trace_id_val.low || trace_id_val.high) && span_id_val) {
+                        zend_array *array = zend_new_array(6);
+
+                        ZVAL_LONG(&zv, (zend_long) trace_id_val.low);
+                        Z_TYPE_EXTRA(zv) = 1;
+                        zend_hash_add(array, trace_id, &zv);
+
+                        if (trace_id_val.high) {
+                            ZVAL_LONG(&zv, (zend_long) trace_id_val.high);
+                            Z_TYPE_EXTRA(zv) = 1;
+                            zend_hash_add(array, trace_id_high, &zv);
+                        }
+
+                        ZVAL_LONG(&zv, (zend_long) span_id_val);
+                        Z_TYPE_EXTRA(zv) = 1;
+                        zend_hash_add(array, span_id, &zv);
+
+                        zvp = &link->property_trace_state;
+                        ZVAL_DEREF(zvp);
+                        if (Z_TYPE_P(zvp) == IS_STRING && Z_STRLEN_P(zvp) > 0) {
+                            Z_TRY_ADDREF_P(zvp);
+                            zend_hash_add(array, tracestate, zvp);
+                        }
+
+                        zvp = &link->property_attributes;
+                        ZVAL_DEREF(zvp);
+                        if (Z_TYPE_P(zvp) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(zvp)) > 0) {
+                            array_init(&zv);
+                            zend_string *str_key;
+                            zval *orig_val;
+                            ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARR_P(zvp), str_key, orig_val) {
+                                if (str_key) {
+                                    dd_serialize_array_meta_recursively(Z_ARR(zv), str_key, orig_val);
+                                }
+                            } ZEND_HASH_FOREACH_END();
+                            zend_hash_add(array, attributes, &zv);
+                        }
+
+                        if (Z_TYPE(link->property_flags) > IS_NULL) {
+                            ZVAL_LONG(&zv, zval_get_long(&link->property_flags) | (1 << 31));
+                            zend_hash_add(array, flags, &zv);
+                        }
+
+                        ZVAL_ARR(&zv, array);
+                        zend_hash_next_index_insert(links, &zv);
+                    }
+                }
+            }
+        } ZEND_HASH_FOREACH_END();
+
+        zend_string_release(trace_id);
+        zend_string_release(trace_id_high);
+        zend_string_release(span_id);
+        zend_string_release(tracestate);
+        zend_string_release(attributes);
+        zend_string_release(flags);
+
+        if (zend_hash_num_elements(links) > 0) {
+            add_assoc_array(el, "span_links", links);
+        } else {
+            zend_array_destroy(links);
+        }
     }
 
     if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) { // opt-in

@@ -144,8 +144,15 @@ struct ddtrace_span_link {
             zval property_trace_state;
             zval property_attributes;
             zval property_dropped_attributes_count;
+            zval property_flags;
         };
     };
+};
+
+struct ddtrace_parsed_span_link {
+    ddtrace_span_link;
+    zval property_sampling_priority;
+    zval property_extracted_attributes;
 };
 
 void ddtrace_init_span_stacks(void);

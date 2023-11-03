@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a7d10bf6cca1521fbf2d8ab00d086c3de6c3c3e1 */
+ * Stub hash: 73695f7f3feec78f2046539eb6fb65047bcb95ad */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -412,6 +412,11 @@ static const zend_function_entry class_DDTrace_SpanLink_methods[] = {
 };
 
 
+static const zend_function_entry class_DDTrace_ParsedSpanLink_methods[] = {
+	ZEND_FE_END
+};
+
+
 static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 	ZEND_ME(DDTrace_SpanData, getDuration, arginfo_class_DDTrace_SpanData_getDuration, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, getStartTime, arginfo_class_DDTrace_SpanData_getStartTime, ZEND_ACC_PUBLIC)
@@ -471,7 +476,7 @@ static zend_class_entry *register_class_DDTrace_SpanLink(zend_class_entry *class
 	zend_string_release(property_traceState_name);
 
 	zval property_attributes_default_value;
-	ZVAL_UNDEF(&property_attributes_default_value);
+	ZVAL_EMPTY_ARRAY(&property_attributes_default_value);
 	zend_string *property_attributes_name = zend_string_init("attributes", sizeof("attributes") - 1, 1);
 	zend_declare_typed_property(class_entry, property_attributes_name, &property_attributes_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_attributes_name);
@@ -481,6 +486,34 @@ static zend_class_entry *register_class_DDTrace_SpanLink(zend_class_entry *class
 	zend_string *property_droppedAttributesCount_name = zend_string_init("droppedAttributesCount", sizeof("droppedAttributesCount") - 1, 1);
 	zend_declare_typed_property(class_entry, property_droppedAttributesCount_name, &property_droppedAttributesCount_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
 	zend_string_release(property_droppedAttributesCount_name);
+
+	zval property_flags_default_value;
+	ZVAL_UNDEF(&property_flags_default_value);
+	zend_string *property_flags_name = zend_string_init("flags", sizeof("flags") - 1, 1);
+	zend_declare_typed_property(class_entry, property_flags_name, &property_flags_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_flags_name);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_DDTrace_ParsedSpanLink(zend_class_entry *class_entry_DDTrace_SpanLink)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "ParsedSpanLink", class_DDTrace_ParsedSpanLink_methods);
+	class_entry = zend_register_internal_class_ex(&ce, class_entry_DDTrace_SpanLink);
+
+	zval property_samplingPriority_default_value;
+	ZVAL_UNDEF(&property_samplingPriority_default_value);
+	zend_string *property_samplingPriority_name = zend_string_init("samplingPriority", sizeof("samplingPriority") - 1, 1);
+	zend_declare_typed_property(class_entry, property_samplingPriority_name, &property_samplingPriority_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_samplingPriority_name);
+
+	zval property_extractedAttributes_default_value;
+	ZVAL_EMPTY_ARRAY(&property_extractedAttributes_default_value);
+	zend_string *property_extractedAttributes_name = zend_string_init("extractedAttributes", sizeof("extractedAttributes") - 1, 1);
+	zend_declare_typed_property(class_entry, property_extractedAttributes_name, &property_extractedAttributes_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_extractedAttributes_name);
 
 	return class_entry;
 }

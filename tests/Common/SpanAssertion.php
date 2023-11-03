@@ -23,6 +23,7 @@ final class SpanAssertion
     private $service = SpanAssertion::NOT_TESTED;
     private $type = SpanAssertion::NOT_TESTED;
     private $resource = SpanAssertion::NOT_TESTED;
+    private $spanLinksCount = 0;
     private $onlyCheckExistence = false;
     private $isTraceAnalyticsCandidate = false;
     private $testTime = true;
@@ -211,6 +212,21 @@ final class SpanAssertion
     public function getSkippedTagPatterns()
     {
         return $this->skipTagPatterns;
+    }
+
+    /**
+     * @param int $numLinks
+     * @return $this
+     */
+    public function withSpanLinksCount($numLinks)
+    {
+        $this->spanLinksCount = $numLinks;
+        return $this;
+    }
+
+    public function getSpanLinksCount()
+    {
+        return $this->spanLinksCount;
     }
 
     /**
