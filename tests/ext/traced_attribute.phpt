@@ -61,6 +61,7 @@ spans(\DDTrace\SpanData) (3) {
     _dd.p.dm => -1
     simplename (test, rsrc, typeee)
       a => b
+      _dd.base_service => traced_attribute.php
   recursion (traced_attribute.php, recursion, cli)
     _dd.p.dm => -1
     recursion (traced_attribute.php, recursion, cli)

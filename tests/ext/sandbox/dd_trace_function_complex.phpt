@@ -142,7 +142,7 @@ array(5) {
     }
   }
   [1]=>
-  array(9) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -161,9 +161,13 @@ array(5) {
     string(29) "dd_trace_function_complex.php"
     ["type"]=>
     string(3) "cli"
+    array(1) {
+        ["_dd.base_service"]=>
+        string(10) "BarService"
+    }
   }
   [2]=>
-  array(9) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -182,6 +186,10 @@ array(5) {
     string(29) "dd_trace_function_complex.php"
     ["type"]=>
     string(3) "cli"
+    array(1) {
+        ["_dd.base_service"]=>
+        string(10) "BarService"
+    }
   }
   [3]=>
   array(10) {
