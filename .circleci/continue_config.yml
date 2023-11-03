@@ -2479,6 +2479,7 @@ jobs:
       - setup_docker:
           docker_image: "datadog/libddwaf:toolchain"
       - run: mkdir -p appsec_$(uname -m)
+      - run: git config --global --add safe.directory appsec/third_party/libddwaf
       - run:
           name: Create clang symlinks
           command: |
