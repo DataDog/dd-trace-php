@@ -2489,7 +2489,7 @@ jobs:
           name: Build
           command: |
             mkdir -p appsec/build ; cd appsec/build
-            cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_TOOLCHAIN_FILE=~/datadog/appsec/cmake/Toolchain.$(uname -m).cmake
+            cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_TOOLCHAIN_FILE=$(pwd)/../cmake/Toolchain.$(uname -m).cmake
             make -j $(nproc)
             cp -v ddappsec-helper ../../appsec_$(uname -m)/ddappsec-helper
       - run:
