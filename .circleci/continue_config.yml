@@ -2479,7 +2479,6 @@ jobs:
       - setup_docker:
           docker_image: "datadog/libddwaf:toolchain"
       - run: mkdir -p appsec_$(uname -m)
-      - run: git config --global --add safe.directory appsec/third_party/libddwaf
       - run:
           name: Create clang symlinks
           command: |
@@ -2489,6 +2488,7 @@ jobs:
       - run:
           name: Build
           command: |
+            git config --global --add safe.directory $(pwd)/appsec/third_party/libddwaf
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_TOOLCHAIN_FILE=$(pwd)/../cmake/Toolchain.$(uname -m).cmake
             make -j $(nproc)
