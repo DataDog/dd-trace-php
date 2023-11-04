@@ -292,6 +292,14 @@ static zend_always_inline void zend_array_release(zend_array *array)
 #define ZEND_ATOL(s) atol((s))
 #endif
 #define ZEND_ACC_READONLY 0
+
+static zend_always_inline zend_result add_next_index_object(zval *arg, zend_object *obj) {
+    zval tmp;
+
+    ZVAL_OBJ(&tmp, obj);
+    return zend_hash_next_index_insert(Z_ARRVAL_P(arg), &tmp) ? SUCCESS : FAILURE;
+}
+
 #endif
 
 #if PHP_VERSION_ID < 80200

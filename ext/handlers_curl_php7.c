@@ -157,6 +157,24 @@ static int dd_inject_distributed_tracing_headers(zval *ch) {
     return ZEND_HASH_APPLY_REMOVE;
 }
 
+static int dd_inject_distributed_tracing_headers_multi(zval *ch) {
+    if (DDTRACE_G(curl_multi_injecting_spans) && Z_TYPE(DDTRACE_G(curl_multi_injecting_spans)->val) == IS_ARRAY) {
+        ddtrace_span_data *span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
+        int ret = dd_inject_distributed_tracing_headers(ch);
+        ddtrace_close_span(span);
+        span->duration = 1;
+
+        zval data;
+        array_init(&data);
+        Z_ADDREF_P(ch);
+        add_next_index_zval(&data, ch);
+        add_next_index_object(&data, &span->std);
+        zend_hash_next_index_insert(Z_ARR(DDTRACE_G(curl_multi_injecting_spans)->val), &data);
+        return ret;
+    }
+    return dd_inject_distributed_tracing_headers(ch);
+}
+
 static bool dd_is_valid_curl_resource(zval *ch) {
     if (le_curl) {
         void *resource = zend_fetch_resource(Z_RES_P(ch), NULL, le_curl);
@@ -268,8 +286,15 @@ static void dd_multi_inject_headers(zval *mh) {
     }
 
     if (handles && zend_hash_num_elements(handles) > 0) {
-        zend_hash_apply(handles, dd_inject_distributed_tracing_headers);
+        zend_hash_apply(handles, dd_inject_distributed_tracing_headers_multi);
         dd_multi_reset(mh);
+    }
+
+    if (DDTRACE_G(curl_multi_injecting_spans)) {
+        if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
+            zval_ptr_dtor(&DDTRACE_G(curl_multi_injecting_spans)->val);
+        }
+        DDTRACE_G(curl_multi_injecting_spans) = NULL;
     }
 }
 

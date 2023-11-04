@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 85f2b3a4b45cb7685e5ec115eefa59ae7f20cd79 */
+ * Stub hash: e14a281987962f87e6bcc153fd38a6202716cb31 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -53,6 +53,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_DDTrace_start_span, 0, 0, DD
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_close_span, 0, 0, IS_FALSE, 1)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, finishTime, IS_DOUBLE, 0, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_update_span_duration, 0, 1, IS_NULL, 1)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, finishTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
@@ -116,6 +121,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_set_distributed_tracing_
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_flush, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_curl_multi_exec_get_request_spans, 0, 1, IS_VOID, 0)
+	ZEND_ARG_INFO(1, array)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
@@ -269,6 +278,7 @@ ZEND_FUNCTION(DDTrace_active_span);
 ZEND_FUNCTION(DDTrace_root_span);
 ZEND_FUNCTION(DDTrace_start_span);
 ZEND_FUNCTION(DDTrace_close_span);
+ZEND_FUNCTION(DDTrace_update_span_duration);
 ZEND_FUNCTION(DDTrace_start_trace_span);
 ZEND_FUNCTION(DDTrace_active_stack);
 ZEND_FUNCTION(DDTrace_create_stack);
@@ -286,6 +296,7 @@ ZEND_FUNCTION(DDTrace_logs_correlation_trace_id);
 ZEND_FUNCTION(DDTrace_current_context);
 ZEND_FUNCTION(DDTrace_set_distributed_tracing_context);
 ZEND_FUNCTION(DDTrace_flush);
+ZEND_FUNCTION(DDTrace_curl_multi_exec_get_request_spans);
 ZEND_FUNCTION(DDTrace_System_container_id);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_sample_rate);
@@ -346,6 +357,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace", root_span, DDTrace_root_span, arginfo_DDTrace_root_span)
 	ZEND_NS_FALIAS("DDTrace", start_span, DDTrace_start_span, arginfo_DDTrace_start_span)
 	ZEND_NS_FALIAS("DDTrace", close_span, DDTrace_close_span, arginfo_DDTrace_close_span)
+	ZEND_NS_FALIAS("DDTrace", update_span_duration, DDTrace_update_span_duration, arginfo_DDTrace_update_span_duration)
 	ZEND_NS_FALIAS("DDTrace", start_trace_span, DDTrace_start_trace_span, arginfo_DDTrace_start_trace_span)
 	ZEND_NS_FALIAS("DDTrace", active_stack, DDTrace_active_stack, arginfo_DDTrace_active_stack)
 	ZEND_NS_FALIAS("DDTrace", create_stack, DDTrace_create_stack, arginfo_DDTrace_create_stack)
@@ -363,6 +375,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace", current_context, DDTrace_current_context, arginfo_DDTrace_current_context)
 	ZEND_NS_FALIAS("DDTrace", set_distributed_tracing_context, DDTrace_set_distributed_tracing_context, arginfo_DDTrace_set_distributed_tracing_context)
 	ZEND_NS_FALIAS("DDTrace", flush, DDTrace_flush, arginfo_DDTrace_flush)
+	ZEND_NS_FALIAS("DDTrace", curl_multi_exec_get_request_spans, DDTrace_curl_multi_exec_get_request_spans, arginfo_DDTrace_curl_multi_exec_get_request_spans)
 	ZEND_NS_FALIAS("DDTrace\\System", container_id, DDTrace_System_container_id, arginfo_DDTrace_System_container_id)
 	ZEND_NS_FALIAS("DDTrace\\Config", integration_analytics_enabled, DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled)
 	ZEND_NS_FALIAS("DDTrace\\Config", integration_analytics_sample_rate, DDTrace_Config_integration_analytics_sample_rate, arginfo_DDTrace_Config_integration_analytics_sample_rate)

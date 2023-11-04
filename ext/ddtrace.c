@@ -1017,6 +1017,13 @@ static void dd_clean_globals(void) {
     zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
     zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
 
+    if (DDTRACE_G(curl_multi_injecting_spans)) {
+        if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
+            zval_ptr_dtor(&DDTRACE_G(curl_multi_injecting_spans)->val);
+        }
+        DDTRACE_G(curl_multi_injecting_spans) = NULL;
+    }
+
     if (DDTRACE_G(dd_origin)) {
         zend_string_release(DDTRACE_G(dd_origin));
         DDTRACE_G(dd_origin) = NULL;
@@ -1792,15 +1799,15 @@ PHP_FUNCTION(dd_trace_internal_fn) {
 
 /* {{{ proto int DDTrace\close_spans_until(DDTrace\SpanData) */
 PHP_FUNCTION(DDTrace_close_spans_until) {
-    zval *untilzv = NULL;
+    zval *spanzv = NULL;
 
-    if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "O!", &untilzv, ddtrace_ce_span_data) ==
+    if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "O!", &spanzv, ddtrace_ce_span_data) ==
         FAILURE) {
         LOG_LINE_ONCE(Error, "DDTrace\\close_spans_until() expects null or a SpanData object");
         RETURN_FALSE;
     }
 
-    int closed_spans = ddtrace_close_userland_spans_until(untilzv ? OBJ_SPANDATA(Z_OBJ_P(untilzv)) : NULL);
+    int closed_spans = ddtrace_close_userland_spans_until(spanzv ? OBJ_SPANDATA(Z_OBJ_P(spanzv)) : NULL);
 
     if (closed_spans == -1) {
         RETURN_FALSE;
@@ -1961,6 +1968,17 @@ PHP_FUNCTION(DDTrace_start_trace_span) {
     dd_start_span(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
+static void dd_set_span_finish_time(ddtrace_span_data *span, double finish_time_seconds) {
+    // we do not expose the monotonic time here, so do not use it as reference time to calculate difference
+    uint64_t start_time = span->start;
+    uint64_t finish_time = (uint64_t)(finish_time_seconds * 1000000000);
+    if (finish_time < start_time) {
+        dd_trace_stop_span_time(span);
+    } else {
+        span->duration = finish_time - start_time;
+    }
+}
+
 /* {{{ proto string DDTrace\close_span() */
 PHP_FUNCTION(DDTrace_close_span) {
     double finish_time_seconds = 0;
@@ -1976,16 +1994,33 @@ PHP_FUNCTION(DDTrace_close_span) {
         RETURN_NULL();
     }
 
-    // we do not expose the monotonic time here, so do not use it as reference time to calculate difference
-    uint64_t start_time = top_span->start;
-    uint64_t finish_time = (uint64_t)(finish_time_seconds * 1000000000);
-    if (finish_time < start_time) {
-        dd_trace_stop_span_time(top_span);
-    } else {
-        top_span->duration = finish_time - start_time;
-    }
+    dd_set_span_finish_time(top_span, finish_time_seconds);
 
     ddtrace_close_span(top_span);
+    RETURN_NULL();
+}
+
+/* {{{ proto string DDTrace\update_span_duration() */
+PHP_FUNCTION(DDTrace_update_span_duration) {
+    double finish_time_seconds = 0;
+    zval *spanzv = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "O|d", &spanzv, ddtrace_ce_span_data, &finish_time_seconds) != SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ_P(spanzv));
+
+    if (span->duration == 0) {
+        LOG(Error, "Cannot update the span duration of an unfinished span.");
+        RETURN_NULL();
+    }
+
+    if (span->duration == DDTRACE_DROPPED_SPAN || span->duration == DDTRACE_SILENTLY_DROPPED_SPAN) {
+        RETURN_NULL();
+    }
+
+    dd_set_span_finish_time(span, finish_time_seconds);
+
     RETURN_NULL();
 }
 
@@ -2471,6 +2506,31 @@ PHP_FUNCTION(DDTrace_extract_ip_from_headers) {
     ddtrace_extract_ip_from_headers(arr, Z_ARR(meta));
 
     RETURN_ARR(Z_ARR(meta));
+}
+
+PHP_FUNCTION(DDTrace_curl_multi_exec_get_request_spans) {
+    zval *array;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(array)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (Z_TYPE_P(array) == IS_REFERENCE) {
+        zend_reference *ref = Z_REF_P(array);
+        array = &ref->val;
+
+        zval_ptr_dtor(array);
+        array_init(array);
+
+        if (DDTRACE_G(curl_multi_injecting_spans) && GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
+            zval_ptr_dtor(&DDTRACE_G(curl_multi_injecting_spans)->val);
+        }
+
+        GC_ADDREF(ref);
+        DDTRACE_G(curl_multi_injecting_spans) = ref;
+    }
+
+    RETURN_NULL();
 }
 
 static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard")
