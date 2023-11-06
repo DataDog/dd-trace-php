@@ -1253,18 +1253,18 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     }
 
     // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
-    zval *prop_service = &span->property_service;
-    ZVAL_DEREF(prop_service);
-    zval prop_service_as_string;
     zval *service_name = zend_hash_str_find(meta, ZEND_STRL("service.name"));
+    zval *prop_service;
     if (service_name && Z_TYPE_P(service_name) == IS_STRING) {
-        ZVAL_COPY(&prop_service_as_string, service_name);
-        zend_hash_str_del(meta, ZEND_STRL("service.name"));
-    } else if (Z_TYPE_P(prop_service) > IS_NULL) {
-        ddtrace_convert_to_string(&prop_service_as_string, prop_service);
+        prop_service = service_name;
+    } else {
+        prop_service = &span->property_service;
+        ZVAL_DEREF(prop_service);
     }
+    zval prop_service_as_string;
+    if (Z_TYPE_P(prop_service) > IS_NULL) {
+        ddtrace_convert_to_string(&prop_service_as_string, prop_service);
 
-    if (Z_TYPE(prop_service_as_string) == IS_STRING) {
         zend_array *service_mappings = get_DD_SERVICE_MAPPING();
         zval *new_name = zend_hash_find(service_mappings, Z_STR(prop_service_as_string));
         if (new_name) {
@@ -1280,6 +1280,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         }
 
         add_assoc_zval(el, "service", &prop_service_as_string);
+        zend_hash_str_del(meta, ZEND_STRL("service.name"));
     }
 
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
