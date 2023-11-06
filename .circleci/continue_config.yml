@@ -1030,7 +1030,6 @@ jobs:
       - run:
           name: Run tests
           command: |
-            set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=ON
             make -j $(nproc) xtest
