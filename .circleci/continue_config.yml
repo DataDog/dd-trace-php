@@ -15,6 +15,9 @@ parameters:
   zend_abstract_interface:
     type: boolean
     default: false
+  appsec:
+    type: boolean
+    default: false
 
 aliases:
 
@@ -3843,40 +3846,6 @@ workflows:
                 make_target: test_opcache
                 switch_php_version: debug-zts-asan
 
-      - test_appsec_extension:
-          requires: [ 'Prepare Code' ]
-          matrix:
-            parameters:
-              php_major_minor:
-                - "7.0"
-                - "7.1"
-                - "7.2"
-                - "7.3"
-                - "7.4"
-                - "8.0"
-                - "8.1"
-                - "8.2"
-                - "8.3"
-              resource_class:
-                - medium
-                - arm.medium
-              switch_php_version:
-                - debug
-                - debug-zts
-
-      - test_appsec_extension:
-          requires: [ 'Prepare Code' ]
-          matrix:
-            parameters:
-              php_major_minor:
-                - "7.4"
-                - "8.0"
-                - "8.1"
-                - "8.2"
-                - "8.3"
-              switch_php_version:
-                - debug-zts-asan
-
       - integration:
           requires: [ 'Prepare Code' ]
           resource_class: medium+
@@ -4086,6 +4055,44 @@ workflows:
           requires: [ 'Prepare Code' ]
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
+
+  appsec_tests:
+    when: << pipeline.parameters.appsec >>
+    jobs:
+    - test_appsec_extension:
+        requires: [ 'Prepare Code' ]
+        matrix:
+          parameters:
+            php_major_minor:
+              - "7.0"
+              - "7.1"
+              - "7.2"
+              - "7.3"
+              - "7.4"
+              - "8.0"
+              - "8.1"
+              - "8.2"
+              - "8.3"
+            resource_class:
+              - medium
+              - arm.medium
+            switch_php_version:
+              - debug
+              - debug-zts
+
+    - test_appsec_extension:
+        requires: [ 'Prepare Code' ]
+        matrix:
+          parameters:
+            php_major_minor:
+              - "7.4"
+              - "8.0"
+              - "8.1"
+              - "8.2"
+              - "8.3"
+            switch_php_version:
+              - debug-zts-asan
+
 
   profiling_tests:
     when: << pipeline.parameters.profiling >>
