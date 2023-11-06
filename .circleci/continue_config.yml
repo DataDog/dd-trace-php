@@ -992,6 +992,54 @@ jobs:
 
   asan: *TEST_BASE
 
+  test_appsec_extension:
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          name: "Restore Hunter Cache"
+          keys:
+            - hunter-{{ .arch }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - run:
+          name: Install cmake 3.24.4
+          command: |
+            if [ ! -d "/opt/cmake/3.24.4" ]
+            then
+              cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v3.24.4/cmake-3.24.4-Linux-$(uname -m).tar.gz
+              mkdir -p /opt/cmake/3.24.4
+              cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
+            fi
+            echo 'export PATH="/opt/cmake/3.24.4/bin:$PATH"' >> "$BASH_ENV"
+            source "$BASH_ENV"
+      - run:
+          name: Run tests
+          command: |
+            set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=ON
+            make -j $(nproc) xtest
+      - save_cache:
+          name: "Save Hunter Cache"
+          key: hunter-{{ .arch }}
+          paths:
+            - ~/.hunter
+
   integration_snapshots:
     working_directory: ~/datadog
     parameters:
@@ -3791,6 +3839,21 @@ workflows:
                 resource_class: medium
                 make_target: test_opcache
                 switch_php_version: debug-zts-asan
+
+      - test_appsec_extension:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+                - "7.4"
+                - "8.0"
+                - "8.1"
+                - "8.2"
+                - "8.3"
 
       - integration:
           requires: [ 'Prepare Code' ]
