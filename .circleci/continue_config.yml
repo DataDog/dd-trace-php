@@ -1009,7 +1009,7 @@ jobs:
       - restore_cache:
           name: "Restore Hunter Cache"
           keys:
-            - hunter-{{ .arch }}
+            - hunter-{{ arch }}
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
@@ -1034,7 +1034,7 @@ jobs:
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=ON
       - save_cache:
           name: "Save Hunter Cache"
-          key: hunter-{{ .arch }}
+          key: hunter-{{ arch }}
           paths:
             - ~/.hunter
       - run:
