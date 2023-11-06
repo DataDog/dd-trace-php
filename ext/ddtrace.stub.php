@@ -396,9 +396,15 @@ namespace DDTrace {
      * tracing information will be applied if available.
      *
      * @param float $startTime Start time of the span in seconds.
+     * @param string|int $spanId The id of the span. This id can either be a 16-character hexadecimal string, or a
+     * decimal number. If a hexadecimal string is given, it will be converted to a decimal number. If zero is given,
+     * a random id will be generated.
+     * @param string|int $traceId The id of the trace. This id can either be a 32-character hexadecimal string, or a
+     * decimal number. If a hexadecimal string is given, it will be converted to a decimal number. If zero is given,
+     * a random id will be generated.
      * @return SpanData|false The newly started span, or 'false' if a wrong parameter was given.
      */
-    function start_span(float $startTime = 0): SpanData|false {}
+    function start_span(float $startTime = 0, int $spanId = 0, int $traceId = 0): SpanData|false {}
 
     /**
      * Close the currently active user-span on the top of the stack
@@ -414,9 +420,15 @@ namespace DDTrace {
      * More precisely, a new root span stack will be created and switched on to, and a new span started.
      *
      * @param float $startTime Start time of the span in seconds.
+     * @param string|int $spanId The id of the span. This id can either be a 16-character hexadecimal string, or a
+     * decimal number. If a hexadecimal string is given, it will be converted to a decimal number. If zero is given,
+     * a random id will be generated.
+     * @param string|int $traceId The id of the trace. This id can either be a 32-character hexadecimal string, or a
+     * decimal number. If a hexadecimal string is given, it will be converted to a decimal number. If zero is given,
+     * a random id will be generated.
      * @return SpanData The newly created root span
      */
-    function start_trace_span(float $startTime = 0): SpanData {}
+    function start_trace_span(float $startTime = 0, int $spanId = 0, int $traceId = 0): SpanData {}
 
     /**
      * Get the active stack

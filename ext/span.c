@@ -137,7 +137,7 @@ static ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type, zend
     return span;
 }
 
-ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
+ddtrace_span_data *ddtrace_open_span_with_trace_identifiers(enum ddtrace_span_dataype type, uint64_t span_id, ddtrace_trace_id trace_id) {
     ddtrace_span_stack *stack = DDTRACE_G(active_stack);
     // The primary stack is ancestor to all stacks, which signifies that any root spans created on top of it will inherit the distributed tracing context
     bool primary_stack = stack->parent_stack == NULL;
@@ -163,7 +163,11 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 
-    span->span_id = ddtrace_generate_span_id();
+    if (span_id) {
+        span->span_id = span_id;
+    } else {
+        span->span_id = ddtrace_generate_span_id();
+    }
 
     ddtrace_span_data *parent_span = SPANDATA(DDTRACE_G(active_stack)->active);
     ZVAL_OBJ(&DDTRACE_G(active_stack)->property_active, &span->std);
@@ -179,6 +183,10 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
         if (primary_stack && (DDTRACE_G(distributed_trace_id).low || DDTRACE_G(distributed_trace_id).high)) {
             root->trace_id = DDTRACE_G(distributed_trace_id);
             root->parent_id = DDTRACE_G(distributed_parent_trace_id);
+        } else if (trace_id.low || trace_id.high) {
+            root->trace_id = trace_id;
+            root->parent_id = 0;
+
         } else {
             root->trace_id = (ddtrace_trace_id) {
                     .low = span->span_id,
@@ -220,6 +228,10 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     ddtrace_set_global_span_properties(span);
 
     return span;
+}
+
+ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
+    return ddtrace_open_span_with_trace_identifiers(type, 0, (ddtrace_trace_id){0});
 }
 
 // += 2 increment to avoid zval type ever being 0
