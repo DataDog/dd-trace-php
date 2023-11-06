@@ -4076,9 +4076,10 @@ workflows:
               - "8.3"
             resource_class:
               - medium
+              - arm.medium
             switch_php_version:
               - debug
-              - zts
+
     - test_appsec_extension:
         requires: [ 'Prepare Code' ]
         matrix:
@@ -4088,16 +4089,12 @@ workflows:
               - "7.1"
               - "7.2"
               - "7.3"
-              - "7.4"
-              - "8.0"
-              - "8.1"
-              - "8.2"
-              - "8.3"
             resource_class:
+              - medium
               - arm.medium
             switch_php_version:
-              - debug
               - debug-zts
+
     - test_appsec_extension:
         requires: [ 'Prepare Code' ]
         matrix:
@@ -4108,6 +4105,9 @@ workflows:
               - "8.1"
               - "8.2"
               - "8.3"
+            resource_class:
+              - medium
+              - arm.medium
             switch_php_version:
               - debug-zts-asan
 
