@@ -4059,6 +4059,7 @@ workflows:
   appsec_tests:
     when: << pipeline.parameters.appsec >>
     jobs:
+    - "Prepare Code"
     - test_appsec_extension:
         requires: [ 'Prepare Code' ]
         matrix:
