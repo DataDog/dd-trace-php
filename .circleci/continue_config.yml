@@ -4078,7 +4078,7 @@ workflows:
             switch_php_version:
               - debug
               - zts
-  - test_appsec_extension:
+    - test_appsec_extension:
         requires: [ 'Prepare Code' ]
         matrix:
           parameters:
