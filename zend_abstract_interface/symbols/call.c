@@ -242,7 +242,11 @@ bool zai_symbol_call_impl(
         for (uint32_t arg = 0; arg < argc; arg++) {
             zval *param = va_arg(*args, zval *);
 
-            ZVAL_COPY_VALUE(&fci.params[arg], param);
+            // zend_call_function may change fci.params by replacing some
+            // parameters with references. To detect this and later free the
+            // references, we need to increase the refcount here and call
+            // zval_ptr_dtor() for each parameter after the call.
+            ZVAL_COPY(&fci.params[arg], param);
         }
         fci.param_count = argc;
     }
@@ -258,6 +262,12 @@ bool zai_symbol_call_impl(
         zai_symbol_call_bailed = true;
     } zend_end_try();
     // clang-format on
+
+    if (argc) {
+        for (uint32_t arg = 0; arg < argc; arg++) {
+            zval_ptr_dtor(&fci.params[arg]);
+        }
+    }
 
     if (zai_symbol_call_bailed) {
         zai_sandbox_bailout(&sandbox);
