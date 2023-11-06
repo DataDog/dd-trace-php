@@ -11,6 +11,8 @@ HunterGate(
 
 project(ddappsec VERSION 0.93.0)
 
+include(CheckCXXCompilerFlag)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
