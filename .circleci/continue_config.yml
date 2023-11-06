@@ -3862,6 +3862,19 @@ workflows:
                 - arm.medium
               switch_php_version:
                 - debug
+                - debug-zts
+
+      - test_appsec_extension:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.4"
+                - "8.0"
+                - "8.1"
+                - "8.2"
+                - "8.3"
+              switch_php_version:
                 - debug-zts-asan
 
       - integration:
