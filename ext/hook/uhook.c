@@ -54,6 +54,7 @@ typedef struct {
     zval property_exception;
     zend_ulong invocation;
     zend_execute_data *execute_data;
+    zval *vm_stack_top;
     zval *retval_ptr;
     ddtrace_span_data *span;
     ddtrace_span_stack *prior_stack;
@@ -223,6 +224,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     }
 
     dyn->hook_data = (dd_hook_data *)dd_hook_data_create(ddtrace_hook_data_ce);
+    dyn->hook_data->vm_stack_top = EG(vm_stack_top);
 
     dyn->hook_data->invocation = invocation;
     ZVAL_LONG(&dyn->hook_data->property_id, def->id);
@@ -656,6 +658,16 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
         RETURN_FALSE;
     }
 
+    if (!ZEND_USER_CODE(func->type) && (int)zend_hash_num_elements(args) > passed_args) {
+        if (zend_hash_num_elements(args) - passed_args > hookData->vm_stack_top - ZEND_CALL_VAR_NUM(hookData->execute_data, 0)) {
+            RETURN_FALSE;
+        }
+#if PHP_VERSION_ID >= 80200
+        // temporaries like the last observed frame are already initialized. Move them.
+        memmove(ZEND_CALL_VAR_NUM(hookData->execute_data, zend_hash_num_elements(args)), ZEND_CALL_VAR_NUM(hookData->execute_data, passed_args), func->common.T * sizeof(zval *));
+#endif
+    }
+
     if (func->common.required_num_args > zend_hash_num_elements(args)) {
         LOG_LINE_ONCE(Error, "Not enough args provided for hook");
         RETURN_FALSE;
@@ -684,7 +696,7 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
 
     // When observers are executed, moving extra args behind the last temporary already happened
     zval *arg = ZEND_CALL_VAR_NUM(hookData->execute_data, 0), *last_arg = ZEND_USER_CODE(func->type) ? arg + func->common.num_args : ((void *)~0);
-    zval *val;
+    zval *val, zv;
     int i = 0;
     ZEND_HASH_FOREACH_VAL(args, val) {
         if (arg >= last_arg) {
@@ -692,7 +704,19 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
             arg = ZEND_CALL_VAR_NUM(hookData->execute_data, func->op_array.last_var + func->op_array.T);
             last_arg = (void *)~0;
         }
-        if (i++ < passed_args || Z_TYPE_P(arg) != IS_UNDEF) {
+        if (i < (int)func->common.num_args && func->common.arg_info && (ZEND_ARG_SEND_MODE(&func->common.arg_info[i]) & ZEND_SEND_BY_REF) && !Z_ISREF_P(val)) {
+            Z_TRY_ADDREF_P(val); // copying into the ref
+            ZVAL_NEW_REF(&zv, val);
+            Z_DELREF_P(&zv); // we'll copy it right below
+            val = &zv;
+        }
+#if PHP_VERSION_ID < 80000
+        // While the observer API, triggers immediately after args passing, on PHP 7 the interceptor only triggers after all args have been parsed
+        // This only applied to user functions: in internal functions it's directly from zend_execute_internal
+        if (i++ < (ZEND_USER_CODE(func->type) ? MAX(passed_args, (int)func->common.num_args) : passed_args)) {
+#else
+        if (i++ < passed_args) {
+#endif
             zval garbage;
             ZVAL_COPY_VALUE(&garbage, arg);
             ZVAL_COPY(arg, val);

@@ -862,6 +862,11 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
         return ZAI_HOOK_SKIP;
     }
 
+    // Ensure there's a bit of space in case arguments are going to be overridden.
+    if (!ZEND_USER_CODE(ex->func->type) && ZEND_CALL_NUM_ARGS(ex) < ex->func->common.num_args) {
+        EG(vm_stack_top) = MIN(EG(vm_stack_end), EG(vm_stack_top) + ex->func->common.num_args - ZEND_CALL_NUM_ARGS(ex));
+    }
+
     size_t hook_info_size = allocated_hook_count * sizeof(zai_hook_info);
     size_t dynamic_size = hooks->dynamic + hook_info_size;
     // a vector of first N hook_info entries, then N entries of variable size (as much memory as the individual hooks require)
