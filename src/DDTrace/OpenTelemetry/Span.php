@@ -226,11 +226,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     private static function _setAttributes(SpanData $span, iterable $attributes): void
     {
         foreach ($attributes as $key => $value) {
-            if ($key === Tag::RESOURCE_NAME) {
-                $span->resource = $value;
-            } elseif ($key === Tag::SERVICE_NAME) {
-                $span->service = $value;
-            } elseif (strpos($key, '_dd.p.') === 0) {
+            if (strpos($key, '_dd.p.') === 0) {
                 $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
                 \DDTrace\add_distributed_tag($distributedKey, $value);
             } elseif (is_float($value)
@@ -249,24 +245,18 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function setAttribute(string $key, $value): SpanInterface
     {
         if (!$this->hasEnded) {
-            if ($key === Tag::RESOURCE_NAME) {
-                $this->span->resource = $value;
-            } elseif ($key === Tag::SERVICE_NAME) {
-                $this->span->service = $value;
-            } else {
-                $this->attributesBuilder[$key] = $value;
-                if ($this->attributesBuilder[$key] !== null || $value === null) {
-                    // The key-value pair was set - i.e., we don't set a tag on the span if the attribute count limit was hit
-                    if (strpos($key, '_dd.p.') === 0) {
-                        $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
-                        \DDTrace\add_distributed_tag($distributedKey, $value);
-                    } elseif (is_float($value)
-                        || is_int($value)
-                        || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
-                        $this->span->metrics[$key] = $value;
-                    } else {
-                        $this->span->meta[$key] = $value;
-                    }
+            $this->attributesBuilder[$key] = $value;
+            if ($this->attributesBuilder[$key] !== null || $value === null) {
+                // The key-value pair was set - i.e., we don't set a tag on the span if the attribute count limit was hit
+                if (strpos($key, '_dd.p.') === 0) {
+                    $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
+                    \DDTrace\add_distributed_tag($distributedKey, $value);
+                } elseif (is_float($value)
+                    || is_int($value)
+                    || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
+                    $this->span->metrics[$key] = $value;
+                } else {
+                    $this->span->meta[$key] = $value;
                 }
             }
         }

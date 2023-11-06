@@ -592,13 +592,13 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('otel_unknown', 'otel.trace1', 'datadog/dd-trace-tests')
+            SpanAssertion::exists('otel_unknown', 'otel.trace1', null, 'datadog/dd-trace-tests')
                 ->withExistingTagsNames(['foo1'])
                 ->withChildren(
-                    SpanAssertion::exists('otel_unknown', 'otel.child1', 'my.service')
+                    SpanAssertion::exists('otel_unknown', 'otel.child1', null, 'my.service')
                         ->withExistingTagsNames(['foo2'])
                         ->withChildren(
-                            SpanAssertion::exists('otel_unknown', 'my.resource', 'datadog/dd-trace-tests')
+                            SpanAssertion::exists('otel_unknown', 'my.resource', null, 'datadog/dd-trace-tests')
                                 ->withExistingTagsNames(['foo3'])
                         )
                 ),
@@ -606,18 +606,18 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withChildren(
                     SpanAssertion::exists('dd.child2', 'dd.child2', null, 'datadog/dd-trace-tests')
                 ),
-            SpanAssertion::build('dd.trace1', 'datadog/dd-trace-tests', 'cli', 'dd.trace1')
+            SpanAssertion::build('dd.trace1', 'phpunit', 'cli', 'dd.trace1')
                 ->withExactTags([
                     'foo1' => 'bar1',
                 ])
                 ->withChildren(
-                    SpanAssertion::exists('dd.child1', 'dd.child1', 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('dd.child1', 'dd.child1', null, 'datadog/dd-trace-tests')
                 ),
-            SpanAssertion::exists('dd.trace2', 'dd.trace2', 'datadog/dd-trace-tests')
+            SpanAssertion::exists('dd.trace2', 'dd.trace2', null, 'datadog/dd-trace-tests')
                 ->withChildren(
-                    SpanAssertion::exists('otel_unknown', 'otel.child2', 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('otel_unknown', 'otel.child2', null, 'datadog/dd-trace-tests')
                         ->withChildren(
-                            SpanAssertion::exists('otel_unknown', 'otel.child4', 'datadog/dd-trace-tests')
+                            SpanAssertion::exists('otel_unknown', 'otel.child4', null, 'datadog/dd-trace-tests')
                         )
                 ),
         ]);
@@ -825,5 +825,33 @@ final class InteroperabilityTest extends BaseTestCase
                     SpanAssertion::exists('child', 'child', 'datadog/dd-trace-tests')
                 ])
         ]);
+    }
+
+    public function testSpecialAttributes()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('otel.span')
+                ->setSpanKind(SpanKind::KIND_SERVER)
+                ->startSpan();
+            $span->setAttributes([
+                'http.request.method' => 'GET',
+                'resource.name' => 'new.name',
+                'operation.name' => 'Overriden.name',
+                'service.name' => 'new.service.name',
+                'span.type' => 'new.span.type',
+                'analytics.event' => 'true',
+            ]);
+
+            $span->end();
+        });
+
+        $this->assertCount(1, $traces[0]);
+        $span = $traces[0][0];
+        $this->assertSame('overriden.name', $span['name']);
+        $this->assertSame('new.name', $span['resource']);
+        $this->assertSame('new.service.name', $span['service']);
+        $this->assertSame('new.span.type', $span['type']);
+        $this->assertEquals(1.0, $span['metrics']['_dd1.sr.eausr']);
     }
 }
