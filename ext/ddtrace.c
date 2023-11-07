@@ -1926,22 +1926,15 @@ PHP_FUNCTION(DDTrace_root_span) {
 
 static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
     double start_time_seconds = 0;
-    uint64_t span_id = 0;
-    uint64_t trace_id = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|dll", &start_time_seconds, &span_id, &trace_id) != SUCCESS) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &start_time_seconds) != SUCCESS) {
         LOG_LINE_ONCE(Warn, "unexpected parameter, expecting double for start time");
         RETURN_FALSE;
     }
 
     ddtrace_span_data *span;
 
-    ddtrace_trace_id trace_id_struct = (ddtrace_trace_id) {
-        .low = trace_id,
-        .high = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? start_time_seconds / UINT64_C(1000000000) : 0
-    };
-
     if (get_DD_TRACE_ENABLED()) {
-        span = ddtrace_open_span_with_trace_identifiers(DDTRACE_USER_SPAN, span_id, trace_id_struct);
+        span = ddtrace_open_span(DDTRACE_USER_SPAN);
     } else {
         span = ddtrace_init_dummy_span();
     }

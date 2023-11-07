@@ -153,7 +153,6 @@ void ddtrace_free_span_stacks(bool silent);
 void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack);
 
 ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type);
-ddtrace_span_data *ddtrace_open_span_with_trace_identifiers(enum ddtrace_span_dataype type, uint64_t span_id, ddtrace_trace_id trace_id);
 ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);
