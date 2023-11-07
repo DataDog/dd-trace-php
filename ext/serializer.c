@@ -1210,8 +1210,14 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     add_assoc_long(el, "start", span->start);
     add_assoc_long(el, "duration", span->duration);
 
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
+
     // SpanData::$name defaults to fully qualified called name (set at span close)
-    zval *prop_name = &span->property_name;
+    zval *operation_name = zend_hash_str_find(meta, ZEND_STRL("operation.name"));
+    if (operation_name) {
+        zend_str_tolower(Z_STRVAL_P(operation_name), Z_STRLEN_P(operation_name));
+    }
+    zval *prop_name = operation_name ? operation_name : &span->property_name;
     ZVAL_DEREF(prop_name);
     if (Z_TYPE_P(prop_name) > IS_NULL) {
         zval prop_name_as_string;
@@ -1219,8 +1225,13 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         prop_name = zend_hash_str_update(Z_ARR_P(el), ZEND_STRL("name"), &prop_name_as_string);
     }
 
+    if (operation_name) {
+        zend_hash_str_del(meta, ZEND_STRL("operation.name"));
+    }
+
     // SpanData::$resource defaults to SpanData::$name
-    zval *prop_resource = &span->property_resource;
+    zval * resource_name = zend_hash_str_find(meta, ZEND_STRL("resource.name"));
+    zval *prop_resource = resource_name ? resource_name : &span->property_resource;
     ZVAL_DEREF(prop_resource);
     zval prop_resource_as_string;
     ZVAL_UNDEF(&prop_resource_as_string);
@@ -1234,13 +1245,23 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         _add_assoc_zval_copy(el, "resource", &prop_resource_as_string);
     }
 
+    if (resource_name) {
+        zend_hash_str_del(meta, ZEND_STRL("resource.name"));
+    }
+
     // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
+    zval *service_name = zend_hash_str_find(meta, ZEND_STRL("service.name"));
     zval *prop_service = &span->property_service;
     ZVAL_DEREF(prop_service);
     zval prop_service_as_string;
-    if (Z_TYPE_P(prop_service) > IS_NULL) {
+    ZVAL_UNDEF(&prop_service_as_string);
+    if (service_name) {
+        ddtrace_convert_to_string(&prop_service_as_string, service_name);
+    } else if (Z_TYPE_P(prop_service) > IS_NULL) {
         ddtrace_convert_to_string(&prop_service_as_string, prop_service);
+    }
 
+    if (Z_TYPE(prop_service_as_string) == IS_STRING) {
         zend_array *service_mappings = get_DD_SERVICE_MAPPING();
         zval *new_name = zend_hash_find(service_mappings, Z_STR(prop_service_as_string));
         if (new_name) {
@@ -1258,14 +1279,36 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         add_assoc_zval(el, "service", &prop_service_as_string);
     }
 
+    if (service_name) {
+        zend_hash_str_del(meta, ZEND_STRL("service.name"));
+    }
+
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
-    zval *prop_type = &span->property_type;
+    zval *span_type = zend_hash_str_find(meta, ZEND_STRL("span.type"));
+    zval *prop_type = span_type ? span_type : &span->property_type;
     ZVAL_DEREF(prop_type);
     zval prop_type_as_string;
     ZVAL_UNDEF(&prop_type_as_string);
     if (Z_TYPE_P(prop_type) > IS_NULL) {
         ddtrace_convert_to_string(&prop_type_as_string, prop_type);
         _add_assoc_zval_copy(el, "type", &prop_type_as_string);
+    }
+
+    if (span_type) {
+        zend_hash_str_del(meta, ZEND_STRL("span.type"));
+    }
+
+    zval *analytics_event = zend_hash_str_find(meta, ZEND_STRL("analytics.event"));
+    if (analytics_event) {
+        zval analytics_event_as_double;
+        if (Z_TYPE_P(analytics_event) == IS_STRING) {
+            ZVAL_DOUBLE(&analytics_event_as_double, zend_is_true(analytics_event)); // 'true' => 1.0, false => 0.0
+        } else {
+            ZVAL_DOUBLE(&analytics_event_as_double, zval_get_double(analytics_event));
+        }
+        zend_array *metrics = ddtrace_property_array(&span->property_metrics);
+        zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &analytics_event_as_double);
+        zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
     }
 
     // Notify profiling for Endpoint Profiling.
