@@ -1217,6 +1217,15 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     // SpanData::$name defaults to fully qualified called name (set at span close)
 
     zval *operation_name = zend_hash_str_find(meta, ZEND_STRL("operation.name"));
+    if (operation_name && Z_TYPE_P(operation_name) == IS_STRING) { // Lowercase operation name
+        char *p = Z_STRVAL_P(operation_name);
+        int len = Z_STRLEN_P(operation_name);
+        for (int i = 0; i < len; i++) {
+            if (p[i] >= 'A' && p[i] <= 'Z') {
+                p[i] -= 'A' - 'a';
+            }
+        }
+    }
     zval *prop_name = operation_name ? operation_name : &span->property_name;
     ZVAL_DEREF(prop_name);
     if (Z_TYPE_P(prop_name) > IS_NULL) {

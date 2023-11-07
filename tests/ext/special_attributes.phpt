@@ -8,7 +8,7 @@ DD_SERVICE_MAPPING=new.service:mapped.service
 function greet($name)
 {
     $span = \DDTrace\active_span();
-    $span->meta['operation.name'] = 'new.name';
+    $span->meta['operation.name'] = 'New.name';
     $span->meta['resource.name'] = 'new.resource';
     $span->meta['span.type'] = 'new.type';
     $span->meta['service.name'] = 'new.service';
