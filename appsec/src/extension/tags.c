@@ -353,7 +353,6 @@ void dd_tags_add_tags()
     bool res = dd_trace_root_span_add_tag(_dd_tag_data_zstr, &tag_value_zv);
     if (!res) {
         mlog(dd_log_info, "Failed adding tag " DD_TAG_DATA " to root span");
-        zval_ptr_dtor(&tag_value_zv);
         return;
     }
 
