@@ -4,12 +4,17 @@ find_package(PhpConfig REQUIRED)
 
 set(EXT_SOURCE_DIR src/extension)
 
-file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c)
 file(GLOB_RECURSE ZAI_SOURCE ../zend_abstract_interface/config/*.c
  ../zend_abstract_interface/json/*.c ../zend_abstract_interface/env/*.c
  ../zend_abstract_interface/zai_string/*.c)
 
-add_library(extension SHARED ${EXT_SOURCE} ${ZAI_SOURCE})
+add_library(zai STATIC ${ZAI_SOURCE})
+target_link_libraries(zai PRIVATE PhpConfig)
+target_include_directories(zai PUBLIC ../zend_abstract_interface)
+set_target_properties(zai PROPERTIES POSITION_INDEPENDENT_CODE 1)
+
+file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c)
+add_library(extension SHARED ${EXT_SOURCE})
 set_target_properties(extension PROPERTIES
     C_VISIBILITY_PRESET hidden
     OUTPUT_NAME ddappsec
@@ -17,9 +22,7 @@ set_target_properties(extension PROPERTIES
     PREFIX "")
 target_compile_definitions(extension PRIVATE TESTING=1 ZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
 
-target_link_libraries(extension PRIVATE mpack PhpConfig)
-
-target_include_directories(extension PRIVATE ../zend_abstract_interface)
+target_link_libraries(extension PRIVATE mpack PhpConfig zai)
 
 macro(target_linker_flag_conditional target) # flags as argv
     try_compile(LINKER_HAS_FLAG "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/check.c"
