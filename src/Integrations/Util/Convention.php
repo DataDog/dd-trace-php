@@ -29,10 +29,12 @@ class Convention
                         Tag::SPAN_KIND_VALUE_CLIENT
                     ]
                 )):
-                return $meta['messaging.system'] . $meta['messaging.operation'];
+                return strtolower($meta['messaging.system']) . '.' . $meta['messaging.operation'];
             case isset($meta['rpc.system']) && $meta['rpc.system'] === 'aws-api'
                 && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // AWS Client
-                return isset($meta['rpc.service']) ? "aws.{$meta['rpc.service']}.request" : 'aws.request';
+                return isset($meta['rpc.service'])
+                    ? 'aws.' . strtolower($meta['rpc.service']) . '.request'
+                    : 'aws.request';
             case isset($meta['rpc.system']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // RPC Client
                 return "{$meta['rpc.system']}.client.request";
             case isset($meta['rpc.system']) && $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // RPC Server
