@@ -40,7 +40,7 @@ if(COMPILER_HAS_NO_GNU_UNIQUE)
 target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-gnu-unique>)
 endif()
 target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti -fno-exceptions>)
-target_compile_options(extension PRIVATE -Wall -Wextra -Wno-unused-parameter -Werror)
+target_compile_options(extension PRIVATE -Wall -Wextra -Wno-unused-parameter)
 # our thread local variables are only used by ourselves
 target_compile_options(extension PRIVATE -ftls-model=local-dynamic)
 

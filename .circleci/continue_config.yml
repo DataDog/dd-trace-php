@@ -1034,12 +1034,12 @@ jobs:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
-            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=ON
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
       - save_cache:
           name: "Save Hunter Cache"
           key: hunter-{{ arch }}
           paths:
-            - ~/.hunter
+            - ~/datadog/hunter-cache
       - run:
           name: Run Tests
           command: |
