@@ -4101,7 +4101,7 @@ workflows:
           parameters:
             php_major_minor:
               - "7.4"
-              - "8.0"
+             #- "8.0" - Static TLS issues
               - "8.1"
               - "8.2"
               - "8.3"
