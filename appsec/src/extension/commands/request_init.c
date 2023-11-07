@@ -171,15 +171,11 @@ static void _pack_headers(mpack_writer_t *nonnull w)
             continue;
         }
 
-        if (Z_TYPE_P(val) != IS_STRING) {
-            continue;
-        }
-
         if (_is_relevant_header(key)) {
             zend_string *transf_header_name = _transform_header_name(key);
             dd_mpack_write_zstr(w, transf_header_name);
             zend_string_efree(transf_header_name);
-            dd_mpack_write_zstr(w, Z_STR_P(val));
+            dd_mpack_write_zval(w, val);
         }
     }
     ZEND_HASH_FOREACH_END();

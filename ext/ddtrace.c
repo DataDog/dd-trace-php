@@ -931,6 +931,8 @@ static void dd_rinit_once(void) {
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
 static void dd_initialize_request(void) {
+    DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){0};
+    DDTRACE_G(distributed_parent_trace_id) = 0;
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
