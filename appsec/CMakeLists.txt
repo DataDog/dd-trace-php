@@ -22,6 +22,7 @@ cmake_policy(SET CMP0083 NEW) # make PIE executables when PIC property is set
 option(DD_APPSEC_BUILD_HELPER "Whether to builder the helper" ON)
 option(DD_APPSEC_BUILD_EXTENSION "Whether to builder the extension" ON)
 option(DD_APPSEC_ENABLE_COVERAGE "Whether to enable coverage calculation" OFF)
+option(DD_APPSEC_TESTING "Whether to enable testing" ON)
 
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
 
