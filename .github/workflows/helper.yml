@@ -149,7 +149,7 @@ jobs:
             ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
         working-directory: ${{ github.workspace }}
       - name: Run fuzzer in nop mode
-        run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+        run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
         working-directory: ${{ github.workspace }}
         env:
             LLVM_PROFILE_FILE: off.profraw
@@ -159,7 +159,7 @@ jobs:
             ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
         working-directory: ${{ github.workspace }}
       - name: Run fuzzer in raw mode
-        run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+        run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
         working-directory: ${{ github.workspace }}
         env:
             LLVM_PROFILE_FILE: raw.profraw
@@ -169,7 +169,7 @@ jobs:
             ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
         working-directory: ${{ github.workspace }}
       - name: Run fuzzer in body mode
-        run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+        run: ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
         working-directory: ${{ github.workspace }}
         env:
             LLVM_PROFILE_FILE: body.profraw
