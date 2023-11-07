@@ -913,16 +913,14 @@ static void dd_serialize_array_recursively(zend_array *target, zend_string *str,
             zend_release_properties(arr);
         }
 #endif
+    } else if (convert_to_double) {
+        zval val_as_double;
+        ZVAL_DOUBLE(&val_as_double, zval_get_double(value));
+        zend_hash_update(target, str, &val_as_double);
     } else {
-        if (convert_to_double) {
-            zval val_as_double;
-            ZVAL_DOUBLE(&val_as_double, zval_get_double(value));
-            zend_hash_update(target, str, &val_as_double);
-        } else {
-            zval val_as_string;
-            ddtrace_convert_to_string(&val_as_string, value);
-            zend_hash_update(target, str, &val_as_string);
-        }
+        zval val_as_string;
+        ddtrace_convert_to_string(&val_as_string, value);
+        zend_hash_update(target, str, &val_as_string);
     }
 }
 
@@ -1215,16 +1213,9 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
-
     zval *operation_name = zend_hash_str_find(meta, ZEND_STRL("operation.name"));
-    if (operation_name && Z_TYPE_P(operation_name) == IS_STRING) { // Lowercase operation name
-        char *p = Z_STRVAL_P(operation_name);
-        int len = Z_STRLEN_P(operation_name);
-        for (int i = 0; i < len; i++) {
-            if (p[i] >= 'A' && p[i] <= 'Z') {
-                p[i] -= 'A' - 'a';
-            }
-        }
+    if (operation_name) {
+        zend_str_tolower(Z_STRVAL_P(operation_name), Z_STRLEN_P(operation_name));
     }
     zval *prop_name = operation_name ? operation_name : &span->property_name;
     ZVAL_DEREF(prop_name);
@@ -1311,8 +1302,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (analytics_event) {
         zval analytics_event_as_double;
         if (Z_TYPE_P(analytics_event) == IS_STRING) {
-            // 'true' => 1.0, false => 0.0
-            ZVAL_DOUBLE(&analytics_event_as_double, zend_is_true(analytics_event));
+            ZVAL_DOUBLE(&analytics_event_as_double, zend_is_true(analytics_event)); // 'true' => 1.0, false => 0.0
         } else {
             ZVAL_DOUBLE(&analytics_event_as_double, zval_get_double(analytics_event));
         }

@@ -181,7 +181,7 @@ final class ConventionTest extends BaseTestCase
         $span->meta['network.protocol.name'] = 'http';
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_INTERNAL;
 
-        $this->assertSame('http.internal.request', Convention::defaultOperationName($span));
+        $this->assertSame('internal', Convention::defaultOperationName($span));
 
         close_span();
     }
@@ -191,7 +191,7 @@ final class ConventionTest extends BaseTestCase
         $span = start_span();
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_INTERNAL;
 
-        $this->assertSame('internal.request', Convention::defaultOperationName($span));
+        $this->assertSame('internal', Convention::defaultOperationName($span));
 
         close_span();
     }
