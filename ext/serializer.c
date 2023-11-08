@@ -1226,10 +1226,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         prop_name = zend_hash_str_update(Z_ARR_P(el), ZEND_STRL("name"), &prop_name_as_string);
     }
 
-    if (operation_name) {
-        zend_hash_str_del(meta, ZEND_STRL("operation.name"));
-    }
-
     // SpanData::$resource defaults to SpanData::$name
     zval * resource_name = zend_hash_str_find(meta, ZEND_STRL("resource.name"));
     zval *prop_resource = resource_name ? resource_name : &span->property_resource;
@@ -1453,6 +1449,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
 
     if (operation_name) {
         zend_string_release(Z_STR_P(prop_name));
+        zend_hash_str_del(meta, ZEND_STRL("operation.name"));
     }
 
     _serialize_meta(el, span);
