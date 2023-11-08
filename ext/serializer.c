@@ -1214,12 +1214,14 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
     zval *operation_name = zend_hash_str_find(meta, ZEND_STRL("operation.name"));
-    zval *prop_name = &span->property_name;
+    zval *prop_name;
     if (operation_name) {
         zend_string *lcname = zend_string_tolower(Z_STR_P(operation_name));
         ZVAL_STR(prop_name, lcname);
+    } else {
+        prop_name = &span->property_name;
+        ZVAL_DEREF(prop_name);
     }
-    ZVAL_DEREF(prop_name);
     if (Z_TYPE_P(prop_name) > IS_NULL) {
         zval prop_name_as_string;
         ddtrace_convert_to_string(&prop_name_as_string, prop_name);
@@ -1228,7 +1230,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
 
     if (operation_name) {
         zend_hash_str_del(meta, ZEND_STRL("operation.name"));
-        zend_string_release(Z_STR_P(operation_name));
+        zend_string_release(Z_STR_P(prop_name));
     }
 
     // SpanData::$resource defaults to SpanData::$name
