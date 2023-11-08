@@ -33,8 +33,8 @@ pub fn allocation_profiling_minit() {
     unsafe { zend::ddog_php_opcache_init_handle() };
 }
 
-/// take a sample every 2048 KB
-pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 2048.0;
+/// take a sample every 4096 KiB
+pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 4096.0;
 
 pub struct AllocationProfilingStats {
     /// number of bytes until next sample collection
