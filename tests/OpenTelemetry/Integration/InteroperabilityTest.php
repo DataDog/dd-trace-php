@@ -276,8 +276,6 @@ final class InteroperabilityTest extends BaseTestCase
                     SpanAssertion::exists('dd.span', 'dd.span')
                 ])
         ]);
-
-        $this->markTestIncomplete("Behavior to ack");
     }
 
     public function testMixingManualAndOtelInstrumentationBis()

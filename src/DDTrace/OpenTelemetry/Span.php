@@ -13,6 +13,7 @@ use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
+use OpenTelemetry\SDK\Common\Time\ClockFactory;
 use OpenTelemetry\SDK\Resource\ResourceInfo;
 use OpenTelemetry\API\Trace as API;
 use Throwable;
@@ -46,6 +47,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     private StatusDataInterface $status;
     private bool $hasEnded = false;
     private string $initialOperationName = "";
+    private int $endEpochNanos = 0;
 
     private function __construct(
         SpanData $span,
@@ -169,7 +171,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $this->attributesBuilder->build(),
             0,
             StatusData::create($this->status->getCode(), $this->status->getDescription()),
-            $this->hasEnded ? $this->getDuration() : 0,
+            $this->endEpochNanos,
             $this->hasEnded
         );
     }
@@ -181,7 +183,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     {
         return $this->hasEnded
             ? $this->span->getDuration()
-            : (int) (microtime(true) * 1000000000) - $this->span->getStartTime();
+            : ClockFactory::getDefault()->now() - $this->span->getStartTime();
     }
 
     /**
@@ -381,6 +383,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $this->context->getTraceFlags(),
             $this->context->getTraceState()
         );
+
+        $this->endEpochNanos = $endEpochNanos ?? ClockFactory::getDefault()->now();
 
         $this->hasEnded = true;
 

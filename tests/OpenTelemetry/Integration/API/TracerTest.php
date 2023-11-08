@@ -441,8 +441,6 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('error message', $span['meta']['error.message']);
         $this->assertEquals(1, $span['error']);
         $this->assertSame('bar', $span['meta']['foo']);
-
-        $this->markTestIncomplete("Define naming behavior");
     }
 
     public function testConcurrentSpans()
