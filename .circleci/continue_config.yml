@@ -1002,10 +1002,13 @@ jobs:
         type: string
       switch_php_version:
         type: string
-        default: none
+        default: nts
       resource_class:
         type: string
         default: medium
+      lint:
+        type: boolean
+        default: false
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
@@ -1019,6 +1022,12 @@ jobs:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
       - switch_php:
           php_version: << parameters.switch_php_version >>
+      - run:
+          when: << parameters.lint >>
+          name: Install clang-tidy and clang-format
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y clang-tidy-16 clang-format-16
       - run:
           name: Install cmake 3.24.4
           command: |
@@ -1034,17 +1043,21 @@ jobs:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
-            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF \
+              $(<< parameters.lint >> && echo "-DCLANG_TIDY=/usr/bin/run-clang-tidy-16 -DCLANG_FORMAT=/usr/bin/clang-format-16") \
+              -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
       - save_cache:
           name: "Save Hunter Cache"
           key: hunter-{{ arch }}
           paths:
             - ~/datadog/hunter-cache
       - run:
-          name: Run Tests
-          command: |
-            cd appsec/build
-            make -j $(nproc) xtest
+          name: Test
+          command: make -C appsec/build -j $(nproc) xtest
+      - run:
+          when: << parameters.lint >>
+          name: Lint
+          command: make -C appsec/build tidy format
 
   integration_snapshots:
     working_directory: ~/datadog
@@ -4110,6 +4123,15 @@ workflows:
               - arm.medium
             switch_php_version:
               - debug-zts-asan
+
+    - test_appsec_extension:
+        requires: [ 'Prepare Code' ]
+        matrix:
+          parameters:
+            php_major_minor:
+              - "7.4"
+            lint:
+              - true
 
   profiling_tests:
     when: << pipeline.parameters.profiling >>
