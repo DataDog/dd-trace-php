@@ -1027,7 +1027,7 @@ jobs:
           command: |
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
-            find ~/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> appsec/hunter-cache.id
+            find ~/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
       - save_cache:
           name: "Save Cache"
           key: hunter-<< parameters.resource_class >>-{{ checksum "appsec/hunter-cache.id" }}
