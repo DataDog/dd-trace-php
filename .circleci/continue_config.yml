@@ -1090,7 +1090,7 @@ jobs:
           name: Install clang-tidy and clang-format
           command: |
             sudo apt-get update
-            sudo apt-get install -y clang-tidy-16 clang-format-16
+            sudo apt-get install -y clang-tidy-16 clang-format-16 ruby
       - run:
           name: Install cmake 3.24.4
           command: |
