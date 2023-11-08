@@ -20,8 +20,7 @@ void dd_phpobj_startup(int module_number)
 {
     _module_number = module_number;
     zend_llist_init(&_function_entry_arrays,
-        sizeof(const zend_function_entry *), NULL,
-        1 /* persistent */);
+        sizeof(const zend_function_entry *), NULL, 1 /* persistent */);
 }
 
 dd_result dd_phpobj_reg_funcs(const zend_function_entry *entries)
