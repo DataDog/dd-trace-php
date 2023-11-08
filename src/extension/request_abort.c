@@ -18,7 +18,7 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "request_abort.h"
-#include "src/extension/string_helpers.h"
+#include "string_helpers.h"
 
 #define HTML_CONTENT_TYPE "text/html"
 #define JSON_CONTENT_TYPE "application/json"

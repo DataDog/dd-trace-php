@@ -16,9 +16,6 @@
 #include "../tags.h"
 #include "../version.h"
 #include "client_init.h"
-#include "mpack-common.h"
-#include "mpack-node.h"
-#include "mpack-writer.h"
 
 static const unsigned int DEFAULT_AGENT_PORT = 8126;
 static const char *DEFAULT_AGENT_HOST = "127.0.0.1";

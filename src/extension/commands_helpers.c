@@ -8,7 +8,7 @@
 #include "ddtrace.h"
 #include "logging.h"
 #include "msgpack_helpers.h"
-#include "src/extension/request_abort.h"
+#include "request_abort.h"
 #include "tags.h"
 #include <ext/standard/base64.h>
 

@@ -353,7 +353,6 @@ void dd_tags_add_tags()
     bool res = dd_trace_root_span_add_tag(_dd_tag_data_zstr, &tag_value_zv);
     if (!res) {
         mlog(dd_log_info, "Failed adding tag " DD_TAG_DATA " to root span");
-        zval_ptr_dtor(&tag_value_zv);
         return;
     }
 
@@ -1174,6 +1173,7 @@ bool dd_parse_automated_user_events_tracking(
         ZVAL_STR(decoded_value, zend_string_alloc(value.len, persistent));
         char *out = Z_STRVAL_P(decoded_value);
         memcpy(out, value.ptr, value.len);
+        out[value.len] = '\0';
     }
 
     return result;
@@ -1207,17 +1207,20 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_success_event_arginfo, 0, 0, IS_VOID, 3)
 ZEND_ARG_INFO(0, user_id)
 ZEND_ARG_INFO(0, metadata)
+ZEND_ARG_INFO(0, automated)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(datadog_appsec_track_user_signup_event_arginfo, 0, 0, IS_VOID, 3)
 ZEND_ARG_INFO(0, user_id)
 ZEND_ARG_INFO(0, metadata)
+ZEND_ARG_INFO(0, automated)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_failure_event_arginfo, 0, 0, IS_VOID, 3)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_failure_event_arginfo, 0, 0, IS_VOID, 4)
 ZEND_ARG_INFO(0, user_id)
 ZEND_ARG_INFO(0, exists)
 ZEND_ARG_INFO(0, metadata)
+ZEND_ARG_INFO(0, automated)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_custom_event_arginfo, 0, 0, IS_VOID, 2)
