@@ -1139,12 +1139,11 @@ jobs:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
-            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF \
-              -DCLANG_TIDY=/usr/bin/run-clang-tidy-16 \-DCLANG_FORMAT=/usr/bin/clang-format-16 \
-              -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=~/datadog/hunter-cache
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF DDD_APPSEC_TESTING=OFF \
+              -DCLANG_TIDY=/usr/bin/run-clang-tidy-16 -DCLANG_FORMAT=/usr/bin/clang-format-16
       - run:
           name: Lint
-          command: make -C appsec/build -j $(nproc) extension tidy format
+          command: make -C appsec/build -j $(nproc) extension format tidy
 
   integration_snapshots:
     working_directory: ~/datadog
