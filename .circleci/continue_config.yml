@@ -1090,7 +1090,7 @@ jobs:
               -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=~/datadog/hunter-cache
       - run:
           name: Lint
-          command: make -C appsec/build -j $(nproc) tidy format
+          command: make -C appsec/build -j $(nproc) extension tidy format
 
   integration_snapshots:
     working_directory: ~/datadog
