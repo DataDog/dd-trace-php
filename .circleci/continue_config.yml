@@ -1006,9 +1006,6 @@ jobs:
       resource_class:
         type: string
         default: medium
-      lint:
-        type: boolean
-        default: false
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
@@ -1022,15 +1019,6 @@ jobs:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
       - switch_php:
           php_version: << parameters.switch_php_version >>
-      - when:
-          condition:
-            equal: [ true, << parameters.lint >> ]
-          steps:
-            - run:
-                name: Install clang-tidy and clang-format
-                command: |
-                  sudo apt-get update
-                  sudo apt-get install -y clang-tidy-16 clang-format-16
       - run:
           name: Install cmake 3.24.4
           command: |
@@ -1047,7 +1035,6 @@ jobs:
           command: |
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF \
-              $(<< parameters.lint >> && echo "-DCLANG_TIDY=/usr/bin/run-clang-tidy-16 -DCLANG_FORMAT=/usr/bin/clang-format-16") \
               -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
       - save_cache:
           name: "Save Hunter Cache"
@@ -1057,13 +1044,53 @@ jobs:
       - run:
           name: Test
           command: make -C appsec/build -j $(nproc) xtest
-      - when:
-          condition:
-            equal: [ true, << parameters.lint >> ]
-          steps:
-            - run:
-                name: Lint
-                command: make -C appsec/build tidy format
+
+  lint_appsec_extension:
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
+      switch_php_version:
+        type: string
+        default: nts
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - run:
+          name: Install clang-tidy and clang-format
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y clang-tidy-16 clang-format-16
+      - run:
+          name: Install cmake 3.24.4
+          command: |
+            if [ ! -d "/opt/cmake/3.24.4" ]
+            then
+              cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v3.24.4/cmake-3.24.4-Linux-$(uname -m).tar.gz
+              mkdir -p /opt/cmake/3.24.4
+              cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
+            fi
+            echo 'export PATH="/opt/cmake/3.24.4/bin:$PATH"' >> "$BASH_ENV"
+            source "$BASH_ENV"
+      - run:
+          name: CMake
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF \
+              -DCLANG_TIDY=/usr/bin/run-clang-tidy-16 \-DCLANG_FORMAT=/usr/bin/clang-format-16 \
+              -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
+      - run:
+          name: Lint
+          command: make -C appsec/build -j $(nproc) xtest tidy format
 
   integration_snapshots:
     working_directory: ~/datadog
@@ -4130,14 +4157,12 @@ workflows:
             switch_php_version:
               - debug-zts-asan
 
-    - test_appsec_extension:
+    - lint_appsec_extension:
         requires: [ 'Prepare Code' ]
         matrix:
           parameters:
             php_major_minor:
               - "7.4"
-            lint:
-              - true
 
   profiling_tests:
     when: << pipeline.parameters.profiling >>
