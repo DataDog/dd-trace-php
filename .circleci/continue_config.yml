@@ -1094,14 +1094,13 @@ jobs:
           keys:
             - hunter-cache-alpine-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: alpine:3.18.4
+          docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
       - run: git config --global --add safe.directory ~/datadog/appsec/third_party/libddwaf
       - run:
           name: Install dependencies
           command: |
-            apk --no-cache add php cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
-                php81-dev cargo curl-dev  php-cgi php-opcache php-posix php-pcntl php-sockets \
-                coreutils wget binutils patchelf xz lit bash
+            apk --no-cache add cmake autoconf gcc g++ gcovr cmake make musl-dev git linux-headers \
+                curl-dev coreutils wget binutils patchelf xz lit bash
       - run:
           name: CMake
           command: |
@@ -1129,14 +1128,13 @@ jobs:
           keys:
             - hunter-cache-alpine-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: alpine:3.18.4
+          docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
       - run: git config --global --add safe.directory ~/datadog/appsec/third_party/libddwaf
       - run:
           name: Install dependencies
           command: |
-            apk --no-cache add php cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
-                php81-dev cargo curl-dev  php-cgi php-opcache php-posix php-pcntl php-sockets \
-                coreutils wget binutils patchelf xz lit bash
+            apk --no-cache add autoconf cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
+                curl-dev coreutils wget binutils patchelf xz lit bash
       - run:
           name: CMake
           command: |
@@ -1171,14 +1169,13 @@ jobs:
           keys:
             - hunter-cache-alpine-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: alpine:3.18.4
+          docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
       - run: git config --global --add safe.directory ~/datadog/appsec/third_party/libddwaf
       - run:
           name: Install dependencies
           command: |
-            apk --no-cache add php cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
-                php81-dev cargo curl-dev  php-cgi php-opcache php-posix php-pcntl php-sockets \
-                coreutils wget binutils patchelf xz lit bash clang clang-extra-tools
+            apk --no-cache add autoconf cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
+                curl-dev coreutils wget binutils patchelf xz lit bash clang clang-extra-tools
       - run:
           name: CMake
           command: |
@@ -4274,6 +4271,11 @@ workflows:
 
     - coverage_appsec:
         requires: [ hunter_cache_alpine ]
+        matrix:
+          parameters:
+            resource_class:
+              - medium
+              - arm.medium
 
     - lint_appsec:
         requires: [ hunter_cache_alpine ]
