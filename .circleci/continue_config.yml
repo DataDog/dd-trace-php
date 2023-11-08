@@ -1003,11 +1003,12 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - restore_cache:
-          keys:
-            - hunter-<< parameters.resource_class >>-
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Cache"
+          keys:
+            - hunter-<< parameters.resource_class >>-
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-7.4_buster
       - run:
@@ -1050,12 +1051,12 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Hunter Cache"
           keys:
             - hunter-<< parameters.resource_class >>-
-      - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
       - switch_php:
