@@ -4192,7 +4192,7 @@ workflows:
               - debug
 
     - test_appsec_extension:
-        requires: [ 'Prepare Code' ]
+        requires: [ 'Prepare Code', hunter_cache ]
         matrix:
           parameters:
             php_major_minor:
@@ -4207,7 +4207,7 @@ workflows:
               - debug-zts
 
     - test_appsec_extension:
-        requires: [ 'Prepare Code' ]
+        requires: [ 'Prepare Code', hunter_cache ]
         matrix:
           parameters:
             php_major_minor:
@@ -4223,7 +4223,7 @@ workflows:
               - debug-zts-asan
 
     - test_appsec_extension:
-        requires: [ 'Prepare Code' ]
+        requires: [ 'Prepare Code', hunter_cache ]
         matrix:
           parameters:
             php_major_minor:
