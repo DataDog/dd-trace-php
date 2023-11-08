@@ -1006,6 +1006,9 @@ jobs:
       resource_class:
         type: string
         default: medium
+      coverage:
+        type: boolean
+        default: false
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
@@ -1035,6 +1038,7 @@ jobs:
           command: |
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF \
+              $(if [[ << parameter.coverage >> ]]; then echo -DDD_APPSEC_ENABLE_COVERAGE=ON; fi) \
               -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
       - save_cache:
           name: "Save Hunter Cache"
@@ -1044,6 +1048,23 @@ jobs:
       - run:
           name: Test
           command: make -C appsec/build -j $(nproc) xtest
+      - when:
+          condition:
+            equal: [ "true", << parameters.coverage >> ]
+          steps:
+            - run:
+                name: Install dependencies
+                command: |
+                  sudo apt update
+                  sudo apt install -y gpg gcovr
+            - run:
+                name: Generate coverage
+                command: |
+                  cd appsec
+                  gcovr -f '.*src/extension/.*' -x -d -o coverage.xml
+            - codecov/upload:
+                file: appsec/coverage.xml
+                upload_name: "appsec-extension-<< parameters.php_major_minor >>-<< parameters.switch_php_version >>"
 
   lint_appsec_extension:
     parameters:
@@ -4156,6 +4177,18 @@ workflows:
               - arm.medium
             switch_php_version:
               - debug-zts-asan
+
+    - test_appsec_extension:
+        requires: [ 'Prepare Code' ]
+        matrix:
+          parameters:
+            php_major_minor:
+              - "7.4"
+            switch_php_version:
+              - nts
+              - zts
+            coverage:
+              - true
 
     - lint_appsec_extension:
         requires: [ 'Prepare Code' ]
