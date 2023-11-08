@@ -9,6 +9,8 @@ HunterGate(
     URL "https://github.com/cpp-pm/hunter/archive/v0.23.314.tar.gz"
     SHA1 "95c47c92f68edb091b5d6d18924baabe02a6962a")
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id.in ${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id)
+
 project(ddappsec VERSION 0.93.0)
 
 include(CheckCXXCompilerFlag)
