@@ -75,6 +75,16 @@ static zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data
 }
 #endif
 
+static inline int zai_symbol_try_call(zend_fcall_info *fci, zend_fcall_info_cache *fcc) {
+    volatile int ret;
+    zend_try {
+        ret = zend_call_function(fci, fcc);
+    } zend_catch {
+        ret = 2;
+    } zend_end_try();
+    return ret;
+}
+
 /* {{{ private call code */
 bool zai_symbol_call_impl(
     // clang-format off
@@ -172,11 +182,11 @@ bool zai_symbol_call_impl(
     }
 
     // clang-format off
-    volatile int  zai_symbol_call_result    = FAILURE;
-    volatile bool zai_symbol_call_bailed    = false;
-    volatile bool rebound_closure = false;
-    volatile zval new_closure;
-    zend_op_array *volatile op_array;
+    int  zai_symbol_call_result    = FAILURE;
+    bool zai_symbol_call_bailed    = false;
+    bool rebound_closure = false;
+    zval new_closure;
+    zend_op_array *op_array;
 
     if (function_type == ZAI_SYMBOL_FUNCTION_CLOSURE && fcc.called_scope) {
         zend_class_entry *closure_called_scope;
@@ -216,7 +226,7 @@ bool zai_symbol_call_impl(
 #if PHP_VERSION_ID >= 70400
                 op_array->fn_flags |= ZEND_ACC_HEAP_RT_CACHE;
 #if PHP_VERSION_ID >= 80200
-                void *ptr = emalloc(op_array->cache_size);
+                void *ptr = emalloc((size_t)op_array->cache_size);
                 ZEND_MAP_PTR_INIT(op_array->run_time_cache, ptr);
 #else
                 void *ptr = emalloc(op_array->cache_size + sizeof(void *));
@@ -242,7 +252,11 @@ bool zai_symbol_call_impl(
         for (uint32_t arg = 0; arg < argc; arg++) {
             zval *param = va_arg(*args, zval *);
 
-            ZVAL_COPY_VALUE(&fci.params[arg], param);
+            // zend_call_function may change fci.params by replacing some
+            // parameters with references. To detect this and later free the
+            // references, we need to increase the refcount here and call
+            // zval_ptr_dtor() for each parameter after the call.
+            ZVAL_COPY(&fci.params[arg], param);
         }
         fci.param_count = argc;
     }
@@ -251,13 +265,13 @@ bool zai_symbol_call_impl(
     zend_execute_data *prev_observed = zai_set_observed_frame(NULL);
 #endif
 
-    zend_try {
-        zai_symbol_call_result =
-            zend_call_function(&fci, &fcc);
-    } zend_catch {
-        zai_symbol_call_bailed = true;
-    } zend_end_try();
+    zai_symbol_call_result = zai_symbol_try_call(&fci, &fcc);
+    zai_symbol_call_bailed = zai_symbol_call_result == 2;
     // clang-format on
+
+    for (uint32_t arg = 0; arg < argc; arg++) {
+        zval_ptr_dtor(&fci.params[arg]);
+    }
 
     if (zai_symbol_call_bailed) {
         zai_sandbox_bailout(&sandbox);

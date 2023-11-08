@@ -280,6 +280,8 @@ static zend_always_inline void zend_array_release(zend_array *array)
         }
     }
 }
+
+#define ZEND_ARG_SEND_MODE(arg_info) (arg_info)->pass_by_reference
 #endif
 
 #if PHP_VERSION_ID < 80100
