@@ -995,7 +995,7 @@ jobs:
 
   asan: *TEST_BASE
 
-  hunter_cache:
+  hunter_cache_debian:
     parameters:
       resource_class:
         type: string
@@ -1008,7 +1008,7 @@ jobs:
       - restore_cache:
           name: "Restore Cache"
           keys:
-            - hunter-<< parameters.resource_class >>-
+            - hunter-cache-debian-<< parameters.resource_class >>-
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-7.4_buster
       - run:
@@ -1030,7 +1030,7 @@ jobs:
             find ~/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
       - save_cache:
           name: "Save Cache"
-          key: hunter-<< parameters.resource_class >>-{{ checksum "appsec/hunter-cache.id" }}
+          key: hunter-cache-debian-<< parameters.resource_class >>-{{ checksum "appsec/hunter-cache.id" }}
           paths:
             - ~/datadog/hunter-cache
 
@@ -1045,9 +1045,6 @@ jobs:
       resource_class:
         type: string
         default: medium
-      coverage:
-        type: boolean
-        default: false
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
@@ -1056,7 +1053,7 @@ jobs:
       - restore_cache:
           name: "Restore Hunter Cache"
           keys:
-            - hunter-<< parameters.resource_class >>-
+            - hunter-cache-debian-<< parameters.resource_class >>-
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
       - switch_php:
@@ -1077,45 +1074,13 @@ jobs:
           command: |
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF \
-              $(if [[ << parameters.coverage >> ]]; then echo -DDD_APPSEC_ENABLE_COVERAGE=ON; fi) \
               -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
       - run:
           name: Test
           command: make -C appsec/build -j $(nproc) xtest
-      - when:
-          condition:
-            equal: [ true, << parameters.coverage >> ]
-          steps:
-            - run:
-                name: Install dependencies
-                command: |
-                  sudo apt update
-                  sudo apt install -y gpg gcovr
-            - run:
-                name: Generate XML coverage
-                command: |
-                  cd appsec
-                  gcovr -f '.*src/extension/.*' -x -o coverage.xml
-            - run:
-                name: Generate HTML coverage
-                command: |
-                  mkdir -p appsec/coverage ; cd appsec
-                  gcovr --gcov-executable gcov-12 --html-details coverage/coverage.html --exclude-throw-branches -f ".*src/extension/.*" -d
-                  tar -cvzf appsec-extension-coverage.tar.gz coverage/
-            - store_artifacts:
-                path: appsec/appsec-extension-coverage.tar.gz
-            - codecov/upload:
-                file: appsec/coverage.xml
-                upload_name: "appsec-extension-<< parameters.php_major_minor >>-<< parameters.switch_php_version >>"
 
-  lint_appsec_extension:
+  hunter_cache_alpine:
     parameters:
-      php_major_minor:
-        # Expected in the format: <major>.<minor>, e.g. 8.2
-        type: string
-      switch_php_version:
-        type: string
-        default: nts
       resource_class:
         type: string
         default: medium
@@ -1124,35 +1089,107 @@ jobs:
     steps:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Cache"
+          keys:
+            - hunter-cache-alpine-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
-      - switch_php:
-          php_version: << parameters.switch_php_version >>
+          docker_image: alpine:3.18.4
+      - run: git config --global --add safe.directory ~/datadog/appsec/third_party/libddwaf
       - run:
-          name: Install clang-tidy and clang-format
+          name: Install dependencies
           command: |
-            sudo apt-get update
-            sudo apt-get install -y clang-tidy-16 clang-format-16 ruby
-      - run:
-          name: Install cmake 3.24.4
-          command: |
-            if [ ! -d "/opt/cmake/3.24.4" ]
-            then
-              cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v3.24.4/cmake-3.24.4-Linux-$(uname -m).tar.gz
-              mkdir -p /opt/cmake/3.24.4
-              cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
-            fi
-            echo 'export PATH="/opt/cmake/3.24.4/bin:$PATH"' >> "$BASH_ENV"
-            source "$BASH_ENV"
+            apk --no-cache add php cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
+                php81-dev cargo curl-dev  php-cgi php-opcache php-posix php-pcntl php-sockets \
+                coreutils wget binutils patchelf xz lit bash
       - run:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
-            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF DDD_APPSEC_TESTING=OFF \
-              -DCLANG_TIDY=/usr/bin/run-clang-tidy-16 -DCLANG_FORMAT=/usr/bin/clang-format-16
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
+            bash -c find ~/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
+      - save_cache:
+          name: "Save Cache"
+          key: hunter-cache-alpine-<< parameters.resource_class >>-{{ checksum "appsec/hunter-cache.id" }}
+          paths:
+            - ~/datadog/hunter-cache
+
+  coverage_appsec:
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Cache"
+          keys:
+            - hunter-cache-alpine-<< parameters.resource_class >>-
+      - setup_docker:
+          docker_image: alpine:3.18.4
+      - run: git config --global --add safe.directory ~/datadog/appsec/third_party/libddwaf
       - run:
-          name: Lint
-          command: make -C appsec/build -j $(nproc) extension format tidy
+          name: Install dependencies
+          command: |
+            apk --no-cache add php cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
+                php81-dev cargo curl-dev  php-cgi php-opcache php-posix php-pcntl php-sockets \
+                coreutils wget binutils patchelf xz lit bash
+      - run:
+          name: CMake
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON
+      - run:
+          name: Test
+          command: |
+            make -C appsec/build -j $(nproc) xtest ddappsec_helper_test
+            ./appsec/build/tests/helper/ddappsec_helper_test
+      - run:
+          name: Generate HTML coverage
+          command: |
+            mkdir -p appsec/coverage ; cd appsec
+            gcovr --html-details coverage/coverage.html -f ".*src/.*" -d
+            tar -cvzf appsec-extension-coverage.tar.gz coverage/
+      - store_artifacts:
+          path: appsec/appsec-extension-coverage.tar.gz
+
+  lint_appsec:
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Cache"
+          keys:
+            - hunter-cache-alpine-<< parameters.resource_class >>-
+      - setup_docker:
+          docker_image: alpine:3.18.4
+      - run: git config --global --add safe.directory ~/datadog/appsec/third_party/libddwaf
+      - run:
+          name: Install dependencies
+          command: |
+            apk --no-cache add php cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
+                php81-dev cargo curl-dev  php-cgi php-opcache php-posix php-pcntl php-sockets \
+                coreutils wget binutils patchelf xz lit bash clang clang-extra-tools
+      - run:
+          name: CMake
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF
+      - run:
+          name: Build
+          command: make -C appsec/build -j $(nproc) extension ddappsec-helper
+      - run:
+          name: Lint and Format
+          command: make -C appsec/build format tidy
 
   integration_snapshots:
     working_directory: ~/datadog
@@ -4168,7 +4205,15 @@ workflows:
     when: << pipeline.parameters.appsec >>
     jobs:
     - "Prepare Code"
-    - hunter_cache:
+    - hunter_cache_debian:
+        requires: [ 'Prepare Code' ]
+        matrix:
+          parameters:
+            resource_class:
+              - medium
+              - arm.medium
+
+    - hunter_cache_alpine:
         requires: [ 'Prepare Code' ]
         matrix:
           parameters:
@@ -4177,7 +4222,7 @@ workflows:
               - arm.medium
 
     - test_appsec_extension:
-        requires: [ 'Prepare Code', hunter_cache ]
+        requires: [ hunter_cache_debian ]
         matrix:
           parameters:
             php_major_minor:
@@ -4197,7 +4242,7 @@ workflows:
               - debug
 
     - test_appsec_extension:
-        requires: [ 'Prepare Code', hunter_cache ]
+        requires: [ hunter_cache_debian ]
         matrix:
           parameters:
             php_major_minor:
@@ -4212,7 +4257,7 @@ workflows:
               - debug-zts
 
     - test_appsec_extension:
-        requires: [ 'Prepare Code', hunter_cache ]
+        requires: [ hunter_cache_debian ]
         matrix:
           parameters:
             php_major_minor:
@@ -4227,24 +4272,11 @@ workflows:
             switch_php_version:
               - debug-zts-asan
 
-    - test_appsec_extension:
-        requires: [ 'Prepare Code', hunter_cache ]
-        matrix:
-          parameters:
-            php_major_minor:
-              - "7.4"
-            switch_php_version:
-              - nts
-              - zts
-            coverage:
-              - true
+    - coverage_appsec:
+        requires: [ hunter_cache_alpine ]
 
-    - lint_appsec_extension:
-        requires: [ 'Prepare Code' ]
-        matrix:
-          parameters:
-            php_major_minor:
-              - "7.4"
+    - lint_appsec:
+        requires: [ hunter_cache_alpine ]
 
   profiling_tests:
     when: << pipeline.parameters.profiling >>
