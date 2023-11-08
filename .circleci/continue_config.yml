@@ -1022,12 +1022,15 @@ jobs:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
       - switch_php:
           php_version: << parameters.switch_php_version >>
-      - run:
-          when: << parameters.lint >>
-          name: Install clang-tidy and clang-format
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y clang-tidy-16 clang-format-16
+      - when:
+        condition:
+          equal: [ true, << parameters.lint >> ]
+        steps:
+          - run:
+            name: Install clang-tidy and clang-format
+            command: |
+              sudo apt-get update
+              sudo apt-get install -y clang-tidy-16 clang-format-16
       - run:
           name: Install cmake 3.24.4
           command: |
@@ -1054,10 +1057,13 @@ jobs:
       - run:
           name: Test
           command: make -C appsec/build -j $(nproc) xtest
-      - run:
-          when: << parameters.lint >>
-          name: Lint
-          command: make -C appsec/build tidy format
+      - when:
+        condition:
+          equal: [ true, << parameters.lint >> ]
+        steps:
+          - run:
+            name: Lint
+            command: make -C appsec/build tidy format
 
   integration_snapshots:
     working_directory: ~/datadog
