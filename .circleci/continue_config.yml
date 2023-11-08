@@ -1095,12 +1095,12 @@ jobs:
             - hunter-cache-alpine-<< parameters.resource_class >>-
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
-      - run: git config --global --add safe.directory ~/datadog/appsec/third_party/libddwaf
       - run:
           name: Install dependencies
           command: |
             apk --no-cache add cmake autoconf gcc g++ gcovr cmake make musl-dev git linux-headers \
                 curl-dev coreutils wget binutils patchelf xz lit bash
+      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
@@ -1129,12 +1129,12 @@ jobs:
             - hunter-cache-alpine-<< parameters.resource_class >>-
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
-      - run: git config --global --add safe.directory ~/datadog/appsec/third_party/libddwaf
       - run:
           name: Install dependencies
           command: |
             apk --no-cache add autoconf cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
                 curl-dev coreutils wget binutils patchelf xz lit bash
+      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
@@ -1170,12 +1170,12 @@ jobs:
             - hunter-cache-alpine-<< parameters.resource_class >>-
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
-      - run: git config --global --add safe.directory ~/datadog/appsec/third_party/libddwaf
       - run:
           name: Install dependencies
           command: |
             apk --no-cache add autoconf cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
                 curl-dev coreutils wget binutils patchelf xz lit bash clang clang-extra-tools
+      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
@@ -4219,7 +4219,7 @@ workflows:
               - arm.medium
 
     - test_appsec_extension:
-        requires: [ hunter_cache_debian ]
+        requires: [ 'Prepare Code', hunter_cache_debian ]
         matrix:
           parameters:
             php_major_minor:
@@ -4239,7 +4239,7 @@ workflows:
               - debug
 
     - test_appsec_extension:
-        requires: [ hunter_cache_debian ]
+        requires: [ 'Prepare Code', hunter_cache_debian ]
         matrix:
           parameters:
             php_major_minor:
@@ -4254,7 +4254,7 @@ workflows:
               - debug-zts
 
     - test_appsec_extension:
-        requires: [ hunter_cache_debian ]
+        requires: [ 'Prepare Code', hunter_cache_debian ]
         matrix:
           parameters:
             php_major_minor:
@@ -4270,7 +4270,7 @@ workflows:
               - debug-zts-asan
 
     - coverage_appsec:
-        requires: [ hunter_cache_alpine ]
+        requires: [ 'Prepare Code', hunter_cache_alpine ]
         matrix:
           parameters:
             resource_class:
@@ -4278,7 +4278,7 @@ workflows:
               - arm.medium
 
     - lint_appsec:
-        requires: [ hunter_cache_alpine ]
+        requires: [ 'Prepare Code', hunter_cache_alpine ]
 
   profiling_tests:
     when: << pipeline.parameters.profiling >>
