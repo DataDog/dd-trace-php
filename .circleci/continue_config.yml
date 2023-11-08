@@ -1023,14 +1023,14 @@ jobs:
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - when:
-        condition:
-          equal: [ true, << parameters.lint >> ]
-        steps:
-          - run:
-            name: Install clang-tidy and clang-format
-            command: |
-              sudo apt-get update
-              sudo apt-get install -y clang-tidy-16 clang-format-16
+          condition:
+            equal: [ true, << parameters.lint >> ]
+          steps:
+            - run:
+                name: Install clang-tidy and clang-format
+                command: |
+                  sudo apt-get update
+                  sudo apt-get install -y clang-tidy-16 clang-format-16
       - run:
           name: Install cmake 3.24.4
           command: |
@@ -1058,12 +1058,12 @@ jobs:
           name: Test
           command: make -C appsec/build -j $(nproc) xtest
       - when:
-        condition:
-          equal: [ true, << parameters.lint >> ]
-        steps:
-          - run:
-            name: Lint
-            command: make -C appsec/build tidy format
+          condition:
+            equal: [ true, << parameters.lint >> ]
+          steps:
+            - run:
+                name: Lint
+                command: make -C appsec/build tidy format
 
   integration_snapshots:
     working_directory: ~/datadog
