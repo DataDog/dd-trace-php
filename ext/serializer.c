@@ -1267,7 +1267,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             ZVAL_COPY(&prop_root_service_as_string, new_root_name);
         }
 
-        if (zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
+        if (!zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
             zend_array *meta = ddtrace_property_array(&span->property_meta);
             zend_hash_str_update(meta, ZEND_STRL("_dd.base_service"), &prop_root_service_as_string);
         } else {
