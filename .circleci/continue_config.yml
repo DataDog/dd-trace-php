@@ -1028,7 +1028,7 @@ jobs:
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=~/datadog/hunter-cache
       - save_cache:
           name: "Save Cache"
-          key: hunter-<< parameters.resource_class >>-{{ checksum appsec/hunter-cache.id }}
+          key: hunter-<< parameters.resource_class >>-{{ checksum "appsec/hunter-cache.id" }}
           paths:
             - ~/datadog/hunter-cache
 
