@@ -1092,10 +1092,18 @@ jobs:
                   sudo apt update
                   sudo apt install -y gpg gcovr
             - run:
-                name: Generate coverage
+                name: Generate XML coverage
                 command: |
                   cd appsec
-                  gcovr -f '.*src/extension/.*' -x -d -o coverage.xml
+                  gcovr -f '.*src/extension/.*' -x -o coverage.xml
+            - run:
+                name: Generate HTML coverage
+                command: |
+                  mkdir -p appsec/coverage ; cd appsec
+                  gcovr --gcov-executable gcov-12 --html-details coverage/coverage.html --exclude-throw-branches -f ".*src/extension/.*" -d
+                  tar -cvzf appsec-extension-coverage.tar.gz coverage/
+            - store_artifacts:
+                path: appsec/appsec-extension-coverage.tar.gz
             - codecov/upload:
                 file: appsec/coverage.xml
                 upload_name: "appsec-extension-<< parameters.php_major_minor >>-<< parameters.switch_php_version >>"
