@@ -11,6 +11,7 @@
     INTEGRATION(AMQP, "amqp")                   \
     INTEGRATION(CAKEPHP, "cakephp")             \
     INTEGRATION(CODEIGNITER, "codeigniter")     \
+    INTEGRATION(EXEC, "exec")                   \
     INTEGRATION(CURL, "curl")                   \
     INTEGRATION(DRUPAL, "drupal")               \
     INTEGRATION(ELASTICSEARCH, "elasticsearch") \

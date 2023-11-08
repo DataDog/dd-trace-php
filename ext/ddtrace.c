@@ -47,6 +47,7 @@
 #include "excluded_modules.h"
 #include "handlers_http.h"
 #include "handlers_internal.h"
+#include "integrations/exec_integration.h"
 #include "integrations/integrations.h"
 #include "ip_extraction.h"
 #include "logging.h"
@@ -1099,6 +1100,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     zend_hash_destroy(&DDTRACE_G(traced_spans));
+
+    // this needs to be done before dropping the spans
+    // run unconditionally because ddtrace may've been disabled mid-request
+    ddtrace_exec_handlers_rshutdown();
 
     if (get_DD_TRACE_ENABLED()) {
         dd_force_shutdown_tracing();

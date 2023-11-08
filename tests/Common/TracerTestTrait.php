@@ -264,7 +264,7 @@ trait TracerTestTrait
 
         $script = escapeshellarg($scriptPath);
         $arguments = escapeshellarg($arguments);
-        $commandToExecute = "$envs php $inis $script $arguments";
+        $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
         if ($withOutput) {
             return (string) `$commandToExecute 2>&1`;
         } else {

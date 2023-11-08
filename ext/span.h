@@ -190,6 +190,7 @@ bool ddtrace_has_top_internal_span(ddtrace_span_data *end);
 void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until);
 int ddtrace_close_userland_spans_until(ddtrace_span_data *until);
 void ddtrace_close_span(ddtrace_span_data *span);
+void ddtrace_close_span_restore_stack(ddtrace_span_data *);
 void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span);
 void ddtrace_close_all_open_spans(bool force_close_root_span);
 void ddtrace_drop_span(ddtrace_span_data *span);

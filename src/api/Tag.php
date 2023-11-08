@@ -99,4 +99,10 @@ class Tag
     const RABBITMQ_DELIVERY_MODE = 'messaging.rabbitmq.delivery_mode';
     const RABBITMQ_EXCHANGE = 'messaging.rabbitmq.exchange';
     const RABBITMQ_ROUTING_KEY = 'messaging.rabbitmq.routing_key';
+
+    // Exec
+    const EXEC_CMDLINE_EXEC = 'cmd.exec';
+    const EXEC_CMDLINE_SHELL = 'cmd.shell';
+    const EXEC_TRUNCATED = 'cmd.truncated';
+    const EXEC_EXIT_CODE = 'cmd.exit_code';
 }

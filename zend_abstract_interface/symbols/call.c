@@ -154,6 +154,8 @@ bool zai_symbol_call_impl(
                 if (object && Z_TYPE_P(object) == IS_OBJECT) {
                     fcc.called_scope = Z_OBJCE_P(object);
                     fci.object = fcc.object = Z_OBJ_P(object);
+                } else {
+                    fcc.called_scope = fcc.function_handler->common.scope;
                 }
             }
             break;
