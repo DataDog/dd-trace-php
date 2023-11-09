@@ -1,6 +1,7 @@
 #ifndef ZAI_SANDBOX_H
 #define ZAI_SANDBOX_H
 
+#include "../tsrmls_cache.h"
 #include <main/php.h>
 #include <stdbool.h>
 

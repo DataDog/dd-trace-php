@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include "jit_blacklist.h"
 #include "zend_extensions.h"
 #include <Zend/zend_types.h>

@@ -1,3 +1,4 @@
+#include "ddtrace.h"
 #include "compat_string.h"
 
 #include <Zend/zend_API.h>

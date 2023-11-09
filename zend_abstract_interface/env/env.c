@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include <main/SAPI.h>
 #include <main/php.h>
 #include <stdlib.h>

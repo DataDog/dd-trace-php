@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include "uri_normalization.h"
 #include "../sandbox/sandbox.h"
 

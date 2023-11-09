@@ -1,4 +1,4 @@
-#include <php.h>
+#include "ddtrace.h"
 
 #include "compatibility.h"
 

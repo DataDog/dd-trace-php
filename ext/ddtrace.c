@@ -2,6 +2,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "ddtrace.h"
 #include <SAPI.h>
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
@@ -40,7 +41,6 @@
 #include "config/config.h"
 #include "configuration.h"
 #include "ddshared.h"
-#include "ddtrace.h"
 #include "ddtrace_string.h"
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
@@ -110,7 +110,7 @@ ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 #ifdef COMPILE_DL_DDTRACE
 ZEND_GET_MODULE(ddtrace)
 #ifdef ZTS
-ZEND_TSRMLS_CACHE_DEFINE();
+TSRM_TLS void *TSRMLS_CACHE = NULL;
 #endif
 #endif
 

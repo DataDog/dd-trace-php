@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include "exceptions.h"
 
 #include <Zend/zend_smart_str.h>

@@ -107,9 +107,15 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 
 #ifdef ZTS
-#define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
+#  if defined(__has_attribute) && __has_attribute(tls_model)
+#    define ATTR_TLS_LOCAL_DYNAMIC __attribute__((tls_model("local-dynamic")))
+#  else
+#    define ATTR_TLS_LOCAL_DYNAMIC
+#  endif
+extern __thread void *ATTR_TLS_LOCAL_DYNAMIC TSRMLS_CACHE;
+#  define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
 #else
-#define DDTRACE_G(v) (ddtrace_globals.v)
+#  define DDTRACE_G(v) (ddtrace_globals.v)
 #endif
 
 #define PHP_DDTRACE_EXTNAME "ddtrace"
