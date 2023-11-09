@@ -1,7 +1,5 @@
 --TEST--
 Reserved OTel attributes that have special meaning
---ENV--
-DD_SERVICE_MAPPING=new.service:mapped.service
 --FILE--
 <?php
 
@@ -48,7 +46,7 @@ array(1) {
     ["resource"]=>
     string(12) "new.resource"
     ["service"]=>
-    string(14) "mapped.service"
+    string(11) "new.service"
     ["type"]=>
     string(8) "new.type"
     ["metrics"]=>

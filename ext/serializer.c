@@ -1219,7 +1219,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (operation_name) {
         lcname = zend_string_tolower(Z_STR_P(operation_name));
         zval prop_name_as_string;
-        ZVAL_STR(&prop_name_as_string, lcname);
+        ZVAL_STR_COPY(&prop_name_as_string, lcname);
         prop_name = zend_hash_str_update(Z_ARR_P(el), ZEND_STRL("name"), &prop_name_as_string);
     } else {
         ZVAL_DEREF(prop_name);
