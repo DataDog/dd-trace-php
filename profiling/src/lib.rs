@@ -361,8 +361,6 @@ extern "C" fn prshutdown() -> ZendResult {
      */
     unsafe { bindings::zai_config_rshutdown() };
 
-    TAGS.with(|cell| cell.replace(Arc::default()));
-
     #[cfg(feature = "timeline")]
     timeline::timeline_prshutdown();
 
@@ -637,6 +635,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 profiler.add_interrupt(interrupt);
             }
         });
+    } else {
+        TAGS.with(|cell| cell.replace(Arc::default()));
     }
 
     #[cfg(feature = "allocation_profiling")]
@@ -910,6 +910,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("MSHUTDOWN({_type}, {_module_number})");
+
+    #[cfg(feature = "timeline")]
+    timeline::timeline_mshutdown();
 
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();

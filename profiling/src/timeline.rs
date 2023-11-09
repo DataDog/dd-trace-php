@@ -20,27 +20,14 @@ static mut PREV_ZEND_COMPILE_STRING: Option<zend::VmZendCompileString> = None;
 /// The engine's original (or neighbouring extensions) `zend_compile_file()` function
 static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
 
-/// This functions needs to be called in MINIT of the module
-pub fn timeline_minit() {
-    unsafe {
-        // register our function in the `gc_collect_cycles` pointer
-        PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
-        zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);
-
-        // register our function in the `zend_compile_file` pointer
-        PREV_ZEND_COMPILE_FILE = zend::zend_compile_file;
-        zend::zend_compile_file = Some(ddog_php_prof_compile_file);
-
-        // register our function in the `zend_compile_string` pointer
-        PREV_ZEND_COMPILE_STRING = zend::zend_compile_string;
-        zend::zend_compile_string = Some(ddog_php_prof_compile_string);
-    }
-}
-
 static mut SLEEP_HANDLER: InternalFunctionHandler = None;
 static mut USLEEP_HANDLER: InternalFunctionHandler = None;
 static mut TIME_NANOSLEEP_HANDLER: InternalFunctionHandler = None;
 static mut TIME_SLEEP_UNTIL_HANDLER: InternalFunctionHandler = None;
+
+thread_local! {
+    static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
+}
 
 /// Wrapping the PHP `sleep()` function to take the time it is blocking the current thread
 unsafe extern "C" fn php_sleep(
@@ -170,6 +157,23 @@ unsafe extern "C" fn php_time_sleep_until(
     });
 }
 
+/// This functions needs to be called in MINIT of the module
+pub fn timeline_minit() {
+    unsafe {
+        // register our function in the `gc_collect_cycles` pointer
+        PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
+        zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);
+
+        // register our function in the `zend_compile_file` pointer
+        PREV_ZEND_COMPILE_FILE = zend::zend_compile_file;
+        zend::zend_compile_file = Some(ddog_php_prof_compile_file);
+
+        // register our function in the `zend_compile_string` pointer
+        PREV_ZEND_COMPILE_STRING = zend::zend_compile_string;
+        zend::zend_compile_string = Some(ddog_php_prof_compile_string);
+    }
+}
+
 /// This function is run during the STARTUP phase and hooks into the execution of some functions
 /// that we'd like to observe in regards of visualization on the timeline
 pub unsafe fn timeline_startup() {
@@ -200,10 +204,6 @@ pub unsafe fn timeline_startup() {
         // Safety: we've set all the parameters correctly for this C call.
         zend::datadog_php_install_handler(handler);
     }
-}
-
-thread_local! {
-    static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
 }
 
 /// This function is run during the RINIT phase and reports any `IDLE_SINCE` duration as an idle
@@ -247,6 +247,38 @@ pub fn timeline_prshutdown() {
         };
         *idle_since = Instant::now();
     })
+}
+
+/// This function is run during the MSHUTDOWN phase and reports any `IDLE_SINCE` duration as an idle
+/// period for this PHP thread. This will report the last `IDLE_SINCE` duration created in the last
+/// `P-RSHUTDOWN` (just above) when the PHP process is shutting down.
+pub(crate) fn timeline_mshutdown() {
+    REQUEST_LOCALS.with(|cell| {
+        // try to borrow and bail out if not successful
+        let Ok(locals) = cell.try_borrow() else {
+            return;
+        };
+
+        IDLE_SINCE.with(|cell| {
+            // try to borrow and bail out if not successful
+            let Ok(idle_since) = cell.try_borrow() else {
+                return;
+            };
+
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                profiler.collect_idle(
+                    // Safety: checked for `is_err()` above
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos() as i64,
+                    idle_since.elapsed().as_nanos() as i64,
+                    "idle",
+                    &locals,
+                );
+            }
+        });
+    });
 }
 
 /// This function gets called when a `eval()` is being called. This is done by letting the
