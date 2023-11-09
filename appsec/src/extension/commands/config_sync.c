@@ -3,6 +3,8 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+
+// NOLINTNEXTLINE(misc-header-include-cycle)
 #include <php.h>
 
 #include "../commands_helpers.h"

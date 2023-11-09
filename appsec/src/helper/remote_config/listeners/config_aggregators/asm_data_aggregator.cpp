@@ -20,7 +20,7 @@ void rule_data::emplace(rule_data::data_with_expiration &&data_point)
 {
     auto it = data.find(data_point.value);
     if (it == data.end()) {
-        data.emplace(data_point.value, data_point);
+        data.emplace(data_point.value, std::move(data_point));
         return;
     }
 

@@ -12,6 +12,7 @@ namespace dds::worker {
 
 namespace {
 
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 void work_handler(queue_consumer &&q, std::optional<runnable> &&opt_r)
 {
     while (q.running() && opt_r) {
