@@ -1161,9 +1161,16 @@ jobs:
             tar -cvzf appsec-extension-coverage.tar.gz coverage/
       - store_artifacts:
           path: appsec/appsec-coverage.tar.gz
-      - codecov/upload:
-          file: appsec/coverage.xml
-          upload_name: "appsec-coverage >>"
+      - when:
+          # codecov uploader only on amd64
+          condition:
+            matches:
+              pattern: "^[^.]+$"
+              value: << parameters.resource_class >>
+          steps:
+            - codecov/upload:
+                file: appsec/coverage.xml
+                upload_name: "appsec-coverage >>"
 
   lint_appsec:
     parameters:
@@ -1194,6 +1201,9 @@ jobs:
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
               -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=~/datadog/hunter-cache
+      - run:
+          name: Build
+          command: make -C appsec/build -j $(nproc) extension ddappsec-helper
       - run:
           name: Lint and Format
           command: make -C appsec/build format tidy
