@@ -1079,37 +1079,38 @@ jobs:
           name: Test
           command: make -C appsec/build -j $(nproc) xtest
 
-  hunter_cache_alpine:
+  hunter_cache_ubuntu:
     parameters:
       resource_class:
         type: string
         default: medium
     working_directory: ~/datadog
-    <<: *BARE_DOCKER_MACHINE
+    resource_class: << parameters.resource_class >>
+    machine:
+      image: ubuntu-2304:current
     steps:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Cache"
           keys:
-            - hunter-cache-alpine-<< parameters.resource_class >>-
-      - setup_docker:
-          docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
+            - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - run:
           name: Install dependencies
           command: |
-            apk --no-cache add cmake autoconf gcc g++ gcovr cmake make musl-dev git linux-headers \
-                curl-dev coreutils wget binutils patchelf xz lit bash
+            export DEBIAN_FRONTEND=noninteractive
+            apt update
+            apt install -y wget git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang-16 clang-tidy-16 clang-format-16 git php-dev php-cgi
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
-            bash -c find ~/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
+            find ~/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
       - save_cache:
           name: "Save Cache"
-          key: hunter-cache-alpine-<< parameters.resource_class >>-{{ checksum "appsec/hunter-cache.id" }}
+          key: hunter-cache-ubuntu-<< parameters.resource_class >>-{{ checksum "appsec/hunter-cache.id" }}
           paths:
             - ~/datadog/hunter-cache
 
@@ -1119,21 +1120,22 @@ jobs:
         type: string
         default: medium
     working_directory: ~/datadog
-    <<: *BARE_DOCKER_MACHINE
+    resource_class: << parameters.resource_class >>
+    machine:
+      image: ubuntu-2304:current
     steps:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Cache"
           keys:
-            - hunter-cache-alpine-<< parameters.resource_class >>-
-      - setup_docker:
-          docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
+            - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - run:
           name: Install dependencies
           command: |
-            apk --no-cache add autoconf cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
-                curl-dev coreutils wget binutils patchelf xz lit bash
+            export DEBIAN_FRONTEND=noninteractive
+            apt update
+            apt install -y wget git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang-16 clang-tidy-16 clang-format-16 git php-dev php-cgi
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
@@ -1160,27 +1162,30 @@ jobs:
         type: string
         default: medium
     working_directory: ~/datadog
-    <<: *BARE_DOCKER_MACHINE
+    resource_class: << parameters.resource_class >>
+    machine:
+      image: ubuntu-2304:current
     steps:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Cache"
           keys:
-            - hunter-cache-alpine-<< parameters.resource_class >>-
-      - setup_docker:
-          docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
+            - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - run:
           name: Install dependencies
           command: |
-            apk --no-cache add autoconf cmake gcc g++ gcovr cmake make musl-dev git linux-headers \
-                curl-dev coreutils wget binutils patchelf xz lit bash clang clang-extra-tools
+            export DEBIAN_FRONTEND=noninteractive
+            apt update
+            apt install -y wget git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang-16 clang-tidy-16 clang-format-16 git php-dev php-cgi
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
-            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
+              -DDD_APPSEC_TESTING=OFF -DCLANG_TIDY=/usr/bin/run-clang-tidy-16 \
+              -DCLANG_FORMAT=/usr/bin/run-clang-format-16
       - run:
           name: Build
           command: make -C appsec/build -j $(nproc) extension ddappsec-helper
