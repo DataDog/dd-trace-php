@@ -20,7 +20,7 @@ set_target_properties(extension PROPERTIES
     OUTPUT_NAME ddappsec
     DEBUG_POSTFIX ""
     PREFIX "")
-target_compile_definitions(extension PRIVATE TESTING=1 ZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+target_compile_definitions(extension PRIVATE TESTING=1 ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -D_GNU_SOURCE)
 
 target_link_libraries(extension PRIVATE mpack PhpConfig zai)
 

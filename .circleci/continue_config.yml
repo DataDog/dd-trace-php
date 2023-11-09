@@ -1141,12 +1141,18 @@ jobs:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
-            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
+              -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
       - run:
           name: Test
           command: |
             make -C appsec/build -j $(nproc) xtest ddappsec_helper_test
             ./appsec/build/tests/helper/ddappsec_helper_test
+      - run:
+          name: Generate XML coverage
+          command: |
+            cd appsec
+            gcovr -f '.*src/extension/.*' -x -o coverage.xml
       - run:
           name: Generate HTML coverage
           command: |
@@ -1154,7 +1160,10 @@ jobs:
             gcovr --html-details coverage/coverage.html -f ".*src/.*" -d
             tar -cvzf appsec-extension-coverage.tar.gz coverage/
       - store_artifacts:
-          path: appsec/appsec-extension-coverage.tar.gz
+          path: appsec/appsec-coverage.tar.gz
+      - codecov/upload:
+          file: appsec/coverage.xml
+          upload_name: "appsec-coverage >>"
 
   lint_appsec:
     parameters:
@@ -1177,16 +1186,14 @@ jobs:
           command: |
             export DEBIAN_FRONTEND=noninteractive
             apt update
-            apt install -y wget git g++ gcc cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php-cgi cargo
+            apt install -y wget git g++ gcc cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php-cgi
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
-            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF 
-      - run:
-          name: Build
-          command: make -C appsec/build -j $(nproc) extension ddappsec-helper
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
+              -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=~/datadog/hunter-cache
       - run:
           name: Lint and Format
           command: make -C appsec/build format tidy
@@ -1223,7 +1230,8 @@ jobs:
               -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
               -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
               -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
-              -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak"
+              -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
+              -DHUNTER_ROOT=~/datadog/hunter-cache
       - run:
           name: Test
           command: |

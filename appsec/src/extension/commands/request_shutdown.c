@@ -94,7 +94,7 @@ static void _pack_headers_no_cookies(mpack_writer_t *nonnull w)
 
             coll = zend_hash_find_ptr(&headers_map, norm_header_name);
             if (!coll) {
-                coll = emalloc(sizeof *coll);
+                coll = emalloc(sizeof *coll); //NOLINT
                 zend_llist_init(coll, sizeof(struct _header_val), NULL, 0);
                 zend_hash_add_new_ptr(&headers_map, norm_header_name, coll);
             }
