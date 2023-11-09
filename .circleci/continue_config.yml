@@ -1193,14 +1193,16 @@ jobs:
           command: |
             export DEBIAN_FRONTEND=noninteractive
             apt update
-            apt install -y wget git g++ gcc cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php-cgi
+            # clang-tidy 16 crashes so we use 17 instead
+            apt install -y wget git g++ gcc cmake make curl libcurl4-gnutls-dev clang clang-tidy-17 clang-format-17 git php-dev php-cgi
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
-              -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+              -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache \
+              -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
       - run:
           name: Build
           command: make -C appsec/build -j $(nproc) extension ddappsec-helper
