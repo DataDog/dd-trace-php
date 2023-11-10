@@ -61,7 +61,7 @@ final class CurlIntegration extends Integration
                     $span->meta[Tag::ERROR_MSG] = \curl_error($ch);
                     $span->meta[Tag::ERROR_TYPE] = 'curl error';
                     if (PHP_VERSION_ID >= 70000) {
-                        $span->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception());
+                        $span->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
                     }
                 }
 
@@ -90,7 +90,9 @@ final class CurlIntegration extends Integration
                 if (\count($hook->args) >= 2) {
                     \DDTrace\curl_multi_exec_get_request_spans($spans);
                     $hook->data = [$span, &$spans, true];
-                    ObjectKVStore::put($hook->args[0], "span", [$span, &$spans]);
+                    if (\PHP_MAJOR_VERSION > 7) {
+                        ObjectKVStore::put($hook->args[0], "span", [$span, &$spans]);
+                    }
                 }
 
                 $span->name = 'curl_multi_exec';
@@ -101,7 +103,7 @@ final class CurlIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
                 $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
             }, function (HookData $hook) use ($integration, &$lastMh) {
-                if (empty($hook->data)) {
+                if (empty($hook->data) || $hook->exception) {
                     return;
                 }
 
@@ -114,26 +116,18 @@ final class CurlIntegration extends Integration
                     }
                 }
 
-                if ($hook->args[1]) {
-                    // not finished
-                    if (\PHP_MAJOR_VERSION == 7) {
-                        $lastMh = [(int)$hook->args[0], [$span, &$spans]];
-                    }
-                } else {
-                    // finished
-                    if (\PHP_MAJOR_VERSION == 8) {
-                        ObjectKVStore::put($hook->args[0], "span", null);
-                    }
+                $saveSpans = $hook->args[1];
 
+                if (!$hook->args[1]) {
+                    // finished
                     foreach ($spans as $requestSpan) {
                         list($ch, $requestSpan) = $requestSpan;
                         $info = curl_getinfo($ch);
                         if ($info["connect_time"] <= 0) {
+                            $saveSpans = true;
                             if (!isset($error_trace)) {
-                                $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception());
+                                $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
                             }
-                            // TODO: possible future improvement:
-                            // fetching the error message from future curl_multi_info_read() calls
                             $requestSpan->meta[Tag::ERROR_MSG] = "CURL request failure";
                             $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
                             $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
@@ -146,8 +140,51 @@ final class CurlIntegration extends Integration
                     }
                 }
 
+                // If there's an error we retain it for a possible future curl_multi_info_read
+                if ($saveSpans) {
+                    if (\PHP_MAJOR_VERSION == 7) {
+                        $lastMh = [(int)$hook->args[0], [$span, &$spans]];
+                    }
+                } elseif (\PHP_MAJOR_VERSION == 8) {
+                    ObjectKVStore::put($hook->args[0], "span", null);
+                }
+
                 if (!isset($hook->data[2])) {
                     \DDTrace\update_span_duration($span);
+                }
+
+                if ($hook->returned != CURLM_OK) {
+                    if (!isset($error_trace)) {
+                        $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
+                    }
+                    $requestSpan->meta[Tag::ERROR_MSG] = curl_multi_strerror($hook->returned);
+                    $requestSpan->meta[Tag::ERROR_TYPE] = 'curl_multi error';
+                    $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
+                }
+            });
+
+            \DDTrace\install_hook('curl_multi_info_read', null, function (HookData $hook) use (&$lastMh) {
+                if (count($hook->args) < 1 || !isset($hook->returned["handle"])) {
+                    return;
+                }
+                if (!isset($hook->returned["result"]) || $hook->returned["result"] == CURLE_OK) {
+                    return;
+                }
+
+                $handle = $hook->returned["handle"];
+
+                if (\PHP_MAJOR_VERSION > 7) {
+                    $data = ObjectKVStore::get($hook->args[0], "span");
+                } elseif ($lastMh[0] == (int)$hook->args[0]) {
+                    $data = $lastMh[1];
+                }
+
+                list(, $spans) = $data;
+                foreach ($spans as $requestSpan) {
+                    list($ch, $requestSpan) = $requestSpan;
+                    if ($ch === $handle) {
+                        $requestSpan->meta[Tag::ERROR_MSG] = curl_strerror($hook->returned["result"]);
+                    }
                 }
             });
         }

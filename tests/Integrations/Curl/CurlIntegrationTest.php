@@ -578,6 +578,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 if ($active) {
                     curl_multi_select($mh);
                 }
+                while (false !== curl_multi_info_read($mh));
             } while ($active && $status == CURLM_OK);
 
             $response = curl_multi_getcontent($ch1);
@@ -614,7 +615,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/')
-                        ->setError('curl error', 'CURL request failure', true),
+                        ->setError('curl error', "Couldn't resolve host name", true),
                 ]),
         ]);
     }

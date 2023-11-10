@@ -475,9 +475,11 @@ namespace DDTrace {
      * Sanitize an exception
      *
      * @param \Exception|\Throwable $exception
+     * @param int $skipFrames The number of frames to be dropped from the start. E.g. to hide the fact that we're
+     * in a hook function.
      * @return string
      */
-    function get_sanitized_exception_trace(\Exception|\Throwable $exception): string {}
+    function get_sanitized_exception_trace(\Exception|\Throwable $exception, int $skipFrames = 0): string {}
 
     /**
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,

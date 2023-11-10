@@ -41,7 +41,7 @@ zend_string *zai_exception_message(zend_object *ex) {
 /* Modeled after Exception::getTraceAsString:
  * @see https://heap.space/xref/PHP-8.0/Zend/zend_exceptions.c#getTraceAsString
  */
-zend_string *zai_get_trace_without_args(zend_array *trace) {
+zend_string *zai_get_trace_without_args_skip_frames(zend_array *trace, int skip) {
     if (!trace) {
         // should never happen; TODO: fail in CI
         return zend_string_init_interned(ZEND_STRL("[broken trace]"), 1);
@@ -51,6 +51,10 @@ zend_string *zai_get_trace_without_args(zend_array *trace) {
     smart_str str = {0};
     uint32_t num = 0;
     ZEND_HASH_FOREACH_VAL(trace, frame) {
+        if (skip-- > 0) {
+            continue;
+        }
+
         smart_str_appendc(&str, '#');
         smart_str_append_long(&str, num++);
         smart_str_appendc(&str, ' ');
@@ -118,7 +122,11 @@ zend_string *zai_get_trace_without_args(zend_array *trace) {
     return str.s;
 }
 
-zend_string *zai_get_trace_without_args_from_exception(zend_object *ex) {
+zend_string *zai_get_trace_without_args(zend_array *trace) {
+    return zai_get_trace_without_args_skip_frames(trace, 0);
+}
+
+zend_string *zai_get_trace_without_args_from_exception_skip_frames(zend_object *ex, int skip) {
     if (!ex) {
         return ZSTR_EMPTY_ALLOC();  // should never happen; TODO: fail in CI
     }
@@ -129,5 +137,9 @@ zend_string *zai_get_trace_without_args_from_exception(zend_object *ex) {
         return ZSTR_EMPTY_ALLOC();  // should never happen in PHP 8 as the property is typed and always initialized
     }
 
-    return zai_get_trace_without_args(Z_ARR_P(trace));
+    return zai_get_trace_without_args_skip_frames(Z_ARR_P(trace), skip);
+}
+
+zend_string *zai_get_trace_without_args_from_exception(zend_object *ex) {
+    return zai_get_trace_without_args_from_exception_skip_frames(ex, 0);
 }

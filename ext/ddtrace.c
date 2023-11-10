@@ -2463,15 +2463,18 @@ PHP_FUNCTION(DDTrace_get_priority_sampling) {
 
 PHP_FUNCTION(DDTrace_get_sanitized_exception_trace) {
     zend_object *ex;
+    zend_long skip = 0;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ddtrace_quiet_zpp(), 1, 1)
+    ZEND_PARSE_PARAMETERS_START_EX(ddtrace_quiet_zpp(), 1, 2)
         Z_PARAM_OBJ_OF_CLASS(ex, zend_ce_throwable)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(skip)
     ZEND_PARSE_PARAMETERS_END_EX({
         LOG_LINE_ONCE(Error, "unexpected parameter for DDTrace\\get_sanitized_exception_trace, the first argument must be a Throwable");
         RETURN_FALSE;
     });
 
-    RETURN_STR(zai_get_trace_without_args_from_exception(ex));
+    RETURN_STR(zai_get_trace_without_args_from_exception_skip_frames(ex, skip));
 }
 
 PHP_FUNCTION(DDTrace_startup_logs) {
