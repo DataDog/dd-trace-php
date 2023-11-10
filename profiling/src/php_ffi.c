@@ -80,7 +80,7 @@ static bool _ignore_run_time_cache = false;
  * SAVE_OPLINE() and it causes a crash for the allocation profiler, see:
  * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
  * The handler doesn't actually need to do anything, because just by having a
- * handler will save the opline before calling the user handler:
+ * handler the engine will save the opline before calling the user handler:
  * https://heap.space/xref/PHP-7.4/Zend/zend_vm_execute.h?r=0b7dffb4#2650
  */
 static zend_result ddog_php_prof_noop_opcode(zend_execute_data *execute_data) {
