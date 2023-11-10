@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Nuke.Common;
 using Nuke.Common.IO;
@@ -14,9 +16,14 @@ using Issue = Octokit.Issue;
 using Target = Nuke.Common.Target;
 using Logger = Serilog.Log;
 using System.Net.Http;
-using System.Text;
 using Octokit.GraphQL.Model;
 using System.Net.Http.Json;
+using YamlDotNet.Serialization.NamingConventions;
+using ProductHeaderValue = Octokit.ProductHeaderValue;
+using static Octokit.GraphQL.Variable;
+using Milestone = Octokit.Milestone;
+using Release = Octokit.Release;
+using Nuke.Common.Utilities.Collections;
 
 partial class Build
 {
@@ -221,6 +228,114 @@ partial class Build
         catch (Exception ex)
         {
             Logger.Warning($"There was an error trying to minimise old comments with prefix '{prefix}': {ex}");
+        }
+    }
+
+    Target AssignLabelsToPullRequest => _ => _
+       .Unlisted()
+       .Requires(() => GitHubRepositoryName)
+       .Requires(() => GitHubToken)
+       .Requires(() => PullRequestNumber)
+       .Executes(async() =>
+        {
+            var client = GetGitHubClient();
+
+            var pr = await client.PullRequest.Get(
+                owner: GitHubRepositoryOwner,
+                name: GitHubRepositoryName,
+                number: PullRequestNumber.Value);
+
+            // Fixes an issue (ambiguous argument) when we do git diff in the Action.
+            GitTasks.Git("fetch origin master:master", logOutput: false);
+            var changedFiles = GitTasks.Git("diff --name-only master").Select(f => f.Text);
+            var config = GetLabellerConfiguration();
+            Console.WriteLine($"Checking labels for PR {PullRequestNumber}");
+
+            var updatedLabels = ComputeLabels(config, pr.Title, pr.Labels.Select(l => l.Name), changedFiles);
+            var issueUpdate = new IssueUpdate();
+            updatedLabels.ForEach(l => issueUpdate.AddLabel(l));
+
+            try
+            {
+                await client.Issue.Update(
+                    owner: GitHubRepositoryOwner,
+                    name: GitHubRepositoryName,
+                    number: PullRequestNumber.Value,
+                    issueUpdate);
+            }
+            catch(Exception ex)
+            {
+                Logger.Warning($"An error happened while updating the labels on the PR: {ex}");
+            }
+
+            Console.WriteLine($"PR labels updated");
+
+            HashSet<String> ComputeLabels(LabbelerConfiguration config, string prTitle, IEnumerable<string> labels, IEnumerable<string> changedFiles)
+            {
+                var updatedLabels = new HashSet<string>(labels);
+
+                foreach(var label in config.Labels)
+                {
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(label.Title))
+                        {
+                            Console.WriteLine("Checking if pr title matches: " + label.Title);
+                            var regex = new Regex(label.Title, RegexOptions.Compiled);
+                            if (regex.IsMatch(prTitle))
+                            {
+                                Console.WriteLine("Yes it does. Adding label " + label.Name);
+                                updatedLabels.Add(label.Name);
+                            }
+                        }
+                        else if (!string.IsNullOrEmpty(label.AllFilesIn))
+                        {
+                            Console.WriteLine("Checking if changed files are all located in:" + label.AllFilesIn);
+                            var regex = new Regex(label.AllFilesIn, RegexOptions.Compiled);
+                            if(!changedFiles.Any(x => !regex.IsMatch(x)))
+                            {
+                                Console.WriteLine("Yes they do. Adding label " + label.Name);
+                                updatedLabels.Add(label.Name);
+                            }
+                        }
+                    }
+                    catch(Exception ex)
+                    {
+                        Logger.Warning($"There was an error trying to check labels: {ex}");
+                    }
+                }
+                return updatedLabels;
+            }
+
+           LabbelerConfiguration GetLabellerConfiguration()
+           {
+               var labellerConfigYaml = RootDirectory / ".github" / "labeller.yml";
+               Logger.Information($"Reading {labellerConfigYaml} YAML file");
+               var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+                                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                                 .IgnoreUnmatchedProperties()
+                                 .Build();
+
+               using var sr = new StreamReader(labellerConfigYaml);
+               return deserializer.Deserialize<LabbelerConfiguration>(sr);
+           }
+        });
+
+    GitHubClient GetGitHubClient() =>
+    new(new ProductHeaderValue("nuke-ci-client"))
+    {
+        Credentials = new Credentials(GitHubToken)
+    };
+
+    class LabbelerConfiguration
+    {
+        public Label[] Labels { get; set; }
+
+        public class Label
+        {
+            public string Name { get; set; }
+            public string Title { get; set; }
+            public string AllFilesIn { get; set; }
         }
     }
 }
