@@ -109,6 +109,15 @@ final class CurlIntegration extends Integration
 
                 $span = $hook->data[0];
                 $spans = &$hook->data[1];
+
+                if (!$spans) {
+                    // Drop the span if nothing was handled here
+                    if (\PHP_MAJOR_VERSION == 8) {
+                        ObjectKVStore::put($hook->args[0], "span", null);
+                    }
+                    return false;
+                }
+
                 if ($spans && $spans[0][1]->name != "curl_exec") {
                     foreach ($spans as $requestSpan) {
                         list(, $requestSpan) = $requestSpan;
