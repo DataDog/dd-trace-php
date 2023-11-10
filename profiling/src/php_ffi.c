@@ -6,7 +6,7 @@
 #include <string.h>
 
 #if CFG_STACK_WALKING_TESTS
-#include <dlfcn.h> // for dlsym
+#include <dlfcn.h>  // for dlsym
 #endif
 
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
@@ -34,12 +34,10 @@ static ddtrace_profiling_context noop_get_profiling_context(void) {
     return (ddtrace_profiling_context){0, 0};
 }
 
-#if CFG_PRELOAD // defined by build.rs
+#if CFG_PRELOAD  // defined by build.rs
 static bool _is_post_startup = false;
 
-bool ddog_php_prof_is_post_startup(void) {
-    return _is_post_startup;
-}
+bool ddog_php_prof_is_post_startup(void) { return _is_post_startup; }
 
 #if PHP_VERSION_ID < 80000
 #define post_startup_cb_result int
@@ -65,8 +63,7 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 }
 #endif
 
-
-#if CFG_RUN_TIME_CACHE // defined by build.rs
+#if CFG_RUN_TIME_CACHE  // defined by build.rs
 /**
  * Currently used to ignore run_time_cache on CLI SAPI as a precaution against
  * unbounded memory growth. Unbounded growth is more likely there since it's
@@ -75,9 +72,21 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 static bool _ignore_run_time_cache = false;
 #endif
 
-void datadog_php_profiling_startup(zend_extension *extension) {
+#if PHP_VERSION_ID >= 70400 PHP_VERSION_ID < 80100
+/* The purpose here is to set the opline, because these versions are missing a
+ * SAVE_OPLINE() and it causes a crash for the allocation profiler, see:
+ * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
+ * The handler doesn't actually need to do anything, because just by having a
+ * handler will save the opline before calling the user handler:
+ * https://heap.space/xref/PHP-7.4/Zend/zend_vm_execute.h?r=0b7dffb4#2650
+ */
+zend_result ddog_php_prof_generator_create(zend_execute_data *execute_data) {
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+#endif
 
-#if CFG_RUN_TIME_CACHE // defined by build.rs
+void datadog_php_profiling_startup(zend_extension *extension) {
+#if CFG_RUN_TIME_CACHE  // defined by build.rs
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
 #endif
 
@@ -97,7 +106,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         }
     }
 
-#if CFG_PRELOAD // defined by build.rs
+#if CFG_PRELOAD  // defined by build.rs
     _is_post_startup = false;
     orig_post_startup_cb = zend_post_startup_cb;
     zend_post_startup_cb = ddog_php_prof_post_startup_cb;
@@ -123,8 +132,7 @@ void datadog_php_profiling_install_internal_function_handler(
     }
 }
 
-void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
-                                                      bool persistent) {
+void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view, bool persistent) {
     ZEND_ASSERT(dest);
 
     if (view.len == 0) {
@@ -145,10 +153,9 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
     return;
 }
 
-void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
-                                               void* (*_malloc)(size_t),
-                                               void  (*_free)(void*),
-                                               void* (*_realloc)(void*, size_t)) {
+void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap, void *(*_malloc)(size_t),
+                                               void (*_free)(void *),
+                                               void *(*_realloc)(void *, size_t)) {
     zend_mm_set_custom_handlers(heap, _malloc, _free, _realloc);
 #if PHP_VERSION_ID < 70300
     if (!_malloc && !_free && !_realloc) {
@@ -157,39 +164,29 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
 #endif
 }
 
-zend_execute_data* ddog_php_prof_get_current_execute_data() {
-    return EG(current_execute_data);
-}
+zend_execute_data *ddog_php_prof_get_current_execute_data() { return EG(current_execute_data); }
 
-#if CFG_FIBERS // defined by build.rs
-zend_fiber* ddog_php_prof_get_active_fiber()
-{
-    return EG(active_fiber);
-}
+#if CFG_FIBERS  // defined by build.rs
+zend_fiber *ddog_php_prof_get_active_fiber() { return EG(active_fiber); }
 
-zend_fiber* ddog_php_prof_get_active_fiber_test()
-{
-    return NULL;
-}
+zend_fiber *ddog_php_prof_get_active_fiber_test() { return NULL; }
 #endif
 
-#if CFG_RUN_TIME_CACHE // defined by build.rs
+#if CFG_RUN_TIME_CACHE  // defined by build.rs
 static int ddog_php_prof_run_time_cache_handle = -1;
 #endif
 
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
-#if CFG_RUN_TIME_CACHE // defined by build.rs
+#if CFG_RUN_TIME_CACHE  // defined by build.rs
     // Grab 1 slot for the full module|class::method name.
     // Grab 1 slot for caching filename, as it turns out the utf-8 validity
     // check is worth caching.
 #if PHP_VERSION_ID < 80200
-    ddog_php_prof_run_time_cache_handle =
-        zend_get_op_array_extension_handle(module_name);
+    ddog_php_prof_run_time_cache_handle = zend_get_op_array_extension_handle(module_name);
     int second = zend_get_op_array_extension_handle(module_name);
     ZEND_ASSERT(ddog_php_prof_run_time_cache_handle + 1 == second);
 #else
-    ddog_php_prof_run_time_cache_handle =
-        zend_get_op_array_extension_handles(module_name, 2);
+    ddog_php_prof_run_time_cache_handle = zend_get_op_array_extension_handles(module_name, 2);
 #endif
 #else
     (void)module_name;
@@ -202,14 +199,14 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
      */
 }
 
-#if CFG_RUN_TIME_CACHE // defined by build.rs
+#if CFG_RUN_TIME_CACHE  // defined by build.rs
 static bool has_invalid_run_time_cache(zend_function const *func) {
     if (UNEXPECTED(_ignore_run_time_cache) || UNEXPECTED(ddog_php_prof_run_time_cache_handle < 0))
         return true;
 
-    // during an `include()`/`require()` with enabled OPcache, OPcache is
-    // persisting the compiled file and puts a fake frame on the stack where the
-    // runtime cache is not yet initialized.
+        // during an `include()`/`require()` with enabled OPcache, OPcache is
+        // persisting the compiled file and puts a fake frame on the stack where the
+        // runtime cache is not yet initialized.
 #if PHP_VERSION_ID < 80200
     bool is_file_compile = ZEND_MAP_PTR(func->op_array.run_time_cache) == NULL;
 #else
@@ -402,14 +399,13 @@ bool ddog_php_jit_enabled() {
 
             zval *jit_stats = zend_hash_str_find(Z_ARR(jit_stats_arr), ZEND_STRL("jit"));
             zval *jit_buffer = zend_hash_str_find(Z_ARR_P(jit_stats), ZEND_STRL("buffer_size"));
-            jit = Z_LVAL_P(jit_buffer) > 0; // JIT is active!
+            jit = Z_LVAL_P(jit_buffer) > 0;  // JIT is active!
 
             zval_ptr_dtor(&jit_stats_arr);
         }
     }
     return jit;
 }
-
 
 #if PHP_VERSION_ID < 70200
 #define zend_parse_parameters_none_throw() \
@@ -432,13 +428,9 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
 #if CFG_TRIGGER_TIME_SAMPLE
-    ZEND_NS_NAMED_FE(
-        "Datadog\\Profiling",
-        trigger_time_sample,
-        ZEND_FN(Datadog_Profiling_trigger_time_sample),
-        arginfo_Datadog_Profiling_trigger_time_sample
-    )
+    ZEND_NS_NAMED_FE("Datadog\\Profiling", trigger_time_sample,
+                     ZEND_FN(Datadog_Profiling_trigger_time_sample),
+                     arginfo_Datadog_Profiling_trigger_time_sample)
 #endif
-    ZEND_FE_END
-};
-const zend_function_entry* ddog_php_prof_functions = functions;
+        ZEND_FE_END};
+const zend_function_entry *ddog_php_prof_functions = functions;

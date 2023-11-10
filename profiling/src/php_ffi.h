@@ -1,13 +1,13 @@
 #include <SAPI.h>
-#include <Zend/zend_extensions.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_extensions.h>
 #include <Zend/zend_types.h>
-#if CFG_FIBERS // defined by build.rs
+#if CFG_FIBERS  // defined by build.rs
 #include <Zend/zend_fibers.h>
 #endif
+#include <Zend/zend_alloc.h>
 #include <Zend/zend_globals_macros.h>
 #include <Zend/zend_modules.h>
-#include <Zend/zend_alloc.h>
 #include <main/php_main.h>
 #include <php.h>
 #include <stdbool.h>
@@ -96,8 +96,7 @@ void datadog_php_profiling_install_internal_function_handler(
  * `dest` is expected to be uninitialized. Any existing content will not be
  * dtor'.
  */
-void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
-                                                      bool persistent);
+void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view, bool persistent);
 
 /**
  * Copies the number in `num` into a zval, which is stored in `dest`
@@ -118,23 +117,22 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num);
  * `use_custom_heap` flag back to normal when null pointers are being passed
  * in on those PHP versions.
  */
-void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
-                                               void* (*_malloc)(size_t),
-                                               void  (*_free)(void*),
-                                               void* (*_realloc)(void*, size_t));
+void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap, void *(*_malloc)(size_t),
+                                               void (*_free)(void *),
+                                               void *(*_realloc)(void *, size_t));
 
-zend_execute_data* ddog_php_prof_get_current_execute_data();
+zend_execute_data *ddog_php_prof_get_current_execute_data();
 
 #if CFG_FIBERS
-zend_fiber* ddog_php_prof_get_active_fiber();
-zend_fiber* ddog_php_prof_get_active_fiber_test();
+zend_fiber *ddog_php_prof_get_active_fiber();
+zend_fiber *ddog_php_prof_get_active_fiber_test();
 #endif
 
 /**
  * The following two functions exist for the sole purpose of creating fake stack
  * frames that can be used in testing/benchmarking scenarios
  */
-zend_execute_data* ddog_php_test_create_fake_zend_execute_data(int depth);
+zend_execute_data *ddog_php_test_create_fake_zend_execute_data(int depth);
 void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data);
 
 void ddog_php_opcache_init_handle();
