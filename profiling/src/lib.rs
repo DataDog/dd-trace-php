@@ -974,7 +974,7 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     trace!("startup({:p})", extension);
 
     // Safety: called during startup hook with correct params.
-    unsafe { zend::datadog_php_profiling_startup(extension) };
+    unsafe { zend::datadog_php_profiling_startup(extension, PHP_VERSION_ID) };
 
     #[cfg(php_run_time_cache)]
     // Safety: calling this in startup/minit as required.

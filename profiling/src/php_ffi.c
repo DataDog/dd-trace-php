@@ -72,7 +72,7 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 static bool _ignore_run_time_cache = false;
 #endif
 
-#if PHP_VERSION_ID >= 70400 PHP_VERSION_ID < 80100
+#if PHP_VERSION_ID >= 70400 && PHP_VERSION_ID < 80100
 /* The purpose here is to set the opline, because these versions are missing a
  * SAVE_OPLINE() and it causes a crash for the allocation profiler, see:
  * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
@@ -80,12 +80,25 @@ static bool _ignore_run_time_cache = false;
  * handler will save the opline before calling the user handler:
  * https://heap.space/xref/PHP-7.4/Zend/zend_vm_execute.h?r=0b7dffb4#2650
  */
-zend_result ddog_php_prof_generator_create(zend_execute_data *execute_data) {
+static zend_result ddog_php_prof_noop_opcode(zend_execute_data *execute_data) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 #endif
 
-void datadog_php_profiling_startup(zend_extension *extension) {
+void datadog_php_profiling_startup(zend_extension *extension, uint32_t php_version_id) {
+    (void)php_version_id;
+#if PHP_VERSION_ID >= 70400 && PHP_VERSION_ID < 80100
+#if PHP_VERSION_ID < 80000
+    // Only need to install a handler if there isn't one, see `ddog_php_prof_noop_opcode`.
+    if (zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
+#else
+    // Issue is fixed in 8.0.26.
+    if (php_version_id < 80026 && zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
+#endif
+        user_opcode_handler_t handler = (user_opcode_handler_t)ddog_php_prof_noop_opcode;
+        zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, handler);
+    }
+#endif
 #if CFG_RUN_TIME_CACHE  // defined by build.rs
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
 #endif
@@ -432,5 +445,6 @@ static const zend_function_entry functions[] = {
                      ZEND_FN(Datadog_Profiling_trigger_time_sample),
                      arginfo_Datadog_Profiling_trigger_time_sample)
 #endif
-        ZEND_FE_END};
+        ZEND_FE_END
+};
 const zend_function_entry *ddog_php_prof_functions = functions;
