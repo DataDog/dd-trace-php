@@ -1,0 +1,39 @@
+labels:
+  - name: "area:ci-visibility"
+    title: "^\\[?(?i)civisibility"
+
+  - name: "area:ci-visibility"
+    title: "^\\[?(?i)(ci visibility)"
+
+  - name: "area:serverless"
+    title: "^\\[?(?i)serverless"
+
+  - name: "area:asm"
+    title: "^\\[?(?i)ASM"
+
+  - name: "area:remote-config"
+    title: "^\\[?(?i)(RCM|remote config)"
+
+  - name: "area:profiler"
+    title: "^\\[?(?i)profiler"
+
+  - name: "area:debugger"
+    title: "^\\[?(?i)debugger"
+
+  - name: "area:debugger"
+    title: "^\\[?(?i)(dynamic instrumentation)"
+
+  - name: "area:builds"
+    title: "^\\[?(?i)build"
+
+  - name: "area:profiler"
+    allFilesIn: "profiling\/.*"
+
+  - name: "area:debugger"
+    allFilesIn: "debugger\/.*"
+
+  - name: "area:tracer"
+    title: "^\\[?(?i)tracer"
+
+  - name: "area:tracer"
+    allFilesIn: "(.*\/ext\/.*|.*\/src\/.*|.*\/tests\/.*|.*\/zend_abstract_interface\/.*)"
