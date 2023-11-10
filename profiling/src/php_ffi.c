@@ -88,23 +88,39 @@ static zend_result ddog_php_prof_opcode_dispatch(zend_execute_data *execute_data
 }
 #endif
 
-void datadog_php_profiling_startup(zend_extension *extension, uint32_t php_version_id) {
+static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
+#if PHP_VERSION_ID < 70400 || PHP_VERSION_ID >= 80100
     (void)php_version_id;
-#if PHP_VERSION_ID >= 70400 && PHP_VERSION_ID < 80100
-#if PHP_VERSION_ID < 80000
-    /* Only need to install a handler if there isn't one, see
-     * `ddog_php_prof_opcode_dispatch`. Note that the tracer installs one for
-     * PHP 7.
-     */
-    if (zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
 #else
-    // Issue is fixed in 8.0.26.
+
+    /* Only need to install handlers if there isn't one, see docs on
+     * `ddog_php_prof_opcode_dispatch`.
+     */
+
+    /* Issue is fixed in 8.0.26:
+     * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
+     * But the tracer installed a handler for ZEND_GENERATOR_CREATE on PHP 7,
+     * so nearly no users will triggered this one.
+     */
     if (php_version_id < 80026 && zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
-#endif
         user_opcode_handler_t handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
         zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, handler);
     }
+
+    /* Issue is fixed in 8.0.12:
+     * https://github.com/php/php-src/commit/ec54ffad1e3b15fedfd07f7d29d97ec3e8d1c45a
+     * The tracer didn't save us here. Fortunately, throwing destru
+     */
+    if (php_version_id < 80012 && zend_get_user_opcode_handler(ZEND_BIND_STATIC) == NULL) {
+        user_opcode_handler_t handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
+        zend_set_user_opcode_handler(ZEND_BIND_STATIC, handler);
+    }
 #endif
+}
+
+void datadog_php_profiling_startup(zend_extension *extension, uint32_t php_version_id) {
+    ddog_php_prof_install_opcode_handlers(php_version_id);
+
 #if CFG_RUN_TIME_CACHE  // defined by build.rs
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
 #endif
