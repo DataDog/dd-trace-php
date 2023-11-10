@@ -11,6 +11,7 @@ use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Trace\SpanBuilderInterface;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
+use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
@@ -145,7 +146,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $parentSpan = Span::fromContext($parentContext);
         $parentSpanContext = $parentSpan->getContext();
 
-        $span = \DDTrace\start_trace_span($this->startEpochNanos);
+        $span = $parentSpanContext->isValid() ? null : \DDTrace\start_trace_span($this->startEpochNanos);
         $traceId = $parentSpanContext->isValid() ? $parentSpanContext->getTraceId() : \DDTrace\root_span()->traceId;
 
         $samplingResult = $this
@@ -159,6 +160,8 @@ final class SpanBuilder implements API\SpanBuilderInterface
                 $this->attributesBuilder->build(),
                 $this->links,
             );
+
+        $span = $span ?? \DDTrace\start_trace_span($this->startEpochNanos);
         $samplingDecision = $samplingResult->getDecision();
         $sampled = SamplingResult::RECORD_AND_SAMPLE === $samplingDecision;
         $samplingResultTraceState = $samplingResult->getTraceState();
@@ -173,10 +176,9 @@ final class SpanBuilder implements API\SpanBuilderInterface
                 'traceparent' => $traceParent,
                 'tracestate' => (string) $samplingResultTraceState, // __toString() is implemented in TraceState
             ]);
-        } else {
-            \DDTrace\consume_distributed_tracing_headers([
-                'tracestate' => (string) $samplingResultTraceState, // __toString() is implemented in TraceState
-            ]);
+        } elseif ($samplingResultTraceState) {
+            $samplingResultTraceState->without('dd');
+            \DDTrace\root_span()->tracestate = (string) $samplingResultTraceState;
         }
 
         $hexSpanId = $span->hexId();

@@ -50,7 +50,7 @@ try {
 $rr->waitForFlush();
 
 $root = json_decode($rr->replayRequest()["body"], true);
-$span = $root[0]['0'];
+$span = $root[0][0];
 var_dump($span['meta']['error.message']);
 var_dump($span['meta']['error.type']);
 var_dump($span['meta']['error.stack']);

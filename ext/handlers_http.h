@@ -75,6 +75,11 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ze
         smart_str_append(&str, tracestate);
     }
 
+    if (str.s && ZSTR_VAL(str.s)[ZSTR_LEN(str.s) - 1] == ',') {
+        ZSTR_VAL(str.s)[ZSTR_LEN(str.s) - 1] = '\0';
+        ZSTR_LEN(str.s)--;
+    }
+
     if (str.s) {
         zend_string *full_tracestate = zend_strpprintf(0, "%s%.*s", hasdd ? "dd=" : "", (int)ZSTR_LEN(str.s), ZSTR_VAL(str.s));
         smart_str_free(&str);

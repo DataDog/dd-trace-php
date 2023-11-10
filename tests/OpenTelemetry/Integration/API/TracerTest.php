@@ -17,7 +17,9 @@ use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\Context\ContextStorage;
+use OpenTelemetry\SDK\Common\Attribute\AttributesInterface;
 use OpenTelemetry\SDK\Sdk;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\Sampler\ParentBased;
@@ -507,9 +509,9 @@ final class TracerTest extends BaseTestCase
                 '_dd.p.congo' => 't61rcWkgMzE',
                 '_dd.p.some_val' => 'tehehe'
             ]);
-            $this->assertSame("dd=t.congo:t61rcWkgMzE;t.some_val:tehehe;t.dm:-1", (string)$span->getContext()->getTraceState());
+            $this->assertSame("dd=t.dm:-1;t.congo:t61rcWkgMzE;t.some_val:tehehe", (string)$span->getContext()->getTraceState());
             $span->end();
-            $this->assertSame("dd=t.congo:t61rcWkgMzE;t.some_val:tehehe;t.dm:-1", (string)$span->getContext()->getTraceState());
+            $this->assertSame("dd=t.dm:-1;t.congo:t61rcWkgMzE;t.some_val:tehehe", (string)$span->getContext()->getTraceState());
         });
 
         $span = $traces[0][0];
@@ -570,5 +572,287 @@ final class TracerTest extends BaseTestCase
             [TraceFlags::DEFAULT, null],
             [TraceFlags::DEFAULT, new TraceState("rojo=00f067aa0ba902b7,congo=t61rcWkgMzE")],
         ];
+    }
+
+    public function testMultipleTraceState()
+    {
+        $traces = $this->isolateTracer(function () {
+            $root = new class() implements SamplerInterface {
+                public function shouldSample(
+                    ContextInterface $parentContext,
+                    string $traceId,
+                    string $spanName,
+                    int $spanKind,
+                    AttributesInterface $attributes,
+                    array $links
+                ): SamplingResult {
+                    return new SamplingResult(
+                        SamplingResult::RECORD_AND_SAMPLE,
+                        [],
+                        new TraceState("root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE")
+                    );
+                }
+
+                public function getDescription(): string
+                {
+                    return "Custom Sampler";
+                }
+            };
+
+            $localParentSampler = new class() implements SamplerInterface {
+                public function shouldSample(
+                    ContextInterface $parentContext,
+                    string $traceId,
+                    string $spanName,
+                    int $spanKind,
+                    AttributesInterface $attributes,
+                    array $links
+                ): SamplingResult {
+                    return new SamplingResult(
+                        SamplingResult::RECORD_AND_SAMPLE,
+                        [],
+                        new TraceState("localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE")
+                    );
+                }
+
+                public function getDescription(): string
+                {
+                    return "Custom Sampler";
+                }
+            };
+
+            // Create a new tracer with a parent based sampling
+            $tracer = (new TracerProvider([], new ParentBased(
+                $root,
+                null,
+                null,
+                $localParentSampler,
+            )))->getTracer('OpenTelemetry.TracerTest');
+            $parent = $tracer->spanBuilder("parent")->startSpan(); // root sampler will be used
+            $scope = $parent->activate();
+            $this->assertSame("dd=t.dm:-1,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$parent->getContext()->getTraceState());
+            $parent->setAttributes([
+                '_dd.p.some_val' => 'tehehe'
+            ]);
+            $this->assertSame("dd=t.dm:-1;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$parent->getContext()->getTraceState());
+            try {
+                $child = $tracer->spanBuilder("child")->startSpan(); // local parent sampler will be used
+
+                $childContext = $child->getContext();
+                $this->assertSame($parent->getContext()->getTraceId(), $childContext->getTraceId());
+                $this->assertSame($parent->getContext()->getSpanId(), $child->getParentContext()->getSpanId());
+                $this->assertFalse($childContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
+                $this->assertEquals(1, $childContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
+                $this->assertSame("dd=t.dm:-0,localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$childContext->getTraceState());
+                $this->assertSame("dd=t.dm:-0,localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$parent->getContext()->getTraceState());
+
+                $grandChild = $tracer->spanBuilder("grandChild")
+                    ->setParent(Context::getCurrent()->withContextValue($child))
+                    ->startSpan();
+                $grandChildScope = $grandChild->activate();
+
+                $grandChildContext = $grandChild->getContext();
+                $this->assertSame($parent->getContext()->getTraceId(), $grandChildContext->getTraceId());
+                $this->assertSame($child->getContext()->getSpanId(), $grandChild->getParentContext()->getSpanId());
+                $this->assertFalse($grandChildContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
+                $this->assertEquals(1, $grandChildContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
+                $this->assertSame("dd=t.dm:-0,localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$grandChildContext->getTraceState());
+
+                $grandChildScope->detach();
+                $grandChild->end();
+
+                $child->end();
+            } finally {
+                $this->assertSame("dd=t.dm:-1;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$parent->getContext()->getTraceState());
+                $scope->detach();
+                $parent->end();
+            }
+        });
+
+        $spans = $traces[0];
+        list($parentSpan, $childSpan) = $spans;
+        $this->assertNotEmpty($parentSpan['trace_id']);
+        $this->assertSame($parentSpan['trace_id'], $parentSpan['span_id']);
+        $this->assertSame($parentSpan['trace_id'], $childSpan['trace_id']);
+        $this->assertSame($parentSpan['span_id'], $childSpan['trace_id']);
+        $this->assertNotSame($parentSpan['span_id'], $childSpan['span_id']);
+        $this->assertNotSame($childSpan['trace_id'], $childSpan['span_id']);
+    }
+
+    public function testMultipleTraceStateRemote()
+    {
+        $traces = $this->isolateTracer(function () {
+            $root = new class() implements SamplerInterface {
+                public function shouldSample(
+                    ContextInterface $parentContext,
+                    string $traceId,
+                    string $spanName,
+                    int $spanKind,
+                    AttributesInterface $attributes,
+                    array $links
+                ): SamplingResult {
+                    return new SamplingResult(
+                        SamplingResult::RECORD_AND_SAMPLE,
+                        [],
+                        new TraceState("root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE")
+                    );
+                }
+
+                public function getDescription(): string
+                {
+                    return "Custom Sampler";
+                }
+            };
+
+            $remoteParentSampler = new class() implements SamplerInterface {
+                public function shouldSample(
+                    ContextInterface $parentContext,
+                    string $traceId,
+                    string $spanName,
+                    int $spanKind,
+                    AttributesInterface $attributes,
+                    array $links
+                ): SamplingResult {
+                    return new SamplingResult(
+                        SamplingResult::RECORD_AND_SAMPLE,
+                        [],
+                        new TraceState("remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE")
+                    );
+                }
+
+                public function getDescription(): string
+                {
+                    return "Custom Sampler";
+                }
+            };
+
+            $remoteParentNotSampler = new class() implements SamplerInterface {
+                public function shouldSample(
+                    ContextInterface $parentContext,
+                    string $traceId,
+                    string $spanName,
+                    int $spanKind,
+                    AttributesInterface $attributes,
+                    array $links
+                ): SamplingResult {
+                    return new SamplingResult(
+                        SamplingResult::RECORD_AND_SAMPLE,
+                        [],
+                        new TraceState("remoteparentnot=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE")
+                    );
+                }
+
+                public function getDescription(): string
+                {
+                    return "Custom Sampler";
+                }
+            };
+
+            // Create a new tracer with a parent based sampling
+            $tracer = (new TracerProvider([], new ParentBased(
+                $root,
+                $remoteParentSampler,
+                $remoteParentNotSampler
+            )))->getTracer('OpenTelemetry.TracerTest');
+            $remoteContext =  SpanContext::createFromRemoteParent(
+                '4bf92f3577b34da6a3ce929d0e0e4736',
+                '00f067aa0ba902b7',
+                TraceFlags::SAMPLED,
+                new TraceState("rojo=00f067aa0ba902b7,congo=t61rcWkgMzE")
+            );
+            $remoteSpan = new NonRecordingSpan($remoteContext);
+
+            $child = $tracer->spanBuilder("child")
+                ->setParent(Context::getCurrent()->withContextValue($remoteSpan))
+                ->startSpan();
+            $scope = $child->activate();
+
+            $childContext = $child->getContext();
+            $this->assertSame($remoteContext->getTraceId(), $childContext->getTraceId());
+            $this->assertSame($remoteContext->getSpanId(), $child->getParentContext()->getSpanId());
+            $this->assertFalse($childContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
+            $this->assertEquals(1, $childContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
+            //$this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$childContext->getTraceState());
+
+            $tracer = self::getTracer();
+            $grandChild = $tracer->spanBuilder("grandChild")
+                ->setParent(Context::getCurrent()->withContextValue($child))
+                ->startSpan();
+            $this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$child->getContext()->getTraceState());
+            $grandChildScope = $grandChild->activate();
+
+            $grandChildContext = $grandChild->getContext();
+            $this->assertSame($remoteContext->getTraceId(), $grandChildContext->getTraceId());
+            $this->assertSame($child->getContext()->getSpanId(), $grandChild->getParentContext()->getSpanId());
+            $this->assertFalse($grandChildContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
+            $this->assertEquals(1, $grandChildContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
+            $this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$child->getContext()->getTraceState());
+            $this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$grandChildContext->getTraceState());
+
+            $grandChildScope->detach();
+            $grandChild->end();
+
+            try {
+                $child->end();
+            } finally {
+                $scope->detach();
+            }
+        });
+
+        $spans = $traces[0];
+        fwrite(STDERR, json_encode($spans, JSON_PRETTY_PRINT));
+        list($childSpan) = $spans;
+        $this->assertSame("11803532876627986230", $childSpan['trace_id']);
+        $this->assertSame("4bf92f3577b34da6", $childSpan['meta']['_dd.p.tid']);
+        $this->assertSame("67667974448284343", $childSpan['parent_id']);
+    }
+
+    public function testAddItemToTracestate()
+    {
+        // See https://github.com/open-telemetry/opentelemetry-java/discussions/4008
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('test.span')
+                ->setSpanKind(SpanKind::KIND_INTERNAL)
+                ->startSpan();
+
+            $span->setAttributes([
+                '_dd.p.congo' => 't61rcWkgMzE',
+            ]);
+
+            $this->assertSame('dd=t.congo:t61rcWkgMzE;t.dm:-1', (string)$span->getContext()->getTraceState());
+
+            $traceState = $span->getContext()->getTraceState()->with('rojo', '00f067aa0ba902b7');
+            $context = SpanContext::create(
+                $span->getContext()->getTraceId(),
+                $span->getContext()->getSpanId(),
+                $span->getContext()->getTraceFlags(),
+                $traceState
+            );
+
+            $child = $tracer->spanBuilder("child")
+                ->setParent(Context::getCurrent()->withContextValue(Span::wrap($context)))
+                ->startSpan();
+
+            $this->assertSame('dd=t.congo:t61rcWkgMzE;t.dm:-1,rojo=00f067aa0ba902b7', (string)$child->getContext()->getTraceState());
+
+            $child->end();
+            $span->end();
+        });
+
+        $span = $traces[0];
+        list($childSpan, $span) = $span;
+
+        $this->assertSame('t61rcWkgMzE', $span['meta']['_dd.p.congo']);
+        $this->assertSame('t61rcWkgMzE', $childSpan['meta']['_dd.p.congo']);
+        $this->assertSame('-1', $span['meta']['_dd.p.dm']);
+        $this->assertSame('-1', $childSpan['meta']['_dd.p.dm']);
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('internal', 'test.span')
+                ->withChildren([
+                    SpanAssertion::exists('otel_unknown', 'child')
+                ])
+        ]);
     }
 }

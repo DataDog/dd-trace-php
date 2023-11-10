@@ -65,6 +65,7 @@ class SpanBuilderTest extends MockeryTestCase
         \dd_trace_serialize_closed_spans();
     }
 
+    /** @noinspection PhpParamsInspection */
     public function test_set_parent_invalid_context(): void
     {
         $parentSpan = Span::getInvalid();
@@ -80,6 +81,7 @@ class SpanBuilderTest extends MockeryTestCase
             ->with($span, $parentContext)
             ->once();
 
+        /** @noinspection PhpParamsInspection */
         $this->assertNotSame(
             $span->getContext()->getTraceId(),
             $parentSpan->getContext()->getTraceId()
