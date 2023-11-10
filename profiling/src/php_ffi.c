@@ -83,7 +83,7 @@ static bool _ignore_run_time_cache = false;
  * handler the engine will save the opline before calling the user handler:
  * https://heap.space/xref/PHP-7.4/Zend/zend_vm_execute.h?r=0b7dffb4#2650
  */
-static zend_result ddog_php_prof_noop_opcode(zend_execute_data *execute_data) {
+static zend_result ddog_php_prof_opcode_dispatch(zend_execute_data *execute_data) {
     return ZEND_USER_OPCODE_DISPATCH;
 }
 #endif
@@ -92,13 +92,16 @@ void datadog_php_profiling_startup(zend_extension *extension, uint32_t php_versi
     (void)php_version_id;
 #if PHP_VERSION_ID >= 70400 && PHP_VERSION_ID < 80100
 #if PHP_VERSION_ID < 80000
-    // Only need to install a handler if there isn't one, see `ddog_php_prof_noop_opcode`.
+    /* Only need to install a handler if there isn't one, see
+     * `ddog_php_prof_opcode_dispatch`. Note that the tracer installs one for
+     * PHP 7.
+     */
     if (zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
 #else
     // Issue is fixed in 8.0.26.
     if (php_version_id < 80026 && zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
 #endif
-        user_opcode_handler_t handler = (user_opcode_handler_t)ddog_php_prof_noop_opcode;
+        user_opcode_handler_t handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
         zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, handler);
     }
 #endif
