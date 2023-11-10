@@ -87,7 +87,7 @@ parameter parameter::string(std::string_view str) noexcept
     return parameter{obj};
 }
 
-parameter parameter::boolean(bool value) noexcept
+parameter parameter::as_boolean(bool value) noexcept
 {
     ddwaf_object obj;
     ddwaf_object_bool(&obj, value);

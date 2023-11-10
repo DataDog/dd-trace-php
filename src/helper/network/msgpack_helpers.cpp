@@ -43,7 +43,7 @@ dds::parameter msgpack_to_param(const msgpack::object &o, unsigned depth = 0)
     case msgpack::type::STR:
         return dds::parameter::string(o.as<std::string_view>());
     case msgpack::type::BOOLEAN:
-        return dds::parameter::boolean(o.as<bool>());
+        return dds::parameter::as_boolean(o.as<bool>());
     case msgpack::type::FLOAT64:
         return dds::parameter::float64(o.as<float>());
     case msgpack::type::POSITIVE_INTEGER:
