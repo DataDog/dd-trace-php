@@ -177,7 +177,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
                 'tracestate' => (string) $samplingResultTraceState, // __toString() is implemented in TraceState
             ]);
         } elseif ($samplingResultTraceState) {
-            $samplingResultTraceState->without('dd');
+            $samplingResultTraceState = $samplingResultTraceState->without('dd');
             \DDTrace\root_span()->tracestate = (string) $samplingResultTraceState;
         }
 

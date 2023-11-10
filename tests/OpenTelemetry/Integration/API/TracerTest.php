@@ -800,7 +800,6 @@ final class TracerTest extends BaseTestCase
         });
 
         $spans = $traces[0];
-        fwrite(STDERR, json_encode($spans, JSON_PRETTY_PRINT));
         list($childSpan) = $spans;
         $this->assertSame("11803532876627986230", $childSpan['trace_id']);
         $this->assertSame("4bf92f3577b34da6", $childSpan['meta']['_dd.p.tid']);
@@ -820,7 +819,7 @@ final class TracerTest extends BaseTestCase
                 '_dd.p.congo' => 't61rcWkgMzE',
             ]);
 
-            $this->assertSame('dd=t.congo:t61rcWkgMzE;t.dm:-1', (string)$span->getContext()->getTraceState());
+            $this->assertSame('dd=t.dm:-1;t.congo:t61rcWkgMzE', (string)$span->getContext()->getTraceState());
 
             $traceState = $span->getContext()->getTraceState()->with('rojo', '00f067aa0ba902b7');
             $context = SpanContext::create(
@@ -834,7 +833,7 @@ final class TracerTest extends BaseTestCase
                 ->setParent(Context::getCurrent()->withContextValue(Span::wrap($context)))
                 ->startSpan();
 
-            $this->assertSame('dd=t.congo:t61rcWkgMzE;t.dm:-1,rojo=00f067aa0ba902b7', (string)$child->getContext()->getTraceState());
+            $this->assertSame('dd=t.dm:-1;t.congo:t61rcWkgMzE,rojo=00f067aa0ba902b7', (string)$child->getContext()->getTraceState());
 
             $child->end();
             $span->end();
