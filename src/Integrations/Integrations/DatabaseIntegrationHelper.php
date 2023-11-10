@@ -49,7 +49,9 @@ class DatabaseIntegrationHelper
             $query = self::propagateViaSqlComments($hook->args[$argNum], $databaseService, $propagationMode);
             $hook->args[$argNum] = $query;
             $hook->overrideArguments($hook->args);
-            $hook->span()->meta["_dd.dbm_trace_injected"] = "true";
+            if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL) {
+                $hook->span()->meta["_dd.dbm_trace_injected"] = "true";
+            }
         }
     }
 
