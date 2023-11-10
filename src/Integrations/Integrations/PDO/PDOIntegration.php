@@ -273,7 +273,7 @@ class PDOIntegration extends Integration
         return $tags;
     }
 
-    private static function injectDBIntegration($pdo, $hook)
+    public static function injectDBIntegration($pdo, $hook)
     {
         $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
         if ($driver === "odbc") {
