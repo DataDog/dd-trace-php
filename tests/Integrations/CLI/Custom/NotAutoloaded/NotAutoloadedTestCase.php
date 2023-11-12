@@ -25,7 +25,6 @@ final class NotAutoloadedTestCase extends CLITestCase
     public function testCliCommandNoAutoloaderEnabledByEnv()
     {
         $traces = $this->getTracesFromCommand('', [
-            'DD_TRACE_NO_AUTOLOADER' => 'true',
         ]);
 
         $this->assertSpans($traces, [

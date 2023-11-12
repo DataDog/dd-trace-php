@@ -16,7 +16,6 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_NO_AUTOLOADER' => '1',
         ]);
     }
 
