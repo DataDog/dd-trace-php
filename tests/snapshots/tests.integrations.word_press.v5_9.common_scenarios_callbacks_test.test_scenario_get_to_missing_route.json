@@ -30,6 +30,7 @@
        "parent_id": 1,
        "type": "sql",
        "meta": {
+         "_dd.base_service": "wordpress_59_test_app",
          "component": "mysqli",
          "db.system": "mysql",
          "db.type": "mysql",
@@ -47,6 +48,7 @@
        "parent_id": 1,
        "type": "sql",
        "meta": {
+         "_dd.base_service": "wordpress_59_test_app",
          "component": "mysqli",
          "db.system": "mysql",
          "db.type": "mysql",
@@ -64,6 +66,7 @@
        "parent_id": 1,
        "type": "sql",
        "meta": {
+         "_dd.base_service": "wordpress_59_test_app",
          "component": "mysqli",
          "db.system": "mysql",
          "db.type": "mysql",
@@ -84,6 +87,7 @@
        "parent_id": 1,
        "type": "sql",
        "meta": {
+         "_dd.base_service": "wordpress_59_test_app",
          "component": "mysqli",
          "db.system": "mysql",
          "db.type": "mysql",
@@ -101,6 +105,7 @@
        "parent_id": 1,
        "type": "sql",
        "meta": {
+         "_dd.base_service": "wordpress_59_test_app",
          "component": "mysqli",
          "db.name": "test",
          "db.system": "mysql",
@@ -301,6 +306,7 @@
        "parent_id": 1,
        "type": "sql",
        "meta": {
+         "_dd.base_service": "wordpress_59_test_app",
          "component": "mysqli",
          "db.name": "test",
          "db.system": "mysql",
@@ -479,6 +485,7 @@
                 "parent_id": 109,
                 "type": "sql",
                 "meta": {
+                  "_dd.base_service": "wordpress_59_test_app",
                   "component": "mysqli",
                   "db.name": "test",
                   "db.system": "mysql",
@@ -500,6 +507,7 @@
                 "parent_id": 109,
                 "type": "sql",
                 "meta": {
+                  "_dd.base_service": "wordpress_59_test_app",
                   "component": "mysqli",
                   "db.name": "test",
                   "db.system": "mysql",
@@ -521,6 +529,7 @@
                 "parent_id": 109,
                 "type": "sql",
                 "meta": {
+                  "_dd.base_service": "wordpress_59_test_app",
                   "component": "mysqli",
                   "db.name": "test",
                   "db.system": "mysql",
@@ -1337,6 +1346,7 @@
              "parent_id": 92,
              "type": "sql",
              "meta": {
+               "_dd.base_service": "wordpress_59_test_app",
                "component": "mysqli",
                "db.name": "test",
                "db.system": "mysql",
@@ -1449,6 +1459,7 @@
              "parent_id": 97,
              "type": "sql",
              "meta": {
+               "_dd.base_service": "wordpress_59_test_app",
                "component": "mysqli",
                "db.name": "test",
                "db.system": "mysql",
@@ -1494,6 +1505,7 @@
              "parent_id": 99,
              "type": "sql",
              "meta": {
+               "_dd.base_service": "wordpress_59_test_app",
                "component": "mysqli",
                "db.name": "test",
                "db.system": "mysql",
@@ -1605,6 +1617,7 @@
                 "parent_id": 114,
                 "type": "sql",
                 "meta": {
+                  "_dd.base_service": "wordpress_59_test_app",
                   "component": "mysqli",
                   "db.name": "test",
                   "db.system": "mysql",
@@ -1640,6 +1653,7 @@
                 "parent_id": 115,
                 "type": "sql",
                 "meta": {
+                  "_dd.base_service": "wordpress_59_test_app",
                   "component": "mysqli",
                   "db.name": "test",
                   "db.system": "mysql",
@@ -1731,6 +1745,7 @@
              "parent_id": 104,
              "type": "sql",
              "meta": {
+               "_dd.base_service": "wordpress_59_test_app",
                "component": "mysqli",
                "db.name": "test",
                "db.system": "mysql",
@@ -1752,6 +1767,7 @@
              "parent_id": 104,
              "type": "sql",
              "meta": {
+               "_dd.base_service": "wordpress_59_test_app",
                "component": "mysqli",
                "db.name": "test",
                "db.system": "mysql",
@@ -1854,6 +1870,7 @@
                          "parent_id": 183,
                          "type": "sql",
                          "meta": {
+                           "_dd.base_service": "wordpress_59_test_app",
                            "component": "mysqli",
                            "db.name": "test",
                            "db.system": "mysql",
@@ -1875,6 +1892,7 @@
                          "parent_id": 183,
                          "type": "sql",
                          "meta": {
+                           "_dd.base_service": "wordpress_59_test_app",
                            "component": "mysqli",
                            "db.name": "test",
                            "db.system": "mysql",
@@ -1896,6 +1914,7 @@
                          "parent_id": 183,
                          "type": "sql",
                          "meta": {
+                           "_dd.base_service": "wordpress_59_test_app",
                            "component": "mysqli",
                            "db.name": "test",
                            "db.system": "mysql",
@@ -1917,6 +1936,7 @@
                          "parent_id": 183,
                          "type": "sql",
                          "meta": {
+                           "_dd.base_service": "wordpress_59_test_app",
                            "component": "mysqli",
                            "db.name": "test",
                            "db.system": "mysql",
@@ -2286,6 +2306,7 @@
                    "parent_id": 132,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2321,6 +2342,7 @@
                 "parent_id": 122,
                 "type": "sql",
                 "meta": {
+                  "_dd.base_service": "wordpress_59_test_app",
                   "component": "mysqli",
                   "db.name": "test",
                   "db.system": "mysql",
@@ -2394,6 +2416,7 @@
                    "parent_id": 136,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2415,6 +2438,7 @@
                    "parent_id": 136,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2436,6 +2460,7 @@
                    "parent_id": 136,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2457,6 +2482,7 @@
                    "parent_id": 136,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2491,6 +2517,7 @@
                    "parent_id": 137,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2512,6 +2539,7 @@
                    "parent_id": 137,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2533,6 +2561,7 @@
                    "parent_id": 137,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2579,6 +2608,7 @@
                    "parent_id": 138,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2613,6 +2643,7 @@
                    "parent_id": 139,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2634,6 +2665,7 @@
                    "parent_id": 139,
                    "type": "sql",
                    "meta": {
+                     "_dd.base_service": "wordpress_59_test_app",
                      "component": "mysqli",
                      "db.name": "test",
                      "db.system": "mysql",
@@ -2694,6 +2726,7 @@
                 "parent_id": 125,
                 "type": "sql",
                 "meta": {
+                  "_dd.base_service": "wordpress_59_test_app",
                   "component": "mysqli",
                   "db.name": "test",
                   "db.system": "mysql",

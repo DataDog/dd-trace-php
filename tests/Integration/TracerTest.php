@@ -520,6 +520,39 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('changed_service', $traces[0][1]['service']);
     }
 
+    public function testBaseService()
+    {
+        self::putEnv('DD_SERVICE=original_service');
+
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            \DDTrace\start_span();
+            $child = \DDTrace\start_span();
+            $child->service = 'changed_child';
+            \DDTrace\close_span();
+            \DDTrace\close_span();
+        });
+
+        $this->assertSame('changed_child', $traces[0][1]['service']);
+        $this->assertSame('original_service', $traces[0][1]['meta']['_dd.base_service']);
+    }
+
+    public function testBaseServiceWithMapping()
+    {
+        self::putEnv('DD_SERVICE_MAPPING=original_service:changed_service');
+        self::putEnv('DD_SERVICE=original_service');
+
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            \DDTrace\start_span();
+            $child = \DDTrace\start_span();
+            $child->service = 'changed_child';
+            \DDTrace\close_span();
+            \DDTrace\close_span();
+        });
+
+        $this->assertSame('changed_child', $traces[0][1]['service']);
+        $this->assertSame('changed_service', $traces[0][1]['meta']['_dd.base_service']);
+    }
+
     public function dummyMethodGlobalTags()
     {
     }

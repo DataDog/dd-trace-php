@@ -33,7 +33,8 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
                             'http.status_code' => '200',
                             'network.destination.name' => 'example.com',
                             TAG::SPAN_KIND => 'client',
-                            Tag::COMPONENT => 'guzzle'
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.base_service' => 'psr18'
                         ]),
                 ])
         ]);

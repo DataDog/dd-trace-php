@@ -170,11 +170,13 @@ array(3) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["rand.range"]=>
       string(8) "42 - 999"
       ["rand.value"]=>
       string(%d) "%d"
+      ["_dd.base_service"]=>
+      string(10) "FooService"
     }
   }
   [2]=>

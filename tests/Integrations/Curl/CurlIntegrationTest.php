@@ -206,6 +206,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             [
                 'DD_SERVICE' => 'top_level_app',
                 'DD_TRACE_NO_AUTOLOADER' => true,
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             ]
         );
 
@@ -221,6 +222,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             'span.kind' => 'client',
                             'network.destination.name' => 'httpbin_integration',
                             Tag::COMPONENT => 'curl',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),
@@ -373,7 +375,10 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     ]
                 )), 1);
             },
-            __DIR__ . '/curl_request_headers.php'
+            __DIR__ . '/curl_request_headers.php',
+            [
+                'DD_TRACE_GENERATE_ROOT_SPAN' => true,
+            ]
         );
 
         $this->assertSame('foo_origin', $found['headers']['X-Datadog-Origin']);
@@ -552,7 +557,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
      */
     public function testTraceAnalytics($envsOverride, $expectedSampleRate)
     {
-        $env = array_merge(['DD_SERVICE' => 'top_level_app'], $envsOverride);
+        $env = array_merge(['DD_SERVICE' => 'top_level_app', 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true'], $envsOverride);
 
         $traces = $this->inWebServer(
             function ($execute) {
@@ -580,6 +585,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             'span.kind' => 'client',
                             'network.destination.name' => 'httpbin_integration',
                             Tag::COMPONENT => 'curl',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),
@@ -683,6 +689,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig([
             'DD_SERVICE=configured_service',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+            'DD_TRACE_GENERATE_ROOT_SPAN=true',
         ]);
 
         $traces = $this->isolateTracer(function () {

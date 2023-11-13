@@ -16,6 +16,7 @@ final class CommonScenariosTest extends CLITestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'console_test_app',
+            'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
         ]);
     }
 
