@@ -1099,15 +1099,18 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     zend_array *service_mappings = get_DD_SERVICE_MAPPING();
     zval *new_root_name = zend_hash_find(service_mappings, Z_STR(prop_root_service_as_string));
     if (new_root_name) {
+        zend_string_release(Z_STR(prop_root_service_as_string));
         ZVAL_COPY(&prop_root_service_as_string, new_root_name);
     }
 
     if (!zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
         add_assoc_str(meta, "_dd.base_service", Z_STR(prop_root_service_as_string));
     }
+    else {
+        zend_string_release(Z_STR(prop_root_service_as_string));
+    }
 
     zend_string_release(Z_STR(prop_service_as_string));
-    zend_string_release(Z_STR(prop_root_service_as_string));
 
     if (zend_array_count(Z_ARRVAL_P(meta))) {
         add_assoc_zval(el, "meta", meta);
