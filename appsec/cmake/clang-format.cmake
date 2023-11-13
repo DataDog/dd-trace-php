@@ -18,12 +18,18 @@ endif()
 
 add_custom_target(format
     COMMAND ${CLANG_FORMAT} -n -Werror ${FILE_LIST}
-    COMMAND ${CMAKE_SOURCE_DIR}/cmake/check_headers.rb
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_custom_target(format_fix
-    COMMAND ${CMAKE_SOURCE_DIR}/cmake/check_headers.rb --fix
     COMMAND ${CLANG_FORMAT} -i ${FILE_LIST}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+add_custom_target(headers
+    COMMAND ${CMAKE_SOURCE_DIR}/cmake/check_headers.rb
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+add_custom_target(headers_fix
+    COMMAND ${CMAKE_SOURCE_DIR}/cmake/check_headers.rb --fix
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_custom_target(format_fix_chg

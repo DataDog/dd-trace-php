@@ -108,6 +108,7 @@ parameter parameter::null() noexcept
     return parameter{obj};
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 bool parameter::add(parameter &&entry) noexcept
 {
     if (!ddwaf_object_array_add(this, entry)) {
@@ -117,6 +118,7 @@ bool parameter::add(parameter &&entry) noexcept
     return true;
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 bool parameter::add(std::string_view name, parameter &&entry) noexcept
 {
     length_type const length =

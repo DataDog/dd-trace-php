@@ -36,7 +36,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'cli',
                         'symfony.console.terminate'
                     )->withExactTags([
-                        Tag::COMPONENT => 'symfony'
+                        Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.console.command.run',
@@ -45,7 +46,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'app:throw'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
-                        'symfony.console.command.class' => 'App\\Command\\ThrowCommand'
+                        'symfony.console.command.class' => 'App\\Command\\ThrowCommand',
+                        '_dd.base_service' => 'console',
                     ])->setError(
                         "Exception",
                         "This is an exception",
@@ -58,6 +60,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony.console.error'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.console.command',
@@ -65,7 +68,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'cli',
                         'symfony.console.command'
                     )->withExactTags([
-                        Tag::COMPONENT => 'symfony'
+                        Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.httpkernel.kernel.boot',
@@ -73,7 +77,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'web',
                         'App\Kernel'
                     )->withExactTags([
-                        Tag::COMPONENT => 'symfony'
+                        Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ])
                 ])->setError("Exception", "This is an exception", true)
             ]
@@ -104,6 +109,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony.console.terminate'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.console.command.run',
@@ -112,7 +118,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'about'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
-                        'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand'
+                        'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.console.command',
@@ -121,6 +128,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony.console.command'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.httpkernel.kernel.boot',
@@ -129,6 +137,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'App\Kernel'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                 ]),
             ]

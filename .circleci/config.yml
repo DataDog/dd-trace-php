@@ -19,3 +19,4 @@ workflows:
             zend_abstract_interface/.*  profiling true
             profiling/.*  profiling true
             ext/handlers_api.[ch] profiling true
+            appsec/.* appsec true

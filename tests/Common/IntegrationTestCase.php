@@ -30,6 +30,7 @@ abstract class IntegrationTestCase extends BaseTestCase
     protected function ddSetUp()
     {
         $this->errorReportingBefore = error_reporting();
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         parent::ddSetUp();
     }
 

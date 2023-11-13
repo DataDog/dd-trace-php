@@ -9,7 +9,11 @@ HunterGate(
     URL "https://github.com/cpp-pm/hunter/archive/v0.23.314.tar.gz"
     SHA1 "95c47c92f68edb091b5d6d18924baabe02a6962a")
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id.in ${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id)
+
 project(ddappsec VERSION 0.93.0)
+
+include(CheckCXXCompilerFlag)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_STANDARD 11)
@@ -22,6 +26,7 @@ cmake_policy(SET CMP0083 NEW) # make PIE executables when PIC property is set
 option(DD_APPSEC_BUILD_HELPER "Whether to builder the helper" ON)
 option(DD_APPSEC_BUILD_EXTENSION "Whether to builder the extension" ON)
 option(DD_APPSEC_ENABLE_COVERAGE "Whether to enable coverage calculation" OFF)
+option(DD_APPSEC_TESTING "Whether to enable testing" ON)
 
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
 

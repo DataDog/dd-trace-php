@@ -93,7 +93,7 @@ static bool _parse_list(
     zai_str value, zval *nonnull decoded_value, bool persistent)
 {
     zval tmp;
-    ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
+    ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent)); // NOLINT
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL,
         persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
 

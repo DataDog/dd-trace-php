@@ -29,7 +29,7 @@ std::shared_ptr<service> service_manager::create_service(
 
     auto service_ptr = service::from_settings(service_identifier(id), settings,
         rc_settings, meta, metrics, dynamic_enablement);
-    cache_.emplace(id, std::move(service_ptr));
+    cache_.emplace(std::move(id), std::move(service_ptr));
     last_service_ = service_ptr;
 
     cleanup_cache();

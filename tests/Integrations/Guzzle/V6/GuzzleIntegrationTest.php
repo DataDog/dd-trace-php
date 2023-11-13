@@ -386,6 +386,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             [
                 'DD_SERVICE' => 'top_level_app',
                 'DD_TRACE_NO_AUTOLOADER' => true,
+                'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
 
@@ -401,7 +402,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                             'network.destination.name' => 'httpbin_integration',
                             TAG::SPAN_KIND => 'client',
-                            Tag::COMPONENT => 'guzzle'
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('GuzzleHttp\Client.transfer')

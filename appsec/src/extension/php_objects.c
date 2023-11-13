@@ -16,14 +16,11 @@
 static int _module_number;
 static zend_llist _function_entry_arrays;
 
-static void _unregister_functions(void *zfe_arr_vp);
-
 void dd_phpobj_startup(int module_number)
 {
     _module_number = module_number;
     zend_llist_init(&_function_entry_arrays,
-        sizeof(const zend_function_entry *), _unregister_functions,
-        1 /* persistent */);
+        sizeof(const zend_function_entry *), NULL, 1 /* persistent */);
 }
 
 dd_result dd_phpobj_reg_funcs(const zend_function_entry *entries)
@@ -43,12 +40,3 @@ void dd_phpobj_reg_long_const(
 }
 
 void dd_phpobj_shutdown() { zend_llist_destroy(&_function_entry_arrays); }
-
-static void _unregister_functions(void *zfe_arr_vp)
-{
-    const zend_function_entry **zfe_arr = zfe_arr_vp;
-    int count = 0;
-    for (const zend_function_entry *p = *zfe_arr; p->fname != NULL;
-         p++, count++) {}
-    zend_unregister_functions(*zfe_arr, count, NULL);
-}

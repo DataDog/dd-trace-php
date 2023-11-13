@@ -81,7 +81,12 @@ final class PDOTest extends IntegrationTestCase
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags($this->baseTags())
-                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
         ]);
     }
 
@@ -193,7 +198,12 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags($this->baseTags())
-                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
             SpanAssertion::exists('PDO.commit'),
         ]);
     }
@@ -258,7 +268,12 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags($this->baseTags())
-                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
         ]);
     }
 
@@ -277,7 +292,12 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags($this->baseTags(true))
-                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
         ]);
     }
 
@@ -393,7 +413,12 @@ final class PDOTest extends IntegrationTestCase
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags($this->baseTags())
-                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
         ]);
     }
 
@@ -428,13 +453,19 @@ final class PDOTest extends IntegrationTestCase
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags($this->baseTags(true))
-                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
         ]);
     }
 
     public function testPDOStatementSplitByDomain()
     {
-        self::putEnv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true');
+        $this->putEnvAndReloadConfig(['DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true']);
+
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
@@ -461,7 +492,12 @@ final class PDOTest extends IntegrationTestCase
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags($this->baseTags())
-                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
         ]);
     }
 
@@ -607,6 +643,7 @@ final class PDOTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig([
             'DD_SERVICE=configured_service',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+            'DD_TRACE_GENERATE_ROOT_SPAN=true',
         ]);
 
         $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";

@@ -90,7 +90,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'append',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames(['process_id', Tag::ERROR_MSG, 'error.type', 'error.stack']),
+                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.type', 'error.stack']),
         ]);
     }
 
@@ -129,7 +129,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames(['process_id', Tag::ERROR_MSG, 'error.type', 'error.stack']),
+                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.type', 'error.stack']),
         ]);
     }
 
@@ -484,6 +484,8 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -505,6 +507,8 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 0,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -526,6 +530,8 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMulti',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -547,6 +553,8 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMulti',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -563,6 +571,8 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMulti',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 0,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -584,6 +594,8 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -610,6 +622,8 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -880,6 +894,8 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMulti',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -908,6 +924,8 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -988,6 +1006,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig([
             'DD_SERVICE=configured_service',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+            'DD_TRACE_GENERATE_ROOT_SPAN=true'
         ]);
 
         $traces = $this->isolateTracer(function () {

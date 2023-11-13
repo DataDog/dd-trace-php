@@ -122,6 +122,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, false))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -142,6 +144,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -206,6 +210,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -230,6 +236,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -249,6 +257,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -270,6 +280,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -293,6 +305,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -318,6 +332,8 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.rule_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
     }
@@ -391,7 +407,7 @@ class MysqliTest extends IntegrationTestCase
 
     public function testProceduralSelectDbPeerServiceEnabled()
     {
-        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
 
         $traces = $this->isolateTracer(function () {
             $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
@@ -410,6 +426,7 @@ class MysqliTest extends IntegrationTestCase
                         'db.name' => 'information_schema',
                         '_dd.peer.service.source' => 'db.name',
                         'peer.service' => 'information_schema',
+                        '_dd.base_service' => 'phpunit',
                     ]
                 ))
                 ->withExactMetrics([
@@ -420,7 +437,7 @@ class MysqliTest extends IntegrationTestCase
 
     public function testConstructorSelectDbPeerServiceEnabled()
     {
-        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
+        $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
 
         $traces = $this->isolateTracer(function () {
             $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
@@ -439,6 +456,7 @@ class MysqliTest extends IntegrationTestCase
                         'db.name' => 'information_schema',
                         '_dd.peer.service.source' => 'db.name',
                         'peer.service' => 'information_schema',
+                        '_dd.base_service' => 'phpunit'
                     ]
                 ))
                 ->withExactMetrics([
@@ -504,9 +522,13 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(array_merge(self::baseTags(), [
+                    '_dd.base_service' => 'phpunit',
+                ])),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(array_merge(self::baseTags(), [
+                    '_dd.base_service' => 'phpunit',
+                ])),
         ]);
     }
 
@@ -564,6 +586,7 @@ class MysqliTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig([
             'DD_SERVICE=configured_service',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+            'DD_TRACE_GENERATE_ROOT_SPAN=true'
         ]);
 
         $traces = $this->isolateTracer(function () {

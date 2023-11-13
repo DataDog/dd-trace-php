@@ -19,6 +19,7 @@
 #include <stdatomic.h>
 
 #include "commands/client_init.h"
+#include "commands/config_sync.h"
 #include "commands/request_exec.h"
 #include "commands/request_init.h"
 #include "commands/request_shutdown.h"
@@ -34,10 +35,9 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "request_abort.h"
-#include "commands/config_sync.h"
-#include "user_tracking.h"
 #include "string_helpers.h"
 #include "tags.h"
+#include "user_tracking.h"
 
 #if ZTS
 static atomic_int _thread_count;

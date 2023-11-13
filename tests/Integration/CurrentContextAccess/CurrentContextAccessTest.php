@@ -37,7 +37,7 @@ final class CurrentContextAccessTest extends IntegrationTestCase
 
     public function testInShortRunningCliScript()
     {
-        list($traces) = $this->inCli(__DIR__ . '/short-running.php');
+        list($traces) = $this->inCli(__DIR__ . '/short-running.php', ['DD_TRACE_GENERATE_ROOT_SPAN' => 'true']);
 
         $trace = $traces[0];
         $this->assertCount(2, $trace);
