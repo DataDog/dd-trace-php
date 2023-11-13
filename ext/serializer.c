@@ -1099,7 +1099,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     zend_array *service_mappings = get_DD_SERVICE_MAPPING();
     zval *new_root_name = zend_hash_find(service_mappings, Z_STR(prop_root_service_as_string));
     if (new_root_name) {
-        zend_string_release(Z_STR(prop_root_service_as_string));
         ZVAL_COPY(&prop_root_service_as_string, new_root_name);
     }
 
