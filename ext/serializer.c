@@ -1107,6 +1107,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         add_assoc_str(meta, "_dd.base_service", Z_STR(prop_root_service_as_string));
     }
 
+    zend_string_release(Z_STR(prop_service_as_string));
     zend_string_release(Z_STR(prop_root_service_as_string));
 
     if (zend_array_count(Z_ARRVAL_P(meta))) {
