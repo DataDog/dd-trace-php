@@ -64,7 +64,7 @@
         <![CDATA[
 ## Tracer
 ### Fixed
-- Reset distributed context on request init #2340
+- [PDO] injectDBIntegration should be public. #2351
 ]]></notes>
     <contents>
         <dir name="/">
