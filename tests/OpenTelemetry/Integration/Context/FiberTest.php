@@ -231,7 +231,7 @@ final class FiberTest extends BaseTestCase
             SpanAssertion::exists('server.request', 'parent')->withChildren([
                 SpanAssertion::exists('fiber.start')->withChildren([
                     SpanAssertion::exists('inFiber')->withChildren([
-                        SpanAssertion::exists('otel_unknown', 'otel.inFiber')->withChildren([
+                        SpanAssertion::exists('internal', 'otel.inFiber')->withChildren([
                             SpanAssertion::exists('otherFiber')->withChildren([
                                 SpanAssertion::exists('dd.otherFiber')->withChildren([
                                     SpanAssertion::exists('fiber.suspend')

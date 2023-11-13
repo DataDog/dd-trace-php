@@ -114,26 +114,6 @@ final class SpanBuilder implements API\SpanBuilderInterface
     {
         $this->spanKind = $spanKind;
 
-        switch ($spanKind) {
-            case API\SpanKind::KIND_CLIENT:
-                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_CLIENT);
-                break;
-            case API\SpanKind::KIND_SERVER:
-                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_SERVER);
-                break;
-            case API\SpanKind::KIND_PRODUCER:
-                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_PRODUCER);
-                break;
-            case API\SpanKind::KIND_CONSUMER:
-                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_CONSUMER);
-                break;
-            case API\SpanKind::KIND_INTERNAL:
-                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_INTERNAL);
-                break;
-            default:
-                break;
-        }
-
         return $this;
     }
 
@@ -142,6 +122,8 @@ final class SpanBuilder implements API\SpanBuilderInterface
      */
     public function startSpan(): SpanInterface
     {
+        $this->applySpanKind();
+
         $parentContext = Context::resolve($this->parentContext);
         $parentSpan = Span::fromContext($parentContext);
         $parentSpanContext = $parentSpan->getContext();
@@ -210,5 +192,28 @@ final class SpanBuilder implements API\SpanBuilderInterface
             0,
             $this->startEpochNanos
         );
+    }
+
+    private function applySpanKind(): void
+    {
+        switch ($this->spanKind) {
+            case API\SpanKind::KIND_CLIENT:
+                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_CLIENT);
+                break;
+            case API\SpanKind::KIND_SERVER:
+                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_SERVER);
+                break;
+            case API\SpanKind::KIND_PRODUCER:
+                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_PRODUCER);
+                break;
+            case API\SpanKind::KIND_CONSUMER:
+                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_CONSUMER);
+                break;
+            case API\SpanKind::KIND_INTERNAL:
+                $this->setAttribute(Tag::SPAN_KIND, Tag::SPAN_KIND_VALUE_INTERNAL);
+                break;
+            default:
+                break;
+        }
     }
 }

@@ -54,7 +54,7 @@ class Convention
             case !empty($spanKind):
                 return $spanKind;
             default: // If all else fails, we still shouldn't use the resource name
-                return 'otel_unknown';
+                return '';
         }
     }
 }

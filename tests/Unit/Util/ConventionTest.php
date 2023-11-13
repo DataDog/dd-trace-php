@@ -40,8 +40,7 @@ final class ConventionTest extends BaseTestCase
             ['client.request',          Tag::SPAN_KIND_VALUE_CLIENT,        []],
             ['internal',                Tag::SPAN_KIND_VALUE_INTERNAL,      []],
             ['consumer',                Tag::SPAN_KIND_VALUE_CONSUMER,      []],
-            ['producer',                Tag::SPAN_KIND_VALUE_PRODUCER,      []],
-            ['otel_unknown',            null,                               []]
+            ['producer',                Tag::SPAN_KIND_VALUE_PRODUCER,      []]
         ];
     }
 

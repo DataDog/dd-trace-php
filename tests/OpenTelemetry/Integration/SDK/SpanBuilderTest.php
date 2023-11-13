@@ -257,7 +257,7 @@ class SpanBuilderTest extends MockeryTestCase
             ->startSpan();
 
         $attributes = $span->toSpanData()->getAttributes();
-        $this->assertSame(4, $attributes->count());
+        $this->assertSame(5, $attributes->count());
 
         $this->assertSame('bar', $attributes->get('foo'));
         $this->assertSame(123, $attributes->get('bar'));
@@ -280,7 +280,7 @@ class SpanBuilderTest extends MockeryTestCase
             ->startSpan();
 
         $attributes = $span->toSpanData()->getAttributes();
-        $this->assertSame(2, $attributes->count());
+        $this->assertSame(3, $attributes->count());
         $this->assertSame('bar', $attributes->get('foo'));
         $this->assertSame(123, $attributes->get('bar'));
 
@@ -288,7 +288,7 @@ class SpanBuilderTest extends MockeryTestCase
 
         $span->setAttribute('doo', 'baz');
 
-        $this->assertSame(2, $attributes->count());
+        $this->assertSame(3, $attributes->count());
         $this->assertFalse($attributes->has('doo'));
     }
 
@@ -326,7 +326,10 @@ class SpanBuilderTest extends MockeryTestCase
             ->startSpan();
 
         $attributes = $span->toSpanData()->getAttributes();
-        $this->assertEmpty($span->toSpanData()->getAttributes());
+        // Check that only span kind is set
+        $this->assertSame(1, $attributes->count());
+        $this->assertNull($attributes->get('nil'));
+        $this->assertSame(API\SpanKind::KIND_INTERNAL, $span->getKind());
         $this->assertNull($attributes->get('nil'));
     }
 
@@ -344,13 +347,13 @@ class SpanBuilderTest extends MockeryTestCase
             ->startSpan();
 
         $attributes = $span->toSpanData()->getAttributes();
-        $this->assertSame(2, $attributes->count());
+        $this->assertSame(3, $attributes->count());
 
         $spanBuilder
             ->setAttribute('bar1', 77);
 
         $attributes = $span->toSpanData()->getAttributes();
-        $this->assertSame(2, $attributes->count());
+        $this->assertSame(3, $attributes->count());
         $this->assertFalse($attributes->has('bar1'));
     }
 
@@ -408,7 +411,7 @@ class SpanBuilderTest extends MockeryTestCase
 
         $attributes = $span->toSpanData()->getAttributes();
 
-        $this->assertSame(1, $attributes->count());
+        $this->assertSame(2, $attributes->count());
         $this->assertSame('meow', $attributes->get('cat'));
     }
 
@@ -421,7 +424,7 @@ class SpanBuilderTest extends MockeryTestCase
 
         $attributes = $span->toSpanData()->getAttributes();
 
-        $this->assertSame(2, $attributes->count());
+        $this->assertSame(3, $attributes->count());
         $this->assertSame('bar', $attributes->get('foo'));
         $this->assertSame(1, $attributes->get('id'));
     }
@@ -444,7 +447,7 @@ class SpanBuilderTest extends MockeryTestCase
 
         $attributes = $span->toSpanData()->getAttributes();
 
-        $this->assertSame(5, $attributes->count());
+        $this->assertSame(6, $attributes->count());
         $this->assertSame('bar', $attributes->get('foo'));
         $this->assertSame(2, $attributes->get('id'));
         $this->assertSame('val', $attributes->get('key'));
@@ -467,7 +470,7 @@ class SpanBuilderTest extends MockeryTestCase
 
         $attributes = $span->toSpanData()->getAttributes();
 
-        $this->assertSame(2, $attributes->count());
+        $this->assertSame(3, $attributes->count());
         $this->assertSame('bar', $attributes->get('foo'));
         $this->assertSame(1, $attributes->get('id'));
     }

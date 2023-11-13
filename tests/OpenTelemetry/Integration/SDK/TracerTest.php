@@ -141,7 +141,8 @@ class TracerTest extends BaseTestCase
             $tracerProvider->shutdown();
 
             $attributes = $exporter->getSpans()[0]->getAttributes();
-            $this->assertCount(0, $attributes);
+            $this->assertCount(1, $attributes);
+            $this->assertSame('internal', $attributes->getIterator()->current());
             $this->assertSame(3, $attributes->getDroppedAttributesCount());
         });
     }
@@ -165,7 +166,7 @@ class TracerTest extends BaseTestCase
             $tracerProvider->shutdown();
 
             $attributes = $exporter->getSpans()[0]->getAttributes();
-            $this->assertCount(3, $attributes);
+            $this->assertCount(4, $attributes);
             $this->assertSame(0, $attributes->getDroppedAttributesCount());
         });
     }
