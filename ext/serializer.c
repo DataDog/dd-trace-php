@@ -1090,6 +1090,25 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         add_assoc_str(meta, "_dd.p.tid", zend_strpprintf(0, "%" PRIx64, span->root->trace_id.high));
     }
 
+    // Add _dd.base_service if service name differs from mapped root service name
+    zval prop_service_as_string;
+    ddtrace_convert_to_string(&prop_service_as_string, &span->property_service);
+    zval prop_root_service_as_string;
+    ddtrace_convert_to_string(&prop_root_service_as_string, &span->root->property_service);
+
+    zend_array *service_mappings = get_DD_SERVICE_MAPPING();
+    zval *new_root_name = zend_hash_find(service_mappings, Z_STR(prop_root_service_as_string));
+    if (new_root_name) {
+        zend_string_release(Z_STR(prop_root_service_as_string));
+        ZVAL_COPY(&prop_root_service_as_string, new_root_name);
+    }
+
+    if (!zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
+        add_assoc_str(meta, "_dd.base_service", Z_STR(prop_root_service_as_string));
+    }
+
+    zend_string_release(Z_STR(prop_root_service_as_string));
+
     if (zend_array_count(Z_ARRVAL_P(meta))) {
         add_assoc_zval(el, "meta", meta);
     } else {
@@ -1256,23 +1275,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         }
 
         add_assoc_zval(el, "service", &prop_service_as_string);
-
-        // Add _dd.base_service if service name differs from mapped root service name
-        zval prop_root_service_as_string;
-        ddtrace_convert_to_string(&prop_root_service_as_string, &span->root->property_service);
-
-        zval *new_root_name = zend_hash_find(service_mappings, Z_STR(prop_root_service_as_string));
-        if (new_root_name) {
-            zend_string_release(Z_STR(prop_root_service_as_string));
-            ZVAL_COPY(&prop_root_service_as_string, new_root_name);
-        }
-
-        if (!zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
-            zend_array *meta = ddtrace_property_array(&span->property_meta);
-            zend_hash_str_update(meta, ZEND_STRL("_dd.base_service"), &prop_root_service_as_string);
-        } else {
-            zend_string_release(Z_STR(prop_root_service_as_string));
-        }
     }
 
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
