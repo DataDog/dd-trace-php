@@ -16,6 +16,7 @@ add_custom_target(xtest
         -n -c ${CMAKE_SOURCE_DIR}/tests/extension/test-php.ini
         -d "extension_dir=${CMAKE_BINARY_DIR}/extensions"
         -d "extension=$<TARGET_FILE:extension>"
+        --show-diff
         ${CMAKE_SOURCE_DIR}/tests/extension/
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 

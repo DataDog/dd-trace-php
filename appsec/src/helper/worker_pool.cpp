@@ -12,9 +12,11 @@ namespace dds::worker {
 
 namespace {
 
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 void work_handler(queue_consumer &&q, std::optional<runnable> &&opt_r)
 {
     while (q.running() && opt_r) {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         opt_r.value()(q);
         opt_r = std::move(q.pop(60s));
     }

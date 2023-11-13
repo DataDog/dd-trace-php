@@ -176,6 +176,7 @@ bool dd_trace_root_span_add_tag(zend_string *nonnull tag, zval *nonnull value)
         if (!get_global_DD_APPSEC_TESTING()) {
             mlog(dd_log_warning, "Failed to retrieve root span meta");
         }
+        zval_ptr_dtor(value);
         return false;
     }
 

@@ -120,6 +120,7 @@ void client_handler::discover()
 
 void client_handler::tick() { rc_action_(); }
 
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 void client_handler::run(std::future<bool> &&exit_signal)
 {
     std::chrono::time_point<std::chrono::steady_clock> before{0s};

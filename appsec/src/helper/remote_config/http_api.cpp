@@ -56,6 +56,7 @@ std::string execute_request(const std::string &host, const std::string &port,
 
         // Gracefully close the socket
         beast::error_code ec;
+        // NOLINTNEXTLINE(bugprone-unused-return-value,cert-err33-c)
         stream.socket().shutdown(tcp::socket::shutdown_both, ec);
 
         // not_connected happens sometimes
@@ -99,7 +100,7 @@ std::string dds::remote_config::http_api::get_configs(
     req.set(http::field::content_length, std::to_string(request.size()));
     req.set(http::field::accept, "*/*");
     req.set(http::field::content_type, "application/x-www-form-urlencoded");
-    req.body() = request;
+    req.body() = std::move(request);
     req.keep_alive(true);
 
     return execute_request(host_, port_, req);

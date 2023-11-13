@@ -15,6 +15,9 @@ parameters:
   zend_abstract_interface:
     type: boolean
     default: false
+  appsec:
+    type: boolean
+    default: false
 
 aliases:
 
@@ -991,6 +994,261 @@ jobs:
       - <<: *STEP_GET_TEST_AGENT_RESULTS
 
   asan: *TEST_BASE
+
+  hunter_cache_debian:
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Cache"
+          keys:
+            - hunter-cache-debian-<< parameters.resource_class >>-
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-7.4_buster
+      - run:
+          name: Install cmake 3.24.4
+          command: |
+            if [ ! -d "/opt/cmake/3.24.4" ]
+            then
+              cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v3.24.4/cmake-3.24.4-Linux-$(uname -m).tar.gz
+              mkdir -p /opt/cmake/3.24.4
+              cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
+            fi
+            echo 'export PATH="/opt/cmake/3.24.4/bin:$PATH"' >> "$BASH_ENV"
+            source "$BASH_ENV"
+      - run:
+          name: CMake
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
+            find ~/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
+      - save_cache:
+          name: "Save Cache"
+          key: hunter-cache-debian-<< parameters.resource_class >>-{{ checksum "appsec/hunter-cache.id" }}
+          paths:
+            - ~/datadog/hunter-cache
+
+  test_appsec_extension:
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
+      switch_php_version:
+        type: string
+        default: nts
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Hunter Cache"
+          keys:
+            - hunter-cache-debian-<< parameters.resource_class >>-
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - run:
+          name: Install cmake 3.24.4
+          command: |
+            if [ ! -d "/opt/cmake/3.24.4" ]
+            then
+              cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v3.24.4/cmake-3.24.4-Linux-$(uname -m).tar.gz
+              mkdir -p /opt/cmake/3.24.4
+              cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
+            fi
+            echo 'export PATH="/opt/cmake/3.24.4/bin:$PATH"' >> "$BASH_ENV"
+            source "$BASH_ENV"
+      - run:
+          name: CMake
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF \
+              -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
+      - run:
+          name: Test
+          command: make -C appsec/build -j $(nproc) xtest
+
+  hunter_cache_ubuntu:
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Cache"
+          keys:
+            - hunter-cache-ubuntu-<< parameters.resource_class >>-
+      - setup_docker:
+          docker_image: ubuntu:23.10
+      - run:
+          name: Install dependencies
+          command: |
+            export DEBIAN_FRONTEND=noninteractive
+            apt update
+            apt install -y wget git g++ gcc cmake make curl libcurl4-gnutls-dev git php-dev php-cgi
+      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run:
+          name: CMake
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+            find /home/circleci/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
+      - save_cache:
+          name: "Save Cache"
+          key: hunter-cache-ubuntu-<< parameters.resource_class >>-{{ checksum "appsec/hunter-cache.id" }}
+          paths:
+            - ~/datadog/hunter-cache
+
+  coverage_appsec:
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Cache"
+          keys:
+            - hunter-cache-ubuntu-<< parameters.resource_class >>-
+      - setup_docker:
+          docker_image: ubuntu:23.10
+      - run:
+          name: Install dependencies
+          command: |
+            export DEBIAN_FRONTEND=noninteractive
+            apt update
+            apt install -y wget git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php-cgi cargo
+      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run:
+          name: CMake
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
+              -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+      - run:
+          name: Test
+          command: |
+            make -C appsec/build -j $(nproc) xtest ddappsec_helper_test
+            ./appsec/build/tests/helper/ddappsec_helper_test
+      - run:
+          name: Generate XML coverage
+          command: |
+            cd appsec
+            gcovr -f '.*src/extension/.*' -x -o coverage.xml
+      - run:
+          name: Generate HTML coverage
+          command: |
+            mkdir -p appsec/coverage ; cd appsec
+            gcovr --html-details coverage/coverage.html -f ".*src/.*" -d
+            tar -cvzf appsec-extension-coverage.tar.gz coverage/
+      - store_artifacts:
+          path: appsec/appsec-coverage.tar.gz
+      - when:
+          # codecov uploader only on amd64
+          condition:
+            matches:
+              pattern: "^[^.]+$"
+              value: << parameters.resource_class >>
+          steps:
+            - codecov/upload:
+                file: appsec/coverage.xml
+                upload_name: "appsec-coverage >>"
+
+  lint_appsec:
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Cache"
+          keys:
+            - hunter-cache-ubuntu-<< parameters.resource_class >>-
+      - setup_docker:
+          docker_image: ubuntu:23.10
+      - run:
+          name: Install dependencies
+          command: |
+            export DEBIAN_FRONTEND=noninteractive
+            apt update
+            # clang-tidy 16 crashes so we use 17 instead
+            apt install -y wget git g++ gcc cmake make curl libcurl4-gnutls-dev clang clang-tidy-17 clang-format-17 git php-dev php-cgi
+      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run:
+          name: CMake
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
+              -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache \
+              -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
+      - run:
+          name: Build
+          command: make -C appsec/build -j $(nproc) extension ddappsec-helper
+      - run:
+          name: Lint and Format
+          command: make -C appsec/build format tidy
+
+  test_appsec_helper_asan:
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Cache"
+          keys:
+            - hunter-cache-ubuntu-<< parameters.resource_class >>-
+      - setup_docker:
+          docker_image: ubuntu:23.10
+      - run:
+          name: Install dependencies
+          command: |
+            export DEBIAN_FRONTEND=noninteractive
+            apt update
+            apt install -y wget git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git
+      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run:
+          name: CMake
+          command: |
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF \
+              -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON \
+              -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
+              -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
+              -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
+              -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
+              -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+      - run:
+          name: Test
+          command: |
+            make -C appsec/build -j $(nproc) ddappsec_helper_test
+            ./appsec/build/tests/helper/ddappsec_helper_test
 
   integration_snapshots:
     working_directory: ~/datadog
@@ -4001,6 +4259,96 @@ workflows:
           requires: [ 'Prepare Code' ]
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
+
+  appsec_tests:
+    when: << pipeline.parameters.appsec >>
+    jobs:
+    - "Prepare Code"
+    - hunter_cache_debian:
+        requires: [ 'Prepare Code' ]
+        matrix:
+          parameters:
+            resource_class:
+              - medium
+              - arm.medium
+
+    - hunter_cache_ubuntu:
+        requires: [ 'Prepare Code' ]
+        matrix:
+          parameters:
+            resource_class:
+              - medium
+              - arm.medium
+
+    - test_appsec_extension:
+        requires: [ hunter_cache_debian ]
+        matrix:
+          parameters:
+            php_major_minor:
+              - "7.0"
+              - "7.1"
+              - "7.2"
+              - "7.3"
+              - "7.4"
+              - "8.0"
+              - "8.1"
+              - "8.2"
+              - "8.3"
+            resource_class:
+              - medium
+              - arm.medium
+            switch_php_version:
+              - debug
+
+    - test_appsec_extension:
+        requires: [ hunter_cache_debian ]
+        matrix:
+          parameters:
+            php_major_minor:
+              - "7.0"
+              - "7.1"
+              - "7.2"
+              - "7.3"
+            resource_class:
+              - medium
+              - arm.medium
+            switch_php_version:
+              - debug-zts
+
+    - test_appsec_extension:
+        requires: [ hunter_cache_debian ]
+        matrix:
+          parameters:
+            php_major_minor:
+              - "7.4"
+             #- "8.0" - Static TLS issues
+              - "8.1"
+              - "8.2"
+              - "8.3"
+            resource_class:
+              - medium
+              - arm.medium
+            switch_php_version:
+              - debug-zts-asan
+
+    - coverage_appsec:
+        requires: [ hunter_cache_ubuntu ]
+        matrix:
+          parameters:
+            resource_class:
+              - medium
+              - arm.medium
+
+    - lint_appsec:
+        requires: [ hunter_cache_ubuntu ]
+
+    - test_appsec_helper_asan:
+        requires: [ hunter_cache_ubuntu ]
+        matrix:
+          parameters:
+            resource_class:
+              - medium
+              - arm.medium
 
   profiling_tests:
     when: << pipeline.parameters.profiling >>

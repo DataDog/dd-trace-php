@@ -12,8 +12,8 @@
 #include "logging.h"
 #include "php_compat.h"
 #include "request_abort.h"
-#include "tags.h"
 #include "string_helpers.h"
+#include "tags.h"
 
 static void (*_ddtrace_set_user)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 
