@@ -40,19 +40,12 @@ final class InteroperabilityTest extends BaseTestCase
     {
         \dd_trace_serialize_closed_spans();
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-        //self::putEnv("DD_TRACE_DEBUG=1");
         parent::ddSetUp();
-
-        $tracerProvider = new TracerProvider([], new AlwaysOnSampler());
-        Sdk::builder()
-            ->setTracerProvider($tracerProvider)
-            ->buildAndRegisterGlobal();
     }
 
     public function ddTearDown()
     {
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
-        //self::putEnv("DD_TRACE_DEBUG=");
         parent::ddTearDown();
         Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
     }
@@ -80,7 +73,6 @@ final class InteroperabilityTest extends BaseTestCase
 
     public static function getTracer()
     {
-        $tracerProvider = Globals::tracerProvider();
         $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer('OpenTelemetry.TracerTest');
         return $tracer;
     }

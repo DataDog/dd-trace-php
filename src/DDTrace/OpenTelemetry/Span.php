@@ -356,11 +356,17 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function end(int $endEpochNanos = null): void
     {
+        if ($this->hasEnded) {
+            return;
+        }
+
         $this->endOTelSpan($endEpochNanos);
 
-        // TODO: Actually check if the span was closed (change extension to return a boolean?)
         switch_stack($this->span);
         close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
+        if ($this->span->getDuration() === 0) {
+            $this->hasEnded = false;
+        }
     }
 
     public function endOTelSpan(int $endEpochNanos = null): void

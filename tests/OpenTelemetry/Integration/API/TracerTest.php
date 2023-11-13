@@ -39,27 +39,19 @@ final class TracerTest extends BaseTestCase
     {
         \dd_trace_serialize_closed_spans();
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
-        //self::putEnv("DD_TRACE_DEBUG=1");
         parent::ddSetUp();
-
-        $tracerProvider = new TracerProvider([], new AlwaysOnSampler());
-        Sdk::builder()
-            ->setTracerProvider($tracerProvider)
-            ->buildAndRegisterGlobal();
     }
 
     public function ddTearDown()
     {
         Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
-        self::putEnv("DD_TRACE_DEBUG=");
         parent::ddTearDown();
         \dd_trace_serialize_closed_spans();
     }
 
     public static function getTracer()
     {
-        // Generate a unique key of length 10
         $uniqueKey = substr(md5(uniqid()), 0, 10);
         $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer("OpenTelemetry.TracerTest$uniqueKey");
         return $tracer;
