@@ -502,6 +502,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Elasticsearch.Client.search', 'search index:my_index')
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
                 ->withChildren([
                     SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
                     SpanAssertion::build(

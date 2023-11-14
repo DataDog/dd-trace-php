@@ -56,6 +56,8 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'nette.configurator.createRobotLoader',
@@ -98,6 +100,8 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'nette.configurator.createRobotLoader',
@@ -152,6 +156,8 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])
                     ->setError(
                         'Exception',

@@ -530,15 +530,15 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Elasticsearch.Client.search', 'search index:my_index')
-                ->withChildren([
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])->withChildren([
                     SpanAssertion::build(
                         'Elasticsearch.Endpoint.performRequest',
                         'elasticsearch',
                         'elasticsearch',
                         'performRequest'
-                    )->withExistingTagsNames([
-                        '_dd.p.tid'
-                    ])->withExactTags([
+                    )->withExactTags([
                         'elasticsearch.url' => '/my_index/_search',
                         'elasticsearch.method' => \PHP_VERSION_ID >= 70300 ? 'POST' : 'GET',
                         'elasticsearch.params' => '[]',
