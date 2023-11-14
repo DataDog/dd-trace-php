@@ -16,7 +16,7 @@ final class CurrentContextAccessTest extends IntegrationTestCase
             __DIR__ . '/web.php',
             [
                 'DD_SERVICE' => 'top_level_app',
-                'DD_TRACE_NO_AUTOLOADER' => true,
+                'DD_TRACE_NO_AUTOLOADER' => true
             ]
         );
 
@@ -25,6 +25,8 @@ final class CurrentContextAccessTest extends IntegrationTestCase
 
         $traceId = $trace[0]['trace_id'];
         $this->assertNotEquals(0, $traceId);
+
+        fwrite(STDERR, json_encode($trace, JSON_PRETTY_PRINT) . PHP_EOL);
 
         foreach ($trace as $span) {
             $spanId = $span['span_id'];
@@ -40,6 +42,7 @@ final class CurrentContextAccessTest extends IntegrationTestCase
         list($traces) = $this->inCli(__DIR__ . '/short-running.php', ['DD_TRACE_GENERATE_ROOT_SPAN' => 'true']);
 
         $trace = $traces[0];
+        fwrite(STDERR, json_encode($trace, JSON_PRETTY_PRINT) . PHP_EOL);
         $this->assertCount(2, $trace);
 
         $traceId = $trace[0]['trace_id'];
@@ -75,6 +78,8 @@ final class CurrentContextAccessTest extends IntegrationTestCase
         $this->assertNotEquals(0, $traceId);
         $this->assertSame('root_span', $trace[0]['name']);
         $this->assertSame('internal_span', $trace[1]['name']);
+
+        fwrite(STDERR, json_encode($trace, JSON_PRETTY_PRINT) . PHP_EOL);
 
         foreach ($trace as $span) {
             $spanId = $span['span_id'];

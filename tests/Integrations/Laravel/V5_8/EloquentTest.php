@@ -37,9 +37,7 @@ class EloquentTest extends WebFrameworkTestCase
             'Laravel',
             'sql',
             'App\User'
-        )->withExistingTagsNames([
-            '_dd.p.tid'
-        ])->withExactTags([
+        )->withExactTags([
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
             Tag::DB_SYSTEM => 'other_sql',
@@ -58,9 +56,7 @@ class EloquentTest extends WebFrameworkTestCase
             'Laravel',
             'sql',
             'App\User'
-        )->withExistingTagsNames([
-            '_dd.p.tid'
-        ])->withExactTags([
+        )->withExactTags([
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
             Tag::DB_SYSTEM => 'other_sql',
@@ -78,9 +74,7 @@ class EloquentTest extends WebFrameworkTestCase
             'Laravel',
             'sql',
             'select * from `users`'
-        )->withExistingTagsNames([
-            '_dd.p.tid'
-        ])->withExactTags([
+        )->withExactTags([
             TAG::SPAN_KIND => 'client',
             'sql.query' => 'select * from `users`',
             TAG::COMPONENT => 'eloquent',
@@ -99,9 +93,7 @@ class EloquentTest extends WebFrameworkTestCase
             'Laravel',
             'sql',
             'App\User'
-        )->withExistingTagsNames([
-            '_dd.p.tid'
-        ])->withExactTags([
+        )->withExactTags([
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
             Tag::DB_SYSTEM => 'other_sql',
@@ -120,9 +112,7 @@ class EloquentTest extends WebFrameworkTestCase
             'Laravel',
             'sql',
             'App\User'
-        )->withExistingTagsNames([
-            '_dd.p.tid'
-        ])->withExactTags([
+        )->withExactTags([
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
             Tag::DB_SYSTEM => 'other_sql',
@@ -141,9 +131,7 @@ class EloquentTest extends WebFrameworkTestCase
             'Laravel',
             'sql',
             'App\User'
-        )->withExistingTagsNames([
-            '_dd.p.tid'
-        ])->withExactTags([
+        )->withExactTags([
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
             Tag::DB_SYSTEM => 'other_sql',

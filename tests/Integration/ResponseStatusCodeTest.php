@@ -39,7 +39,9 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:' . self::PORT . '/success',
                     'http.status_code' => '200',
-                ]),
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
             ]
         );
     }
