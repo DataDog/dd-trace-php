@@ -41,6 +41,8 @@ This automatically switches back to the parent stack: bool(true)
 spans(\DDTrace\SpanData) (2) {
   span_trace_swap.php (span_trace_swap.php, span_trace_swap.php, cli)
     _dd.p.dm => -1
+    _dd.p.tid => %s
   other root (span_trace_swap.php, other root, cli)
     _dd.p.dm => -1
+    _dd.p.tid => %s
 }

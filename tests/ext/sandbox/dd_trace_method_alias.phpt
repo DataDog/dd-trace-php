@@ -30,4 +30,5 @@ Foo::bar(hello)
 spans(\DDTrace\SpanData) (1) {
   Foo.bar (alias, Foo.bar, cli)
     _dd.p.dm => -1
+    _dd.p.tid => %s
 }

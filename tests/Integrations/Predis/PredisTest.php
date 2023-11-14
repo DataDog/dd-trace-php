@@ -128,7 +128,10 @@ final class PredisTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('Predis.Client.__construct', 'redis', 'redis', 'Predis.Client.__construct')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -144,7 +147,10 @@ final class PredisTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('Predis.Client.__construct', 'redis', 'redis', 'Predis.Client.__construct')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -158,7 +164,10 @@ final class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.connect', 'redis', 'redis', 'Predis.Client.connect')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -178,6 +187,9 @@ final class PredisTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'predis',
                     Tag::DB_SYSTEM => 'redis',
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -196,7 +208,10 @@ final class PredisTest extends IntegrationTestCase
                 ->withExactTags(array_merge([], $this->baseTags(), [
                     'redis.raw_command' => 'SET foo value',
                     'redis.args_length' => '3',
-                ])),
+                ]))
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -216,7 +231,10 @@ final class PredisTest extends IntegrationTestCase
                 ->withExactTags(array_merge([], $this->baseTags(), [
                     'redis.raw_command' => 'GET key',
                     'redis.args_length' => '2',
-                ])),
+                ]))
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -234,7 +252,10 @@ final class PredisTest extends IntegrationTestCase
                 ->withExactTags(array_merge([], $this->baseTags(), [
                     'redis.raw_command' => 'SET key value',
                     'redis.args_length' => '3',
-                ])),
+                ]))
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -268,7 +289,10 @@ final class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Pipeline.executePipeline', 'redis', 'redis', 'Predis.Pipeline.executePipeline')
-                ->withExactTags($exactTags),
+                ->withExactTags($exactTags)
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 

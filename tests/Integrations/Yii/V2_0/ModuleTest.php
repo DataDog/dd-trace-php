@@ -45,6 +45,8 @@ class ModuleTest extends WebFrameworkTestCase
                     'app.endpoint' => 'app\modules\forum\controllers\ModuleController::actionView',
                     Tag::SPAN_KIND => "server",
                     Tag::COMPONENT => "yii",
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])->withChildren([
                     SpanAssertion::build(
                         'yii\web\Application.run',

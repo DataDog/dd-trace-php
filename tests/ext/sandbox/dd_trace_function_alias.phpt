@@ -26,4 +26,5 @@ bar(hello)
 spans(\DDTrace\SpanData) (1) {
   bar (alias, bar, cli)
     _dd.p.dm => -1
+    _dd.p.tid => %s
 }

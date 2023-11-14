@@ -51,6 +51,8 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     '_dd1.sr.eausr' => 0.3,
                     '_sampling_priority_v1' => 1,
                     'process_id' => getmypid(),
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])->withChildren([
                     SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                         SpanAssertion::exists('symfony.httpkernel.kernel.boot'),

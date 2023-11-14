@@ -68,6 +68,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 '__construct'
             )->withExactTags([
                 Tag::COMPONENT => 'elasticsearch'
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
         ]);
     }
@@ -88,6 +90,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')->withChildren([
                     SpanAssertion::exists('Psr\Http\Client\ClientInterface.sendRequest', 'sendRequest'),
@@ -124,6 +128,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')->withChildren([
                     SpanAssertion::exists('Psr\Http\Client\ClientInterface.sendRequest', 'sendRequest'),
@@ -160,6 +166,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')->withChildren([
                     SpanAssertion::exists('Psr\Http\Client\ClientInterface.sendRequest', 'sendRequest'),
@@ -200,7 +208,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'explain index:my_index type:my_type'
-            )->withExactTags([
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
             ])->withChildren([
@@ -237,7 +247,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'get index:my_index type:my_type'
-            )->withExactTags([
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
             ])->setTraceAnalyticsCandidate()
@@ -269,7 +281,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'index index:my_index type:my_type'
-            )->withExactTags([
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
             ])->withChildren([
@@ -399,7 +413,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'scroll'
-            )->withExactTags([
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
             ]),
@@ -411,7 +427,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'scroll'
-            )->withExactTags([
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
             ]),
@@ -446,7 +464,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'search index:' . 'my_index'
-            )->withExactTags([
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
             ])->setTraceAnalyticsCandidate()
@@ -527,7 +547,9 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'update index:my_index type:my_type'
-            )->withExactTags([
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
             ])->withChildren([

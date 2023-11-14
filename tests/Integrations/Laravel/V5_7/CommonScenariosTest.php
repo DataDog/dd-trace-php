@@ -55,6 +55,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => 'simple',
                         TAG::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'laravel',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple')
                         ->withExactTags([
@@ -97,6 +99,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => 'simple_view',
                         TAG::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'laravel',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
                         ->withExactTags([
@@ -159,6 +163,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => 'error',
                         TAG::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'laravel',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->setError('Exception', 'Controller error', true)->withChildren([
                         SpanAssertion::exists('laravel.action'),
                         SpanAssertion::exists(
@@ -199,6 +205,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => 'dynamic_route/{param01}/static/{param02?}',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'laravel.action',

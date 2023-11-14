@@ -61,9 +61,12 @@ include __DIR__ . '/../dd_dumper.inc';
 spans(\DDTrace\SpanData) (3) {
   test\foo (trace_callable.php, 0, cli)
     result => 1
+    _dd.p.tid => %s
   test\bar.foo (trace_callable.php, 1, cli)
     result => 2
+    _dd.p.tid => %s
   test\closure.{closure} (trace_callable.php, 2, cli)
     closure.declaration => %s:%d
     result => 3
+    _dd.p.tid => %s
 }

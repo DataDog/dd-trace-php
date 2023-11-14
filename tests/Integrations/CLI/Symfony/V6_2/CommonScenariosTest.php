@@ -29,7 +29,9 @@ class CommonScenariosTest extends IntegrationTestCase
                     'console',
                     'cli',
                     'console'
-                )->withChildren([
+                )->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])->withChildren([
                     SpanAssertion::build(
                         'symfony.console.terminate',
                         'symfony',

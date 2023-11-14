@@ -54,6 +54,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',
@@ -79,6 +81,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',
@@ -114,7 +118,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withExistingTagsNames([
-                        'error.stack'
+                        'error.stack',
+                        '_dd.p.tid'
                     ])->setError(
                         null,
                         'Foo error'

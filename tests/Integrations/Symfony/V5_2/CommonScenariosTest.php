@@ -55,6 +55,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')
                         ->withChildren([
@@ -93,6 +95,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::exists('symfony.kernel.terminate'),
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
@@ -141,6 +145,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     ])
                     ->setError('Exception', 'An exception occurred')
                     ->withExistingTagsNames(['error.stack'])
+                    ->withExistingTagsNames([
+                        '_dd.p.tid'
+                    ])
                     ->withChildren([
                         SpanAssertion::exists('symfony.kernel.terminate'),
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')
@@ -190,6 +197,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '404',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::exists('symfony.kernel.terminate'),
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([

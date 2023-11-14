@@ -43,6 +43,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "zendframework",
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ]),
             ],
             'A simple GET request with a view' => [
@@ -56,6 +58,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "zendframework",
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ]),
             ],
             'A GET request with an exception' => [
@@ -69,6 +73,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "zendframework",
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])
                     ->setError('Exception', 'Controller error', true)
             ],

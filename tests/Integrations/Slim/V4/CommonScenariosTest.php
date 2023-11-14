@@ -46,6 +46,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 'Slim\\Middleware\\ErrorMiddleware'
             )->withExactTags([
                 Tag::COMPONENT => 'slim'
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::build(
                     'slim.middleware',
@@ -76,6 +78,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 'Slim\\Middleware\\ErrorMiddleware'
             )->withExactTags([
                 Tag::COMPONENT => 'slim'
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::build(
                     'slim.middleware',
@@ -116,6 +120,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         $this->wrapMiddleware([
                             SpanAssertion::build(
@@ -143,6 +149,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         $this->wrapMiddleware([
                             SpanAssertion::build(
@@ -179,6 +187,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])
                     ->setError(null, null)
                     ->withChildren([

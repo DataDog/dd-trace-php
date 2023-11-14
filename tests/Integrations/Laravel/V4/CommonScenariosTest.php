@@ -55,6 +55,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             TAG::SPAN_KIND => 'server',
                             Tag::COMPONENT => 'laravel',
                         ])
+                        ->withExistingTagsNames([
+                            '_dd.p.tid'
+                        ])
                         ->withChildren([
                             SpanAssertion::exists('laravel.application.handle')
                                 ->withChildren([
@@ -132,6 +135,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@error error')
+                        ->withExistingTagsNames([
+                            '_dd.p.tid'
+                        ])
                         ->withExactTags([
                             'laravel.route.name' => 'error',
                             'laravel.route.action' => 'HomeController@error',
@@ -180,6 +186,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 ],
                 'A GET request to a dynamic route returning a string' => [
                     SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@dynamicRoute unnamed_route')
+                        ->withExistingTagsNames([
+                            '_dd.p.tid'
+                        ])
                         ->withExactTags([
                             'laravel.route.name' => 'unnamed_route',
                             'laravel.route.action' => 'HomeController@dynamicRoute',

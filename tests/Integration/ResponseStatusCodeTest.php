@@ -65,7 +65,9 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
                         'http.url'         => 'http://localhost:' . self::PORT . '/error',
                         'http.status_code' => '500',
                     ]
-                )->setError(),
+                )->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])->setError(),
             ]
         );
     }

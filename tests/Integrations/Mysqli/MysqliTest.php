@@ -46,7 +46,10 @@ class MysqliTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -68,6 +71,7 @@ class MysqliTest extends IntegrationTestCase
                     Tag::ERROR_MSG,
                     'error.type',
                     'error.stack',
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -90,6 +94,7 @@ class MysqliTest extends IntegrationTestCase
                     Tag::ERROR_MSG,
                     'error.type',
                     'error.stack',
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -103,7 +108,10 @@ class MysqliTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli.__construct', 'mysqli', 'sql', 'mysqli.__construct')
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -124,6 +132,8 @@ class MysqliTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -146,7 +156,10 @@ class MysqliTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
-                ]),
+                ])
+            ->withExistingTagsNames([
+                '_dd.p.tid'
+            ]),
         ]);
     }
 
@@ -166,7 +179,10 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_execute_query', 'mysqli', 'sql', 'SELECT * from tests WHERE 1 = ?')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -188,7 +204,10 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_execute_query', 'mysqli', 'sql', 'SELECT * from tests WHERE 1 = ?')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags(true, true)),
+                ->withExactTags(self::baseTags(true, true))
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -204,7 +223,10 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_real_connect', 'mysqli', 'sql', 'mysqli_real_connect')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
@@ -212,6 +234,9 @@ class MysqliTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -230,7 +255,10 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_real_connect', 'mysqli', 'sql', 'mysqli_real_connect')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags(true, true))
@@ -238,6 +266,9 @@ class MysqliTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -259,6 +290,9 @@ class MysqliTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -282,6 +316,9 @@ class MysqliTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -299,7 +336,10 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.real_connect', 'mysqli', 'sql', 'mysqli.real_connect')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
@@ -307,6 +347,9 @@ class MysqliTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -326,7 +369,10 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.real_connect', 'mysqli', 'sql', 'mysqli.real_connect')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags(true, true))
@@ -334,6 +380,9 @@ class MysqliTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -353,7 +402,10 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::exists('mysqli_query', $query),
             SpanAssertion::build('mysqli_commit', 'mysqli', 'sql', $query)
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -373,10 +425,16 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags())
-                ->setTraceAnalyticsCandidate(),
+                ->setTraceAnalyticsCandidate()
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -398,10 +456,16 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags(true, true))
-                ->setTraceAnalyticsCandidate(),
+                ->setTraceAnalyticsCandidate()
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -551,9 +615,15 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(self::baseTags(true, true)),
+                ->withExactTags(self::baseTags(true, true))
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -577,6 +647,7 @@ class MysqliTest extends IntegrationTestCase
                     Tag::SPAN_KIND,
                     Tag::COMPONENT,
                     Tag::DB_SYSTEM,
+                    '_dd.p.tid'
                 ]),
         ]);
     }

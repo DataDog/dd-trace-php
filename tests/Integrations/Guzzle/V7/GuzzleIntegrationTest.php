@@ -24,6 +24,9 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'psr18'
                 ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
                         ->setTraceAnalyticsCandidate()

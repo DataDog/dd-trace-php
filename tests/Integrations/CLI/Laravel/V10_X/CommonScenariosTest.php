@@ -29,7 +29,8 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V8_X\C
                 Tag::COMPONENT => 'laravel',
             ])->withExistingTagsNames([
                 Tag::ERROR_MSG,
-                'error.stack'
+                'error.stack',
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',

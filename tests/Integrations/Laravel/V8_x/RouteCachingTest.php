@@ -46,6 +46,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])
+                    ->withExistingTagsNames(['_dd.p.tid'])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action'),
                         SpanAssertion::exists('laravel.provider.load'),
@@ -94,6 +95,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])
+                    ->withExistingTagsNames(['_dd.p.tid'])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action'),
                         SpanAssertion::exists('laravel.provider.load'),

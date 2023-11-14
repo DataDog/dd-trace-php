@@ -37,6 +37,8 @@ class RouteNameTest extends WebFrameworkTestCase
                 'http.status_code' => '200',
                 Tag::SPAN_KIND => 'server',
                 Tag::COMPONENT => 'symfony',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                     SpanAssertion::exists('symfony.httpkernel.kernel.boot'),

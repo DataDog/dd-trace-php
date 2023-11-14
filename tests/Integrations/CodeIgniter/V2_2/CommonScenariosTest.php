@@ -55,6 +55,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'Simple::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple.index',
@@ -79,6 +81,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'Simple_View::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple_View.index',
@@ -115,7 +119,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::COMPONENT => 'codeigniter',
                     ])
                     ->setError("Exception", "Uncaught Exception: datadog in %s:%d")
-                    ->withExistingTagsNames(['error.stack'])
+                    ->withExistingTagsNames(['error.stack', '_dd.p.tid'])
                     ->withChildren([
                         SpanAssertion::build(
                             'Error_.index',

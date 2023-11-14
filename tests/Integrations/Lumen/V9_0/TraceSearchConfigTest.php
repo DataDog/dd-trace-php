@@ -49,6 +49,9 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'lumen',
                     ])
+                    ->withExistingTagsNames([
+                        '_dd.p.tid'
+                    ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
                         '_sampling_priority_v1' => 1,

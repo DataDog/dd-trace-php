@@ -72,7 +72,7 @@ final class PDOTest extends IntegrationTestCase
                 'pdo',
                 'sql',
                 $query
-            )->withExactTags($this->baseTags()),
+            )->withExactTags($this->baseTags())->withExistingTagsNames(['_dd.p.tid']),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo',
@@ -86,7 +86,7 @@ final class PDOTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -117,7 +117,8 @@ final class PDOTest extends IntegrationTestCase
             )
                 ->setError()
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags(SpanAssertion::NOT_TESTED),
+                ->withExactTags(SpanAssertion::NOT_TESTED)
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -149,7 +150,8 @@ final class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'pdo', 'sql', 'PDO.__construct')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -162,7 +164,8 @@ final class PDOTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'pdo-mysql_integration', 'sql', 'PDO.__construct')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -179,7 +182,8 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.user' => 'wrong_user',
                 ]))
-                ->setError('PDOException', static::ERROR_CONSTRUCT, true),
+                ->setError('PDOException', static::ERROR_CONSTRUCT, true)
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -203,7 +207,7 @@ final class PDOTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->withExistingTagsNames(['_dd.p.tid']),
             SpanAssertion::exists('PDO.commit'),
         ]);
     }
@@ -226,7 +230,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064. Driver-specific error data: You have an error in your SQL syntax')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
             SpanAssertion::exists('PDO.commit'),
         ]);
     }
@@ -251,7 +256,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_EXEC, true)
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -273,7 +279,8 @@ final class PDOTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
-                ]),
+                ])
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -297,7 +304,8 @@ final class PDOTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
-                ]),
+                ])
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -317,7 +325,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064. Driver-specific error data: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\'')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -338,7 +347,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_QUERY, true)
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -362,7 +372,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_QUERY, true)
-                ->withExactTags($this->baseTags(true)),
+                ->withExactTags($this->baseTags(true))
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -380,7 +391,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::exists('PDO.exec'),
             SpanAssertion::build('PDO.commit', 'pdo', 'sql', 'PDO.commit')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -404,7 +416,7 @@ final class PDOTest extends IntegrationTestCase
                 'pdo',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags($this->baseTags())->withExistingTagsNames(['_dd.p.tid']),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo',
@@ -418,7 +430,8 @@ final class PDOTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
-                ]),
+                ])
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -444,7 +457,7 @@ final class PDOTest extends IntegrationTestCase
                 'pdo',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags($this->baseTags())->withExistingTagsNames(['_dd.p.tid']),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo',
@@ -458,7 +471,8 @@ final class PDOTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
-                ]),
+                ])
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -483,7 +497,7 @@ final class PDOTest extends IntegrationTestCase
                 'pdo-mysql_integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags($this->baseTags())->withExistingTagsNames(['_dd.p.tid']),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo-mysql_integration',
@@ -497,7 +511,8 @@ final class PDOTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
-                ]),
+                ])
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -557,11 +572,13 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.prepare', 'pdo', 'sql', "WRONG QUERY")
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
             SpanAssertion::build('PDOStatement.execute', 'pdo', 'sql', "WRONG QUERY")
                 ->settraceanalyticscandidate()
                 ->seterror('PDOStatement error', 'SQL error: 42000. Driver error: 1064')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -584,11 +601,13 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.prepare', 'pdo', 'sql', "WRONG QUERY")
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
             SpanAssertion::build('PDOStatement.execute', 'pdo', 'sql', "WRONG QUERY")
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_STATEMENT, true)
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 
@@ -613,11 +632,13 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.prepare', 'pdo', 'sql', "WRONG QUERY")
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags())
+                ->withExistingTagsNames(['_dd.p.tid']),
             SpanAssertion::build('PDOStatement.execute', 'pdo', 'sql', "WRONG QUERY")
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_STATEMENT, true)
-                ->withExactTags($this->baseTags(true)),
+                ->withExactTags($this->baseTags(true))
+                ->withExistingTagsNames(['_dd.p.tid']),
         ]);
     }
 

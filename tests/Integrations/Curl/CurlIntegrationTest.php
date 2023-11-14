@@ -52,13 +52,18 @@ final class CurlIntegrationTest extends IntegrationTestCase
         ];
     }
 
-    private static function commonCurlInfoTags()
+    private static function commonCurlInfoTags($isRoot = true)
     {
         $tags = [
             'curl.total_time',
             'network.bytes_read',
             'network.bytes_written',
         ];
+
+        if ($isRoot) {
+            $tags[] = '_dd.p.tid';
+        }
+
         if (\version_compare(\PHP_VERSION, '5.4.7', '>=')) {
             $tags += \array_merge(
                 $tags,
@@ -212,7 +217,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', '_dd.p.tid'])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                         ->setTraceAnalyticsCandidate()
@@ -224,7 +229,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             Tag::COMPONENT => 'curl',
                             '_dd.base_service' => 'top_level_app',
                         ])
-                        ->withExistingTagsNames(self::commonCurlInfoTags())
+                        ->withExistingTagsNames(self::commonCurlInfoTags(false))
                         ->skipTagsLike('/^curl\..*/'),
                 ]),
         ]);
@@ -574,7 +579,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', '_dd.p.tid'])
                 ->withExactMetrics(['_sampling_priority_v1' => 1, 'process_id' => getmypid()])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
@@ -587,7 +592,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             Tag::COMPONENT => 'curl',
                             '_dd.base_service' => 'top_level_app',
                         ])
-                        ->withExistingTagsNames(self::commonCurlInfoTags())
+                        ->withExistingTagsNames(self::commonCurlInfoTags(false))
                         ->skipTagsLike('/^curl\..*/'),
                 ]),
         ]);
@@ -710,7 +715,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'httpbin_integration',
                     Tag::COMPONENT => 'curl',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->withExistingTagsNames(self::commonCurlInfoTags(false)) // DD_TRACE_GENERATE_ROOT_SPAN=true
                 ->skipTagsLike('/^curl\..*/'),
         ]);
     }

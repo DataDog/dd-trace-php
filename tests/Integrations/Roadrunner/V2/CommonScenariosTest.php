@@ -50,6 +50,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'roadrunner'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -64,6 +66,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'roadrunner'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -72,7 +76,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'roadrunner',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExistingTagsNames([
+                        '_dd.p.tid'
+                    ])->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:' . self::PORT . '/error?key=value&<redacted>',
                         'http.status_code' => '500',

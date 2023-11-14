@@ -50,6 +50,9 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         '_sampling_priority_v1' => 1,
                         'process_id' => getmypid(),
                     ])
+                    ->withExistingTagsNames([
+                        '_dd.p.tid'
+                    ])
                     ->withChildren([
                         SpanAssertion::exists('laravel.application.handle')
                             ->withChildren([

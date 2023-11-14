@@ -42,6 +42,8 @@ class NoCIControllertTest extends WebFrameworkTestCase
                     Tag::HTTP_STATUS_CODE => '200',
                     Tag::SPAN_KIND => 'server',
                     Tag::COMPONENT => 'codeigniter',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])->withChildren([
                     SpanAssertion::build(
                         'Health_check.ping',

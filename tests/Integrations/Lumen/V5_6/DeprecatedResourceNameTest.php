@@ -48,6 +48,9 @@ class DeprecatedResourceNameTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'lumen',
                     ])
+                    ->withExistingTagsNames([
+                        '_dd.p.tid'
+                    ])
                     ->withChildren([
                         SpanAssertion::build(
                             'Laravel\Lumen\Application.handleFoundRoute',

@@ -78,6 +78,7 @@ Caught ex
 spans(\DDTrace\SpanData) (1) {
   fiber_stack_switch.php (fiber_stack_switch.php, fiber_stack_switch.php, cli)
     _dd.p.dm => -1
+    _dd.p.tid => %s
     Fiber.start (fiber_stack_switch.php, Fiber.start, cli)
       inFiber (fiber_stack_switch.php, inFiber, cli)
         otherFiber (fiber_stack_switch.php, otherFiber, cli) (error: Thrown Exception: ex in %s:%d)

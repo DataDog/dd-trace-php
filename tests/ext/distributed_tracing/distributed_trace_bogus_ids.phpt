@@ -36,13 +36,15 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["runtime-id"]=>
       string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-1"
       ["_dd.origin"]=>
       string(7) "datadog"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {

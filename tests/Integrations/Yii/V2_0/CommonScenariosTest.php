@@ -55,6 +55,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.route.path' => '/simple',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'yii\web\Application.run',
@@ -90,7 +92,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'yii2_test_app',
                         'web',
                         'GET /simple_view'
-                    )->withExactTags([
+                    )->withExistingTagsNames([
+                        '_dd.p.tid'
+                    ])->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
@@ -136,7 +140,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'yii2_test_app',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExistingTagsNames([
+                        '_dd.p.tid'
+                    ])->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost:9999/error?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '500',

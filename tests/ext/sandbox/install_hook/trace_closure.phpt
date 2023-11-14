@@ -64,24 +64,32 @@ include __DIR__ . '/../dd_dumper.inc';
 spans(\DDTrace\SpanData) (8) {
   intval (trace_closure.php, 0, cli)
     result => 0
+    _dd.p.tid => %s
   test\trace_closure.php:7\{closure} (trace_closure.php, 1, cli)
-    closure.declaration => %s:7
+    closure.declaration => /home/circleci/app/tmp/build_extension/tests/ext/sandbox/install_hook/trace_closure.php:7
     result => 1
+    _dd.p.tid => %s
   test\foo.{closure} (trace_closure.php, 2, cli)
-    closure.declaration => %s:12
+    closure.declaration => /home/circleci/app/tmp/build_extension/tests/ext/sandbox/install_hook/trace_closure.php:12
     result => 2
+    _dd.p.tid => %s
   test\bar.foo.{closure} (trace_closure.php, 3, cli)
-    closure.declaration => %s:19
+    closure.declaration => /home/circleci/app/tmp/build_extension/tests/ext/sandbox/install_hook/trace_closure.php:19
     result => 3
+    _dd.p.tid => %s
   intval (trace_closure.php, 0, cli)
     result => 1
+    _dd.p.tid => %s
   test\trace_closure.php:7\{closure} (trace_closure.php, 1, cli)
-    closure.declaration => %s:7
+    closure.declaration => /home/circleci/app/tmp/build_extension/tests/ext/sandbox/install_hook/trace_closure.php:7
     result => 2
+    _dd.p.tid => %s
   test\foo.{closure} (trace_closure.php, 2, cli)
-    closure.declaration => %s:12
+    closure.declaration => /home/circleci/app/tmp/build_extension/tests/ext/sandbox/install_hook/trace_closure.php:12
     result => 3
+    _dd.p.tid => %s
   test\bar.foo.{closure} (trace_closure.php, 3, cli)
-    closure.declaration => %s:19
+    closure.declaration => /home/circleci/app/tmp/build_extension/tests/ext/sandbox/install_hook/trace_closure.php:19
     result => 4
+    _dd.p.tid => %s
 }

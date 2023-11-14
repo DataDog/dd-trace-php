@@ -54,6 +54,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'lumen'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'Laravel\Lumen\Application.handleFoundRoute',
@@ -114,7 +116,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'lumen'
-                    ])->withExistingTagsNames(\PHP_MAJOR_VERSION === 5 ? [] : ['error.stack'])
+                    ])->withExistingTagsNames(\PHP_MAJOR_VERSION === 5 ? ['_dd.p.tid'] : ['error.stack', '_dd.p.tid'])
                     ->setError(
                         'Exception',
                         'Controller error',
@@ -162,6 +164,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'http.status_code' => '200',
                 Tag::SPAN_KIND => 'server',
                 TAG::COMPONENT => 'lumen'
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::build(
                     'Laravel\Lumen\Application.handleFoundRoute',

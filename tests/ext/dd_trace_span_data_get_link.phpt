@@ -9,9 +9,10 @@ DDTrace\trace_function('greet',
     function (\DDTrace\SpanData $span) {
         echo "greet tracer.\n";
         $span->name = "foo";
-        var_dump(json_encode($span->getLink()));
-        var_dump(dd_trace_peek_span_id());
-        var_dump(\DDTrace\trace_id());
+        $link = $span->getLink();
+        var_dump(json_encode($link));
+        var_dump(\DDTrace\active_span()->hexId() === $link->spanId);
+        var_dump(\DDTrace\root_span()->traceId === $link->traceId);
     }
 );
 
@@ -26,6 +27,6 @@ greet('Datadog');
 --EXPECTF--
 Hello, Datadog.
 greet tracer.
-string(76) "{"trace_id":"0000000000000000c151df7d6ee5e2d6","span_id":"a3978fb9b92502a8"}"
-string(20) "11788048577503494824"
-string(20) "13930160852258120406"
+string(%d) "{"trace_id":"%s","span_id":"%s"}"
+bool(true)
+bool(true)

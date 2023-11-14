@@ -50,6 +50,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])
+                    ->withExistingTagsNames(['_dd.p.tid'])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
                         '_sampling_priority_v1' => 1,

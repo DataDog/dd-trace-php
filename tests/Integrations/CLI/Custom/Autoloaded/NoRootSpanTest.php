@@ -41,6 +41,8 @@ final class NoRootSpanTest extends CLITestCase
                 'foo_resource'
             )->withExactTags([
                 'foo' => 'bar',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::exists(
                     'mysqli_connect',

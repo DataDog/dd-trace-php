@@ -52,6 +52,9 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])
+                    ->withExistingTagsNames([
+                        '_dd.p.tid'
+                    ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
                         'process_id' => getmypid(),
@@ -111,6 +114,9 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'http.route' => 'unauthorized',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
+                    ])
+                    ->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,

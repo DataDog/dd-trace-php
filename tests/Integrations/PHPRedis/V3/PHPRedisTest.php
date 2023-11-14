@@ -77,6 +77,8 @@ class PHPRedisTest extends IntegrationTestCase
                 Tag::DB_SYSTEM => 'redis',
                 'out.host' => $this->host,
                 'out.port' => $this->port,
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
         ]);
     }
@@ -123,7 +125,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'out.host' => $host,
                 'out.port' => $port ?: $this->port,
             ])
-            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
+            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack', '_dd.p.tid']),
         ]);
     }
 
@@ -162,7 +164,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.close"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags($this->baseTags())->withExistingTagsNames([
+                '_dd.p.tid'
+            ]),
         ]);
     }
 
@@ -196,7 +200,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExactTags($this->baseTags($rawCommand))->withExistingTagsNames([
+                '_dd.p.tid'
+            ]),
         ]);
     }
 
@@ -245,7 +251,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags($this->baseTags())->withExistingTagsNames([
+                '_dd.p.tid'
+            ]),
         ]);
     }
 
@@ -276,7 +284,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.select"
-            )->withExactTags($this->baseTags(), ['db.index' => '1']),
+            )->withExactTags($this->baseTags(), ['db.index' => '1'])->withExistingTagsNames([
+                '_dd.p.tid'
+            ]),
         ]);
     }
 
@@ -309,7 +319,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExactTags($this->baseTags($rawCommand))->withExistingTagsNames([
+                '_dd.p.tid'
+            ]),
         ]);
 
         $this->assertSame($expected, $redis->get($args[0]));
@@ -459,7 +471,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.mSet"
-            )->withExactTags($this->baseTags('mSet k1 v1 k2 v2')),
+            )->withExactTags($this->baseTags('mSet k1 v1 k2 v2'))->withExistingTagsNames([
+                '_dd.p.tid'
+            ]),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
@@ -501,7 +515,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.rawCommand"
-            )->withExactTags($this->baseTags('rawCommand set k1 v1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('rawCommand set k1 v1')),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
@@ -536,7 +552,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
         $this->assertSame($expected, $result);
     }
@@ -658,7 +676,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         $this->assertSame($expectedResult, $result);
@@ -807,7 +827,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         $this->assertSame($expectedResult, $result);
@@ -1077,7 +1099,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         if ($expectedResult === self::A_STRING) {
@@ -1273,7 +1297,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         if ($expectedResult === self::A_STRING) {
@@ -1469,7 +1495,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.publish"
-            )->withExactTags($this->baseTags('publish ch1 hi')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('publish ch1 hi')),
         ]);
     }
 
@@ -1488,25 +1516,33 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.multi"
-            )->withExactTags($this->baseTags('multi')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('multi')),
             SpanAssertion::build(
                 "Redis.set",
                 'phpredis',
                 'redis',
                 "Redis.set"
-            )->withExactTags($this->baseTags('set k1 v1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('set k1 v1')),
             SpanAssertion::build(
                 "Redis.get",
                 'phpredis',
                 'redis',
                 "Redis.get"
-            )->withExactTags($this->baseTags('get k1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('get k1')),
             SpanAssertion::build(
                 "Redis.exec",
                 'phpredis',
                 'redis',
                 "Redis.exec"
-            )->withExactTags($this->baseTags('exec')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('exec')),
         ]);
     }
 
@@ -1539,7 +1575,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
         $this->assertEquals($expectedResult, $result);
     }
@@ -1617,7 +1655,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
         $this->assertEquals($expectedResult, $result);
     }
@@ -1680,13 +1720,17 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.dump"
-            )->withExactTags($this->baseTags('dump k1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('dump k1')),
             SpanAssertion::build(
                 "Redis.restore",
                 'phpredis',
                 'redis',
                 "Redis.restore"
-            )->withExactTags($this->baseTags()),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags()),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
@@ -1712,7 +1756,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.migrate"
-            )->withExactTags($this->baseTags("migrate redis_integration 6380 k1 0 3600")),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags("migrate redis_integration 6380 k1 0 3600")),
         ]);
 
         $traces = $this->isolateTracer(function () {
@@ -1724,7 +1770,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.migrate"
-            )->withExactTags($this->baseTags("migrate redis_integration 6380 k2 k3 0 3600")),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags("migrate redis_integration 6380 k2 k3 0 3600")),
         ]);
 
         $this->assertSame('v1', $this->redisSecondInstance->get('k1'));
@@ -1750,7 +1798,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.move"
-            )->withExactTags($this->baseTags("move k1 1")),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags("move k1 1")),
         ]);
 
         $this->assertSame('v1', $this->redis->get('k1'));
@@ -1769,7 +1819,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.renameKey"
-            )->withExactTags($this->baseTags("renameKey k1 k2")),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags("renameKey k1 k2")),
         ]);
 
         $this->assertFalse($this->redis->get('k1'));
@@ -1790,14 +1842,14 @@ class PHPRedisTest extends IntegrationTestCase
                 'redis',
                 "Redis.set"
             )->withExactTags($this->baseTags())
-                ->withExistingTagsNames(['redis.raw_command']),
+                ->withExistingTagsNames(['redis.raw_command', '_dd.p.tid']),
             SpanAssertion::build(
                 "Redis.get",
                 'phpredis',
                 'redis',
                 "Redis.get"
             )->withExactTags($this->baseTags())
-                ->withExistingTagsNames(['redis.raw_command']),
+                ->withExistingTagsNames(['redis.raw_command', '_dd.p.tid']),
         ]);
     }
 
@@ -1821,7 +1873,7 @@ class PHPRedisTest extends IntegrationTestCase
                 "Redis.connect"
             )
             ->setError()
-            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack'])
+            ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack', '_dd.p.tid'])
             ->withExactTags($this->baseTags(), ['out.host' => 'non-existing-host', 'out.port' => '6379']),
         ]);
     }
@@ -1843,14 +1895,20 @@ class PHPRedisTest extends IntegrationTestCase
                 'redis',
                 "Redis.connect"
             )
-                ->withExactTags($this->baseTags(), [Tag::TARGET_PORT => '6379']),
+                ->withExactTags($this->baseTags(), [Tag::TARGET_PORT => '6379'])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build(
                 "Redis.set",
                 'redis-redis_integration',
                 'redis',
                 "Redis.set"
             )
-                ->withExactTags($this->baseTags('set key value')),
+                ->withExactTags($this->baseTags('set key value'))
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -1868,14 +1926,14 @@ class PHPRedisTest extends IntegrationTestCase
                 'redis',
                 "Redis.set"
             )->withExactTags($this->baseTags())
-                ->withExistingTagsNames(['redis.raw_command']),
+                ->withExistingTagsNames(['redis.raw_command', '_dd.p.tid']),
             SpanAssertion::build(
                 "Redis.get",
                 'phpredis',
                 'redis',
                 "Redis.get"
             )->withExactTags($this->baseTags())
-                ->withExistingTagsNames(['redis.raw_command']),
+                ->withExistingTagsNames(['redis.raw_command', '_dd.p.tid$']),
         ]);
     }
 

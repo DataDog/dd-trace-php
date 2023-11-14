@@ -73,6 +73,9 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('sqlsrv_connect', 'sqlsrv', 'sql', 'sqlsrv_connect')
                 ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
         ]);
     }
 
@@ -109,6 +112,9 @@ class SQLSRVTest extends IntegrationTestCase
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
         ]);
     }
 
@@ -133,6 +139,9 @@ class SQLSRVTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])
         ]);
     }
@@ -159,6 +168,9 @@ class SQLSRVTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])
         ]);
     }
@@ -188,6 +200,9 @@ class SQLSRVTest extends IntegrationTestCase
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
         ]);
     }
 
@@ -213,9 +228,15 @@ class SQLSRVTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
             SpanAssertion::build('sqlsrv_commit', 'sqlsrv', 'sql', 'sqlsrv_commit')
                 ->withExactTags(self::baseTags())
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
         ]);
     }
 
@@ -232,7 +253,10 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query)),
+                ->withExactTags(self::baseTags($query))
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
@@ -241,6 +265,9 @@ class SQLSRVTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])
         ]);
     }
@@ -260,7 +287,10 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query)),
+                ->withExactTags(self::baseTags($query))
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query, true))
@@ -269,6 +299,9 @@ class SQLSRVTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])
         ]);
     }
@@ -296,6 +329,9 @@ class SQLSRVTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])
         ]);
     }
@@ -326,6 +362,9 @@ class SQLSRVTest extends IntegrationTestCase
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
         ]);
     }
 
@@ -349,7 +388,10 @@ class SQLSRVTest extends IntegrationTestCase
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
-                )->withExactTags(self::baseTags($query)),
+                )->withExactTags(self::baseTags($query))
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::exists('sqlsrv_commit')
         ]);
     }
@@ -412,7 +454,10 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactTags(
                     array_merge(self::baseTags($query), [
                         '_dd.base_service' => 'phpunit',
-                    ])),
+                    ]))
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags($query), [
@@ -421,6 +466,9 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])
         ]);
     }
@@ -449,6 +497,9 @@ class SQLSRVTest extends IntegrationTestCase
                     Tag::ANALYTICS_KEY => 1.0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])
         ]);
     }

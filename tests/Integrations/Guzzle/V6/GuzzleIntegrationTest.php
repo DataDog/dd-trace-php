@@ -99,6 +99,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
                         ->setTraceAnalyticsCandidate()
@@ -129,6 +132,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -149,6 +154,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -299,6 +306,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -351,6 +361,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -372,6 +385,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -392,7 +408,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /guzzle_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', '_dd.p.tid'])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
                         ->setTraceAnalyticsCandidate()
@@ -434,6 +450,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle',
                 ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
                         ->setTraceAnalyticsCandidate()
@@ -473,6 +492,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
+                ])
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }

@@ -111,7 +111,7 @@ array(5) {
     ["type"]=>
     string(7) "BarType"
     ["meta"]=>
-    array(6) {
+    array(7) {
       ["runtime-id"]=>
       string(36) "%s"
       ["args.0"]=>
@@ -124,6 +124,8 @@ array(5) {
       string(%d) "%d"
       ["_dd.p.dm"]=>
       string(2) "-1"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(6) {
@@ -212,11 +214,13 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["runtime-id"]=>
       string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-1"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {
@@ -249,11 +253,13 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["runtime-id"]=>
       string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-1"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {

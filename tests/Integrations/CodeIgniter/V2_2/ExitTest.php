@@ -43,6 +43,8 @@ class ExitTest extends WebFrameworkTestCase
                     'app.endpoint' => 'Exits::index',
                     Tag::SPAN_KIND => 'server',
                     Tag::COMPONENT => 'codeigniter',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])->withChildren([
                     SpanAssertion::build(
                         'Exits.index',

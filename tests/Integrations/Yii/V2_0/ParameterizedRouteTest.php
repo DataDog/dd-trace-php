@@ -45,6 +45,8 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                     'app.endpoint' => 'app\controllers\HomesController::actionView',
                     Tag::SPAN_KIND => "server",
                     Tag::COMPONENT => "yii",
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])->withChildren([
                     SpanAssertion::build(
                         'yii\web\Application.run',

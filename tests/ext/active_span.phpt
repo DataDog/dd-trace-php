@@ -80,6 +80,6 @@ object(DDTrace\RootSpanData)#%d (16) {
   array(0) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
-  string(32) "0000000000000000%s"
+  string(32) "%s"
 }
 bool(true)

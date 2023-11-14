@@ -83,6 +83,7 @@ class QueueTest extends WebFrameworkTestCase
             $createTraces,
             [
                 SpanAssertion::exists('laravel.request')
+                    ->withExistingTagsNames(['_dd.p.tid'])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')
                             ->withExactTags([
@@ -106,6 +107,7 @@ class QueueTest extends WebFrameworkTestCase
 
         $this->assertFlameGraph($artisanTrace, [
             SpanAssertion::exists('laravel.artisan')
+                ->withExistingTagsNames(['_dd.p.tid'])
                 ->withChildren([
                     SpanAssertion::exists('laravel.action')
                         ->withChildren([
@@ -166,6 +168,7 @@ class QueueTest extends WebFrameworkTestCase
             $createTraces,
             [
                 SpanAssertion::exists('laravel.request')
+                    ->withExistingTagsNames(['_dd.p.tid'])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')
                             ->withExactTags([
@@ -186,6 +189,7 @@ class QueueTest extends WebFrameworkTestCase
             $processTrace1,
             [
                 $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                    ->withExistingTagsNames(['_dd.p.tid'])
                     ->setError('Exception', 'Triggered Exception', true)
                     ->withChildren([
                         $this->spanQueueResolve('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails'),
@@ -205,6 +209,7 @@ class QueueTest extends WebFrameworkTestCase
             $artisanTrace,
             [
                 SpanAssertion::exists('laravel.artisan')
+                    ->withExistingTagsNames(['_dd.p.tid'])
                     ->setError('Exception', 'Triggered Exception', true)
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')

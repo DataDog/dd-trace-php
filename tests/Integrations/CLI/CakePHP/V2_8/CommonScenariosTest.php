@@ -33,6 +33,8 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console'
             )->withExactTags([
                 Tag::COMPONENT => 'cakephp',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])
         ]);
     }
@@ -49,6 +51,8 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console command_list'
             )->withExactTags([
                 Tag::COMPONENT => 'cakephp',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])
         ]);
     }

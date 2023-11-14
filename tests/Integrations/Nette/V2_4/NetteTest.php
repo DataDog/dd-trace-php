@@ -35,7 +35,6 @@ final class NetteTest extends WebFrameworkTestCase
         });
 
         $this->assertFlameGraph($traces, $spanExpectations);
-        //$this->assertExpectedSpans($traces, $spanExpectations);
     }
 
     public function provideSpecs()
@@ -56,6 +55,8 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'nette.configurator.createRobotLoader',
@@ -98,6 +99,8 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'nette.configurator.createRobotLoader',
@@ -144,7 +147,9 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette_test_app',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExistingTagsNames([
+                        '_dd.p.tid'
+                    ])->withExactTags([
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'errorView',
                         'http.method' => 'GET',

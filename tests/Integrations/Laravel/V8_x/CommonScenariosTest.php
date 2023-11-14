@@ -56,6 +56,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => 'simple',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'laravel.action',
@@ -102,6 +104,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => 'simple_view',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
                         ->withExactTags([
@@ -164,6 +168,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => 'error',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->setError('Exception', 'Controller error', true)->withChildren([
                         SpanAssertion::exists('laravel.action'),
                         SpanAssertion::exists('laravel.view.render')
@@ -209,6 +215,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_METHOD => 'GET',
                         Tag::COMPONENT => 'laravel',
                         Tag::HTTP_STATUS_CODE => '404',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                         SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),

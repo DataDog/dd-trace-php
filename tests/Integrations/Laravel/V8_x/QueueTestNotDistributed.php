@@ -70,6 +70,7 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
             $artisanTrace,
             [
                 SpanAssertion::exists('laravel.artisan')
+                    ->withExistingTagsNames(['_dd.p.tid'])
                     ->setError('Exception', 'Triggered Exception', true)
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')

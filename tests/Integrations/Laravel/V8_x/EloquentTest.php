@@ -79,6 +79,8 @@ class EloquentTest extends WebFrameworkTestCase
             'sql.query' => 'select * from `users`',
             TAG::COMPONENT => 'eloquent',
             Tag::DB_SYSTEM => 'other_sql',
+        ])->withExistingTagsNames([
+            '_dd.p.tid'
         ]));
     }
 
@@ -97,6 +99,8 @@ class EloquentTest extends WebFrameworkTestCase
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
             Tag::DB_SYSTEM => 'other_sql',
+        ])->withExistingTagsNames([
+            '_dd.p.tid'
         ]));
     }
 
@@ -116,6 +120,8 @@ class EloquentTest extends WebFrameworkTestCase
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
             Tag::DB_SYSTEM => 'other_sql',
+        ])->withExistingTagsNames([
+            '_dd.p.tid'
         ]));
     }
 
@@ -135,6 +141,8 @@ class EloquentTest extends WebFrameworkTestCase
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
             Tag::DB_SYSTEM => 'other_sql',
+        ])->withExistingTagsNames([
+            '_dd.p.tid'
         ]));
     }
 

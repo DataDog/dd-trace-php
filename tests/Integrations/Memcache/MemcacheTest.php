@@ -52,7 +52,9 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'add',
                     Tag::SPAN_KIND => 'client',
-                ]))
+                ]))->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
         ]);
     }
 
@@ -67,7 +69,9 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'append ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'append',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -91,7 +95,9 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'delete ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'delete',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::exists('Memcache.get'),
         ]);
     }
@@ -114,7 +120,9 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'decrement ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'decrement',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::exists('Memcache.get'),
         ]);
     }
@@ -136,7 +144,9 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'increment ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'increment',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::exists('Memcache.get'),
         ]);
     }
@@ -161,6 +171,8 @@ final class MemcacheTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'memcache',
                     Tag::DB_SYSTEM => 'memcached',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
             SpanAssertion::exists('Memcache.get'),
         ]);
@@ -185,6 +197,8 @@ final class MemcacheTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -208,6 +222,8 @@ final class MemcacheTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 0,
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -227,7 +243,9 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'replace ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'replace',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
             SpanAssertion::exists('Memcache.get'),
         ]);
     }
@@ -244,7 +262,9 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'set ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'set',
                     Tag::SPAN_KIND => 'client',
-                ])),
+                ]))->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -264,7 +284,7 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.command' => 'cas',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames(['memcache.cas_token']),
+                ->withExistingTagsNames(['memcache.cas_token', '_dd.p.tid']),
         ]);
     }
 
@@ -282,7 +302,9 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'add',
                     Tag::SPAN_KIND => 'client',
-                ]))
+                ]))->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
         ]);
     }
 
@@ -304,7 +326,7 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.command' => 'cas',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames(['memcache.cas_token']),
+                ->withExistingTagsNames(['memcache.cas_token', '_dd.p.tid'])
         ]);
     }
 
@@ -343,7 +365,9 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcache.command' => 'add',
                     Tag::SPAN_KIND => 'client',
-                ]))
+                ]))->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])
         ]);
     }
 }

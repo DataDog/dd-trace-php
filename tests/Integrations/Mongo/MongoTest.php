@@ -46,6 +46,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -75,6 +77,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -104,6 +108,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -121,6 +127,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -137,6 +145,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -153,6 +163,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -168,6 +180,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -186,6 +200,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -219,6 +235,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.timeout' => '500',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -236,6 +254,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.bson.id' => '47cc67093475061e3d9536d2',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -252,6 +272,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -267,6 +289,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -286,6 +310,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -302,6 +328,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -318,6 +346,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.profiling_level' => '2',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -334,6 +364,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -349,6 +381,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])
         ]);
     }
@@ -367,6 +401,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -401,6 +437,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -416,6 +454,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -427,7 +467,10 @@ class MongoTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('MongoCollection.aggregateCursor', 'mongo', 'mongodb', 'aggregateCursor'),
+            SpanAssertion::build('MongoCollection.aggregateCursor', 'mongo', 'mongodb', 'aggregateCursor')
+                ->withExistingTagsNames([
+                    '_dd.p.tid'
+                ]),
         ]);
     }
 
@@ -445,6 +488,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -461,6 +506,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.query' => '{"title":"Foo"}',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -478,6 +525,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -493,6 +542,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -508,6 +559,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -525,6 +578,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -542,6 +597,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -564,6 +621,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -581,6 +640,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -601,6 +662,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -620,6 +683,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -635,6 +700,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -651,10 +718,11 @@ class MongoTest extends IntegrationTestCase
                 'mongo',
                 'mongodb',
                 'parallelCollectionScan'
-            )
-            ->withExactTags([
+            )->withExactTags([
                 Tag::COMPONENT => 'mongo',
                 Tag::DB_SYSTEM => 'mongodb',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
         ]);
     }
@@ -671,6 +739,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -686,6 +756,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -702,6 +774,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -717,6 +791,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -737,6 +813,8 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
@@ -755,6 +833,8 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }

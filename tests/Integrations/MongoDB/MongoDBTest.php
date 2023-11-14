@@ -79,6 +79,8 @@ class MongoDBTest extends IntegrationTestCase
                     Tag::DB_SYSTEM => 'mongodb',
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ];
 
@@ -121,6 +123,8 @@ class MongoDBTest extends IntegrationTestCase
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::exists('mongodb.driver.cmd')
             ]),
@@ -179,6 +183,8 @@ class MongoDBTest extends IntegrationTestCase
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::exists('mongodb.driver.cmd')
             ]),
@@ -206,7 +212,7 @@ class MongoDBTest extends IntegrationTestCase
                     Tag::COMPONENT => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
                 ])->setError('MongoDB\Exception\InvalidArgumentException')
-                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
+                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack', '_dd.p.tid']),
         ]);
     }
 
@@ -226,6 +232,8 @@ class MongoDBTest extends IntegrationTestCase
                     'out.port' => self::PORT,
                     Tag::COMPONENT => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
@@ -307,6 +315,8 @@ class MongoDBTest extends IntegrationTestCase
                     'out.port' => self::PORT,
                     Tag::COMPONENT => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
@@ -401,6 +411,8 @@ class MongoDBTest extends IntegrationTestCase
                     Tag::DB_SYSTEM => 'mongodb',
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ];
 
@@ -505,6 +517,8 @@ class MongoDBTest extends IntegrationTestCase
                     'out.port' => self::PORT,
                     Tag::COMPONENT => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ];
 
@@ -548,6 +562,8 @@ class MongoDBTest extends IntegrationTestCase
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
         ];
 
@@ -592,6 +608,8 @@ class MongoDBTest extends IntegrationTestCase
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
         ];
 
@@ -648,6 +666,8 @@ class MongoDBTest extends IntegrationTestCase
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
         ];
 
@@ -704,6 +724,8 @@ class MongoDBTest extends IntegrationTestCase
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ])
         ];
 
@@ -775,6 +797,8 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.insertsCount' => 2,
                 Tag::COMPONENT => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
         ]);
     }
@@ -807,7 +831,7 @@ class MongoDBTest extends IntegrationTestCase
                 Tag::COMPONENT => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
             ])->setError()
-                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
+                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack', '_dd.p.tid']),
         ]);
     }
 
@@ -829,6 +853,8 @@ class MongoDBTest extends IntegrationTestCase
                     Tag::DB_SYSTEM => 'mongodb',
                     'peer.service' => self::DATABASE,
                     '_dd.peer.service.source' => 'mongodb.db',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ];
 
@@ -875,6 +901,8 @@ class MongoDBTest extends IntegrationTestCase
                 Tag::DB_SYSTEM => 'mongodb',
                 'peer.service' => self::DATABASE,
                 '_dd.peer.service.source' => 'mongodb.db',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
         ]);
     }
@@ -900,6 +928,8 @@ class MongoDBTest extends IntegrationTestCase
                 Tag::DB_SYSTEM => 'mongodb',
                 'peer.service' => self::DATABASE,
                 '_dd.peer.service.source' => 'mongodb.db',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
         ];
 
@@ -929,6 +959,8 @@ class MongoDBTest extends IntegrationTestCase
                     Tag::DB_SYSTEM => 'mongodb',
                     'peer.service' => self::DATABASE,
                     '_dd.peer.service.source' => 'mongodb.db',
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
