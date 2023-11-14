@@ -23,6 +23,9 @@ class ConsoleCommandTest extends IntegrationTestCase
             $traces,
             [
                 SpanAssertion::build('console', 'console', 'cli', 'console')
+                    ->withExistingTagsNames([
+                        '_dd.p.tid'
+                    ])
                     ->withChildren([
                         SpanAssertion::build('symfony.console.command.run', 'symfony', 'cli', 'about')
                             ->withExactTags([
