@@ -271,6 +271,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => 'dynamic_route/{param01}/static/{param02?}',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->withChildren([
                         SpanAssertion::build(
                             'laravel.action',

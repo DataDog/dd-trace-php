@@ -66,6 +66,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
         ]);
     }
