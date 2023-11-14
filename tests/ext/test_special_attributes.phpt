@@ -30,7 +30,7 @@ var_dump(dd_trace_serialize_closed_spans());
 --EXPECTF--
 array(1) {
   [0]=>
-  array(10) {
+  array(11) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -49,6 +49,11 @@ array(1) {
     string(11) "new.service"
     ["type"]=>
     string(8) "new.type"
+    ["meta"]=>
+    array(1) {
+      ["_dd.base_service"]=>
+      string(27) "test_special_attributes.php"
+    }
     ["metrics"]=>
     array(1) {
       ["_dd1.sr.eausr"]=>
