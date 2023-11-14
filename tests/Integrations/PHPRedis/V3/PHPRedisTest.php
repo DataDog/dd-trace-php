@@ -494,7 +494,9 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.mSetNx"
-            )->withExactTags($this->baseTags('mSetNx k1 v1 k2 v2')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('mSetNx k1 v1 k2 v2')),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
@@ -1933,7 +1935,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'redis',
                 "Redis.get"
             )->withExactTags($this->baseTags())
-                ->withExistingTagsNames(['redis.raw_command', '_dd.p.tid$']),
+                ->withExistingTagsNames(['redis.raw_command', '_dd.p.tid']),
         ]);
     }
 

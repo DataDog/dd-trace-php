@@ -56,7 +56,9 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
                     'my-service',
                     'web',
                     'GET /'
-                )->withExactTags($tags),
+                )->withExistingTagsNames([
+                    '_dd.p.tid'
+                ])->withExactTags($tags),
             ]
         );
     }

@@ -55,6 +55,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.status_code' => '200',
                             Tag::SPAN_KIND => 'server',
                             Tag::COMPONENT => 'slim'
+                        ])->withExistingTagsNames([
+                            '_dd.p.tid'
                         ]),
                     ],
                     'A simple GET request with a view' => [
@@ -69,6 +71,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.status_code' => '200',
                             Tag::SPAN_KIND => 'server',
                             Tag::COMPONENT => 'slim'
+                        ])->withExistingTagsNames([
+                            '_dd.p.tid'
                         ])->withChildren([
                             SpanAssertion::build(
                                 'slim.view',
@@ -93,6 +97,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.status_code' => '500',
                             Tag::SPAN_KIND => 'server',
                             Tag::COMPONENT => 'slim'
+                        ])->withExistingTagsNames([
+                            '_dd.p.tid'
                         ])->setError(null, null /* On PHP 5.6 slim error messages are not traced on sandboxed */),
                     ],
                 ]
@@ -113,6 +119,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.status_code' => '200',
                             Tag::SPAN_KIND => 'server',
                             Tag::COMPONENT => 'slim'
+                        ])->withExistingTagsNames([
+                            '_dd.p.tid'
                         ])->withChildren([
                             SpanAssertion::build(
                                 'slim.route.controller',
@@ -137,6 +145,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.status_code' => '200',
                             Tag::SPAN_KIND => 'server',
                             Tag::COMPONENT => 'slim'
+                        ])->withExistingTagsNames([
+                            '_dd.p.tid'
                         ])->withChildren([
                             SpanAssertion::build(
                                 'slim.route.controller',
@@ -171,6 +181,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.status_code' => '500',
                             Tag::SPAN_KIND => 'server',
                             Tag::COMPONENT => 'slim'
+                        ])->withExistingTagsNames([
+                            '_dd.p.tid'
                         ])->setError(null, null)
                             ->withChildren([
                                 SpanAssertion::build(

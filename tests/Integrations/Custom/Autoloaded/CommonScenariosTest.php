@@ -49,6 +49,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:' . self::PORT . '/simple?key=value&<redacted>',
                         'http.status_code' => '200',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -61,6 +63,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:' . self::PORT . '/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -73,6 +77,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:' . self::PORT . '/error?key=value&<redacted>',
                         'http.status_code' => '500',
+                    ])->withExistingTagsNames([
+                        '_dd.p.tid'
                     ])->setError(),
                 ],
             ]

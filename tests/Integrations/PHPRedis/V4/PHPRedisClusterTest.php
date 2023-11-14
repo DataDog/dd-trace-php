@@ -77,7 +77,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.close"
-            )->withExactTags($this->baseTags()),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags()),
         ]);
     }
 
@@ -100,7 +102,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags($this->baseTags($this->normalizeRawCommand($method, $rawCommand)))
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($this->normalizeRawCommand($method, $rawCommand)))
         ]);
     }
 
@@ -144,7 +148,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags($this->baseTags()),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags()),
         ]);
     }
 
@@ -189,7 +195,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         $this->assertSame($expected, $redis->get($args[0]));
@@ -325,7 +333,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.mSet"
-            )->withExactTags($this->baseTags('mSet k1 v1 k2 v2')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('mSet k1 v1 k2 v2')),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
@@ -346,7 +356,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.mSetNx"
-            )->withExactTags($this->baseTags('mSetNx k1 v1 k2 v2')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('mSetNx k1 v1 k2 v2')),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
@@ -382,7 +394,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
         $this->assertSame($expected, $result);
     }
@@ -490,7 +504,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         $this->assertSame($expectedResult, $result);
@@ -640,7 +656,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         $this->assertSame($expectedResult, $result);
@@ -880,7 +898,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         if ($expectedResult === self::A_STRING) {
@@ -1048,7 +1068,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         if ($expectedResult === self::A_STRING) {
@@ -1230,7 +1252,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.publish"
-            )->withExactTags($this->baseTags('publish ch1 hi')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('publish ch1 hi')),
         ]);
     }
 
@@ -1249,25 +1273,33 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.multi"
-            )->withExactTags($this->baseTags('multi')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('multi')),
             SpanAssertion::build(
                 "RedisCluster.set",
                 'phpredis',
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags($this->baseTags('set k1 v1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('set k1 v1')),
             SpanAssertion::build(
                 "RedisCluster.get",
                 'phpredis',
                 'redis',
                 "RedisCluster.get"
-            )->withExactTags($this->baseTags('get k1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('get k1')),
             SpanAssertion::build(
                 "RedisCluster.exec",
                 'phpredis',
                 'redis',
                 "RedisCluster.exec"
-            )->withExactTags($this->baseTags('exec')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('exec')),
         ]);
     }
 
@@ -1299,7 +1331,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags($this->baseTags($this->normalizeRawCommand($method, $rawCommand))),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($this->normalizeRawCommand($method, $rawCommand))),
         ]);
         $this->assertEquals($expectedResult, $result);
     }
@@ -1368,13 +1402,17 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.dump"
-            )->withExactTags($this->baseTags('dump k1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('dump k1')),
             SpanAssertion::build(
                 "RedisCluster.restore",
                 'phpredis',
                 'redis',
                 "RedisCluster.restore"
-            )->withExactTags($this->baseTags()),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags()),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
@@ -1411,7 +1449,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags($this->baseTags($rawCommand)),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags($rawCommand)),
         ]);
 
         if ($expectedResult === self::A_FLOAT) {
@@ -1486,7 +1526,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xAdd"
-            )->withExactTags($this->baseTags('xAdd s1 123-456 k1 v1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xAdd s1 123-456 k1 v1')),
         ]);
 
         // xGroup
@@ -1500,7 +1542,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xGroup"
-            )->withExactTags($this->baseTags('xGroup CREATE s1 group1 0')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xGroup CREATE s1 group1 0')),
         ]);
 
         // xInfo
@@ -1514,7 +1558,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xInfo"
-            )->withExactTags($this->baseTags('xInfo GROUPS s1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xInfo GROUPS s1')),
         ]);
 
         // xLen
@@ -1528,7 +1574,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xLen"
-            )->withExactTags($this->baseTags('xLen s1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xLen s1')),
         ]);
 
         // xPending
@@ -1542,7 +1590,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xPending"
-            )->withExactTags($this->baseTags('xPending s1 group1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xPending s1 group1')),
         ]);
 
         // xRange
@@ -1556,7 +1606,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xRange"
-            )->withExactTags($this->baseTags('xRange s1 - +')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xRange s1 - +')),
         ]);
 
         // xRevRange
@@ -1570,7 +1622,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xRevRange"
-            )->withExactTags($this->baseTags('xRevRange s1 + -')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xRevRange s1 + -')),
         ]);
 
         // xRead
@@ -1584,7 +1638,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xRead"
-            )->withExactTags($this->baseTags('xRead s1 $')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xRead s1 $')),
         ]);
 
         // xReadGroup
@@ -1598,7 +1654,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xReadGroup"
-            )->withExactTags($this->baseTags('xReadGroup group1 consumer1 s1 >')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xReadGroup group1 consumer1 s1 >')),
         ]);
 
         // xAck
@@ -1612,7 +1670,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xAck"
-            )->withExactTags($this->baseTags('xAck s1 group1 s1 123-456')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xAck s1 group1 s1 123-456')),
         ]);
 
         // xClaim
@@ -1626,7 +1686,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xClaim"
-            )->withExactTags($this->baseTags('xClaim s1 group1 consumer1 0 s1 123-456')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xClaim s1 group1 consumer1 0 s1 123-456')),
         ]);
 
         // xDel
@@ -1640,7 +1702,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xDel"
-            )->withExactTags($this->baseTags('xDel s1 123-456')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xDel s1 123-456')),
         ]);
 
         // xTrim
@@ -1654,7 +1718,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.xTrim"
-            )->withExactTags($this->baseTags('xTrim s1 0')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('xTrim s1 0')),
         ]);
     }
 
@@ -1672,14 +1738,14 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'redis',
                 "RedisCluster.set"
             )->withExactTags($this->baseTags())
-            ->withExistingTagsNames(['redis.raw_command']),
+            ->withExistingTagsNames(['redis.raw_command', '_dd.p.tid']),
             SpanAssertion::build(
                 "RedisCluster.get",
                 'phpredis',
                 'redis',
                 "RedisCluster.get"
             )->withExactTags($this->baseTags())
-            ->withExistingTagsNames(['redis.raw_command']),
+            ->withExistingTagsNames(['redis.raw_command', '_dd.p.tid']),
         ]);
     }
 
@@ -1698,14 +1764,14 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'redis',
                 "RedisCluster.set"
             )->withExactTags($this->baseTags())
-            ->withExistingTagsNames(['redis.raw_command']),
+            ->withExistingTagsNames(['redis.raw_command', '_dd.p.tid']),
             SpanAssertion::build(
                 "RedisCluster.get",
                 'phpredis',
                 'redis',
                 "RedisCluster.get"
             )->withExactTags($this->baseTags())
-            ->withExistingTagsNames(['redis.raw_command']),
+            ->withExistingTagsNames(['redis.raw_command', '_dd.p.tid']),
         ]);
     }
 
@@ -1786,13 +1852,17 @@ class PHPRedisClusterTest extends IntegrationTestCase
             )->withExactTags([
                 'out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
             SpanAssertion::build(
                 "RedisCluster.set",
                 'redis-cluster_name',
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags($this->baseTags('set key value', false, false), ['_dd.cluster.name' => 'cluster_name'])
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('set key value', false, false), ['_dd.cluster.name' => 'cluster_name'])
         ]);
 
         $redis->close();
@@ -1820,13 +1890,17 @@ class PHPRedisClusterTest extends IntegrationTestCase
             )->withExactTags([
                 'out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis',
+            ])->withExistingTagsNames([
+                '_dd.p.tid'
             ]),
             SpanAssertion::build(
                 "RedisCluster.set",
                 'redis-cluster_name',
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags($this->baseTags('set key value', false, false), ['_dd.cluster.name' => 'cluster_name'])
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('set key value', false, false), ['_dd.cluster.name' => 'cluster_name'])
         ]);
 
         $redis->close();
@@ -1852,13 +1926,17 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 $serviceName,
                 'redis',
                 "RedisCluster.__construct"
-            )->withExactTags($this->baseTags(null, false, false), ['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1]]),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags(null, false, false), ['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1]]),
             SpanAssertion::build(
                 "RedisCluster.set",
                 $serviceName,
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags($this->baseTags('set key value'))
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('set key value'))
         ]);
 
         $redis->close();

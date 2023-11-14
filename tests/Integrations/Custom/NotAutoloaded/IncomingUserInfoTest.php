@@ -37,6 +37,8 @@ final class IncomingUserInfoTest extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:' . self::PORT . '/',
                     'http.status_code' => 200,
+                ])->withExistingTagsNames([
+                    '_dd.p.tid'
                 ]),
             ]
         );

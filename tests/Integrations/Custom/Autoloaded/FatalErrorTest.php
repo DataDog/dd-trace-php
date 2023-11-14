@@ -44,7 +44,7 @@ final class FatalErrorTest extends WebFrameworkTestCase
                     'http.status_code' => '200',
                 ])
                 ->setError("E_ERROR", "Intentional E_ERROR")
-                ->withExistingTagsNames(['error.stack']),
+                ->withExistingTagsNames(['error.stack', '_dd.p.tid']),
             ]
         );
     }

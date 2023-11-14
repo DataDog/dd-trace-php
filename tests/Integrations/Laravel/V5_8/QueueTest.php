@@ -391,7 +391,8 @@ class QueueTest extends WebFrameworkTestCase
             $this->getCommonTags('receive', $queue, $connection)
         )->withExistingTagsNames([
             Tag::MQ_MESSAGE_ID,
-            '_dd.span_links'
+            '_dd.span_links',
+            '_dd.p.tid'
         ])->withChildren([
             $this->spanEventJobProcessing(),
             $this->spanQueueFire($connection, $queue, $resourceDetails)
