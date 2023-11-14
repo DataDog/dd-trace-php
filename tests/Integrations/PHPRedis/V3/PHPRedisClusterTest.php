@@ -1388,7 +1388,9 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.dump"
-            )->withExactTags($this->baseTags('dump k1')),
+            )->withExistingTagsNames([
+                '_dd.p.tid'
+            ])->withExactTags($this->baseTags('dump k1')),
             SpanAssertion::build(
                 "RedisCluster.restore",
                 'phpredis',

@@ -46,8 +46,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 'Slim\\Middleware\\ErrorMiddleware'
             )->withExactTags([
                 Tag::COMPONENT => 'slim'
-            ])->withExistingTagsNames([
-                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::build(
                     'slim.middleware',
@@ -78,8 +76,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 'Slim\\Middleware\\ErrorMiddleware'
             )->withExactTags([
                 Tag::COMPONENT => 'slim'
-            ])->withExistingTagsNames([
-                '_dd.p.tid'
             ])->withChildren([
                 SpanAssertion::build(
                     'slim.middleware',

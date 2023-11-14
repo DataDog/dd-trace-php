@@ -455,9 +455,7 @@ class SQLSRVTest extends IntegrationTestCase
                     array_merge(self::baseTags($query), [
                         '_dd.base_service' => 'phpunit',
                     ]))
-                ->withExistingTagsNames([
-                    '_dd.p.tid'
-                ]),
+                ,
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags($query), [
@@ -466,9 +464,6 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                ])
-                ->withExistingTagsNames([
-                    '_dd.p.tid'
                 ])
         ]);
     }
