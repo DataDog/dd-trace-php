@@ -136,7 +136,7 @@ namespace DDTrace {
         public function getDuration(): int {}
 
         /**
-         * @return int Get the start time of the span
+         * @return int Get the start time of the span, in nanoseconds
          */
         public function getStartTime(): int {}
 

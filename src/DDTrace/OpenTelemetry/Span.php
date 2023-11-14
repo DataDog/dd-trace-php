@@ -11,6 +11,7 @@ use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\Context\ContextInterface;
+use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
 use OpenTelemetry\SDK\Common\Time\ClockFactory;
@@ -43,11 +44,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /** @readonly */
     private InstrumentationScopeInterface $instrumentationScope;
 
-    private AttributesBuilderInterface $attributesBuilder;
     private StatusDataInterface $status;
-    private bool $hasEnded = false;
-    private string $initialOperationName = "";
-    private int $endEpochNanos = 0;
 
     private function __construct(
         SpanData $span,
@@ -56,8 +53,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         int $kind,
         API\SpanContextInterface $parentSpanContext,
         SpanProcessorInterface $spanProcessor,
-        ResourceInfo $resource,
-        AttributesBuilderInterface $attributesBuilder
+        ResourceInfo $resource
     ) {
         $this->span = $span;
         $this->context = $context;
@@ -66,7 +62,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->parentSpanContext = $parentSpanContext;
         $this->spanProcessor = $spanProcessor;
         $this->resource = $resource;
-        $this->attributesBuilder = $attributesBuilder;
 
         $this->status = StatusData::unset();
     }
@@ -98,10 +93,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         bool $isRemapped = true // Answers the question "Was the span created using the OTel API?"
     ): self {
         $attributes = $attributesBuilder->build()->toArray();
-        self::_setAttributes($span, $attributes); // Counts towards the attribute limit since it's derived from the builder
+        self::_setAttributes($span, $attributes);
 
         $resourceAttributes = $resource->getAttributes()->toArray();
-        self::_setAttributes($span, $resourceAttributes); // Doesn't count towards the attribute limit, and shouldn't - special case
+        self::_setAttributes($span, $resourceAttributes);
 
         if ($isRemapped || empty($span->name)) {
             // Since the span was created using the OTel API, it doesn't have an operation name*
@@ -118,8 +113,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $kind,
             $parentSpan->getContext(),
             $spanProcessor,
-            $resource,
-            $attributesBuilder
+            $resource
         );
 
         ObjectKVStore::put($span, 'otel_span', $OTelSpan);
@@ -155,7 +149,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     public function hasEnded(): bool
     {
-        return $this->hasEnded;
+        return $this->span->getDuration() !== 0;
     }
 
     /**
@@ -163,16 +157,20 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function toSpanData(): SpanDataInterface
     {
+        $hasEnded = $this->hasEnded();
+
+
+
         return new ImmutableSpan(
             $this,
             $this->getName(),
             [], // TODO: Handle Span Links
             [], // TODO: Handle Span Events
-            $this->attributesBuilder->build(),
+            Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
             0,
             StatusData::create($this->status->getCode(), $this->status->getDescription()),
-            $this->endEpochNanos,
-            $this->hasEnded
+            $hasEnded ? $this->span->getStartTime() + $this->span->getDuration() : 0,
+            $this->hasEnded()
         );
     }
 
@@ -181,9 +179,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getDuration(): int
     {
-        return $this->hasEnded
-            ? $this->span->getDuration()
-            : ClockFactory::getDefault()->now() - $this->span->getStartTime();
+        return $this->span->getDuration() ?: ClockFactory::getDefault()->now() - $this->span->getStartTime();
     }
 
     /**
@@ -199,7 +195,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getAttribute(string $key)
     {
-        return $this->attributesBuilder[$key];
+        return $this->span->meta[$key] ?? ($this->span->metrics[$key] ?? null);
     }
 
     public function getStartEpochNanos(): int
@@ -222,22 +218,31 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function isRecording(): bool
     {
-        return !$this->hasEnded;
+        return !$this->hasEnded();
+    }
+
+    private static function _setAttribute(SpanData $span, string $key, $value): void
+    {
+        if ($value === null && isset($span->meta[$key])) {
+            unset($span->meta[$key]);
+        } elseif ($value === null && isset($span->metrics[$key])) {
+            unset($span->metrics[$key]);
+        } elseif (strpos($key, '_dd.p.') === 0) {
+            $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
+            \DDTrace\add_distributed_tag($distributedKey, $value);
+        } elseif (is_float($value)
+            || is_int($value)
+            || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
+            $span->metrics[$key] = $value;
+        } else {
+            $span->meta[$key] = $value;
+        }
     }
 
     private static function _setAttributes(SpanData $span, iterable $attributes): void
     {
         foreach ($attributes as $key => $value) {
-            if (strpos($key, '_dd.p.') === 0) {
-                $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
-                \DDTrace\add_distributed_tag($distributedKey, $value);
-            } elseif (is_float($value)
-                || is_int($value)
-                || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
-                $span->metrics[$key] = $value;
-            } else {
-                $span->meta[$key] = $value;
-            }
+            self::_setAttribute($span, $key, $value);
         }
     }
 
@@ -246,21 +251,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function setAttribute(string $key, $value): SpanInterface
     {
-        if (!$this->hasEnded) {
-            $this->attributesBuilder[$key] = $value;
-            if ($this->attributesBuilder[$key] !== null || $value === null) {
-                // The key-value pair was set - i.e., we don't set a tag on the span if the attribute count limit was hit
-                if (strpos($key, '_dd.p.') === 0) {
-                    $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
-                    \DDTrace\add_distributed_tag($distributedKey, $value);
-                } elseif (is_float($value)
-                    || is_int($value)
-                    || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
-                    $this->span->metrics[$key] = $value;
-                } else {
-                    $this->span->meta[$key] = $value;
-                }
-            }
+        if (!$this->hasEnded()) {
+            self::_setAttribute($this->span, $key, $value);
         }
 
         return $this;
@@ -271,8 +263,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function setAttributes(iterable $attributes): SpanInterface
     {
-        foreach ($attributes as $key => $value) {
-            $this->setAttribute($key, $value);
+        if (!$this->hasEnded()) {
+            foreach ($attributes as $key => $value) {
+                $this->setAttribute($key, $value);
+            }
         }
 
         return $this;
@@ -292,7 +286,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function recordException(Throwable $exception, iterable $attributes = []): SpanInterface
     {
-        if (!$this->hasEnded) {
+        if (!$this->hasEnded()) {
             $this->span->meta[Tag::ERROR_MSG] = $exception->getMessage();
             $this->span->meta[Tag::ERROR_TYPE] = get_class($exception);
             $this->span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
@@ -307,7 +301,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function updateName(string $name): SpanInterface
     {
         // OTel.name => DD.resource
-        if (!$this->hasEnded) {
+        if (!$this->hasEnded()) {
             $this->span->resource = $name;
         }
 
@@ -319,7 +313,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function setStatus(string $code, string $description = null): SpanInterface
     {
-        if ($this->hasEnded) {
+        if ($this->hasEnded()) {
             return $this;
         }
 
@@ -335,15 +329,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         if ($this->status->getCode() === API\StatusCode::STATUS_UNSET && $code === API\StatusCode::STATUS_ERROR) {
             $this->span->meta[Tag::ERROR_MSG] = $description;
-            $this->attributesBuilder[Tag::ERROR_MSG] = $description;
         } elseif ($this->status->getCode() === API\StatusCode::STATUS_ERROR && $code === API\StatusCode::STATUS_OK) {
             unset($this->span->meta[Tag::ERROR_MSG]);
             unset($this->span->meta[Tag::ERROR_TYPE]);
             unset($this->span->meta[Tag::ERROR_STACK]);
-
-            unset($this->attributesBuilder[Tag::ERROR_MSG]);
-            unset($this->attributesBuilder[Tag::ERROR_TYPE]);
-            unset($this->attributesBuilder[Tag::ERROR_STACK]);
         }
 
         $this->status = StatusData::create($code, $description);
@@ -356,7 +345,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function end(int $endEpochNanos = null): void
     {
-        if ($this->hasEnded) {
+        if ($this->hasEnded()) {
             return;
         }
 
@@ -364,19 +353,13 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         switch_stack($this->span);
         close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
-        if ($this->span->getDuration() === 0) {
-            $this->hasEnded = false;
-        }
     }
 
     public function endOTelSpan(int $endEpochNanos = null): void
     {
-        if ($this->hasEnded) {
+        if ($this->hasEnded()) {
             return;
         }
-
-        $attributes = $this->attributesBuilder->build()->toArray();
-        self::_setAttributes($this->span, $attributes);
 
         if (empty($this->span->name)) { // Honor set operation name
             $this->span->name = Convention::defaultOperationName($this->span);
@@ -390,10 +373,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $this->context->getTraceState()
         );
 
-        $this->endEpochNanos = $endEpochNanos ?? ClockFactory::getDefault()->now();
-
-        $this->hasEnded = true;
-
         $this->spanProcessor->onEnd($this);
     }
 
@@ -402,6 +381,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         return $this->resource;
     }
 
+    /**
+     * @internal
+     * @return SpanData
+     */
     public function getDDSpan(): SpanData
     {
         return $this->span;

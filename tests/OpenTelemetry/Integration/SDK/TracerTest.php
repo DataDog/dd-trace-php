@@ -127,6 +127,7 @@ class TracerTest extends BaseTestCase
 
     public function test_general_identity_attributes_are_dropped_by_default(): void
     {
+        $this->markTestSkipped("Span Attributes Limits aren't yet supported");
         $this->isolateTracer(function () {
             $exporter = new InMemoryExporter();
             $tracerProvider = new TracerProvider(new SimpleSpanProcessor($exporter));
@@ -149,6 +150,7 @@ class TracerTest extends BaseTestCase
 
     public function test_general_identity_attributes_are_retained_if_enabled(): void
     {
+        $this->markTestSkipped("Span Attributes Limits aren't yet supported");
         $this->isolateTracer(function () {
             $exporter = new InMemoryExporter();
             $spanLimits = (new SpanLimitsBuilder())

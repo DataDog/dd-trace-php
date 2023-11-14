@@ -844,4 +844,73 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('new.span.type', $span['type']);
         $this->assertEquals(1.0, $span['metrics']['_dd1.sr.eausr']);
     }
+
+    public function testHasEnded()
+    {
+        $this->isolateTracer(function () {
+            start_span();
+            $otelSpan = Span::getCurrent();
+            close_span();
+            $this->assertTrue($otelSpan->hasEnded());
+        });
+    }
+
+    public function testAttributesInteroperability()
+    {
+        $traces = $this->isolateTracer(function () {
+            $span = start_span();
+            $span->name = "dd.span";
+            /** @var \OpenTelemetry\SDK\Trace\Span $otelSpan */
+            $span->meta['arg1'] = 'value1';
+            $span->meta['arg2'] = 'value2';
+            $otelSpan = Span::getCurrent();
+            $otelSpan->setAttribute('arg5', 'value5');
+            $otelSpan->setAttribute('arg6', 'value6');
+            $otelSpan->setAttribute('m1', 1);
+            $span->metrics['m2'] = 2;
+            unset($span->meta['arg1']); // Removes the arg1 -> value1 pair
+            $this->assertNull($otelSpan->getAttribute('arg1'));
+            $span->meta['arg3'] = 'value3';
+            $otelSpan->setAttribute('key', 'value');
+            $otelSpan->setAttribute('arg5', null); // Removes the arg5 -> value5 pair
+            close_span(); // Not flushed, yet
+            $span->meta['arg4'] = 'value4'; // Added
+            $otelSpan->setAttribute('post', 'val'); // Not Added (purposely)
+
+            $this->assertTrue($otelSpan->hasEnded());
+            $currentTime = (int) (microtime(true) * 1e9);
+            $this->assertNotEquals(0, $otelSpan->toSpanData()->getEndEpochNanos());
+            $this->assertLessThanOrEqual($currentTime, $otelSpan->toSpanData()->getEndEpochNanos());
+
+            $attributes = $otelSpan->toSpanData()->getAttributes()->toArray();
+            $this->assertArrayNotHasKey('arg1', $attributes);
+            $this->assertSame('value2', $attributes['arg2']);
+            $this->assertSame('value3', $attributes['arg3']);
+            $this->assertSame('value4', $attributes['arg4']);
+            $this->assertArrayNotHasKey('arg5', $attributes);
+            $this->assertSame('value6', $attributes['arg6']);
+            $this->assertSame('value', $attributes['key']);
+            $this->assertArrayNotHasKey('post', $attributes);
+
+            $this->assertEquals(1, $attributes['m1']);
+            $this->assertEquals(2, $attributes['m2']);
+        });
+
+        $this->assertCount(1, $traces[0]);
+
+        $meta = $traces[0][0]['meta'];
+        $this->assertArrayNotHasKey('arg1', $meta);
+        $this->assertSame('value2', $meta['arg2']);
+        $this->assertSame('value3', $meta['arg3']);
+        $this->assertSame('value4', $meta['arg4']);
+        $this->assertArrayNotHasKey('arg5', $meta);
+        $this->assertSame('value6', $meta['arg6']);
+        $this->assertSame('value', $meta['key']);
+        $this->assertArrayNotHasKey('post', $meta);
+
+        $this->assertEquals(1, $traces[0][0]['metrics']['m1']);
+        $this->assertEquals(2, $traces[0][0]['metrics']['m2']);
+    }
+
+
 }
