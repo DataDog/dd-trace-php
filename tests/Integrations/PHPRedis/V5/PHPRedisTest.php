@@ -2451,6 +2451,6 @@ class PHPRedisTest extends IntegrationTestCase
                 "Redis.save"
             )->withExactTags([Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis', Tag::TARGET_HOST => $this->host]),
-        ], true, false);
+        ]);
     }
 }

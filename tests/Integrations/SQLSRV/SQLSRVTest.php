@@ -450,7 +450,7 @@ class SQLSRVTest extends IntegrationTestCase
                     '_dd.rule_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
-        ], true, false);
+        ]);
     }
 
     private function createConnection()

@@ -474,6 +474,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
-        ], false);
+        ]);
     }
 }
