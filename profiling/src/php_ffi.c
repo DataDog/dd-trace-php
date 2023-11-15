@@ -75,7 +75,7 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 static bool _ignore_run_time_cache = false;
 #endif
 
-#if PHP_VERSION_ID >= 70400 && PHP_VERSION_ID < 80100
+#if PHP_VERSION_ID >= 70400
 /* The purpose here is to set the opline, because these versions are missing a
  * SAVE_OPLINE() and it causes a crash for the allocation profiler, see:
  * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
@@ -89,7 +89,7 @@ static zend_result ddog_php_prof_opcode_dispatch(zend_execute_data *execute_data
 #endif
 
 static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
-#if PHP_VERSION_ID < 70400 || PHP_VERSION_ID >= 80100
+#if PHP_VERSION_ID < 70400
     (void)php_version_id;
 #else
 
@@ -97,6 +97,7 @@ static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
      * `ddog_php_prof_opcode_dispatch`.
      */
 
+#if PHP_VERSION_ID < 80100
     /* Issue is fixed in 8.0.26:
      * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
      * But the tracer installed a handler for ZEND_GENERATOR_CREATE on PHP 7,
@@ -106,12 +107,15 @@ static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
         user_opcode_handler_t handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
         zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, handler);
     }
+#endif
 
-    /* Issue is fixed in 8.0.12:
+    /* Part of the issue was fixed in 8.0.12:
      * https://github.com/php/php-src/commit/ec54ffad1e3b15fedfd07f7d29d97ec3e8d1c45a
-     * The tracer didn't save us here. Fortunately, throwing destru
+     * The tracer didn't save us here. Also the fix introduced in 8.0.12 is not
+     * complete, as there is a `zend_array_dup()` call before the
+     * `SAVE_OPLINE()` which crashes
      */
-    if (php_version_id < 80012 && zend_get_user_opcode_handler(ZEND_BIND_STATIC) == NULL) {
+    if (zend_get_user_opcode_handler(ZEND_BIND_STATIC) == NULL) {
         user_opcode_handler_t handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
         zend_set_user_opcode_handler(ZEND_BIND_STATIC, handler);
     }
