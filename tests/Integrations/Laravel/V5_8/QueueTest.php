@@ -136,6 +136,13 @@ class QueueTest extends WebFrameworkTestCase
         $hexProcessTraceId = str_pad(self::largeBaseConvert($processTraceId, 10, 16), 16, '0', STR_PAD_LEFT);
         $hexProcessSpanId = str_pad(self::largeBaseConvert($processSpanId, 10, 16), 16, '0', STR_PAD_LEFT);
 
+        print("spanLinksTraceId: " . $spanLinksTraceId . "\n");
+        print("tid: " . $tid . "\n");
+        print("hexProcessTraceId: " . $hexProcessTraceId . "\n");
+        print("hexProcessSpanId: " . $hexProcessSpanId . "\n");
+        print("processTraceId: " . $processTraceId . "\n");
+        print("processSpanId: " . $processSpanId . "\n");
+
         $this->assertTrue($spanLinksTraceId == $tid . $hexProcessTraceId);
         $this->assertTrue($spanLinksSpanId == $hexProcessSpanId);
 
