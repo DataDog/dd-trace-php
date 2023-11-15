@@ -881,6 +881,11 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    if (DDTRACE_G(agent_rate_by_service)) {
+        zai_json_release_persistent_array(DDTRACE_G(agent_rate_by_service));
+        DDTRACE_G(agent_rate_by_service) = NULL;
+    }
+
     ddtrace_integrations_mshutdown();
 
     ddtrace_signals_mshutdown();
@@ -1090,11 +1095,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         dd_force_shutdown_tracing();
     } else if (!DDTRACE_G(disable)) {
         dd_shutdown_hooks_and_observer();
-    }
-
-    if (DDTRACE_G(agent_rate_by_service)) {
-        zend_array_release(DDTRACE_G(agent_rate_by_service));
-        DDTRACE_G(agent_rate_by_service) = NULL;
     }
 
     if (!DDTRACE_G(disable)) {

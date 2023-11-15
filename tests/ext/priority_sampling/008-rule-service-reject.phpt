@@ -16,7 +16,7 @@ $root->service = "barservice";
 
 \DDTrace\get_priority_sampling();
 
-if ($root->metrics["_dd.rule_psr"] != 0.3) {
+if (($root->metrics["_dd.rule_psr"] ?? 0) != 0.3 && $root->metrics["_dd.agent_psr"] == 1) {
     echo "Rule OK\n";
 } else {
     var_dump($root->metrics);
@@ -25,4 +25,4 @@ echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
 ?>
 --EXPECT--
 Rule OK
-_dd.p.dm = -1
+_dd.p.dm = -0

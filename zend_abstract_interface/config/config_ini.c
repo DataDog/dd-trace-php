@@ -1,4 +1,5 @@
 #include "config_ini.h"
+#include <json/json.h>
 
 #include <SAPI.h>
 #include <assert.h>
@@ -61,7 +62,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
                 if (!zai_config_decode_value(ZAI_STR_FROM_ZSTR(ini_str), memoized->type, memoized->parser, &new_zv, true)) {
                     continue;
                 }
-                zai_config_dtor_pzval(&new_zv);
+                zai_json_dtor_pzval(&new_zv);
 
                 parsed_ini_value = zend_string_copy(ini_str);
                 name_index = i;
@@ -85,7 +86,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
             if (!zai_config_decode_value(ZAI_STR_FROM_ZSTR(Z_STR_P(inizv)), memoized->type, memoized->parser, &new_zv, true)) {
                 continue;
             }
-            zai_config_dtor_pzval(&new_zv);
+            zai_json_dtor_pzval(&new_zv);
 
             parsed_ini_value = zend_string_copy(Z_STR_P(inizv));
             name_index = i;
@@ -185,7 +186,7 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     /* Ignore calls that happen before runtime (e.g. the default INI values on MINIT). System values are obtained on
      * first-time RINIT. */
     if (global_stage) {
-        zai_config_dtor_pzval(&new_zv);
+        zai_json_dtor_pzval(&new_zv);
         return SUCCESS;
     }
 
@@ -254,7 +255,7 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
 
             // This should never fail, ideally, as all usages should validate the same way, but at least not crash, just don't accept the value then
             if (zai_config_decode_value(value_view, memoized->type, memoized->parser, &decoded, 1)) {
-                zai_config_dtor_pzval(&memoized->decoded_value);
+                zai_json_dtor_pzval(&memoized->decoded_value);
                 ZVAL_COPY_VALUE(&memoized->decoded_value, &decoded);
             }
         }

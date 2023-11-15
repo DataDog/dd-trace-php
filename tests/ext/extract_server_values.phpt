@@ -28,7 +28,7 @@ array(4) {
   ["http.request.headers.0"]=>
   string(16) "http_zero_header"
   ["_dd.p.dm"]=>
-  string(2) "-1"
+  string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
 }
