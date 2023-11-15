@@ -1,8 +1,10 @@
-use crate::bindings as zend;
-use crate::zend::{zai_str_from_zstr, zend_get_executed_filename_ex, InternalFunctionHandler};
+use crate::zend::{
+    self, zai_str_from_zstr, zend_execute_data, zend_get_executed_filename_ex, zval,
+    InternalFunctionHandler,
+};
 use crate::{PROFILER, REQUEST_LOCALS};
 use libc::c_char;
-use log::{error, trace};
+use log::{error, trace, warn};
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
@@ -29,132 +31,101 @@ thread_local! {
     static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
 }
 
-/// Wrapping the PHP `sleep()` function to take the time it is blocking the current thread
-unsafe extern "C" fn php_sleep(
-    execute_data: *mut zend::zend_execute_data,
-    return_value: *mut zend::zval,
-) {
+#[inline]
+fn try_sleeping_fn(
+    func: unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval),
+    execute_data: *mut zend_execute_data,
+    return_value: *mut zval,
+) -> anyhow::Result<()> {
     let start = Instant::now();
 
-    if let Some(func) = SLEEP_HANDLER {
-        func(execute_data, return_value);
-    }
+    // SAFETY: simple forwarding to original func with original args.
+    unsafe { func(execute_data, return_value) };
 
     let duration = start.elapsed();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH);
 
+    // > Returns an Err if earlier is later than self, and the error contains
+    // > how far from self the time is.
+    // This shouldn't ever happen (now is always later than the epoch) but in
+    // case it does, short-circuit the function.
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?;
+
+    // Consciously not holding request locals/profiler during the forwarded
+    // call. If they are, then it's possible to get a deadlock/bad borrow
+    // because the call triggers something to happen like a time/allocation
+    // sample and the extension tries to re-acquire these.
     REQUEST_LOCALS.with(|cell| {
         // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
-            return;
-        };
+        let locals = cell.try_borrow()?;
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            profiler.collect_idle(
-                // Safety: checked for `is_err()` above
-                now.unwrap().as_nanos() as i64,
-                duration.as_nanos() as i64,
-                "sleeping",
-                &locals,
-            );
+        match PROFILER.lock() {
+            Ok(guard) => match guard.as_ref() {
+                Some(profiler) => profiler.collect_idle(
+                    now.as_nanos() as i64,
+                    duration.as_nanos() as i64,
+                    "sleeping",
+                    &locals,
+                ),
+                None => { /* Profiling is probably disabled, no worries */ }
+            },
+            Err(err) => anyhow::bail!("profiler mutex: {err:#}"),
         }
-    });
+        Ok(())
+    })
+}
+
+fn sleeping_fn(
+    func: unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval),
+    execute_data: *mut zend_execute_data,
+    return_value: *mut zval,
+) {
+    if let Err(err) = try_sleeping_fn(func, execute_data, return_value) {
+        warn!("error creating profiling timeline sample for an internal function: {err:#}");
+    }
+}
+
+/// Wrapping the PHP `sleep()` function to take the time it is blocking the current thread
+#[no_mangle]
+unsafe extern "C" fn ddog_php_prof_sleep(
+    execute_data: *mut zend_execute_data,
+    return_value: *mut zval,
+) {
+    if let Some(func) = SLEEP_HANDLER {
+        sleeping_fn(func, execute_data, return_value)
+    }
 }
 
 /// Wrapping the PHP `usleep()` function to take the time it is blocking the current thread
-unsafe extern "C" fn php_usleep(
-    execute_data: *mut zend::zend_execute_data,
-    return_value: *mut zend::zval,
+#[no_mangle]
+unsafe extern "C" fn ddog_php_prof_usleep(
+    execute_data: *mut zend_execute_data,
+    return_value: *mut zval,
 ) {
-    let start = Instant::now();
-
     if let Some(func) = USLEEP_HANDLER {
-        func(execute_data, return_value);
+        sleeping_fn(func, execute_data, return_value)
     }
-
-    let duration = start.elapsed();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH);
-
-    REQUEST_LOCALS.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
-            return;
-        };
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            profiler.collect_idle(
-                // Safety: checked for `is_err()` above
-                now.unwrap().as_nanos() as i64,
-                duration.as_nanos() as i64,
-                "sleeping",
-                &locals,
-            );
-        }
-    });
 }
 
 /// Wrapping the PHP `time_nanosleep()` function to take the time it is blocking the current thread
-unsafe extern "C" fn php_time_nanosleep(
-    execute_data: *mut zend::zend_execute_data,
-    return_value: *mut zend::zval,
+#[no_mangle]
+unsafe extern "C" fn ddog_php_prof_time_nanosleep(
+    execute_data: *mut zend_execute_data,
+    return_value: *mut zval,
 ) {
-    let start = Instant::now();
-
     if let Some(func) = TIME_NANOSLEEP_HANDLER {
-        func(execute_data, return_value);
+        sleeping_fn(func, execute_data, return_value)
     }
-
-    let duration = start.elapsed();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH);
-
-    REQUEST_LOCALS.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
-            return;
-        };
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            profiler.collect_idle(
-                // Safety: checked for `is_err()` above
-                now.unwrap().as_nanos() as i64,
-                duration.as_nanos() as i64,
-                "sleeping",
-                &locals,
-            );
-        }
-    });
 }
 
 /// Wrapping the PHP `time_sleep_until()` function to take the time it is blocking the current thread
-unsafe extern "C" fn php_time_sleep_until(
-    execute_data: *mut zend::zend_execute_data,
-    return_value: *mut zend::zval,
+#[no_mangle]
+unsafe extern "C" fn ddog_php_prof_time_sleep_until(
+    execute_data: *mut zend_execute_data,
+    return_value: *mut zval,
 ) {
-    let start = Instant::now();
-
     if let Some(func) = TIME_SLEEP_UNTIL_HANDLER {
-        func(execute_data, return_value);
+        sleeping_fn(func, execute_data, return_value)
     }
-
-    let duration = start.elapsed();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH);
-
-    REQUEST_LOCALS.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
-            return;
-        };
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            profiler.collect_idle(
-                // Safety: checked for `is_err()` above
-                now.unwrap().as_nanos() as i64,
-                duration.as_nanos() as i64,
-                "sleeping",
-                &locals,
-            );
-        }
-    });
 }
 
 /// This functions needs to be called in MINIT of the module
@@ -181,22 +152,22 @@ pub unsafe fn timeline_startup() {
         zend::datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"sleep\0"),
             &mut SLEEP_HANDLER,
-            Some(php_sleep),
+            Some(ddog_php_prof_sleep),
         ),
         zend::datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"usleep\0"),
             &mut USLEEP_HANDLER,
-            Some(php_usleep),
+            Some(ddog_php_prof_usleep),
         ),
         zend::datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"time_nanosleep\0"),
             &mut TIME_NANOSLEEP_HANDLER,
-            Some(php_time_nanosleep),
+            Some(ddog_php_prof_time_nanosleep),
         ),
         zend::datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"time_sleep_until\0"),
             &mut TIME_SLEEP_UNTIL_HANDLER,
-            Some(php_time_sleep_until),
+            Some(ddog_php_prof_time_sleep_until),
         ),
     ];
 
