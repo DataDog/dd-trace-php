@@ -62,7 +62,7 @@ final class AMQPTest extends IntegrationTestCase
             $callback = function () use (&$receivedMessage) {
                 $receivedMessage = true;
             };
-            $consumerChannel->basic_consume('hello', '', false, true, false, false, $callback);
+            $consumerChannel->basic_consume('hello', '', false, false, $callback);
 
             $producerConnection = $this->connectionToServer();
             $producerChannel = $producerConnection->channel();
@@ -226,7 +226,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_CONSUMER_ID,
                 '_dd.span_links'
             ])
-        ], true, false);
+        ]);
 
         $this->assertTrue($receivedMessage);
     }
@@ -482,7 +482,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_CONSUMER_ID,
                 '_dd.span_links'
             ])
-        ], true, false);
+        ]);
 
         $this->assertTrue($receivedMessage);
     }
@@ -589,7 +589,7 @@ final class AMQPTest extends IntegrationTestCase
                     Tag::MQ_PROTOCOL_VERSION    => AMQPChannel::getProtocolVersion(),
                 ])
             ]),
-        ], true, false);
+        ]);
     }
 
     public function testPublishOnClosedChannel()
@@ -661,7 +661,7 @@ final class AMQPTest extends IntegrationTestCase
             )->withExistingTagsNames([
                 Tag::ERROR_STACK
             ])
-        ], true, false);
+        ]);
     }
 
     public function testReconnect()
@@ -732,7 +732,7 @@ final class AMQPTest extends IntegrationTestCase
                     Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
                 ])
             ])
-        ], true, false);
+        ]);
     }
 
     public function testBasicGet()
@@ -867,7 +867,7 @@ final class AMQPTest extends IntegrationTestCase
                 Tag::MQ_PROTOCOL                => 'AMQP',
                 Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion()
             ]),
-        ], true, false);
+        ]);
     }
 
     public function testDistributedTracing()

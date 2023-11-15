@@ -21,6 +21,8 @@ function array_filter_by_key($fn, array $input)
  */
 final class SpanChecker
 {
+    const DEFAULTS_ATTRIBUTES = ['_dd.p.tid'];
+
     /**
      * Asserts a flame graph with parent child relations.
      *
@@ -31,9 +33,8 @@ final class SpanChecker
     public function assertFlameGraph(array $traces, array $expectedFlameGraph, bool $assertExactCount = true, bool $applyDefaults = true)
     {
         if ($applyDefaults) {
-            $defaults = ['_dd.p.tid'];
             foreach ($expectedFlameGraph as $spanAssertion) {
-                $spanAssertion->withExistingTagsNames($defaults);
+                $spanAssertion->withExistingTagsNames(self::DEFAULTS_ATTRIBUTES);
             }
         }
 
@@ -335,9 +336,16 @@ final class SpanChecker
      *
      * @param $traces
      * @param SpanAssertion[] $expectedSpans
+     * @param bool $applyDefaults
      */
-    public function assertSpans($traces, $expectedSpans)
+    public function assertSpans($traces, $expectedSpans, $applyDefaults = true)
     {
+        if ($applyDefaults) {
+            foreach ($expectedSpans as $spanAssertion) {
+                $spanAssertion->withExistingTagsNames(self::DEFAULTS_ATTRIBUTES);
+            }
+        }
+
         $flattenTraces = $this->flattenTraces($traces);
         // The sandbox API pops closed spans off a stack so spans will be in reverse order
         $flattenTraces = array_reverse($flattenTraces);

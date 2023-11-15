@@ -14,9 +14,9 @@ trait SpanAssertionTrait
      * @param SpanAssertion[] $expectedSpans
      * @param bool $isSandbox
      */
-    public function assertExpectedSpans($traces, $expectedSpans, $isSandbox = false)
+    public function assertExpectedSpans($traces, $expectedSpans, $applyDefaults = true)
     {
-        (new SpanChecker())->assertSpans($traces, $expectedSpans, $isSandbox);
+        (new SpanChecker())->assertSpans($traces, $expectedSpans, $applyDefaults);
     }
 
     /**
