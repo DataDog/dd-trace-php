@@ -1976,7 +1976,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'redis',
                 "RedisCluster.mSetNx"
             )->withExactTags($this->baseTags('mSetNx k1 v1 k2 v2')),
-        ]);
+        ], true, false);
     }
 
     private function invokeInIsolatedTracerWithArgs($method, $args, &$result = null)

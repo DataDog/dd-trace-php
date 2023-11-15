@@ -603,7 +603,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
-        ]);
+        ], true, false);
     }
 
     private function baseTags($expectDbName = true, $expectPeerService = false)

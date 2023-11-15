@@ -344,6 +344,6 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.command' => 'add',
                     Tag::SPAN_KIND => 'client',
                 ]))
-        ]);
+        ], false);
     }
 }
