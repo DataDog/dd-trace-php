@@ -62,7 +62,7 @@ final class AMQPTest extends IntegrationTestCase
             $callback = function () use (&$receivedMessage) {
                 $receivedMessage = true;
             };
-            $consumerChannel->basic_consume('hello', '', false, false, $callback);
+            $consumerChannel->basic_consume('hello', '', false, true, false, false, $callback);
 
             $producerConnection = $this->connectionToServer();
             $producerChannel = $producerConnection->channel();
