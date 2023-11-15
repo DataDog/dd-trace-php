@@ -57,7 +57,7 @@ final class CurrentContextAccessTest extends IntegrationTestCase
         $tid = $trace[0]['meta']['_dd.p.tid'];
         $this->assertNotEquals(0, $traceId);
 
-        $traceIdHex = self::largeBaseConvert($traceId, 10, 16);
+        $traceIdHex = str_pad(self::largeBaseConvert($traceId, 10, 16), 16, '0', STR_PAD_LEFT);
 
         foreach ($trace as $span) {
             $spanId = $span['span_id'];
