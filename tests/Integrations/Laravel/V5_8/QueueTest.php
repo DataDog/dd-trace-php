@@ -121,8 +121,8 @@ class QueueTest extends WebFrameworkTestCase
 
         $spanLinks = $processSpanFromArtisanTrace['meta']['_dd.span_links'];
         $spanLinks = json_decode($spanLinks, true)[0];
-        $spanLinksTraceId = ltrim($spanLinks['trace_id'], '0');
-        $spanLinksSpanId = ltrim($spanLinks['span_id'], '0');
+        $spanLinksTraceId = $spanLinks['trace_id'];
+        $spanLinksSpanId = $spanLinks['span_id'];
 
         $processSpanFromProcessTrace = array_filter($processTrace1[0], function ($span) {
             return $span['name'] === 'laravel.queue.process';
