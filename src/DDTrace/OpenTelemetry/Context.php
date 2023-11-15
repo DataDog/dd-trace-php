@@ -16,7 +16,6 @@ use OpenTelemetry\SDK\Trace as SDK;
 use OpenTelemetry\SDK\Trace\SpanProcessor\NoopSpanProcessor;
 use function DDTrace\active_span;
 use function DDTrace\generate_distributed_tracing_headers;
-use function DDTrace\trace_id;
 use function spl_object_id;
 
 /**

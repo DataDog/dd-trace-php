@@ -17,11 +17,7 @@ use OpenTelemetry\SDK\Logs\Processor\SimpleLogRecordProcessor;
 use OpenTelemetry\SDK\Logs\ReadWriteLogRecord;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\TracerProvider;
-use PHPUnit\Framework\TestCase;
 use function DDTrace\active_span;
-use function DDTrace\close_span;
-use function DDTrace\start_span;
-use function DDTrace\trace_id;
 
 class HandlerTest extends IntegrationTestCase
 {

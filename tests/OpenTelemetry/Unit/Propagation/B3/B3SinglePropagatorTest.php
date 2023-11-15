@@ -15,8 +15,6 @@ use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\Extension\Propagator\B3\B3DebugFlagContextKey;
 use OpenTelemetry\Extension\Propagator\B3\B3SinglePropagator;
 use OpenTelemetry\SDK\Trace\Span;
-use PHPUnit\Framework\TestCase;
-use function DDTrace\active_span;
 
 /**
  * @covers \OpenTelemetry\Extension\Propagator\B3\B3SinglePropagator

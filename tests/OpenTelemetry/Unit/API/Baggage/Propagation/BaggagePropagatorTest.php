@@ -12,7 +12,6 @@ use OpenTelemetry\API\Baggage\Propagation\BaggagePropagator;
 use OpenTelemetry\API\Baggage\Propagation\Parser;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextStorage;
-use PHPUnit\Framework\TestCase;
 
 /**
  * @covers \OpenTelemetry\API\Baggage\Propagation\BaggagePropagator

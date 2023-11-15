@@ -16,7 +16,6 @@ use OpenTelemetry\Extension\Propagator\B3\B3MultiPropagator;
 use OpenTelemetry\Extension\Propagator\B3\B3Propagator;
 use OpenTelemetry\Extension\Propagator\B3\B3SinglePropagator;
 use OpenTelemetry\SDK\Trace\Span;
-use PHPUnit\Framework\TestCase;
 
 /**
  * @covers \OpenTelemetry\Extension\Propagator\B3\B3Propagator

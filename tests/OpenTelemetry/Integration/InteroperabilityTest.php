@@ -2,8 +2,6 @@
 
 namespace DDTrace\Tests\OpenTelemetry\Integration;
 
-use DDTrace\HookData;
-use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -11,7 +9,6 @@ use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;
 use Fiber;
 use OpenTelemetry\API\Baggage\Baggage;
-use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
@@ -20,7 +17,6 @@ use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\Extension\Propagator\B3\B3Propagator;
-use OpenTelemetry\SDK\Sdk;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 use function DDTrace\active_span;
@@ -28,7 +24,6 @@ use function DDTrace\close_span;
 use function DDTrace\close_spans_until;
 use function DDTrace\start_span;
 use function DDTrace\start_trace_span;
-use function DDTrace\trace_id;
 
 final class InteroperabilityTest extends BaseTestCase
 {
