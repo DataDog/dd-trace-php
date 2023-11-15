@@ -52,6 +52,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
+                        'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withChildren([
@@ -77,6 +78,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                        'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withChildren([
@@ -111,6 +113,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
+                        'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withExistingTagsNames([
@@ -140,6 +143,32 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         ]),
                     ]),
                 ],
+                'A GET request to a route with a parameter' => [
+                    SpanAssertion::build(
+                        'cakephp.request',
+                        'cakephp_test_app',
+                        'web',
+                        'GET ParameterizedController@customAction'
+                    )->withExactTags([
+                        'cakephp.route.controller' => 'Parameterized',
+                        'cakephp.route.action' => 'index',
+                        'http.method' => 'GET',
+                        'http.url' => 'http://localhost:9999/parameterized/paramValue',
+                        'http.status_code' => '200',
+                        'http.route' => '/parameterized/:param',
+                        Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'cakephp',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'Controller.invokeAction',
+                            'cakephp_test_app',
+                            'web',
+                            'Controller.invokeAction'
+                        )->withExactTags([
+                            Tag::COMPONENT => 'cakephp',
+                        ])
+                    ]),
+                ]
             ]
         );
     }
