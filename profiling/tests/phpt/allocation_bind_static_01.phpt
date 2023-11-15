@@ -18,6 +18,8 @@ TODO: note that this probably will not fail, because we have to take a sample
 at exactly the right time, and currently we don't have a way to force this.
 --SKIPIF--
 <?php
+if (PHP_VERSION_ID < 70400)
+    echo "skip: test requires typed properties", PHP_EOL;
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires datadog-profiling", PHP_EOL;
 ?>
