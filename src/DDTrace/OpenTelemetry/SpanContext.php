@@ -13,7 +13,6 @@ use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\API\Trace\TraceStateInterface;
 use function DDTrace\generate_distributed_tracing_headers;
-use function DDTrace\trace_id;
 
 final class SpanContext implements SpanContextInterface
 {

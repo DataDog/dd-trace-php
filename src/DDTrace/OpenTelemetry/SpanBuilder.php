@@ -11,13 +11,10 @@ use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Trace\SpanBuilderInterface;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
-use OpenTelemetry\API\Trace\TraceFlags;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
-
-use function DDTrace\trace_id;
 
 final class SpanBuilder implements API\SpanBuilderInterface
 {
@@ -190,7 +187,6 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $attributesBuilder,
             $this->links,
             0,
-            $this->startEpochNanos
         );
     }
 

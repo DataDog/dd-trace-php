@@ -144,7 +144,7 @@ final class Context implements ContextInterface
                 return API\SpanKind::KIND_CONSUMER;
             case Tag::SPAN_KIND_VALUE_INTERNAL:
             default:
-            return API\SpanKind::KIND_INTERNAL;
+                return API\SpanKind::KIND_INTERNAL;
         }
     }
 
@@ -180,7 +180,7 @@ final class Context implements ContextInterface
             $currentSpan,
             API\SpanContext::create($currentTraceId, $currentSpanId, $traceFlags, $traceState), // $context
             self::getDDInstrumentationScope(), // $instrumentationScope
-            isset($currentSpan->meta[Tag::SPAN_KIND]) ? self::convertDDSpanKindToOtel($currentSpan->meta[Tag::SPAN_KIND]): API\SpanKind::KIND_INTERNAL, // $kind
+            isset($currentSpan->meta[Tag::SPAN_KIND]) ? self::convertDDSpanKindToOtel($currentSpan->meta[Tag::SPAN_KIND]) : API\SpanKind::KIND_INTERNAL, // $kind
             API\Span::fromContext($parentContext), // $parentSpan (TODO: Handle null parent span) ?
             $parentContext, // $parentContext
             NoopSpanProcessor::getInstance(), // $spanProcessor
@@ -188,7 +188,6 @@ final class Context implements ContextInterface
             (new AttributesFactory())->builder(), // $attributesBuilder
             [], // TODO: Handle Span Links
             0, // TODO: Handle Span Links
-            $currentSpan->getStartTime(),
             false // The span was created using the DD Api
         );
         ObjectKVStore::put($currentSpan, 'otel_span', $OTelCurrentSpan);

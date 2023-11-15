@@ -89,7 +89,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         AttributesBuilderInterface $attributesBuilder,
         array $links,
         int $totalRecordedLinks,
-        float $startEpochNanos = 0,
         bool $isRemapped = true // Answers the question "Was the span created using the OTel API?"
     ): self {
         $attributes = $attributesBuilder->build()->toArray();
@@ -351,6 +350,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         $this->endOTelSpan($endEpochNanos);
 
+        $this->spanProcessor->onEnd($this);
+
         switch_stack($this->span);
         close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
     }
@@ -372,8 +373,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $this->context->getTraceFlags(),
             $this->context->getTraceState()
         );
-
-        $this->spanProcessor->onEnd($this);
     }
 
     public function getResource(): ResourceInfo
