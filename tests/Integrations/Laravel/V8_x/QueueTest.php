@@ -156,8 +156,15 @@ class QueueTest extends WebFrameworkTestCase
         $hexProcessTraceId = self::largeBaseConvert($processTraceId, 10, 16);
         $hexProcessSpanId = self::largeBaseConvert($processSpanId, 10, 16);
 
-        $this->assertTrue($spanLinksTraceId == $tid . $hexProcessTraceId);
-        $this->assertTrue($spanLinksSpanId == $hexProcessSpanId);
+        print("spanLinksTraceId: " . $spanLinksTraceId . "\n");
+        print("tid: " . $tid . "\n");
+        print("hexProcessTraceId: " . $hexProcessTraceId . "\n");
+        print("hexProcessSpanId: " . $hexProcessSpanId . "\n");
+        print("processTraceId: " . $processTraceId . "\n");
+        print("processSpanId: " . $processSpanId . "\n");
+
+        $this->assertSame($spanLinksTraceId, $tid . $hexProcessTraceId);
+        $this->assertSame($spanLinksSpanId, $hexProcessSpanId);
 
         $pushSpanFromCreateTrace = array_filter($createTraces[0], function ($span) {
             return $span['name'] === 'laravel.queue.push';
