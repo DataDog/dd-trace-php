@@ -35,7 +35,6 @@ final class NetteTest extends WebFrameworkTestCase
         });
 
         $this->assertFlameGraph($traces, $spanExpectations);
-        //$this->assertExpectedSpans($traces, $spanExpectations);
     }
 
     public function provideSpecs()

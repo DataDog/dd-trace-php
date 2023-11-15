@@ -33,5 +33,6 @@ spans(\DDTrace\SpanData) (1) {
   test\trace_generator.php:%d\{closure} (trace_generator.php, test\trace_generator.php:%d\{closure}, cli)
     closure.declaration => %s:%d
     result => 3
+    _dd.p.tid => %s
      (trace_generator.php, cli)
 }

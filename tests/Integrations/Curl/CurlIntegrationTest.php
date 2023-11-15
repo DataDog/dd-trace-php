@@ -711,6 +711,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->withExistingTagsNames(['_dd.p.tid'])
                 ->skipTagsLike('/^curl\..*/'),
         ]);
     }

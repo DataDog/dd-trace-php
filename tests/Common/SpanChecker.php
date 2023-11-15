@@ -28,8 +28,15 @@ final class SpanChecker
      * @param SpanAssertion[] $expectedFlameGraph
      * @param bool $assertExactCount
      */
-    public function assertFlameGraph(array $traces, array $expectedFlameGraph, bool $assertExactCount = true)
+    public function assertFlameGraph(array $traces, array $expectedFlameGraph, bool $assertExactCount = true, bool $applyDefaults = true)
     {
+        if ($applyDefaults) {
+            $defaults = ['_dd.p.tid'];
+            foreach ($expectedFlameGraph as $spanAssertion) {
+                $spanAssertion->withExistingTagsNames($defaults);
+            }
+        }
+
         $flattenTraces = $this->flattenTraces($traces);
         $actualGraph = $this->buildSpansGraph($flattenTraces);
         if ($assertExactCount && \count($actualGraph) != \count($expectedFlameGraph)) {

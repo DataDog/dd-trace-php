@@ -80,9 +80,11 @@ We closed the active stack after all other stacks were closed. No other span is 
 spans(\DDTrace\SpanData) (2) {
   span_stack_swap.php (span_stack_swap.php, span_stack_swap.php, cli)
     _dd.p.dm => -1
+    _dd.p.tid => %s
      (span_stack_swap.php, cli)
        (span_stack_swap.php, cli)
      (span_stack_swap.php, cli)
   other root (span_stack_swap.php, other root, cli)
     _dd.p.dm => -1
+    _dd.p.tid => %s
 }

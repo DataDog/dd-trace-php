@@ -76,7 +76,7 @@ object(DDTrace\RootSpanData)#%d (16) {
   array(0) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
-  string(32) "0000000000000000%s"
+  string(32) "%s"
 }
 object(DDTrace\RootSpanData)#%d (16) {
   ["name"]=>
@@ -161,7 +161,7 @@ object(DDTrace\RootSpanData)#%d (16) {
       array(0) {
       }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
       ["traceId"]=>
-      string(32) "0000000000000000%s"
+      string(32) "%s"
     }
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
@@ -173,7 +173,7 @@ object(DDTrace\RootSpanData)#%d (16) {
   array(0) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
-  string(32) "0000000000000000%s"
+  string(32) "%s"
 }
 array(1) {
   [0]=>
@@ -195,11 +195,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["runtime-id"]=>
       string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-1"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {

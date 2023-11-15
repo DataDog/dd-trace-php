@@ -18,7 +18,7 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
-array(5) {
+array(6) {
   ["runtime-id"]=>
   string(36) "%s"
   ["http.url"]=>
@@ -29,4 +29,6 @@ array(5) {
   string(2) "-1"
   ["http.status_code"]=>
   string(3) "200"
+  ["_dd.p.tid"]=>
+  string(16) "%s"
 }

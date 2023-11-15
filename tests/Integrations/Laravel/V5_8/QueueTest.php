@@ -132,10 +132,11 @@ class QueueTest extends WebFrameworkTestCase
         $processSpanId = $processSpanFromProcessTrace['span_id'];
         $processParentId = $processSpanFromProcessTrace['parent_id'];
 
+        $tid = $processSpanFromProcessTrace["meta"]['_dd.p.tid'];
         $hexProcessTraceId = self::largeBaseConvert($processTraceId, 10, 16);
         $hexProcessSpanId = self::largeBaseConvert($processSpanId, 10, 16);
 
-        $this->assertTrue($spanLinksTraceId == $hexProcessTraceId);
+        $this->assertTrue($spanLinksTraceId == $tid . $hexProcessTraceId);
         $this->assertTrue($spanLinksSpanId == $hexProcessSpanId);
 
         $pushSpanFromCreateTrace = array_filter($createTraces[0], function ($span) {
