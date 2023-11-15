@@ -84,18 +84,18 @@ static bool _ignore_run_time_cache = false;
  * https://heap.space/xref/PHP-7.4/Zend/zend_vm_execute.h?r=0b7dffb4#2650
  */
 static zend_result ddog_php_prof_opcode_dispatch(zend_execute_data *execute_data) {
+    (void)execute_data;
     return ZEND_USER_OPCODE_DISPATCH;
 }
 #endif
 
 static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
-#if PHP_VERSION_ID < 70400
-    (void)php_version_id;
-#else
+#if PHP_VERSION_ID >= 70400
 
     /* Only need to install handlers if there isn't one, see docs on
      * `ddog_php_prof_opcode_dispatch`.
      */
+    user_opcode_handler_t dispatch_handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
 
 #if PHP_VERSION_ID < 80100
     /* Issue is fixed in 8.0.26:
@@ -104,21 +104,23 @@ static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
      * so nearly no users will triggered this one.
      */
     if (php_version_id < 80026 && zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
-        user_opcode_handler_t handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
-        zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, handler);
+        zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, dispatch_handler);
     }
+#else
+    (void)php_version_id;
 #endif
 
     /* Part of the issue was fixed in 8.0.12:
      * https://github.com/php/php-src/commit/ec54ffad1e3b15fedfd07f7d29d97ec3e8d1c45a
      * The tracer didn't save us here. Also the fix introduced in 8.0.12 is not
      * complete, as there is a `zend_array_dup()` call before the
-     * `SAVE_OPLINE()` which crashes
+     * `SAVE_OPLINE()` which crashes.
      */
     if (zend_get_user_opcode_handler(ZEND_BIND_STATIC) == NULL) {
-        user_opcode_handler_t handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
-        zend_set_user_opcode_handler(ZEND_BIND_STATIC, handler);
+        zend_set_user_opcode_handler(ZEND_BIND_STATIC, dispatch_handler);
     }
+#else
+    (void)php_version_id;
 #endif
 }
 
