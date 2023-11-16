@@ -151,7 +151,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'GET ParameterizedController@customAction'
                     )->withExactTags([
                         'cakephp.route.controller' => 'Parameterized',
-                        'cakephp.route.action' => 'index',
+                        'cakephp.route.action' => 'customAction',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/parameterized/paramValue',
                         'http.status_code' => '200',
