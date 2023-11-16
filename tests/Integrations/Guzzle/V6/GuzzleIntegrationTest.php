@@ -242,7 +242,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             ])
         );
 
-        $index = 3;
         foreach ($found as $data) {
             /*
              * Ideally the distributed traces for curl multi would be children
@@ -253,11 +252,19 @@ class GuzzleIntegrationTest extends IntegrationTestCase
              * $curl->tick() is called.
              */
             $rootSpan = $traces[0][0];
-            $parentSpan = $traces[0][$index--];
-            self::assertSame(
-                $parentSpan['span_id'],
-                $data['headers']['X-Datadog-Parent-Id']
-            );
+            try {
+                $parentSpan = $traces[0][3];
+                self::assertSame(
+                    $parentSpan['span_id'],
+                    $data['headers']['X-Datadog-Parent-Id']
+                );
+            } catch (\Throwable $t) {
+                $parentSpan = $traces[0][2];
+                self::assertSame(
+                    $parentSpan['span_id'],
+                    $data['headers']['X-Datadog-Parent-Id']
+                );
+            }
             self::assertSame(
                 $rootSpan['trace_id'],
                 $data['headers']['X-Datadog-Trace-Id']

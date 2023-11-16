@@ -116,6 +116,8 @@ static inline zend_string *php_base64_encode_str(const zend_string *str) {
 #define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
 #define GC_DEL_FLAGS(c, flag) GC_FLAGS(c) &= ~(flag)
 
+#define rc_dtor_func zval_dtor_func
+
 static inline HashTable *zend_new_array(uint32_t nSize) {
     HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
     zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
