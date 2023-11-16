@@ -158,8 +158,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     {
         $hasEnded = $this->hasEnded();
 
-
-
         return new ImmutableSpan(
             $this,
             $this->getName(),
@@ -350,10 +348,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         $this->endOTelSpan($endEpochNanos);
 
-        $this->spanProcessor->onEnd($this);
-
         switch_stack($this->span);
         close_span($endEpochNanos !== null ? $endEpochNanos / 1000000000 : 0);
+        $this->spanProcessor->onEnd($this);
     }
 
     public function endOTelSpan(int $endEpochNanos = null): void
