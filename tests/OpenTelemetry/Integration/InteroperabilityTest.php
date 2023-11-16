@@ -605,7 +605,7 @@ final class InteroperabilityTest extends BaseTestCase
                             SpanAssertion::exists('internal', 'otel.child4', null, 'datadog/dd-trace-tests')
                         )
                 ),
-        ]);
+        ], true, false);
     }
 
     public function testW3CInteroperability()
