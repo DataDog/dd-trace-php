@@ -971,7 +971,9 @@ class MongoDBTest extends IntegrationTestCase
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
-            ]
+            ],
+            true,
+            false
         );
     }
 

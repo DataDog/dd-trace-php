@@ -51,6 +51,7 @@ spans(\DDTrace\SpanData) (1) {
 #3 %s(%d): outer()
 #4 {main}
     _dd.p.dm => -1
+    _dd.p.tid => %s
     inFiber (fiber_observer_bailout.php, inFiber, cli) (error: Allowed memory size of %d bytes exhausted %s)
       error.type => E_ERROR
       error.message => Allowed memory size of %d bytes exhausted %s

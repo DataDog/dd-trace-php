@@ -8,7 +8,7 @@ use DDTrace\Type;
     $span->service = 'some_service';
     $span->type = Type::CLI;
 
-    $span->meta['extracted_trace_id'] = \DDTrace\trace_id();
+    $span->meta['extracted_trace_id'] = \DDTrace\root_span()->id;
     $span->meta['extracted_span_id'] = \DDTrace\active_span()->id;
 });
 
@@ -16,7 +16,7 @@ use DDTrace\Type;
     $span->service = 'some_service';
     $span->type = Type::CLI;
 
-    $span->meta['extracted_trace_id'] = \DDTrace\trace_id();
+    $span->meta['extracted_trace_id'] = \DDTrace\root_span()->id;
     $span->meta['extracted_span_id'] = \DDTrace\active_span()->id;
 });
 

@@ -31,15 +31,19 @@ include __DIR__ . '/../dd_dumper.inc';
 \dd_dump_spans(true);
 
 ?>
---EXPECT--
+--EXPECTF--
 spans(\DDTrace\SpanData) (4) {
   foo (trace_closure_from_callable.php, foo, cli)
     global => 1
+    _dd.p.tid => %s
   foo (trace_closure_from_callable.php, foo, cli)
     global => 1
     fake => 1
+    _dd.p.tid => %s
   foo (trace_closure_from_callable.php, foo, cli)
     global => 1
+    _dd.p.tid => %s
   foo (trace_closure_from_callable.php, foo, cli)
     global => 1
+    _dd.p.tid => %s
 }

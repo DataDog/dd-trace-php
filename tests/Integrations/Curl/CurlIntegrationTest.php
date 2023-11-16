@@ -712,6 +712,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
-        ]);
+        ], false);
     }
 }

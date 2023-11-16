@@ -54,6 +54,7 @@ The stack still retains its direct parent as active: bool(true)
 spans(\DDTrace\SpanData) (1) {
   start_span_stack.php (start_span_stack.php, start_span_stack.php, cli)
     _dd.p.dm => -1
+    _dd.p.tid => %s
      (start_span_stack.php, cli)
        (start_span_stack.php, cli)
 }

@@ -1021,6 +1021,6 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'add',
                     Tag::SPAN_KIND => 'client',
                 ]))
-        ]);
+        ], false);
     }
 }

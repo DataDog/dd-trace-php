@@ -115,7 +115,7 @@ trait SnapshotTestTrait
      */
     private function stopAndCompareSnapshotSession(
         string $token,
-        array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack'],
+        array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
         int $numExpectedTraces = 1
     ) {
         $this->waitForTraces($token, $numExpectedTraces);
@@ -136,7 +136,7 @@ trait SnapshotTestTrait
 
     public function tracesFromWebRequestSnapshot(
         $fn,
-        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack'],
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
         $numExpectedTraces = 1,
         $tracer = null
     ) {
