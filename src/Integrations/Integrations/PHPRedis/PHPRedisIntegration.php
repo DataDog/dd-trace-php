@@ -47,7 +47,7 @@ class PHPRedisIntegration extends Integration
             && (
                 \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
                 || \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_USER_KEEP
-            ) && \DDTrace\trace_id() == $span->id
+            ) && \DDTrace\root_span()->id == $span->id
         ) {
             \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
         }
