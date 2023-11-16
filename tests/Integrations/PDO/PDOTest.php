@@ -661,7 +661,7 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags())
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
             SpanAssertion::exists('PDO.commit'),
-        ]);
+        ], false);
     }
 
     private function pdoInstance($opts = null)

@@ -136,7 +136,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_LOG_BACKTRACE, "false")                                                                    \
     CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)       \
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                  \
-    CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "false")                                         \
+    CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "true")                                         \
     CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED, "false")                                                                                                           \
     CONFIG(INT, DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES,                                                       \
            DD_CFG_EXPSTR(DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES))                           \

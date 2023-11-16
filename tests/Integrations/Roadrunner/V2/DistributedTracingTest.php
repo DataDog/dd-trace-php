@@ -26,10 +26,10 @@ class DistributedTracingTest extends WebFrameworkTestCase
 
     public function testDistributedTracing()
     {
-        $traces = $this->tracesFromWebRequest(function () use (&$current_context) {
+        $traces = $this->tracesFromWebRequest(function () use (&$traceId) {
             \DDTrace\add_distributed_tag("user_id", 42);
             \DDTrace\start_span();
-            $current_context = \DDTrace\current_context();
+            $traceId = \DDTrace\root_span()->id;
             $spec = GetSpec::create('request', '/', [
                 "User-Agent: Test",
                 "x-header: somevalue",
@@ -39,7 +39,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
         });
 
         $trace = $traces[0][0];
-        $this->assertSame($current_context["trace_id"], $trace["trace_id"]);
+        $this->assertSame($traceId, $trace["trace_id"]);
         $this->assertSame("42", $trace["meta"]["_dd.p.user_id"]);
         $this->assertSame("Test", $trace["meta"]["http.useragent"]);
         $this->assertSame("somevalue", $trace["meta"]["http.request.headers.x-header"]);
@@ -48,10 +48,10 @@ class DistributedTracingTest extends WebFrameworkTestCase
 
     public function testDistributedTracingPostWithAllowedParams()
     {
-        $traces = $this->tracesFromWebRequest(function () use (&$current_context) {
+        $traces = $this->tracesFromWebRequest(function () use (&$traceId) {
             \DDTrace\add_distributed_tag("user_id", 42);
             \DDTrace\start_span();
-            $current_context = \DDTrace\current_context();
+            $traceId = \DDTrace\root_span()->id;
             $spec = PostSpec::create('request', '/', [
                 'User-Agent: Test',
                 'x-header: somevalue',
@@ -66,7 +66,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
         });
 
         $trace = $traces[0][0];
-        $this->assertSame($current_context["trace_id"], $trace["trace_id"]);
+        $this->assertSame($traceId, $trace["trace_id"]);
         $this->assertSame("42", $trace["meta"]["_dd.p.user_id"]);
         $this->assertSame("Test", $trace["meta"]["http.useragent"]);
         $this->assertSame("somevalue", $trace["meta"]["http.request.headers.x-header"]);

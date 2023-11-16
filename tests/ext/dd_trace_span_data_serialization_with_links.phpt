@@ -46,17 +46,17 @@ var_dump(dd_trace_serialize_closed_spans()[0]);
 
 ?>
 --EXPECTF--
-string(76) "{"trace_id":"0000000000000000c151df7d6ee5e2d6","span_id":"a3978fb9b92502a8"}"
+string(76) "{"trace_id":"%sc151df7d6ee5e2d6","span_id":"a3978fb9b92502a8"}"
 array(5) {
   ["trace_id"]=>
-  string(32) "0000000000000000c151df7d6ee5e2d6"
+  string(32) "%sc151df7d6ee5e2d6"
   ["span_id"]=>
   string(16) "a3978fb9b92502a8"
 }
-string(76) "{"trace_id":"0000000000000000c151df7d6ee5e2d6","span_id":"c08c967f0e5e7b0a"}"
+string(76) "{"trace_id":"%sc151df7d6ee5e2d6","span_id":"c08c967f0e5e7b0a"}"
 array(5) {
   ["trace_id"]=>
-  string(32) "0000000000000000c151df7d6ee5e2d6"
+  string(32) "%sc151df7d6ee5e2d6"
   ["span_id"]=>
   string(16) "c08c967f0e5e7b0a"
 }
@@ -82,6 +82,6 @@ array(10) {
   ["meta"]=>
   array(1) {
     ["_dd.span_links"]=>
-    string(155) "[{"trace_id":"0000000000000000c151df7d6ee5e2d6","span_id":"a3978fb9b92502a8"},{"trace_id":"0000000000000000c151df7d6ee5e2d6","span_id":"c08c967f0e5e7b0a"}]"
+    string(155) "[{"trace_id":"%sc151df7d6ee5e2d6","span_id":"a3978fb9b92502a8"},{"trace_id":"%sc151df7d6ee5e2d6","span_id":"c08c967f0e5e7b0a"}]"
   }
 }

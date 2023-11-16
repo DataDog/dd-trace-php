@@ -110,13 +110,15 @@ array(3) {
     ["type"]=>
     string(7) "FooType"
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["runtime-id"]=>
       string(36) "%s"
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["_dd.p.dm"]=>
       string(2) "-1"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(6) {
@@ -179,11 +181,13 @@ array(3) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["runtime-id"]=>
       string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-1"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {

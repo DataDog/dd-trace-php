@@ -422,7 +422,7 @@ class SQLSRVTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
                 ])
-        ]);
+        ], true, false);
     }
 
     public function testNoFakeServices()

@@ -59,9 +59,9 @@ abstract class IntegrationTestCase extends BaseTestCase
      * @param array[] $traces
      * @param SpanAssertion[] $expectedSpans
      */
-    public function assertSpans($traces, $expectedSpans)
+    public function assertSpans($traces, $expectedSpans, $applyDefaults = true)
     {
-        $this->assertExpectedSpans($traces, $expectedSpans);
+        $this->assertExpectedSpans($traces, $expectedSpans, $applyDefaults);
     }
 
     /**

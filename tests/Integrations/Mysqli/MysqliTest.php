@@ -432,7 +432,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
-        ]);
+        ], true, false);
     }
 
     public function testConstructorSelectDbPeerServiceEnabled()
@@ -462,7 +462,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
-        ]);
+        ], true, false);
     }
 
     public function testLimitedTracerConstructorQuery()
@@ -529,7 +529,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     '_dd.base_service' => 'phpunit',
                 ])),
-        ]);
+        ], true, false);
     }
 
     public function testProceduralPreparedStatementPeerServiceEnabled()
@@ -603,7 +603,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
-        ]);
+        ], true, false);
     }
 
     private function baseTags($expectDbName = true, $expectPeerService = false)

@@ -55,12 +55,12 @@ ini_set("datadog.trace.128_bit_traceid_logging_enabled", "1"); // 2^64 -> 1 0000
 var_dump(\DDTrace\logs_correlation_trace_id());
 
 ?>
---EXPECT--
+--EXPECTF--
 string(20) "13930160852258120406"
-string(20) "13930160852258120406"
-string(20) "11788048577503494824"
+string(32) "%sc151df7d6ee5e2d6"
+string(32) "%sa3978fb9b92502a8"
 string(32) "192f3581c8461c79abf2684ee31ce27d"
-string(19) "2513787319205155662"
+string(32) "%s22e2c43f8a1ad34e"
 string(20) "12390080212876714621"
 string(1) "1"
 string(32) "00000000000000010000000000000001"

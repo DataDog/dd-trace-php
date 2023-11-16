@@ -35,5 +35,6 @@ Having lost all references to the that span stacks objects, it is autoclosed: bo
 spans(\DDTrace\SpanData) (1) {
   span_trace_stack_autoclose.php (span_trace_stack_autoclose.php, span_trace_stack_autoclose.php, cli)
     _dd.p.dm => -1
+    _dd.p.tid => %s
      (span_trace_stack_autoclose.php, cli)
 }

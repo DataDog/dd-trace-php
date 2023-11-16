@@ -29,5 +29,6 @@ dd_dump_spans();
 spans(\DDTrace\SpanData) (1) {
   root span (nested_dropped_spans.php, root span, cli)
     _dd.p.dm => -1
+    _dd.p.tid => %s
     inner span (nested_dropped_spans.php, inner span, cli)
 }

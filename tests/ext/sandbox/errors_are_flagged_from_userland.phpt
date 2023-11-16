@@ -44,13 +44,15 @@ array(1) {
     ["error"]=>
     int(1)
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["runtime-id"]=>
       string(36) "%s"
       ["error.message"]=>
       string(9) "Foo error"
       ["_dd.p.dm"]=>
       string(2) "-1"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {
