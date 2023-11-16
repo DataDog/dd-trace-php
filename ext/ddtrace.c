@@ -1019,7 +1019,7 @@ static void dd_clean_globals(void) {
 
     if (DDTRACE_G(curl_multi_injecting_spans)) {
         if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
-            zval_ptr_dtor(&DDTRACE_G(curl_multi_injecting_spans)->val);
+            rc_dtor_func((zend_refcounted *) DDTRACE_G(curl_multi_injecting_spans));
         }
         DDTRACE_G(curl_multi_injecting_spans) = NULL;
     }
@@ -2520,17 +2520,26 @@ PHP_FUNCTION(DDTrace_curl_multi_exec_get_request_spans) {
 
     if (Z_TYPE_P(array) == IS_REFERENCE) {
         zend_reference *ref = Z_REF_P(array);
-        array = &ref->val;
 
+#if PHP_VERSION_ID < 70400
+        array = &ref->val;
         zval_ptr_dtor(array);
         array_init(array);
-
-        if (DDTRACE_G(curl_multi_injecting_spans) && GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
-            zval_ptr_dtor(&DDTRACE_G(curl_multi_injecting_spans)->val);
+#else
+        array = zend_try_array_init(array);
+        if (!array) {
+            RETURN_THROWS();
         }
+#endif
 
-        GC_ADDREF(ref);
-        DDTRACE_G(curl_multi_injecting_spans) = ref;
+        if (get_DD_TRACE_ENABLED()) {
+            if (DDTRACE_G(curl_multi_injecting_spans) && GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
+                rc_dtor_func((zend_refcounted *) DDTRACE_G(curl_multi_injecting_spans));
+            }
+
+            GC_ADDREF(ref);
+            DDTRACE_G(curl_multi_injecting_spans) = ref;
+        }
     }
 
     RETURN_NULL();

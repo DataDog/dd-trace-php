@@ -164,6 +164,8 @@ static int dd_inject_distributed_tracing_headers_multi(zval *ch) {
         ddtrace_close_span(span);
         span->duration = 1;
 
+        SEPARATE_ARRAY(&DDTRACE_G(curl_multi_injecting_spans)->val);
+
         zval data;
         array_init(&data);
         Z_ADDREF_P(ch);
@@ -292,7 +294,7 @@ static void dd_multi_inject_headers(zval *mh) {
 
     if (DDTRACE_G(curl_multi_injecting_spans)) {
         if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
-            zval_ptr_dtor(&DDTRACE_G(curl_multi_injecting_spans)->val);
+            rc_dtor_func((zend_refcounted *) DDTRACE_G(curl_multi_injecting_spans));
         }
         DDTRACE_G(curl_multi_injecting_spans) = NULL;
     }

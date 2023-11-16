@@ -137,7 +137,9 @@ final class CurlIntegration extends Integration
                             if (!isset($error_trace)) {
                                 $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
                             }
-                            $requestSpan->meta[Tag::ERROR_MSG] = "CURL request failure";
+                            if (!isset($requestSpan->meta[Tag::ERROR_MSG])) {
+                                $requestSpan->meta[Tag::ERROR_MSG] = "CURL request failure";
+                            }
                             $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
                             $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
                         }

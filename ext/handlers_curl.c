@@ -132,6 +132,8 @@ static void dd_multi_inject_headers(zend_object *mh) {
                 ddtrace_close_span(span);
                 span->duration = 1;
 
+                SEPARATE_ARRAY(&DDTRACE_G(curl_multi_injecting_spans)->val);
+
                 zval data;
                 array_init(&data);
                 GC_ADDREF(ch);
@@ -145,7 +147,7 @@ static void dd_multi_inject_headers(zend_object *mh) {
 
         if (DDTRACE_G(curl_multi_injecting_spans)) {
             if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
-                zval_ptr_dtor(&DDTRACE_G(curl_multi_injecting_spans)->val);
+                rc_dtor_func((zend_refcounted *) DDTRACE_G(curl_multi_injecting_spans));
             }
             DDTRACE_G(curl_multi_injecting_spans) = NULL;
         }
