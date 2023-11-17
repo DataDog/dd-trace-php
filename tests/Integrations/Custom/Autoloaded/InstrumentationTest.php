@@ -78,9 +78,16 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
         $this->assertEquals("app-integrations-change", $payloads[2]["request_type"]);
-        $this->assertEquals([[
-            "name" => "pdo",
-            "enabled" => true,
-        ]], $payloads[2]["payload"]["integrations"]);
+        $this->assertEquals([
+            [
+                "name" => "pdo",
+                "enabled" => true,
+            ],
+            [
+                "name" => "logs",
+                "enabled" => false,
+                "version" => ""
+            ]
+        ], $payloads[2]["payload"]["integrations"]);
     }
 }
