@@ -59,10 +59,5 @@ foreach ($sections as [$key, $expected]) {
 echo "Done.";
 
 ?>
---XFAIL--
-To work around a potential crash, user opcode handlers are installed. This
-can cause JIT to emit a warning like:
-> JIT is incompatible with third party extensions that setup user opcode handlers.
-TODO: when this is fixed upstream, move this to a skipif instead.
 --EXPECT--
 Done.
