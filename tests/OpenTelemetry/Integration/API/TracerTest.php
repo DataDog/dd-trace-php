@@ -842,4 +842,32 @@ final class TracerTest extends BaseTestCase
                 ])
         ]);
     }
+
+    public function testUpdateOperationNameOnTheFly()
+    {
+        $traces = $this->isolateTracer(function () {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('operation')
+                ->setSpanKind(SpanKind::KIND_CLIENT)
+                ->startSpan();
+            $scopeSpan = $span->activate();
+
+            $this->assertSame('client.request', active_span()->name);
+
+            $span->setAttribute('messaging.system', 'Kafka');
+
+            $this->assertSame('client.request', active_span()->name);
+
+            $span->setAttribute('messaging.operation', 'Receive');
+
+            $this->assertSame('kafka.receive', active_span()->name);
+
+            $scopeSpan->detach();
+            $span->end();
+        });
+
+        $span = $traces[0][0];
+        $this->assertSame('kafka.receive', $span['name']);
+        $this->assertSame('operation', $span['resource']);
+    }
 }

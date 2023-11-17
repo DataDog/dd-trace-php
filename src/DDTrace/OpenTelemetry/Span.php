@@ -46,6 +46,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     private StatusDataInterface $status;
 
+    private string $operationNameConvention = "";
+
     private function __construct(
         SpanData $span,
         API\SpanContextInterface $context,
@@ -53,7 +55,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         int $kind,
         API\SpanContextInterface $parentSpanContext,
         SpanProcessorInterface $spanProcessor,
-        ResourceInfo $resource
+        ResourceInfo $resource,
+        bool $isRemapped = true
     ) {
         $this->span = $span;
         $this->context = $context;
@@ -64,6 +67,14 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->resource = $resource;
 
         $this->status = StatusData::unset();
+
+        if ($isRemapped || empty($span->name)) {
+            // Since the span was created using the OTel API, it doesn't have an operation name*
+            // *: This is a bit false. For instance, a span created using the OTel API and DD_TRACE_GENERATE_ROOT_SPAN=0
+            // under a cli (e.g., phpunit) process would have a default operation name set (e.g., phpunit). This is
+            // done in serializer.c:ddtrace_set_root_span_properties (as of v0.92.0)
+            $span->name = $this->operationNameConvention = Convention::defaultOperationName($span);
+        }
     }
 
     /**
@@ -97,14 +108,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $resourceAttributes = $resource->getAttributes()->toArray();
         self::_setAttributes($span, $resourceAttributes);
 
-        if ($isRemapped || empty($span->name)) {
-            // Since the span was created using the OTel API, it doesn't have an operation name*
-            // *: This is a bit false. For instance, a span created using the OTel API and DD_TRACE_GENERATE_ROOT_SPAN=0
-            // under a cli (e.g., phpunit) process would have a default operation name set (e.g., phpunit). This is
-            // done in serializer.c:ddtrace_set_root_span_properties (as of v0.92.0)
-            $span->name = Convention::defaultOperationName($span);
-        }
-
         $OTelSpan = new self(
             $span,
             $context,
@@ -112,7 +115,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $kind,
             $parentSpan->getContext(),
             $spanProcessor,
-            $resource
+            $resource,
+            $isRemapped
         );
 
         ObjectKVStore::put($span, 'otel_span', $OTelSpan);
@@ -243,6 +247,13 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         }
     }
 
+    private function updateConvention(): void
+    {
+        if ($this->span->name === $this->operationNameConvention) {
+            $this->span->name = $this->operationNameConvention = Convention::defaultOperationName($this->span);
+        }
+    }
+
     /**
      * @inheritDoc
      */
@@ -251,6 +262,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         if (!$this->hasEnded()) {
             self::_setAttribute($this->span, $key, $value);
         }
+
+        $this->updateConvention();
 
         return $this;
     }
@@ -265,6 +278,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $this->setAttribute($key, $value);
             }
         }
+
+        $this->updateConvention();
 
         return $this;
     }
