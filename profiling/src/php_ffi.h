@@ -71,7 +71,7 @@ extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(
  * burdensome in Rust, like locating the ddtrace extension in the module
  * registry and finding the ddtrace_get_profiling_context function.
  */
-void datadog_php_profiling_startup(zend_extension *extension, uint32_t php_version_id);
+void datadog_php_profiling_startup(zend_extension *extension);
 
 /**
  * Used to hold information for overwriting the internal function handler

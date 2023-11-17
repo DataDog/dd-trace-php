@@ -1,12 +1,19 @@
 #include "php_ffi.h"
 
 #include <assert.h>
-#include <stdbool.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #if CFG_STACK_WALKING_TESTS
 #include <dlfcn.h> // for dlsym
+#endif
+
+#if PHP_VERSION_ID >= 70400
+#define CFG_NEED_OPCODE_HANDLERS 1
+#else
+#define CFG_NEED_OPCODE_HANDLERS 0
 #endif
 
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
@@ -34,12 +41,93 @@ static ddtrace_profiling_context noop_get_profiling_context(void) {
     return (ddtrace_profiling_context){0, 0};
 }
 
-#if CFG_PRELOAD // defined by build.rs
+#if PHP_VERSION_ID >= 80300
+unsigned int php_version_id(void);
+#else
+// Forward declare zend_get_constant_str which will be used to polyfill the
+// php_version_id function.
+zval *zend_get_constant_str(const char *name, size_t name_len);
+
+// Error helper in rare case of error for `php_version_id` shim.
+ZEND_COLD zend_never_inline ZEND_NORETURN static void exit_php_version_id(zval *constant_str) {
+    const char *message = constant_str != NULL
+        ? "error looking up PHP_VERSION_ID: expected lval return type"
+        : "error looking up PHP_VERSION_ID: constant not found";
+    fprintf(stderr, "%s", message);
+    exit(EXIT_FAILURE);
+}
+
+static unsigned int php_version_id(void) {
+    zval *constant_str = zend_get_constant_str(ZEND_STRL("PHP_VERSION_ID"));
+    if (EXPECTED(constant_str && Z_TYPE_P(constant_str))) {
+        return Z_LVAL_P(constant_str);
+    }
+
+    // This branch should be dead code, just being defensive. The constant
+    // PHP_VERSION_ID is registered before modules are ever registered:
+    // https://heap.space/xref/PHP-7.1/main/main.c?r=ccd4716e#2180
+    exit_php_version_id(constant_str);
+}
+#endif
+
+/**
+ * Returns the PHP_VERSION_ID of the engine at run-time, not the version the
+ * extension was built against at compile-time.
+ */
+uint32_t ddog_php_prof_php_version_id(void) { return php_version_id(); }
+
+#if CFG_POST_STARTUP_CB // defined by build.rs
 static bool _is_post_startup = false;
 
 bool ddog_php_prof_is_post_startup(void) {
     return _is_post_startup;
 }
+
+#if CFG_NEED_OPCODE_HANDLERS
+/* The purpose here is to set the opline, because the built-in opcode handlers
+ * for some versions are missing a SAVE_OPLINE() and it causes a crash when
+ * trying to access the line number. The allocation profiler is vulnerable in
+ * particular because it can access the opline on any allocation.
+ *
+ * The handler doesn't actually need to do anything, because just by having a
+ * user opcode handler the engine will save the opline before calling the user
+ * handler:
+ * https://heap.space/xref/PHP-7.4/Zend/zend_vm_execute.h?r=0b7dffb4#2650
+ */
+static zend_result ddog_php_prof_opcode_dispatch(zend_execute_data *execute_data) {
+    (void)execute_data;
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
+// Argument `php_version_id` should be the version of PHP at runtime, not the
+// version this was compiled against.
+static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
+
+    /* Only need to install user opcode handlers if there isn't one already
+     * for the given opcode, see the docs on `ddog_php_prof_opcode_dispatch`.
+     */
+    user_opcode_handler_t dispatch_handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
+
+    /* Issue is fixed in 8.0.26:
+     * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
+     */
+    if (php_version_id < 80026 && zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
+        zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, dispatch_handler);
+    }
+
+    /* Part of the issue was fixed in 8.0.12:
+     * https://github.com/php/php-src/commit/ec54ffad1e3b15fedfd07f7d29d97ec3e8d1c45a
+     * However, the fix is not complete as it's possible for the opcode to
+     * call `zend_array_dup()` before the `SAVE_OPLINE()`.
+     */
+    if (zend_get_user_opcode_handler(ZEND_BIND_STATIC) == NULL) {
+        zend_set_user_opcode_handler(ZEND_BIND_STATIC, dispatch_handler);
+    }
+#if PHP_VERSION_ID >= 80400
+#error Check if ZEND_BIND_STATIC needs an opcode handler still.
+#endif
+}
+#endif
 
 #if PHP_VERSION_ID < 80000
 #define post_startup_cb_result int
@@ -61,6 +149,11 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 
     _is_post_startup = true;
 
+#if CFG_NEED_OPCODE_HANDLERS
+    uint32_t php_version_id = ddog_php_prof_php_version_id();
+    ddog_php_prof_install_opcode_handlers(php_version_id);
+#endif
+
     return SUCCESS;
 }
 #endif
@@ -75,58 +168,7 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 static bool _ignore_run_time_cache = false;
 #endif
 
-#if PHP_VERSION_ID >= 70400
-/* The purpose here is to set the opline, because these versions are missing a
- * SAVE_OPLINE() and it causes a crash for the allocation profiler, see:
- * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
- * The handler doesn't actually need to do anything, because just by having a
- * handler the engine will save the opline before calling the user handler:
- * https://heap.space/xref/PHP-7.4/Zend/zend_vm_execute.h?r=0b7dffb4#2650
- */
-static zend_result ddog_php_prof_opcode_dispatch(zend_execute_data *execute_data) {
-    (void)execute_data;
-    return ZEND_USER_OPCODE_DISPATCH;
-}
-#endif
-
-static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
-#if PHP_VERSION_ID >= 70400
-
-    /* Only need to install handlers if there isn't one, see docs on
-     * `ddog_php_prof_opcode_dispatch`.
-     */
-    user_opcode_handler_t dispatch_handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
-
-#if PHP_VERSION_ID < 80100
-    /* Issue is fixed in 8.0.26:
-     * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
-     * But the tracer installed a handler for ZEND_GENERATOR_CREATE on PHP 7,
-     * so nearly no users will triggered this one.
-     */
-    if (php_version_id < 80026 && zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
-        zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, dispatch_handler);
-    }
-#else
-    (void)php_version_id;
-#endif
-
-    /* Part of the issue was fixed in 8.0.12:
-     * https://github.com/php/php-src/commit/ec54ffad1e3b15fedfd07f7d29d97ec3e8d1c45a
-     * The tracer didn't save us here. Also the fix introduced in 8.0.12 is not
-     * complete, as there is a `zend_array_dup()` call before the
-     * `SAVE_OPLINE()` which crashes.
-     */
-    if (zend_get_user_opcode_handler(ZEND_BIND_STATIC) == NULL) {
-        zend_set_user_opcode_handler(ZEND_BIND_STATIC, dispatch_handler);
-    }
-#else
-    (void)php_version_id;
-#endif
-}
-
-void datadog_php_profiling_startup(zend_extension *extension, uint32_t php_version_id) {
-    ddog_php_prof_install_opcode_handlers(php_version_id);
-
+void datadog_php_profiling_startup(zend_extension *extension) {
 #if CFG_RUN_TIME_CACHE  // defined by build.rs
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
 #endif
@@ -147,8 +189,9 @@ void datadog_php_profiling_startup(zend_extension *extension, uint32_t php_versi
         }
     }
 
-#if CFG_PRELOAD // defined by build.rs
+#if CFG_POST_STARTUP_CB // defined by build.rs
     _is_post_startup = false;
+
     orig_post_startup_cb = zend_post_startup_cb;
     zend_post_startup_cb = ddog_php_prof_post_startup_cb;
 #endif
