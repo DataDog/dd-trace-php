@@ -2453,4 +2453,35 @@ class PHPRedisTest extends IntegrationTestCase
                 Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis', Tag::TARGET_HOST => $this->host]),
         ]);
     }
+
+    public function testOrphansRemoval()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS=1'
+        ]);
+
+        $redis = $this->redis;
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->save();
+        });
+
+        $span = $traces[0][0];
+        $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+    }
+
+    public function testOrphansRemoval64bit()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS=1',
+            'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED=0'
+        ]);
+
+        $redis = $this->redis;
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->save();
+        });
+
+        $span = $traces[0][0];
+        $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+    }
 }
