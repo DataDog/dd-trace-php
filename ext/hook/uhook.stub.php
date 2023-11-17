@@ -122,5 +122,7 @@ function install_hook(
  * Removes an installed hook by its id, as returned by install_hook or HookData->id.
  *
  * @param int $id The id to remove.
+ * @param string $location A class name (which inherits this hook through inheritance), which to specifically remove
+ * this hook from.
  */
-function remove_hook(int $id): void {}
+function remove_hook(int $id, string $location = ""): void {}
