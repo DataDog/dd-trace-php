@@ -2757,19 +2757,12 @@ jobs:
             cd appsec/build
             make -j $(nproc) ddappsec_helper_test
             ./tests/helper/ddappsec_helper_test
-      - when:
-          # Copy ruleset only on x86_64
-          condition:
-            matches:
-              pattern: "^[^.]+$"
-              value: << parameters.resource_class >>
-          steps:
-            - run:
-                name: Download ruleset
-                command: |
-                  cd appsec/build
-                  make event_rules
-                  cp ./third_party/event_rules-prefix/src/event_rules/build/recommended.json ../../appsec_$(uname -m)/
+      - run:
+          name: Download ruleset
+          command: |
+            cd appsec/build
+            make event_rules
+            cp ./third_party/event_rules-prefix/src/event_rules/build/recommended.json ../../appsec_$(uname -m)/
       - persist_to_workspace:
           root: '.'
           paths: [ './appsec_*' ]
