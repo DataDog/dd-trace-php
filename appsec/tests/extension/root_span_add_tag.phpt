@@ -45,13 +45,15 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["runtime-id"]=>
       string(%d) %s
       ["after"]=>
       string(9) "root_span"
       ["_dd.p.dm"]=>
       string(2) "-1"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {
