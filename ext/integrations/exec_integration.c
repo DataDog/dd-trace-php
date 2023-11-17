@@ -7,9 +7,10 @@
 #include <ext/standard/file.h>
 #include <ext/standard/proc_open.h>
 
-#include "compatibility.h"
-#include "ddtrace.h"
-#include "span.h"
+#include "../compatibility.h"
+#include "../ddtrace.h"
+#include "../span.h"
+#include "exec_integration_arginfo.h"
 
 #define NS "DDTrace\\Integrations\\Exec\\"
 
@@ -262,33 +263,16 @@ static PHP_FUNCTION(DDTrace_integrations_exec_test_rshutdown) {
 
     ddtrace_exec_handlers_rshutdown();
     dd_exec_init_track_streams();
-    (void)return_value;
+    RETURN_TRUE;
 }
 
 // clang-format off
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(register_stream, 0, 2, _IS_BOOL, 0)
-    ZEND_ARG_TYPE_INFO(0, stream, IS_RESOURCE, 0)
-    ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 0)
-ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(proc_assoc_span, 0, 2, _IS_BOOL, 1)
-    ZEND_ARG_TYPE_INFO(0, proc_res, IS_RESOURCE, 0)
-    ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 0)
-ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(proc_get_span, 0, 1, DDTrace\\SpanData, 0)
-    ZEND_ARG_TYPE_INFO(0, proc_res, IS_RESOURCE, 0)
-ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(proc_get_pid, 0, 1, IS_LONG, 1)
-    ZEND_ARG_TYPE_INFO(0, proc_res, IS_RESOURCE, 0)
-ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(test_rshutdown, 0, 0, IS_NULL, 1)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(NS "register_stream", PHP_FN(DDTrace_integrations_exec_register_stream), register_stream, 0)
-    ZEND_RAW_FENTRY(NS "proc_assoc_span", PHP_FN(DDTrace_integrations_exec_proc_assoc_span), proc_assoc_span, 0)
-    ZEND_RAW_FENTRY(NS "proc_get_span", PHP_FN(DDTrace_integrations_exec_proc_get_span), proc_get_span, 0)
-    ZEND_RAW_FENTRY(NS "proc_get_pid", PHP_FN(DDTrace_integrations_exec_proc_get_pid), proc_get_pid, 0)
-    ZEND_RAW_FENTRY(NS "test_rshutdown", PHP_FN(DDTrace_integrations_exec_test_rshutdown), test_rshutdown, 0)
+    ZEND_RAW_FENTRY(NS "register_stream", PHP_FN(DDTrace_integrations_exec_register_stream), arginfo_DDTrace_Integrations_Exec_register_stream, 0)
+    ZEND_RAW_FENTRY(NS "proc_assoc_span", PHP_FN(DDTrace_integrations_exec_proc_assoc_span), arginfo_DDTrace_Integrations_Exec_proc_assoc_span, 0)
+    ZEND_RAW_FENTRY(NS "proc_get_span", PHP_FN(DDTrace_integrations_exec_proc_get_span), arginfo_DDTrace_Integrations_Exec_proc_get_span, 0)
+    ZEND_RAW_FENTRY(NS "proc_get_pid", PHP_FN(DDTrace_integrations_exec_proc_get_pid), arginfo_DDTrace_Integrations_Exec_proc_get_pid, 0)
+    ZEND_RAW_FENTRY(NS "test_rshutdown", PHP_FN(DDTrace_integrations_exec_test_rshutdown), arginfo_DDTrace_Integrations_Exec_test_rshutdown, 0)
     PHP_FE_END
 };
 // clang-format on
