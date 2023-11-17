@@ -167,9 +167,21 @@ class ExecIntegration extends Integration
                     return;
                 }
 
-                // the span must be retrieved from the resource because by the time
-                // the post hook runs, the resource has already been destroyed
-                $hook->data = proc_get_span($hook->args[0]);
+                // the span must be stored in $hook because by the time the post
+                //hook runs, the resource has already been destroyed
+                $span = proc_get_span($hook->args[0]);
+                if (!$span) {
+                    return;
+                }
+                // must match condition in dd_proc_wrapper_rsrc_dtor before
+                // calling dd_waitpid()
+                if ($span->getDuration() != 0) {
+                    return;
+                }
+                // if we get here, we will call waitpid() in the resource
+                // destructor and very likely reap the process, resulting in
+                // proc_close() returning -1
+                $hook->data = $span;
             },
             static function (HookData $hook) {
                 /** @var SpanData $span */
@@ -178,9 +190,8 @@ class ExecIntegration extends Integration
                     return;
                 }
 
-                if (isset($span->overrideRetval) && key_exists(Tag::EXEC_EXIT_CODE, $span->meta)) {
+                if ($hook->returned === -1 && isset($span->meta[Tag::EXEC_EXIT_CODE])) {
                     $hook->overrideReturnValue($span->meta[Tag::EXEC_EXIT_CODE]);
-                    unset($span->overrideRetval);
                 }
             }
         );

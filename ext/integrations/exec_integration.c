@@ -118,21 +118,7 @@ static void dd_proc_wrapper_rsrc_dtor(zend_resource *rsrc) {
     ddtrace_span_data *span_data = OBJ_SPANDATA(proc_span->span);
 
     if (span_data->duration == 0) {
-        // if we reaped, the proc handle destructor will set
-        // FG(pclose_ret) to -1, causing proc_close to return -1, so we
-        // must signal that we have to override the return value in the post
-        // hook of proc_close
-        bool did_reap = dd_waitpid(span_data, proc_span->child);
-        if (did_reap) {
-            // set a dynamic property on the span
-#if PHP_VERSION_ID < 80000
-            zval zobj;
-            ZVAL_OBJ(&zobj, proc_span->span);
-            zend_update_property_bool(ddtrace_ce_span_data, &zobj, ZEND_STRL("overrideRetval"), 1);
-#else
-            zend_update_property_bool(ddtrace_ce_span_data, proc_span->span, ZEND_STRL("overrideRetval"), 1);
-#endif
-        }
+        (void)dd_waitpid(span_data, proc_span->child);
 
         dd_trace_stop_span_time(span_data);
         ddtrace_close_span_restore_stack(span_data);
