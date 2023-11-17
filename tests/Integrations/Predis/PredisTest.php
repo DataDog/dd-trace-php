@@ -352,6 +352,21 @@ final class PredisTest extends IntegrationTestCase
         $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
     }
 
+    public function testOrphansRemoval64bit()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS=1',
+            'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=0'
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            new \Predis\Client(["host" => $this->host]);
+        });
+
+        $span = $traces[0][0];
+        $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+    }
+
     private function baseTags()
     {
         return [
