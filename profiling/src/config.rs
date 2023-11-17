@@ -145,6 +145,7 @@ pub(crate) enum ConfigId {
     ProfilingExperimentalExceptionSamplingDistance,
     ProfilingLogLevel,
     ProfilingOutputPprof,
+    ProfilingWallTimeEnabled,
 
     // todo: do these need to be kept in sync with the tracer?
     AgentHost,
@@ -178,6 +179,7 @@ impl ConfigId {
              * advertise this in the docs.
              */
             ProfilingOutputPprof => b"DD_PROFILING_OUTPUT_PPROF\0",
+            ProfilingWallTimeEnabled => b"DD_PROFILING_WALLTIME_ENABLED\0",
 
             AgentHost => b"DD_AGENT_HOST\0",
             Env => b"DD_ENV\0",
@@ -247,6 +249,13 @@ pub(crate) unsafe fn profiling_experimental_exception_sampling_distance() -> u32
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
     get_str(ProfilingOutputPprof)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn profiling_wall_time_enabled() -> bool {
+    get_bool(ProfilingWallTimeEnabled, true)
 }
 
 unsafe fn get_bool(id: ConfigId, default: bool) -> bool {
@@ -528,6 +537,22 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
+                },
+                // Note that wall time cannot be fully disabled at this time,
+                // and this only disables the timer. However, if CPU time is
+                // still enabled, then the wall time will still be collected.
+                // The current purpose here is to disable sources of non-
+                // determinism for things like overhead benchmarking, which
+                // trigger stack collection events manually.
+                zai_config_entry {
+                    id: transmute(ProfilingWallTimeEnabled),
+                    name: ProfilingWallTimeEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
+                    aliases: std::ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: None,
+                    parser: None,
                 },
                 zai_config_entry {
                     id: transmute(AgentHost),

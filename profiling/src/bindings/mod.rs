@@ -126,8 +126,7 @@ impl _zend_function {
 
     /// Returns the module name, if there is one. May return Some(b"\0").
     pub fn module_name(&self) -> Option<&[u8]> {
-        // Safety: the function's type field is always safe to access.
-        if unsafe { self.type_ } == ZEND_INTERNAL_FUNCTION as u8 {
+        if self.is_internal() {
             // Safety: union access is guarded by ZEND_INTERNAL_FUNCTION, and
             // assume its module is valid.
             unsafe { self.internal_function.module.as_ref() }
@@ -137,6 +136,18 @@ impl _zend_function {
         } else {
             None
         }
+    }
+
+    #[inline]
+    pub const fn is_internal(&self) -> bool {
+        // Safety: the function's type field is always safe to access.
+        unsafe { self.type_ == ZEND_INTERNAL_FUNCTION as u8 }
+    }
+
+    #[inline]
+    pub const fn is_user_code(&self) -> bool {
+        // See ZEND_USER_CODE in php-src.
+        !self.is_internal()
     }
 }
 
@@ -311,13 +322,15 @@ extern "C" {
     /// none-the-less has been seen in the wild. It may also return None if
     /// the run_time_cache is not available on this function type.
     #[cfg(not(feature = "stack_walking_tests"))]
-    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
+    pub fn ddog_php_prof_function_run_time_cache(
+        func: &zend_function,
+    ) -> Option<&mut crate::profiling::AbridgedFunction>;
 
     /// mock for testing
     #[cfg(feature = "stack_walking_tests")]
     pub fn ddog_test_php_prof_function_run_time_cache(
         func: &zend_function,
-    ) -> Option<&mut [usize; 2]>;
+    ) -> Option<&mut crate::profiling::AbridgedFunction>;
 }
 
 #[cfg(php_preload)]

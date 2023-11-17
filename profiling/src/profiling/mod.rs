@@ -41,6 +41,7 @@ use std::time::UNIX_EPOCH;
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 #[cfg(feature = "allocation_profiling")]
 use datadog_profiling::api::UpscalingInfo;
+use datadog_profiling::collections::identifiable::{StringId, StringTable};
 
 #[cfg(feature = "exception_profiling")]
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
@@ -148,7 +149,6 @@ pub struct ProfileIndex {
     pub endpoint: Box<AgentEndpoint>,
 }
 
-#[derive(Debug)]
 pub struct SampleData {
     pub frames: Vec<ZendFrame>,
     pub labels: Vec<Label>,
@@ -156,7 +156,6 @@ pub struct SampleData {
     pub timestamp: i64,
 }
 
-#[derive(Debug)]
 pub struct SampleMessage {
     pub key: ProfileIndex,
     pub value: SampleData,
@@ -168,7 +167,6 @@ pub struct LocalRootSpanResourceMessage {
     pub resource: String,
 }
 
-#[derive(Debug)]
 pub enum ProfilerMessage {
     Cancel,
     Sample(SampleMessage),
@@ -366,9 +364,12 @@ impl TimeCollector {
         for frame in &message.value.frames {
             let location = Location {
                 function: Function {
-                    name: frame.function.as_ref(),
+                    name: frame.reader.try_get_id(frame.function.name).unwrap_or(""),
                     system_name: "",
-                    filename: frame.file.as_deref().unwrap_or(""),
+                    filename: frame
+                        .reader
+                        .try_get_id(frame.function.filename)
+                        .unwrap_or(""),
                     start_line: 0,
                 },
                 line: frame.line as i64,
@@ -781,9 +782,10 @@ impl Profiler {
         &self,
         now: i64,
         duration: i64,
-        filename: String,
+        filename: StringId,
         line: u32,
         locals: &RequestLocals,
+        string_table: &mut StringTable,
     ) {
         let mut labels = Profiler::message_labels();
 
@@ -799,8 +801,11 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: COW_EVAL,
-                file: Some(filename),
+                reader: string_table.get_reader(),
+                function: AbridgedFunction {
+                    name: STR_ID_EVAL,
+                    filename,
+                },
                 line,
             }],
             SampleValues {
@@ -828,7 +833,7 @@ impl Profiler {
         now: i64,
         duration: i64,
         filename: String,
-        include_type: &str,
+        include_type: StringId,
         locals: &RequestLocals,
     ) {
         let mut labels = Profiler::message_labels();
@@ -850,8 +855,11 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: format!("[{include_type}]").into(),
-                file: None,
+                reader: CACHED_STRINGS.with(|cell| cell.borrow().get_reader()),
+                function: AbridgedFunction {
+                    name: include_type,
+                    filename: StringId::ZERO,
+                },
                 line: 0,
             }],
             SampleValues {
@@ -913,8 +921,11 @@ impl Profiler {
 
         match self.send_sample(Profiler::prepare_sample_message(
             vec![ZendFrame {
-                function: "[gc]".into(),
-                file: None,
+                reader: CACHED_STRINGS.with(|cell| cell.borrow().get_reader()), // todo: fix
+                function: AbridgedFunction {
+                    name: STR_ID_GC,
+                    filename: StringId::ZERO,
+                },
                 line: 0,
             }],
             SampleValues {
@@ -1053,33 +1064,30 @@ impl Profiler {
 
 #[cfg(test)]
 mod tests {
+    use datadog_profiling::collections::identifiable::StringTable;
+
     use super::*;
-    use log::LevelFilter;
 
     fn get_frames() -> Vec<ZendFrame> {
+        let mut string_table = StringTable::with_capacity(10).unwrap();
         vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
+            reader: string_table.get_reader(),
+            function: AbridgedFunction {
+                name: string_table.insert("foobar").unwrap(),
+                filename: string_table.insert("foobar.php").unwrap(),
+            },
             line: 42,
         }]
     }
 
     fn get_request_locals() -> RequestLocals {
         RequestLocals {
-            env: None,
-            interrupt_count: AtomicU32::new(0),
             profiling_enabled: true,
-            profiling_endpoint_collection_enabled: true,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
             profiling_experimental_timeline_enabled: false,
-            profiling_experimental_exception_enabled: false,
             profiling_experimental_exception_sampling_distance: 1,
-            profiling_log_level: LevelFilter::Off,
-            service: None,
-            uri: Box::<AgentEndpoint>::default(),
-            version: None,
-            vm_interrupt_addr: std::ptr::null_mut(),
+            ..RequestLocals::default()
         }
     }
 
@@ -1264,5 +1272,32 @@ mod tests {
             ]
         );
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 70]);
+    }
+
+    #[test]
+    fn profiler_prepare_sample_message_works_with_disabled_walltime() {
+        let frames = get_frames();
+        let samples = get_samples();
+        let labels = Profiler::message_labels();
+        let mut locals = get_request_locals();
+        locals.profiling_enabled = true;
+        locals.profiling_allocation_enabled = false;
+        locals.profiling_experimental_cpu_time_enabled = false;
+        locals.profiling_experimental_exception_enabled = false;
+        locals.profiling_wall_time_enabled = false;
+
+        let message: SampleMessage =
+            Profiler::prepare_sample_message(frames, samples, labels, &locals, 1);
+
+        // Still present because at the moment, disabling wall-time only
+        // disables the timer, not the sample type.
+        assert_eq!(
+            message.key.sample_types,
+            vec![
+                ValueType::new("sample", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+            ]
+        );
+        assert_eq!(message.value.sample_values, vec![10, 20]);
     }
 }
