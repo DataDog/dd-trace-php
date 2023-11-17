@@ -70,6 +70,7 @@ tags:
 Array
 (
     [_dd.p.dm] => -1
+    [_dd.p.tid] => %s
     [_dd.runtime_family] => php
     [after] => root_span
     [before] => root_span

@@ -60,6 +60,7 @@ tags:
 Array
 (
     [_dd.p.dm] => -1
+    [_dd.p.tid] => %s
     [ddappsec] => true
     [env] => staging
     [http.method] => GET
