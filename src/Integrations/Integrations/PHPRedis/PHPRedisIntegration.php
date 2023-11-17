@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\PHPRedis;
 
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
+use DDTrace\RootSpanData;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -47,7 +48,7 @@ class PHPRedisIntegration extends Integration
             && (
                 \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
                 || \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_USER_KEEP
-            ) && \DDTrace\root_span()->id == $span->id
+            ) && $span instanceof RootSpanData && empty($span->parentId)
         ) {
             \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
         }
