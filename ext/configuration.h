@@ -52,13 +52,15 @@ enum ddtrace_dbm_propagation_mode {
 
 #define DD_CFG_STR(str) #str
 #define DD_CFG_EXPSTR(str) DD_CFG_STR(str)
-#define INTEGRATION_ALIAS(id, _, alias) \
-    CALIAS(BOOL, DD_TRACE_##id##_ENABLED, "true", CALIASES(DD_CFG_STR(alias)))
+#define INTEGRATION_ALIAS(id, _, initial, alias) \
+    CALIAS(BOOL, DD_TRACE_##id##_ENABLED, initial, CALIASES(DD_CFG_STR(alias)))
+#define INTEGRATION_WITH_DEFAULT(id, _, initial) \
+    CONFIG(BOOL, DD_TRACE_##id##_ENABLED, initial)
 #define INTEGRATION_NORMAL(id, _) \
     CONFIG(BOOL, DD_TRACE_##id##_ENABLED, "true")
-#define GET_INTEGRATION_CONFIG_MACRO(_1, _2, NAME, ...) NAME
+#define GET_INTEGRATION_CONFIG_MACRO(_1, _2, DEFAULT, NAME, ...) NAME
 #define INTEGRATION(id, ...)                                                                                           \
-    GET_INTEGRATION_CONFIG_MACRO(__VA_ARGS__, INTEGRATION_ALIAS, INTEGRATION_NORMAL)(id, __VA_ARGS__)                  \
+    GET_INTEGRATION_CONFIG_MACRO(__VA_ARGS__, INTEGRATION_ALIAS, INTEGRATION_WITH_DEFAULT, INTEGRATION_NORMAL)(id, __VA_ARGS__)                  \
     CALIAS(BOOL, DD_TRACE_##id##_ANALYTICS_ENABLED, DD_CFG_EXPSTR(DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT),           \
            CALIASES(DD_CFG_STR(DD_##id##_ANALYTICS_ENABLED), DD_CFG_STR(DD_TRACE_##id##_ANALYTICS_ENABLED)))           \
     CALIAS(DOUBLE, DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE, DD_CFG_EXPSTR(DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT), \

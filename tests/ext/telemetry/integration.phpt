@@ -54,7 +54,7 @@ namespace
                     $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                     foreach ($batch as $json) {
                         if ($json["request_type"] == "app-integrations-change") {
-                            print_r($json["payload"]);
+                            var_dump($json["payload"]);
                             break 3;
                         }
                     }
@@ -68,19 +68,27 @@ namespace
 --EXPECT--
 PUBLIC STATIC METHOD
 test_access hook
-Array
-(
-    [integrations] => Array
-        (
-            [0] => Array
-                (
-                    [name] => ddtrace\test\testsandboxedintegration
-                    [enabled] => 1
-                )
-
-        )
-
-)
+array(1) {
+  ["integrations"]=>
+  array(2) {
+    [0]=>
+    array(2) {
+      ["name"]=>
+      string(37) "ddtrace\test\testsandboxedintegration"
+      ["enabled"]=>
+      bool(true)
+    }
+    [1]=>
+    array(3) {
+      ["name"]=>
+      string(4) "logs"
+      ["enabled"]=>
+      bool(false)
+      ["version"]=>
+      string(0) ""
+    }
+  }
+}
 --CLEAN--
 <?php
 
