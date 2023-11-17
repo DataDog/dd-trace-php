@@ -13,6 +13,9 @@ class LaminasLogV2Test extends BaseLogsTest
     protected function ddSetUp()
     {
         parent::ddSetUp();
+        $this->putEnvAndReloadConfig([
+            'DD_LOGS_INJECTION=1'
+        ]);
         $integration = new LaminasIntegration();
         $integration->init();
     }
