@@ -116,6 +116,8 @@ static inline zend_string *php_base64_encode_str(const zend_string *str) {
 #define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
 #define GC_DEL_FLAGS(c, flag) GC_FLAGS(c) &= ~(flag)
 
+#define rc_dtor_func zval_dtor_func
+
 static inline HashTable *zend_new_array(uint32_t nSize) {
     HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
     zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
@@ -292,6 +294,14 @@ static zend_always_inline void zend_array_release(zend_array *array)
 #define ZEND_ATOL(s) atol((s))
 #endif
 #define ZEND_ACC_READONLY 0
+
+static zend_always_inline zend_result add_next_index_object(zval *arg, zend_object *obj) {
+    zval tmp;
+
+    ZVAL_OBJ(&tmp, obj);
+    return zend_hash_next_index_insert(Z_ARRVAL_P(arg), &tmp) ? SUCCESS : FAILURE;
+}
+
 #endif
 
 #if PHP_VERSION_ID < 80200

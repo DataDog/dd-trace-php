@@ -256,8 +256,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
          * without an event loop.
          * @see https://github.com/guzzle/guzzle/issues/1439
          */
-        self::assertDistributedTracingSpan($traces[0][2], $headers1['headers']);
-        self::assertDistributedTracingSpan($traces[0][1], $headers2['headers']);
+        self::assertDistributedTracingSpan($traces[0][6], $headers1['headers']);
+        self::assertDistributedTracingSpan($traces[0][3], $headers2['headers']);
     }
 
     private static function assertDistributedTracingSpan($span, $headers)

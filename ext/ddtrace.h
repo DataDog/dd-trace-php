@@ -92,6 +92,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddtrace_trace_id distributed_trace_id;
     uint64_t distributed_parent_trace_id;
     zend_string *dd_origin;
+    zend_reference *curl_multi_injecting_spans;
 
     char *cgroup_file;
     ddog_QueueId telemetry_queue_id;

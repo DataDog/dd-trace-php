@@ -166,7 +166,7 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
     })
 }
 
-static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *closure, dd_hook_data *hook_data) {
+static bool dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *closure, dd_hook_data *hook_data) {
     zval closure_zv, hook_data_zv;
     ZVAL_OBJ(&closure_zv, closure);
     ZVAL_OBJ(&hook_data_zv, &hook_data->std);
@@ -182,6 +182,7 @@ static void dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
     }
     zai_sandbox_close(&sandbox);
     zval_ptr_dtor(&rv);
+    return Z_TYPE(rv) != IS_FALSE;
 }
 
 static bool dd_uhook_match_filepath(zend_string *file, zend_string *source) {
@@ -268,6 +269,8 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         dd_trace_stop_span_time(span);
     }
 
+    bool keep_span = true;
+
     if (def->end && !def->running && get_DD_TRACE_ENABLED()) {
         zval tmp;
 
@@ -307,7 +310,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
 
         def->running = true;
         dyn->hook_data->retval_ptr = retval;
-        dd_uhook_call_hook(execute_data, def->end, dyn->hook_data);
+        keep_span = dd_uhook_call_hook(execute_data, def->end, dyn->hook_data);
         dyn->hook_data->retval_ptr = NULL;
         def->running = false;
     }
@@ -316,7 +319,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         dyn->hook_data->span = NULL;
         // e.g. spans started in limited mode are never properly started
         if (span->start) {
-            ddtrace_clear_execute_data_span(invocation, true);
+            ddtrace_clear_execute_data_span(invocation, keep_span);
             if (dyn->hook_data->prior_stack) {
                 ddtrace_switch_span_stack(dyn->hook_data->prior_stack);
                 OBJ_RELEASE(&dyn->hook_data->prior_stack->std);

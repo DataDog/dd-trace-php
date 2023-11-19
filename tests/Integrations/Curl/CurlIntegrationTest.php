@@ -561,6 +561,65 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
     }
 
+    public function testMulti()
+    {
+        $traces = $this->isolateTracer(function () {
+            $ch1 = curl_init(self::URL . '/status/200');
+            curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
+            $ch2 = curl_init(self::URL_NOT_EXISTS);
+            curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+
+            $mh = curl_multi_init();
+            curl_multi_add_handle($mh, $ch1);
+            curl_multi_add_handle($mh, $ch2);
+
+            do {
+                $status = curl_multi_exec($mh, $active);
+                if ($active) {
+                    curl_multi_select($mh);
+                }
+                while (false !== curl_multi_info_read($mh));
+            } while ($active && $status == CURLM_OK);
+
+            $response = curl_multi_getcontent($ch1);
+            $this->assertSame('', $response);
+            $response = curl_multi_getcontent($ch2);
+            $this->assertSame('', $response);
+            curl_multi_close($mh);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('curl_multi_exec', 'curl', 'http', 'curl_multi_exec')
+                ->withExactTags([
+                    Tag::COMPONENT => 'curl',
+                ])->withChildren([
+                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
+                        ->setTraceAnalyticsCandidate()
+                        ->withExactTags([
+                            'http.url' => self::URL . '/status/200',
+                            'http.status_code' => '200',
+                            'span.kind' => 'client',
+                            'network.destination.name' => 'httpbin_integration',
+                            Tag::COMPONENT => 'curl',
+                        ])
+                        ->withExistingTagsNames(self::commonCurlInfoTags())
+                        ->skipTagsLike('/^curl\..*/'),
+                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://__i_am_not_real__.invalid/')
+                        ->setTraceAnalyticsCandidate()
+                        ->withExactTags([
+                            'http.url' => 'http://__i_am_not_real__.invalid/',
+                            'http.status_code' => '0',
+                            'span.kind' => 'client',
+                            'network.destination.name' => '__i_am_not_real__.invalid',
+                            Tag::COMPONENT => 'curl',
+                        ])
+                        ->withExistingTagsNames(self::commonCurlInfoTags())
+                        ->skipTagsLike('/^curl\..*/')
+                        ->setError('curl error', "Couldn't resolve host name", true),
+                ]),
+        ]);
+    }
+
     /**
      * @dataProvider dataProviderTestTraceAnalytics
      */

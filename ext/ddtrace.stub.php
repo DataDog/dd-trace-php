@@ -403,10 +403,18 @@ namespace DDTrace {
     /**
      * Close the currently active user-span on the top of the stack
      *
-     * @param float $finishTime Finish time in seconds.
+     * @param float $finishTime Finish time in seconds. Defaults to now if zero.
      * @return false|null 'false' if unexpected parameters were given, else 'null'
      */
     function close_span(float $finishTime = 0): false|null {}
+
+    /**
+     * Update the duration of an already closed span
+     *
+     * @param SpanData $span The span to update.
+     * @param float $finishTime Finish time in seconds. Defaults to now if zero.
+     */
+    function update_span_duration(SpanData $span, float $finishTime = 0): null {}
 
     /**
      * Start a new trace
@@ -467,9 +475,11 @@ namespace DDTrace {
      * Sanitize an exception
      *
      * @param \Exception|\Throwable $exception
+     * @param int $skipFrames The number of frames to be dropped from the start. E.g. to hide the fact that we're
+     * in a hook function.
      * @return string
      */
-    function get_sanitized_exception_trace(\Exception|\Throwable $exception): string {}
+    function get_sanitized_exception_trace(\Exception|\Throwable $exception, int $skipFrames = 0): string {}
 
     /**
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
@@ -569,6 +579,14 @@ namespace DDTrace {
      * Closes all spans and force-send finished traces to the agent
      */
     function flush(): void {}
+
+    /**
+     * Registers an array to be populated with spans for each request during the next curl_multi_exec() call.
+     *
+     * @internal
+     * @param list{\CurlHandle, SpanData}[] $array An array which will be populated with curl handles and spans.
+     */
+    function curl_multi_exec_get_request_spans(&$array): void {}
 }
 
 namespace DDTrace\System {
