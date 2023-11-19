@@ -572,7 +572,7 @@ class LaminasIntegration extends Integration
                 if ($response instanceof ApiProblemResponse) {
                     $apiProblem = $response->getApiProblem();
                     $detail = $apiProblem->detail; // __get
-                    $status = $apiProblem->status; // __get
+                    $status = $response->getStatusCode();
                     if ($status < 500) {
                         return; // Only set 5xx on the root span
                     }
