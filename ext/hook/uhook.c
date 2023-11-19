@@ -549,23 +549,38 @@ error:
     RETURN_LONG(id);
 } /* }}} */
 
-/* {{{ proto void DDTrace\remove_hook(int $id) */
+/* {{{ proto void DDTrace\remove_hook(int $id, string $location = "") */
 PHP_FUNCTION(DDTrace_remove_hook) {
     (void)return_value;
 
     zend_long id;
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    zend_string *location = NULL;
+    ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_LONG(id)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STR(location)
     ZEND_PARSE_PARAMETERS_END();
 
     dd_uhook_def *def;
     if ((def = zend_hash_index_find_ptr(&DDTRACE_G(uhook_active_hooks), (zend_ulong)id))) {
-        if (def->function) {
+        if (def->function || def->file) {
             zai_str scope = zai_str_from_zstr(def->scope);
-            zai_str function = ZAI_STR_FROM_ZSTR(def->function);
-            zai_hook_remove(scope, function, id);
+            zai_str function = zai_str_from_zstr(def->function);
+            if (location && ZSTR_LEN(location)) {
+                zend_string *lower = zend_string_tolower(location);
+                zai_hook_exclude_class(scope, function, id, lower);
+                zend_string_release(lower);
+            } else {
+                zai_hook_remove(scope, function, id);
+            }
         } else {
-            zai_hook_remove_resolved(def->install_address, id);
+            if (location && ZSTR_LEN(location)) {
+                zend_string *lower = zend_string_tolower(location);
+                zai_hook_exclude_class_resolved(def->install_address, id, lower);
+                zend_string_release(lower);
+            } else {
+                zai_hook_remove_resolved(def->install_address, id);
+            }
         }
     }
 }

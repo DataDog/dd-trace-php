@@ -1,6 +1,6 @@
 #ifndef ZAI_HOOK_H
 #define ZAI_HOOK_H
-#include <symbols/symbols.h>
+#include "../symbols/symbols.h"
 
 /* The Hook interface intends to abstract away the storage and resolution of hook targets */
 
@@ -61,6 +61,10 @@ zend_long zai_hook_install_resolved_generator(zend_function *function,
 /* {{{ zai_hook_remove removes a hook from the request local hook tables. It does not touch static hook tables. */
 bool zai_hook_remove(zai_str scope, zai_str function, zend_long index);
 bool zai_hook_remove_resolved(zai_install_address function_address, zend_long index); /* }}} */
+
+/* {{{ zai_hook_exclude_class prevents a hook from being installed on a specific class through inheritance. */
+void zai_hook_exclude_class(zai_str scope, zai_str function, zend_long index, zend_string *lc_classname);
+void zai_hook_exclude_class_resolved(zai_install_address function_address, zend_long index, zend_string *lc_classname); /* }}} */
 
 /* {{{ zai_hook_memory_t structure is passed between
         continue and finish and managed by the hook interface */
