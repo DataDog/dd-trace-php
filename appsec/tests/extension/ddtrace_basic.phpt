@@ -44,7 +44,7 @@ echo 'number of commands: ', count($c), "\n";
 
 DDTrace\start_span();
 
-// Compatibility with pre 0.81.0 
+// Compatibility with pre 0.81.0
 $root_span = \DDTrace\root_span();
 var_dump($root_span->name);
 var_dump($root_span->service);
@@ -53,7 +53,7 @@ var_dump($root_span->id);
 var_dump($root_span->meta);
 var_dump($root_span->metrics);
 
-$trace_id = \DDTrace\trace_id();
+$trace_id = \DDTrace\root_span()->id;
 echo 'trace id: ', $trace_id, "\n";
 
 echo "ddtrace_rshutdown\n";
@@ -103,5 +103,6 @@ Array
 (
     [runtime-id] => %s
     [ddappsec] => true
-    [_dd.p.dm] => -1
+    [_dd.p.dm] => -0
+    [_dd.p.tid] => %s
 )

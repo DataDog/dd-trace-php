@@ -49,6 +49,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             'DD_TRACE_MEMORY_LIMIT',
             'DD_TRACE_SPANS_LIMIT',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_TRACE_PROPAGATION_STYLE_INJECT',
         ];
     }
 
@@ -362,6 +363,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testOriginIsPropagatedAndSetsRootSpanTag()
     {
+        ini_set("datadog.trace.propagation_style_inject", "");
+
         $found = [];
         $traces = $this->inWebServer(
             function ($execute) use (&$found) {
@@ -387,6 +390,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsPropagatedOnCopiedHandle()
     {
+        ini_set("datadog.trace.propagation_style_inject", "");
+
         $found = [];
         $traces = $this->inWebServer(
             function ($execute) use (&$found) {
@@ -414,6 +419,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
+        ini_set("datadog.trace.propagation_style_inject", "");
+
         $this->inWebServer(
             function ($execute) use (&$found) {
                 $found = json_decode($execute(GetSpec::create(
@@ -439,6 +446,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testTracerIsRunningAtLimitedCapacityWeStillPropagateTheSpan()
     {
+        ini_set("datadog.trace.propagation_style_inject", "");
+
         $traces = $this->inWebServer(
             function ($execute) use (&$found) {
                 $found = json_decode($execute(GetSpec::create(

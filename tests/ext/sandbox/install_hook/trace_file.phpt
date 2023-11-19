@@ -22,9 +22,9 @@ test
 test
 spans(\DDTrace\SpanData) (2) {
   %s/testinclude.inc (trace_file.php, %s/install_hook/testinclude.inc, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
     _dd.p.tid => %s
   %s/testinclude.inc (trace_file.php, %s/install_hook/testinclude.inc, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
     _dd.p.tid => %s
 }

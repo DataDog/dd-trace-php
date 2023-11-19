@@ -84,7 +84,7 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -201,7 +201,7 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
             SpanAssertion::exists('PDO.commit'),
@@ -271,7 +271,7 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -295,7 +295,7 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -416,7 +416,7 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -456,7 +456,7 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -495,7 +495,7 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);

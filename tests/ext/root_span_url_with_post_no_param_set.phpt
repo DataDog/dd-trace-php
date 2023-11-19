@@ -19,7 +19,7 @@ array(3) {
   ["runtime-id"]=>
   string(36) "%s"
   ["_dd.p.dm"]=>
-  string(2) "-1"
+  string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
 }

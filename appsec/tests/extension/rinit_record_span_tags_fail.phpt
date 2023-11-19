@@ -53,5 +53,6 @@ tags:
 Array
 (
     [runtime-id] => %s
-    [_dd.p.dm] => -1
+    [_dd.p.dm] => -0
+    [_dd.p.tid] => %s
 )

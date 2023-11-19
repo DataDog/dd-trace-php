@@ -8,7 +8,7 @@
     "parent_id": 5714801379517671581,
     "type": "web",
     "meta": {
-      "_dd.p.dm": "-1",
+      "_dd.p.dm": "-0",
       "component": "laravel",
       "http.method": "GET",
       "http.route": "simple_view",

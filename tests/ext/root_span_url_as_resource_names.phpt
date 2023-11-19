@@ -30,7 +30,7 @@ array(6) {
   ["http.method"]=>
   string(3) "GET"
   ["_dd.p.dm"]=>
-  string(2) "-1"
+  string(2) "-0"
   ["http.status_code"]=>
   string(3) "200"
   ["_dd.p.tid"]=>
