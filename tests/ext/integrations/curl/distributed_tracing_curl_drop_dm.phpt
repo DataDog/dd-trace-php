@@ -44,7 +44,7 @@ echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
 traceparent: 00-12345678901234567890123456789012-1234567890123456-00
-tracestate: dd=t.tid:1234567890123456;t.usr.id:baz64~~;t.url:http://localhost,foo=1,
+tracestate: dd=t.tid:1234567890123456;t.usr.id:baz64~~;t.url:http://localhost,foo=1
 x-datadog-parent-id: 1311768467284833366
 x-datadog-tags: _dd.p.tid=1234567890123456,_dd.p.usr.id=baz64==,_dd.p.url=http://localhost
 x-datadog-trace-id: 8687463697196027922

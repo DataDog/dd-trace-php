@@ -12,7 +12,6 @@
 //       internal userland classes and loaded by composer;
 //     - automatic instrumentation runs before it is known that composer exists, and after any `opcache.preload` script;
 
-
 // Do not trigger the autoloading mechanism if the class is not defined, so 'terminal' autoloaders - that trigger
 // errors if a class was not found - are supported.
 //   - Class `DDTrace\ComposerBootstrap` is declared in `src/api/ComposerBootstrap.php` and it is loaded when the
@@ -36,8 +35,10 @@ if ($apiLoadedViaComposer) {
     spl_autoload_register(function ($class) use ($apiLoadedViaComposerClass) {
         // If $class is not a DDTrace class, move quickly to the next autoloader
         $prefix = 'DDTrace\\';
+        $openTelemetry = 'OpenTelemetry\\';
         $len = strlen($prefix);
-        if (strncmp($prefix, $class, $len) !== 0) {
+        $otelLen = strlen($openTelemetry);
+        if (strncmp($prefix, $class, $len) !== 0 && strncmp($openTelemetry, $class, $otelLen) !== 0) {
             // move to the next registered autoloader
             return;
         }
@@ -96,8 +97,10 @@ if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
 spl_autoload_register(function ($class) use ($tracerFiles, $tracerFilesWithComposerLoaded, $apiLoadedViaComposerClass) {
     // If $class is not a DDTrace class, move quickly to the next autoloader
     $prefix = 'DDTrace\\';
+    $openTelemetry = 'OpenTelemetry\\';
     $len = strlen($prefix);
-    if (strncmp($prefix, $class, $len) !== 0) {
+    $otelLen = strlen($openTelemetry);
+    if (strncmp($prefix, $class, $len) !== 0 && strncmp($openTelemetry, $class, $otelLen) !== 0) {
         // move to the next registered autoloader
         return;
     }
@@ -115,6 +118,27 @@ spl_autoload_register(function ($class) use ($tracerFiles, $tracerFilesWithCompo
         require_once $file;
     }
 });
+
+if (function_exists('DDTrace\\install_hook')) {
+    \DDTrace\install_hook(
+        'Composer\Autoload\ClassLoader::register',
+        null,
+        function (\DDTrace\HookData $hook) {
+            $args = $hook->args;
+            if (!empty($args)) {
+                $prepend = $args[0];
+                if ($prepend) {
+                    // We need to unregister and register dd's autoload, prepending it to the list of autoloaders.
+                    // This is needed because composer's autoloader is prepended to the list of autoloaders, and we need to
+                    // make sure that dd's autoloader is prepended to composer's autoloader.
+                    spl_autoload_unregister('DDTrace\Bridge\OptionalDepsAutoloader::load');
+                    spl_autoload_register('DDTrace\Bridge\OptionalDepsAutoloader::load', true, true);
+                }
+            }
+        }
+    );
+}
+
 
 function ddtrace_legacy_tracer_autoloading_possible()
 {

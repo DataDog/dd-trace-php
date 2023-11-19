@@ -689,6 +689,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
+	test_opentelemetry_1 \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -755,6 +756,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
+	test_opentelemetry_1 \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_guzzle5 \
@@ -802,6 +804,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_monolog2 \
 	test_integrations_monolog3 \
 	test_integrations_mysqli \
+	test_opentelemetry_1 \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -847,6 +850,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_monolog2 \
 	test_integrations_monolog3 \
 	test_integrations_mysqli \
+	test_opentelemetry_1 \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -949,6 +953,11 @@ test_distributed_tracing: global_test_run_dependencies
 
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
+
+test_opentelemetry_1: global_test_run_dependencies
+	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
+	$(MAKE) test_scenario_opentelemetry1
+	$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo "") DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0 $(call run_tests,--testsuite=opentelemetry1 $(TESTS))
 
 test_opentracing_beta5: global_test_run_dependencies
 	$(MAKE) test_scenario_opentracing_beta5

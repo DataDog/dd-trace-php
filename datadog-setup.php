@@ -459,6 +459,7 @@ function install($options)
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
+    $tmpSrcDir = $tmpArchiveTraceRoot . '/src';
     execute_or_exit("Cannot create directory '$tmpDir'", "mkdir -p " . escapeshellarg($tmpDir));
     register_shutdown_function(function () use ($tmpDir) {
         execute_or_exit("Cannot remove temporary directory '$tmpDir'", "rm -rf " . escapeshellarg($tmpDir));
@@ -498,6 +499,12 @@ function install($options)
         "Cannot copy files from '$tmpBridgeDir' to '$installDirSourcesDir'",
         "cp -r " . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirSourcesDir)
     );
+    if (file_exists($tmpSrcDir)) {
+        execute_or_exit(
+            "Cannot copy files from '$tmpSrcDir' to '$installDirSourcesDir'",
+            "cp -r " . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSourcesDir)
+        );
+    }
     echo "Installed required source files to '$installDir'\n";
 
     // Appsec helper and rules

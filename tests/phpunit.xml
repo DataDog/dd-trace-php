@@ -51,6 +51,16 @@
             <directory>./Integrations/Laravel/V10_x</directory>
             <directory>./Integrations/CLI/Laravel/V10_X</directory>
         </testsuite>
+        <testsuite name="opentelemetry1">
+            <directory>./OpenTelemetry/Unit/API</directory>
+            <directory>./OpenTelemetry/Unit/Context</directory>
+            <directory>./OpenTelemetry/Unit/Propagation</directory>
+            <directory>./OpenTelemetry/Integration/API</directory>
+            <directory phpVersion="8.1.0" phpVersionOperator="&gt;=">./OpenTelemetry/Integration/Context</directory>
+            <directory>./OpenTelemetry/Integration/Logs</directory>
+            <directory>./OpenTelemetry/Integration/SDK</directory>
+            <file>./OpenTelemetry/Integration/InteroperabilityTest.php</file>
+        </testsuite>
         <testsuite name="slim-312-test">
             <directory>./Integrations/Slim/V3_12</directory>
         </testsuite>

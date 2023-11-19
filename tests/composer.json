@@ -10,6 +10,7 @@
         ]
     },
     "require-dev": {
+        "assertwell/phpunit-global-state": "^0.2.2",
         "mockery/mockery": "*",
         "phpunit/phpunit": "<10",
         "phpspec/prophecy": "*",
@@ -110,6 +111,16 @@
             "monolog3": {
                 "require": {
                     "monolog/monolog": "~3.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "opentelemetry1": {
+                "require": {
+                    "open-telemetry/sdk": "@stable",
+                    "open-telemetry/extension-propagator-b3": "@stable",
+                    "open-telemetry/opentelemetry-logger-monolog": "@stable"
                 },
                 "scenario-options": {
                     "create-lockfile": false

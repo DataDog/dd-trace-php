@@ -48,7 +48,9 @@ for architecture in "${architectures[@]}"; do
             cp ./extensions_${architecture}/ddtrace-$php_api-debug-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug-zts.so;
         fi
     done;
+    cp -r ./src ${tmp_folder_final_gnu_trace};
     cp -r ./bridge ${tmp_folder_final_gnu_trace};
+    cp -r ./src ${tmp_folder_final_musl_trace};
     cp -r ./bridge ${tmp_folder_final_musl_trace};
 
     ########################

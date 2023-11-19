@@ -174,6 +174,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(SET, DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS, "")                                                      \
     CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "false")                                                          \
     CONFIG(BOOL, DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION, "false")                                              \
+    CONFIG(BOOL, DD_TRACE_OTEL_ENABLED, "false")                                                               \
     DD_INTEGRATIONS
 
 #define CALIAS CONFIG

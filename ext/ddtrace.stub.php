@@ -136,7 +136,7 @@ namespace DDTrace {
         public function getDuration(): int {}
 
         /**
-         * @return int Get the start time of the span
+         * @return int Get the start time of the span, in nanoseconds
          */
         public function getStartTime(): int {}
 
@@ -388,7 +388,7 @@ namespace DDTrace {
      * @return SpanData|null 'null' if tracing isn't enabled or if the active stack doesn't have a root span,
      * else the root span of the active stack
      */
-    function root_span(): null|SpanData {}
+    function root_span(): null|RootSpanData {}
 
     /**
      * Start a new custom user-span on the top of the stack. If no active span exists, the new created span will be a
@@ -413,9 +413,10 @@ namespace DDTrace {
      *
      * More precisely, a new root span stack will be created and switched on to, and a new span started.
      *
+     * @param float $startTime Start time of the span in seconds.
      * @return SpanData The newly created root span
      */
-    function start_trace_span(): SpanData {}
+    function start_trace_span(float $startTime = 0): SpanData {}
 
     /**
      * Get the active stack
