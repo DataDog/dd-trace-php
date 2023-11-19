@@ -497,9 +497,9 @@ final class TracerTest extends BaseTestCase
                 '_dd.p.congo' => 't61rcWkgMzE',
                 '_dd.p.some_val' => 'tehehe'
             ]);
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-1;t.congo:t61rcWkgMzE;t.some_val:tehehe$/', (string)$span->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.congo:t61rcWkgMzE;t.some_val:tehehe$/', (string)$span->getContext()->getTraceState());
             $span->end();
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-1;t.congo:t61rcWkgMzE;t.some_val:tehehe$/', (string)$span->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.congo:t61rcWkgMzE;t.some_val:tehehe$/', (string)$span->getContext()->getTraceState());
         });
 
         $span = $traces[0][0];
@@ -618,11 +618,11 @@ final class TracerTest extends BaseTestCase
             )))->getTracer('OpenTelemetry.TracerTest');
             $parent = $tracer->spanBuilder("parent")->startSpan(); // root sampler will be used
             $scope = $parent->activate();
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-1,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
             $parent->setAttributes([
                 '_dd.p.some_val' => 'tehehe'
             ]);
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-1;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
             try {
                 $child = $tracer->spanBuilder("child")->startSpan(); // local parent sampler will be used
 
@@ -651,7 +651,7 @@ final class TracerTest extends BaseTestCase
 
                 $child->end();
             } finally {
-                $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-1;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+                $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
                 $scope->detach();
                 $parent->end();
             }
@@ -807,7 +807,7 @@ final class TracerTest extends BaseTestCase
                 '_dd.p.congo' => 't61rcWkgMzE',
             ]);
 
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-1;t.congo:t61rcWkgMzE$/', (string)$span->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.congo:t61rcWkgMzE$/', (string)$span->getContext()->getTraceState());
 
             $traceState = $span->getContext()->getTraceState()->with('rojo', '00f067aa0ba902b7');
             $context = SpanContext::create(
@@ -821,7 +821,7 @@ final class TracerTest extends BaseTestCase
                 ->setParent(Context::getCurrent()->withContextValue(Span::wrap($context)))
                 ->startSpan();
 
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-1;t.congo:t61rcWkgMzE,rojo=00f067aa0ba902b7$/', (string)$child->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.congo:t61rcWkgMzE,rojo=00f067aa0ba902b7$/', (string)$child->getContext()->getTraceState());
 
             $child->end();
             $span->end();
@@ -832,8 +832,8 @@ final class TracerTest extends BaseTestCase
 
         $this->assertSame('t61rcWkgMzE', $span['meta']['_dd.p.congo']);
         $this->assertSame('t61rcWkgMzE', $childSpan['meta']['_dd.p.congo']);
-        $this->assertSame('-1', $span['meta']['_dd.p.dm']);
-        $this->assertSame('-1', $childSpan['meta']['_dd.p.dm']);
+        $this->assertSame('-0', $span['meta']['_dd.p.dm']);
+        $this->assertSame('-0', $childSpan['meta']['_dd.p.dm']);
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('internal', 'test.span')
