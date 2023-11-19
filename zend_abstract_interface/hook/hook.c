@@ -1263,9 +1263,10 @@ void zai_hook_exclude_class_resolved(zai_install_address function_address, zend_
     }
     zai_hook_add_exclusion(hooks, index, lc_classname);
 
-    zend_class_entry *ce;
-    zend_function *resolved = zai_hook_lookup_function(zai_str_from_zstr(lc_classname), zai_str_from_zstr(hooks->resolved->common.function_name), &ce);
-    if (!resolved) {
+    zend_class_entry *ce = NULL;
+    zend_string *function_name = hooks->resolved->common.function_name;
+    zend_function *resolved = zai_hook_lookup_function(zai_str_from_zstr(lc_classname), zai_str_from_zstr(function_name), &ce);
+    if (!ce || !resolved) {
         return;
     }
     zai_hooks_entry *excluded_hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(resolved));
@@ -1278,7 +1279,7 @@ void zai_hook_exclude_class_resolved(zai_install_address function_address, zend_
         return;
     }
 
-    zai_hook_remove_shared_hook(resolved, (zend_ulong) index, hooks);
+    zai_hook_remove_abstract_recursive(hooks, ce, function_name, (zend_ulong) index);
 }
 
 void zai_hook_exclude_class(zai_str scope, zai_str function, zend_long index, zend_string *lc_classname) {
