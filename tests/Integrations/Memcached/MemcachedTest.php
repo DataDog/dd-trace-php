@@ -484,7 +484,7 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -507,7 +507,7 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -530,7 +530,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMulti',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -553,7 +553,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMulti',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -571,7 +571,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMulti',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -594,7 +594,7 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -622,7 +622,7 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -894,7 +894,7 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'getMulti',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -924,7 +924,7 @@ final class MemcachedTest extends IntegrationTestCase
                     Tag::SPAN_KIND => 'client',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);

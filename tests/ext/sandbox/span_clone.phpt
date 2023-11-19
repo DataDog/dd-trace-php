@@ -199,7 +199,7 @@ array(1) {
       ["runtime-id"]=>
       string(36) "%s"
       ["_dd.p.dm"]=>
-      string(2) "-1"
+      string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
     }
@@ -207,7 +207,7 @@ array(1) {
     array(4) {
       ["process_id"]=>
       float(%f)
-      ["_dd.rule_psr"]=>
+      ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)

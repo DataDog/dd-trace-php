@@ -106,7 +106,7 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
         ]);
@@ -131,7 +131,7 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
         ]);
@@ -157,7 +157,7 @@ class SQLSRVTest extends IntegrationTestCase
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
                 )->withExactMetrics([
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
         ]);
@@ -185,7 +185,7 @@ class SQLSRVTest extends IntegrationTestCase
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
                 )->withExactMetrics([
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
         ]);
@@ -211,7 +211,7 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
             SpanAssertion::build('sqlsrv_commit', 'sqlsrv', 'sql', 'sqlsrv_commit')
@@ -239,7 +239,7 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
         ]);
@@ -267,7 +267,7 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
         ]);
@@ -294,7 +294,7 @@ class SQLSRVTest extends IntegrationTestCase
                 )->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
         ]);
@@ -323,7 +323,7 @@ class SQLSRVTest extends IntegrationTestCase
                 )->withExactTags(self::baseTags($query, true))
                 ->withExactMetrics([
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
         ]);
@@ -447,7 +447,7 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
         ]);

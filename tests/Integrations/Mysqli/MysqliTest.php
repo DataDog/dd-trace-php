@@ -122,7 +122,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, false))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -144,7 +144,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -210,7 +210,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -236,7 +236,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -257,7 +257,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -280,7 +280,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -305,7 +305,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);
@@ -332,7 +332,7 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
-                    '_dd.rule_psr' => 1.0,
+                    '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
         ]);

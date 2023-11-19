@@ -103,6 +103,6 @@ Array
 (
     [runtime-id] => %s
     [ddappsec] => true
-    [_dd.p.dm] => -1
+    [_dd.p.dm] => -0
     [_dd.p.tid] => %s
 )

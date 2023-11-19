@@ -16,20 +16,19 @@ void ddtrace_try_read_agent_rate(void) {
     ddog_CharSlice data;
     if (DDTRACE_G(remote_config_reader) && ddog_agent_remote_config_read(DDTRACE_G(remote_config_reader), &data)) {
         zval json;
-        if ((int)data.len > 0) {
-            zai_json_decode_assoc(&json, data.ptr, (int)data.len, 3);
+        if ((int)data.len > 0 && zai_json_decode_assoc_safe(&json, data.ptr, (int)data.len, 3, true) == SUCCESS) {
             if (Z_TYPE(json) == IS_ARRAY) {
                 zval *rules = zend_hash_str_find(Z_ARR(json), ZEND_STRL("rate_by_service"));
                 if (rules && Z_TYPE_P(rules) == IS_ARRAY) {
                     if (DDTRACE_G(agent_rate_by_service)) {
-                        zend_array_release(DDTRACE_G(agent_rate_by_service));
+                        zai_json_release_persistent_array(DDTRACE_G(agent_rate_by_service));
                     }
 
                     Z_TRY_ADDREF_P(rules);
                     DDTRACE_G(agent_rate_by_service) = Z_ARR_P(rules);
                 }
             }
-            zval_ptr_dtor(&json);
+            zai_json_dtor_pzval(&json);
         }
     }
 }
@@ -130,18 +129,19 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
         bool sampling = (double)genrand64_int64() < sample_rate * (double)~0ULL;
         bool limited  = ddtrace_limiter_active() && (sampling && !ddtrace_limiter_allow());
 
+        zval sample_rate_zv;
+        ZVAL_DOUBLE(&sample_rate_zv, sample_rate);
+
         if (explicit_rule) {
             mechanism = DD_MECHANISM_RULE;
             priority = sampling && !limited ? PRIORITY_SAMPLING_USER_KEEP : PRIORITY_SAMPLING_USER_REJECT;
+            zend_hash_str_update(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.rule_psr"), &sample_rate_zv);
         } else {
-            mechanism = DD_MECHANISM_AGENT_RATE;
+            mechanism = DDTRACE_G(agent_rate_by_service) ? DD_MECHANISM_AGENT_RATE : DD_MECHANISM_DEFAULT;
             priority = sampling && !limited ? PRIORITY_SAMPLING_AUTO_KEEP : PRIORITY_SAMPLING_AUTO_REJECT;
-        }
 
-        zval sample_rate_zv;
-        ZVAL_DOUBLE(&sample_rate_zv, sample_rate);
-        zend_hash_str_update(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.rule_psr"),
-                             &sample_rate_zv);
+            zend_hash_str_update(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.agent_psr"), &sample_rate_zv);
+        }
 
         if (limited) {
             zval limit_zv;

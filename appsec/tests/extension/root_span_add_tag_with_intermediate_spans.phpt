@@ -69,7 +69,7 @@ int(2)
 tags:
 Array
 (
-    [_dd.p.dm] => -1
+    [_dd.p.dm] => -0
     [_dd.p.tid] => %s
     [_dd.runtime_family] => php
     [after] => root_span
@@ -81,7 +81,7 @@ Array
 (
     [process_id] => %d
     [_dd.appsec.enabled] => 1
-    [_dd.rule_psr] => 1
+    [_dd.agent_psr] => 1
     [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %s
 )

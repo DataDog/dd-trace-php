@@ -30,4 +30,4 @@ dt_dump_headers_from_httpbin(query_headers(), ['x-datadog-tags']);
 ?>
 --EXPECTF--
 string(4) "1234"
-x-datadog-tags: _dd.p.tid=%s,_dd.p.usr.id=1234,_dd.p.dm=-1
+x-datadog-tags: _dd.p.tid=%s,_dd.p.usr.id=1234,_dd.p.dm=-0
