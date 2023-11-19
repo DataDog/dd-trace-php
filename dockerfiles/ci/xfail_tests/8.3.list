@@ -30,6 +30,7 @@ Zend/tests/list_keyed_conversions.phpt
 Zend/tests/multibyte/multibyte_encoding_004.phpt
 Zend/tests/object_gc_in_shutdown.phpt
 Zend/tests/offset_array.phpt
+Zend/tests/stack_limit/stack_limit_013.phpt
 Zend/tests/strict_001.phpt
 Zend/tests/type_declarations/scalar_return_basic_64bit.phpt
 Zend/tests/type_declarations/scalar_strict_64bit.phpt
