@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include <sandbox/sandbox.h>
 
 #include "symbols.h"

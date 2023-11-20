@@ -1,3 +1,4 @@
+#include "../../tsrmls_cache.h"
 #include <Zend/zend_observer.h>
 #include <hook/hook.h>
 #include <hook/table.h>

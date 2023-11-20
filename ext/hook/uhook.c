@@ -1,3 +1,4 @@
+#include "../ddtrace.h"
 #include <php.h>
 
 #include <zend_closures.h>
@@ -14,7 +15,6 @@
 #include <hook/hook.h>
 
 #include "uhook.h"
-#include "../ddtrace.h"
 #include <jit_utils/jit_blacklist.h>
 #include <exceptions/exceptions.h>
 

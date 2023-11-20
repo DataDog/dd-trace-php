@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <php.h>
+#include <Zend/zend_closures.h>
 
 #include "ext/standard/base64.h"
 

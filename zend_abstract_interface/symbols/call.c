@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include "symbols.h"
 
 #if PHP_VERSION_ID >= 80000

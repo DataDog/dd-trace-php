@@ -1,3 +1,4 @@
+#include "../../tsrmls_cache.h"
 #include <Zend/zend_compile.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_vm.h>
