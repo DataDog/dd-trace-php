@@ -24,7 +24,7 @@ final class Tracer implements TracerInterface
      * Must begin with a number for Debian packaging requirements
      * Must use single-quotes for packaging script to work
      */
-    const VERSION = '0.93.0';
+    const VERSION = '0.94.0';
 
     /**
      * @var Span[][]
