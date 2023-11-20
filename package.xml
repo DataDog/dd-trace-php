@@ -76,9 +76,6 @@ This release adds support to OpenTelemetry so that you can use the OpenTelemetry
 - Respect DD_LOGS_INJECTION default value #2365
 - Completely avoid instrumenting the PSR NullLogger #2367
 - Inject the _dd.dbm_trace_injected tag only when full propagation is enabled #2346
-- Fix PHP5: The Magento Integration is not part of PHP5 #2363
-- Fix orphans removal when 128-bit is enabled #2366
-- Use _dd.agent_psr instead of _dd.rule_psr for agent sampling #2370
 - Retain tracestate from tracecontext if extracted at all #2359
 
 ### Fixed
@@ -86,6 +83,9 @@ This release adds support to OpenTelemetry so that you can use the OpenTelemetry
 - Fix possible double-free with hooks on internal methods inherited by user classes #2372
 - Fix crash with functions with no run_time_cache yet #2373
 - Workaround php bug #81634 in PHP 8.0-8.1.0 #2353
+- Fix PHP5: The Magento Integration is not part of PHP5 #2363
+- Fix orphans removal when 128-bit is enabled #2366
+- Use _dd.agent_psr instead of _dd.rule_psr for agent sampling #2370
 
 ### Internal changes
 - Add xfail for Zend/tests/stack_limit/stack_limit_013.phpt on PHP 8.3 #2371
