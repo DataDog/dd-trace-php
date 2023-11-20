@@ -2,6 +2,7 @@
 namespace DatadogApi\V1\Rest\DatadogRestService;
 
 use Laminas\ApiTools\ApiProblem\ApiProblem;
+use Laminas\ApiTools\ApiProblem\ApiProblemResponse;
 use Laminas\ApiTools\Hal\Entity;
 use Laminas\ApiTools\Rest\AbstractResourceListener;
 use Laminas\Stdlib\Parameters;
@@ -77,7 +78,9 @@ class DatadogRestServiceResource extends AbstractResourceListener
      */
     public function patch($id, $data)
     {
-        return new ApiProblem(405, 'The PATCH method has not been defined for individual resources');
+        $response = new ApiProblemResponse(new ApiProblem(500, 'The PATCH method has not been defined for individual resources'));
+        $response->setStatusCode(302);
+        return $response;
     }
 
     /**

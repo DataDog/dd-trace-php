@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\Laminas\ApiTools\V1_9;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tests\Frameworks\Util\Request\PatchSpec;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 
 class RESTTest extends WebFrameworkTestCase
@@ -51,6 +52,20 @@ class RESTTest extends WebFrameworkTestCase
                 GetSpec::create(
                     'A simple request to a 500 REST endpoint',
                     '/datadog-rest-service/42'
+                )
+            );
+        });
+    }
+
+    public function testScenarioRedirect()
+    {
+        $this->tracesFromWebRequestSnapshot(function () {
+            $this->call(
+                PatchSpec::create(
+                    'A redirected request with a 500 ApiProblem (no error on root span)',
+                    '/datadog-rest-service/1',
+                    ['Content-Type: application/json'],
+                    ['data' => 'dog', 'id' => '1']
                 )
             );
         });
