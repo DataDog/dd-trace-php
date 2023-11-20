@@ -28,6 +28,7 @@ typedef struct _zai_hooks_entry {
     // But to ensure consistency between existence of hooks and Closure actually being hooked, we need to keep track of the run_time_cache, so that we eventually may remove the hook again.
 #if PHP_VERSION_ID >= 80200
     struct _zai_hooks_entry *internal_duplicate;
+    int internal_duplicate_count;
     void **run_time_cache; // used only if Closure
 #else
     void ***run_time_cache; // used only if Closure
@@ -208,7 +209,7 @@ static void zai_hook_entries_remove_resolved(zend_ulong install_address) {
 #if PHP_VERSION_ID >= 80200
         if (hooks->internal_duplicate) {
             // We refcount parents of internal function duplicates, remove here again if necessary
-            if (--hooks->internal_duplicate->hooks.nNumOfElements == 0) {
+            if (--hooks->internal_duplicate->internal_duplicate_count == 0 && zend_hash_num_elements(&hooks->internal_duplicate->hooks) == 0) {
                 zai_hook_entries_remove_resolved(zai_hook_install_address(hooks->internal_duplicate->resolved));
             }
         }
@@ -372,6 +373,9 @@ static zai_hooks_entry *zai_hook_alloc_hooks_entry(void) {
 #if PHP_VERSION_ID >= 80000
     hooks->run_time_cache = NULL;
 #endif
+#if PHP_VERSION_ID >= 80200
+    hooks->internal_duplicate_count = 0;
+#endif
     zend_hash_init(&hooks->hooks, 8, NULL, zai_hook_destroy, 0);
     hooks->hooks.nNextFreeElement = ZEND_LONG_MAX >> 1;
     return hooks;
@@ -405,12 +409,12 @@ static inline void zai_hook_handle_internal_duplicate_function(zai_hooks_entry *
     bool is_internal_duplicate = !ZEND_USER_CODE(function->type) && (function->common.fn_flags & ZEND_ACC_ARENA_ALLOCATED) && function->common.scope != ce;
     if (is_internal_duplicate) {
         // Hence we need to ensure that each top-level internal function is responsible for its run-time cache.
-        // We achieve that by refcounting on top of the anyway checked nNumOfElements.
+        // We achieve that by refcounting it.
         zend_string *lcname = zend_string_tolower(function->common.function_name);
         zend_function *original_function = zend_hash_find_ptr(&ce->parent->function_table, lcname);
         zend_string_release(lcname);
         hooks->internal_duplicate = zai_hook_resolved_ensure_hooks_entry(original_function, ce->parent);
-        ++hooks->internal_duplicate->hooks.nNumOfElements;
+        ++hooks->internal_duplicate->internal_duplicate_count;
     } else {
         hooks->internal_duplicate = NULL;
     }
@@ -824,7 +828,12 @@ static inline void zai_hook_remove_shared_hook(zend_function *func, zend_ulong h
     if (hooks && hooks != base_hooks) {
         zend_hash_index_del(&hooks->hooks, hook_id);
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
-            zai_hook_entries_remove_resolved(addr);
+#if PHP_VERSION_ID >= 80200
+            if (hooks->internal_duplicate_count == 0)
+#endif
+            {
+                zai_hook_entries_remove_resolved(addr);
+            }
         }
     }
 }
@@ -1045,7 +1054,12 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
                 }
                 zend_hash_index_del(&hooks->hooks, (zend_ulong) -hook->id);
                 if (zend_hash_num_elements(&hooks->hooks) == 0) {
-                    zai_hook_entries_remove_resolved(address);
+#if PHP_VERSION_ID >= 80200
+                    if (hooks->internal_duplicate_count == 0)
+#endif
+                    {
+                        zai_hook_entries_remove_resolved(address);
+                    }
                 }
             }
         }
@@ -1310,7 +1324,12 @@ bool zai_hook_remove_resolved(zai_install_address function_address, zend_long in
         }
 
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
-            zai_hook_entries_remove_resolved(function_address);
+#if PHP_VERSION_ID >= 80200
+            if (hooks->internal_duplicate_count == 0)
+#endif
+            {
+                zai_hook_entries_remove_resolved(function_address);
+            }
         }
 
         return true;
