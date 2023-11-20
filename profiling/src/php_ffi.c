@@ -124,7 +124,7 @@ static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
         zend_set_user_opcode_handler(ZEND_BIND_STATIC, dispatch_handler);
     }
 #if PHP_VERSION_ID >= 80400
-#error Check if ZEND_BIND_STATIC needs an opcode handler still.
+#error Check if ZEND_BIND_STATIC needs an opcode handler still. Possibly update things like CFG_NEED_OPCODE_HANDLERS as well.
 #endif
 }
 #endif
