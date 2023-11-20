@@ -62,7 +62,7 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This release adds support OpenTelemetry so that you can use the OpenTelemetry API to generate Datadog spans. This is off by default. Enable it with the environment variable `DD_TRACE_OTEL_ENABLED=1` or INI setting `datadog.trace.otel_enabled=1.
+This release adds support to OpenTelemetry so that you can use the OpenTelemetry API to generate Datadog spans. This is off by default. Enable it with the environment variable `DD_TRACE_OTEL_ENABLED=1` or INI setting `datadog.trace.otel_enabled=1. Also, the tracer now generates 128 bits trace ids by default, in an effort to match OpenTelemetry standards.
 
 ## Tracer
 ### Added
