@@ -154,9 +154,26 @@ class LaminasIntegration extends Integration
                 }
 
                 $listener = $args[1];
+
+                if (is_object($listener) && $listener instanceof \Closure) {
+                    install_hook($listener, function (HookData $hook) {
+                        $span = $hook->span();
+                        $span->name = 'laminas.mvcEventListener';
+                        $span->resource = 'Closure';
+                        $span->type = Type::WEB_SERVLET;
+                        $span->service = \ddtrace_config_app_name('laminas');
+                        $span->meta[Tag::COMPONENT] = 'laminas';
+
+                        remove_hook($hook->id);
+                    });
+
+                    return;
+                }
+
                 if (!is_array($listener) || !is_object($listener[0]) || !is_string($listener[1])) {
                     return;
                 }
+
                 $className = get_class($listener[0]);
                 $methodName = $listener[1];
                 trace_method(
@@ -285,6 +302,29 @@ class LaminasIntegration extends Integration
                 }
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
+            }
+        );
+
+        hook_method(
+            'Laminas\Mvc\SendResponseListener',
+            'sendResponse',
+            function ($responseListener, $scope, $args) {
+                $rootSpan = root_span();
+                if ($rootSpan !== null) {
+                    /** @var MvcEvent $e */
+                    $e = $args[0];
+                    $response = $e->getResponse();
+                    if ($response instanceof \Laminas\Stdlib\ResponseInterface && method_exists($response, 'getStatusCode')) {
+                        $statusCode = $response->getStatusCode();
+                        $rootSpan->meta[Tag::HTTP_STATUS_CODE] = "$statusCode";
+
+                        if ($statusCode < 500) {
+                            unset($rootSpan->meta[Tag::ERROR_TYPE]);
+                            unset($rootSpan->meta[Tag::ERROR_MSG]);
+                            unset($rootSpan->meta[Tag::ERROR_STACK]);
+                        }
+                    }
+                }
             }
         );
 
