@@ -62,7 +62,7 @@ class RESTTest extends WebFrameworkTestCase
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 PatchSpec::create(
-                    'A redirected request with a 500 ApiProblem (no error on root span)',
+                    'A 302 request with a 500 ApiProblem (no error on root span)',
                     '/datadog-rest-service/1',
                     ['Content-Type: application/json'],
                     ['data' => 'dog', 'id' => '1']
