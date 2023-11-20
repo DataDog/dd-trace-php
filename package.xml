@@ -81,6 +81,9 @@ This release adds support OpenTelemetry so that you can use the OpenTelemetry AP
 - Use _dd.agent_psr instead of _dd.rule_psr for agent sampling #2370
 - Retain tracestate from tracecontext if extracted at all #2359
 - Handle extra arguments for internal overrideArgs #2348
+- Fix possible double-free with hooks on internal methods inherited by user classes #2372
+- Fix crash with functions with no run_time_cache yet #2373
+- Workaround php bug #81634 in PHP 8.0-8.1.0 #2353
 
 ### Internal changes
 - Add xfail for Zend/tests/stack_limit/stack_limit_013.phpt on PHP 8.3 #2371
