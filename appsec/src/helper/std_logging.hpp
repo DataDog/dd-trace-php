@@ -6,7 +6,6 @@
 #pragma once
 
 #include <spdlog/spdlog.h>
-#include <spdlog/fmt/ostr.h>
 
 // NOLINTNEXTLINE
 #define DD_STDLOG(...)                                                         \

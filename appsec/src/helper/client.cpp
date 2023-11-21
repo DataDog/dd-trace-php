@@ -5,7 +5,6 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <chrono>
 #include <spdlog/spdlog.h>
-#include <spdlog/fmt/ostr.h>
 #include <stdexcept>
 #include <string>
 #include <thread>
