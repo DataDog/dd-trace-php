@@ -42,14 +42,14 @@ final class MessagePackTest extends BaseTestCase
         dd_trace_internal_fn('ddtrace_reload_config');
     }
 
-    public function testEncodeNoPrioritySampling()
+    public function testEncodeAlwaysHasPrioritySampling()
     {
         $span = $this->tracer->startRootSpan('test_name')->getSpan();
-        $this->tracer->setPrioritySampling(\DD_TRACE_PRIORITY_SAMPLING_UNSET);
+        $this->tracer->setPrioritySampling(\DD_TRACE_PRIORITY_SAMPLING_UNKNOWN);
         $span->finish();
 
         $encoder = new MessagePack();
-        $this->assertStringNotContains('_sampling_priority_v1', $encoder->encodeTraces($this->tracer));
+        $this->assertStringContains('_sampling_priority_v1', $encoder->encodeTraces($this->tracer));
     }
 
     public function testEncodeMetricsWhenPresent()
@@ -67,7 +67,6 @@ final class MessagePackTest extends BaseTestCase
     public function testAlwaysContainsDefaultMetrics()
     {
         $span = $this->tracer->startRootSpan('test_name')->getSpan();
-        $this->tracer->setPrioritySampling(\DD_TRACE_PRIORITY_SAMPLING_UNSET);
         $span->finish();
 
         $encoder = new MessagePack();

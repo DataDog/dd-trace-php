@@ -49,8 +49,8 @@ call_httpbin();
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECT--
+5969071622678286091 - parent
 17952737041105130042 - parent
-2376730765988821965 - parent
 2469588189546311528 - child
 Done.
 2516265689700432462 - parent

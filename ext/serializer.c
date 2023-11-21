@@ -654,6 +654,8 @@ void ddtrace_update_root_id_properties(ddtrace_root_span_data *span) {
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 
+    span->sampling_rule.rule = INT32_MAX;
+
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
     zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
@@ -843,9 +845,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         if (DDTRACE_G(propagated_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
             ZVAL_LONG(&span->property_propagated_sampling_priority, DDTRACE_G(propagated_priority_sampling));
         }
-        if (DDTRACE_G(default_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
-            ZVAL_LONG(&span->property_sampling_priority, DDTRACE_G(default_priority_sampling));
-        }
+        ZVAL_LONG(&span->property_sampling_priority, DDTRACE_G(default_priority_sampling));
 
         ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
         if (get_DD_TRACE_ANALYTICS_ENABLED() || web_integration->is_analytics_enabled()) {
@@ -1347,7 +1347,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     zval_ptr_dtor(&prop_type_as_string);
     zval_ptr_dtor(&prop_resource_as_string);
 
-    if (ddtrace_fetch_priority_sampling_from_span(span->root) <= 0) {
+    if (zend_hash_num_elements(get_DD_SPAN_SAMPLING_RULES()) && ddtrace_fetch_priority_sampling_from_span(span->root) <= 0) {
         zval *rule;
         ZEND_HASH_FOREACH_VAL(get_DD_SPAN_SAMPLING_RULES(), rule) {
             if (Z_TYPE_P(rule) != IS_ARRAY) {
