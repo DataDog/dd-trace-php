@@ -1272,6 +1272,8 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update
             apt install -y wget llvm-17 clang-17 cmake make curl libcurl4-gnutls-dev git
+            ln -s /usr/bin/clang-17 /usr/bin/clang
+            ln -s /usr/bin/clang++-17 /usr/bin/clang++
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
