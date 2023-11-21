@@ -53,7 +53,7 @@ if [ "$INSTALL_TYPE" = "native_package" ]; then
 else
     echo "Installing dd-trace-php using the new PHP installer"
     installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name "dd-library-php-*-$(uname -m)-linux-gnu.tar.gz")
-    ${PHP_BIN} datadog-setup.php --file "$installable_bundle" --php-bin all
+    ${PHP_BIN} datadog-setup.php --file "$installable_bundle" --php-bin all --enable-appsec
 fi
 
 # PHP-FPM setup

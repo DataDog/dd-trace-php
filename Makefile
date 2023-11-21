@@ -22,7 +22,6 @@ RUST_DEBUG_SYMBOLS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 
 VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
 PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.2/datadog-profiling.tar.gz
-APPSEC_RELEASE_URL := https://github.com/DataDog/dd-appsec-php/releases/download/v0.14.3/dd-appsec-php-0.14.3-amd64.tar.gz
 
 INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
@@ -423,8 +422,7 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR) \
-		$(PROFILING_RELEASE_URL) \
-		$(APPSEC_RELEASE_URL)
+		$(PROFILING_RELEASE_URL)
 	bash ./tooling/bin/generate-installers.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)

@@ -1,6 +1,10 @@
 hunter_add_package(Boost COMPONENTS system)
 find_package(Boost CONFIG REQUIRED COMPONENTS system)
 
+hunter_add_package(RapidJSON)
+find_package(RapidJSON CONFIG REQUIRED)
+set_target_properties(RapidJSON::rapidjson PROPERTIES INTERFACE_COMPILE_DEFINITIONS "RAPIDJSON_HAS_STDSTRING=1")
+
 configure_file(src/helper/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/helper/version.hpp)
 
 set(HELPER_SOURCE_DIR src/helper)
@@ -14,7 +18,7 @@ set_target_properties(helper_objects PROPERTIES
     POSITION_INDEPENDENT_CODE 1)
 target_include_directories(helper_objects PUBLIC ${HELPER_INCLUDE_DIR})
 target_compile_definitions(helper_objects PUBLIC SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
-target_link_libraries(helper_objects PUBLIC libddwaf_objects pthread spdlog cpp-base64 msgpack_c lib_rapidjson Boost::system)
+target_link_libraries(helper_objects PUBLIC libddwaf_objects pthread spdlog cpp-base64 msgpack_c RapidJSON::rapidjson Boost::system)
 
 add_executable(ddappsec-helper src/helper/main.cpp
 	$<TARGET_OBJECTS:helper_objects>
@@ -49,7 +53,7 @@ if(DD_APPSEC_TESTING)
        # Testing and examples
        add_subdirectory(tests/helper EXCLUDE_FROM_ALL)
        #add_subdirectory(tests/bench_helper EXCLUDE_FROM_ALL)
-       #add_subdirectory(tests/fuzzer EXCLUDE_FROM_ALL)
+       add_subdirectory(tests/fuzzer EXCLUDE_FROM_ALL)
 
        if(DD_APPSEC_ENABLE_COVERAGE)
            target_compile_options(helper_objects PRIVATE --coverage)

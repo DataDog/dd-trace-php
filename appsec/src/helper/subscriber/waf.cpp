@@ -177,7 +177,7 @@ std::optional<subscriber::event> instance::listener::call(
     ddwaf_result res;
     DDWAF_RET_CODE code;
     auto run_waf = [&]() {
-        code = ddwaf_run(handle_, data, &res, waf_timeout_.count());
+        code = ddwaf_run(handle_, data, nullptr, &res, waf_timeout_.count());
     };
 
     if (spdlog::should_log(spdlog::level::debug)) {
@@ -254,7 +254,7 @@ instance::instance(parameter &rule,
     }
 
     uint32_t size;
-    const auto *addrs = ddwaf_required_addresses(handle_, &size);
+    const auto *addrs = ddwaf_known_addresses(handle_, &size);
 
     addresses_.clear();
     for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
@@ -302,7 +302,7 @@ instance::instance(
       ruleset_version_(std::move(version))
 {
     uint32_t size;
-    const auto *addrs = ddwaf_required_addresses(handle_, &size);
+    const auto *addrs = ddwaf_known_addresses(handle_, &size);
 
     addresses_.clear();
     for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }

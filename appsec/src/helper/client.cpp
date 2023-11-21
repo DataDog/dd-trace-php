@@ -3,16 +3,17 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include "client.hpp"
-#include "exception.hpp"
-#include "network/broker.hpp"
-#include "network/proto.hpp"
-#include "std_logging.hpp"
 #include <chrono>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <string>
 #include <thread>
+
+#include "client.hpp"
+#include "exception.hpp"
+#include "network/broker.hpp"
+#include "network/proto.hpp"
+#include "std_logging.hpp"
 
 using namespace std::chrono_literals;
 
@@ -28,7 +29,7 @@ bool maybe_exec_cmd_M(client &client, network::request &msg)
         if constexpr (sizeof...(Mrest) == 0) {
             SPDLOG_WARN(
                 "a message of type {} ({}) was not expected at this point",
-                msg.id, msg.method);
+                static_cast<unsigned>(msg.id), msg.method);
             throw unexpected_command(msg.method);
         } else {
             return maybe_exec_cmd_M<Mrest...>(client, msg);

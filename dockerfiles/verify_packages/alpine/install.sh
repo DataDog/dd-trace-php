@@ -34,7 +34,7 @@ else
     echo "Installing dd-trace-php using the new PHP installer"
     apk add --no-cache libgcc
     installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name "dd-library-php-*-$(uname -m)-linux-musl.tar.gz")
-    $PHP_BIN datadog-setup.php --file "$installable_bundle" --php-bin all
+    $PHP_BIN datadog-setup.php --file "$installable_bundle" --php-bin all --enable-appsec
 fi
 
 # Preparing NGINX
