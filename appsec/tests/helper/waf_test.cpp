@@ -3,8 +3,6 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include <libddwaf/src/log.hpp>
-
 #include "common.hpp"
 #include "engine_settings.hpp"
 #include "json_helper.hpp"
@@ -50,7 +48,7 @@ TEST(WafTest, InitWithInvalidRules)
         waf::instance::from_settings(cs, ruleset, meta, metrics)};
 
     EXPECT_EQ(meta.size(), 2);
-    EXPECT_STREQ(meta[tag::waf_version].c_str(), "1.14.0");
+    EXPECT_STREQ(meta[tag::waf_version].c_str(), "1.15.1");
 
     rapidjson::Document doc;
     doc.Parse(meta[tag::event_rules_errors]);
@@ -300,85 +298,6 @@ TEST(WafTest, UpdateInvalid)
     auto param = json_to_parameter(R"({})");
 
     ASSERT_THROW(wi->update(param, meta, metrics), invalid_object);
-}
-
-TEST(WafTest, Logging)
-{
-    auto d = defer([old_logger = spdlog::default_logger()]() {
-        spdlog::set_default_logger(old_logger);
-    });
-
-    auto sink = std::make_shared<log_counter_sink_st>();
-    auto logger = std::make_shared<spdlog::logger>("ddappsec_test", sink);
-
-    spdlog::set_default_logger(logger);
-    spdlog::set_level(spdlog::level::trace);
-
-    {
-        dds::waf::initialise_logging(spdlog::level::off);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 0);
-    }
-
-    {
-        dds::waf::initialise_logging(spdlog::level::err);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 1);
-        sink->clear();
-    }
-
-    {
-        dds::waf::initialise_logging(spdlog::level::warn);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 2);
-        sink->clear();
-    }
-
-    // Count the extra info message from the WAF "Sending log messages..."
-    {
-        dds::waf::initialise_logging(spdlog::level::info);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 4);
-        sink->clear();
-    }
-
-    {
-        dds::waf::initialise_logging(spdlog::level::debug);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 5);
-        sink->clear();
-    }
-
-    {
-        dds::waf::initialise_logging(spdlog::level::trace);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 6);
-        sink->clear();
-    }
 }
 
 } // namespace dds
