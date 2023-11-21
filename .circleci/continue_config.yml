@@ -1271,17 +1271,16 @@ jobs:
           command: |
             export DEBIAN_FRONTEND=noninteractive
             apt update
-            apt install -y wget git llvm-17 clang-17 gcovr cmake make curl libcurl4-gnutls-dev git
+            apt install -y wget llvm-17 clang-17 cmake make curl libcurl4-gnutls-dev git
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
+            export CC=/usr/bin/clang-17
+            export CXX=/usr/bin/clang++-17
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF \
               -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
-          environment:
-            CC: /usr/bin/clang-17
-            CXX: /usr/bin/clang++-17
       - run:
           name: Build
           command: make -C appsec/build -j $(nproc) ddappsec_helper_fuzzer corpus_generator
@@ -1295,10 +1294,9 @@ jobs:
       - run:
           name: Run fuzzer in nop mode
           command: |
+            export LLVM_PROFILE_FILE=off.profraw
             cd appsec
             ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-          environment:
-            LLVM_PROFILE_FILE: roff.profraw
       - run:
           name: Generate Corpus
           command: |
@@ -1308,10 +1306,9 @@ jobs:
       - run:
           name: Run fuzzer in raw mode
           command: |
+            export LLVM_PROFILE_FILE=raw.profraw
             cd appsec
             ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-          environment:
-            LLVM_PROFILE_FILE: raw.profraw
       - run:
           name: Generate Corpus
           command: |
@@ -1321,10 +1318,9 @@ jobs:
       - run:
           name: Run fuzzer in body mode
           command: |
+            export LLVM_PROFILE_FILE=body.profraw
             cd appsec
             /build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-          environment:
-            LLVM_PROFILE_FILE: body.profraw
       - run:
           name: Generate coverage
           command: |
