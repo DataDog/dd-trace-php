@@ -140,9 +140,19 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost:9999/parameterized/paramValue',
                         Tag::HTTP_STATUS_CODE => '200',
+                        'app.endpoint' => 'Parameterized::customAction',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
                         Tag::HTTP_ROUTE =>  'parameterized/(:any)',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'Parameterized.customAction',
+                            'codeigniter_test_app',
+                            Type::WEB_SERVLET,
+                            'Parameterized.customAction'
+                        )->withExactTags([
+                            Tag::COMPONENT => 'codeigniter',
+                        ])
                     ]),
                 ],
             ]
