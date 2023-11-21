@@ -165,6 +165,8 @@ class CodeIgniterIntegration extends Integration
                 return false;
             }
         );
+
+        self::setHttpRoute($router, $rootSpan);
     }
 
     /**
@@ -224,5 +226,39 @@ class CodeIgniterIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
             }
         );
+    }
+
+    /*
+     * Replicate CodeIgniter's route parsing, as matching key is never stored or returned in the framework.
+     */
+    private static function setHttpRoute($router, $rootSpan) {
+        // Turn the segment array into a URI string
+        $uri = implode('/', $router->uri->segments);
+
+        // Is there a literal match?  If so we're done
+        if (isset($router->routes[$uri]))
+        {
+            $rootSpan->meta[Tag::HTTP_ROUTE] = $uri;
+            return;
+        }
+
+        // Loop through the route array looking for wild-cards
+        foreach ($router->routes as $key => $val)
+        {
+            $origKey = $key;
+            // Convert wild-cards to RegEx
+            $key = str_replace(':any', '.+', str_replace(':num', '[0-9]+', $key));
+
+            // Does the RegEx match?
+            if (preg_match('#^'.$key.'$#', $uri))
+            {
+                $rootSpan->meta[Tag::HTTP_ROUTE] = $origKey;
+                return;
+            }
+        }
+
+        // If we got this far it means we didn't encounter a
+        // matching route so we'll set the site default route
+        $rootSpan->meta[Tag::HTTP_ROUTE] = $uri;
     }
 }
