@@ -203,12 +203,39 @@ static void zai_json_persist_zval(zval *in) {
     }
 }
 #else
+
+// We need to avoid having the json parser release our array on failure, it'll use zend_array_destroy() which strongly dislikes persistent arrays.
+// Hence refcount it, and keep track of not-inserted arrays
+struct HashTablePtr {
+    HashTable ht;
+    struct HashTablePtr *next;
+};
+
+ZEND_TLS struct HashTablePtr *zai_json_persistent_stack;
+
 static int zai_json_parser_array_create(php_json_parser *parser, zval *array) {
     (void)parser;
 
-    HashTable *ht = malloc(sizeof(HashTable));
-    zend_hash_init(ht, 8, NULL, zai_json_dtor_pzval, 1);
-    ZVAL_ARR(array, ht);
+    struct HashTablePtr *ht = malloc(sizeof(*ht));
+    zend_hash_init(&ht->ht, 8, NULL, zai_json_dtor_pzval, 1);
+    ZVAL_ARR(array, &ht->ht);
+    Z_ADDREF_P(array);
+
+    ht->next = zai_json_persistent_stack;
+    zai_json_persistent_stack = ht;
+
+    return SUCCESS;
+}
+
+static int zai_json_parser_array_end(php_json_parser *parser, zval *array) {
+    (void)parser;
+
+    Z_DELREF_P(array);
+#if PHP_VERSION_ID >= 70200 && ZEND_DEBUG
+    Z_ARR_P(array)->u.flags &= ~HASH_FLAG_ALLOW_COW_VIOLATION;
+#endif
+    zai_json_persistent_stack = ((struct HashTablePtr *)Z_ARR_P(array))->next;
+
     return SUCCESS;
 }
 
@@ -218,6 +245,10 @@ static int zai_json_parser_array_append(php_json_parser *parser, zval *array, zv
     if (Z_TYPE_P(zvalue) == IS_STRING) {
         Z_STR_P(zvalue) = zai_json_persist_string(Z_STR_P(zvalue));
     }
+
+#if PHP_VERSION_ID >= 70200
+    HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(array)); // due to ADDREF
+#endif
 
     zend_hash_next_index_insert(Z_ARRVAL_P(array), zvalue);
     return SUCCESS;
@@ -229,6 +260,10 @@ static int zai_json_parser_object_update(php_json_parser *parser, zval *object, 
     if (Z_TYPE_P(zvalue) == IS_STRING) {
         Z_STR_P(zvalue) = zai_json_persist_string(Z_STR_P(zvalue));
     }
+
+#if PHP_VERSION_ID >= 70200
+    HT_ALLOW_COW_VIOLATION(Z_ARRVAL_P(object)); // due to ADDREF
+#endif
 
     zend_ulong idx;
     if (ZEND_HANDLE_NUMERIC(key, idx)) {
@@ -257,11 +292,19 @@ int zai_json_decode_assoc_safe(zval *return_value, const char *str, int str_len,
     if (persistent) {
         parser.methods.array_create = zai_json_parser_array_create;
         parser.methods.array_append = zai_json_parser_array_append;
+        parser.methods.array_end = zai_json_parser_array_end;
         parser.methods.object_create = zai_json_parser_array_create;
         parser.methods.object_update = zai_json_parser_object_update;
+        parser.methods.object_end = zai_json_parser_array_end;
     }
 
     if (zai_json_parse(&parser)) {
+        while (zai_json_persistent_stack) {
+            struct HashTablePtr *ht = zai_json_persistent_stack, *next = ht->next;
+            zai_json_release_persistent_array(&ht->ht);
+            zai_json_persistent_stack = next;
+        }
+
         return FAILURE;
     }
 
