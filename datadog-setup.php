@@ -467,7 +467,9 @@ function install($options)
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
-    execute_or_exit("Cannot create directory '$tmpDir'", "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($tmpDir));
+    if (!file_exists($tmpDir)) {
+        execute_or_exit("Cannot create directory '$tmpDir'", "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($tmpDir));
+    }
     register_shutdown_function(function () use ($tmpDir) {
         execute_or_exit("Cannot remove temporary directory '$tmpDir'", (IS_WINDOWS ? "rd /s /q " : "rm -rf ") . escapeshellarg($tmpDir));
     });
@@ -505,8 +507,8 @@ function install($options)
         "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($installDirSourcesDir)
     );
     execute_or_exit(
-        "Cannot copy files from '$tmpBridgeDir' to '$installDirSourcesDir'",
-        (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirSourcesDir)
+        "Cannot copy files from '$tmpBridgeDir' to '$installDirBridgeDir'",
+        (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirBridgeDir)
     );
     echo "Installed required source files to '$installDir'\n";
 
@@ -1487,11 +1489,22 @@ function search_php_binaries($prefix = '')
     // Then we search in known possible locations for popular installable paths on different systems.
     $pathsFound = [];
     if (IS_WINDOWS) {
-        $standardPaths = array_unique([
+        $bootDisk = realpath('/');
+
+        $standardPaths = [
             dirname(PHP_BINARY),
             PHP_BINDIR,
-            'C:\\php',
-        ]);
+            $bootDisk . 'WINDOWS',
+        ];
+
+        foreach (scandir($bootDisk) as $file) {
+            if (stripos($file, "php") !== false) {
+                $standardPaths[] = "$bootDisk$file";
+            }
+        }
+
+        // Windows paths are case-insensitive
+        $standardPaths = array_intersect_key(array_map('strtolower', $standardPaths), array_unique($standardPaths));
 
         foreach ($standardPaths as $standardPath) {
             foreach ($allPossibleCommands as $command) {
@@ -1569,12 +1582,18 @@ function search_php_binaries($prefix = '')
 function resolve_command_full_path($command)
 {
     if (IS_WINDOWS) {
-        $path = shell_exec("where " . escapeshellarg($command) . " 2>NUL");
-        if ($path === null) {
-            // command is not defined
+        if (!strpbrk($command, "/\\")) {
+            $path = shell_exec("where " . escapeshellarg($command) . " 2>NUL");
+            if ($path === null) {
+                // command is not defined
+                return false;
+            }
+            $path = ltrim($path, "\r\n");
+        } elseif (!file_exists($command)) {
             return false;
+        } else {
+            $command = $path;
         }
-        $path = ltrim($path, "\r\n");
     } else {
         $path = exec("command -v " . escapeshellarg($command));
         if (empty($path)) {
