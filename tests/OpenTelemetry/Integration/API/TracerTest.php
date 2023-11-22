@@ -497,9 +497,9 @@ final class TracerTest extends BaseTestCase
                 '_dd.p.congo' => 't61rcWkgMzE',
                 '_dd.p.some_val' => 'tehehe'
             ]);
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.congo:t61rcWkgMzE;t.some_val:tehehe$/', (string)$span->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.dm:-0;t.congo:t61rcWkgMzE;t.some_val:tehehe$/', (string)$span->getContext()->getTraceState());
             $span->end();
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.congo:t61rcWkgMzE;t.some_val:tehehe$/', (string)$span->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.dm:-0;t.congo:t61rcWkgMzE;t.some_val:tehehe$/', (string)$span->getContext()->getTraceState());
         });
 
         $span = $traces[0][0];
@@ -543,7 +543,7 @@ final class TracerTest extends BaseTestCase
             $this->assertSame($remoteContext->getSpanId(), $child->getParentContext()->getSpanId());
             $this->assertFalse($childContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
             $this->assertEquals(1, $childContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
-            $this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-0" . ($traceState ? ",$traceState" : ""), (string)$childContext->getTraceState());
+            $this->assertSame("dd=t.dm:-0" . ($traceState ? ",$traceState" : ""), (string)$childContext->getTraceState());
         });
 
         $span = $traces[0][0];
@@ -618,11 +618,11 @@ final class TracerTest extends BaseTestCase
             )))->getTracer('OpenTelemetry.TracerTest');
             $parent = $tracer->spanBuilder("parent")->startSpan(); // root sampler will be used
             $scope = $parent->activate();
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.dm:-0,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
             $parent->setAttributes([
                 '_dd.p.some_val' => 'tehehe'
             ]);
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.dm:-0;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
             try {
                 $child = $tracer->spanBuilder("child")->startSpan(); // local parent sampler will be used
 
@@ -631,8 +631,8 @@ final class TracerTest extends BaseTestCase
                 $this->assertSame($parent->getContext()->getSpanId(), $child->getParentContext()->getSpanId());
                 $this->assertFalse($childContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
                 $this->assertEquals(1, $childContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
-                $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0,localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$childContext->getTraceState());
-                $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0,localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+                $this->assertRegularExpression('/^dd=t.dm:-0,localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$childContext->getTraceState());
+                $this->assertRegularExpression('/^dd=t.dm:-0,localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
 
                 $grandChild = $tracer->spanBuilder("grandChild")
                     ->setParent(Context::getCurrent()->withContextValue($child))
@@ -644,14 +644,14 @@ final class TracerTest extends BaseTestCase
                 $this->assertSame($child->getContext()->getSpanId(), $grandChild->getParentContext()->getSpanId());
                 $this->assertFalse($grandChildContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
                 $this->assertEquals(1, $grandChildContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
-                $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0,localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$grandChildContext->getTraceState());
+                $this->assertRegularExpression('/^dd=t.dm:-0,localparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$grandChildContext->getTraceState());
 
                 $grandChildScope->detach();
                 $grandChild->end();
 
                 $child->end();
             } finally {
-                $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
+                $this->assertRegularExpression('/^dd=t.dm:-0;t.some_val:tehehe,root=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE$/', (string)$parent->getContext()->getTraceState());
                 $scope->detach();
                 $parent->end();
             }
@@ -760,13 +760,13 @@ final class TracerTest extends BaseTestCase
             $this->assertSame($remoteContext->getSpanId(), $child->getParentContext()->getSpanId());
             $this->assertFalse($childContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
             $this->assertEquals(1, $childContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
-            //$this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$childContext->getTraceState());
+            //$this->assertSame("dd=t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$childContext->getTraceState());
 
             $tracer = self::getTracer();
             $grandChild = $tracer->spanBuilder("grandChild")
                 ->setParent(Context::getCurrent()->withContextValue($child))
                 ->startSpan();
-            $this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$child->getContext()->getTraceState());
+            $this->assertSame("dd=t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$child->getContext()->getTraceState());
             $grandChildScope = $grandChild->activate();
 
             $grandChildContext = $grandChild->getContext();
@@ -774,8 +774,8 @@ final class TracerTest extends BaseTestCase
             $this->assertSame($child->getContext()->getSpanId(), $grandChild->getParentContext()->getSpanId());
             $this->assertFalse($grandChildContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
             $this->assertEquals(1, $grandChildContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
-            $this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$child->getContext()->getTraceState());
-            $this->assertSame("dd=t.tid:4bf92f3577b34da6;t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$grandChildContext->getTraceState());
+            $this->assertSame("dd=t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$child->getContext()->getTraceState());
+            $this->assertSame("dd=t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", (string)$grandChildContext->getTraceState());
 
             $grandChildScope->detach();
             $grandChild->end();
@@ -807,7 +807,7 @@ final class TracerTest extends BaseTestCase
                 '_dd.p.congo' => 't61rcWkgMzE',
             ]);
 
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.congo:t61rcWkgMzE$/', (string)$span->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.dm:-0;t.congo:t61rcWkgMzE$/', (string)$span->getContext()->getTraceState());
 
             $traceState = $span->getContext()->getTraceState()->with('rojo', '00f067aa0ba902b7');
             $context = SpanContext::create(
@@ -821,7 +821,7 @@ final class TracerTest extends BaseTestCase
                 ->setParent(Context::getCurrent()->withContextValue(Span::wrap($context)))
                 ->startSpan();
 
-            $this->assertRegularExpression('/^dd=t.tid:[0-9a-f]{16};t.dm:-0;t.congo:t61rcWkgMzE,rojo=00f067aa0ba902b7$/', (string)$child->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=t.dm:-0;t.congo:t61rcWkgMzE,rojo=00f067aa0ba902b7$/', (string)$child->getContext()->getTraceState());
 
             $child->end();
             $span->end();
