@@ -6,6 +6,7 @@ const INI_SCANDIR = 'Scan this dir for additional .ini files';
 const INI_MAIN = 'Loaded Configuration File';
 const EXTENSION_DIR = 'extension_dir';
 const THREAD_SAFETY = 'Thread Safety';
+const PHP_VER = 'PHP Version';
 const PHP_API = 'PHP API';
 const IS_DEBUG = 'Debug Build';
 
@@ -560,7 +561,8 @@ function install($options)
         // Trace
         $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/ddtrace$extensionSuffix.so";
         if (!file_exists($extensionRealPath)) {
-            print_error_and_exit(substr($extensionSuffix ?: '-nts', 1) . ' builds of PHP are currently not supported');
+            print_error_and_exit(substr($extensionSuffix ?: '-nts', 1)
+                . ' builds of PHP ' . $phpProperties[PHP_VER] . ' are currently not supported');
         }
 
         $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
@@ -1463,7 +1465,7 @@ function on_download_progress($curlHandle, $download_size, $downloaded)
  */
 function ini_values($binary)
 {
-    $properties = [INI_MAIN, INI_SCANDIR, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
+    $properties = [PHP_VER, INI_MAIN, INI_SCANDIR, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
     $lines = [];
     // Timezone is irrelevant to this script. Quick-and-dirty workaround to the PHP 5 warning with missing timezone
     exec(escapeshellarg($binary) . " -d date.timezone=UTC -i", $lines);
