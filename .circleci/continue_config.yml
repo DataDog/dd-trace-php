@@ -1250,6 +1250,89 @@ jobs:
             make -C appsec/build -j $(nproc) ddappsec_helper_test
             ./appsec/build/tests/helper/ddappsec_helper_test
 
+  fuzz_appsec_helper:
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - restore_cache:
+          name: "Restore Cache"
+          keys:
+            - hunter-cache-ubuntu-<< parameters.resource_class >>-
+      - setup_docker:
+          docker_image: ubuntu:23.10
+      - run:
+          name: Install dependencies
+          command: |
+            export DEBIAN_FRONTEND=noninteractive
+            apt update
+            apt install -y wget llvm-17 clang-17 cmake make curl libcurl4-gnutls-dev git
+            ln -s /usr/bin/clang-17 /usr/bin/clang
+            ln -s /usr/bin/clang++-17 /usr/bin/clang++
+      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run:
+          name: CMake
+          command: |
+            export CC=/usr/bin/clang-17
+            export CXX=/usr/bin/clang++-17
+            mkdir -p appsec/build ; cd appsec/build
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF \
+              -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+      - run:
+          name: Build
+          command: make -C appsec/build -j $(nproc) ddappsec_helper_fuzzer corpus_generator
+      - run: mkdir -p appsec/tests/fuzzer/{corpus,results,logs}
+      - run:
+          name: Generate Corpus
+          command: |
+            cd appsec
+            rm -f tests/fuzzer/corpus/*
+            ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+      - run:
+          name: Run fuzzer in nop mode
+          command: |
+            export LLVM_PROFILE_FILE=off.profraw
+            cd appsec
+            ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+      - run:
+          name: Generate Corpus
+          command: |
+            cd appsec
+            rm -f tests/fuzzer/corpus/*
+            ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+      - run:
+          name: Run fuzzer in raw mode
+          command: |
+            export LLVM_PROFILE_FILE=raw.profraw
+            cd appsec
+            ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+      - run:
+          name: Generate Corpus
+          command: |
+            cd appsec
+            rm -f tests/fuzzer/corpus/*
+            ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+      - run:
+          name: Run fuzzer in body mode
+          command: |
+            export LLVM_PROFILE_FILE=body.profraw
+            cd appsec
+            ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+      - run:
+          name: Generate coverage
+          command: |
+            cd appsec
+            llvm-profdata-17 merge -sparse *.profraw -o default.profdata 
+            llvm-cov-17 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
+            llvm-cov-17 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
+      - store_artifacts:
+          path: appsec/fuzzer-coverage.html
+
   integration_snapshots:
     working_directory: ~/datadog
     parameters:
@@ -4353,6 +4436,14 @@ workflows:
         requires: [ hunter_cache_ubuntu ]
 
     - test_appsec_helper_asan:
+        requires: [ hunter_cache_ubuntu ]
+        matrix:
+          parameters:
+            resource_class:
+              - medium
+              - arm.medium
+
+    - fuzz_appsec_helper:
         requires: [ hunter_cache_ubuntu ]
         matrix:
           parameters:

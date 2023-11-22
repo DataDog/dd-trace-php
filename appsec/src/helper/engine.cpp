@@ -203,14 +203,14 @@ engine::action_map engine::parse_actions(
     const auto &actions_array = it->value;
     if (actions_array.GetType() != rapidjson::kArrayType) {
         SPDLOG_ERROR("unexpected 'actions' type {}, expected array",
-            actions_array.GetType());
+            static_cast<unsigned>(actions_array.GetType()));
         return actions;
     }
 
     for (auto &action_object : actions_array.GetArray()) {
         if (action_object.GetType() != rapidjson::kObjectType) {
             SPDLOG_ERROR("unexpected action item type {}, expected object",
-                action_object.GetType());
+                static_cast<unsigned>(action_object.GetType()));
             continue;
         }
 
