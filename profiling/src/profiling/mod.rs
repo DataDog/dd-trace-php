@@ -1110,6 +1110,7 @@ mod tests {
             env: None,
             interrupt_count: AtomicU32::new(0),
             profiling_enabled: true,
+            profiling_experimental_features_enabled: false,
             profiling_endpoint_collection_enabled: true,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,

@@ -137,6 +137,7 @@ pub(crate) unsafe fn get_value(id: ConfigId) -> &'static mut zval {
 #[derive(Clone, Copy)]
 pub(crate) enum ConfigId {
     ProfilingEnabled = 0,
+    ProfilingExperimentalFeaturesEnabled,
     ProfilingEndpointCollectionEnabled,
     ProfilingExperimentalCpuTimeEnabled,
     ProfilingAllocationEnabled,
@@ -162,6 +163,7 @@ impl ConfigId {
     const fn env_var_name(&self) -> ZaiStr {
         let bytes: &'static [u8] = match self {
             ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
+            ProfilingExperimentalFeaturesEnabled => b"DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED\0",
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
             ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
@@ -194,6 +196,13 @@ impl ConfigId {
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_enabled() -> bool {
     get_bool(ProfilingEnabled, true)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn profiling_experimental_features_enabled() -> bool {
+    get_bool(ProfilingExperimentalFeaturesEnabled, false)
 }
 
 /// # Safety
@@ -458,6 +467,16 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                 },
                 zai_config_entry {
+                    id: transmute(ProfilingExperimentalFeaturesEnabled),
+                    name: ProfilingExperimentalFeaturesEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: ZaiStr::literal(b"0\0"),
+                    aliases: std::ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: None,
+                    parser: None,
+                },
+                zai_config_entry {
                     id: transmute(ProfilingEndpointCollectionEnabled),
                     name: ProfilingEndpointCollectionEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
@@ -636,6 +655,10 @@ mod tests {
             (b"DD_TRACE_AGENT_PORT\0", "datadog.trace.agent_port"),
             (b"DD_AGENT_HOST\0", "datadog.agent_host"),
             (b"DD_PROFILING_ENABLED\0", "datadog.profiling.enabled"),
+            (
+                b"DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED\0",
+                "datadog.profiling.experimental_features_enabled",
+            ),
             (
                 b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
                 "datadog.profiling.endpoint_collection_enabled",
