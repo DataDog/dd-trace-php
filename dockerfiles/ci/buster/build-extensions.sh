@@ -25,6 +25,8 @@ if [[ $PHP_VERSION_ID -le 70 ]]; then
   MONGODB_VERSION=-1.9.2
 elif [[ $PHP_VERSION_ID -le 71 ]]; then
   MONGODB_VERSION=-1.11.1
+elif [[ $PHP_VERSION_ID -le 73 ]]; then
+  MONGODB_VERSION=-1.16.2
 fi
 
 AST_VERSION=
