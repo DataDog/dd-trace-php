@@ -45,7 +45,7 @@ public:
     static parameter string(std::string_view str) noexcept;
     static parameter string(uint64_t value) noexcept;
     static parameter string(int64_t value) noexcept;
-    static parameter boolean(bool value) noexcept;
+    static parameter as_boolean(bool value) noexcept;
     static parameter float64(float value) noexcept;
     static parameter null() noexcept;
 

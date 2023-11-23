@@ -8,6 +8,7 @@
 #include "engine.hpp"
 #include "exception.hpp"
 #include "remote_config/client_handler.hpp"
+#include "sampler.hpp"
 #include "service_config.hpp"
 #include "service_identifier.hpp"
 #include "std_logging.hpp"
@@ -26,7 +27,8 @@ public:
 
     service(std::shared_ptr<engine> engine,
         std::shared_ptr<service_config> service_config,
-        dds::remote_config::client_handler::ptr &&client_handler);
+        dds::remote_config::client_handler::ptr &&client_handler,
+        const schema_extraction_settings &schema_extraction_settings = {});
 
     service(const service &) = delete;
     service &operator=(const service &) = delete;
@@ -68,10 +70,13 @@ public:
         return service_config_;
     }
 
+    std::shared_ptr<sampler> get_schema_sampler() { return schema_sampler_; }
+
 protected:
     std::shared_ptr<engine> engine_{};
     std::shared_ptr<service_config> service_config_{};
     dds::remote_config::client_handler::ptr client_handler_{};
+    std::shared_ptr<sampler> schema_sampler_;
 };
 
 } // namespace dds

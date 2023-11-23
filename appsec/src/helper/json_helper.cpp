@@ -37,6 +37,9 @@ void parameter_to_json_helper(const parameter_view &pv, T &output,
         auto sv = std::string_view(pv);
         output.SetString(sv.data(), sv.size(), alloc);
     } break;
+    case parameter_type::boolean:
+        output.SetBool(bool(pv));
+        break;
     case parameter_type::map:
         output.SetObject();
         for (const auto &v : pv) {

@@ -11,10 +11,10 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSIO
     )
 
     execute_process(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCHITECTURE)
-
+    target_compile_definitions(ddappsec_helper_fuzzer PUBLIC ZLIB_CONST=1)
     target_link_directories(ddappsec_helper_fuzzer PRIVATE ${LLVM_RUNTIME_DIR})
     target_link_libraries(ddappsec_helper_fuzzer
-        PRIVATE libddwaf_objects pthread spdlog cpp-base64 msgpack_c lib_rapidjson Boost::system libclang_rt.fuzzer_no_main-${ARCHITECTURE}.a)
+        PRIVATE libddwaf_objects pthread spdlog cpp-base64 msgpack_c lib_rapidjson Boost::system libclang_rt.fuzzer_no_main-${ARCHITECTURE}.a zlibstatic)
 
     add_executable(corpus_generator corpus_generator.cpp)
     target_link_libraries(corpus_generator PRIVATE helper_objects libddwaf_objects pthread spdlog)
