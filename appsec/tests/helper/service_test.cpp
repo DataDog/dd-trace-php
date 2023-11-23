@@ -39,4 +39,70 @@ TEST(ServiceTest, NullServiceHandler)
     EXPECT_EQ(engine.get(), svc.get_engine().get());
 }
 
+TEST(ServiceTest, ServicePickSchemaExtractionSamples)
+{
+    std::shared_ptr<engine> engine{engine::create()};
+
+    service_identifier sid{"service", {"extra01", "extra02"}, "env",
+        "tracer_version", "app_version", "runtime_id"};
+    auto client = std::make_unique<remote_config::mock::client>(sid);
+    auto service_config = std::make_shared<dds::service_config>();
+    engine_settings engine_settings = {};
+    engine_settings.rules_file = create_sample_rules_ok();
+    std::map<std::string_view, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    { // Constructor. It picks based on rate
+        double all_requests_are_picked = 1.0;
+        auto s = service(
+            engine, service_config, nullptr, {true, all_requests_are_picked});
+
+        EXPECT_TRUE(s.get_schema_sampler()->get().has_value());
+    }
+
+    { // Constructor. It does not pick based on rate
+        double no_request_is_picked = 0.0;
+        auto s = service(
+            engine, service_config, nullptr, {true, no_request_is_picked});
+
+        EXPECT_FALSE(s.get_schema_sampler()->get().has_value());
+    }
+
+    { // Constructor. It does not pick if disabled
+        double all_requests_are_picked = 1.0;
+        bool schema_extraction_disabled = false;
+        auto s = service(engine, service_config, nullptr,
+            {schema_extraction_disabled, all_requests_are_picked});
+
+        EXPECT_FALSE(s.get_schema_sampler()->get().has_value());
+    }
+
+    { // Static constructor. It picks based on rate
+        engine_settings.schema_extraction.enabled = true;
+        engine_settings.schema_extraction.sample_rate = 1.0;
+        auto service = service::from_settings(
+            service_identifier(sid), engine_settings, {}, meta, metrics, false);
+
+        EXPECT_TRUE(service->get_schema_sampler()->get().has_value());
+    }
+
+    { // Static constructor.  It does not pick based on rate
+        engine_settings.schema_extraction.enabled = true;
+        engine_settings.schema_extraction.sample_rate = 0.0;
+        auto service = service::from_settings(
+            service_identifier(sid), engine_settings, {}, meta, metrics, false);
+
+        EXPECT_FALSE(service->get_schema_sampler()->get().has_value());
+    }
+
+    { // Static constructor. It does not pick if disabled
+        engine_settings.schema_extraction.enabled = false;
+        engine_settings.schema_extraction.sample_rate = 1.0;
+        auto service = service::from_settings(
+            service_identifier(sid), engine_settings, {}, meta, metrics, false);
+
+        EXPECT_FALSE(service->get_schema_sampler()->get().has_value());
+    }
+}
+
 } // namespace dds

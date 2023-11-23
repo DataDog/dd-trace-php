@@ -332,4 +332,19 @@ TEST(ParameterTest, StaticCastFromArrayObject)
     EXPECT_THROW(p[size], std::out_of_range);
 }
 
+TEST(ParameterTest, Bool)
+{
+    bool value = false;
+    parameter p = parameter::as_boolean(value);
+    EXPECT_EQ(p.type(), parameter_type::boolean);
+    EXPECT_THROW(p[0], invalid_type);
+
+    EXPECT_THROW(auto s = std::string(p), bad_cast);
+    EXPECT_THROW(auto sv = std::string_view(p), bad_cast);
+    EXPECT_THROW(auto u64 = uint64_t(p), bad_cast);
+    EXPECT_NO_THROW(auto boolean = bool(p));
+
+    EXPECT_EQ(value, p.boolean);
+}
+
 } // namespace dds

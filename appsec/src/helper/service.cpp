@@ -10,7 +10,8 @@ namespace dds {
 
 service::service(std::shared_ptr<engine> engine,
     std::shared_ptr<service_config> service_config,
-    dds::remote_config::client_handler::ptr &&client_handler)
+    dds::remote_config::client_handler::ptr &&client_handler,
+    const schema_extraction_settings &schema_extraction_settings)
     : engine_(std::move(engine)), service_config_(std::move(service_config)),
       client_handler_(std::move(client_handler))
 {
@@ -22,6 +23,14 @@ service::service(std::shared_ptr<engine> engine,
     if (client_handler_) {
         client_handler_->start();
     }
+
+    double sample_rate = schema_extraction_settings.sample_rate;
+
+    if (!schema_extraction_settings.enabled) {
+        sample_rate = 0;
+    }
+
+    schema_sampler_ = std::make_shared<sampler>(sample_rate);
 }
 
 service::ptr service::from_settings(service_identifier &&id,
@@ -38,7 +47,7 @@ service::ptr service::from_settings(service_identifier &&id,
         std::move(id), eng_settings, service_config, rc_settings, engine_ptr,
         dynamic_enablement);
 
-    return std::make_shared<service>(
-        engine_ptr, std::move(service_config), std::move(client_handler));
+    return std::make_shared<service>(engine_ptr, std::move(service_config),
+        std::move(client_handler), eng_settings.schema_extraction);
 }
 } // namespace dds
