@@ -108,11 +108,11 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 
 #ifdef ZTS
 #  if defined(__has_attribute) && __has_attribute(tls_model)
-#    define ATTR_TLS_LOCAL_DYNAMIC __attribute__((tls_model("local-dynamic")))
+#    define ATTR_TLS_GLOBAL_DYNAMIC __attribute__((tls_model("global-dynamic")))
 #  else
-#    define ATTR_TLS_LOCAL_DYNAMIC
+#    define ATTR_TLS_GLOBAL_DYNAMIC
 #  endif
-extern __thread void *ATTR_TLS_LOCAL_DYNAMIC TSRMLS_CACHE;
+extern __thread void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
 #  define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
 #else
 #  define DDTRACE_G(v) (ddtrace_globals.v)
