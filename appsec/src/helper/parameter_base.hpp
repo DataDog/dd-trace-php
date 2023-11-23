@@ -18,7 +18,8 @@ enum parameter_type : unsigned {
     uint64 = DDWAF_OBJ_UNSIGNED,
     string = DDWAF_OBJ_STRING,
     map = DDWAF_OBJ_MAP,
-    array = DDWAF_OBJ_ARRAY
+    array = DDWAF_OBJ_ARRAY,
+    boolean = DDWAF_OBJ_BOOL
 };
 
 class parameter_base : public ddwaf_object {
@@ -80,6 +81,10 @@ public:
     {
         return ddwaf_object::type == DDWAF_OBJ_SIGNED;
     }
+    [[nodiscard]] bool is_boolean() const noexcept
+    {
+        return ddwaf_object::type == DDWAF_OBJ_BOOL;
+    }
     [[nodiscard]] bool is_valid() const noexcept
     {
         return ddwaf_object::type != DDWAF_OBJ_INVALID;
@@ -114,6 +119,14 @@ public:
             throw bad_cast("parameter not an int64");
         }
         return intValue;
+    }
+
+    explicit operator bool() const
+    {
+        if (!is_boolean()) {
+            throw bad_cast("parameter not a bool");
+        }
+        return boolean;
     }
 
     [[nodiscard]] std::string debug_str() const noexcept;

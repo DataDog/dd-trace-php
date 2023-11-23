@@ -48,4 +48,25 @@ TEST(JsonHelperTest, InvalidTypeToJson)
     EXPECT_EQ("", result);
 }
 
+TEST(JsonHelperTest, BoolType)
+{
+    {
+        ddwaf_object obj;
+        ddwaf_object_bool(&obj, false);
+
+        parameter_view pv(obj);
+        std::string result = parameter_to_json(pv);
+        EXPECT_EQ("false", result);
+    }
+
+    {
+        ddwaf_object obj;
+        ddwaf_object_bool(&obj, true);
+
+        parameter_view pv(obj);
+        std::string result = parameter_to_json(pv);
+        EXPECT_EQ("true", result);
+    }
+}
+
 } // namespace dds
