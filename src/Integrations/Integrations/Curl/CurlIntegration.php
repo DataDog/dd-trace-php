@@ -132,7 +132,7 @@ final class CurlIntegration extends Integration
                     foreach ($spans as $requestSpan) {
                         list($ch, $requestSpan) = $requestSpan;
                         $info = curl_getinfo($ch);
-                        if ($info["connect_time"] <= 0) {
+                        if (empty($info["http_code"])) {
                             $saveSpans = true;
                             if (!isset($error_trace)) {
                                 $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
