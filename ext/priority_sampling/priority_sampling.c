@@ -144,9 +144,9 @@ static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, bool eval_roo
             }
         }
 
-        zval *sample_rate_zv;
-        if (dd_check_sampling_rule(Z_ARR_P(rule), span) && (sample_rate_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("sample_rate")))) {
-            return (ddtrace_rule_result){ .sampling_rate = zval_get_double(sample_rate_zv), .rule = index };
+        if (dd_check_sampling_rule(Z_ARR_P(rule), span)) {
+            zval *sample_rate_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("sample_rate"));
+            return (ddtrace_rule_result){ .sampling_rate = sample_rate_zv ? zval_get_double(sample_rate_zv) : 1, .rule = index };
         }
     } ZEND_HASH_FOREACH_END();
 
