@@ -62,4 +62,13 @@ class PathParamsTest extends WebFrameworkTestCase
         $this->assertEquals($param01, $events[0]['param01']);
         $this->assertEquals('ddappsec_push_address', $events[0]['eventName']);
     }
+
+    public function testStaticRouteDoesNotGenerateEvent()
+    {
+        $this->call(
+            GetSpec::create('Call to static route', "/simple")
+        );
+        $events = AppsecStatus::getInstance()->getEvents();
+        $this->assertEquals(0, count($events));
+    }
 }
