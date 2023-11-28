@@ -1,0 +1,23 @@
+{
+    "$schema":"vendor/phpbench/phpbench/phpbench.schema.json",
+    "runner.bootstrap": "vendor/autoload.php",
+    "runner.path": "Benchmarks",
+    "runner.file_pattern": "*Bench.php",
+    "report.generators": {
+        "phpbench_aggregate": {
+            "extends": "aggregate",
+            "cols": [ "subject", "its", "mem_peak", "worst", "mean", "mode", "best", "rstdev" ]
+        },
+        "all": {
+            "generator": "composite",
+            "reports": [ "phpbench_aggregate" ]
+        }
+    },
+    "report.outputs": {
+        "file": {
+            "extends": "csv",
+            "file": "tests/Benchmarks/results.csv",
+            "delimiter": ","
+        }
+    }
+}

@@ -470,6 +470,8 @@ COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 c
 COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
+PHPBENCH_OPTS ?=
+PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run --config=$(TESTS_ROOT)/phpbench.json
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
@@ -938,6 +940,11 @@ define run_tests
 	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
+define run_benchmarks
+	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --filter=$(FILTER) --report=all --output=file --output=console
+endef
+
+
 # use this as the first target if you want to use uncompiled files instead of the _generated_*.php compiled file.
 dev:
 	$(Q) :
@@ -989,6 +996,9 @@ test_auto_instrumentation: global_test_run_dependencies
 	$(call run_tests,--testsuite=auto-instrumentation $(TESTS))
 	# Cleaning up composer.json files in tests/AutoInstrumentation modified for TLS during tests
 	git checkout $(TESTS_ROOT)/AutoInstrumentation/**/composer.json
+
+test_benchmark: global_test_run_dependencies
+	$(call run_benchmarks)
 
 test_composer: global_test_run_dependencies
 	$(call run_tests,--testsuite=composer-tests $(TESTS))
