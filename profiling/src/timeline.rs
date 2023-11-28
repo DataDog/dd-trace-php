@@ -37,6 +37,17 @@ fn try_sleeping_fn(
     execute_data: *mut zend_execute_data,
     return_value: *mut zval,
 ) -> anyhow::Result<()> {
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.profiling_experimental_timeline_enabled)
+            .unwrap_or(false)
+    });
+
+    if !timeline_enabled {
+        unsafe { func(execute_data, return_value) };
+        return Ok(());
+    }
+
     let start = Instant::now();
 
     // SAFETY: simple forwarding to original func with original args.
@@ -186,6 +197,10 @@ pub fn timeline_rinit() {
             return;
         };
 
+        if !locals.profiling_experimental_timeline_enabled {
+            return;
+        }
+
         IDLE_SINCE.with(|cell| {
             // try to borrow and bail out if not successful
             let Ok(idle_since) = cell.try_borrow() else {
@@ -211,6 +226,16 @@ pub fn timeline_rinit() {
 /// This function is run during the P-RSHUTDOWN phase and resets the `IDLE_SINCE` thread local to
 /// "now", indicating the start of a new idle phase
 pub fn timeline_prshutdown() {
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.profiling_experimental_timeline_enabled)
+            .unwrap_or(false)
+    });
+
+    if !timeline_enabled {
+        return;
+    }
+
     IDLE_SINCE.with(|cell| {
         // try to borrow and bail out if not successful
         let Ok(mut idle_since) = cell.try_borrow_mut() else {
@@ -229,6 +254,10 @@ pub(crate) fn timeline_mshutdown() {
         let Ok(locals) = cell.try_borrow() else {
             return;
         };
+
+        if !locals.profiling_experimental_timeline_enabled {
+            return;
+        }
 
         IDLE_SINCE.with(|cell| {
             // try to borrow and bail out if not successful
