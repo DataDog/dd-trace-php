@@ -58,7 +58,7 @@ class PathParamsTest extends WebFrameworkTestCase
         );
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
-        $this->assertCount(2, $events[0]); //One for the evnet and one for the given parameter. Optional not present
+        $this->assertCount(2, $events[0]); //One for the event and one for the given parameter. Optional not present
         $this->assertEquals($param01, $events[0]['param01']);
         $this->assertEquals('ddappsec_push_address', $events[0]['eventName']);
     }
