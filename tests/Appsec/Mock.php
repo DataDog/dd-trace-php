@@ -9,7 +9,7 @@ class AppsecStatus {
     private bool $initiated = false;
 
     protected function __construct() {
-        $initiated = false;
+        $this->initiated = false;
     }
     
     public static function getInstance()
@@ -29,18 +29,18 @@ class AppsecStatus {
     public function init()
     {
         $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000))");
-        $initiated = true;
+        $this->initiated = true;
     }
 
     public function destroy()
     {
         $this->getDbPdo()->exec("DROP TABLE appsec_events");
-        $initiated = false;
+        $this->initiated = false;
     }
 
     public function setDefaults()
     {
-        if (!$initiated) {
+        if (!$this->initiated) {
          return;
         }
         $this->getDbPdo()->exec("DELETE FROM appsec_events");
@@ -49,7 +49,7 @@ class AppsecStatus {
 
     public function addEvent(array $event, $eventName)
     {
-        if (!$initiated) {
+        if (!$this->initiated) {
          return;
         }
         $event['eventName'] = $eventName;
@@ -60,7 +60,7 @@ class AppsecStatus {
     {
         $result = [];
 
-        if (!$initiated) {
+        if (!$this->initiated) {
          return $result;
         }
         
