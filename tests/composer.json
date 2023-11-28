@@ -3,7 +3,8 @@
     "description": "PHP APM Client test suites",
     "autoload-dev": {
         "psr-4": {
-            "DDTrace\\Tests\\": "./"
+            "DDTrace\\Tests\\": "./",
+            "DDTrace\\Benchmarks\\": "./Benchmarks"
         },
         "files": [
             "Appsec/Mock.php"
@@ -12,6 +13,7 @@
     "require-dev": {
         "assertwell/phpunit-global-state": "^0.2.2",
         "mockery/mockery": "*",
+        "phpbench/phpbench": "^1.0",
         "phpunit/phpunit": "<10",
         "phpspec/prophecy": "*",
         "symfony/process": "<5",
