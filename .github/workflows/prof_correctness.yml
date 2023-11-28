@@ -55,13 +55,30 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Run no profile test
+        run: |
+          export DD_PROFILING_ENABLED=Off
+          export DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED=1
+          export DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=1
+          export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
+          php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
+          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
+              mkdir -p profiling/tests/correctness/"$test_case"/
+              export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
+              php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
+              if [ -f "$DD_PROFILING_OUTPUT_PPROF".1.lz4 ]; then
+                echo "File $DD_PROFILING_OUTPUT_PPROF.1.lz4 should not exist!"
+                exit 1;
+              fi
+          done
+
       - name: Run tests
         run: |
           export DD_PROFILING_LOG_LEVEL=trace
           export DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED=1
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=1
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
-          php -d extension=target/release/libdatadog_php_profiling.so -v
+          php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
