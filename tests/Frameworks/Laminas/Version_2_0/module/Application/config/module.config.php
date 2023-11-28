@@ -61,6 +61,24 @@ return [
                         'action' => 'error',
                     ],
                 ]
+            ],
+            'parameterized' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/parameterized',
+                ],
+                'child_routes' => [
+                    'child' => [
+                        'type' => Segment::class,
+                        'options' => [
+                            'route' => '/:paramValue',
+                            'defaults' => [
+                                'controller' => Controller\CommonSpecsController::class,
+                                'action' => 'parameterized',
+                            ],
+                        ],
+                    ],
+                ],
             ]
         ],
     ],
