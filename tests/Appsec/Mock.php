@@ -24,6 +24,16 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
         }
 
+        /**
+        * Not all test are interested on events but frameworks are instrumented so this check is to avoid errors
+        */
+        private function initiated()
+        {
+            return $this->getDbPdo()
+                ->query("SELECT * FROM information_schema.tables WHERE table_name = 'appsec_events'")
+                ->rowCount() > 0;
+        }
+
         public function init()
         {
             $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000))");
@@ -37,12 +47,18 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
 
         public function setDefaults()
         {
+            if (!$this->initiated()) {
+                return;
+            }
             $this->getDbPdo()->exec("DELETE FROM appsec_events");
-
         }
 
         public function addEvent(array $event, $eventName)
         {
+            if (!$this->initiated()) {
+                return;
+            }
+
             $event['eventName'] = $eventName;
             $this->getDbPdo()->exec(sprintf("INSERT INTO appsec_events VALUES ('%s')", json_encode($event)));
         }
@@ -50,6 +66,10 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
         public function getEvents()
         {
             $result = [];
+
+            if (!$this->initiated()) {
+                return $result;
+            }
 
             $events = $this->getDbPdo()->query("SELECT * FROM appsec_events")->fetchAll();
 
@@ -62,11 +82,18 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
     }
 }
 
+function appsecMockEnabled() {
+    return getenv('APPSEC_MOCK_ENABLED') === "true";
+}
+
 if (!function_exists('datadog\appsec\track_user_login_success_event')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      */
     function track_user_login_success_event($userId, $metadata, $automated) {
+        if(!appsecMockEnabled()) {
+            return;
+        }
         $event = [
             'userId' => $userId,
             'metadata' => $metadata,
@@ -82,6 +109,9 @@ if (!function_exists('datadog\appsec\track_user_login_failure_event')) {
      * This function is exposed by appsec but here we are mocking it for tests
      */
     function track_user_login_failure_event($userId, $exists, $metadata, $automated) {
+        if(!appsecMockEnabled()) {
+            return;
+        }
         $event = [
             'userId' => $userId,
             'exists' => $exists,
@@ -98,6 +128,9 @@ if (!function_exists('datadog\appsec\track_user_signup_event')) {
      * This function is exposed by appsec but here we are mocking it for tests
      */
     function track_user_signup_event($userId, $metadata, $automated) {
+        if(!appsecMockEnabled()) {
+            return;
+        }
         $event = [
             'userId' => $userId,
             'metadata' => $metadata,
@@ -108,10 +141,15 @@ if (!function_exists('datadog\appsec\track_user_signup_event')) {
     }
 }
 
-/**
- * This function is exposed by appsec but here we are mocking it for tests
- * @param array $params
- */
-function ddappsec_push_address($params) {
-    AppsecStatus::getInstance()->addEvent($params, 'ddappsec_push_address');
+if (!function_exists('datadog\appsec\push_address')) {
+    /**
+     * This function is exposed by appsec but here we are mocking it for tests
+     * @param array $params
+     */
+    function push_address($key, $value) {
+        if(!appsecMockEnabled()) {
+           return;
+        }
+        AppsecStatus::getInstance()->addEvent([$key => $value], 'push_address');
+    }
 }
