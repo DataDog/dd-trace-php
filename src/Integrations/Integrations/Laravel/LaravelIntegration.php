@@ -155,6 +155,9 @@ class LaravelIntegration extends Integration
                 if (\method_exists($route, 'uri')) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $route->uri();
                 }
+                if (\method_exists($route, 'parameters') && function_exists('\datadog\appsec\ddappsec_push_address')) {
+                    \datadog\appsec\ddappsec_push_address($route->parameters());
+                }
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
