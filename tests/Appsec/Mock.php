@@ -6,7 +6,10 @@ class AppsecStatus {
 
     private static $instance = null;
 
+    private bool $initiated = false;
+
     protected function __construct() {
+        $initiated = false;
     }
     
     public static function getInstance()
@@ -26,22 +29,29 @@ class AppsecStatus {
     public function init()
     {
         $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000))");
+        $initiated = true;
     }
 
     public function destroy()
     {
         $this->getDbPdo()->exec("DROP TABLE appsec_events");
-    }   
-
+        $initiated = false;
+    }
 
     public function setDefaults()
     {
+        if (!$initiated) {
+         return;
+        }
         $this->getDbPdo()->exec("DELETE FROM appsec_events");
 
     }
 
     public function addEvent(array $event, $eventName)
     {
+        if (!$initiated) {
+         return;
+        }
         $event['eventName'] = $eventName;
         $this->getDbPdo()->exec(sprintf("INSERT INTO appsec_events VALUES ('%s')", json_encode($event)));
     }
@@ -49,6 +59,10 @@ class AppsecStatus {
     public function getEvents()
     {
         $result = [];
+
+        if (!$initiated) {
+         return $result;
+        }
         
         $events = $this->getDbPdo()->query("SELECT * FROM appsec_events")->fetchAll();
 
