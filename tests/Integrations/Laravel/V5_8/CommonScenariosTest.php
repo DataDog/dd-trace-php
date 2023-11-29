@@ -217,6 +217,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel'
                     ])->withChildren([
+                        SpanAssertion::exists('PDO.__construct', null, null, 'laravel_test_app'),
+                        SpanAssertion::exists('PDO.query', null, null, 'laravel_test_app'),
                         SpanAssertion::build(
                             'laravel.action',
                             'laravel_test_app',
