@@ -193,6 +193,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             Tag::COMPONENT => 'laravel',
                         ])
                         ->withChildren([
+                            SpanAssertion::exists('PDO.__construct', null, null, 'laravel'),
+                            SpanAssertion::exists('PDO.query', null, null, 'laravel'),
                             SpanAssertion::exists('laravel.application.handle')
                                 ->withChildren([
                                     SpanAssertion::build('laravel.action', 'laravel', 'web', 'dynamic_route/{param01}/static/{param02?}')
