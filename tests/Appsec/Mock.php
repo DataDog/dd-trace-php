@@ -6,12 +6,6 @@ class AppsecStatus {
 
     private static $instance = null;
 
-    private bool $initiated = false;
-
-    protected function __construct() {
-        $this->initiated = false;
-    }
-    
     public static function getInstance()
     {
         if (!self::$instance) {
@@ -26,6 +20,14 @@ class AppsecStatus {
         return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
     }
 
+    /**
+    * Not all test are interested on events but frameworks are instrumented so this check is to avoid errors
+    */
+    private function initiated()
+    {
+        return $this->getDbPdo()->query("SELECT * FROM information_schema.tables WHERE table_name = 'appsec_events'")->rowCount() > 0;
+    }
+
     public function init()
     {
         $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000))");
@@ -35,12 +37,11 @@ class AppsecStatus {
     public function destroy()
     {
         $this->getDbPdo()->exec("DROP TABLE appsec_events");
-        $this->initiated = false;
     }
 
     public function setDefaults()
     {
-        if (!$this->initiated) {
+        if (!$this->initiated()) {
          return;
         }
         $this->getDbPdo()->exec("DELETE FROM appsec_events");
@@ -49,7 +50,7 @@ class AppsecStatus {
 
     public function addEvent(array $event, $eventName)
     {
-        if (!$this->initiated) {
+        if (!$this->initiated()) {
          return;
         }
         $event['eventName'] = $eventName;
@@ -60,10 +61,10 @@ class AppsecStatus {
     {
         $result = [];
 
-        if (!$this->initiated) {
-         return $result;
-        }
-        
+        if (!$this->initiated()) {
+        return result;
+       }
+
         $events = $this->getDbPdo()->query("SELECT * FROM appsec_events")->fetchAll();
 
         foreach ($events as $event) {
