@@ -13,7 +13,7 @@ class PathParamsTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
     }
 
     protected function connection()
