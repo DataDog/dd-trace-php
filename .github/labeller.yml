@@ -1,0 +1,24 @@
+labels:
+  - name: "area:asm"
+    title: "^\\[?(?i)ASM"
+
+  - name: "area:asm"
+    allFilesIn: "(appsec\/.*|docker-compose.yml|.*\/.circleci\/.*)"
+
+  - name: "profiling"
+    title: "^*(profiler)"
+
+  - name: "profiling"
+    title: "^*(profiling)"
+
+  - name: "profiling"
+    allFilesIn: "(profiling\/.*|docker-compose.yml|.*\/.circleci\/.*)"
+
+  - name: "tracing"
+    title: "^\\[?(?i)tracer"
+
+  - name: "tracing"
+    title: "^\\[?(?i)tracing"
+
+  - name: "tracing"
+    allFilesIn: "(.*\/ext\/.*|.*\/src\/.*|.*\/tests\/.*|.*\/zend_abstract_interface\/.*|docker-compose.yml|.*\/.circleci\/.*)"
