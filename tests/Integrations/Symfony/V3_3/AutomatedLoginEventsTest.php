@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Symfony\V4_4;
+namespace DDTrace\Tests\Integrations\Symfony\V3_3;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
