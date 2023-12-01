@@ -639,6 +639,16 @@ static zend_always_inline bool zai_interceptor_shall_install_handlers(zend_funct
 
 static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_execute_data *execute_data) {
     zend_function *func = execute_data->func;
+
+#if PHP_VERSION_ID < 80200
+    if (func->common.scope != NULL &&
+        func->common.scope->attributes != NULL &&
+        zend_get_attribute_str(func->common.scope->attributes, "attribute", sizeof("attribute")-1) != NULL) {
+        // Workaround PHP bug #81430
+        return (zend_observer_fcall_handlers) {NULL, NULL};
+    }
+#endif
+
 #if PHP_VERSION_ID < 80200
     #undef zai_interceptor_replace_observer
 
