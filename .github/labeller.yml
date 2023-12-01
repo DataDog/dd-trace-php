@@ -6,10 +6,10 @@ labels:
     allFilesIn: "(appsec\/.*|docker-compose.yml|.*\/.circleci\/.*)"
 
   - name: "profiling"
-    title: "^*(profiler)"
+    title: "^.*\\(profiler\\)"
 
   - name: "profiling"
-    title: "^*(profiling)"
+    title: "^.*\\(profiling\\)"
 
   - name: "profiling"
     allFilesIn: "(profiling\/.*|docker-compose.yml|.*\/.circleci\/.*)"

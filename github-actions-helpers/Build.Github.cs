@@ -41,6 +41,39 @@ partial class Build
 
     const string GitHubRepositoryOwner = "DataDog";
 
+    Target AssignPullRequestToMilestone => _ => _
+       .Unlisted()
+       .Requires(() => GitHubRepositoryName)
+       .Requires(() => GitHubToken)
+       .Requires(() => PullRequestNumber)
+       .Executes(async() =>
+        {
+            var client = GetGitHubClient();
+
+            var currentMilestone = (await client.PullRequest.Get(
+                owner: GitHubRepositoryOwner,
+                name: GitHubRepositoryName,
+                number: PullRequestNumber.Value))
+                .Milestone;
+
+            if (currentMilestone != null && currentMilestone.Number != 0) {
+                Console.WriteLine($"Pull request {PullRequestNumber} already has a milesotone: {currentMilestone.Title} ({currentMilestone.Number})");
+                return;
+            }
+
+            var milestone = await GetOrCreateNextMilestone(client);
+
+            Console.WriteLine($"Assigning PR {PullRequestNumber} to {milestone.Title} ({milestone.Number})");
+
+            await client.Issue.Update(
+                owner: GitHubRepositoryOwner,
+                name: GitHubRepositoryName,
+                number: PullRequestNumber.Value,
+                new IssueUpdate { Milestone = milestone.Number });
+
+            Console.WriteLine($"PR assigned");
+        });
+
     Target SummaryOfSnapshotChanges => _ => _
            .Unlisted()
            .Requires(() => GitHubRepositoryName)
@@ -320,6 +353,56 @@ partial class Build
                return deserializer.Deserialize<LabbelerConfiguration>(sr);
            }
         });
+
+    private async Task<Milestone> GetOrCreateNextMilestone(GitHubClient gitHubClient)
+    {
+        var milestoneName = CalculateNextVersion(Version);
+        var milestone = await GetMilestone(gitHubClient, milestoneName);
+        if (milestone is not null)
+        {
+            Console.WriteLine($"Found {milestoneName} milestone: {milestone.Number}");
+            return milestone;
+        }
+
+        Console.WriteLine($"{milestoneName} milestone not found, creating");
+
+        var milestoneRequest = new NewMilestone(milestoneName);
+        milestone = await gitHubClient.Issue.Milestone.Create(
+                   owner: GitHubRepositoryOwner,
+                   name: GitHubRepositoryName,
+                   milestoneRequest);
+        Console.WriteLine($"Created {milestoneName} milestone: {milestone.Number}");
+        return milestone;
+    }
+
+    private async Task<Milestone> GetMilestone(GitHubClient gitHubClient, string milestoneName)
+    {
+        Console.WriteLine("Fetching milestones...");
+        var allOpenMilestones = await gitHubClient.Issue.Milestone.GetAllForRepository(
+                                    owner: GitHubRepositoryOwner,
+                                    name: GitHubRepositoryName,
+                                    new MilestoneRequest { State = ItemStateFilter.Open });
+
+        return allOpenMilestones.FirstOrDefault(x => x.Title == milestoneName);
+    }
+
+    string CalculateNextVersion(string currentVersion)
+    {
+        Console.WriteLine("Current version is " + currentVersion);
+        var parsedVersion = new Version(currentVersion);
+        var major = parsedVersion.Major;
+        int minor;
+        int patch;
+
+        // always do minor version bump on 2.x branch
+        minor = parsedVersion.Minor + 1;
+        patch = 0;
+
+        var nextVersion = $"{major}.{minor}.{patch}";
+
+        Console.WriteLine("Next version calculated as " + nextVersion);
+        return nextVersion;
+    }
 
     GitHubClient GetGitHubClient() =>
     new(new ProductHeaderValue("nuke-ci-client"))
