@@ -91,12 +91,26 @@ class SlimIntegration extends Integration
                         'lookupRoute',
                         null,
                         function ($router, $scope, $args, $return) use ($rootSpan) {
+                            /** @var \Slim\Interfaces\RouteInterface $route */
+                            $route = $return;
+                            $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPattern();
+
                             if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                                /** @var \Slim\Interfaces\RouteInterface $route */
-                                $route = $return;
                                 $rootSpan->resource =
                                     $_SERVER['REQUEST_METHOD'] . ' ' . ($route->getName() ?: $route->getPattern());
                             }
+                        }
+                    );
+                }
+                else if ('4' === $majorVersion) {
+                    \DDTrace\hook_method(
+                        'Slim\\Routing\\RouteCollector',
+                        'lookupRoute',
+                        null,
+                        function ($router, $scope, $args, $return) use ($rootSpan) {
+                            /** @var \Slim\Interfaces\RouteInterface $route */
+                            $route = $return;
+                            $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPattern();
                         }
                     );
                 }
