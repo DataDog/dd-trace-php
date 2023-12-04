@@ -734,7 +734,7 @@ impl Profiler {
 
     #[cfg(feature = "exception_profiling")]
     /// Collect a stack sample with exception
-    pub unsafe fn collect_exception(
+    pub fn collect_exception(
         &self,
         execute_data: *mut zend_execute_data,
         exception: String,
