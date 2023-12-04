@@ -3,8 +3,6 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include "../std_logging.hpp"
-#include "ddwaf.h"
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
@@ -18,7 +16,11 @@
 #include <string_view>
 
 #include "../json_helper.hpp"
+#include "../std_logging.hpp"
 #include "../tags.hpp"
+#include "base64.h"
+#include "compression.hpp"
+#include "ddwaf.h"
 #include "waf.hpp"
 
 namespace dds::waf {
@@ -39,11 +41,6 @@ dds::subscriber::event format_waf_result(ddwaf_result &res)
             output.data.emplace_back(std::move(parameter_to_json(event)));
         }
 
-        const parameter_view schemas{res.derivatives};
-        for (const auto &schema : schemas) {
-            output.schemas.emplace(
-                schema.key(), std::move(parameter_to_json(schema)));
-        }
     } catch (const std::exception &e) {
         SPDLOG_ERROR("failed to parse WAF output: {}", e.what());
     }
@@ -209,6 +206,11 @@ std::optional<subscriber::event> instance::listener::call(
     // NOLINTNEXTLINE
     total_runtime_ += res.total_runtime / 1000.0;
 
+    const parameter_view schemas{res.derivatives};
+    for (const auto &schema : schemas) {
+        schemas_.emplace(schema.key(), std::move(parameter_to_json(schema)));
+    }
+
     switch (code) {
     case DDWAF_MATCH:
         return format_waf_result(res);
@@ -236,6 +238,17 @@ void instance::listener::get_meta_and_metrics(
 {
     meta[std::string(tag::event_rules_version)] = ruleset_version_;
     metrics[tag::waf_duration] = total_runtime_;
+
+    for (const auto &[key, value] : schemas_) {
+        std::string schema = value;
+        if (value.length() > max_plain_schema_allowed) {
+            auto encoded = compress(schema);
+            if (encoded) {
+                schema = base64_encode(encoded.value(), false);
+            }
+        }
+        meta.emplace(key, std::move(schema));
+    }
 }
 
 instance::instance(parameter &rule, std::map<std::string, std::string> &meta,

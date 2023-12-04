@@ -323,7 +323,8 @@ TEST(WafTest, SchemasAreAdded)
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
-    EXPECT_FALSE(res->schemas.empty());
-    EXPECT_STREQ(res->schemas["_dd.appsec.s.arg2"].c_str(), "[8]");
+    ctx->get_meta_and_metrics(meta, metrics);
+    EXPECT_FALSE(meta.empty());
+    EXPECT_STREQ(meta["_dd.appsec.s.arg2"].c_str(), "[8]");
 }
 } // namespace dds

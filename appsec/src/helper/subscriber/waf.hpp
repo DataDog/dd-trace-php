@@ -23,6 +23,7 @@ void initialise_logging(spdlog::level::level_enum level);
 class instance : public dds::subscriber {
 public:
     static constexpr int default_waf_timeout_us = 10000;
+    static constexpr int max_plain_schema_allowed = 260;
 
     using ptr = std::shared_ptr<instance>;
     class listener : public dds::subscriber::listener {
@@ -46,6 +47,7 @@ public:
         std::chrono::microseconds waf_timeout_;
         double total_runtime_{0.0};
         std::string_view ruleset_version_;
+        std::map<std::string, std::string> schemas_;
     };
 
     // NOLINTNEXTLINE(google-runtime-references)
