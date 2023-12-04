@@ -141,8 +141,8 @@ pub(crate) enum ConfigId {
     ProfilingExperimentalCpuTimeEnabled,
     ProfilingAllocationEnabled,
     ProfilingExperimentalTimelineEnabled,
-    ProfilingExperimentalExceptionEnabled,
-    ProfilingExperimentalExceptionSamplingDistance,
+    ProfilingExceptionEnabled,
+    ProfilingExceptionSamplingDistance,
     ProfilingLogLevel,
     ProfilingOutputPprof,
 
@@ -166,10 +166,8 @@ impl ConfigId {
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
             ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
             ProfilingExperimentalTimelineEnabled => b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
-            ProfilingExperimentalExceptionEnabled => {
-                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED\0"
-            }
-            ProfilingExperimentalExceptionSamplingDistance => {
+            ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
+            ProfilingExceptionSamplingDistance => {
                 b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE\0"
             }
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
@@ -231,15 +229,15 @@ pub(crate) unsafe fn profiling_experimental_timeline_enabled() -> bool {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_exception_enabled() -> bool {
-    get_bool(ProfilingExperimentalExceptionEnabled, false)
+pub(crate) unsafe fn profiling_exception_enabled() -> bool {
+    get_bool(ProfilingExceptionEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_exception_sampling_distance() -> u32 {
-    get_uint32(ProfilingExperimentalExceptionSamplingDistance, 100)
+pub(crate) unsafe fn profiling_exception_sampling_distance() -> u32 {
+    get_uint32(ProfilingExceptionSamplingDistance, 100)
 }
 
 /// # Safety
@@ -435,6 +433,18 @@ pub(crate) fn minit(module_number: libc::c_int) {
             )]
         };
 
+        const EXCEPTION_ALIASES: &[ZaiStr] = unsafe {
+            &[ZaiStr::literal(
+                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED\0",
+            )]
+        };
+
+        const EXCEPTION_SAMPLING_DISTANCE_ALIASES: &[ZaiStr] = unsafe {
+            &[ZaiStr::literal(
+                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE\0",
+            )]
+        };
+
         // Note that function pointers cannot appear in const functions, so we
         // can't extract each entry into a helper function.
         static mut ENTRIES: &mut [zai_config_entry] = unsafe {
@@ -490,22 +500,22 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalExceptionEnabled),
-                    name: ProfilingExperimentalExceptionEnabled.env_var_name(),
+                    id: transmute(ProfilingExceptionEnabled),
+                    name: ProfilingExceptionEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: std::ptr::null_mut(),
-                    aliases_count: 0,
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
+                    aliases: EXCEPTION_ALIASES.as_ptr(),
+                    aliases_count: EXCEPTION_ALIASES.len() as u8,
                     ini_change: None,
                     parser: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalExceptionSamplingDistance),
-                    name: ProfilingExperimentalExceptionSamplingDistance.env_var_name(),
+                    id: transmute(ProfilingExceptionSamplingDistance),
+                    name: ProfilingExceptionSamplingDistance.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM,
                     default_encoded_value: ZaiStr::literal(b"100\0"),
-                    aliases: std::ptr::null_mut(),
-                    aliases_count: 0,
+                    aliases: EXCEPTION_SAMPLING_DISTANCE_ALIASES.as_ptr(),
+                    aliases_count: EXCEPTION_SAMPLING_DISTANCE_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_exception_sampling_distance_filter),
                 },
