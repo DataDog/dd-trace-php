@@ -235,7 +235,7 @@ function response_request_exec($message, $mergeWithEmpty = true) {
 
 function response_request_shutdown($message, $mergeWithEmpty = true) {
     if ($mergeWithEmpty) {
-        $message = array_override(['', [], [], false, [], []], $message);
+        $message = array_override(['', [], [], false, [], [], []], $message);
     }
     return response("request_shutdown", $message);
 }

@@ -3,13 +3,16 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+
 #include <chrono>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <string>
 #include <thread>
 
+#include "base64.h"
 #include "client.hpp"
+#include "compression.hpp"
 #include "exception.hpp"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
@@ -150,7 +153,7 @@ bool client::handle_command(const network::client_init::request &command)
     auto &&eng_settings = command.engine_settings;
     DD_STDLOG(DD_STDLOG_STARTUP);
 
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     std::vector<std::string> errors;
@@ -433,6 +436,7 @@ bool client::handle_command(network::request_shutdown::request &command)
     auto free_ctx = defer([this]() { this->context_.reset(); });
 
     auto response = std::make_shared<network::request_shutdown::response>();
+
     try {
         auto sampler = service_->get_schema_sampler();
         std::optional<sampler::scope> scope;
@@ -467,6 +471,16 @@ bool client::handle_command(network::request_shutdown::request &command)
 
             response->triggers = std::move(res->events);
             response->force_keep = res->force_keep;
+            for (const auto &[key, value] : res->schemas) {
+                std::string schema = value;
+                if (value.length() > max_plain_schema_allowed) {
+                    auto encoded = compress(schema);
+                    if (encoded) {
+                        schema = base64_encode(encoded.value(), false);
+                    }
+                }
+                response->meta.emplace(key, std::move(schema));
+            }
 
             DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
         } else {

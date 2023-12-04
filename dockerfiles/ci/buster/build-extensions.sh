@@ -17,7 +17,7 @@ elif [[ $PHP_VERSION_ID -le 81 ]]; then
 elif [[ $PHP_VERSION_ID -le 82 ]]; then
   XDEBUG_VERSIONS=(-3.2.2)
 else
-  XDEBUG_VERSIONS=(-3.3.0alpha2)
+  XDEBUG_VERSIONS=(-3.3.0)
 fi
 
 MONGODB_VERSION=
