@@ -33,7 +33,7 @@ public:
     public:
         explicit scope(std::atomic<bool> &concurrent) : concurrent_(&concurrent)
         {
-            *concurrent_ = true;
+            concurrent_->store(true, std::memory_order_relaxed);
         }
 
         scope(const scope &) = delete;
@@ -54,7 +54,7 @@ public:
         ~scope()
         {
             if (concurrent_ != nullptr) {
-                *concurrent_ = false;
+                concurrent_->store(false, std::memory_order_relaxed);
             }
         }
 
@@ -73,7 +73,7 @@ public:
             result = {scope{concurrent_}};
         }
 
-        if (request_ < UINT_MAX) {
+        if (request_ < std::numeric_limits<unsigned>::max()) {
             request_++;
         } else {
             request_ = 1;

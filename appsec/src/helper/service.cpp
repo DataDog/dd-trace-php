@@ -36,7 +36,7 @@ service::service(std::shared_ptr<engine> engine,
 service::ptr service::from_settings(service_identifier &&id,
     const dds::engine_settings &eng_settings,
     const remote_config::settings &rc_settings,
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics, bool dynamic_enablement)
 {
     auto engine_ptr = engine::from_settings(eng_settings, meta, metrics);

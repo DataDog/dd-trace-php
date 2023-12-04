@@ -25,7 +25,7 @@ struct service_manager_exp : public service_manager {
 
 TEST(ServiceManagerTest, LoadRulesOK)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     service_manager_exp manager;
@@ -77,7 +77,7 @@ TEST(ServiceManagerTest, LoadRulesOK)
 
 TEST(ServiceManagerTest, LoadRulesFileNotFound)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     service_manager_exp manager;
@@ -94,7 +94,7 @@ TEST(ServiceManagerTest, LoadRulesFileNotFound)
 
 TEST(ServiceManagerTest, BadRulesFile)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     service_manager_exp manager;
@@ -111,7 +111,7 @@ TEST(ServiceManagerTest, BadRulesFile)
 
 TEST(ServiceManagerTest, UniqueServices)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     service_manager_exp manager;

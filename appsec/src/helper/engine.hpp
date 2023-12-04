@@ -50,6 +50,7 @@ public:
         action_type type;
         std::unordered_map<std::string, std::string> parameters;
         std::vector<std::string> events;
+        std::map<std::string, std::string> schemas;
         bool force_keep;
     };
 
@@ -77,7 +78,7 @@ public:
 
         std::optional<result> publish(parameter &&param);
         // NOLINTNEXTLINE(google-runtime-references)
-        void get_meta_and_metrics(std::map<std::string_view, std::string> &meta,
+        void get_meta_and_metrics(std::map<std::string, std::string> &meta,
             std::map<std::string_view, double> &metrics);
 
     protected:
@@ -94,7 +95,7 @@ public:
     virtual ~engine() = default;
 
     static engine::ptr from_settings(const dds::engine_settings &eng_settings,
-        std::map<std::string_view, std::string> &meta,
+        std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics);
 
     static auto create(
@@ -111,7 +112,7 @@ public:
     // Update is not thread-safe, although only one remote config client should
     // be able to update it so in practice it should not be a problem.
     virtual void update(engine_ruleset &ruleset,
-        std::map<std::string_view, std::string> &meta,
+        std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics);
 
     // Only exposed for testing purposes
