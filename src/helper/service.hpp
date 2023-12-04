@@ -41,7 +41,7 @@ public:
     static service::ptr from_settings(service_identifier &&id,
         const dds::engine_settings &eng_settings,
         const remote_config::settings &rc_settings,
-        std::map<std::string_view, std::string> &meta,
+        std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics, bool dynamic_enablement);
 
     virtual void register_runtime_id(const std::string &id)
@@ -70,7 +70,10 @@ public:
         return service_config_;
     }
 
-    std::shared_ptr<sampler> get_schema_sampler() { return schema_sampler_; }
+    [[nodiscard]] std::shared_ptr<sampler> get_schema_sampler()
+    {
+        return schema_sampler_;
+    }
 
 protected:
     std::shared_ptr<engine> engine_{};

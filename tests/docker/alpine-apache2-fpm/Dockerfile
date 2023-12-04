@@ -8,12 +8,8 @@ FROM php:$PHP_VERSION-fpm-alpine$ALPINE_VERSION
 RUN apk add --no-cache apache2 apache2-proxy libexecinfo bash libgcc
 
 ARG TRACER_VERSION
-#RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \
-#    PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-version $TRACER_VERSION --php-bin all
-
-RUN curl -Lf -o /tmp/dd-library.tar.gz https://output.circle-artifacts.com/output/job/368279ca-1b4c-483e-8b86-089578b2afe5/artifacts/0/datadog-php-tracer-0.92.0+7fd21cb7039ad8c6e4264811adace6ccad31aed2.x86_64.tar.gz && \
-    curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \
-    PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --php-bin all --no-appsec --tracer-file /tmp/dd-library.tar.gz
+RUN curl -Lf -o /tmp/dd-library-php-setup.php https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php && \
+    PHP_INI_SCAN_DIR=/etc/php/ php /tmp/dd-library-php-setup.php --no-appsec --tracer-version $TRACER_VERSION --php-bin all
 
 RUN rm -rf /var/www/localhost/htdocs
 ADD --chown=www-data:www-data examples/webroot/ /var/www/localhost/htdocs/

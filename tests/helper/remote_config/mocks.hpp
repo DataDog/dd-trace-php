@@ -23,7 +23,7 @@ public:
         : dds::engine(trace_rate_limit, std::move(actions))
     {}
     MOCK_METHOD(void, update,
-        (engine_ruleset &, (std::map<std::string_view, std::string> &),
+        (engine_ruleset &, (std::map<std::string, std::string> &),
             (std::map<std::string_view, double> &)),
         (override));
 

@@ -10,7 +10,7 @@ namespace dds {
 std::shared_ptr<service> service_manager::create_service(
     service_identifier &&id, const engine_settings &settings,
     const remote_config::settings &rc_settings,
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics, bool dynamic_enablement)
 {
     const std::lock_guard guard{mutex_};

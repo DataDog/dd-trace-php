@@ -49,7 +49,7 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
     auto service_config = std::make_shared<dds::service_config>();
     engine_settings engine_settings = {};
     engine_settings.rules_file = create_sample_rules_ok();
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     { // Constructor. It picks based on rate
