@@ -161,6 +161,7 @@ ext/standard/tests/strings/sprintf_variation54.phpt
 ext/tokenizer/tests/PhpToken_getAll.phpt
 ext/zend_test/tests/
 ext/zip/tests/bug38943.phpt
+sapi/cli/tests/bug80092.phpt
 sapi/cli/tests/upload_2G.phpt
 sapi/fpm/tests/log-bm-in-shutdown-fn.phpt
 sapi/fpm/tests/log-bm-limit-1024-msg-80.phpt
