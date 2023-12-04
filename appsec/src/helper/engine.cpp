@@ -26,7 +26,7 @@ void engine::subscribe(const subscriber::ptr &sub)
 }
 
 void engine::update(engine_ruleset &ruleset,
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
     auto new_actions =
@@ -75,6 +75,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
 
     std::vector<std::string> event_data;
     std::unordered_set<std::string> event_actions;
+    std::map<std::string, std::string> schemas;
 
     for (auto &sub : common_->subscribers) {
         auto it = listeners_.find(sub);
@@ -88,6 +89,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
                     std::make_move_iterator(event->data.begin()),
                     std::make_move_iterator(event->data.end()));
                 event_actions.merge(event->actions);
+                schemas.merge(event->schemas);
             }
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
@@ -98,7 +100,8 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
         return std::nullopt;
     }
 
-    dds::engine::result res{action_type::record, {}, std::move(event_data)};
+    dds::engine::result res{
+        action_type::record, {}, std::move(event_data), std::move(schemas)};
     // Currently the only action the extension can perform is block
     if (!event_actions.empty()) {
         // The extension can only handle one action, so we pick the first one
@@ -119,7 +122,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
 }
 
 void engine::context::get_meta_and_metrics(
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
     for (const auto &[subscriber, listener] : listeners_) {
@@ -231,7 +234,7 @@ engine::action_map engine::parse_actions(
 }
 
 engine::ptr engine::from_settings(const dds::engine_settings &eng_settings,
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 
 {

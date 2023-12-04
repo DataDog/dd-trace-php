@@ -38,7 +38,7 @@ public:
         std::optional<event> call(dds::parameter_view &data) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
-        void get_meta_and_metrics(std::map<std::string_view, std::string> &meta,
+        void get_meta_and_metrics(std::map<std::string, std::string> &meta,
             std::map<std::string_view, double> &metrics) override;
 
     protected:
@@ -49,8 +49,7 @@ public:
     };
 
     // NOLINTNEXTLINE(google-runtime-references)
-    instance(dds::parameter &rule,
-        std::map<std::string_view, std::string> &meta,
+    instance(dds::parameter &rule, std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics,
         std::uint64_t waf_timeout_us,
         std::string_view key_regex = std::string_view(),
@@ -71,17 +70,16 @@ public:
     listener::ptr get_listener() override;
 
     subscriber::ptr update(parameter &rule,
-        std::map<std::string_view, std::string> &meta,
+        std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics) override;
 
     static instance::ptr from_settings(const engine_settings &settings,
-        const engine_ruleset &ruleset,
-        std::map<std::string_view, std::string> &meta,
+        const engine_ruleset &ruleset, std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics);
 
     // testing only
     static instance::ptr from_string(std::string_view rule,
-        std::map<std::string_view, std::string> &meta,
+        std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics,
         std::uint64_t waf_timeout_us = default_waf_timeout_us,
         std::string_view key_regex = std::string_view(),

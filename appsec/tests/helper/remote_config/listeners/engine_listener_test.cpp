@@ -774,7 +774,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdate)
             {"inputs": [{"address": "server.request.query"} ], "list": ["/other/url"] },
             "operator": "phrase_match"} ], "on_match": ["block"] } ] })";
 
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
     auto e{engine::create()};
     e->subscribe(waf::instance::from_string(rules, meta, metrics));
@@ -821,7 +821,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
             {"inputs": [{"address": "server.request.query"} ], "list": ["/a/url"] },
             "operator": "phrase_match"} ], "on_match": ["block"] } ] })";
 
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
     auto e{engine::create()};
     e->subscribe(waf::instance::from_string(rules, meta, metrics));
@@ -856,7 +856,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
 
 TEST(RemoteConfigEngineListener, EngineRuleOverrideUpdateDisableRule)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto engine{dds::engine::create()};
@@ -903,7 +903,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideUpdateDisableRule)
 
 TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto engine{dds::engine::create()};
@@ -954,7 +954,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 
 TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto engine{dds::engine::create()};
@@ -1007,7 +1007,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 
 TEST(RemoteConfigEngineListener, EngineExclusionsUpdatePasslistRule)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto engine{dds::engine::create()};
@@ -1055,7 +1055,7 @@ TEST(RemoteConfigEngineListener, EngineExclusionsUpdatePasslistRule)
 
 TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto engine{dds::engine::create()};
@@ -1166,7 +1166,7 @@ TEST(RemoteConfigEngineListener, EngineRuleDataUpdate)
             [{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},
             "operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
     auto e{engine::create()};
     e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));

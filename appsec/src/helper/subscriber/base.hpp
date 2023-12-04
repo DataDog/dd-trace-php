@@ -21,6 +21,7 @@ public:
     struct event {
         std::vector<std::string> data;
         std::unordered_set<std::string> actions;
+        std::map<std::string, std::string> schemas;
     };
 
     class listener {
@@ -39,7 +40,7 @@ public:
 
         // NOLINTNEXTLINE(google-runtime-references)
         virtual void get_meta_and_metrics(
-            std::map<std::string_view, std::string> &meta,
+            std::map<std::string, std::string> &meta,
             std::map<std::string_view, double> &metrics) = 0;
     };
 
@@ -55,7 +56,7 @@ public:
     virtual std::unordered_set<std::string> get_subscriptions() = 0;
     virtual listener::ptr get_listener() = 0;
     virtual subscriber::ptr update(parameter &rule,
-        std::map<std::string_view, std::string> &meta,
+        std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics) = 0;
 };
 

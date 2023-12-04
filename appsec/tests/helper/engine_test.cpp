@@ -24,7 +24,7 @@ public:
     MOCK_METHOD1(
         call, std::optional<dds::subscriber::event>(dds::parameter_view &));
     MOCK_METHOD2(
-        get_meta_and_metrics, void(std::map<std::string_view, std::string> &,
+        get_meta_and_metrics, void(std::map<std::string, std::string> &,
                                   std::map<std::string_view, double> &));
 };
 
@@ -36,7 +36,7 @@ public:
     MOCK_METHOD0(get_listener, dds::subscriber::listener::ptr());
     MOCK_METHOD0(get_subscriptions, std::unordered_set<std::string>());
     MOCK_METHOD3(update, dds::subscriber::ptr(dds::parameter &,
-                             std::map<std::string_view, std::string> &meta,
+                             std::map<std::string, std::string> &meta,
                              std::map<std::string_view, double> &metrics));
 };
 } // namespace mock
@@ -276,7 +276,7 @@ TEST(EngineTest, CustomActions)
 
 TEST(EngineTest, WafSubscriptorBasic)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};
@@ -306,7 +306,7 @@ TEST(EngineTest, WafSubscriptorBasic)
 
 TEST(EngineTest, WafSubscriptorInvalidParam)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};
@@ -321,7 +321,7 @@ TEST(EngineTest, WafSubscriptorInvalidParam)
 
 TEST(EngineTest, WafSubscriptorTimeout)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};
@@ -547,7 +547,7 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
     e->subscribe(sub1);
     e->subscribe(sub2);
 
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     engine_ruleset ruleset(
@@ -584,7 +584,7 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
     e->subscribe(sub1);
     e->subscribe(sub2);
 
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     engine_ruleset ruleset(R"({})");
@@ -603,7 +603,7 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
 
 TEST(EngineTest, WafSubscriptorUpdateRuleData)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};
@@ -657,7 +657,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
 
 TEST(EngineTest, WafSubscriptorInvalidRuleData)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};
@@ -692,7 +692,7 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
 
 TEST(EngineTest, WafSubscriptorUpdateRules)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};
@@ -729,7 +729,7 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
 
 TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};
@@ -782,7 +782,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
 
 TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};
@@ -839,7 +839,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 
 TEST(EngineTest, WafSubscriptorExclusions)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};
@@ -893,7 +893,7 @@ TEST(EngineTest, WafSubscriptorExclusions)
 
 TEST(EngineTest, WafSubscriptorCustomRules)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     auto e{engine::create()};

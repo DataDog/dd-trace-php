@@ -80,7 +80,7 @@ void engine_listener::commit()
     }
 
     // TODO find a way to provide this information to the service
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     engine_ruleset ruleset = dds::engine_ruleset(std::move(ruleset_));
