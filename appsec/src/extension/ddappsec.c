@@ -23,6 +23,7 @@
 #include "commands/request_exec.h"
 #include "commands/request_init.h"
 #include "commands/request_shutdown.h"
+#include "commands_ctx.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
@@ -35,6 +36,7 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "request_abort.h"
+#include "request_lifecycle.h"
 #include "string_helpers.h"
 #include "tags.h"
 #include "user_tracking.h"
@@ -43,7 +45,6 @@
 static atomic_int _thread_count;
 #endif
 
-static int _do_rinit(INIT_FUNC_ARGS);
 static void _check_enabled(void);
 #ifdef TESTING
 static void _register_testing_objects(void);
@@ -157,6 +158,7 @@ static PHP_GINIT_FUNCTION(ddappsec)
 #endif
 
     memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
+    ddappsec_globals->to_be_configured = true;
 }
 
 static PHP_GSHUTDOWN_FUNCTION(ddappsec)
@@ -194,7 +196,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
         return FAILURE;
     }
 
-    DDAPPSEC_G(enabled) = NOT_CONFIGURED;
+    DDAPPSEC_G(enabled) = APPSEC_ENABLED_VIA_REMCFG;
 
     dd_log_startup();
 
@@ -204,6 +206,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
 
     dd_helper_startup();
     dd_trace_startup();
+    dd_req_lifecycle_startup();
     dd_user_tracking_startup();
     dd_request_abort_startup();
     dd_tags_startup();
@@ -233,29 +236,27 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
 
 static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
 
-static void _rinit_once()
-{
-    dd_config_first_rinit();
-    dd_request_abort_rinit_once();
-}
+static void _rinit_once() { dd_config_first_rinit(); }
 
+// NOLINTNEXTLINE
 static PHP_RINIT_FUNCTION(ddappsec)
 {
+    UNUSED(type);
+    UNUSED(module_number);
+
     // Safety precaution
     DDAPPSEC_G(during_request_shutdown) = false;
 
     pthread_once(&_rinit_once_control, _rinit_once);
     zai_config_rinit();
-
     _check_enabled();
 
-    if (DDAPPSEC_G(enabled_by_configuration) == DISABLED) {
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         return SUCCESS;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
 
-    dd_trace_rinit();
-    dd_ip_extraction_rinit();
+    dd_req_lifecycle_rinit(false);
 
     if (UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
         if (get_global_DD_APPSEC_TESTING_ABORT_RINIT()) {
@@ -264,59 +265,6 @@ static PHP_RINIT_FUNCTION(ddappsec)
                 dd_request_abort_static_page();
             }
         }
-        return SUCCESS;
-    }
-    return _do_rinit(INIT_FUNC_ARGS_PASSTHRU);
-}
-
-static dd_result _acquire_conn_cb(dd_conn *nonnull conn)
-{
-    return dd_client_init(conn);
-}
-
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-static int _do_rinit(INIT_FUNC_ARGS)
-{
-    UNUSED(type);
-    UNUSED(module_number);
-
-    if (DDAPPSEC_G(enabled_by_configuration) == DISABLED) {
-        return SUCCESS;
-    }
-
-    dd_tags_rinit();
-
-    // connect/client_init
-    dd_conn *conn = dd_helper_mgr_acquire_conn(_acquire_conn_cb);
-    if (conn == NULL) {
-        mlog_g(dd_log_debug, "No connection; skipping rest of RINIT");
-        return SUCCESS;
-    }
-
-    int res = dd_success;
-    if (DDAPPSEC_G(enabled) == ENABLED) {
-        // request_init
-        res = dd_request_init(conn);
-    } else {
-        // config_sync
-        res = dd_config_sync(conn);
-        if (res == SUCCESS && DDAPPSEC_G(enabled) == ENABLED) {
-            // Since it came as enabled, lets proceed
-            res = dd_request_init(conn);
-        }
-    }
-    if (res == dd_network) {
-        mlog_g(dd_log_info,
-            "request_init/config_sync failed with dd_network; closing "
-            "connection to helper");
-        dd_helper_close_conn();
-    } else if (res == dd_should_block) {
-        dd_request_abort_static_page();
-    } else if (res == dd_should_redirect) {
-        dd_request_abort_redirect();
-    } else if (res) {
-        mlog_g(
-            dd_log_info, "request init failed: %s", dd_result_to_string(res));
     }
 
     return SUCCESS;
@@ -334,7 +282,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddappsec)
 
     // Here now we have to disconnect from the helper in all the cases but when
     // disabled by config
-    if (DDAPPSEC_G(enabled_by_configuration) == DISABLED) {
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         goto exit;
     }
 
@@ -342,54 +290,16 @@ static PHP_RSHUTDOWN_FUNCTION(ddappsec)
         goto exit;
     }
 
-    if (UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
-        dd_tags_rshutdown_testing();
-        goto exit;
-    }
-
     result = dd_appsec_rshutdown(false);
 
 exit:
-    dd_ip_extraction_rshutdown();
     DDAPPSEC_G(during_request_shutdown) = false;
     return result;
 }
 
 int dd_appsec_rshutdown(bool ignore_verdict)
 {
-    int verdict = dd_success;
-    dd_conn *conn = dd_helper_mgr_cur_conn();
-    if (conn && DDAPPSEC_G(enabled) == ENABLED) {
-        int res = dd_request_shutdown(conn);
-        if (res == dd_network) {
-            mlog_g(dd_log_info,
-                "request_shutdown failed with dd_network; closing "
-                "connection to helper");
-            dd_helper_close_conn();
-        } else if (res == dd_should_block || res == dd_should_redirect) {
-            verdict = ignore_verdict ? dd_success : res;
-        } else if (res) {
-            mlog_g(dd_log_info, "request shutdown failed: %s",
-                dd_result_to_string(res));
-        }
-    }
-
-    dd_helper_rshutdown();
-
-    if (DDAPPSEC_G(enabled) == ENABLED) {
-        dd_tags_add_tags();
-    }
-    dd_tags_rshutdown();
-
-    // TODO when blocking on shutdown, let the tracer handle flushing
-    if (verdict == dd_should_block) {
-        dd_trace_close_all_spans_and_flush();
-        dd_request_abort_static_page();
-    } else if (verdict == dd_should_redirect) {
-        dd_trace_close_all_spans_and_flush();
-        dd_request_abort_redirect();
-    }
-
+    dd_req_lifecycle_rshutdown(ignore_verdict, false);
     return SUCCESS;
 }
 
@@ -413,20 +323,16 @@ static PHP_MINFO_FUNCTION(ddappsec)
     PUTS("(c) Datadog 2021\n");
     php_info_print_box_end();
 
-    char *state;
-    if (DDAPPSEC_G(enabled) == ENABLED) {
-        state = "Enabled";
-    } else if (DDAPPSEC_G(enabled) == DISABLED) {
-        state = "Disabled";
-    } else {
-        state = "Not configured";
-    }
-
     php_info_print_table_start();
     php_info_print_table_row(2, "State managed by remote config",
-        DDAPPSEC_G(enabled_by_configuration) == NOT_CONFIGURED ? "Yes" : "No");
-    php_info_print_table_row(2, "Current state", state);
+        DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG ? "Yes" : "No");
+    php_info_print_table_row(2, "Current state",
+        DDAPPSEC_G(active)             ? "Enabled"
+        : DDAPPSEC_G(to_be_configured) ? "Not configured"
+                                       : "Disabled");
     php_info_print_table_row(2, "Version", PHP_DDAPPSEC_VERSION);
+    php_info_print_table_row(
+        2, "Connected to helper?", dd_helper_mgr_cur_conn() ? "Yes" : "No");
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
@@ -438,23 +344,20 @@ __thread void *unspecnull TSRMLS_CACHE = NULL;
 
 static void _check_enabled()
 {
-    if (!get_global_DD_APPSEC_TESTING() &&
-        (!dd_trace_enabled() || strcmp(sapi_module.name, "cli") == 0 ||
-            (sapi_module.phpinfo_as_text != 0))) {
-        DDAPPSEC_G(enabled_by_configuration) = DISABLED;
-    } else if (!dd_is_config_using_default(DDAPPSEC_CONFIG_DD_APPSEC_ENABLED)) {
-        DDAPPSEC_G(enabled_by_configuration) =
-            get_DD_APPSEC_ENABLED() ? ENABLED : DISABLED;
+    if ((!get_global_DD_APPSEC_TESTING() && !dd_trace_enabled()) ||
+        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text)) {
+        DDAPPSEC_G(enabled) = APPSEC_FULLY_DISABLED;
+        DDAPPSEC_G(active) = false;
+        DDAPPSEC_G(to_be_configured) = false;
+    } else if (!dd_cfg_enable_via_remcfg()) {
+        DDAPPSEC_G(enabled) = get_DD_APPSEC_ENABLED() ? APPSEC_FULLY_ENABLED
+                                                      : APPSEC_FULLY_DISABLED;
+        DDAPPSEC_G(active) = get_DD_APPSEC_ENABLED() ? true : false;
+        DDAPPSEC_G(to_be_configured) = false;
     } else {
-        DDAPPSEC_G(enabled_by_configuration) = NOT_CONFIGURED;
+        DDAPPSEC_G(enabled) = APPSEC_ENABLED_VIA_REMCFG;
+        // leave DDAPPSEC_G(active) as is
     };
-
-    // If not enabled explicitly and RC is disabled, then extension is disabled
-    if (DDAPPSEC_G(enabled_by_configuration) == NOT_CONFIGURED &&
-        !get_global_DD_REMOTE_CONFIG_ENABLED()) {
-        DDAPPSEC_G(enabled_by_configuration) = DISABLED;
-    }
-    DDAPPSEC_G(enabled) = DDAPPSEC_G(enabled_by_configuration);
 }
 
 static PHP_FUNCTION(datadog_appsec_is_enabled)
@@ -462,7 +365,7 @@ static PHP_FUNCTION(datadog_appsec_is_enabled)
     if (zend_parse_parameters_none() == FAILURE) {
         RETURN_FALSE;
     }
-    RETURN_BOOL(DDAPPSEC_G(enabled) == ENABLED);
+    RETURN_BOOL(DDAPPSEC_G(active));
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_rinit)
@@ -472,12 +375,8 @@ static PHP_FUNCTION(datadog_appsec_testing_rinit)
     }
 
     mlog(dd_log_debug, "Running rinit actions");
-    int res = _do_rinit(MODULE_PERSISTENT, 0 /* we don't use it */);
-    if (res == 0) {
-        RETURN_TRUE;
-    } else {
-        RETURN_FALSE;
-    }
+    dd_req_lifecycle_rinit(true);
+    RETURN_TRUE;
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_rshutdown)
@@ -487,13 +386,9 @@ static PHP_FUNCTION(datadog_appsec_testing_rshutdown)
     }
     DDAPPSEC_G(during_request_shutdown) = true;
     mlog(dd_log_debug, "Running rshutdown actions");
-    int res = dd_appsec_rshutdown(false);
+    dd_req_lifecycle_rshutdown(false, true);
     DDAPPSEC_G(during_request_shutdown) = false;
-    if (res == 0) {
-        RETURN_TRUE;
-    } else {
-        RETURN_FALSE;
-    }
+    RETURN_TRUE;
 }
 static PHP_FUNCTION(datadog_appsec_testing_helper_mgr_acquire_conn)
 {
@@ -501,7 +396,11 @@ static PHP_FUNCTION(datadog_appsec_testing_helper_mgr_acquire_conn)
         RETURN_FALSE;
     }
 
-    dd_conn *conn = dd_helper_mgr_acquire_conn(_acquire_conn_cb);
+    struct req_info ctx = {
+        .root_span = dd_trace_get_active_root_span(),
+    };
+    dd_conn *conn =
+        dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &ctx);
     if (conn) {
         RETURN_TRUE;
     } else {
@@ -531,7 +430,11 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
         RETURN_FALSE;
     }
 
-    dd_conn *conn = dd_helper_mgr_acquire_conn(_acquire_conn_cb);
+    struct req_info ctx = {
+        .root_span = dd_trace_get_active_root_span(),
+    };
+    dd_conn *conn =
+        dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &ctx);
     if (conn == NULL) {
         mlog_g(dd_log_debug, "No connection; skipping request_exec");
         RETURN_FALSE;

@@ -1085,6 +1085,24 @@ jobs:
           name: Test
           command: make -C appsec/build -j $(nproc) xtest
 
+  test_appsec_integration:
+    parameters:
+      resource_class:
+        type: string
+        default: large
+      targets:
+        type: string
+    working_directory: ~/datadog
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Integration tests
+          command: |
+            cd appsec/tests/integration && \
+            TERM=dumb ./gradlew loadCaches << parameters.targets >> --info -Pbuildscan --scan
+
   hunter_cache_ubuntu:
     parameters:
       resource_class:
@@ -4523,6 +4541,16 @@ workflows:
               - arm.medium
             switch_php_version:
               - debug-zts-asan
+
+    - test_appsec_integration:
+        matrix:
+          parameters:
+            resource_class:
+              - large
+            targets:
+              - test7.0-release test7.0-release-zts test7.1-release test7.1-release-zts test7.2-release test7.2-release-zts
+              - test7.3-release test7.3-release-zts test7.4-release test7.4-release-zts test8.0-release test8.0-release-zts
+              - test8.1-release test8.1-release-zts test8.2-release test8.2-release-zts test8.3-release test8.3-release-zts
 
     - coverage_appsec:
         requires: [ hunter_cache_ubuntu ]

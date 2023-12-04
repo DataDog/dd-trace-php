@@ -68,11 +68,11 @@ std::string execute_request(const std::string &host, const std::string &port,
 
         // If we get here then the connection is closed gracefully
     } catch (std::exception const &e) {
-        SPDLOG_ERROR("Connection error - {} - {}", request.target().to_string(),
-            e.what());
+        auto sv = request.target();
+        const std::string err{sv.data(), sv.size()};
+        SPDLOG_ERROR("Connection error - {} - {}", err, e.what());
         throw dds::remote_config::network_exception(
-            "Connection error - " + request.target().to_string() + " - " +
-            e.what());
+            "Connection error - " + err + " - " + e.what());
     }
 
     return result;

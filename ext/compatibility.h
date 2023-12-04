@@ -17,7 +17,19 @@
 #endif
 #endif
 
-#define UNUSED_1(x) (void)(x)
+#if defined(__has_attribute) && __has_attribute(unused)
+#define ATTR_UNUSED __attribute((unused))
+#define UNUSED_1(x)                             \
+    do {                                        \
+        ATTR_UNUSED __auto_type _ignored = (x); \
+    } while (0)
+#else
+#define ATTR_UNUSED
+#define UNUSED_1(x) \
+    do {            \
+        (void)(x);  \
+    } while (0)
+#endif
 #define UNUSED_2(x, y) \
     do {               \
         UNUSED_1(x);   \

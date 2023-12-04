@@ -14,6 +14,8 @@
 #include "serializer.h"
 #include "ext/standard/php_string.h"
 #include <hook/hook.h>
+#include "user_request.h"
+#include "zend_types.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -32,6 +34,10 @@ void ddtrace_init_span_stacks(void) {
 }
 
 static void dd_drop_span_nodestroy(ddtrace_span_data *span, bool silent) {
+    if (span->notify_user_req_end) {
+        ddtrace_user_req_notify_finish(span);
+        span->notify_user_req_end = false;
+    }
     span->duration = silent ? DDTRACE_SILENTLY_DROPPED_SPAN : DDTRACE_DROPPED_SPAN;
 }
 
@@ -354,32 +360,17 @@ void ddtrace_push_root_span(void) {
     GC_DELREF(&span->std);
 }
 
-DDTRACE_PUBLIC zval *ddtrace_root_span_get_meta(void)
+DDTRACE_PUBLIC zend_object *ddtrace_get_root_span()
 {
     if (!DDTRACE_G(active_stack)) {
         return NULL;
     }
 
-    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
-    if (root_span == NULL) {
+    ddtrace_root_span_data *rsd = DDTRACE_G(active_stack)->root_span;
+    if (!rsd) {
         return NULL;
     }
-
-    return &root_span->property_meta;
-}
-
-DDTRACE_PUBLIC zval *ddtrace_root_span_get_metrics(void)
-{
-    if (!DDTRACE_G(active_stack)) {
-        return NULL;
-    }
-
-    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
-    if (root_span == NULL) {
-        return NULL;
-    }
-
-    return &root_span->property_metrics;
+    return &rsd->std;
 }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
@@ -594,6 +585,10 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     }
 
     ddtrace_decide_on_closed_span_sampling(span);
+    if (span->notify_user_req_end) {
+        ddtrace_user_req_notify_finish(span);
+        span->notify_user_req_end = false;
+    }
 
     if (!stack->active || SPANDATA(stack->active)->stack != stack) {
         dd_close_entry_span_of_stack(stack);

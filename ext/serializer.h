@@ -16,4 +16,6 @@ void ddtrace_update_root_id_properties(ddtrace_root_span_data *span);
 void ddtrace_initialize_span_sampling_limiter(void);
 void ddtrace_shutdown_span_sampling_limiter(void);
 
+void ddtrace_serializer_startup(void);
+
 #endif  // DD_SERIALIZER_H

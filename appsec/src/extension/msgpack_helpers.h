@@ -32,6 +32,9 @@ void dd_mpack_write_zstr(
 void dd_mpack_write_nullable_zstr(
     mpack_writer_t *nonnull w, const zend_string *nullable zstr);
 
+void dd_mpack_write_array(
+    mpack_writer_t *nonnull w, const zend_array *nullable arr);
+
 void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv);
 
 void dd_mpack_writer_init_iov(

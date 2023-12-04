@@ -32,6 +32,7 @@ extern bool runtime_config_first_init;
 // clang-format off
 #define DD_CONFIGURATION \
     CONFIG(BOOL, DD_APPSEC_ENABLED, "false")                                                                                          \
+    SYSCFG(BOOL, DD_APPSEC_CLI_START_ON_RINIT, "false")                                                                                          \
     SYSCFG(STRING, DD_APPSEC_RULES, "")                                                                                               \
     SYSCFG(CUSTOM(uint64_t), DD_APPSEC_WAF_TIMEOUT, "10000", .parser = _parse_uint64)                                                 \
     SYSCFG(CUSTOM(uint32_t), DD_APPSEC_TRACE_RATE_LIMIT, "100", .parser = _parse_uint32)                                              \
@@ -117,6 +118,6 @@ DD_CONFIGURATION
 #undef CUSTOM
 #undef CALIAS
 
-bool dd_is_config_using_default(dd_config_id id);
+bool dd_cfg_enable_via_remcfg(void);
 
 #endif // DD_CONFIGURATION_H

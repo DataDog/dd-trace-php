@@ -28,7 +28,7 @@ typedef enum {
     php_array_type_associative,
 } dd_php_array_type;
 
-dd_php_array_type dd_php_determine_array_type(zval *nonnull);
+dd_php_array_type dd_php_determine_array_type(const zend_array *nonnull);
 
 #define ZEND_INI_MH_UNUSED()                                                   \
     do {                                                                       \
@@ -41,7 +41,10 @@ dd_php_array_type dd_php_determine_array_type(zval *nonnull);
 
 zval *nullable dd_php_get_autoglobal(
     int track_var, const char *nonnull name, size_t len);
+const zend_array *nonnull dd_get_superglob_or_equiv(
+    const char *nonnull name, size_t name_len, int track,
+    zend_array *nullable equiv);
 zend_string *nullable dd_php_get_string_elem(
-    const zval *nullable arr, zend_string *nonnull zstr);
+    const zend_array *nullable arr, zend_string *nonnull zstr);
 zend_string *nullable dd_php_get_string_elem_cstr(
-    const zval *nullable arr, const char *nonnull name, size_t len);
+    const zend_array *nullable arr, const char *nonnull name, size_t len);

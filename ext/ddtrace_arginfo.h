@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 1d07ca443c39ea7a0a831b062bb0efe4baf69b0f */
+ * Stub hash: 1354719701dbfb97c14995b1f228acc33caa343e */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -139,6 +139,25 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Config_integration_analy
 	ZEND_ARG_TYPE_INFO(0, integrationName, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_has_listeners, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_notify_start, 0, 2, IS_ARRAY, 1)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\RootSpanData, 0)
+	ZEND_ARG_TYPE_INFO(0, data, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_notify_commit, 0, 3, IS_ARRAY, 1)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\RootSpanData, 0)
+	ZEND_ARG_TYPE_INFO(0, status, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO(0, headers, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_set_blocking_function, 0, 2, IS_VOID, 0)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\RootSpanData, 0)
+	ZEND_ARG_TYPE_INFO(0, blockingFunction, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Testing_trigger_error, 0, 2, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, message, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, errorType, IS_LONG, 0)
@@ -148,10 +167,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_env_config, 0, 1, IS_MI
 	ZEND_ARG_TYPE_INFO(0, envName, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_disable_in_request, 0, 0, _IS_BOOL, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_dd_trace_disable_in_request arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_dd_trace_reset arginfo_dd_trace_disable_in_request
+#define arginfo_dd_trace_reset arginfo_DDTrace_UserRequest_has_listeners
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_dd_trace_serialize_msgpack, 0, 1, MAY_BE_BOOL|MAY_BE_STRING)
 	ZEND_ARG_TYPE_INFO(0, traceArray, IS_ARRAY, 0)
@@ -164,13 +182,13 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_dd_get_memory_limit, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_dd_trace_check_memory_under_limit arginfo_dd_trace_disable_in_request
+#define arginfo_dd_trace_check_memory_under_limit arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_dd_tracer_circuit_breaker_register_error arginfo_dd_trace_disable_in_request
+#define arginfo_dd_tracer_circuit_breaker_register_error arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_dd_tracer_circuit_breaker_register_success arginfo_dd_trace_disable_in_request
+#define arginfo_dd_tracer_circuit_breaker_register_success arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_dd_tracer_circuit_breaker_can_try arginfo_dd_trace_disable_in_request
+#define arginfo_dd_tracer_circuit_breaker_can_try arginfo_DDTrace_UserRequest_has_listeners
 
 #define arginfo_dd_tracer_circuit_breaker_info arginfo_DDTrace_current_context
 
@@ -178,9 +196,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, I
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, fallbackName, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
 
-#define arginfo_ddtrace_config_distributed_tracing_enabled arginfo_dd_trace_disable_in_request
+#define arginfo_ddtrace_config_distributed_tracing_enabled arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_ddtrace_config_trace_enabled arginfo_dd_trace_disable_in_request
+#define arginfo_ddtrace_config_trace_enabled arginfo_DDTrace_UserRequest_has_listeners
 
 #define arginfo_ddtrace_config_integration_enabled arginfo_DDTrace_Config_integration_analytics_enabled
 
@@ -211,7 +229,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_dd_trace_closed_spans_count arginfo_dd_trace_dd_get_memory_limit
 
-#define arginfo_dd_trace_tracer_is_limited arginfo_dd_trace_disable_in_request
+#define arginfo_dd_trace_tracer_is_limited arginfo_DDTrace_UserRequest_has_listeners
 
 #define arginfo_dd_trace_compile_time_microseconds arginfo_dd_trace_dd_get_memory_limit
 
@@ -238,7 +256,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_synchronous_flush, 0, 1
 	ZEND_ARG_TYPE_INFO(0, timeout, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_dd_trace_forward_call arginfo_dd_trace_disable_in_request
+#define arginfo_dd_trace_forward_call arginfo_DDTrace_UserRequest_has_listeners
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_generate_id, 0, 1, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, existingID, IS_STRING, 0)
@@ -301,6 +319,10 @@ ZEND_FUNCTION(DDTrace_curl_multi_exec_get_request_spans);
 ZEND_FUNCTION(DDTrace_System_container_id);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_sample_rate);
+ZEND_FUNCTION(DDTrace_UserRequest_has_listeners);
+ZEND_FUNCTION(DDTrace_UserRequest_notify_start);
+ZEND_FUNCTION(DDTrace_UserRequest_notify_commit);
+ZEND_FUNCTION(DDTrace_UserRequest_set_blocking_function);
 ZEND_FUNCTION(DDTrace_Testing_trigger_error);
 ZEND_FUNCTION(dd_trace_env_config);
 ZEND_FUNCTION(dd_trace_disable_in_request);
@@ -380,6 +402,10 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace\\System", container_id, DDTrace_System_container_id, arginfo_DDTrace_System_container_id)
 	ZEND_NS_FALIAS("DDTrace\\Config", integration_analytics_enabled, DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled)
 	ZEND_NS_FALIAS("DDTrace\\Config", integration_analytics_sample_rate, DDTrace_Config_integration_analytics_sample_rate, arginfo_DDTrace_Config_integration_analytics_sample_rate)
+	ZEND_NS_FALIAS("DDTrace\\UserRequest", has_listeners, DDTrace_UserRequest_has_listeners, arginfo_DDTrace_UserRequest_has_listeners)
+	ZEND_NS_FALIAS("DDTrace\\UserRequest", notify_start, DDTrace_UserRequest_notify_start, arginfo_DDTrace_UserRequest_notify_start)
+	ZEND_NS_FALIAS("DDTrace\\UserRequest", notify_commit, DDTrace_UserRequest_notify_commit, arginfo_DDTrace_UserRequest_notify_commit)
+	ZEND_NS_FALIAS("DDTrace\\UserRequest", set_blocking_function, DDTrace_UserRequest_set_blocking_function, arginfo_DDTrace_UserRequest_set_blocking_function)
 	ZEND_NS_FALIAS("DDTrace\\Testing", trigger_error, DDTrace_Testing_trigger_error, arginfo_DDTrace_Testing_trigger_error)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
 	ZEND_FE(dd_trace_disable_in_request, arginfo_dd_trace_disable_in_request)

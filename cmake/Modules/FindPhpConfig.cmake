@@ -122,7 +122,7 @@ if(PhpConfig_FOUND)
       target_link_libraries(mylib PRIVATE PhpConfig::PhpConfig)
    ]]
   add_library(PhpConfig INTERFACE)
-  target_include_directories(PhpConfig INTERFACE ${PhpConfig_INCLUDE_DIRS})
+  target_include_directories(PhpConfig SYSTEM INTERFACE ${PhpConfig_INCLUDE_DIRS})
   target_link_directories(PhpConfig INTERFACE ${PhpConfig_LIBRARY_DIRS})
   target_compile_features(PhpConfig INTERFACE c_std_99)
 

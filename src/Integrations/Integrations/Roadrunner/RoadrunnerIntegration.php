@@ -2,10 +2,14 @@
 
 namespace DDTrace\Integrations\Roadrunner;
 
-use DDTrace\Tag;
+use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
+use function DDTrace\UserRequest\notify_commit;
+use function DDTrace\UserRequest\notify_start;
+use function DDTrace\UserRequest\set_blocking_function;
 
 /**
  * Roadrunner integration
@@ -30,6 +34,100 @@ class RoadrunnerIntegration extends Integration
         return false;
     }
 
+    public static function build_req_spec(\Spiral\RoadRunner\Http\Request $req) {
+        $ret = array();
+
+        // _SERVER
+        $parsed_url = parse_url($req->uri);
+        if (!$parsed_url) {
+            return null;
+        }
+
+        $server = [
+            'REMOTE_ADDR' => $req->remoteAddr,
+            'SERVER_PROTOCOL' => $req->protocol,
+            'REQUEST_METHOD' => $req->method,
+            'REQUEST_URI' => ($parsed_url['path'] ?? '/') .
+                (empty($parsed_url['query']) ? '' : ('?' . $parsed_url['query'])),
+            'SERVER_NAME' => $parsed_url['host'],
+            'SERVER_PORT' => $parsed_url['port'] ?? ($parsed_url['scheme'] === 'https' ? 443 : 80),
+            'HTTP_HOST' => self::getHost($parsed_url),
+        ];
+        if ($parsed_url['scheme'] === 'https') {
+            $server['HTTPS'] = 'on';
+        }
+        if (isset($parsed_url['query'])) {
+            $_SERVER['QUERY_STRING'] = $parsed_url['query'];
+        }
+
+        foreach ($req->headers as $name => $values) {
+            $collapsedValue = implode(', ', $values);
+            $name = preg_replace("/[^A-Z\d]/", "_", strtoupper($name));
+            $server["HTTP_$name"] = $collapsedValue;
+        }
+
+        $ret['_SERVER'] = $server;
+
+        // _GET
+        $ret['_GET'] = $req->query;
+
+        // _POST
+        if ($req->method == 'POST') {
+            if ($req->parsed) {
+                try {
+                    $post = $req->getParsedBody();
+                    $ret['_POST'] = $post;
+                } catch (\JsonException $e) {
+                }
+            } else if (!empty($req->body) &&
+                !empty($req->headers['Content-Type']) &&
+                strpos($req->headers['Content-Type'][0], 'application/json') === 0) {
+                // Roadrunner/V2/DistributedTracingTest.php seems to assume that json bodies should be
+                // put in parsed form in POST as well
+                try {
+                    $post = json_decode($req->body, true);
+                    $ret['_POST'] = $post;
+                } catch (\JsonException $e) {
+                }
+            }
+        }
+        if (!isset($ret['_POST'])) {
+            $ret['_POST'] = array();
+        }
+
+        // _COOKIE
+        $ret['_COOKIE'] = $req->cookies;
+
+        // _FILES
+        $ret['_FILES'] = array_map(
+            function ($upload) {
+                return [
+                    'name' => $upload['name'],
+                    'type' => $upload['mime'],
+                    'tmp_name' => $upload['tmpName'],
+                    'error' => $upload['error'],
+                    'size' => $upload['size'],
+                ];
+            },
+            $req->uploads);
+
+        return $ret;
+    }
+
+    private static function getHost(array $parsed_url) {
+        $port = $parsed_url['port'];
+        $scheme = $parsed_url['scheme'];
+        if ($scheme === 'https') {
+            if ($port === 443) {
+                return $parsed_url['host'];
+            }
+        } else if ($port == 80) {
+            return $parsed_url['host'];
+        } else {
+            return $parsed_url['host'] . ':' . $port;
+        }
+    }
+
     /**
      * @return int
      */
@@ -46,104 +144,133 @@ class RoadrunnerIntegration extends Integration
 
         $service = \ddtrace_config_app_name('roadrunner');
 
-        \DDTrace\hook_method('Spiral\RoadRunner\Http\HttpWorker', 'waitRequest', [
-            'prehook' => function () use (&$activeSpan) {
+        $suppressResponse = null;
+        $recCall = 0;
+
+        \DDTrace\install_hook('Spiral\RoadRunner\Http\HttpWorker::waitRequest',
+            function () use (&$activeSpan, &$suppressResponse) {
                 if ($activeSpan) {
                     \DDTrace\close_spans_until($activeSpan);
                     \DDTrace\close_span();
                 }
+                $activeSpan = null;
+                $suppressResponse = null;
             },
-            'posthook' => function ($worker, $scope, $args, $retval, $exception) use (&$activeSpan, $integration, $service) {
-                if (!$retval && !$exception) {
+            function (HookData $hook) use (&$activeSpan, &$suppressResponse, $integration, $service, &$recCall) {
+                /** @var ?\Spiral\RoadRunner\Http\Request $retval */
+                $retval = $hook->returned;
+                if (!$retval && !$hook->exception) {
                     return; // shutdown
                 }
+                if (!empty($hook->args)) {
+                    return;
+                }
 
-                /** @var ?\Spiral\RoadRunner\Http\Request $retval */
                 $activeSpan = \DDTrace\start_trace_span();
+
                 $activeSpan->service = $service;
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
                 $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
                 $activeSpan->meta[Tag::SPAN_KIND] = 'server';
                 $integration->addTraceAnalyticsIfEnabled($activeSpan);
-                if ($exception) {
-                    $activeSpan->exception = $exception;
+                if ($hook->exception) {
+                    $activeSpan->exception = $hook->exception;
                     \DDTrace\close_span();
                     $activeSpan = null;
                 } else {
                     $headers = [];
-                    $allowedHeaders = \dd_trace_env_config("DD_TRACE_HEADER_TAGS");
                     foreach ($retval->headers as $headername => $header) {
                         $header = implode(", ", $header);
                         $headers[strtolower($headername)] = $header;
-                        $normalizedHeader = preg_replace("([^a-z0-9-])", "_", strtolower($headername));
-                        if (\array_key_exists($normalizedHeader, $allowedHeaders)) {
-                            $activeSpan->meta["http.request.headers.$normalizedHeader"] = $header;
-                        }
                     }
                     \DDTrace\consume_distributed_tracing_headers(function ($headername) use ($headers) {
                         return $headers[$headername] ?? null;
                     });
 
-                    if (\dd_trace_env_config("DD_TRACE_CLIENT_IP_ENABLED")) {
-                        $res = \DDTrace\extract_ip_from_headers($headers + ['REMOTE_ADDR' => $retval->remoteAddr]);
-                        $activeSpan->meta += $res;
-                    }
+                    $res = notify_start($activeSpan, RoadrunnerIntegration::build_req_spec($retval));
+                    if ($res) {
+                        // block on start
+                        RoadrunnerIntegration::ensure_headers_map_fmt($res['headers']);
 
-                    if (isset($headers["user-agent"])) {
-                        $activeSpan->meta["http.useragent"] = $headers["user-agent"];
-                    }
-                    if (($urlParts = \parse_url($retval->uri)) && isset($urlParts["path"])) {
-                        $normalizedPath = Normalizer::uriNormalizeincomingPath($urlParts["path"]);
+                        $this->respond($res['status'], $res['body'] ?? '', $res['headers']);
+                        \DDTrace\close_span();
+                        $activeSpan = null;
+
+                        if ($recCall++ > 128) {
+                            // too many recursive calls. Exit so that the worker can be restarted
+                            $hook->overrideReturnValue(null);
+                            $this->getWorker()->stop();
+                            return;
+                        }
+                        $hook->allowNestedHook();
+                        $newRet = $this->waitRequest();
+                        $hook->overrideReturnValue($newRet);
+                        $recCall = 0;
                     } else {
-                        $normalizedPath = "/";
-                    }
-
-                    if ($retval->body != "") {
-                        // Try to json decode the body, if it fails, then don't do anything
-                        // If it succeeds, then we can add the post fields to the span
-                        $postFields = json_decode($retval->body, true);
-                        if (json_last_error() === JSON_ERROR_NONE) {
-                            $requestBody = Normalizer::sanitizePostFields($postFields);
-                            foreach ($requestBody as $key => $value) {
-                                $activeSpan->meta["http.request.post.$key"] = $value;
-                            }
-                        }
-                    }
-
-                    $activeSpan->resource = $retval->method . " " . $normalizedPath;
-                    $activeSpan->meta["http.method"] = $retval->method;
-                    $activeSpan->meta["http.url"] = Normalizer::urlSanitize($retval->uri);
-                }
-            }
-        ]);
-
-        \DDTrace\hook_method('Spiral\RoadRunner\Http\HttpWorker', 'respond', [
-            'posthook' => function ($worker, $scope, $args, $retval, $exception) use (&$activeSpan) {
-                if ($activeSpan) {
-                    /** @var int $status */
-                    $status = $args[0];
-                    /** @var string[][] $headerList */
-                    $headerList = $args[2];
-
-                    $activeSpan->meta["http.status_code"] = $status;
-                    $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
-                    $allowedHeaders = \dd_trace_env_config("DD_TRACE_HEADER_TAGS");
-                    foreach ($headerList as $header => $headers) {
-                        $normalizedHeader = preg_replace("([^a-z0-9-])", "_", strtolower($header));
-                        if (\array_key_exists($normalizedHeader, $allowedHeaders)) {
-                            $activeSpan->meta["http.response.headers.$normalizedHeader"] = implode(", ", $headers);
-                        }
-                    }
-                    if ($exception && empty($activeSpan->exception)) {
-                        $activeSpan->exception = $exception;
-                    } elseif ($status >= 500 && $ex = \DDTrace\find_active_exception()) {
-                        $activeSpan->exception = $ex;
+                        $thiz = $this;
+                        // to support block midrequest
+                        set_blocking_function($activeSpan,
+                            static function ($res) use (&$activeSpan, &$suppressResponse, $thiz) {
+                                RoadrunnerIntegration::ensure_headers_map_fmt($res['headers']);
+                                $thiz->respond($res['status'], $res['body'] ?? '', $res['headers']);
+                                $suppressResponse = $activeSpan;
+                                throw new \RuntimeException('Request blocked by AppSec');
+                            });
                     }
                 }
+            });
+
+        \DDTrace\install_hook('Spiral\RoadRunner\Http\HttpWorker::respond',
+            function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
+                $hook->disableJitInlining();
+                if (!$activeSpan || count($hook->args) < 3) {
+                    return;
+                }
+
+                if ($suppressResponse === $activeSpan) {
+                    // we're blocking midrequest and trying to second a second response.
+                    // (Maybe the application caught the RuntimeException thrown by the blocking function, and
+                    // now it's trying to respond with a 500)
+                    // Suppress this second response
+                    $hook->suppressCall();
+                    return;
+                }
+
+                $blocking = notify_commit($activeSpan, $hook->args[0], $hook->args[2]);
+                if ($blocking) {
+                    $hook->args[0] = $blocking['status'];
+                    $hook->args[1] = $blocking['body'];
+                    $hook->args[2] = RoadrunnerIntegration::ensure_headers_map_fmt($blocking['headers']);
+                    $hook->overrideArguments($hook->args);
+                }
+            },
+            function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
+                if (!$activeSpan || count($hook->args) < 3) {
+                    return;
+                }
+
+                /** @var int $status */
+                $status = $hook->args[0];
+
+                $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
+                if ($hook->exception && empty($activeSpan->exception)) {
+                    $activeSpan->exception = $hook->exception;
+                } elseif ($status >= 500 && $ex = \DDTrace\find_active_exception()) {
+                    $activeSpan->exception = $ex;
+                }
             }
-        ]);
+        );
 
         return Integration::LOADED;
+    }
+
+    public static function ensure_headers_map_fmt(&$arr) {
+        foreach ($arr as &$v) {
+            if (!is_array($v)) {
+                $v = [(string)$v];
+            }
+        }
+        return $arr;
     }
 }

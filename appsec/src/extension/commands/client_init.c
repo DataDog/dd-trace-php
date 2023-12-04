@@ -23,7 +23,8 @@ static const unsigned int MAX_TCP_PORT_ALLOWED = UINT16_MAX;
 
 static dd_result _pack_command(mpack_writer_t *nonnull w, void *nullable ctx);
 static dd_result _process_response(mpack_node_t root, void *nullable ctx);
-static void _process_meta_and_metrics(mpack_node_t root);
+static void _process_meta_and_metrics(
+    mpack_node_t root, struct req_info *nonnull ctx);
 static void _pack_agent_details(mpack_writer_t *nonnull w);
 
 static const dd_command_spec _spec = {
@@ -78,24 +79,22 @@ static void _pack_agent_details(mpack_writer_t *nonnull w)
     }
 }
 
-dd_result dd_client_init(dd_conn *nonnull conn)
+dd_result dd_client_init(dd_conn *nonnull conn, struct req_info *nonnull ctx)
 {
-    return dd_command_exec_cred(conn, &_spec, NULL);
+    return dd_command_exec_cred(conn, &_spec, ctx);
 }
 
 static dd_result _pack_command(
     mpack_writer_t *nonnull w, ATTR_UNUSED void *nullable ctx)
 {
-    // unsigned pid, string client_version, runtime_version, rules_file
     mpack_write(w, (uint32_t)getpid());
     dd_mpack_write_lstr(w, PHP_DDAPPSEC_VERSION);
     dd_mpack_write_lstr(w, PHP_VERSION);
 
-    enabled_configuration configuration = DDAPPSEC_G(enabled_by_configuration);
-    if (configuration == NOT_CONFIGURED) {
+    if (DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG) {
         mpack_write_nil(w);
     } else {
-        mpack_write_bool(w, configuration == ENABLED ? true : false);
+        mpack_write_bool(w, DDAPPSEC_G(active));
     }
 
     // Service details
@@ -206,7 +205,7 @@ static dd_result _process_response(
     mpack_node_t root, ATTR_UNUSED void *nullable ctx)
 {
     // Add any tags and metrics provided by the helper
-    _process_meta_and_metrics(root);
+    _process_meta_and_metrics(root, ctx);
 
     // check verdict
     mpack_node_t verdict = mpack_node_array_at(root, 0);
@@ -246,15 +245,23 @@ static dd_result _process_response(
     return dd_error;
 }
 
-static void _process_meta_and_metrics(mpack_node_t root)
+static void _process_meta_and_metrics(
+    mpack_node_t root, struct req_info *nonnull ctx)
 {
+    zend_object *span = ctx->root_span;
+    if (!span) {
+        mlog(
+            dd_log_debug, "Meta/metrics in client_init ignored (no root span)");
+        return;
+    }
+
     mpack_node_t meta = mpack_node_array_at(root, 3);
     if (mpack_node_map_count(meta) > 0) {
-        dd_command_process_meta(meta);
+        dd_command_process_meta(meta, span);
     }
 
     mpack_node_t metrics = mpack_node_array_at(root, 4);
-    dd_command_process_metrics(metrics);
+    dd_command_process_metrics(metrics, span);
 }
 
 static dd_result _check_helper_version(mpack_node_t root)

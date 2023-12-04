@@ -63,6 +63,7 @@
 #include "startup_logging.h"
 #include "telemetry.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
+#include "user_request.h"
 #include "ext/standard/file.h"
 
 #include "../hook/uhook.h"
@@ -867,6 +868,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();
+    ddtrace_serializer_startup();
 
     return SUCCESS;
 }
@@ -907,6 +909,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_shutdown_span_sampling_limiter();
     ddtrace_limiter_destroy();
     zai_config_mshutdown();
+
+    ddtrace_user_req_shutdown();
 
     ddtrace_sidecar_shutdown();
 

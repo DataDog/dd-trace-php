@@ -2,7 +2,9 @@
 #include <php.h>
 
 #include <zend_closures.h>
+#include <zend_exceptions.h>
 #include <zend_generators.h>
+#include <zend_vm.h>
 
 #include "../compatibility.h"
 #include "../configuration.h"
@@ -56,10 +58,16 @@ typedef struct {
     zend_execute_data *execute_data;
     zval *vm_stack_top;
     zval *retval_ptr;
+    zend_object *exception_override;
     ddtrace_span_data *span;
     ddtrace_span_stack *prior_stack;
+    bool *running_ptr;
     bool returns_reference;
+    bool suppress_call;
+    bool dis_jit_inlining_called;
 } dd_hook_data;
+
+#define EXCEPTION_OVERRIDE_CLEAR ((zend_object *)0x1)
 
 typedef struct {
     dd_hook_data *hook_data;
@@ -211,6 +219,25 @@ static bool dd_uhook_match_filepath(zend_string *file, zend_string *source) {
     return false;
 }
 
+#if PHP_VERSION_ID >= 80000
+static void (*orig_zend_interrupt_function)(zend_execute_data *);
+ZEND_TLS zend_execute_data *expected_ex;
+static void dd_zend_interrupt_function(zend_execute_data *ex)
+{
+    if (expected_ex) {
+        if (ex == expected_ex) {
+            ex->opline = ex->func->op_array.opcodes;
+        }
+
+        expected_ex = NULL;
+    }
+
+    if (orig_zend_interrupt_function) {
+        orig_zend_interrupt_function(ex);
+    }
+}
+#endif
+
 static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
@@ -228,6 +255,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     dyn->hook_data = (dd_hook_data *)dd_hook_data_create(ddtrace_hook_data_ce);
     dyn->hook_data->returns_reference = execute_data->func->common.fn_flags & ZEND_ACC_RETURN_REFERENCE;
     dyn->hook_data->vm_stack_top = EG(vm_stack_top);
+    dyn->hook_data->running_ptr = &def->running;
 
     dyn->hook_data->invocation = invocation;
     ZVAL_LONG(&dyn->hook_data->property_id, def->id);
@@ -249,6 +277,59 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
         def->running = false;
     }
     dyn->hook_data->execute_data = NULL;
+
+    if (dyn->hook_data->suppress_call) {
+        if (ZEND_USER_CODE(execute_data->func->type)) {
+            static struct {
+                zend_op zop;
+                zval zv;
+            } retop = {.zop =
+                           {
+                               .opcode = ZEND_RETURN,
+                               .op1_type = IS_CONST,
+#if PHP_VERSION_ID >= 70300
+                               .op1 = {.constant = offsetof(typeof(retop), zv)},
+#else
+                               .op1 = {.constant = 0},
+#endif
+                               .op2_type = IS_UNUSED,
+                           },
+                       .zv = {.u1.type_info = IS_NULL}};
+            // the race condition doesn't matter
+            if (!retop.zop.handler) {
+                zend_vm_set_opcode_handler(&retop.zop);
+            }
+            struct {
+                zend_function new_func;
+                zend_function *orig_func; } *fs = emalloc(sizeof *fs);
+            memcpy(&fs->new_func, execute_data->func, sizeof fs->new_func);
+            fs->orig_func = execute_data->func;
+            fs->new_func.op_array.last = 1;
+            fs->new_func.op_array.opcodes = &retop.zop;
+#if ZAI_JIT_BLACKLIST_ACTIVE
+            int zf_rid = zai_get_zend_func_rid(&execute_data->func->op_array);
+            if (zf_rid >= 0) {
+                fs->new_func.op_array.reserved[zf_rid] = 0;
+            }
+#endif
+            execute_data->func = &fs->new_func;
+#if PHP_VERSION_ID < 70300
+            execute_data->literals = &retop.zv;
+            fs->new_func.op_array.literals = &retop.zv;
+#endif
+#if PHP_VERSION_ID >= 80200
+            expected_ex = execute_data;
+            zend_atomic_bool_store_ex(&EG(vm_interrupt), true);
+#elif PHP_VERSION_ID >= 80000
+            expected_ex = execute_data;
+            EG(vm_interrupt) = 1;
+#else
+            execute_data->opline = &retop.zop;
+#endif
+        } else {
+            // TODO: not supported yet (JIT support appearing problematic)
+        }
+    }
 
     return true;
 }
@@ -328,6 +409,30 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
             }
         } else {
             OBJ_RELEASE(&span->std);
+        }
+    }
+
+    zend_object *exception_override = dyn->hook_data->exception_override;
+    if (exception_override) {
+        zend_clear_exception();
+        if (exception_override != EXCEPTION_OVERRIDE_CLEAR) {
+#if PHP_VERSION_ID >= 80000
+            zend_throw_exception_internal(exception_override);
+#else
+            zval e;
+            ZVAL_OBJ(&e, exception_override);
+            zend_throw_exception_internal(&e);
+#endif
+        }
+    }
+
+    if (dyn->hook_data->suppress_call) {
+        if (ZEND_USER_CODE(execute_data->func->type)) {
+            zend_function *orig_func = *(zend_function**)(execute_data->func + 1);
+            efree(execute_data->func);
+            execute_data->func = orig_func;
+        } else {
+            // TODO: not supported yet (JIT support appearing problematic)
         }
     }
 
@@ -763,8 +868,6 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
 }
 
 ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
-    (void)return_value;
-
     dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
 
     zval *retval;
@@ -785,6 +888,86 @@ ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
 
     zval_ptr_dtor(hookData->retval_ptr);
     ZVAL_COPY(hookData->retval_ptr, retval);
+
+    RETURN_TRUE;
+}
+
+ZEND_METHOD(DDTrace_HookData, disableJitInlining) {
+    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+
+    if (zend_parse_parameters_none() == FAILURE) {
+        return;
+    }
+
+    hookData->dis_jit_inlining_called = true;
+
+    if (hookData->execute_data->func->type != ZEND_USER_FUNCTION) {
+        RETURN_FALSE;
+    }
+
+#if ZAI_JIT_BLACKLIST_ACTIVE
+    zai_jit_blacklist_function_inlining(&hookData->execute_data->func->op_array);
+#endif
+
+    RETURN_TRUE;
+}
+
+ZEND_METHOD(DDTrace_HookData, suppressCall) {
+    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+
+    if (zend_parse_parameters_none() == FAILURE) {
+        return;
+    }
+
+    if (!hookData->dis_jit_inlining_called) {
+        LOG(Error, "suppressCall called without disableJitInlining before");
+    }
+
+    if (hookData->execute_data->func->type != ZEND_USER_FUNCTION) {
+        LOG(Error, "suppressCall is only supported for user functions");
+        RETURN_FALSE;
+    }
+
+    hookData->suppress_call = true;
+
+    RETURN_TRUE;
+}
+
+ZEND_METHOD(DDTrace_HookData, allowNestedHook) {
+    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+
+    if (zend_parse_parameters_none() == FAILURE) {
+        return;
+    }
+
+    if (!*hookData->running_ptr) {
+        RETURN_FALSE;
+    }
+
+    *hookData->running_ptr = false;
+
+    RETURN_TRUE;
+}
+
+ZEND_METHOD(DDTrace_HookData, overrideException) {
+    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+    zend_object *throwable = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_OBJ_OF_CLASS_EX(throwable, zend_ce_throwable, 1, 0)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (hookData->exception_override && hookData->exception_override != EXCEPTION_OVERRIDE_CLEAR) {
+        OBJ_RELEASE(hookData->exception_override);
+    }
+
+    if (throwable) {
+        GC_ADDREF(throwable);
+        hookData->exception_override = throwable;
+    } else {
+        hookData->exception_override = EXCEPTION_OVERRIDE_CLEAR;
+    }
 
     RETURN_TRUE;
 }
@@ -863,6 +1046,12 @@ void zai_uhook_minit(int module_number) {
 
     efree(closure);
     EG(objects_store) = objects_store;
+
+    // We must have an interrupt function to be able to suppress calls
+#if PHP_VERSION_ID >= 80000
+    orig_zend_interrupt_function = zend_interrupt_function;
+    zend_interrupt_function = &dd_zend_interrupt_function;
+#endif
 }
 
 #if PHP_VERSION_ID >= 80000

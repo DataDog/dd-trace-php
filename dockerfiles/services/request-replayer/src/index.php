@@ -50,7 +50,9 @@ switch ($_SERVER['REQUEST_URI']) {
         }
         unlink(REQUEST_LATEST_DUMP_FILE);
         unlink(REQUEST_LOG_FILE);
-        unlink(REQUEST_NEXT_RESPONSE_FILE);
+		if (file_exists(REQUEST_NEXT_RESPONSE_FILE)) {
+			unlink(REQUEST_NEXT_RESPONSE_FILE);
+		}
         logRequest('Deleted request log');
         break;
     case '/next-response':

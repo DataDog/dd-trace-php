@@ -14,6 +14,7 @@ $helper = Helper::createRun([
     response_list(response_client_init(['msg' => ['y' => 'ok']]))
 ]);
 
+sleep(1);
 var_dump(rinit());
 
 match_log('/Unexpected client_init response: mpack_error_type/');
