@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\Benchmarks;
+namespace DDTrace\Tests;
 
 class HookOverheadBench
 {
@@ -11,13 +11,24 @@ class HookOverheadBench
         return time();
     }
 
-    public function setUpHook()
+    /**
+     * @Revs(1000)
+     * @Iterations(10)
+     * @OutputTimeUnit("microseconds")
+     * @RetryThreshold(3.0)
+     */
+    public function benchWithoutHook()
+    {
+        $this->dummyFunction();
+    }
+
+    public function setUp()
     {
         \DDTrace\trace_method('DDTrace\Benchmarks\HookOverheadBench', 'dummyFunction', function () { });
     }
 
     /**
-     * @BeforeMethods("setUpHook")
+     * @BeforeMethods("setUp")
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")

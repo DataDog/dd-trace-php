@@ -208,6 +208,15 @@
                 "scenario-options": {
                     "create-lockfile": false
                 }
+            },
+            "benchmarks": {
+                "require": {
+                    "monolog/monolog": "~2.0",
+                    "open-telemetry/sdk": "@stable"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
             }
         },
         "scenario-options": {

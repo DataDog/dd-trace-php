@@ -41,7 +41,8 @@
     },
     "autoload": {
         "psr-4": {
-            "DDTrace\\": "./src/api/"
+            "DDTrace\\": "./src/api/",
+            "DDTrace\\": "./src/DDTrace/"
         },
         "files": [
             "./src/api/ComposerBootstrap.php"
@@ -50,7 +51,8 @@
     "autoload-dev": {
         "psr-4": {
             "DDTrace\\Tests\\Api\\": "./tests_api/",
-            "DDTrace\\Tests\\": "./tests/"
+            "DDTrace\\Tests\\": "./tests/",
+            "DDTrace\\Benchmarks\\": "./tests/"
         }
     },
     "minimum-stability": "dev",
