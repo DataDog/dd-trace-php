@@ -57,7 +57,7 @@ download_circle_ci_release:
     name: "artifacts"
     when: always
     paths:
-      - platform/artifacts/
+      - circleci/artifacts/
     expire_in: 3 months
   allow_failure: true
 
