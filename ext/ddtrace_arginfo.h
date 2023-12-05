@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d95d154ba605844f46f82c7ed9df0298bf5a0872 */
+ * Stub hash: 55972d231789add1cf24ac96d74b532cd7f112f5 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -61,7 +61,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_update_span_duration, 0,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, finishTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_trace_span, 0, 0, DDTrace\\SpanData, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_trace_span, 0, 0, DDTrace\\RootSpanData, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
@@ -78,11 +78,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_set_priority_sampling, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, priority, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, global, _IS_BOOL, 0, "false")
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_set_end_callback, 0, 2, IS_VOID, 0)
-	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 0)
-	ZEND_ARG_OBJ_INFO(0, closure, Closure, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_get_priority_sampling, 0, 0, IS_LONG, 1)
@@ -290,7 +285,6 @@ ZEND_FUNCTION(DDTrace_active_stack);
 ZEND_FUNCTION(DDTrace_create_stack);
 ZEND_FUNCTION(DDTrace_switch_stack);
 ZEND_FUNCTION(DDTrace_set_priority_sampling);
-ZEND_FUNCTION(DDTrace_set_end_callback);
 ZEND_FUNCTION(DDTrace_get_priority_sampling);
 ZEND_FUNCTION(DDTrace_get_sanitized_exception_trace);
 ZEND_FUNCTION(DDTrace_consume_distributed_tracing_headers);
@@ -370,7 +364,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace", create_stack, DDTrace_create_stack, arginfo_DDTrace_create_stack)
 	ZEND_NS_FALIAS("DDTrace", switch_stack, DDTrace_switch_stack, arginfo_DDTrace_switch_stack)
 	ZEND_NS_FALIAS("DDTrace", set_priority_sampling, DDTrace_set_priority_sampling, arginfo_DDTrace_set_priority_sampling)
-	ZEND_NS_FALIAS("DDTrace", set_end_callback, DDTrace_set_end_callback, arginfo_DDTrace_set_end_callback)
 	ZEND_NS_FALIAS("DDTrace", get_priority_sampling, DDTrace_get_priority_sampling, arginfo_DDTrace_get_priority_sampling)
 	ZEND_NS_FALIAS("DDTrace", get_sanitized_exception_trace, DDTrace_get_sanitized_exception_trace, arginfo_DDTrace_get_sanitized_exception_trace)
 	ZEND_NS_FALIAS("DDTrace", consume_distributed_tracing_headers, DDTrace_consume_distributed_tracing_headers, arginfo_DDTrace_consume_distributed_tracing_headers)
