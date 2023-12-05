@@ -950,9 +950,6 @@ test_auto_instrumentation: global_test_run_dependencies
 	# Cleaning up composer.json files in tests/AutoInstrumentation modified for TLS during tests
 	git checkout $(TESTS_ROOT)/AutoInstrumentation/**/composer.json
 
-test_benchmark: global_test_run_dependencies
-	$(call run_benchmarks)
-
 test_composer: global_test_run_dependencies
 	$(call run_tests,--testsuite=composer-tests $(TESTS))
 
@@ -961,6 +958,11 @@ test_distributed_tracing: global_test_run_dependencies
 
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
+
+benchmarks: global_test_run_dependencies
+	rm -f tests/.scenarios.lock/benchmarks/composer.lock
+	$(MAKE) test_scenario_benchmarks
+	DD_TRACE_OTEL_ENABLED=1 $(call run_benchmarks)
 
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
