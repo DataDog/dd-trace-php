@@ -40,7 +40,7 @@ microbenchmarks:
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
 
-wait_for_circle_ci_release:
+download_circle_ci_release:
   stage: benchmarks
   rules:
     - if: $CI_COMMIT_REF_NAME == "master"
@@ -52,7 +52,13 @@ wait_for_circle_ci_release:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
   script:
     - git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
-    - ./steps/wait-for-circle-ci-release.sh
+    - ./steps/download-circle-ci-release.sh
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - platform/artifacts/
+    expire_in: 3 months
   allow_failure: true
 
 .macrobenchmarks:
@@ -62,7 +68,7 @@ wait_for_circle_ci_release:
       when: always
     - when: manual
   tags: ["runner:apm-k8s-same-cpu"]
-  needs: ["wait_for_circle_ci_release"]
+  needs: ["download_circle_ci_release"]
   interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
@@ -73,7 +79,7 @@ wait_for_circle_ci_release:
     name: "artifacts"
     when: always
     paths:
-      - artifacts/
+      - platform/artifacts/
     expire_in: 3 months
   variables:
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
