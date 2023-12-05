@@ -312,6 +312,7 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
         #[cfg(not(php_zend_compile_string_has_position))]
         let op_array = prev(source_string, filename);
         let duration = start.elapsed();
+        let overhead_start = Instant::now();
         let now = SystemTime::now().duration_since(UNIX_EPOCH);
 
         // eval() failed
@@ -342,6 +343,7 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
                     duration.as_nanos() as i64,
                     filename,
                     line,
+                    overhead_start,
                     &locals,
                 );
             }
@@ -374,6 +376,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         let start = Instant::now();
         let op_array = prev(handle, r#type);
         let duration = start.elapsed();
+        let overhead_start = Instant::now();
         let now = SystemTime::now().duration_since(UNIX_EPOCH);
 
         // include/require failed, could be invalid PHP in file or file not found, or time went
@@ -415,6 +418,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
                     duration.as_nanos() as i64,
                     filename,
                     include_type,
+                    overhead_start,
                     &locals,
                 );
             }
@@ -462,6 +466,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         let start = Instant::now();
         let collected = prev();
         let duration = start.elapsed();
+        let overhead_start = Instant::now();
         let now = SystemTime::now().duration_since(UNIX_EPOCH);
         if now.is_err() {
             // time went backwards
@@ -496,6 +501,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
                             reason,
                             collected as i64,
                             status.runs as i64,
+                            overhead_start,
                             &locals,
                         );
                     } else {
@@ -505,6 +511,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
                             duration.as_nanos() as i64,
                             reason,
                             collected as i64,
+                            overhead_start,
                             &locals,
                         );
                     }
