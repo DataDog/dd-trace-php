@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 1d07ca443c39ea7a0a831b062bb0efe4baf69b0f */
+ * Stub hash: d95d154ba605844f46f82c7ed9df0298bf5a0872 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -78,6 +78,11 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_set_priority_sampling, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, priority, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, global, _IS_BOOL, 0, "false")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_set_end_callback, 0, 2, IS_VOID, 0)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 0)
+	ZEND_ARG_OBJ_INFO(0, closure, Closure, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_get_priority_sampling, 0, 0, IS_LONG, 1)
@@ -285,6 +290,7 @@ ZEND_FUNCTION(DDTrace_active_stack);
 ZEND_FUNCTION(DDTrace_create_stack);
 ZEND_FUNCTION(DDTrace_switch_stack);
 ZEND_FUNCTION(DDTrace_set_priority_sampling);
+ZEND_FUNCTION(DDTrace_set_end_callback);
 ZEND_FUNCTION(DDTrace_get_priority_sampling);
 ZEND_FUNCTION(DDTrace_get_sanitized_exception_trace);
 ZEND_FUNCTION(DDTrace_consume_distributed_tracing_headers);
@@ -364,6 +370,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace", create_stack, DDTrace_create_stack, arginfo_DDTrace_create_stack)
 	ZEND_NS_FALIAS("DDTrace", switch_stack, DDTrace_switch_stack, arginfo_DDTrace_switch_stack)
 	ZEND_NS_FALIAS("DDTrace", set_priority_sampling, DDTrace_set_priority_sampling, arginfo_DDTrace_set_priority_sampling)
+	ZEND_NS_FALIAS("DDTrace", set_end_callback, DDTrace_set_end_callback, arginfo_DDTrace_set_end_callback)
 	ZEND_NS_FALIAS("DDTrace", get_priority_sampling, DDTrace_get_priority_sampling, arginfo_DDTrace_get_priority_sampling)
 	ZEND_NS_FALIAS("DDTrace", get_sanitized_exception_trace, DDTrace_get_sanitized_exception_trace, arginfo_DDTrace_get_sanitized_exception_trace)
 	ZEND_NS_FALIAS("DDTrace", consume_distributed_tracing_headers, DDTrace_consume_distributed_tracing_headers, arginfo_DDTrace_consume_distributed_tracing_headers)
@@ -568,6 +575,13 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_string *property_peerServiceSources_name = zend_string_init("peerServiceSources", sizeof("peerServiceSources") - 1, 1);
 	zend_declare_typed_property(class_entry, property_peerServiceSources_name, &property_peerServiceSources_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_peerServiceSources_name);
+
+	zval property_endCallback_default_value;
+	ZVAL_NULL(&property_endCallback_default_value);
+	zend_string *property_endCallback_name = zend_string_init("endCallback", sizeof("endCallback") - 1, 1);
+	zend_string *property_endCallback_class_Closure = zend_string_init("Closure", sizeof("Closure")-1, 1);
+	zend_declare_typed_property(class_entry, property_endCallback_name, &property_endCallback_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_endCallback_class_Closure, 0, MAY_BE_NULL));
+	zend_string_release(property_endCallback_name);
 
 	zval property_parent_default_value;
 	ZVAL_UNDEF(&property_parent_default_value);

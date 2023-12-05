@@ -411,6 +411,28 @@ bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
 }
 
 void dd_trace_stop_span_time(ddtrace_span_data *span) {
+    zval *end_closure_zv = &span->property_end_closure;
+
+    if (end_closure_zv
+        && Z_TYPE_P(end_closure_zv) == IS_OBJECT
+        && Z_OBJCE_P(end_closure_zv) == zend_ce_closure) {
+        zval rv;
+        zval span_zv;
+        ZVAL_OBJ(&span_zv, &span->std);
+        bool success = zai_symbol_call(
+                ZAI_SYMBOL_SCOPE_GLOBAL,
+                NULL,
+                ZAI_SYMBOL_FUNCTION_CLOSURE,
+                end_closure_zv,
+                &rv,
+                1,
+                &span_zv
+        );
+        if (!success) {
+            LOG(Warn, "Unable to call end closure");
+        }
+    }
+
     span->duration = _get_nanoseconds(USE_MONOTONIC_CLOCK) - span->duration_start;
 }
 

@@ -121,6 +121,11 @@ namespace DDTrace {
         public array $peerServiceSources = [];
 
         /**
+         * @var \Closure|null $endCallback A callback to be called when the span is finished, if any.
+         */
+        public \Closure|null $endCallback = null;
+
+        /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
         public readonly SpanData|null $parent;
@@ -424,7 +429,7 @@ namespace DDTrace {
      * @param float $startTime Start time of the span in seconds.
      * @return SpanData The newly created root span
      */
-    function start_trace_span(float $startTime = 0): SpanData {}
+    function start_trace_span(float $startTime = 0): RootSpanData {}
 
     /**
      * Get the active stack

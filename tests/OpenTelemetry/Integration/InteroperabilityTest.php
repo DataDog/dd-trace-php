@@ -23,8 +23,11 @@ use OpenTelemetry\Extension\Propagator\B3\B3Propagator;
 use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 use function DDTrace\active_span;
+use function DDTrace\add_distributed_tag;
 use function DDTrace\close_span;
 use function DDTrace\close_spans_until;
+use function DDTrace\generate_distributed_tracing_headers;
+use function DDTrace\set_distributed_tracing_context;
 use function DDTrace\start_span;
 use function DDTrace\start_trace_span;
 
@@ -910,6 +913,21 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertEquals(2, $traces[0][0]['metrics']['m2']);
     }
 
+    public function testModifyTracestateAfterEnd()
+    {
+        $rootSpan = \DDTrace\start_span();
+
+        $ddSpan = start_span();
+
+        /** @var \OpenTelemetry\SDK\Trace\Span $remappedSpan */
+        $remappedSpan = Span::getCurrent();
+
+        $preTraceState = generate_distributed_tracing_headers(['tracecontext'])['tracestate'];
+
+        add_distributed_tag('key', 'value');
+        $readOnlyCopy = $remappedSpan->toSpanData();
+        $midTraceState = generate_distributed_tracing_headers(['tracecontext'])['tracestate'];
+        $remappedTraceState = (string) $readOnlyCopy->getContext()->getTraceState();
     public function testSpanLinksInteroperabilityFromDatadogSpan()
     {
         $traces = $this->isolateTracer(function () {
@@ -1001,6 +1019,55 @@ final class InteroperabilityTest extends BaseTestCase
             $datadogSpanLinks = active_span()->links;
             $this->assertCount(2, $datadogSpanLinks);
 
+        $this->assertSame($midTraceState, $remappedTraceState);
+
+        close_span(); // Closes $ddSpan
+
+        add_distributed_tag('my', 'tag'); // Shouldn't affect the closed span
+        $readOnlyCopy = $remappedSpan->toSpanData();
+        $postTraceState = generate_distributed_tracing_headers(['tracecontext'])['tracestate'];
+        $remappedTraceState = (string) $readOnlyCopy->getContext()->getTraceState();
+
+        $this->assertSame($midTraceState, $remappedTraceState);
+        $this->assertNotSame($preTraceState, $postTraceState);
+        $this->assertNotSame($midTraceState, $postTraceState);
+
+        close_span(); // Closes $rootSpan
+    }
+
+    public function testModifyTraceIdAfterEnd()
+    {
+        $rootSpan = \DDTrace\start_trace_span();
+        $ddSpan = start_span();
+
+        /** @var \OpenTelemetry\SDK\Trace\Span $remappedSpan */
+        $remappedSpan = Span::getCurrent();
+
+        set_distributed_tracing_context("23475823097097752842117799874953798269", "42");
+
+        $midTraceId = $remappedSpan->getContext()->getTraceId();
+
+        $this->assertSame($midTraceId, $rootSpan->traceId);
+        $this->assertSame('11a94770f26bd5a0aafe31aee31ce27d', $midTraceId);
+
+        close_span(); // Closes $ddSpan
+
+        set_distributed_tracing_context("33475823097097752843117799874953798249", "42"); // Note the different trace id
+
+        $this->assertSame('192f3581c8461c79b9d31f028a80e269', $rootSpan->traceId);
+
+        $readOnlyCopy = $remappedSpan->toSpanData();
+
+        $this->assertNotSame($midTraceId, $rootSpan->traceId);
+        $this->assertSame('11a94770f26bd5a0aafe31aee31ce27d', $midTraceId);
+
+        $remappedTraceId = $readOnlyCopy->getContext()->getTraceId();
+
+        $this->assertSame($midTraceId, $remappedTraceId);
+        $this->assertSame('11a94770f26bd5a0aafe31aee31ce27d', $remappedTraceId);
+
+        close_span(); // Closes $rootSpan
+    }
             $this->assertSame('12345678876543211234567887654321', $datadogSpanLinks[0]->traceId);
             $this->assertSame('8765432112345678', $datadogSpanLinks[0]->spanId);
             $this->assertSame('dd=t.dm:-0', $datadogSpanLinks[0]->traceState);
