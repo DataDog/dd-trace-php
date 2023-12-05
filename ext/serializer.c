@@ -1150,6 +1150,11 @@ void ddtrace_shutdown_span_sampling_limiter(void) {
     zend_hash_destroy(&dd_span_sampling_limiters);
 }
 
+static zend_always_inline double ddtrace_convert_string_to_double(zend_string *str) {
+    // 'true' (case insensitive) -> 1.0, anything else -> 0.0 (Including 'false' (case insensitive))
+    return str->len == 4 && strncasecmp(str->val, "true", 4) == 0 ? 1.0 : 0.0;
+}
+
 void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
 
@@ -1273,7 +1278,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (analytics_event) {
         zval analytics_event_as_double;
         if (Z_TYPE_P(analytics_event) == IS_STRING) {
-            ZVAL_DOUBLE(&analytics_event_as_double, zend_is_true(analytics_event)); // 'true' => 1.0, false => 0.0
+            ZVAL_DOUBLE(&analytics_event_as_double, ddtrace_convert_string_to_double(Z_STR_P(analytics_event)));
         } else {
             ZVAL_DOUBLE(&analytics_event_as_double, zval_get_double(analytics_event));
         }

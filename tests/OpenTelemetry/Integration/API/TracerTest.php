@@ -336,6 +336,40 @@ final class TracerTest extends BaseTestCase
         ];
     }
 
+    public function providerAnalyticsEvent()
+    {
+        return [
+            ["true", 1],
+            ["TRUE", 1],
+            ["True", 1],
+            ["false", 0],
+            ["False", 0],
+            ["FALSE", 0],
+            ["something-else", 0],
+            [True, 1],
+            [False, 0]
+        ];
+    }
+
+    /**
+     * @dataProvider providerAnalyticsEvent
+     */
+    public function testReservedAttributesOverridesAnalyticsEvent($analyticsEventValue, $expectedMetricValue)
+    {
+        $traces = $this->isolateTracer(function () use ($analyticsEventValue) {
+            $tracer = self::getTracer();
+            $span = $tracer->spanBuilder('operation')
+                ->setSpanKind(SpanKind::KIND_SERVER)
+                ->startSpan();
+            $span->setAttribute('analytics.event', $analyticsEventValue);
+            $span->end();
+        });
+
+        $span = $traces[0][0];
+        $actualMetricValue = $span['metrics']['_dd1.sr.eausr'];
+        $this->assertEquals($expectedMetricValue, $actualMetricValue);
+    }
+
     public function testSpanErrorStatus()
     {
         $traces = $this->isolateTracer(function () {
