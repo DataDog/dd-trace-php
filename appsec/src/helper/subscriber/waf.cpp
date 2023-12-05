@@ -247,7 +247,10 @@ void instance::listener::get_meta_and_metrics(
                 schema = base64_encode(encoded.value(), false);
             }
         }
-        meta.emplace(key, std::move(schema));
+
+        if (schema.length() <= max_schema_size) {
+            meta.emplace(key, std::move(schema));
+        }
     }
 }
 

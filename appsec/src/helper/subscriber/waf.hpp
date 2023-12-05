@@ -24,7 +24,7 @@ class instance : public dds::subscriber {
 public:
     static constexpr int default_waf_timeout_us = 10000;
     static constexpr int max_plain_schema_allowed = 260;
-
+    static constexpr int max_schema_size = 25000;
     using ptr = std::shared_ptr<instance>;
     class listener : public dds::subscriber::listener {
     public:
