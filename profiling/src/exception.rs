@@ -12,8 +12,13 @@ use rand_distr::{Distribution, Poisson};
 /// The engine's previous throw exception hook
 static mut PREV_ZEND_THROW_EXCEPTION_HOOK: Option<zend::VmZendThrowExceptionHook> = None;
 
-/// take a sample every 100 exceptions
+/// Take a sample every 100 exceptions
 pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 = AtomicU32::new(100);
+
+/// This will store the number of exceptions thrown during a profiling period. It will overflow
+/// when throwing more then 4_294_967_295 exceptions during this period which we currently
+/// believe will bring down your application anyway, so accurate numbers are not a problem.
+pub static EXCEPTION_PROFILING_EXCEPTION_COUNT: AtomicU32 = AtomicU32::new(0);
 
 pub struct ExceptionProfilingStats {
     /// number of exceptions until next sample collection
@@ -109,6 +114,8 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     #[cfg(php7)] exception: *mut zend::zval,
     #[cfg(php8)] exception: *mut zend::zend_object,
 ) {
+    EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::SeqCst);
+
     let exception_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
             .map(|locals| locals.profiling_experimental_exception_enabled)

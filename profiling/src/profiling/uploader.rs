@@ -1,10 +1,14 @@
+use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
+use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use crossbeam_channel::{select, Receiver};
 use datadog_profiling::exporter::{Endpoint, File};
 use log::{debug, info, warn};
+use serde_json::json;
 use std::borrow::Cow;
 use std::str;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
 use std::time::Duration;
 
@@ -25,6 +29,17 @@ impl Uploader {
             receiver,
             output_pprof,
         }
+    }
+
+    /// This function will not only create the internal metadata JSON representation, but is also
+    /// in charge to reset all those counters back to 0.
+    fn create_internal_metadata() -> Option<serde_json::Value> {
+        let metadata = json!({
+            "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
+            "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
+            "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
+        });
+        Some(metadata)
     }
 
     fn upload(message: UploadRequest) -> anyhow::Result<u16> {
@@ -55,8 +70,16 @@ impl Uploader {
             bytes: serialized.buffer.as_slice(),
         }];
         let timeout = Duration::from_secs(10);
-        let request =
-            exporter.build(start, end, &[], files, None, endpoint_counts, None, timeout)?;
+        let request = exporter.build(
+            start,
+            end,
+            &[],
+            files,
+            None,
+            endpoint_counts,
+            Self::create_internal_metadata(),
+            timeout,
+        )?;
         debug!("Sending profile to: {}", index.endpoint);
         let result = exporter.send(request, None)?;
         Ok(result.status().as_u16())
