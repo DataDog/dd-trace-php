@@ -42,6 +42,7 @@ $route['default_controller'] = "welcome";
 $route['404_override'] = '';
 $route['error'] = 'error_';
 
+$route['parameterized/(:any)'] = "parameterized/customAction/$1";
 
 /* End of file routes.php */
 /* Location: ./application/config/routes.php */
