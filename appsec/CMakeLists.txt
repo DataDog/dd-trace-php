@@ -11,7 +11,7 @@ HunterGate(
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id.in ${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id)
 
-project(ddappsec VERSION 0.94.0)
+project(ddappsec VERSION 0.95.0)
 
 include(CheckCXXCompilerFlag)
 
