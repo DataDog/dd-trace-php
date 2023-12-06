@@ -40,6 +40,11 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ze
             if (last_separator) {
                 next_equals = ':';
                 cur += strlen("_dd.p");
+                // drop the tid from otel tracestate
+                if (cur + strlen(".tid=") + 16 /* 16 byte tid */ <= end && memcmp(cur, ".tid=", strlen(".tid=")) == 0) {
+                    cur += strlen(".tid=") + 16;
+                    continue;
+                }
                 smart_str_appendc(&str, 't');
             }
             signed char chr = *cur;

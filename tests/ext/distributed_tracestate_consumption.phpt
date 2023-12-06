@@ -28,5 +28,5 @@ array(2) {
   ["traceparent"]=>
   string(55) "00-%sc151df7d6ee5e2d6-a3978fb9b92502a8-01"
   ["tracestate"]=>
-  string(75) "dd=t.tid:%s;t.dm:-1;t.congo:t61rcWkgMzE,rojo=00f067aa0ba902b7"
+  string(52) "dd=t.dm:-1;t.congo:t61rcWkgMzE,rojo=00f067aa0ba902b7"
 }

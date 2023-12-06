@@ -44,7 +44,7 @@ echo 'Done.' . PHP_EOL;
 --EXPECTF--
 b3: %s248869c998246a2e-248869c998246a2e-1
 traceparent: 00-%s248869c998246a2e-248869c998246a2e-01
-tracestate: dd=o:_______~_: ;t.tid:%s;t.escaped:_~_: ;t.dm:-0
+tracestate: dd=o:_______~_: ;t.escaped:_~_: ;t.dm:-0
 x-datadog-origin: ∂~,=;:
 x-datadog-tags: _dd.p.tid=%s,_dd.p.escaped=_=;: ,_dd.p.dm=-0
 bool(false)
