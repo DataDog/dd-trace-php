@@ -80,9 +80,6 @@ This release introduces support for arm64 and PHP 8.3 for appsec. Additionally, 
 - Add macrobenchmark runs #2408
 
 ## Profiling
-### Fixed
-- Potential allocation profiling crashes with certain opcodes #2352
-
 ### Internal changes
 - add allocation and exception count to event.json #2392
 
