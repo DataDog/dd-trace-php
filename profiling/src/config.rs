@@ -167,9 +167,7 @@ impl ConfigId {
             ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
             ProfilingExperimentalTimelineEnabled => b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
             ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
-            ProfilingExceptionSamplingDistance => {
-                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE\0"
-            }
+            ProfilingExceptionSamplingDistance => b"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             /* Note: this is meant only for debugging and testing. Please don't
