@@ -62,43 +62,42 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This release adds support to OpenTelemetry so that you can use the OpenTelemetry API to generate Datadog spans. This is off by default. Enable it with the environment variable `DD_TRACE_OTEL_ENABLED=1` or INI setting `datadog.trace.otel_enabled=1. Also, the tracer now generates 128 bits trace ids by default, in an effort to match OpenTelemetry standards.
+
+This release introduces support for arm64 and PHP 8.3 for appsec. Additionally, it adds schema extraction and classification to appsec, which forms the foundation for API security. Finally, the appsec extension has been officially incorporated into the dd-trace-php repository and will adhere to the same versioning scheme as the tracer and profiler.
 
 ## Tracer
 ### Added
-- Set _dd.base_service when overriding service name for a span #2275
-- OpenTelemetry API #2332
-- Add tracing for curl_multi_exec() #2347
-- CakePHP http.route implementation #2360
-
-### Changed
-- Enable 128-bit trace ID generation by default #2358, #2368
-- Respect DD_LOGS_INJECTION default value #2365
-- Completely avoid instrumenting the PSR NullLogger #2367
-- Inject the _dd.dbm_trace_injected tag only when full propagation is enabled #2346
-- Retain tracestate from tracecontext if extracted at all #2359
+- Add http.route to CodeIgniter #2379
 
 ### Fixed
-- Handle extra arguments for internal overrideArgs #2348
-- Fix possible double-free with hooks on internal methods inherited by user classes #2372
-- Fix crash with functions with no run_time_cache yet #2373
-- Workaround php bug #81634 in PHP 8.0-8.1.0 #2353
-- Fix PHP5: The Magento Integration is not part of PHP5 #2363
-- Fix orphans removal when 128-bit is enabled #2366
-- Use _dd.agent_psr instead of _dd.rule_psr for agent sampling #2370
+- Use http_code instead of connect_time to detect curl errors #2391
+- Fix handling of invalid persistent JSON #2381
+- Zero pad the tid and exclude it from OTel tracestate #2386
 
 ### Internal changes
-- Add xfail for Zend/tests/stack_limit/stack_limit_013.phpt on PHP 8.3 #2371
+- Update CI images to use PHP 8.3.0rc6, pin mongodb for PHP 7.2-7.3 #2382
+- Update CI images to 8.1.26, 8.2.13 and 8.3.0 and XDedug to 3.3.0 #2400 #2405
+- Add macrobenchmark runs #2408
 
 ## Profiling
-### Added
-- Add idle phases to timeline #2343
-
 ### Fixed
-- perf: increase allocation sampling distance #2350, #2364
+- Potential allocation profiling crashes with certain opcodes #2352
 
 ### Internal changes
-- add DD_PROFILING_WALLTIME_ENABLED for testing #2316
+- add allocation and exception count to event.json #2392
+
+## Application Security Management
+### Added
+- Implement sampler and processor trigger DataDog/dd-appsec-php#308
+- Zip long schemas DataDog/dd-appsec-php#315
+- Add compression library to helper DataDog/dd-appsec-php#316
+- Always serialize schemas when available #2406
+- Upgrade libddwaf to v1.15.1 #2377
+### Internal changes
+- Fix fuzzer build & increase RSS limit DataDog/dd-appsec-php#313
+- Build AppSec extension & helper in CI with support for Arm64 and PHP 8.3 #2344
+- AppSec extension & helper unit tests in CI #2349
+- Package appsec using new builds #2369
 
 ]]></notes>
     <contents>
