@@ -202,42 +202,45 @@ pub(crate) unsafe fn profiling_enabled() -> bool {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_experimental_features_enabled() -> bool {
-    get_bool(ProfilingExperimentalFeaturesEnabled, false)
+    profiling_enabled() && get_bool(ProfilingExperimentalFeaturesEnabled, false)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_endpoint_collection_enabled() -> bool {
-    get_bool(ProfilingEndpointCollectionEnabled, true)
+    profiling_enabled() && get_bool(ProfilingEndpointCollectionEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
-    get_bool(ProfilingExperimentalCpuTimeEnabled, true)
+    profiling_experimental_features_enabled()
+        || profiling_enabled() && get_bool(ProfilingExperimentalCpuTimeEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_allocation_enabled() -> bool {
-    get_bool(ProfilingAllocationEnabled, true)
+    profiling_enabled() && get_bool(ProfilingAllocationEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_experimental_timeline_enabled() -> bool {
-    get_bool(ProfilingExperimentalTimelineEnabled, false)
+    profiling_experimental_features_enabled()
+        || profiling_enabled() && get_bool(ProfilingExperimentalTimelineEnabled, false)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_exception_enabled() -> bool {
-    get_bool(ProfilingExceptionEnabled, true)
+    profiling_experimental_features_enabled()
+        || profiling_enabled() && get_bool(ProfilingExceptionEnabled, true)
 }
 
 /// # Safety
