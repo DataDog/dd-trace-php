@@ -42,10 +42,19 @@ bool dd_glob_rule_matches(zval *pattern, zend_string* value) {
     char *s = ZSTR_VAL(value);
 
     int wildcards = 0;
+    int patternLength = 0;
+    int stringLength = ZSTR_LEN(value);
     while (*p) {
         if (*(p++) == '*') {
             ++wildcards;
         }
+        patternLength++;
+    }
+
+    // If there are no wildcards, no need to go through the whole string if pattern is shorter than the input string
+    // Indeed wildcards (ie '*') can replace multiple characters while '?' canonly replace one
+    if (wildcards == 0 && patternLength < stringLength) {
+        return false;
     }
 
     p = Z_STRVAL_P(pattern);

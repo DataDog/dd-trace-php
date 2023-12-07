@@ -12,6 +12,8 @@ $tests = [
     ["**fooname", "fooname", true],
     ["*", "fooname", true],
     ["???????", "fooname", true],
+    ["??????", "fooname", false],
+    ["??", "fooname", false],
     ["*?", "fooname", true],
     ["?*", "fooname", true],
     ["f*o*e", "fooname", true],
@@ -61,6 +63,10 @@ As expected, * matches fooname (name)
 As expected, * matches fooname (service)
 As expected, ??????? matches fooname (name)
 As expected, ??????? matches fooname (service)
+As expected, ?????? doesn't match fooname (name)
+As expected, ?????? doesn't match fooname (service)
+As expected, ?? doesn't match fooname (name)
+As expected, ?? doesn't match fooname (service)
 As expected, *? matches fooname (name)
 As expected, *? matches fooname (service)
 As expected, ?* matches fooname (name)
