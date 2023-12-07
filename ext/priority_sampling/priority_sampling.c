@@ -9,6 +9,7 @@
 #include "../configuration.h"
 
 #include "../limiter/limiter.h"
+#include "ddshared.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -50,17 +51,6 @@ static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span, enum
     }
 }
 
-static bool dd_rule_matches(zval *pattern, zval *prop) {
-    if (Z_TYPE_P(pattern) != IS_STRING) {
-        return false;
-    }
-    if (Z_TYPE_P(prop) != IS_STRING) {
-        return true;  // default case unset or null must be true, everything else is too then...
-    }
-
-    return zai_match_regex(Z_STR_P(pattern), Z_STR_P(prop));
-}
-
 static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
     zval *service = &span->property_service;
 
@@ -71,18 +61,18 @@ static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
             if (!mapped_service) {
                 mapped_service = service;
             }
-            if (!dd_rule_matches(rule_pattern, mapped_service)) {
+            if (!dd_rule_matches(rule_pattern, mapped_service, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
                 return false;
             }
         }
     }
     if ((rule_pattern = zend_hash_str_find(rule, ZEND_STRL("name")))) {
-        if (!dd_rule_matches(rule_pattern, &span->property_name)) {
+        if (!dd_rule_matches(rule_pattern, &span->property_name, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
             return false;
         }
     }
     if ((rule_pattern = zend_hash_str_find(rule, ZEND_STRL("resource")))) {
-        if (!dd_rule_matches(rule_pattern, &span->property_resource)) {
+        if (!dd_rule_matches(rule_pattern, &span->property_resource, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
             return false;
         }
     }
@@ -96,7 +86,7 @@ static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
                 if (!(value = zend_hash_find(meta, tag_name))) {
                     return false;
                 }
-                if (!dd_rule_matches(rule_pattern, value)) {
+                if (!dd_rule_matches(rule_pattern, value, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
                     return false;
                 }
             }
