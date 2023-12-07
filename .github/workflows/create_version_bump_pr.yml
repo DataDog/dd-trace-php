@@ -1,0 +1,68 @@
+name: Version bump for next minor release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bump_version:
+
+    runs-on: windows-latest
+    env:
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+    steps:
+      - name: Support longpaths
+        run: git config --system core.longpaths true
+            echo "::set-output name=ref::master"
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: "Configure Git Credentials"
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '7.0.101'
+
+      - name: "CalculateNextVersion"
+        run: .\github-actions-helpers\build.ps1 CalculateNextVersion
+        id: versions
+
+      - name: "Bump Version"
+        run: .\github-actions-helpers\build.ps1 UpdateVersion
+        env:
+          NewVersion: ${{ steps.versions.outputs.version }}
+          NewIsPrerelease: ${{ steps.versions.outputs.isprerelease }}
+
+      - name: "Generate release notes"
+        id: release_notes
+        run: .\github-actions-helpers\build.ps1 GenerateReleaseNotes
+
+      - name: "Update Changelog"
+        run: .\github-actions-helpers\build.ps1 UpdateChangeLog
+        env:
+          RELEASE_NOTES: ${{steps.release_notes.outputs.release_notes}}
+
+      - name: "Verify Changes"
+        id: changes
+        run: .\github-actions-helpers\build.ps1 VerifyChangedFilesFromVersionBump
+
+      - name: Create Pull Request
+        id: pr
+        uses: peter-evans/create-pull-request@v3.10.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "version-bump-${{steps.versions.outputs.full_version}}"
+          commit-message: "[Version Bump] ${{steps.versions.outputs.full_version}}"
+          delete-branch: true
+          title: "[Version Bump] ${{steps.versions.outputs.full_version}}"
+          reviewers: "DataDog/apm-php"
+          body: "${{steps.changes.outputs.release_notes}}"
+
+      - name: Display output
+        run: |
+          echo "Pull Request Number - ${{ steps.pr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.pr.outputs.pull-request-url }}"
