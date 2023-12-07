@@ -77,10 +77,10 @@ partial class Build
        .Requires(() => Version)
        .Executes(() =>
         {
-            // Console.WriteLine("Using version to " + FullVersion);
+            Console.WriteLine("Using version to " + FullVersion);
             Console.WriteLine("::set-output name=version::" + Version);
-            // Console.WriteLine("::set-output name=full_version::" + FullVersion);
-            // Console.WriteLine("::set-output name=isprerelease::" + (IsPrerelease ? "true" : "false"));
+            Console.WriteLine("::set-output name=full_version::" + FullVersion);
+            Console.WriteLine("::set-output name=isprerelease::" + (IsPrerelease ? "true" : "false"));
         });
 
     Target VerifyChangedFilesFromVersionBump => _ => _
