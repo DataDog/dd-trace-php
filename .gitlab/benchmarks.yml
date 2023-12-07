@@ -6,7 +6,8 @@ variables:
 microbenchmarks:
   stage: benchmarks
   rules:
-    - changes:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      changes:
         paths:
           - profiling/**/*
         compare_to: "master"
@@ -43,7 +44,7 @@ microbenchmarks:
 download_circle_ci_release:
   stage: benchmarks
   rules:
-    - if: $CI_COMMIT_REF_NAME == "master"
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
       when: always
     - when: manual
   tags: [ "arch:amd64" ]
@@ -64,7 +65,7 @@ download_circle_ci_release:
 .macrobenchmarks:
   stage: benchmarks
   rules:
-    - if: $CI_COMMIT_REF_NAME == "master"
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
       when: always
     - when: manual
   tags: ["runner:apm-k8s-same-cpu"]
