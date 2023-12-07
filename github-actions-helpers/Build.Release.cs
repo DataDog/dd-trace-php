@@ -324,6 +324,40 @@ partial class Build
             Console.WriteLine("Changelog updated");
         });
 
+    Target CloseMilestone => _ => _
+       .Unlisted()
+       .Requires(() => GitHubToken)
+       .Requires(() => Version)
+       .Executes(async() =>
+       {
+            var client = GetGitHubClient();
+
+            var milestone = await GetMilestone(client, Version);
+            if (milestone is null)
+            {
+                Console.WriteLine($"Milestone {Version} not found. Doing nothing");
+                return;
+            }
+
+            Console.WriteLine($"Closing {milestone.Title}");
+
+            try
+            {
+                await client.Issue.Milestone.Update(
+                    owner: GitHubRepositoryOwner,
+                    name: GitHubRepositoryName,
+                    number: milestone.Number,
+                    new MilestoneUpdate { State = ItemState.Closed });
+            }
+            catch (ApiValidationException ex)
+            {
+                Console.WriteLine($"Unable to close {milestone.Title}. Exception: {ex}");
+                return; // shouldn't be blocking
+            }
+
+            Console.WriteLine($"Milestone closed");
+        });
+
     private async Task<Milestone> GetOrCreateCurrentMilestone(GitHubClient gitHubClient)
     {
         var milestoneName = Version;
