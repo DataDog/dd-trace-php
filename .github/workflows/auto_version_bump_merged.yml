@@ -1,0 +1,54 @@
+name: "On Version Bump Merged"
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  if_merged:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, '[Version Bump]') == true
+    runs-on: ubuntu-latest
+    steps:
+      # Create release branch
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '7.0.101'
+
+      - name: "Configure Git Credentials"
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: "Get current version"
+        id: versions
+        run: ./github-actions-helpers/build.sh OutputCurrentVersionToGitHub
+
+      # Create release branch
+      - name: "Push ddtrace branch"
+        run: |
+          git checkout -b ddtrace-${{ steps.versions.outputs.version }}
+          git add .
+          git commit -m "New release ${{steps.versions.outputs.version}}"
+          git push origin -u ddtrace-${{ steps.versions.outputs.version }}
+
+      - name: "Generate release notes"
+        id: release_notes
+        run: ./github-actions-helpers/build.sh GenerateReleaseNotes
+        env:
+          PIPELINE_ARTIFACTS_LINK: ${{steps.assets.outputs.artifacts_link}}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          name: "${{steps.versions.outputs.full_version}}"
+          tag_name: "${{steps.versions.outputs.full_version}}"
+          prerelease: ${{steps.versions.outputs.isprerelease}}
+          body: ${{steps.release_notes.outputs.release_notes}}
+          target_commitish: "ddtrace-${{steps.versions.outputs.full_version}}"
+          fail_on_unmatched_files: true
