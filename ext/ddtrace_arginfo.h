@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 55972d231789add1cf24ac96d74b532cd7f112f5 */
+ * Stub hash: e001e68def98ce39cf3f6a11337dc109cca4868f */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -573,7 +573,7 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	ZVAL_NULL(&property_endCallback_default_value);
 	zend_string *property_endCallback_name = zend_string_init("endCallback", sizeof("endCallback") - 1, 1);
 	zend_string *property_endCallback_class_Closure = zend_string_init("Closure", sizeof("Closure")-1, 1);
-	zend_declare_typed_property(class_entry, property_endCallback_name, &property_endCallback_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_endCallback_class_Closure, 0, MAY_BE_NULL));
+	zend_declare_typed_property(class_entry, property_endCallback_name, &property_endCallback_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_endCallback_class_Closure, 0, MAY_BE_STRING|MAY_BE_NULL));
 	zend_string_release(property_endCallback_name);
 
 	zval property_parent_default_value;

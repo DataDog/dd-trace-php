@@ -121,9 +121,9 @@ namespace DDTrace {
         public array $peerServiceSources = [];
 
         /**
-         * @var \Closure|null $endCallback A callback to be called when the span is finished, if any.
+         * @var \Closure|string|null $endCallback A callback to be called when the span is finished, if any.
          */
-        public \Closure|null $endCallback = null;
+        public \Closure|string|null $endCallback = null;
 
         /**
          * @var SpanData|null The parent span, or 'null' if there is none

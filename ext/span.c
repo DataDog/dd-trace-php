@@ -410,29 +410,47 @@ bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
     }
 }
 
-void dd_trace_stop_span_time(ddtrace_span_data *span) {
+bool execute_span_end_callback(ddtrace_span_data *span) {
     zval *end_closure_zv = &span->property_end_closure;
 
-    if (end_closure_zv
-        && Z_TYPE_P(end_closure_zv) == IS_OBJECT
-        && Z_OBJCE_P(end_closure_zv) == zend_ce_closure) {
-        zval rv;
-        zval span_zv;
-        ZVAL_OBJ(&span_zv, &span->std);
-        bool success = zai_symbol_call(
-                ZAI_SYMBOL_SCOPE_GLOBAL,
-                NULL,
-                ZAI_SYMBOL_FUNCTION_CLOSURE,
-                end_closure_zv,
-                &rv,
-                1,
-                &span_zv
-        );
-        if (!success) {
-            LOG(Warn, "Unable to call end closure");
-        }
-    }
+    if (end_closure_zv && !ZVAL_IS_NULL(end_closure_zv)) {
+        uint8_t type = Z_TYPE_P(end_closure_zv);
+        bool success = false;
 
+        if (type == IS_OBJECT && Z_OBJCE_P(end_closure_zv) == zend_ce_closure) {
+            zval rv;
+            zval span_zv;
+            ZVAL_OBJ(&span_zv, &span->std);
+
+            success = zai_symbol_call(
+                    ZAI_SYMBOL_SCOPE_GLOBAL,
+                    NULL,
+                    ZAI_SYMBOL_FUNCTION_CLOSURE,
+                    end_closure_zv,
+                    &rv,
+                    1,
+                    &span_zv
+            );
+
+            zval_ptr_dtor(&rv);
+        } // TODO: string, etc? TBD, else refactor
+
+        if (!success) {
+            zend_string *hex_trace_id = ddtrace_trace_id_as_hex_string(span->root->trace_id);
+            zend_string *hex_span_id = ddtrace_span_id_as_hex_string(span->span_id);
+            LOG(Warn, "Error while calling end closure on span %s [dd.trace_id=%s dd.span_id=%s]", Z_STRVAL_P(&span->property_name), ZSTR_VAL(hex_trace_id), ZSTR_VAL(hex_span_id));
+            zend_string_release(hex_trace_id);
+            zend_string_release(hex_span_id);
+        }
+
+        return success;
+    } else {
+        return true;
+    }
+}
+
+void dd_trace_stop_span_time(ddtrace_span_data *span) {
+    execute_span_end_callback(span);
     span->duration = _get_nanoseconds(USE_MONOTONIC_CLOCK) - span->duration_start;
 }
 
