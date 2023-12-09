@@ -12,7 +12,7 @@ $callback = function (\DDTrace\SpanData $span) use (&$myGlobalClosedSpansCounter
     $activeSpan = \DDTrace\active_span();
     echo "$activeSpan->name\n";
     echo "Passed span: $span->name\n";
-    $span->meta['counter.value'] = $myGlobalClosedSpansCounter;
+    //$span->meta['counter.value'] = $myGlobalClosedSpansCounter;
 };
 
 $span = \DDTrace\start_span();
@@ -20,13 +20,10 @@ $span->name = "mySpan";
 //\DDTrace\set_end_callback($span, $callback);
 $span->endCallback = $callback;
 
-var_dump(\DDTrace\current_context());
-var_dump(\DDTrace\logs_correlation_trace_id());
-
 \DDTrace\close_span();
 
 var_dump($myGlobalClosedSpansCounter);
-var_dump(dd_trace_serialize_closed_spans());
+//var_dump(dd_trace_serialize_closed_spans());
 
 class mySpanWrapper {
     private $mySpan;

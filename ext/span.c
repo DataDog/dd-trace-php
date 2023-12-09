@@ -421,16 +421,34 @@ bool execute_span_end_callback(ddtrace_span_data *span) {
             zval rv;
             zval span_zv;
             ZVAL_OBJ(&span_zv, &span->std);
-
-            success = zai_symbol_call(
-                    ZAI_SYMBOL_SCOPE_GLOBAL,
-                    NULL,
-                    ZAI_SYMBOL_FUNCTION_CLOSURE,
-                    end_closure_zv,
-                    &rv,
-                    1,
-                    &span_zv
-            );
+            // Get the closure's scope
+            zend_class_entry *closure_called_scope;
+            zend_function *closure_func;
+            zend_object *closure_this;
+#if PHP_VERSION_ID < 80000
+            Z_OBJ_HANDLER_P(end_closure_zv, get_closure)(end_closure_zv, &closure_called_scope, &closure_func, &closure_this);
+#else
+            Z_OBJ_HANDLER_P(end_closure_zv, get_closure)(Z_OBJ_P(end_closure_zv), &closure_called_scope, &closure_func, &closure_this, true);
+#endif
+            if (closure_called_scope && closure_func->common.fn_flags & ZEND_ACC_STATIC) {
+                success = zai_symbol_call_static(
+                        closure_called_scope,
+                        zai_str_from_zstr(closure_func->common.function_name),
+                        &rv,
+                        1,
+                        &span_zv
+                );
+            } else {
+                success = zai_symbol_call(
+                        closure_called_scope ? ZAI_SYMBOL_SCOPE_CLASS : ZAI_SYMBOL_SCOPE_GLOBAL,
+                        closure_called_scope ? closure_called_scope : NULL,
+                        ZAI_SYMBOL_FUNCTION_CLOSURE,
+                        end_closure_zv,
+                        &rv,
+                        1,
+                        &span_zv
+                );
+            }
 
             zval_ptr_dtor(&rv);
         } // TODO: string, etc? TBD, else refactor
