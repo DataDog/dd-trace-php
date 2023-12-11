@@ -22,6 +22,9 @@ if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php81 || true)
 fi
 if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php82 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php7 || true)
 fi
 
@@ -45,6 +48,9 @@ cp $(pwd)/dockerfiles/verify_packages/nginx.conf /etc/nginx/nginx.conf
 # Preparing PHP-FPM
 if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm82 || true)
 fi
 if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm81 || true)
