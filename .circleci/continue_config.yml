@@ -1327,7 +1327,7 @@ jobs:
           name: Generate coverage
           command: |
             cd appsec
-            llvm-profdata-17 merge -sparse *.profraw -o default.profdata 
+            llvm-profdata-17 merge -sparse *.profraw -o default.profdata
             llvm-cov-17 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
             llvm-cov-17 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
       - store_artifacts:
@@ -2985,6 +2985,30 @@ jobs:
               phpize
               php run-tests.php -p $(which php) --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
+  "Build Tests":
+    working_directory: ~/datadog
+    parameters:
+      php_version:
+        type: string
+    docker:
+      - image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: "Install tracer from datadog-setup.php"
+          command: |
+            set -eu
+            cd ./build/packages
+            php datadog-setup.php --php-bin php --enable-profiling
+            cd -
+            # run phpize just to get run-tests.php
+            phpize
+            php run-tests.php -p $(which php) --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext
+
   "cbindgen up-to-date":
     working_directory: ~/datadog
     docker:
@@ -3653,6 +3677,20 @@ workflows:
             - "Compile aarch64 PHP 83 debug-zts-asan"
 
       - "x-profiling phpt tests on Alpine":
+          requires: [ 'package extension' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
+                - '8.1'
+                - '8.2'
+                - '8.3'
+
+      - "Build Tests":
           requires: [ 'package extension' ]
           matrix:
             parameters:
