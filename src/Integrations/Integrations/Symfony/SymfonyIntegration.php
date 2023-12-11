@@ -404,8 +404,8 @@ class SymfonyIntegration extends Integration
                 $parameters = $request->get('_route_params');
                 if (!empty($parameters) &&
                     is_array($parameters) &&
-                    function_exists('\datadog\appsec\ddappsec_push_address')) {
-                    \datadog\appsec\ddappsec_push_address($parameters);
+                    function_exists('\datadog\appsec\push_params')) {
+                    \datadog\appsec\push_params($parameters);
                 }
 
                 $route = $request->get('_route');

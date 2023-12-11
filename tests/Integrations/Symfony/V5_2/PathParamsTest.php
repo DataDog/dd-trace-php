@@ -46,7 +46,7 @@ class PathParamsTest extends WebFrameworkTestCase
         $this->assertEquals(1, count($events));
         $this->assertEquals($param01, $events[0]['param01']);
         $this->assertEquals($param02, $events[0]['param02']);
-        $this->assertEquals('ddappsec_push_address', $events[0]['eventName']);
+        $this->assertEquals('push_params', $events[0]['eventName']);
     }
 
     public function testDynamicRouteWithOptionalsNotFilled()
@@ -57,7 +57,7 @@ class PathParamsTest extends WebFrameworkTestCase
         $this->assertEquals(1, count($events));
         $this->assertEquals($param01, $events[0]['param01']);
         $this->assertEmpty($events[0]['param02']);
-        $this->assertEquals('ddappsec_push_address', $events[0]['eventName']);
+        $this->assertEquals('push_params', $events[0]['eventName']);
     }
 
 

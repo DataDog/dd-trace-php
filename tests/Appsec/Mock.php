@@ -119,6 +119,6 @@ function track_user_signup_event($userId, $metadata, $automated) {
  * This function is exposed by appsec but here we are mocking it for tests
  * @param array $params
  */
-function ddappsec_push_address($params) {
-    AppsecStatus::getInstance()->addEvent($params, 'ddappsec_push_address');
+function push_params($params) {
+    AppsecStatus::getInstance()->addEvent($params, 'push_params');
 }
