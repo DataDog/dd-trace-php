@@ -2999,9 +2999,11 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
-          name: "Install tracer from datadog-setup.php"
+          name: "Install tracer from datadog-setup.php only"
           command: |
             set -eu
+            apk update
+            apk add autoconf coreutils gcc make
             cd ./build/packages
             php datadog-setup.php --php-bin php --enable-profiling
             cd -
