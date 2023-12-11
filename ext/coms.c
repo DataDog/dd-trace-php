@@ -29,6 +29,7 @@
 
 #include "compatibility.h"
 #include "configuration.h"
+#include <components/log/log.h>
 #include "ddshared.h"
 #include "ext/version.h"
 #include "logging.h"
@@ -845,6 +846,7 @@ static size_t _dd_curl_writefunc(char *ptr, size_t size, size_t nmemb, void *s) 
 
 static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
     if (!writer->curl) {
+        LOG(Warn, "[bgs] no curl session - dropping the current stack.\n");
         ddtrace_bgs_logf("[bgs] no curl session - dropping the current stack.\n", NULL);
     }
 
@@ -868,6 +870,7 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
         res = curl_easy_perform(writer->curl);
 
         if (res != CURLE_OK) {
+            LOG(Warn, "[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
             ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
         } else {
             if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
@@ -878,6 +881,7 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
                 curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
 #pragma GCC diagnostic pop
                 ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
+                LOG(Debug, "[bgs] uploaded %.0f bytes\n", uploaded);
             }
 
             // No response happens with test agents for example

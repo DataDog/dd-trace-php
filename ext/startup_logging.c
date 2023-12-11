@@ -366,7 +366,7 @@ void ddtrace_startup_logging_first_rinit(void) {
         ALLOC_HASHTABLE(ht);
         zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
 
-        ddtrace_startup_diagnostics(ht, true);
+        ddtrace_startup_diagnostics(ht, false);
         _dd_print_values_to_log(ht, log);
         _dd_get_startup_config(ht);
 
