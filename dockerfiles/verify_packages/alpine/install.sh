@@ -64,6 +64,10 @@ if [ ! -f "${WWW_CONF}" ]; then
     WWW_CONF=/usr/local/etc/php-fpm.d/www.conf
 fi
 if [ ! -f "${WWW_CONF}" ]; then
+    # Alpine 3.19
+    WWW_CONF=/etc/php82/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
     # Alpine 3.17
     WWW_CONF=/etc/php81/php-fpm.d/www.conf
 fi
