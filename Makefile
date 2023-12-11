@@ -913,7 +913,6 @@ TEST_WEB_83 := \
 	test_metrics \
 	test_web_codeigniter_22 \
 	test_web_drupal_95 \
-	test_web_drupal_101 \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
