@@ -885,6 +885,55 @@ TEST_WEB_82 := \
 	test_web_zend_1_21
 #	test_web_yii_2 \
 
+TEST_INTEGRATIONS_83 := \
+	test_integrations_amqp2 \
+	test_integrations_amqp35 \
+	test_integrations_curl \
+	test_integrations_deferred_loading \
+	test_integrations_laminaslog2 \
+	test_integrations_memcache \
+	test_integrations_memcached \
+	test_integrations_mongodb1 \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog3 \
+	test_integrations_mysqli \
+	test_opentelemetry_1 \
+	test_integrations_guzzle7 \
+	test_integrations_pcntl \
+	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
+	test_integrations_predis1 \
+	test_integrations_roadrunner \
+	test_integrations_sqlsrv \
+	test_opentracing_10
+
+TEST_WEB_83 := \
+	test_metrics \
+	test_web_codeigniter_22 \
+	test_web_drupal_95 \
+	test_web_drupal_101 \
+	test_web_laravel_8x \
+	test_web_laravel_9x \
+	test_web_laravel_10x \
+	test_web_lumen_81 \
+	test_web_lumen_90 \
+	test_web_lumen_100 \
+	test_web_nette_24 \
+	test_web_nette_30 \
+	test_web_slim_312 \
+	test_web_slim_4 \
+	test_web_symfony_52 \
+	test_web_symfony_62 \
+	test_web_wordpress_59 \
+	test_web_wordpress_61 \
+	test_web_custom \
+	test_web_zend_1_21
+	# test_web_laminas_rest_19
+	# test_web_laminas_20
+	# test_web_magento_24
+
 FILTER := .
 
 define run_tests
