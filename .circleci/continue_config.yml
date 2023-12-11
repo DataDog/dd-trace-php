@@ -2988,7 +2988,7 @@ jobs:
   "Build Tests":
     working_directory: ~/datadog
     parameters:
-      php_version:
+      php_major_minor:
         type: string
     docker:
       - image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
