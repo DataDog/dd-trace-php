@@ -881,7 +881,7 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
                 curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
 #pragma GCC diagnostic pop
                 ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
-                LOG(Debug, "[bgs] uploaded %.0f bytes\n", uploaded);
+                LOG(Info, "[bgs] uploaded %.0f bytes\n", uploaded);
             }
 
             // No response happens with test agents for example
