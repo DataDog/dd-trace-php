@@ -929,9 +929,6 @@ TEST_WEB_83 := \
 	test_web_wordpress_61 \
 	test_web_custom \
 	test_web_zend_1_21
-	# test_web_laminas_rest_19
-	# test_web_laminas_20
-	# test_web_magento_24
 
 FILTER := .
 
