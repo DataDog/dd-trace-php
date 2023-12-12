@@ -1769,7 +1769,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'name' => 'datadog.profiling.experimental_allocation_enabled',
             'default' => '1',
             'commented' => true,
-            'description' => 'Enable the allocation profile type. Superseeded by `datadog.profiling.allocation_enabled`.',
+            'description' => 'Enable the allocation profile type. Superseded by `datadog.profiling.allocation_enabled`.',
         ],
         [
             'name' => 'datadog.profiling.exception_enabled',
