@@ -1778,10 +1778,10 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'description' => 'Enable the exception profile type.',
         ],
         [
-            'name' => 'datadog.profiling.experimental_exception_enabled. Superseeded by `datadog.profiling.exception_enabled`.',
+            'name' => 'datadog.profiling.experimental_exception_enabled',
             'default' => '1',
             'commented' => true,
-            'description' => 'Enable the exception profile type.',
+            'description' => 'Enable the exception profile type. Superseded by `datadog.profiling.exception_enabled`.',
         ],
         [
             'name' => 'datadog.profiling.exception_sampling_distance',
