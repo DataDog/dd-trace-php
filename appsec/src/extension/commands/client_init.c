@@ -164,10 +164,21 @@ static dd_result _pack_command(
     mpack_start_map(w, 2);
 
     dd_mpack_write_lstr(w, "enabled");
-    mpack_write_bool(w, get_global_DD_EXPERIMENTAL_API_SECURITY_ENABLED());
 
-    dd_mpack_write_lstr(w, "sample_rate");
-    mpack_write(w, get_global_DD_API_SECURITY_REQUEST_SAMPLE_RATE());
+#define MIN_SE_SAMPLE_RATE 0.0001
+
+    double se_sample_rate = get_global_DD_API_SECURITY_REQUEST_SAMPLE_RATE();
+    if (se_sample_rate >= MIN_SE_SAMPLE_RATE) {
+        mpack_write_bool(w, true);
+
+        dd_mpack_write_lstr(w, "sample_rate");
+        mpack_write(w, se_sample_rate);
+    } else {
+        mpack_write_bool(w, false);
+
+        dd_mpack_write_lstr(w, "sample_rate");
+        mpack_write(w, 0.0);
+    }
 
     mpack_finish_map(w);
 

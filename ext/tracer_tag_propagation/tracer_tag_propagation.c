@@ -122,7 +122,7 @@ zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *
 
     ddtrace_trace_id trace_id = ddtrace_peek_trace_id();
     if (trace_id.high) {
-        smart_str_append_printf(&taglist, "_dd.p.tid=%" PRIx64, trace_id.high);
+        smart_str_append_printf(&taglist, "_dd.p.tid=%016" PRIx64, trace_id.high);
     }
 
     zend_string *tagname;

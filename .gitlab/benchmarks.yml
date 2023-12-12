@@ -3,10 +3,11 @@ variables:
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/dd-trace-php
 
-benchmarks:
+microbenchmarks:
   stage: benchmarks
   rules:
-    - changes:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      changes:
         paths:
           - profiling/**/*
         compare_to: "master"
@@ -39,3 +40,80 @@ benchmarks:
 
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+
+download_circle_ci_release:
+  stage: benchmarks
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+      when: always
+    - when: manual
+  tags: [ "arch:amd64" ]
+  interruptible: true
+  timeout: 45m
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
+  script:
+    - git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
+    - ./steps/download-circle-ci-release.sh
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - circleci/artifacts/
+    expire_in: 3 months
+  allow_failure: true
+
+.macrobenchmarks:
+  stage: benchmarks
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+      when: always
+    - when: manual
+  tags: ["runner:apm-k8s-same-cpu"]
+  needs: ["download_circle_ci_release"]
+  interruptible: true
+  timeout: 1h
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
+  script:
+    - git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
+    - bp-runner bp-runner.yml --debug
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - platform/artifacts/
+    expire_in: 3 months
+  variables:
+    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+
+    K6_OPTIONS_NORMAL_OPERATION_RATE: 50
+    K6_OPTIONS_NORMAL_OPERATION_DURATION: 20m
+    K6_OPTIONS_NORMAL_OPERATION_GRACEFUL_STOP: 1m
+    K6_OPTIONS_NORMAL_OPERATION_PRE_ALLOCATED_VUS: 4
+    K6_OPTIONS_NORMAL_OPERATION_MAX_VUS: 4
+
+    K6_OPTIONS_HIGH_LOAD_RATE: 200
+    K6_OPTIONS_HIGH_LOAD_DURATION: 5m
+    K6_OPTIONS_HIGH_LOAD_GRACEFUL_STOP: 1m
+    K6_OPTIONS_HIGH_LOAD_PRE_ALLOCATED_VUS: 4
+    K6_OPTIONS_HIGH_LOAD_MAX_VUS: 4
+
+  # Workaround: Currently we're not running the benchmarks on every PR, but GitHub still shows them as pending.
+  # By marking the benchmarks as allow_failure, this should go away. (This workaround should be removed once the
+  # benchmarks get changed to run on every PR)
+  allow_failure: true
+
+macrobenchmarks:
+  extends: .macrobenchmarks
+  parallel:
+    matrix:
+      - DD_BENCHMARKS_CONFIGURATION: baseline
+        PHP_VERSION: "8.1"
+
+      - DD_BENCHMARKS_CONFIGURATION: baseline
+        PHP_VERSION: "7.4"
+
+      - DD_BENCHMARKS_CONFIGURATION: only-tracing
+        PHP_VERSION: "8.1"
+
+      - DD_BENCHMARKS_CONFIGURATION: only-tracing
+        PHP_VERSION: "7.4"

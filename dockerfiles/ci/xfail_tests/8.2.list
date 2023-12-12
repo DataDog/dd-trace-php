@@ -155,6 +155,7 @@ ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/sprintf_variation54.phpt
 ext/zend_test/tests/
+sapi/cli/tests/bug80092.phpt
 sapi/cli/tests/upload_2G.phpt
 sapi/fpm/tests/log-bm-in-shutdown-fn.phpt
 sapi/fpm/tests/log-bm-limit-1024-msg-80.phpt
@@ -175,3 +176,4 @@ sapi/phpdbg/tests/exceptions_003.phpt
 sapi/phpdbg/tests/stepping_001.phpt
 tests/lang/bug45392.phpt
 tests/output/ob_start_basic_002.phpt
+Zend/tests/gh12073.phpt

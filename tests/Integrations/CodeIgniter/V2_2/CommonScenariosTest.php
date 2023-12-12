@@ -55,6 +55,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'Simple::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                        Tag::HTTP_ROUTE => 'simple',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple.index',
@@ -79,6 +80,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'Simple_View::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                        Tag::HTTP_ROUTE => 'simple_view',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple_View.index',
@@ -113,6 +115,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'Error_::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                        Tag::HTTP_ROUTE => 'error'
                     ])
                     ->setError("Exception", "Uncaught Exception: datadog in %s:%d")
                     ->withExistingTagsNames(['error.stack'])
@@ -125,6 +128,31 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         )->withExactTags([
                             Tag::COMPONENT => 'codeigniter',
                         ])->setError('Exception', 'datadog', true),
+                    ]),
+                ],
+                'A GET request to a route with a parameter' => [
+                    SpanAssertion::build(
+                        'codeigniter.request',
+                        'codeigniter_test_app',
+                        'web',
+                        'GET /parameterized/paramValue'
+                    )->withExactTags([
+                        Tag::HTTP_METHOD => 'GET',
+                        Tag::HTTP_URL => 'http://localhost:9999/parameterized/paramValue',
+                        Tag::HTTP_STATUS_CODE => '200',
+                        'app.endpoint' => 'Parameterized::customAction',
+                        Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'codeigniter',
+                        Tag::HTTP_ROUTE =>  'parameterized/(:any)',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'Parameterized.customAction',
+                            'codeigniter_test_app',
+                            Type::WEB_SERVLET,
+                            'Parameterized.customAction'
+                        )->withExactTags([
+                            Tag::COMPONENT => 'codeigniter',
+                        ])
                     ]),
                 ],
             ]

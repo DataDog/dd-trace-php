@@ -75,7 +75,6 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
 
     std::vector<std::string> event_data;
     std::unordered_set<std::string> event_actions;
-    std::map<std::string, std::string> schemas;
 
     for (auto &sub : common_->subscribers) {
         auto it = listeners_.find(sub);
@@ -89,7 +88,6 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
                     std::make_move_iterator(event->data.begin()),
                     std::make_move_iterator(event->data.end()));
                 event_actions.merge(event->actions);
-                schemas.merge(event->schemas);
             }
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
@@ -100,8 +98,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
         return std::nullopt;
     }
 
-    dds::engine::result res{
-        action_type::record, {}, std::move(event_data), std::move(schemas)};
+    dds::engine::result res{action_type::record, {}, std::move(event_data)};
     // Currently the only action the extension can perform is block
     if (!event_actions.empty()) {
         // The extension can only handle one action, so we pick the first one

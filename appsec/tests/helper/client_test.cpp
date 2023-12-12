@@ -2365,7 +2365,7 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
         int body_length = 0;
         int i = 0;
         // Lets generate a body which goes over max_plain_schema_allowed limit
-        while (body_length < client::max_plain_schema_allowed) {
+        while (body_length < waf::instance::max_plain_schema_allowed) {
             body.add(std::to_string(i), parameter::int64(i));
             auto schema = parameter::array();
             schema.add(parameter::int64(4));

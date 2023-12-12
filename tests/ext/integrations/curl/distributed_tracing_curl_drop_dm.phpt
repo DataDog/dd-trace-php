@@ -8,7 +8,7 @@ ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
-HTTP_TRACEPARENT=00-12345678901234567890123456789012-1234567890123456-00
+HTTP_TRACEPARENT=00-00000012345678907890123456789012-1234567890123456-00
 HTTP_TRACESTATE=foo=1,dd=s:1;t.dm:-0;t.usr.id:baz64~~;t.url:http://localhost
 DD_PROPAGATION_STYLE=tracecontext,Datadog
 --FILE--
@@ -43,10 +43,10 @@ echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
-traceparent: 00-12345678901234567890123456789012-1234567890123456-00
-tracestate: dd=t.tid:1234567890123456;t.usr.id:baz64~~;t.url:http://localhost,foo=1
+traceparent: 00-00000012345678907890123456789012-1234567890123456-00
+tracestate: dd=t.usr.id:baz64~~;t.url:http://localhost,foo=1
 x-datadog-parent-id: 1311768467284833366
-x-datadog-tags: _dd.p.tid=1234567890123456,_dd.p.usr.id=baz64==,_dd.p.url=http://localhost
+x-datadog-tags: _dd.p.tid=0000001234567890,_dd.p.usr.id=baz64==,_dd.p.url=http://localhost
 x-datadog-trace-id: 8687463697196027922
 bool(false)
 Done.

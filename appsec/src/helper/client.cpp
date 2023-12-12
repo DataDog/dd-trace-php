@@ -471,16 +471,6 @@ bool client::handle_command(network::request_shutdown::request &command)
 
             response->triggers = std::move(res->events);
             response->force_keep = res->force_keep;
-            for (const auto &[key, value] : res->schemas) {
-                std::string schema = value;
-                if (value.length() > max_plain_schema_allowed) {
-                    auto encoded = compress(schema);
-                    if (encoded) {
-                        schema = base64_encode(encoded.value(), false);
-                    }
-                }
-                response->meta.emplace(key, std::move(schema));
-            }
 
             DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
         } else {

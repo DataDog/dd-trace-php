@@ -166,7 +166,7 @@ TEST(BrokerTest, SendRequestShutdown)
     packer.pack_array(1);                 // Array of messages
     packer.pack_array(2);                 // First message
     pack_str(packer, "request_shutdown"); // Type
-    packer.pack_array(7);
+    packer.pack_array(6);
     pack_str(packer, "block");
     packer.pack_map(2);
     pack_str(packer, "type");
@@ -177,7 +177,6 @@ TEST(BrokerTest, SendRequestShutdown)
     pack_str(packer, "one");
     pack_str(packer, "two");
     packer.pack_true(); // Force keep
-    packer.pack_map(0);
     packer.pack_map(0);
     packer.pack_map(0);
     const auto &expected_data = ss.str();
