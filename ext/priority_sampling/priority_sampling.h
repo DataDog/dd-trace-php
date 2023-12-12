@@ -24,6 +24,7 @@ DDTRACE_PUBLIC void ddtrace_set_priority_sampling_on_root(zend_long priority, en
 void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);
 zend_long ddtrace_fetch_priority_sampling_from_span(ddtrace_root_span_data *root_span);
 zend_long ddtrace_fetch_priority_sampling_from_root(void);
+void ddtrace_decide_on_closed_span_sampling(ddtrace_span_data *span);
 
 void ddtrace_try_read_agent_rate(void);
 

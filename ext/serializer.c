@@ -31,6 +31,7 @@
 #include "priority_sampling/priority_sampling.h"
 #include "span.h"
 #include "uri_normalization.h"
+#include "ddshared.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -654,6 +655,8 @@ void ddtrace_update_root_id_properties(ddtrace_root_span_data *span) {
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 
+    span->sampling_rule.rule = INT32_MAX;
+
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
     zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
@@ -843,9 +846,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         if (DDTRACE_G(propagated_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
             ZVAL_LONG(&span->property_propagated_sampling_priority, DDTRACE_G(propagated_priority_sampling));
         }
-        if (DDTRACE_G(default_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
-            ZVAL_LONG(&span->property_sampling_priority, DDTRACE_G(default_priority_sampling));
-        }
+        ZVAL_LONG(&span->property_sampling_priority, DDTRACE_G(default_priority_sampling));
 
         ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
         if (get_DD_TRACE_ANALYTICS_ENABLED() || web_integration->is_analytics_enabled()) {
@@ -1119,59 +1120,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     }
 }
 
-static bool dd_rule_matches(zval *pattern, zend_string* value) {
-    if (Z_TYPE_P(pattern) != IS_STRING) {
-        return false;
-    }
-
-    char *p = Z_STRVAL_P(pattern);
-    char *s = ZSTR_VAL(value);
-
-    int wildcards = 0;
-    while (*p) {
-        if (*(p++) == '*') {
-            ++wildcards;
-        }
-    }
-    p = Z_STRVAL_P(pattern);
-
-    ALLOCA_FLAG(use_heap)
-    char **backtrack_points = do_alloca(wildcards * 2 * sizeof(char *), use_heap);
-    int backtrack_idx = 0;
-
-    while (*p) {
-        if (!*s) {
-            while (*p == '*') {
-                ++p;
-            }
-            free_alloca(backtrack_points, use_heap);
-            return !*p;
-        }
-        if (*s == *p || *p == '?') {
-            ++s, ++p;
-        } else if (*p == '*') {
-            backtrack_points[backtrack_idx++] = ++p;
-            backtrack_points[backtrack_idx++] = s;
-        } else {
-            do {
-                if (backtrack_idx > 0) {
-                    backtrack_idx -= 2;
-                    p = backtrack_points[backtrack_idx];
-                    s = ++backtrack_points[backtrack_idx + 1];
-                } else {
-                    free_alloca(backtrack_points, use_heap);
-                    return false;
-                }
-            } while (!*s);
-            backtrack_idx += 2;
-        }
-    }
-
-    free_alloca(backtrack_points, use_heap);
-
-    return true;
-}
-
 static HashTable dd_span_sampling_limiters;
 #if ZTS
 static pthread_rwlock_t dd_span_sampling_limiter_lock;
@@ -1347,7 +1295,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     zval_ptr_dtor(&prop_type_as_string);
     zval_ptr_dtor(&prop_resource_as_string);
 
-    if (ddtrace_fetch_priority_sampling_from_span(span->root) <= 0) {
+    if (zend_hash_num_elements(get_DD_SPAN_SAMPLING_RULES()) && ddtrace_fetch_priority_sampling_from_span(span->root) <= 0) {
         zval *rule;
         ZEND_HASH_FOREACH_VAL(get_DD_SPAN_SAMPLING_RULES(), rule) {
             if (Z_TYPE_P(rule) != IS_ARRAY) {
@@ -1359,7 +1307,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             zval *rule_service;
             if ((rule_service = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("service")))) {
                 if (Z_TYPE_P(prop_service) > IS_NULL) {
-                    rule_matches &= dd_rule_matches(rule_service, Z_STR(prop_service_as_string));
+                    rule_matches &= dd_glob_rule_matches(rule_service, Z_STR(prop_service_as_string));
                 } else {
                     rule_matches &= false;
                 }
@@ -1367,7 +1315,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             zval *rule_name;
             if ((rule_name = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("name")))) {
                 if (Z_TYPE_P(prop_name) > IS_NULL) {
-                    rule_matches &= dd_rule_matches(rule_name, Z_STR_P(prop_name));
+                    rule_matches &= dd_glob_rule_matches(rule_name, Z_STR_P(prop_name));
                 } else {
                     rule_matches = false;
                 }

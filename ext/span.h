@@ -22,6 +22,17 @@ enum ddtrace_span_dataype {
     DDTRACE_SPAN_CLOSED,
 };
 
+typedef struct {
+    double sampling_rate;
+    int rule;
+} ddtrace_rule_result;
+
+enum ddtrace_trace_limited {
+    DD_TRACE_LIMIT_UNCHECKED,
+    DD_TRACE_LIMITED,
+    DD_TRACE_UNLIMITED,
+};
+
 typedef union ddtrace_span_properties {
     zend_object std;
     struct {
@@ -82,6 +93,9 @@ static inline ddtrace_span_data *SPANDATA(ddtrace_span_properties *obj) {
 struct ddtrace_root_span_data {
     ddtrace_trace_id trace_id;
     uint64_t parent_id;
+    ddtrace_rule_result sampling_rule;
+    bool explicit_sampling_priority;
+    enum ddtrace_trace_limited trace_is_limited;
 
     union {
         ddtrace_span_data;

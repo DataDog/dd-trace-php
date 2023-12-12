@@ -17,4 +17,4 @@ DDTrace\close_span();
 --EXPECT--
 string(19) "8687463697196027922"
 string(23) "85968058271978839505040"
-int(1)
+int(0)

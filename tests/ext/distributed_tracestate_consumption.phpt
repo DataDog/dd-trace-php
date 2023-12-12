@@ -6,6 +6,7 @@ DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED=1
 --FILE--
 <?php
 
+// This is sampled, hence the mechanism must be retained
 $rawTracestate = 'rojo=00f067aa0ba902b7,dd=t.dm:-1;t.congo:t61rcWkgMzE';
 
 $span = \DDTrace\start_span();

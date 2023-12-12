@@ -632,7 +632,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
             }
         }
     } else if (zend_string_equals_literal(prop_name, "traceId")) {
-        span->trace_id = Z_TYPE_P(value) == IS_STRING ? ddtrace_parse_userland_trace_id(Z_STR_P(value)) : (ddtrace_trace_id){ 0 };
+        span->trace_id = Z_TYPE_P(value) == IS_STRING ? ddtrace_parse_hex_trace_id(Z_STRVAL_P(value), Z_STRLEN_P(value)) : (ddtrace_trace_id){ 0 };
         if (!span->trace_id.low && !span->trace_id.high) {
             span->trace_id = (ddtrace_trace_id) {
                 .low = span->span_id,
@@ -640,6 +640,8 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
             };
             value = &span->property_id;
         }
+    } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
+        span->explicit_sampling_priority = zval_get_long(value) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     }
 
 #if PHP_VERSION_ID >= 70400

@@ -71,26 +71,26 @@ string(28) "current :2513787319205155662"
 string(28) "closing :2513787319205155662"
 Flushing trace of size 2 to send-queue for %s
 string(34) "newly active :13874630024467741450"
-string(29) "initial :10598951352238613536"
-string(28) "started :6878563960102566144"
+string(28) "initial :1735254072534978428"
+string(29) "started :10598951352238613536"
 bar
 baz
 baz() called
 bar() called
-string(28) "current :6878563960102566144"
-string(28) "closing :6878563960102566144"
+string(29) "current :10598951352238613536"
+string(29) "closing :10598951352238613536"
 Flushing trace of size 2 to send-queue for %s
-string(34) "newly active :10598951352238613536"
-string(27) "initial :228421809995595595"
-string(28) "started :9660662969780974662"
+string(33) "newly active :1735254072534978428"
+string(28) "initial :5052085463162682550"
+string(28) "started :7199227068870524257"
 bar
 baz
 baz() called
 bar() called
-string(28) "current :9660662969780974662"
-string(28) "closing :9660662969780974662"
+string(28) "current :7199227068870524257"
+string(28) "closing :7199227068870524257"
 Flushing trace of size 2 to send-queue for %s
-string(32) "newly active :228421809995595595"
+string(33) "newly active :5052085463162682550"
 foo() called
 Flushing trace of size 5 to send-queue for %s
 No finished traces to be sent to the agent
