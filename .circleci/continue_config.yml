@@ -1327,7 +1327,7 @@ jobs:
           name: Generate coverage
           command: |
             cd appsec
-            llvm-profdata-17 merge -sparse *.profraw -o default.profdata 
+            llvm-profdata-17 merge -sparse *.profraw -o default.profdata
             llvm-cov-17 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
             llvm-cov-17 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
       - store_artifacts:
@@ -3812,7 +3812,7 @@ workflows:
                 - php:8.0-fpm-alpine
                 - php:8.1-fpm-alpine
                 - php:8.2-fpm-alpine
-                - php:8.3.0RC2-fpm-alpine
+                - php:8.3-fpm-alpine
       - verify_centos:
           requires: [ "package extension" ]
           matrix:
@@ -3831,7 +3831,7 @@ workflows:
                 - PHP_MAJOR=8 PHP_MINOR=0
                 - PHP_MAJOR=8 PHP_MINOR=1
                 - PHP_MAJOR=8 PHP_MINOR=2
-                # - PHP_MAJOR=8 PHP_MINOR=3
+                - PHP_MAJOR=8 PHP_MINOR=3
       - verify_debian:
           requires: [ "package extension" ]
           matrix:
@@ -3853,7 +3853,7 @@ workflows:
                 - PHP_VERSION=8.0
                 - PHP_VERSION=8.1
                 - PHP_VERSION=8.2
-                # - PHP_VERSION=8.3
+                - PHP_VERSION=8.3
 
       - verify_tar_gz:
           requires: [ "package extension" ]
