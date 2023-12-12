@@ -846,8 +846,7 @@ static size_t _dd_curl_writefunc(char *ptr, size_t size, size_t nmemb, void *s) 
 
 static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
     if (!writer->curl) {
-        LOG(Warn, "[bgs] no curl session - dropping the current stack.\n");
-        ddtrace_bgs_logf("[bgs] no curl session - dropping the current stack.\n", NULL);
+        LOG_ONCE(Error, "[bgs] no curl session - dropping the current stack.\n");
     }
 
     if (writer->curl) {
@@ -865,13 +864,18 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
 
         curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
         curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long)get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
+        if (get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL() && PG(error_log) != NULL) {
+            FILE *error_log = fopen(PG(error_log), "a");
+            if (error_log) {
+                curl_easy_setopt(writer->curl, CURLOPT_STDERR, error_log);
+            }
+        }
         curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_curl_writefunc);
         curl_easy_setopt(writer->curl, CURLOPT_WRITEDATA, &response);
         res = curl_easy_perform(writer->curl);
 
         if (res != CURLE_OK) {
-            LOG(Warn, "[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-            ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            LOG_ONCE(Error, "[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
         } else {
             if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
                 double uploaded;
@@ -880,14 +884,16 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
                 curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
 #pragma GCC diagnostic pop
-                ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
-                LOG(Info, "[bgs] uploaded %.0f bytes\n", uploaded);
+                LOG_ONCE(Error, "[bgs] uploaded %.0f bytes\n", uploaded);
             }
 
             // No response happens with test agents for example
             if (response.s) {
+                LOG_ONCE(Error, "[bgs] response: %s\n", response.s->val);
                 ddog_agent_remote_config_write(dd_agent_config_writer, dd_zend_string_to_CharSlice(response.s));
                 smart_str_free_ex(&response, true);
+            } else {
+                LOG_ONCE(Error, "[bgs] no response\n");
             }
         }
 
