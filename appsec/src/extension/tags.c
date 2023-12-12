@@ -1192,18 +1192,39 @@ static PHP_FUNCTION(datadog_appsec_push_params)
     }
 
     zval parameters_zv;
-    ZVAL_ARR(&parameters_zv, zend_new_array(1));
+    zend_array *parameters_arr = zend_new_array(1);
+    if (parameters_arr == NULL) {
+        mlog_g(dd_log_debug, "Could not create array");
+        return;
+    }
+    ZVAL_ARR(&parameters_zv, parameters_arr);
     zend_string *key =
         zend_string_init(ZEND_STRL("server.request.path_params"), 0);
-    zend_hash_add(Z_ARRVAL(parameters_zv), key, parameters);
+    if (key == NULL) {
+        zval_ptr_dtor(&parameters_zv);
+        mlog_g(dd_log_debug, "Error creating key");
+        return;
+    }
+
+    zval *res = zend_hash_add(Z_ARRVAL(parameters_zv), key, parameters);
+    if (res == NULL) {
+        zend_string_release(key);
+        zval_ptr_dtor(&parameters_zv);
+        mlog_g(dd_log_debug, "Parameters could not be added");
+        return;
+    }
+    Z_ADDREF_P(parameters);
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
+        zend_string_release(key);
+        zval_ptr_dtor(&parameters_zv);
         mlog_g(dd_log_debug, "No connection; skipping push_params");
-        RETURN_FALSE;
+        return;
     }
 
     dd_request_exec(conn, &parameters_zv);
+
     zval_ptr_dtor(&parameters_zv);
     zend_string_release(key);
 }
