@@ -1009,7 +1009,7 @@ test_metrics: global_test_run_dependencies
 benchmarks: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/benchmarks/composer.lock
 	$(MAKE) test_scenario_benchmarks
-	DD_TRACE_OTEL_ENABLED=1 $(call run_benchmarks)
+	$(call run_benchmarks)
 
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock

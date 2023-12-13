@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\Tests;
+namespace DDTrace\Benchmarks;
 
 class HookOverheadBench
 {
