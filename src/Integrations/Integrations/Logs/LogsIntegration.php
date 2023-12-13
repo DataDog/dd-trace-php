@@ -210,7 +210,6 @@ class LogsIntegration extends Integration
                     $traceIdSubstitute,
                     $spanIdSubstitute
                 );
-                Logger::get()->debug("LogsIntegration::getHookFn() - context: " . json_encode($context));
             }
 
             $hook->args[$messageIndex] = $message;
@@ -222,12 +221,6 @@ class LogsIntegration extends Integration
 
     public function init()
     {
-        Logger::get()->debug("LogsIntegration::init()");
-        // Write to file /tmp/flag.txt to signal that the integration has been loaded
-        file_put_contents('/tmp/flag.txt', 'LogsIntegration::init()');
-
-        $integration = $this;
-
         $levelNames = [
             'debug',
             'info',

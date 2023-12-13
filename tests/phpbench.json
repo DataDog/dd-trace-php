@@ -1,8 +1,11 @@
 {
     "$schema":"vendor/phpbench/phpbench/phpbench.schema.json",
-    "runner.bootstrap": "vendor/autoload.php",
+    "runner.bootstrap": "./bootstrap_utils.php",
     "runner.path": "Benchmarks",
     "runner.file_pattern": "*Bench.php",
+    "runner.php_env": {
+        "DD_TRACE_OTEL_ENABLED": "true"
+    },
     "report.generators": {
         "phpbench_aggregate": {
             "extends": "aggregate",
