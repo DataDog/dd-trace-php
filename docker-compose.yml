@@ -64,6 +64,7 @@ services:
   '8.0-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
   '8.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
   '8.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.2_buster' }
+  '8.3-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.3_buster' }
   'php-master-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- CentOS 6 ---
   '7.0-centos7': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }

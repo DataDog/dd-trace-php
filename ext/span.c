@@ -576,10 +576,11 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
         stack->closed_ring = span;
     }
 
+    ddtrace_decide_on_closed_span_sampling(span);
+
     if (!stack->active || SPANDATA(stack->active)->stack != stack) {
         dd_close_entry_span_of_stack(stack);
     }
-
 }
 
 // i.e. what DDTrace\active_span() reports. DDTrace\active_stack()->active is the active span which will be used as parent for new spans on that stack

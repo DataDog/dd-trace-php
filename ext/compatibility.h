@@ -65,6 +65,15 @@ static inline zval *ddtrace_assign_variable(zval *variable_ptr, zval *value) {
 #define MAY_BE_ARRAY 0
 
 #define Z_EXTRA_P(z) Z_NEXT_P(z)
+
+#undef zval_get_long
+#define zval_get_long ddtrace_zval_get_long
+static inline zend_long zval_get_long(zval *op) {
+    if (Z_ISUNDEF_P(op)) {
+        return 0;
+    }
+    return _zval_get_long(op);
+}
 #endif
 
 #if PHP_VERSION_ID < 70200

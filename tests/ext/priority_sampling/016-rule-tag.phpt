@@ -1,7 +1,7 @@
 --TEST--
-priority_sampling rule with service match
+priority_sampling rule with tag match
 --ENV--
-DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.7, "service": "bar"},{"sample_rate": 0.3, "service": "foo"}]
+DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.7, "tags": {"tag": "bar"}},{"sample_rate": 0.3, "tags": {"tag": "foo"}}]
 DD_TRACE_GENERATE_ROOT_SPAN=1
 --SKIPIF--
 <?php
@@ -12,7 +12,7 @@ if (getenv("USE_ZEND_ALLOC") === "0" && !getenv("SKIP_ASAN")) {
 --FILE--
 <?php
 $root = \DDTrace\root_span();
-$root->service = "fooservice";
+$root->meta["tag"] = "foo";
 
 \DDTrace\get_priority_sampling();
 

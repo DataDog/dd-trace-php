@@ -7,13 +7,6 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static ddtrace_trace_id dd_parse_b3_trace_id(char *trace_id, ssize_t trace_id_len) {
-    return (ddtrace_trace_id){
-        .high = trace_id_len > 16 ? ddtrace_parse_hex_span_id_str(trace_id, MIN(16, trace_id_len - 16)) : 0,
-        .low = ddtrace_parse_hex_span_id_str(trace_id + MAX(0, trace_id_len - 16), MIN(16, trace_id_len)),
-    };
-}
-
 static inline bool dd_is_hex_char(char chr) {
     return (chr >= '0' && chr <= '9') || (chr >= 'a' && chr <= 'f');
 }
@@ -99,7 +92,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_b
             ++b3_ptr;
         }
 
-        result.trace_id = dd_parse_b3_trace_id(b3_traceid, b3_ptr - b3_traceid);
+        result.trace_id = ddtrace_parse_hex_trace_id(b3_traceid, b3_ptr - b3_traceid);
 
         char *b3_spanid = ++b3_ptr;
         while (b3_ptr < b3_end && *b3_ptr != '-') {
@@ -137,7 +130,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_b
     ddtrace_distributed_tracing_result result = dd_init_empty_result();
 
     if (read_header(ZAI_STRL("X_B3_TRACEID"), "x-b3-traceid", &trace_id_str, data)) {
-        result.trace_id = dd_parse_b3_trace_id(ZSTR_VAL(trace_id_str), ZSTR_LEN(trace_id_str));
+        result.trace_id = ddtrace_parse_hex_trace_id(ZSTR_VAL(trace_id_str), ZSTR_LEN(trace_id_str));
         zend_string_release(trace_id_str);
     }
 
@@ -482,14 +475,10 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (!span) {
             DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = result->priority_sampling;
         } else {
-            ddtrace_set_priority_sampling_on_span(span, result->priority_sampling, DD_MECHANISM_DEFAULT);
-
-            if (result->priority_sampling == DDTRACE_PRIORITY_SAMPLING_UNSET) {
-                ZVAL_UNDEF(&zv);
-            } else {
-                ZVAL_LONG(&zv, result->priority_sampling);
-            }
+            ZVAL_LONG(&zv, result->priority_sampling);
             ddtrace_assign_variable(&span->property_propagated_sampling_priority, &zv);
+
+            ddtrace_set_priority_sampling_on_span(span, result->priority_sampling, DD_MECHANISM_DEFAULT);
         }
     }
 }

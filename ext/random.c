@@ -67,6 +67,13 @@ ddtrace_trace_id ddtrace_parse_userland_trace_id(zend_string *tid) {
     return num;
 }
 
+ddtrace_trace_id ddtrace_parse_hex_trace_id(char *trace_id, ssize_t trace_id_len) {
+    return (ddtrace_trace_id){
+        .high = trace_id_len > 16 ? ddtrace_parse_hex_span_id_str(trace_id, MIN(16, trace_id_len - 16)) : 0,
+        .low = ddtrace_parse_hex_span_id_str(trace_id + MAX(0, trace_id_len - 16), MIN(16, trace_id_len)),
+    };
+}
+
 uint64_t ddtrace_parse_hex_span_id_str(const char *id, size_t len) {
     if (len == 0) {
         return 0U;
