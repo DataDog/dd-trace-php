@@ -1156,12 +1156,13 @@ void ddtrace_shutdown_span_sampling_limiter(void) {
 static zend_always_inline double strconv_parse_bool(zend_string *str) {
     // See Go's strconv.ParseBool
     // https://cs.opensource.google/go/go/+/refs/tags/go1.21.5:src/strconv/atob.go;drc=1f137052e4a20dbd302f947b1cf34cdf4b427d65;l=10
-    if (ZSTR_LEN(str) == 0) {
+    size_t len = ZSTR_LEN(str);
+    if (len == 0) {
         return 0;
     }
 
     char *s = ZSTR_VAL(str);
-    switch (ZSTR_LEN(str)) {
+    switch (len) {
         case 1:
             switch (s[0]) {
                 case '1':
