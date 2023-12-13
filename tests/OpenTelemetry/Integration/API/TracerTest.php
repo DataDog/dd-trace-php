@@ -347,7 +347,13 @@ final class TracerTest extends BaseTestCase
             ["FALSE", 0],
             ["something-else", 0],
             [True, 1],
-            [False, 0]
+            [False, 0],
+            ['t', 1],
+            ['T', 1],
+            ['f', 0],
+            ['F', 0],
+            ['1', 1],
+            ['0', 0],
         ];
     }
 
