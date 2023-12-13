@@ -345,7 +345,7 @@ final class TracerTest extends BaseTestCase
             ["false", 0],
             ["False", 0],
             ["FALSE", 0],
-            ["something-else", 0],
+            ["something-else", null],
             [True, 1],
             [False, 0],
             ['t', 1],
@@ -354,6 +354,8 @@ final class TracerTest extends BaseTestCase
             ['F', 0],
             ['1', 1],
             ['0', 0],
+            ['fAlse', null],
+            ['trUe', null]
         ];
     }
 
@@ -372,8 +374,12 @@ final class TracerTest extends BaseTestCase
         });
 
         $span = $traces[0][0];
-        $actualMetricValue = $span['metrics']['_dd1.sr.eausr'];
-        $this->assertEquals($expectedMetricValue, $actualMetricValue);
+        if ($expectedMetricValue !== null) {
+            $actualMetricValue = $span['metrics']['_dd1.sr.eausr'];
+            $this->assertEquals($expectedMetricValue, $actualMetricValue);
+        } else {
+            $this->assertArrayNotHasKey('_dd1.sr.eausr', $span['metrics']);
+        }
     }
 
     public function testSpanErrorStatus()
