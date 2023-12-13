@@ -90,7 +90,7 @@ pub fn exception_profiling_minit() {
 pub fn exception_profiling_first_rinit() {
     let sampling_distance = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
-            Ok(locals) => locals.profiling_experimental_exception_sampling_distance,
+            Ok(locals) => locals.profiling_exception_sampling_distance,
             Err(_err) => {
                 error!("Exception profiling was not initialized correctly due to a borrow error. Please report this to Datadog.");
                 100
@@ -118,7 +118,7 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
 
     let exception_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.profiling_experimental_exception_enabled)
+            .map(|locals| locals.profiling_exception_enabled)
             .unwrap_or(false)
     });
 

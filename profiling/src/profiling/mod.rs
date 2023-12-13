@@ -734,7 +734,7 @@ impl Profiler {
 
     #[cfg(feature = "exception_profiling")]
     /// Collect a stack sample with exception
-    pub unsafe fn collect_exception(
+    pub fn collect_exception(
         &self,
         execute_data: *mut zend_execute_data,
         exception: String,
@@ -1053,7 +1053,7 @@ impl Profiler {
             }
 
             #[cfg(feature = "exception_profiling")]
-            if locals.profiling_experimental_exception_enabled {
+            if locals.profiling_exception_enabled {
                 sample_types.push(SAMPLE_TYPES[6]);
                 sample_values.push(values[6]);
             }
@@ -1114,8 +1114,8 @@ mod tests {
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
             profiling_experimental_timeline_enabled: false,
-            profiling_experimental_exception_enabled: false,
-            profiling_experimental_exception_sampling_distance: 1,
+            profiling_exception_enabled: false,
+            profiling_exception_sampling_distance: 1,
             profiling_log_level: LevelFilter::Off,
             service: None,
             uri: Box::<AgentEndpoint>::default(),
@@ -1290,7 +1290,7 @@ mod tests {
         let mut locals = get_request_locals();
         locals.profiling_enabled = true;
         locals.profiling_experimental_cpu_time_enabled = true;
-        locals.profiling_experimental_exception_enabled = true;
+        locals.profiling_exception_enabled = true;
 
         let message: SampleMessage =
             Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
