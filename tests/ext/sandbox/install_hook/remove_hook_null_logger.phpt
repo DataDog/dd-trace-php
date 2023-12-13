@@ -2,7 +2,6 @@
 Remove hook
 --ENV--
 DD_TRACE_LOGS_ENABLED=false
-DD_TRACE_DEBUG=1
 --FILE--
 <?php
 
