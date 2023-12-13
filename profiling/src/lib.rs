@@ -863,13 +863,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             if #[cfg(feature = "exception_profiling")] {
                 zend::php_info_print_table_row(
                     2,
-                    b"Experimental Exception Profiling Enabled\0".as_ptr(),
+                    b"Exception Profiling Enabled\0".as_ptr(),
                     if locals.profiling_exception_enabled {
-                        if locals.profiling_experimental_features_enabled {
-                            yes_exp
-                        } else {
-                            yes
-                        }
+                        yes
                     } else if locals.profiling_enabled {
                         no
                     } else {

@@ -14,7 +14,7 @@ DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=yes
 DD_PROFILING_LOG_LEVEL=off
 DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
 DD_PROFILING_ALLOCATION_ENABLED=no
-DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=no
+DD_PROFILING_EXCEPTION_ENABLED=no
 DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED=no
 --INI--
 assert.exception=1
@@ -46,7 +46,7 @@ $sections = [
     ["Profiling Experimental Features Enabled", "false (profiling disabled)"],
     ["Experimental CPU Time Profiling Enabled", "false (profiling disabled)"],
     ["Allocation Profiling Enabled", "false (profiling disabled)"],
-    ["Experimental Exception Profiling Enabled", "false (profiling disabled)"],
+    ["Exception Profiling Enabled", "false (profiling disabled)"],
     ["Experimental Timeline Enabled", "false (profiling disabled)"],
 ];
 

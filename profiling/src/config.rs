@@ -239,8 +239,7 @@ pub(crate) unsafe fn profiling_experimental_timeline_enabled() -> bool {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_exception_enabled() -> bool {
-    profiling_experimental_features_enabled()
-        || profiling_enabled() && get_bool(ProfilingExceptionEnabled, true)
+    profiling_enabled() && get_bool(ProfilingExceptionEnabled, true)
 }
 
 /// # Safety
