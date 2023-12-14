@@ -1,6 +1,7 @@
 #include "../tsrmls_cache.h"
 #include <hook/hook.h>
 #include <hook/table.h>
+#include <components/log/log.h>
 
 
 /* {{{ */
@@ -827,12 +828,23 @@ static inline void zai_hook_remove_shared_hook(zend_function *func, zend_ulong h
     // In case of inheritance of a userland method, the parent and child function will point to the same opcodes and thus hooks.
     // Ensure hooks are only removed once.
     if (hooks && hooks != base_hooks) {
+        LOG(Info, "\t\t\tRemoving shared hook %s::%s", hooks->resolved->common.scope->name->val, hooks->resolved->common.function_name->val);
+        LOG(Info, "\t\t\t[PRE] Number of hooks for %s::%s: %d", hooks->resolved->common.scope->name->val, hooks->resolved->common.function_name->val, zend_hash_num_elements(&hooks->hooks));
+        // Log the currently installed hooks
+        zai_hook_t *hook;
+        ZEND_HASH_FOREACH_PTR(&hooks->hooks, hook) {
+            LOG(Info, "\t\t\t  Hook %s::%s", hook->scope ? hook->scope->val : "", hook->function->val);
+        } ZEND_HASH_FOREACH_END();
+
         zend_hash_index_del(&hooks->hooks, hook_id);
+        LOG(Info, "\t\t\t[POST] Number of hooks for %s::%s: %d", hooks->resolved->common.scope->name->val, hooks->resolved->common.function_name->val, zend_hash_num_elements(&hooks->hooks));
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
+            LOG(Info, "\t\t\tRemoving empty hooks entry for %s::%s", hooks->resolved->common.scope->name->val, hooks->resolved->common.function_name->val);
 #if PHP_VERSION_ID >= 80200
             if (hooks->internal_duplicate_count == 0)
 #endif
             {
+                LOG(Info, "\t\t\tRemoving resolved hooks entry for %s::%s", hooks->resolved->common.scope->name->val, hooks->resolved->common.function_name->val);
                 zai_hook_entries_remove_resolved(addr);
             }
         }
@@ -848,9 +860,11 @@ static void zai_hook_remove_abstract_recursive(zai_hooks_entry *base_hooks, zend
             zend_class_entry *inheritor = inheritors->inheritor[i];
             zend_function *override = zend_hash_find_ptr(&inheritor->function_table, function_name);
             if (override) {
+                LOG(Info, "\t\tRemoving abstract hook %s::%s", inheritor->name->val, function_name->val);
                 zai_hook_remove_shared_hook(override, hook_id, base_hooks);
             }
             if (!override || (override->common.fn_flags & ZEND_ACC_ABSTRACT) != 0) {
+                LOG(Info, "\t\tRecursive removal of abstract hook %s::%s", inheritor->name->val, function_name->val);
                 zai_hook_remove_abstract_recursive(base_hooks, inheritor, function_name, hook_id);
             }
         }
@@ -936,6 +950,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
         }
 
         if (check_scope) {
+            /*
             if (zai_hook_is_excluded(hook, ex->func->common.scope)) {
                 // hook is no longer valid, remove it
                 zai_hook_remove_from_entry(hooks, hook->id);
@@ -946,6 +961,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
 
                 return ZAI_HOOK_BAILOUT;
             }
+             */
 
             if (!(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope)) {
                 continue;
@@ -1285,6 +1301,7 @@ static inline void zai_hook_add_exclusion(zai_hooks_entry *hooks, zend_long inde
 void zai_hook_exclude_class_resolved(zai_install_address function_address, zend_long index, zend_string *lc_classname) {
     zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, function_address);
     if (!hooks) {
+        LOG(Info, "\tNo hooks found for %p. Skipping exclusion of %s", function_address, ZSTR_VAL(lc_classname));
         return;
     }
     zai_hook_add_exclusion(hooks, index, lc_classname);
@@ -1293,18 +1310,22 @@ void zai_hook_exclude_class_resolved(zai_install_address function_address, zend_
     zend_string *function_name = hooks->resolved->common.function_name;
     zend_function *resolved = zai_hook_lookup_function(zai_str_from_zstr(lc_classname), zai_str_from_zstr(function_name), &ce);
     if (!ce || !resolved) {
+        LOG(Info, "\t!ce || !resolved for %s::%s", ZSTR_VAL(lc_classname), ZSTR_VAL(function_name));
         return;
     }
     zai_hooks_entry *excluded_hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(resolved));
     if (!excluded_hooks) {
+        LOG(Info, "\tNo excluded_hooks found for %s::%s", ZSTR_VAL(lc_classname), ZSTR_VAL(function_name));
         return;
     }
 
     zval *hook_zv = zend_hash_index_find(&excluded_hooks->hooks, index);
     if (!hook_zv || Z_TYPE_INFO_P(hook_zv) != ZAI_IS_SHARED_HOOK_PTR) {
+        LOG(Info, "\tNo hook_zv found for %s::%s", ZSTR_VAL(lc_classname), ZSTR_VAL(function_name));
         return;
     }
 
+    LOG(Info, "\tExcluding %s::%s from %s", ZSTR_VAL(resolved->common.scope->name), ZSTR_VAL(resolved->common.function_name), ZSTR_VAL(lc_classname));
     zai_hook_remove_abstract_recursive(hooks, ce, function_name, (zend_ulong) index);
 }
 
@@ -1316,16 +1337,19 @@ void zai_hook_exclude_class(zai_str scope, zai_str function, zend_long index, ze
     zend_class_entry *ce;
     zend_function *resolved = zai_hook_lookup_function(scope, function, &ce);
     if (resolved) {
+        LOG(Info, "\tExcluding %s::%s from %s", ZSTR_VAL(resolved->common.scope->name), ZSTR_VAL(resolved->common.function_name), ZSTR_VAL(lc_classname));
         zai_hook_exclude_class_resolved(zai_hook_install_address(resolved), index, lc_classname);
         return;
     }
 
     HashTable *base_ht = zend_hash_str_find_ptr_lc(&zai_hook_tls->request_classes, scope.ptr, scope.len);
     if (!base_ht) {
+        LOG(Info, "\tNo base_ht found for %s::%s", scope.ptr, function.ptr);
         return;
     }
     zai_hooks_entry *hooks = zend_hash_str_find_ptr_lc(base_ht, function.ptr, function.len);
     zai_hook_add_exclusion(hooks, index, lc_classname);
+    LOG(Info, "\tAdd exclusion for %s::%s", scope.ptr, function.ptr);
 }
 
 bool zai_hook_remove_resolved(zai_install_address function_address, zend_long index) {

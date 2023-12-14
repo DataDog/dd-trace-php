@@ -571,20 +571,28 @@ PHP_FUNCTION(DDTrace_remove_hook) {
             zai_str function = zai_str_from_zstr(def->function);
             if (location && ZSTR_LEN(location)) {
                 zend_string *lower = zend_string_tolower(location);
+                LOG(Info, "Removed hook %s%s%s from %s", def->scope ? ZSTR_VAL(def->scope) : "", def->scope ? "::" : "",
+                    def->scope ? ZSTR_VAL(def->function) : ZSTR_VAL(def->file), ZSTR_VAL(lower));
                 zai_hook_exclude_class(scope, function, id, lower);
                 zend_string_release(lower);
             } else {
+                LOG(Info, "Removed hook %s%s%s", def->scope ? ZSTR_VAL(def->scope) : "", def->scope ? "::" : "",
+                    def->scope ? ZSTR_VAL(def->function) : ZSTR_VAL(def->file));
                 zai_hook_remove(scope, function, id);
             }
         } else {
             if (location && ZSTR_LEN(location)) {
                 zend_string *lower = zend_string_tolower(location);
+                LOG(Info, "[Resolved] Removed hook %s from %s", ZSTR_VAL(def->file), ZSTR_VAL(lower));
                 zai_hook_exclude_class_resolved(def->install_address, id, lower);
                 zend_string_release(lower);
             } else {
+                LOG(Info, "[Resolved] Removed hook %s", ZSTR_VAL(def->file));
                 zai_hook_remove_resolved(def->install_address, id);
             }
         }
+    } else {
+        LOG(Info, "Could not remove hook %ld, hook not found", id);
     }
 }
 

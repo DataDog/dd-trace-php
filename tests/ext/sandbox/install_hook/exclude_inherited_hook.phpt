@@ -1,5 +1,7 @@
 --TEST--
 remove_hook() with class argument
+--ENV--
+DD_TRACE_DEBUG=1
 --FILE--
 <?php
 
@@ -7,18 +9,22 @@ interface Elder {
     function foo();
 }
 
-class Other implements Elder {
+abstract class Other implements Elder {
     function foo() {
         print static::class . "\n";
     }
 }
 
-class OtherChild extends Other {}
+class OtherChild extends Other {
+    function foo() {
+        print static::class . "\n";
+    }
+}
 
 $id = DDTrace\install_hook("Elder::foo", function () { print "HOOKED: " . static::class . "\n"; });
 DDTrace\remove_hook($id, "Child");
 
-(new Other)->foo();
+(new OtherChild)->foo();
 
 if (time()) {
     abstract class Child implements Elder {}
@@ -36,8 +42,10 @@ if (time()) {
 (new GrandChild)->foo(); // no hook
 (new GreatGrandChild)->foo(); // no hook
 
-DDTrace\remove_hook($id, "Other");
-(new Other)->foo(); // also removed now
+print("\n---\n");
+DDTrace\remove_hook($id, "Elder");
+(new OtherChild)->foo(); // also removed now
+print("\n---\n");
 (new OtherChild)->foo(); // also removed now
 
 ?>

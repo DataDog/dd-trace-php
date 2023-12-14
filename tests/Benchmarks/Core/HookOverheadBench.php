@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\Benchmarks;
+namespace DDTrace\Benchmarks\Core;
 
 class HookOverheadBench
 {
@@ -24,7 +24,7 @@ class HookOverheadBench
 
     public function setUp()
     {
-        \DDTrace\trace_method('DDTrace\Benchmarks\HookOverheadBench', 'dummyFunction', function () { });
+        \DDTrace\trace_method('Benchmarks\Core\HookOverheadBench', 'dummyFunction', function () { });
     }
 
     /**

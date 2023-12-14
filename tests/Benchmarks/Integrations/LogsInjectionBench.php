@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\Benchmarks;
+namespace DDTrace\Benchmarks\Integrations;
 
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tracer;

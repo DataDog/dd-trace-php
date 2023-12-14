@@ -29,12 +29,14 @@ namespace {
     $hook = \DDTrace\install_hook("Psr\Log\LoggerInterface::log", function () {
         echo "HOOKED: " . static::class . "\n";
     });
+    print("\n---\n");
     \DDTrace\remove_hook($hook, \Psr\Log\NullLogger::class);
 
     $logger = new \Psr\Log\NullLogger();
     for ($i = 0; $i < 3; $i++) {
         $logger->log("info", "Hello World!");
     }
+    print("\n---\n");
 }
 
 ?>
