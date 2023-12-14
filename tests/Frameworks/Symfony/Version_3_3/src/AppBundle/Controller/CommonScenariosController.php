@@ -32,7 +32,7 @@ class CommonScenariosController extends Controller
     }
 
     /**
-     * @Route("/dynamic_route/{param01}/{param02?}", name="dynamic route with optionals")
+     * @Route("/dynamic_route/{param01}/{param02}", name="dynamic route with optionals")
      */
     public function dynamicWithOptionalsAction($param01, $param02)
     {

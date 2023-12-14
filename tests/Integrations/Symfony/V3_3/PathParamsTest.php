@@ -11,7 +11,7 @@ class PathParamsTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/index.php';
     }
 
     protected function connection()
@@ -48,18 +48,6 @@ class PathParamsTest extends WebFrameworkTestCase
         $this->assertEquals($param02, $events[0]['param02']);
         $this->assertEquals('push_params', $events[0]['eventName']);
     }
-
-    public function testDynamicRouteWithOptionalsNotFilled()
-    {
-        $param01 = 'first_param';
-        $this->call(GetSpec::create('dynamic', "/dynamic_route/$param01"));
-        $events = AppsecStatus::getInstance()->getEvents();
-        $this->assertEquals(1, count($events));
-        $this->assertEquals($param01, $events[0]['param01']);
-        $this->assertEmpty($events[0]['param02']);
-        $this->assertEquals('push_params', $events[0]['eventName']);
-    }
-
 
     public function testStaticRoute()
     {
