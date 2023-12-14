@@ -63,10 +63,6 @@ class DatabaseIntegrationHelper
         $tags = [];
 
         if ($databaseService != "") {
-            $mapping = dd_trace_env_config('DD_SERVICE_MAPPING');
-            if (isset($mapping[$databaseService])) {
-                $databaseService = $mapping[$databaseService];
-            }
             $tags["dddbs"] = $databaseService;
         }
 
