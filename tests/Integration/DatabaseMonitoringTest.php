@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integration;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
+use DDTrace\Integrations\Integration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -62,7 +63,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         try {
             $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
                 $span = $hook->span();
-                $span->service = "pdo";
+                Integration::handleInternalSpanServiceName($span, "pdo");
                 $span->name = "instrumented";
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             });
@@ -94,7 +95,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         try {
             $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
                 $span = $hook->span();
-                $span->service = "pdo";
+                Integration::handleInternalSpanServiceName($span, "pdo");
                 $span->name = "instrumented";
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             });
