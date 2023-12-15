@@ -7,6 +7,10 @@
         "DD_TRACE_OTEL_ENABLED": "true",
         "DD_TRACE_TEST_SAPI": "cgi-fcgi"
     },
+    "runner.php_config": {
+        "opcache.enable": "1",
+        "opcache.enable_cli": "1"
+    },
     "report.generators": {
         "phpbench_aggregate": {
             "extends": "aggregate",

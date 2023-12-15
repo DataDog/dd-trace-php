@@ -46,3 +46,5 @@ function prepend_test_autoloaders()
 }
 
 prepend_test_autoloaders();
+
+require_once __DIR__ . '/bootstrap.php';
