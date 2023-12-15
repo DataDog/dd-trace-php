@@ -59,13 +59,3 @@ endif()
 target_compile_definitions(zlibstatic PUBLIC ZLIB_CONST=1)
 target_include_directories(zlibstatic INTERFACE ${zlib_SOURCE_DIR} ${zlib_BINARY_DIR})
 
-include(ExternalProject)
-ExternalProject_Add(event_rules
-    GIT_REPOSITORY https://github.com/DataDog/appsec-event-rules.git
-    GIT_TAG 1.9.0
-    GIT_SHALLOW ON
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
-    INSTALL_COMMAND "")
-
-
