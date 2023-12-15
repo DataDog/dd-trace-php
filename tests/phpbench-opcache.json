@@ -8,8 +8,11 @@
         "DD_TRACE_TEST_SAPI": "cgi-fcgi"
     },
     "runner.php_config": {
+        "zend_extension": "opcache.so",
         "opcache.enable": "1",
-        "opcache.enable_cli": "1"
+        "opcache.enable_cli": "1",
+        "opcache.jit_buffer_size": "100M",
+        "opcache.jit": "1255"
     },
     "report.generators": {
         "phpbench_aggregate": {
