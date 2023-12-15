@@ -24,6 +24,8 @@ class HookOverheadBench
 
     public function setUp()
     {
+        // Print if opcaching is enabled
+        echo 'Opcaching enabled: ' . ((bool) ini_get('opcache.enable') ? 'true' : 'false') . PHP_EOL;
         \DDTrace\trace_method('DDTrace\Benchmarks\HookOverheadBench', 'dummyFunction', function () { });
     }
 
