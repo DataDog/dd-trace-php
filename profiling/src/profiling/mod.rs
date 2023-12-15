@@ -572,6 +572,12 @@ impl Profiler {
     }
 
     pub fn send_sample(&self, message: SampleMessage) -> Result<(), TrySendError<ProfilerMessage>> {
+        if message.key.sample_types.len() == 0 {
+            // profiling disabled, this should not happen!
+            warn!("You spot a bug in the profiler, please be so kind and report this do Datadog.");
+            // this return is technically not correct :-(
+            return Err(TrySendError::Disconnected(ProfilerMessage::Sample(message)));
+        }
         self.message_sender
             .try_send(ProfilerMessage::Sample(message))
     }
@@ -1010,10 +1016,6 @@ impl Profiler {
         locals: &RequestLocals,
         timestamp: i64,
     ) -> SampleMessage {
-        if !locals.profiling_enabled {
-            panic!("Profiling is disabled and this function should not be called!")
-        }
-
         // Lay this out in the same order as SampleValues
         static SAMPLE_TYPES: &[ValueType; 7] = &[
             ValueType::new("sample", "count"),
@@ -1039,10 +1041,12 @@ impl Profiler {
         let mut sample_types = Vec::with_capacity(SAMPLE_TYPES.len());
         let mut sample_values = Vec::with_capacity(SAMPLE_TYPES.len());
 
-        // sample, wall-time, cpu-time
-        let len = 2 + locals.profiling_experimental_cpu_time_enabled as usize;
-        sample_types.extend_from_slice(&SAMPLE_TYPES[0..len]);
-        sample_values.extend_from_slice(&values[0..len]);
+        if locals.profiling_enabled {
+            // sample, wall-time, cpu-time
+            let len = 2 + locals.profiling_experimental_cpu_time_enabled as usize;
+            sample_types.extend_from_slice(&SAMPLE_TYPES[0..len]);
+            sample_values.extend_from_slice(&values[0..len]);
+        }
 
         // alloc-samples, alloc-size
         if locals.profiling_allocation_enabled {
