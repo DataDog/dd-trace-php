@@ -471,7 +471,8 @@ COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 PHPBENCH_OPTS ?=
-PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run --config=$(TESTS_ROOT)/phpbench.json
+PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
+PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run --config=$(PHPBENCH_CONFIG)
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
@@ -1010,6 +1011,12 @@ benchmarks: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/benchmarks/composer.lock
 	$(MAKE) test_scenario_benchmarks
 	$(call run_benchmarks)
+
+benchmarks_opcache: global_test_run_dependencies
+	rm -f tests/.scenarios.lock/benchmarks/composer.lock
+	$(MAKE) test_scenario_benchmarks
+	PHPBENCH_CONFIG=$(TESTS_ROOT)/phpbench-opcache.json
+	$(call run_benchmarks) -d opcache.enable_cli=1
 
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock

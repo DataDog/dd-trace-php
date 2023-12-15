@@ -2,18 +2,14 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\Benchmarks;
+namespace Benchmarks\Integrations;
 
 use DDTrace\Tests\Common\TracerTestTrait;
+use DDTrace\Tests\Common\Utils;
 use DDTrace\Tracer;
 use Monolog\Logger;
-use PhpBench\Benchmark\Metadata\Annotations\AfterClassMethods;
 use Psr\Log\NullLogger;
 
-/**
- * @BeforeClassMethods("setUpBeforeClass")
- * @AfterClassMethods("tearDownAfterClass")
- */
 class LogsInjectionBench
 {
     use TracerTestTrait;
@@ -21,49 +17,10 @@ class LogsInjectionBench
     public $logger;
     public $tracer;
 
-    public static function setUpBeforeClass()
-    {
-        self::putEnvAndReloadConfig([
-        ]);
-        \dd_trace_serialize_closed_spans();
-    }
-
-    public static function tearDownAfterClass()
-    {
-        self::putEnvAndReloadConfig([
-        ]);
-    }
-
-    public static function putEnv($putenv)
-    {
-        // cleanup: properly replace this function by ini_set() in test code ...
-        if (strpos($putenv, "DD_") === 0) {
-            $val = explode("=", $putenv, 2);
-            $name = strtolower(strtr($val[0], [
-                "DD_TRACE_" => "datadog.trace.",
-                "DD_" => "datadog.",
-            ]));
-            if (count($val) > 1) {
-                \ini_set($name, $val[1]);
-            } else {
-                \ini_restore($name);
-            }
-        }
-        \putenv($putenv);
-    }
-
-    public static function putEnvAndReloadConfig($putenvs = [])
-    {
-        foreach ($putenvs as $putenv) {
-            self::putEnv($putenv);
-        }
-        \dd_trace_internal_fn('ddtrace_reload_config');
-    }
-
     public function enableLogsInjection()
     {
         \dd_trace_serialize_closed_spans();
-        $this->putEnvAndReloadConfig([
+        Utils::putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=0',
             'DD_ENV=my-env',
             'DD_SERVICE=my-service',
@@ -97,7 +54,7 @@ class LogsInjectionBench
     public function disableLogsInjection()
     {
         \dd_trace_serialize_closed_spans();
-        $this->putEnvAndReloadConfig([
+        Utils::putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=0',
             'DD_ENV=my-env',
             'DD_SERVICE=my-service',
