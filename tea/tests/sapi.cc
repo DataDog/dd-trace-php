@@ -34,3 +34,9 @@ TEA_TEST_CASE_WITH_PROLOGUE("tea/sapi", "access modified ini", {
     REQUIRE(result);
     REQUIRE(strcmp(result, "Foo prepend") == 0);
 })
+
+TEST_CASE("Whatever") {
+    BENCHMARK("Return") {
+        return 1;
+    };
+}
