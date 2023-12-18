@@ -371,6 +371,7 @@ pub struct RequestLocals {
     pub env: Option<Cow<'static, str>>,
     pub interrupt_count: AtomicU32,
     pub profiling_enabled: bool,
+    pub profiling_experimental_features_enabled: bool,
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
@@ -387,6 +388,7 @@ pub struct RequestLocals {
 impl RequestLocals {
     pub fn disable(&mut self) {
         self.profiling_enabled = false;
+        self.profiling_experimental_features_enabled = false;
         self.profiling_endpoint_collection_enabled = false;
         self.profiling_experimental_cpu_time_enabled = false;
         self.profiling_allocation_enabled = false;
@@ -401,6 +403,7 @@ impl Default for RequestLocals {
             env: None,
             interrupt_count: AtomicU32::new(0),
             profiling_enabled: false,
+            profiling_experimental_features_enabled: false,
             profiling_endpoint_collection_enabled: true,
             profiling_experimental_cpu_time_enabled: true,
             profiling_allocation_enabled: true,
@@ -465,6 +468,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // Safety: We are after first rinit and before mshutdown.
     let (
         profiling_enabled,
+        profiling_experimental_features_enabled,
         profiling_endpoint_collection_enabled,
         profiling_experimental_cpu_time_enabled,
         profiling_allocation_enabled,
@@ -474,14 +478,14 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         log_level,
         output_pprof,
     ) = unsafe {
-        let profiling_enabled = config::profiling_enabled();
         (
-            profiling_enabled,
-            profiling_enabled && config::profiling_endpoint_collection_enabled(),
-            profiling_enabled && config::profiling_experimental_cpu_time_enabled(),
-            profiling_enabled && config::profiling_allocation_enabled(),
-            profiling_enabled && config::profiling_experimental_timeline_enabled(),
-            profiling_enabled && config::profiling_exception_enabled(),
+            config::profiling_enabled(),
+            config::profiling_experimental_features_enabled(),
+            config::profiling_endpoint_collection_enabled(),
+            config::profiling_experimental_cpu_time_enabled(),
+            config::profiling_allocation_enabled(),
+            config::profiling_experimental_timeline_enabled(),
+            config::profiling_exception_enabled(),
             config::profiling_exception_sampling_distance(),
             config::profiling_log_level(),
             config::profiling_output_pprof(),
@@ -496,6 +500,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         locals.interrupt_count.store(0, Ordering::SeqCst);
 
         locals.profiling_enabled = profiling_enabled;
+        locals.profiling_experimental_features_enabled = profiling_experimental_features_enabled;
         locals.profiling_endpoint_collection_enabled = profiling_endpoint_collection_enabled;
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
         locals.profiling_allocation_enabled = profiling_allocation_enabled;
@@ -765,6 +770,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
     REQUEST_LOCALS.with(|cell| {
         let locals = cell.borrow();
         let yes: &[u8] = b"true\0";
+        let yes_exp: &[u8] = b"true (all experimental features enabled)\0";
         let no: &[u8] = b"false\0";
         let no_all: &[u8] = b"false (profiling disabled)\0";
         zend::php_info_print_table_start();
@@ -777,9 +783,25 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
         zend::php_info_print_table_row(
             2,
+            b"Profiling Experimental Features Enabled\0".as_ptr(),
+            if locals.profiling_experimental_features_enabled {
+                yes
+            } else if locals.profiling_enabled {
+                no
+            } else {
+                no_all
+            },
+        );
+
+        zend::php_info_print_table_row(
+            2,
             b"Experimental CPU Time Profiling Enabled\0".as_ptr(),
             if locals.profiling_experimental_cpu_time_enabled {
-                yes
+                if locals.profiling_experimental_features_enabled {
+                    yes_exp
+                } else {
+                    yes
+                }
             } else if locals.profiling_enabled {
                 no
             } else {
@@ -817,7 +839,11 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                     2,
                     b"Experimental Timeline Enabled\0".as_ptr(),
                     if locals.profiling_experimental_timeline_enabled {
-                        yes
+                        if locals.profiling_experimental_features_enabled {
+                            yes_exp
+                        } else {
+                            yes
+                        }
                     } else if locals.profiling_enabled {
                         no
                     } else {
