@@ -19,9 +19,18 @@ struct service_config {
     void disable_asm() { asm_enabled = enable_asm_status::DISABLED; }
     void unset_asm() { asm_enabled = enable_asm_status::NOT_SET; }
     enable_asm_status get_asm_enabled_status() { return asm_enabled; }
+    double get_request_sample_rate() { return request_sample_rate; }
+    void set_request_sample_rate(double sample_rate)
+    {
+        if (sample_rate < 0 || sample_rate > 1) {
+            return;
+        }
+        request_sample_rate = sample_rate;
+    }
 
 protected:
     std::atomic<enable_asm_status> asm_enabled = {enable_asm_status::NOT_SET};
+    std::atomic<double> request_sample_rate = 0.1;
 };
 
 } // namespace dds

@@ -8,6 +8,7 @@
 #include "config.hpp"
 #include "listener.hpp"
 #include "service_config.hpp"
+#include <rapidjson/document.h>
 
 namespace dds::remote_config {
 
@@ -32,6 +33,8 @@ public:
     void commit() override {}
 
 protected:
+    void parse_asm(const rapidjson::Document &serialized_doc);
+    void parse_api_security(const rapidjson::Document &serialized_doc);
     std::shared_ptr<service_config> service_config_;
 };
 

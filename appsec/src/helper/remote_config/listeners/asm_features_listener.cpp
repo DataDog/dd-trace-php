@@ -9,18 +9,42 @@
 #include "remote_config/exception.hpp"
 #include "utils.hpp"
 #include <algorithm>
-#include <rapidjson/document.h>
 
-void dds::remote_config::asm_features_listener::on_update(const config &config)
+void dds::remote_config::asm_features_listener::parse_api_security(
+    const rapidjson::Document &serialized_doc)
 {
-    rapidjson::Document serialized_doc;
-    if (!json_helper::get_json_base64_encoded_content(
-            config.contents, serialized_doc)) {
-        throw error_applying_config("Invalid config contents");
+    auto api_security_itr = json_helper::get_field_of_type(
+        serialized_doc, "api_security", rapidjson::kObjectType);
+
+    if (!api_security_itr) {
+        throw error_applying_config("Invalid config json encoded contents: "
+                                    "api_security key missing or invalid");
     }
 
+    auto request_sample_rate_itr =
+        api_security_itr.value()->value.FindMember("request_sample_rate");
+    if (request_sample_rate_itr ==
+        api_security_itr.value()->value.MemberEnd()) {
+        throw error_applying_config("Invalid config json encoded contents: "
+                                    "request_sample_rate key missing");
+    }
+
+    if (request_sample_rate_itr->value.GetType() != rapidjson::kNumberType ||
+        !request_sample_rate_itr->value.IsDouble()) {
+        throw error_applying_config("Invalid config json encoded contents: "
+                                    "request_sample_rate is not double");
+    }
+
+    service_config_->set_request_sample_rate(
+        request_sample_rate_itr->value.GetDouble());
+}
+
+void dds::remote_config::asm_features_listener::parse_asm(
+    const rapidjson::Document &serialized_doc)
+{
     auto asm_itr = json_helper::get_field_of_type(
         serialized_doc, "asm", rapidjson::kObjectType);
+
     if (!asm_itr) {
         throw error_applying_config("Invalid config json encoded contents: "
                                     "asm key missing or invalid");
@@ -50,4 +74,16 @@ void dds::remote_config::asm_features_listener::on_update(const config &config)
         throw error_applying_config(
             "Invalid config json encoded contents: enabled key invalid");
     }
+}
+
+void dds::remote_config::asm_features_listener::on_update(const config &config)
+{
+    rapidjson::Document serialized_doc;
+    if (!json_helper::get_json_base64_encoded_content(
+            config.contents, serialized_doc)) {
+        throw error_applying_config("Invalid config contents");
+    }
+
+    parse_asm(serialized_doc);
+    parse_api_security(serialized_doc);
 }
