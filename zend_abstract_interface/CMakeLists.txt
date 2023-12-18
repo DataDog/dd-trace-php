@@ -16,7 +16,7 @@ if(${BUILD_ZAI_TESTING})
 
   # The Catch2::Catch2 target has been available since 2.1.2 We are unsure of
   # the true minimum, but have tested 2.4
-  find_package(Catch2 2.4 REQUIRED)
+  find_package(Catch2 2.9 REQUIRED)
 
   #[[ This file takes a while to build, so we do it once here and every test
       executable can link to it to save time.

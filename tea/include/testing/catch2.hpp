@@ -41,7 +41,7 @@
 extern "C" {
 #include "../sapi.h"
 }
-
+#define CATCH_CONFIG_ENABLE_BENCHMARKING
 #include <catch2/catch.hpp>
 
 // clang-format off
@@ -432,5 +432,12 @@ private:
             TEA_TEST_CASE_WITH_BAILOUT_BEGIN,                       \
             TEA_TEST_CASE_WITH_BAILOUT_END,                         \
             __VA_ARGS__) /* }}} */
+
+TEST_CASE("Fibonacci") {
+    BENCHMARK("simple"){
+        return 1;
+    };
+}
+
 // clang-format on
 #endif

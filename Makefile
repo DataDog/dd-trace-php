@@ -164,6 +164,7 @@ build_tea:
 			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
 			-DPhpConfig_ROOT=$(shell php-config --prefix) \
 			$(if $(ASAN), -DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake) \
+			-DCMAKE_VERBOSE_MAKEFILE=ON \
 		$(PROJECT_ROOT)/tea; \
 		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built; \
 	)

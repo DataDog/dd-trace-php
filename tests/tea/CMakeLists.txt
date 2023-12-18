@@ -3,7 +3,7 @@ project(ExtTeaTests LANGUAGES C CXX)
 
 # The Catch2::Catch2 target has been available since 2.1.2 We are unsure of the
 # true minimum, but have tested 2.4
-find_package(Catch2 2.4 REQUIRED)
+find_package(Catch2 2.9 REQUIRED)
 
 set(CMAKE_C_VISIBILITY_PRESET "hidden")
 set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
@@ -17,7 +17,7 @@ if(NOT TARGET Catch2::Catch2WithMain AND TARGET Catch2::Catch2)
       `CATCH_BUILD_STATIC_LIBRARY`; let's polyfill it.
   ]]
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/catch2withmain.cc
-       "#define CATCH_CONFIG_MAIN\n" "#include <catch2/catch.hpp>\n")
+          "#define CATCH_CONFIG_ENABLE_BENCHMARKING\n" "#define CATCH_CONFIG_MAIN\n" "#include <catch2/catch.hpp>\n")
 
   add_library(Catch2WithMain ${CMAKE_CURRENT_BINARY_DIR}/catch2withmain.cc)
   target_compile_features(Catch2WithMain INTERFACE cxx_std_11)
