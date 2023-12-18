@@ -14,8 +14,7 @@
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple?key=value&<redacted>",
       "runtime-id": "912637ae-7f7b-4e70-aaf9-c93af17d9c55",
-      "span.kind": "server",
-      "usr.id": "0"
+      "span.kind": "server"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0

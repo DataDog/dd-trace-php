@@ -15,7 +15,7 @@ datadog.profiling.enabled=no
 datadog.profiling.log_level=info
 datadog.profiling.experimental_cpu_time_enabled=yes
 datadog.profiling.allocation_enabled=yes
-datadog.profiling.experimental_exception_enabled=yes
+datadog.profiling.exception_enabled=yes
 datadog.service=datadog-profiling-phpt
 datadog.env=dev
 datadog.version=13
@@ -48,7 +48,7 @@ $sections = [
     ["Profiling Enabled", "false"],
     ["Experimental CPU Time Profiling Enabled", "false (profiling disabled)"],
     ["Allocation Profiling Enabled", "false (profiling disabled)"],
-    ["Experimental Exception Profiling Enabled", "false (profiling disabled)"],
+    ["Exception Profiling Enabled", "false (profiling disabled)"],
     ["Endpoint Collection Enabled", "false (profiling disabled)"],
     ["Profiling Log Level", "info"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],

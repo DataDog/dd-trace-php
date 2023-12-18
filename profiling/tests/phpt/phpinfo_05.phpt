@@ -1,8 +1,8 @@
 --TEST--
-[profiling] test profiler's extension info
+[profiling] test profiler's extension info with aliases
 --DESCRIPTION--
-The profiler's phpinfo section contains important debugging information. This
-test verifies that certain information is present.
+This test shall validate that the "old" EXPERIMENTAL env variables get
+overwritten by the new ones without EXPERIMENTAL in them.
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))
@@ -10,16 +10,10 @@ if (!extension_loaded('datadog-profiling'))
 ?>
 --ENV--
 DD_PROFILING_ENABLED=yes
-DD_PROFILING_LOG_LEVEL=off
-DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
 DD_PROFILING_ALLOCATION_ENABLED=no
+DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED=yes
 DD_PROFILING_EXCEPTION_ENABLED=no
-DD_SERVICE=datadog-profiling-phpt
-DD_ENV=dev
-DD_VERSION=13
-DD_AGENT_HOST=localh0st
-DD_TRACE_AGENT_PORT=80
-DD_TRACE_AGENT_URL=http://datadog:8126
+DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED=yes
 --INI--
 assert.exception=1
 opcache.jit=off
@@ -47,15 +41,8 @@ assert(isset($values["Version"]));
 // Check exact values for this set
 $sections = [
     ["Profiling Enabled", "true"],
-    ["Experimental CPU Time Profiling Enabled", "false"],
     ["Allocation Profiling Enabled", "false"],
     ["Exception Profiling Enabled", "false"],
-    ["Endpoint Collection Enabled", "true"],
-    ["Profiling Log Level", "off"],
-    ["Profiling Agent Endpoint", "http://datadog:8126/"],
-    ["Application's Environment (DD_ENV)", "dev"],
-    ["Application's Service (DD_SERVICE)", "datadog-profiling-phpt"],
-    ["Application's Version (DD_VERSION)", "13"],
 ];
 
 foreach ($sections as [$key, $expected]) {
@@ -65,7 +52,7 @@ foreach ($sections as [$key, $expected]) {
     );
 }
 
-echo "Done.", PHP_EOL;
+echo "Done.";
 
 ?>
 --EXPECT--

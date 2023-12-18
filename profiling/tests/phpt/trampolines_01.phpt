@@ -17,7 +17,7 @@ if (PHP_MAJOR_VERSION < 8)
 ?>
 --INI--
 datadog.profiling.enabled=1
-datadog.profiling.experimental_allocation_enabled=1
+datadog.profiling.allocation_enabled=1
 max_execution_time=10
 --FILE--
 <?php

@@ -2841,11 +2841,10 @@ jobs:
             make -j $(nproc) ddappsec_helper_test
             ./tests/helper/ddappsec_helper_test
       - run:
-          name: Download ruleset
+          name: Copy ruleset
           command: |
-            cd appsec/build
-            make event_rules
-            cp ./third_party/event_rules-prefix/src/event_rules/build/recommended.json ../../appsec_$(uname -m)/
+            cd appsec
+            cp recommended.json ../appsec_$(uname -m)/
       - persist_to_workspace:
           root: '.'
           paths: [ './appsec_*' ]
