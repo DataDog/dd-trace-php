@@ -62,40 +62,30 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-
-This release introduces support for arm64 and PHP 8.3 for appsec. Additionally, it adds schema extraction and classification to appsec, which forms the foundation for API security. Finally, the appsec extension has been officially incorporated into the dd-trace-php repository and will adhere to the same versioning scheme as the tracer and profiler.
+Exception profiling is now enabled by default. You can manage it using the `DD_PROFILING_EXCEPTION_ENABLED` environment variable or the `datadog.profiling.exception_enabled` setting in the INI file. Although the `DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED` environment variable and `datadog.profiling.experimental_exception_enabled` INI setting still work, the new ones take precedence.
 
 ## Tracer
+
 ### Added
-- Add http.route to CodeIgniter #2379
+- Implement extended sampling #2384
 
 ### Fixed
-- Use http_code instead of connect_time to detect curl errors #2391
-- Fix handling of invalid persistent JSON #2381
-- Zero pad the tid and exclude it from OTel tracestate #2386
+- Add PHP 8.3 to supported versions #2417 (thank you @markwalet)
+- OTel: Fix analytics.event override (#2409)
+- Fix dddbs service mapping #2413
 
-### Internal changes
-- Update CI images to use PHP 8.3.0rc6, pin mongodb for PHP 7.2-7.3 #2382
-- Update CI images to 8.1.26, 8.2.13 and 8.3.0 and XDedug to 3.3.0 #2400 #2405
-- Add macrobenchmark runs #2408
+### Internal Changes
+- CI: Handle latest Alpine 3.19 image #2418
+- CI: Complements PHP 8.3 test suites #2419
 
 ## Profiling
-### Internal changes
-- add allocation and exception count to event.json #2392
 
-## Application Security Management
 ### Added
-- Implement sampler and processor trigger DataDog/dd-appsec-php#308
-- Zip long schemas DataDog/dd-appsec-php#315
-- Add compression library to helper DataDog/dd-appsec-php#316
-- Always serialize schemas when available #2406
-- Upgrade libddwaf to v1.15.1 #2377
-### Internal changes
-- Fix fuzzer build & increase RSS limit DataDog/dd-appsec-php#313
-- Build AppSec extension & helper in CI with support for Arm64 and PHP 8.3 #2344
-- AppSec extension & helper unit tests in CI #2349
-- Package appsec using new builds #2369
+- GA exception profiling #2403
+- allow enabling all experimental features using `datadog.profiling.experimental_features_enabled` #2385
 
+### Internal Changes
+- run prof-correctness nightly in `master` branch #2420
 ]]></notes>
     <contents>
         <dir name="/">
