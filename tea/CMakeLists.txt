@@ -85,6 +85,11 @@ if(${BUILD_TEA_TESTING})
   add_subdirectory(tests)
 endif()
 
+option(BUILD_TEA_BENCHMARKING "Enable TEA benchmarks" OFF)
+if(${BUILD_TEA_BENCHMARKING})
+  add_subdirectory(benchmarks)
+endif()
+
 # Copy the include files on install
 install(
   FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/common.h

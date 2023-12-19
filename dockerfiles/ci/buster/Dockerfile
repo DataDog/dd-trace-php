@@ -161,6 +161,18 @@ RUN set -eux; \
     /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install; \
     rm -rfv /tmp/*
 
+# Install Google Benchmark
+RUN set -eux; \
+    GBENCH_VERSION="1.8.3"; \
+    GBENCH_SHA256="6bc180a57d23d4d9515519f92b0c83d61b05b5bab188961f36ac7b06b0d9e9ce"; \
+    cd /tmp && curl -OL https://github.com/google/benchmark/archive/v${GBENCH_VERSION}.tar.gz; \
+    (echo "${GBENCH_SHA256}  v${GBENCH_VERSION}.tar.gz" | sha256sum -c -); \
+    mkdir gbench && cd gbench; \
+    tar -xf ../v${GBENCH_VERSION}.tar.gz --strip 1; \
+    /opt/cmake/${CMAKE_VERSION}/bin/cmake -Bbuild -H. -DBENCHMARK_ENABLE_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/gbench -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DCMAKE_BUILD_TYPE=Release; \
+    /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --config Release --target install; \
+    rm -rfv /tmp/*
+
 # Install lcov
 RUN set -eux; \
     LCOV_VERSION="1.15"; \
