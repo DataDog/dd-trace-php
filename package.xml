@@ -73,6 +73,7 @@ Exception profiling is now enabled by default. You can manage it using the `DD_P
 - Add PHP 8.3 to supported versions #2417 (thank you @markwalet)
 - OTel: Fix analytics.event override (#2409)
 - Fix dddbs service mapping #2413
+- WordPress: Avoid Setting User ID When Unauthenticated #2424
 
 ### Internal Changes
 - CI: Handle latest Alpine 3.19 image #2418
