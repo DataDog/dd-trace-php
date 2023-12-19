@@ -27,6 +27,7 @@ enum class capabilities_e : uint16_t {
     ASM_CUSTOM_RULES = 1 << 8,
     ASM_CUSTOM_BLOCKING_RESPONSE = 1 << 9,
     ASM_TRUSTED_IPS = 1 << 10,
+    ASM_API_SECURITY_SAMPLE_RATE = 1 << 11,
 };
 
 constexpr capabilities_e operator|(

@@ -26,7 +26,9 @@ public:
     [[nodiscard]] std::unordered_map<std::string_view, protocol::capabilities_e>
     get_supported_products() override
     {
-        return {{"ASM_FEATURES", protocol::capabilities_e::ASM_ACTIVATION}};
+        return {{"ASM_FEATURES", protocol::capabilities_e::ASM_ACTIVATION},
+            {"ASM_API_SECURITY_SAMPLE_RATE",
+                protocol::capabilities_e::ASM_API_SECURITY_SAMPLE_RATE}};
     }
 
     void init() override {}
