@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integration;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
+use DDTrace\Integrations\Integration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -53,6 +54,125 @@ class DatabaseMonitoringTest extends IntegrationTestCase
                     "_dd.dbm_trace_injected" => "true",
                     "_dd.base_service" => "phpunit",
                 ])
+            ])
+        ]);
+    }
+
+    public function testInjectionServiceMappingOnce()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $span = $hook->span();
+                Integration::handleInternalSpanServiceName($span, "pdo");
+                $span->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            self::putEnv("DD_SERVICE_MAPPING=pdo:mapped-service");
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $this->assertRegularExpression('/^\/\*dddbs=\'mapped-service\',ddps=\'phpunit\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-01\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists("phpunit")->withChildren([
+                SpanAssertion::exists('instrumented')->withExactTags([
+                    "_dd.dbm_trace_injected" => "true",
+                    "_dd.base_service" => "mapped-service",
+                ])
+            ])
+        ]);
+    }
+
+    public function testInjectionServiceMappingTwice()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $span = $hook->span();
+                Integration::handleInternalSpanServiceName($span, "pdo");
+                $span->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            self::putEnv("DD_SERVICE_MAPPING=pdo:mapped-service");
+            // Note that here, we don't start a new trace, hence the service mapping should apply to both dddbs & ddps
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $this->assertRegularExpression('/^\/\*dddbs=\'mapped-service\',ddps=\'mapped-service\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-c151df7d6ee5e2d6-01\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('instrumented')->withExactTags([
+                "_dd.dbm_trace_injected" => "true",
+                "_dd.base_service" => "mapped-service",
+            ])
+        ]);
+    }
+
+    public function testInjectionServiceMappingService()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $span = $hook->span();
+                Integration::handleInternalSpanServiceName($span, "pdo");
+                $span->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=service");
+            self::putEnv("DD_SERVICE_MAPPING=pdo:mapped-service");
+            // Note that here, we don't start a new trace, hence the service mapping should apply to both dddbs & ddps
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $this->assertRegularExpression('/^\/\*dddbs=\'mapped-service\',ddps=\'mapped-service\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('instrumented')->withExactTags([
+                "_dd.dbm_trace_injected" => "true",
+                "_dd.base_service" => "mapped-service",
+            ])
+        ]);
+    }
+
+    public function testInjectionServiceMappingNone()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $span = $hook->span();
+                Integration::handleInternalSpanServiceName($span, "pdo");
+                $span->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=none");
+            self::putEnv("DD_SERVICE_MAPPING=pdo:mapped-service");
+            // Note that here, we don't start a new trace, hence the service mapping should apply to both dddbs & ddps
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $this->assertSame('SELECT 1', $commentedQuery);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('instrumented')->withExactTags([
+                "_dd.dbm_trace_injected" => "true",
+                "_dd.base_service" => "mapped-service",
             ])
         ]);
     }
