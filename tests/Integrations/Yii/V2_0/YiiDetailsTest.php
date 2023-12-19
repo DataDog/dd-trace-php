@@ -43,6 +43,7 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                     Tag::HTTP_URL => 'http://localhost:9999/site/index',
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.route.path' => '/site/index',
+                    Tag::HTTP_ROUTE => '/site/index',
                     'app.endpoint' => 'app\controllers\SiteController::actionIndex',
                     Tag::SPAN_KIND => "server",
                     Tag::COMPONENT => "yii",

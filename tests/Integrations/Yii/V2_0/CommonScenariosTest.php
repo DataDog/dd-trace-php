@@ -53,6 +53,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'app\controllers\SimpleController::actionIndex',
                         'app.route.path' => '/simple',
+                        Tag::HTTP_ROUTE => '/simple',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
                     ])->withChildren([
@@ -96,6 +97,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'app\controllers\SimpleController::actionView',
                         'app.route.path' => '/simple_view',
+                        Tag::HTTP_ROUTE => '/simple_view',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
                     ])->withChildren([
@@ -142,6 +144,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_STATUS_CODE => '500',
                         'app.endpoint' => 'app\controllers\SimpleController::actionError',
                         'app.route.path' => '/error',
+                        Tag::HTTP_ROUTE => '/error',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
                     ])
@@ -200,6 +203,50 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                     ]),
                                 ]),
                         ]),
+                ],
+                'A GET request to a route with a parameter' => [
+                    SpanAssertion::build(
+                        'web.request',
+                        'yii2_test_app',
+                        'web',
+                        'GET /parameterized/?'
+                    )->withExactTags([
+                        Tag::HTTP_METHOD => 'GET',
+                        Tag::HTTP_URL => 'http://localhost:9999/parameterized/paramValue',
+                        Tag::HTTP_STATUS_CODE => '200',
+                        'app.endpoint' => 'app\controllers\SimpleController::actionParameterized',
+                        'app.route.path' => '/parameterized/:value',
+                        Tag::HTTP_ROUTE => '/parameterized/:value',
+                        Tag::SPAN_KIND => "server",
+                        Tag::COMPONENT => "yii",
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'yii\web\Application.run',
+                            'yii2_test_app',
+                            Type::WEB_SERVLET,
+                            'yii\web\Application.run'
+                        )->withExactTags([
+                            Tag::COMPONENT => "yii",
+                        ])->withChildren([
+                            SpanAssertion::build(
+                                'yii\web\Application.runAction',
+                                'yii2_test_app',
+                                Type::WEB_SERVLET,
+                                'simple/parameterized'
+                            )->withExactTags([
+                                Tag::COMPONENT => "yii",
+                            ])->withChildren([
+                                SpanAssertion::build(
+                                    'app\controllers\SimpleController.runAction',
+                                    'yii2_test_app',
+                                    Type::WEB_SERVLET,
+                                    'parameterized'
+                                )->withExactTags([
+                                    Tag::COMPONENT => "yii",
+                                ]),
+                            ]),
+                        ]),
+                    ]),
                 ],
                 ]
             );
