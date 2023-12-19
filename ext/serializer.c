@@ -1150,6 +1150,46 @@ void ddtrace_shutdown_span_sampling_limiter(void) {
     zend_hash_destroy(&dd_span_sampling_limiters);
 }
 
+// ParseBool returns the boolean value represented by the string.
+// It accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False.
+// Any other value returns -1.
+static zend_always_inline double strconv_parse_bool(zend_string *str) {
+    // See Go's strconv.ParseBool
+    // https://cs.opensource.google/go/go/+/refs/tags/go1.21.5:src/strconv/atob.go;drc=1f137052e4a20dbd302f947b1cf34cdf4b427d65;l=10
+    size_t len = ZSTR_LEN(str);
+    if (len == 0) {
+        return -1;
+    }
+
+    char *s = ZSTR_VAL(str);
+    switch (len) {
+        case 1:
+            switch (s[0]) {
+                case '1':
+                case 't':
+                case 'T':
+                    return 1;
+                case '0':
+                case 'f':
+                case 'F':
+                    return 0;
+            }
+            break;
+        case 4:
+            if (strcmp(s, "TRUE") == 0 || strcmp(s, "True") == 0 || strcmp(s, "true") == 0) {
+                return 1;
+            }
+            break;
+        case 5:
+            if (strcmp(s, "FALSE") == 0 || strcmp(s, "False") == 0 || strcmp(s, "false") == 0) {
+                return 0;
+            }
+            break;
+    }
+
+    return -1;
+}
+
 void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
 
@@ -1273,12 +1313,17 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (analytics_event) {
         zval analytics_event_as_double;
         if (Z_TYPE_P(analytics_event) == IS_STRING) {
-            ZVAL_DOUBLE(&analytics_event_as_double, zend_is_true(analytics_event)); // 'true' => 1.0, false => 0.0
+            double parsed_analytics_event = strconv_parse_bool(Z_STR_P(analytics_event));
+            if (parsed_analytics_event >= 0) {
+                ZVAL_DOUBLE(&analytics_event_as_double, parsed_analytics_event);
+                zend_array *metrics = ddtrace_property_array(&span->property_metrics);
+                zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &analytics_event_as_double);
+            }
         } else {
             ZVAL_DOUBLE(&analytics_event_as_double, zval_get_double(analytics_event));
+            zend_array *metrics = ddtrace_property_array(&span->property_metrics);
+            zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &analytics_event_as_double);
         }
-        zend_array *metrics = ddtrace_property_array(&span->property_metrics);
-        zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &analytics_event_as_double);
         zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
     }
 
