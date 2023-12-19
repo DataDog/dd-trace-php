@@ -62,9 +62,29 @@ COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 RUN cp /tmp/build-php/sapi/cli/php-asan $PHP_INSTALL_DIR/debug-zts-asan/bin/php
 
+FROM build as php-nts-asan
+  ARG TARGETPLATFORM
+  RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts-asan $PHP_VERSION \
+    && mv /tmp/build-php/sapi/cli/php /tmp/build-php/sapi/cli/php-asan
+  # For reasons the asan build just ... crashes in qemu (or executed via
+  # bytecode interpreter). The binary itself however perfectly works on the
+  # target platform. Put a working php binary there to continue installation
+  # and be happy, then copy back later.
+  COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug/bin/php /tmp/build-php/sapi/cli/php
+  RUN set -eux; \
+    ln -s $PHP_INSTALL_DIR/nts-asan $PHP_INSTALL_DIR/debug; \
+    cd /tmp/build-php; \
+    touch sapi/cli/php; \
+    make install; \
+    switch-php nts-asan;
+  COPY build-extensions.sh /home/circleci
+  RUN /home/circleci/build-extensions.sh
+  RUN mv /tmp/build-php/sapi/cli/php-asan $PHP_INSTALL_DIR/nts-asan/bin/php
+
 FROM base as final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan
+COPY --chown=circleci:circleci --from=php-nts-asan $PHP_INSTALL_DIR/nts-asan $PHP_INSTALL_DIR/nts-asan
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR/nts $PHP_INSTALL_DIR/nts
 COPY --chown=circleci:circleci --from=php-zts $PHP_INSTALL_DIR/zts $PHP_INSTALL_DIR/zts
