@@ -1,4 +1,5 @@
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm as src
+ARG BUILD_BASE
+FROM --platform=$BUILDPLATFORM $BUILD_BASE as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 RUN set -eux; \
@@ -9,7 +10,7 @@ RUN set -eux; \
     cd ${PHP_SRC_DIR}; \
     ./buildconf --force;
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm AS build
+FROM --platform=$BUILDPLATFORM $BUILD_BASE AS build
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
@@ -42,7 +43,7 @@ RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSIO
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM datadog/dd-trace-ci:bookworm as final
+FROM $BUILD_BASE as final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR/debug-zts $PHP_INSTALL_DIR/debug-zts
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug

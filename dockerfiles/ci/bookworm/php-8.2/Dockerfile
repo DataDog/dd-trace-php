@@ -1,9 +1,10 @@
-FROM datadog/dd-trace-ci:bookworm AS base
+ARG BUILD_BASE
+FROM $BUILD_BASE AS base
 
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm as src
+FROM --platform=$BUILDPLATFORM $BUILD_BASE as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 RUN set -eux; \
@@ -14,7 +15,7 @@ RUN set -eux; \
     cd ${PHP_SRC_DIR}; \
     ./buildconf --force;
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm AS build
+FROM --platform=$BUILDPLATFORM $BUILD_BASE AS build
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
