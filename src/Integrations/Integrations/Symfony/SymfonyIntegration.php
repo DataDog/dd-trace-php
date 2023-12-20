@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Symfony;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\Drupal\DrupalIntegration;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
@@ -11,6 +12,7 @@ use DDTrace\Util\Normalizer;
 use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
+use function DDTrace\install_hook;
 
 class SymfonyIntegration extends Integration
 {
@@ -448,27 +450,32 @@ class SymfonyIntegration extends Integration
                             if (\strpos($controllerName, '::') > 0) {
                                 list($class, $method) = \explode('::', $controllerName);
                                 if (isset($class, $method)) {
-                                    \DDTrace\trace_method(
-                                        $class,
-                                        $method,
-                                        function (SpanData $span) use ($controllerName, $integration) {
+                                    \DDTrace\install_hook(
+                                        "$class::$method",
+                                        function (HookData $hook) use ($controllerName, $integration) {
+                                            $span = $hook->span();
                                             $span->name = 'symfony.controller';
                                             $span->resource = $controllerName;
                                             $span->type = Type::WEB_SERVLET;
                                             $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
                                             $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+
+                                            \DDTrace\remove_hook($hook->id);
                                         }
                                     );
                                 }
                             } else {
-                                \DDTrace\trace_function(
-                                    $controllerName,
-                                    function (SpanData $span) use ($controllerName, $integration) {
+                                \DDTrace\install_hook(
+                                    "$controllerName",
+                                    function (HookData $hook) use ($controllerName, $integration) {
+                                        $span = $hook->span();
                                         $span->name = 'symfony.controller';
                                         $span->resource = $controllerName;
                                         $span->type = Type::WEB_SERVLET;
                                         $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
                                         $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+
+                                        \DDTrace\remove_hook($hook->id);
                                     }
                                 );
                             }
