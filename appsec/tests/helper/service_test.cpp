@@ -57,6 +57,8 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
         auto s = service(
             engine, service_config, nullptr, {true, all_requests_are_picked});
 
+        EXPECT_EQ(
+            all_requests_are_picked, service_config->get_request_sample_rate());
         EXPECT_TRUE(s.get_schema_sampler()->get().has_value());
     }
 
@@ -65,6 +67,8 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
         auto s = service(
             engine, service_config, nullptr, {true, no_request_is_picked});
 
+        EXPECT_EQ(
+            no_request_is_picked, service_config->get_request_sample_rate());
         EXPECT_FALSE(s.get_schema_sampler()->get().has_value());
     }
 
@@ -74,6 +78,7 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
         auto s = service(engine, service_config, nullptr,
             {schema_extraction_disabled, all_requests_are_picked});
 
+        EXPECT_EQ(0, service_config->get_request_sample_rate());
         EXPECT_FALSE(s.get_schema_sampler()->get().has_value());
     }
 
