@@ -19,15 +19,7 @@ class sampler {
 public:
     sampler(double sample_rate) : sample_rate_(sample_rate)
     {
-        // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-        if (sample_rate_ <= 0) {
-            sample_rate_ = 0;
-        } else if (sample_rate_ > 1) {
-            sample_rate_ = 1;
-        } else if (sample_rate_ < min_rate) {
-            sample_rate_ = min_rate;
-        }
-        // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+        set_sampler_rate(sample_rate);
     }
     class scope {
     public:
@@ -82,9 +74,29 @@ public:
         return result;
     }
 
+    void set_sampler_rate(double sampler_rate)
+    {
+        // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+        if (sampler_rate <= 0) {
+            sampler_rate = 0;
+        } else if (sampler_rate > 1) {
+            sampler_rate = 1;
+        } else if (sampler_rate < min_rate) {
+            sampler_rate = min_rate;
+        }
+        // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
+        if (sampler_rate == sample_rate_) {
+            return;
+        }
+
+        request_ = 1;
+        sample_rate_ = sampler_rate;
+    }
+
 protected:
     unsigned request_{1};
-    double sample_rate_;
+    double sample_rate_{0};
     std::atomic<bool> concurrent_{false};
     std::mutex mtx_;
 };

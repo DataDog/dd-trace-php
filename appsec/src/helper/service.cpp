@@ -31,6 +31,7 @@ service::service(std::shared_ptr<engine> engine,
     }
 
     schema_sampler_ = std::make_shared<sampler>(sample_rate);
+    service_config_->set_request_sample_rate(sample_rate);
 }
 
 service::ptr service::from_settings(service_identifier &&id,

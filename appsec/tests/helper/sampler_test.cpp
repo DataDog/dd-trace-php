@@ -16,6 +16,10 @@ public:
     sampler(double sample_rate) : dds::sampler(sample_rate) {}
     void set_request(unsigned int i) { request_ = i; }
     auto get_request() { return request_; }
+    void set_sampler_rate(double sampler_rate)
+    {
+        dds::sampler::set_sampler_rate(sampler_rate);
+    }
 };
 
 } // namespace mock
@@ -200,6 +204,48 @@ TEST(SamplerTest, TestOverflow)
     s.set_request(UINT_MAX);
     s.get();
     EXPECT_EQ(1, s.get_request());
+}
+
+TEST(SamplerTest, ModifySamplerRate)
+{
+    { // New sampler rate reset requests
+        mock::sampler s(0.1);
+        s.get();
+        EXPECT_EQ(2, s.get_request());
+        s.set_sampler_rate(0.2);
+        EXPECT_EQ(1, s.get_request());
+    }
+    { // Setting same sampler rate does do anything
+        mock::sampler s(0.1);
+        s.get();
+        EXPECT_EQ(2, s.get_request());
+        s.set_sampler_rate(0.1);
+        EXPECT_EQ(2, s.get_request());
+    }
+    { // Over Zero: If given rate is invalid and gets defaulted to a value which
+      // is same as before, it does not change anything
+        mock::sampler s(3);
+        s.get();
+        EXPECT_EQ(2, s.get_request());
+        s.set_sampler_rate(4);
+        EXPECT_EQ(2, s.get_request());
+    }
+    { // Below zero: If given rate is invalid and gets defaulted to a value
+      // which is same as before, it does not change anything
+        mock::sampler s(-3);
+        s.get();
+        EXPECT_EQ(2, s.get_request());
+        s.set_sampler_rate(-4);
+        EXPECT_EQ(2, s.get_request());
+    }
+    { // Below min: If given rate is invalid and gets defaulted to a value which
+      // is same as before, it does not change anything
+        mock::sampler s(0.000001);
+        s.get();
+        EXPECT_EQ(2, s.get_request());
+        s.set_sampler_rate(0.000002);
+        EXPECT_EQ(2, s.get_request());
+    }
 }
 
 TEST(ScopeTest, TestConcurrent)
