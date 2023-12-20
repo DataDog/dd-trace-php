@@ -1,0 +1,53 @@
+name: Profiling correctness
+
+on:
+  pull_request:
+
+jobs:
+  prof-correctness:
+    runs-on: ubuntu-latest
+    container: datadog/dd-trace-ci:php-8.3_bookworm-1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Restore build cache
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build profiler
+        run: |
+          switch-php nts-asan
+          cd profiling
+          export CARGO_TARGET_DIR=/tmp/build-cargo
+          export CC=clang-16
+          export CFLAGS='-fsanitize=address  -fno-omit-frame-pointer'
+          export LDFLAGS='-fsanitize=address'
+          export RUSTC_LINKER=lld-16
+          triplet=$(uname -m)-unknown-linux-gnu
+          RUSTFLAGS='-Zsanitizer=address' cargo +nightly-2023-05-03 build -Zbuild-std --target $triplet --release
+          cd tests
+          php run-tests.php --asan -d extension=$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so phpt
+
+      - name: Cache build dependencies
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}
+
