@@ -6,7 +6,9 @@ on:
 jobs:
   prof-correctness:
     runs-on: ubuntu-latest
-    container: datadog/dd-trace-ci:php-8.3_bookworm-1
+    container:
+      image: datadog/dd-trace-ci:php-8.3_bookworm-1
+      options: --user 3434
 
     steps:
       - name: Checkout
