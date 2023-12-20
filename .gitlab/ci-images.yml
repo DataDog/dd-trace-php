@@ -59,7 +59,7 @@ Alpine Compile Extension:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
-Ubuntu Buster:
+Ubuntu Bookworm:
   stage: ci-build
   rules:
     - when: manual
@@ -84,6 +84,6 @@ Ubuntu Buster:
         - php-7.0
         - php-master
   script:
-    - cd dockerfiles/ci/buster
+    - cd dockerfiles/ci/bookworm
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
     - docker buildx bake --no-cache --pull --push $PHP_VERSION

@@ -1,4 +1,4 @@
-FROM debian:buster AS base
+FROM debian:bookworm AS base
 
 ENV LANG=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
@@ -9,9 +9,11 @@ ENV ACCEPT_EULA=Y
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
 ENV DEVLIBS \
+    catch2 \
     clang-16 \
+    cmake \
+    lcov \
     libclang-16-dev \
-    libclang-rt-16-dev \
     llvm-16-dev \
     lld-16 \
     libcurl4-openssl-dev \
@@ -33,24 +35,23 @@ ENV DEVLIBS \
     libxslt1-dev \
     libzip-dev \
     zlib1g-dev \
-    libasan5 \
+    libasan6 \
     gnupg \
     unixodbc-dev \
-    unixodbc
+    unixodbc \
+    valgrind
 
+#netcat
 ENV RUNTIME_DEPS \
     apache2 \
     apache2-dev \
     ca-certificates \
-    clang \
-    clang-format \
     curl \
     debian-goodies \
     gdb \
     git \
     less \
     netbase \
-    netcat \
     nginx \
     strace \
     sudo \
@@ -64,9 +65,9 @@ ENV PHPIZE_DEPS \
     autoconf \
     bison \
     dpkg-dev \
-    file \
     g++ \
     gcc \
+    file \
     libc-dev \
     make \
     pkg-config \
@@ -84,16 +85,15 @@ RUN set -eux; \
     ulimit -c unlimited; \
     \
 # Ensure debug symbols are available
-    echo "deb http://deb.debian.org/debian-debug/ buster-debug main" | \
+    echo "deb http://deb.debian.org/debian-debug/ bookworm-debug main" | \
         tee -a /etc/apt/sources.list; \
     \
-# Use LLVM from orig vendor (also LLVM 16 is not shipped with buster)
+# Use LLVM from orig vendor (also LLVM 16 is not shipped with bookworm)
     apt-get update; \
-    apt-get install -y curl gnupg; \
-    echo "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-16 main" >> /etc/apt/sources.list; \
-    echo "deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-16 main" >> /etc/apt/sources.list; \
-    curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \
+    apt-get install -y curl gnupg software-properties-common; \
     curl https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
+    add-apt-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-16 main"; \
+    add-apt-repository "deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-16 main"; \
     \
 # prevent Debian's PHP packages from being installed
 # https://github.com/docker-library/php/pull/542
@@ -113,11 +113,6 @@ RUN set -eux; \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \
     \
-# valgrind 3.14 has a fatal bug making it unusable with PHP on arm64, manually install valgrind from bullseye \
-    curl -O http://ftp.de.debian.org/debian/pool/main/v/valgrind/valgrind_3.16.1-1_${TARGETPLATFORM#linux/}.deb; \
-    dpkg -i valgrind*.deb; \
-    rm valgrind*.deb; \
-    \
 # Disable DST ROOT X3 certificate explicitly to fix conflicts with older openssl versions \
     sed -ri 's/(mozilla\/DST_Root_CA_X3.crt)/!\1/' /etc/ca-certificates.conf; \
     update-ca-certificates; \
@@ -131,52 +126,11 @@ RUN set -eux; \
 # Allow nginx to be run as non-root for tests
     chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/;
 
-ENV CMAKE_VERSION="3.24.4"
-
-# Install CMake
-RUN set -eux; \
-    if [ "$(uname -m)" = "aarch64" ]; then \
-        CMAKE_SHA256="86f823f2636bf715af89da10e04daa476755a799d451baee66247846e95d7bee"; \
-    else \
-        CMAKE_SHA256="cac77d28fb8668c179ac02c283b058aeb846fe2133a57d40b503711281ed9f19"; \
-    fi; \
-    cd /tmp && curl -L --output cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-Linux-$(uname -m).tar.gz; \
-    (echo "${CMAKE_SHA256} cmake.tar.gz" | sha256sum -c -); \
-    mkdir -p /opt/cmake/${CMAKE_VERSION}; \
-    tar --strip-components 1 -C /opt/cmake/${CMAKE_VERSION} -xf /tmp/cmake.tar.gz; \
-# Currently there's only one version of cmake, make it default
-    ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake; \
-    rm -rfv /tmp/*
-
-# Install Catch2
-RUN set -eux; \
-    CATCH2_VERSION="2.13.10"; \
-    CATCH2_SHA256="d54a712b7b1d7708bc7a819a8e6e47b2fde9536f487b89ccbca295072a7d9943"; \
-    cd /tmp && curl -OL https://github.com/catchorg/Catch2/archive/v${CATCH2_VERSION}.tar.gz; \
-    (echo "${CATCH2_SHA256}  v${CATCH2_VERSION}.tar.gz" | sha256sum -c -); \
-    mkdir catch2 && cd catch2; \
-    tar -xf ../v${CATCH2_VERSION}.tar.gz --strip 1; \
-    /opt/cmake/${CMAKE_VERSION}/bin/cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
-    /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install; \
-    rm -rfv /tmp/*
-
-# Install lcov
-RUN set -eux; \
-    LCOV_VERSION="1.15"; \
-    LCOV_SHA256="c1cda2fa33bec9aa2c2c73c87226cfe97de0831887176b45ee523c5e30f8053a"; \
-    cd /tmp && curl -OL https://github.com/linux-test-project/lcov/releases/download/v${LCOV_VERSION}/lcov-${LCOV_VERSION}.tar.gz; \
-    (echo "${LCOV_SHA256} lcov-${LCOV_VERSION}.tar.gz" | sha256sum -c -); \
-    mkdir lcov && cd lcov; \
-    tar -xf ../lcov-${LCOV_VERSION}.tar.gz --strip 1; \
-    make install; \
-    lcov --version; \
-    rm -rfv /tmp/*
-
 # Install SqlServer PHP Driver
 # https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
 RUN set -eux; \
-    curl -s https://packages.microsoft.com/keys/microsoft.asc | apt-key add -; \
-    curl -s https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list; \
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg; \
+    curl https://packages.microsoft.com/config/debian/12/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list; \
     apt-get update; \
     apt-get install -y \
       msodbcsql18 \
@@ -258,26 +212,19 @@ RUN set -eux; \
     mkdir -p $PHP_INSTALL_DIR; \
     chown -R circleci:circleci /opt;
 
-# rust sha256sum generated locally after verifying it with sha256
 ARG RUST_VERSION="1.71.1"
-ARG RUST_SHA256_ARM="c7cf230c740a62ea1ca6a4304d955c286aea44e3c6fc960b986a8c2eeea4ec3f"
-ARG RUST_SHA256_X86="34778d1cda674990dfc0537bc600066046ae9cb5d65a07809f7e7da31d4689c4"
+# Nightly version which kinda matches v1.71.1
+ARG RUST_NIGHTLY_VERSION="-2023-05-03"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
 RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && chmod -R 777 "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && MARCH=$(uname -m) \
-    && RUST_SHA256=$(if [ "$MARCH" = "x86_64" ]; then echo ${RUST_SHA256_X86}; elif [ "$MARCH" = "aarch64" ]; then echo ${RUST_SHA256_ARM}; fi) \
-    && FILENAME=rust-${RUST_VERSION}-${MARCH}-unknown-linux-gnu.tar.gz \
-    && curl -L --write-out '%{http_code}' -O https://static.rust-lang.org/dist/${FILENAME} \
-    && printf '%s  %s' "$RUST_SHA256" "$FILENAME" | sha256sum --check --status \
-    && tar -xf "$FILENAME" \
-    && cd ${FILENAME%.tar.gz} \
-    && ./install.sh --components="rustc,cargo,clippy-preview,rustfmt-preview,rust-std-${MARCH}-unknown-linux-gnu" \
-    && cd - \
-    && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" \
-    && rm -rfv /tmp/*
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain $RUST_VERSION -c "rustc,cargo,clippy-preview,rustfmt-preview,rust-std" \
+    && export PATH="/rust/cargo/bin:$PATH" \
+    && rustup install nightly${RUST_NIGHTLY_VERSION} \
+    && rustup component add rust-src --toolchain nightly${RUST_NIGHTLY_VERSION}-$MARCH-unknown-linux-gnu
 
 ENV PATH="/rust/cargo/bin:${PATH}"
 
@@ -291,7 +238,7 @@ USER circleci
 
 RUN set -eux; \
 # Pretty prompt
-    echo "PS1='\[\033[01;32m\]\u\[\033[00m\]\[\033[00;35m\](buster)\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '" | \
+    echo "PS1='\[\033[01;32m\]\u\[\033[00m\]\[\033[00;35m\](bookworm)\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '" | \
         tee -a /home/circleci/.bashrc; \
 # Autocomplete of Makefile targets (see: https://stackoverflow.com/a/38415982)
     echo "complete -W \"\\\`grep -oE '^[a-zA-Z0-9_.-]+:([^=]|$)' ?akefile | sed 's/[^a-zA-Z0-9_.-]*$//'\\\`\" make" | \

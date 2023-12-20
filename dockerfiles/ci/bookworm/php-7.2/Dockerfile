@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster as src
+FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch /home/circleci
@@ -11,7 +11,7 @@ RUN set -eux; \
     ./buildconf --force; \
     patch Zend/zend_alloc.c /home/circleci/0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch;
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
+FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm AS build
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
@@ -44,7 +44,7 @@ RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSIO
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM datadog/dd-trace-ci:buster as final
+FROM datadog/dd-trace-ci:bookworm as final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR/debug-zts $PHP_INSTALL_DIR/debug-zts
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug

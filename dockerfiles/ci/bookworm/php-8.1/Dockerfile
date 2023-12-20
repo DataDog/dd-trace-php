@@ -1,12 +1,9 @@
-FROM datadog/dd-trace-ci:buster AS base
+FROM datadog/dd-trace-ci:bookworm AS base
 
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
-ENV LSAN_OPTIONS="suppressions=/home/circleci/suppr.txt,print_suppressions=0"
 
-COPY php-8.3/suppr.txt /home/circleci/suppr.txt
-
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster as src
+FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 RUN set -eux; \
@@ -17,7 +14,7 @@ RUN set -eux; \
     cd ${PHP_SRC_DIR}; \
     ./buildconf --force;
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
+FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm AS build
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
@@ -78,7 +75,7 @@ RUN set -eux; \
     switch-php debug;
 
 # Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:1 /usr/bin/composer /usr/local/bin/composer
 
 COPY welcome /etc/motd
 RUN sudo sed -i "s/VERSIONS/$(ls $PHP_INSTALL_DIR | xargs)/" /etc/motd

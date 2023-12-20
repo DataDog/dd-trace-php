@@ -1,9 +1,13 @@
-FROM datadog/dd-trace-ci:buster AS base
+ARG BUILD_BASE
+FROM $BUILD_BASE AS base
 
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
+ENV LSAN_OPTIONS="suppressions=/home/circleci/suppr.txt,print_suppressions=0"
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster as src
+COPY php-8.3/suppr.txt /home/circleci/suppr.txt
+
+FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 RUN set -eux; \
@@ -14,7 +18,7 @@ RUN set -eux; \
     cd ${PHP_SRC_DIR}; \
     ./buildconf --force;
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
+FROM --platform=$BUILDPLATFORM $BUILD_BASE AS build
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}

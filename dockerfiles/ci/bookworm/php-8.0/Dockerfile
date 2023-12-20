@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster as src
+FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Better-support-for-cross-compilation.patch /home/circleci
@@ -13,7 +13,7 @@ RUN set -eux; \
     patch -p1 /home/circleci/0001-Fix-GH-10611-fpm_env_init_main-leaks-environ.patch; \
     ./buildconf --force
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
+FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm AS build
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
@@ -60,7 +60,7 @@ COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 RUN cp /tmp/build-php/sapi/cli/php-asan $PHP_INSTALL_DIR/debug-zts-asan/bin/php
 
-FROM datadog/dd-trace-ci:buster as final
+FROM datadog/dd-trace-ci:bookworm as final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug
