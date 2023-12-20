@@ -42,6 +42,7 @@ jobs:
           triplet=$(uname -m)-unknown-linux-gnu
           RUSTFLAGS='-Zsanitizer=address' cargo +nightly-2023-05-03 build -Zbuild-std --target $triplet --release
           cd tests
+          cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
           php run-tests.php --asan -d extension=$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so phpt
 
       - name: Cache build dependencies
