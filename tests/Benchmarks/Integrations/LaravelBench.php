@@ -40,10 +40,10 @@ class LaravelBench extends WebFrameworkTestCase
     /**
      * @BeforeMethods("disableLaravelTracing")
      * @AfterMethods("afterMethod")
-     * @Revs(5)
-     * @Iterations(5)
+     * @Revs(1)
+     * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(5.0)
      */
     public function benchLaravelBaseline()
     {
@@ -56,10 +56,10 @@ class LaravelBench extends WebFrameworkTestCase
     /**
      * @BeforeMethods("enableLaravelTracing")
      * @AfterMethods("afterMethod")
-     * @Revs(5)
-     * @Iterations(5)
+     * @Revs(1)
+     * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(5.0)
      */
     public function benchLaravelOverhead()
     {

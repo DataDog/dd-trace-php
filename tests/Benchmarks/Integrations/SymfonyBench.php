@@ -40,10 +40,10 @@ class SymfonyBench extends WebFrameworkTestCase
     /**
      * @BeforeMethods("disableSymfonyTracing")
      * @AfterMethods("afterMethod")
-     * @Revs(5)
-     * @Iterations(5)
+     * @Revs(1)
+     * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(5.0)
      */
     public function benchSymfonyBaseline()
     {
@@ -56,10 +56,10 @@ class SymfonyBench extends WebFrameworkTestCase
     /**
      * @BeforeMethods("enableSymfonyTracing")
      * @AfterMethods("afterMethod")
-     * @Revs(5)
-     * @Iterations(5)
+     * @Revs(1)
+     * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(5.0)
      */
     public function benchSymfonyOverhead()
     {
