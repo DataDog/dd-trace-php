@@ -7,7 +7,7 @@ ENV LSAN_OPTIONS="suppressions=/home/circleci/suppr.txt,print_suppressions=0"
 
 COPY php-8.3/suppr.txt /home/circleci/suppr.txt
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:bookworm as src
+FROM --platform=$BUILDPLATFORM $BUILD_BASE as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 RUN set -eux; \
