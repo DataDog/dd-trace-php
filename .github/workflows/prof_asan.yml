@@ -1,4 +1,4 @@
-name: Profiling correctness
+name: Profiling ASAN Tests
 
 on:
   pull_request:
@@ -28,6 +28,7 @@ jobs:
 
       - name: Build profiler
         run: |
+          set -eux
           switch-php nts-asan
           cd profiling
           export CARGO_TARGET_DIR=/tmp/build-cargo
