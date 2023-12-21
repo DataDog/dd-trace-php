@@ -346,6 +346,12 @@ impl TimeCollector {
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         started_at: &WallTime,
     ) {
+        if message.key.sample_types.len() == 0 {
+            // profiling disabled, this should not happen!
+            warn!("You spot a bug in the profiler, please be so kind and report this do Datadog.");
+            return;
+        }
+
         let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key) {
             value
         } else {
@@ -572,12 +578,6 @@ impl Profiler {
     }
 
     pub fn send_sample(&self, message: SampleMessage) -> Result<(), TrySendError<ProfilerMessage>> {
-        if message.key.sample_types.len() == 0 {
-            // profiling disabled, this should not happen!
-            warn!("You spot a bug in the profiler, please be so kind and report this do Datadog.");
-            // this return is technically not correct :-(
-            return Err(TrySendError::Disconnected(ProfilerMessage::Sample(message)));
-        }
         self.message_sender
             .try_send(ProfilerMessage::Sample(message))
     }
