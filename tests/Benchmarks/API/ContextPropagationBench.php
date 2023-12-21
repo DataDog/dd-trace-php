@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\Benchmarks;
+namespace Benchmarks\API;
 
 class ContextPropagationBench
 {

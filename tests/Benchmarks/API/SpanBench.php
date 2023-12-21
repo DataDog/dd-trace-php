@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\Benchmarks;
+namespace Benchmarks\API;
 
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\SDK\Trace\TracerProvider;
-use function DDTrace\start_span;
 
-class BasicScenarioBench
+class SpanBench
 {
     public $otelTracer;
 

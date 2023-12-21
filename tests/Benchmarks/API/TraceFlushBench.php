@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Benchmarks\API;
+
 use DDTrace\Tests\Common\Utils;
 
 class TraceFlushBench

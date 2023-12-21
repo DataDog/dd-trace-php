@@ -28,7 +28,7 @@
     "report.outputs": {
         "file": {
             "extends": "csv",
-            "file": "tests/Benchmarks/results.csv",
+            "file": "tests/Benchmarks/tracer-bench-results-opcache.csv",
             "delimiter": ","
         }
     }
