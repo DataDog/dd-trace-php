@@ -60,15 +60,11 @@ void dds::remote_config::asm_features_listener::parse_asm(
         if (dd_tolower(enabled_itr->value.GetString()) == std::string("true")) {
             service_config_->enable_asm();
         } else {
-            // This scenario should not happen since RC would remove the file
-            // when appsec should not be enabled
             service_config_->disable_asm();
         }
     } else if (enabled_itr->value.GetType() == rapidjson::kTrueType) {
         service_config_->enable_asm();
     } else if (enabled_itr->value.GetType() == rapidjson::kFalseType) {
-        // This scenario should not happen since RC would remove the file
-        // when appsec should not be enabled
         service_config_->disable_asm();
     } else {
         throw error_applying_config(
@@ -84,6 +80,10 @@ void dds::remote_config::asm_features_listener::on_update(const config &config)
         throw error_applying_config("Invalid config contents");
     }
 
-    parse_asm(serialized_doc);
-    parse_api_security(serialized_doc);
+    if (dynamic_enablement_) {
+        parse_asm(serialized_doc);
+    }
+    if (api_security_enabled_) {
+        parse_api_security(serialized_doc);
+    }
 }

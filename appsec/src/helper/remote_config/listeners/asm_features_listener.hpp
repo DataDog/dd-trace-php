@@ -15,8 +15,11 @@ namespace dds::remote_config {
 class asm_features_listener : public listener_base {
 public:
     explicit asm_features_listener(
-        std::shared_ptr<dds::service_config> service_config)
-        : service_config_(std::move(service_config)){};
+        std::shared_ptr<dds::service_config> service_config,
+        bool dynamic_enablement, bool api_security_enabled)
+        : service_config_(std::move(service_config)),
+          dynamic_enablement_(dynamic_enablement),
+          api_security_enabled_(api_security_enabled){};
     void on_update(const config &config) override;
     void on_unapply(const config & /*config*/) override
     {
@@ -26,9 +29,18 @@ public:
     [[nodiscard]] std::unordered_map<std::string_view, protocol::capabilities_e>
     get_supported_products() override
     {
-        return {{"ASM_FEATURES", protocol::capabilities_e::ASM_ACTIVATION},
-            {"ASM_API_SECURITY_SAMPLE_RATE",
-                protocol::capabilities_e::ASM_API_SECURITY_SAMPLE_RATE}};
+        std::unordered_map<std::string_view, protocol::capabilities_e>
+            supported;
+
+        if (dynamic_enablement_) {
+            supported["ASM_FEATURES"] =
+                protocol::capabilities_e::ASM_ACTIVATION;
+        }
+        if (api_security_enabled_) {
+            supported["ASM_API_SECURITY_SAMPLE_RATE"] =
+                protocol::capabilities_e::ASM_API_SECURITY_SAMPLE_RATE;
+        }
+        return supported;
     }
 
     void init() override {}
@@ -38,6 +50,8 @@ protected:
     void parse_asm(const rapidjson::Document &serialized_doc);
     void parse_api_security(const rapidjson::Document &serialized_doc);
     std::shared_ptr<service_config> service_config_;
+    bool dynamic_enablement_;
+    bool api_security_enabled_;
 };
 
 } // namespace dds::remote_config

@@ -57,18 +57,18 @@ remote_config::config get_disabled_config(bool as_string = true)
 
 TEST(RemoteConfigAsmFeaturesListener, ByDefaultListenerIsNotSet)
 {
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
 
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::NOT_SET, config_service->get_asm_enabled_status());
 }
 
 TEST(RemoteConfigAsmFeaturesListener,
     ListenerGetActiveWhenConfigSaysSoOnUpdateAsString)
 {
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
 
     try {
         listener.on_update(get_enabled_config());
@@ -76,29 +76,29 @@ TEST(RemoteConfigAsmFeaturesListener,
         std::cout << error.what() << std::endl;
     }
 
-    EXPECT_EQ(enable_asm_status::ENABLED,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::ENABLED, config_service->get_asm_enabled_status());
 }
 
 TEST(RemoteConfigAsmFeaturesListener, AsmParserIsCaseInsensitive)
 {
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
 
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::NOT_SET, config_service->get_asm_enabled_status());
 
     listener.on_update(get_config_with_status("\"TrUe\""));
 
-    EXPECT_EQ(enable_asm_status::ENABLED,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::ENABLED, config_service->get_asm_enabled_status());
 }
 
 TEST(RemoteConfigAsmFeaturesListener,
     ListenerGetDeactivedWhenConfigSaysSoOnUpdateAsString)
 {
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
 
     try {
         listener.on_update(get_disabled_config());
@@ -106,15 +106,15 @@ TEST(RemoteConfigAsmFeaturesListener,
         std::cout << error.what() << std::endl;
     }
 
-    EXPECT_EQ(enable_asm_status::DISABLED,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::DISABLED, config_service->get_asm_enabled_status());
 }
 
 TEST(RemoteConfigAsmFeaturesListener,
     ListenerGetActiveWhenConfigSaysSoOnUpdateAsBoolean)
 {
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
 
     try {
         listener.on_update(get_enabled_config(false));
@@ -122,15 +122,15 @@ TEST(RemoteConfigAsmFeaturesListener,
         std::cout << error.what() << std::endl;
     }
 
-    EXPECT_EQ(enable_asm_status::ENABLED,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::ENABLED, config_service->get_asm_enabled_status());
 }
 
 TEST(RemoteConfigAsmFeaturesListener,
     ListenerGetDeactivedWhenConfigSaysSoOnUpdateAsBoolean)
 {
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
 
     try {
         listener.on_update(get_disabled_config(false));
@@ -138,15 +138,15 @@ TEST(RemoteConfigAsmFeaturesListener,
         std::cout << error.what() << std::endl;
     }
 
-    EXPECT_EQ(enable_asm_status::DISABLED,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::DISABLED, config_service->get_asm_enabled_status());
 }
 
 TEST(RemoteConfigAsmFeaturesListener,
     ListenerThrowsAnErrorWhenContentOfConfigAreNotValidBase64)
 {
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
     std::string invalid_content = "&&&";
     std::string error_message = "";
     std::string expected_error_message = "Invalid config contents";
@@ -159,8 +159,8 @@ TEST(RemoteConfigAsmFeaturesListener,
         error_message = error.what();
     }
 
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::NOT_SET, config_service->get_asm_enabled_status());
     EXPECT_EQ(0, error_message.compare(0, expected_error_message.length(),
                      expected_error_message));
 }
@@ -170,8 +170,8 @@ TEST(RemoteConfigAsmFeaturesListener,
 {
     std::string error_message = "";
     std::string expected_error_message = "Invalid config contents";
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
     std::string invalid_content = "invalidJsonContent";
     remote_config::config config = get_config(invalid_content);
 
@@ -181,8 +181,8 @@ TEST(RemoteConfigAsmFeaturesListener,
         error_message = error.what();
     }
 
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::NOT_SET, config_service->get_asm_enabled_status());
     EXPECT_EQ(0, error_message.compare(0, expected_error_message.length(),
                      expected_error_message));
 }
@@ -192,8 +192,8 @@ TEST(RemoteConfigAsmFeaturesListener, ListenerThrowsAnErrorWhenAsmKeyMissing)
     std::string error_message = "";
     std::string expected_error_message =
         "Invalid config json encoded contents: asm key missing or invalid";
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
     remote_config::config asm_key_missing = get_config("{}");
 
     try {
@@ -202,8 +202,8 @@ TEST(RemoteConfigAsmFeaturesListener, ListenerThrowsAnErrorWhenAsmKeyMissing)
         error_message = error.what();
     }
 
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::NOT_SET, config_service->get_asm_enabled_status());
     EXPECT_EQ(0, error_message.compare(expected_error_message));
 }
 
@@ -212,8 +212,8 @@ TEST(RemoteConfigAsmFeaturesListener, ListenerThrowsAnErrorWhenAsmIsNotValid)
     std::string error_message = "";
     std::string expected_error_message =
         "Invalid config json encoded contents: asm key missing or invalid";
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
     remote_config::config invalid_asm_key = get_config("{ \"asm\": 123}");
 
     try {
@@ -222,8 +222,8 @@ TEST(RemoteConfigAsmFeaturesListener, ListenerThrowsAnErrorWhenAsmIsNotValid)
         error_message = error.what();
     }
 
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::NOT_SET, config_service->get_asm_enabled_status());
     EXPECT_EQ(0, error_message.compare(expected_error_message));
 }
 
@@ -233,8 +233,8 @@ TEST(
     std::string error_message = "";
     std::string expected_error_message =
         "Invalid config json encoded contents: enabled key missing";
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
     remote_config::config enabled_key_missing = get_config(
         "{ \"asm\": {}, \"api_security\": { \"request_sample_rate\": 0.1}}");
 
@@ -244,8 +244,8 @@ TEST(
         error_message = error.what();
     }
 
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::NOT_SET, config_service->get_asm_enabled_status());
     EXPECT_EQ(0, error_message.compare(expected_error_message));
 }
 
@@ -255,8 +255,8 @@ TEST(RemoteConfigAsmFeaturesListener,
     std::string error_message = "";
     std::string expected_error_message =
         "Invalid config json encoded contents: enabled key invalid";
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
     remote_config::config enabled_key_invalid =
         get_config("{ \"asm\": { \"enabled\": 123}, \"api_security\": { "
                    "\"request_sample_rate\": 0.1}}");
@@ -267,25 +267,25 @@ TEST(RemoteConfigAsmFeaturesListener,
         error_message = error.what();
     }
 
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::NOT_SET, config_service->get_asm_enabled_status());
     EXPECT_EQ(0, error_message.compare(expected_error_message));
 }
 
 TEST(RemoteConfigAsmFeaturesListener, WhenListenerGetsUnapplyItGetsNotSet)
 {
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
 
     listener.on_update(get_enabled_config(false));
-    EXPECT_EQ(enable_asm_status::ENABLED,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::ENABLED, config_service->get_asm_enabled_status());
 
     remote_config::config some_key;
     listener.on_unapply(some_key);
 
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(
+        enable_asm_status::NOT_SET, config_service->get_asm_enabled_status());
 }
 
 TEST(RemoteConfigAsmFeaturesListener, ThrowsErrorWhenNoApiSecurityPresent)
@@ -294,8 +294,8 @@ TEST(RemoteConfigAsmFeaturesListener, ThrowsErrorWhenNoApiSecurityPresent)
     std::string expected_error_message =
         "Invalid config json encoded contents: api_security key missing or "
         "invalid";
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, false, true);
     remote_config::config payload =
         get_config("{ \"asm\": { \"enabled\": true}}");
 
@@ -314,8 +314,8 @@ TEST(RemoteConfigAsmFeaturesListener, ThrowsErrorWhenApiSecurityHasWrongType)
     std::string expected_error_message =
         "Invalid config json encoded contents: api_security key missing or "
         "invalid";
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, true);
     remote_config::config payload =
         get_config("{ \"asm\": { \"enabled\": true}, \"api_security\": 1234}");
 
@@ -333,8 +333,8 @@ TEST(RemoteConfigAsmFeaturesListener, ThrowsErrorWhenNoRequestSampleRatePresent)
     std::string error_message = "";
     std::string expected_error_message =
         "Invalid config json encoded contents: request_sample_rate key missing";
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, true);
     remote_config::config payload =
         get_config("{ \"asm\": { \"enabled\": true}, \"api_security\": {}}");
 
@@ -354,8 +354,8 @@ TEST(RemoteConfigAsmFeaturesListener,
     std::string expected_error_message =
         "Invalid config json encoded contents: request_sample_rate is not "
         "double";
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, true);
     remote_config::config payload =
         get_config("{ \"asm\": { \"enabled\": true}, \"api_security\": { "
                    "\"request_sample_rate\": true}}");
@@ -371,8 +371,8 @@ TEST(RemoteConfigAsmFeaturesListener,
 
 TEST(RemoteConfigAsmFeaturesListener, RequestSampleRateIsParsed)
 {
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, true);
 
     { // It parses floats
         auto sample_rate = 0.12;
@@ -381,8 +381,7 @@ TEST(RemoteConfigAsmFeaturesListener, RequestSampleRateIsParsed)
         } catch (remote_config::error_applying_config &error) {
             std::cout << error.what() << std::endl;
         }
-        EXPECT_EQ(
-            sample_rate, remote_config_service->get_request_sample_rate());
+        EXPECT_EQ(sample_rate, config_service->get_request_sample_rate());
     }
 
     { // It parses integers
@@ -392,15 +391,14 @@ TEST(RemoteConfigAsmFeaturesListener, RequestSampleRateIsParsed)
         } catch (remote_config::error_applying_config &error) {
             std::cout << error.what() << std::endl;
         }
-        EXPECT_EQ(
-            sample_rate, remote_config_service->get_request_sample_rate());
+        EXPECT_EQ(sample_rate, config_service->get_request_sample_rate());
     }
 }
 
 TEST(RemoteConfigAsmFeaturesListener, RequestSampleRateLimits)
 {
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, true);
 
     { // Over 1, sets default 0.1
         try {
@@ -408,7 +406,7 @@ TEST(RemoteConfigAsmFeaturesListener, RequestSampleRateLimits)
         } catch (remote_config::error_applying_config &error) {
             std::cout << error.what() << std::endl;
         }
-        EXPECT_EQ(0.1, remote_config_service->get_request_sample_rate());
+        EXPECT_EQ(0.1, config_service->get_request_sample_rate());
     }
 
     { // Below 0, sets default 0.1
@@ -417,7 +415,109 @@ TEST(RemoteConfigAsmFeaturesListener, RequestSampleRateLimits)
         } catch (remote_config::error_applying_config &error) {
             std::cout << error.what() << std::endl;
         }
-        EXPECT_EQ(0.1, remote_config_service->get_request_sample_rate());
+        EXPECT_EQ(0.1, config_service->get_request_sample_rate());
+    }
+}
+
+TEST(RemoteConfigAsmFeaturesListener, DynamicEnablementIsDisabled)
+{
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, false, true);
+
+    { // Asm value is ignored on parse
+        try {
+            listener.on_update(
+                get_config_with_status_and_sample_rate("true", 0.2));
+        } catch (remote_config::error_applying_config &error) {
+            std::cout << error.what() << std::endl;
+        }
+        EXPECT_EQ(0.2, config_service->get_request_sample_rate());
+        EXPECT_EQ(enable_asm_status::NOT_SET,
+            config_service->get_asm_enabled_status());
+    }
+
+    { // Asm can be missing
+        try {
+            auto missing_asm = get_config(
+                "{\"api_security\": { \"request_sample_rate\": 0.3}}", true);
+            listener.on_update(missing_asm);
+        } catch (remote_config::error_applying_config &error) {
+            std::cout << error.what() << std::endl;
+        }
+        EXPECT_EQ(0.3, config_service->get_request_sample_rate());
+    }
+}
+
+TEST(RemoteConfigAsmFeaturesListener, ApiSecurityIsDisabled)
+{
+    auto config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(config_service, true, false);
+    auto default_sample_rate = 0.1;
+
+    { // Api security value is ignored on parse
+        try {
+            listener.on_update(
+                get_config_with_status_and_sample_rate("true", 0.2));
+        } catch (remote_config::error_applying_config &error) {
+            std::cout << error.what() << std::endl;
+        }
+        EXPECT_EQ(
+            default_sample_rate, config_service->get_request_sample_rate());
+        EXPECT_EQ(enable_asm_status::ENABLED,
+            config_service->get_asm_enabled_status());
+    }
+
+    { // Api security can be missing
+        try {
+            auto missing_api_security =
+                get_config("{ \"asm\": { \"enabled\": true}}");
+            listener.on_update(missing_api_security);
+        } catch (remote_config::error_applying_config &error) {
+            std::cout << error.what() << std::endl;
+        }
+        EXPECT_EQ(
+            default_sample_rate, config_service->get_request_sample_rate());
+        EXPECT_EQ(enable_asm_status::ENABLED,
+            config_service->get_asm_enabled_status());
+    }
+}
+
+TEST(RemoteConfigAsmFeaturesListener, ProductsAreDynamic)
+{
+    auto config_service = std::make_shared<service_config>();
+
+    { // All disabled
+        remote_config::asm_features_listener listener(
+            config_service, false, false);
+        EXPECT_EQ(0, listener.get_supported_products().size());
+    }
+
+    { // Asm disabled
+        remote_config::asm_features_listener listener(
+            config_service, true, false);
+        EXPECT_EQ(1, listener.get_supported_products().size());
+        EXPECT_EQ(dds::remote_config::protocol::capabilities_e::ASM_ACTIVATION,
+            listener.get_supported_products()["ASM_FEATURES"]);
+    }
+
+    { // Api security disabled
+        remote_config::asm_features_listener listener(
+            config_service, false, true);
+        EXPECT_EQ(1, listener.get_supported_products().size());
+        EXPECT_EQ(dds::remote_config::protocol::capabilities_e::
+                      ASM_API_SECURITY_SAMPLE_RATE,
+            listener.get_supported_products()["ASM_API_SECURITY_SAMPLE_RATE"]);
+    }
+
+    { // All enabled
+        remote_config::asm_features_listener listener(
+            config_service, true, true);
+        EXPECT_EQ(2, listener.get_supported_products().size());
+        EXPECT_EQ(dds::remote_config::protocol::capabilities_e::ASM_ACTIVATION,
+            listener.get_supported_products()["ASM_FEATURES"]);
+        EXPECT_EQ(dds::remote_config::protocol::capabilities_e::
+                      ASM_API_SECURITY_SAMPLE_RATE,
+            listener.get_supported_products()["ASM_API_SECURITY_SAMPLE_RATE"]);
     }
 }
 
