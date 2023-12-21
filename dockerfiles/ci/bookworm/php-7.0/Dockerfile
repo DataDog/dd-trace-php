@@ -3,6 +3,7 @@ FROM --platform=$BUILDPLATFORM $BUILD_BASE as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch /home/circleci
+COPY 0001-Fix-OpenSSL-3.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
@@ -10,7 +11,8 @@ RUN set -eux; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
     ./buildconf --force; \
-    patch Zend/zend_alloc.c /home/circleci/0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch;
+    patch Zend/zend_alloc.c /home/circleci/0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch; \
+    patch ext/openssl/openssl.c /home/circleci/0001-Fix-OpenSSL-3.patch;
 
 FROM --platform=$BUILDPLATFORM $BUILD_BASE AS build
 ARG phpVersion

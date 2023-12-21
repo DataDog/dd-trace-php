@@ -82,7 +82,6 @@ Ubuntu Bookworm:
         - php-7.2
         - php-7.1
         - php-7.0
-        - php-master
   script:
     - cd dockerfiles/ci/bookworm
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
