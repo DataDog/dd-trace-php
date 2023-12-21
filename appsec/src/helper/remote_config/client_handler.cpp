@@ -47,10 +47,11 @@ client_handler::ptr client_handler::from_settings(service_identifier &&id,
     }
 
     std::vector<remote_config::listener_base::shared_ptr> listeners = {};
-    if (dynamic_enablement) {
+    if (dynamic_enablement || eng_settings.schema_extraction.enabled) {
         listeners.emplace_back(
             std::make_shared<remote_config::asm_features_listener>(
-                service_config));
+                service_config, dynamic_enablement,
+                eng_settings.schema_extraction.enabled));
     }
 
     if (eng_settings.rules_file.empty()) {
