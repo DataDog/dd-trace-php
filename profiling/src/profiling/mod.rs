@@ -754,7 +754,12 @@ impl Profiler {
 
     #[cfg(feature = "exception_profiling")]
     /// Collect a stack sample with exception
-    pub fn collect_exception(&self, execute_data: *mut zend_execute_data, exception: String) {
+    pub fn collect_exception(
+        &self,
+        execute_data: *mut zend_execute_data,
+        exception: String,
+        message: String,
+    ) {
         let result = collect_stack_sample(execute_data);
         match result {
             Ok(frames) => {
@@ -765,6 +770,12 @@ impl Profiler {
                     key: "exception type",
                     value: LabelValue::Str(exception.clone().into()),
                 });
+
+                labels.push(Label {
+                    key: "exception message",
+                    value: LabelValue::Str(message.clone().into()),
+                });
+
                 let n_labels = labels.len();
 
                 match self.send_sample(self.prepare_sample_message(

@@ -20,6 +20,8 @@
 // And json to cleanup json state for graceful restart
 #include <json/json.h>
 
+#include <exceptions/exceptions.h>
+
 // Used to communicate strings from C -> Rust.
 #include <zai_string/string.h>
 

@@ -78,6 +78,7 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/config/config_decode.h",
     "../zend_abstract_interface/config/config_ini.h",
     "../zend_abstract_interface/env/env.h",
+    "../zend_abstract_interface/exceptions/exceptions.h",
     "../zend_abstract_interface/json/json.h",
 ];
 
@@ -101,6 +102,8 @@ fn build_zend_php_ffis(
         "../zend_abstract_interface/config/config.c",
         "../zend_abstract_interface/config/config_runtime.c",
         "../zend_abstract_interface/env/env.c",
+        "../zend_abstract_interface/exceptions/exceptions.c",
+        "../zend_abstract_interface/symbols/lookup.c",
         "../zend_abstract_interface/json/json.c",
         "../zend_abstract_interface/zai_string/string.c",
     ];
