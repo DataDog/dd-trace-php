@@ -19,24 +19,6 @@ class PDOBench
 
     public $pdo;
 
-    public static function setUp()
-    {
-        self::setUpDatabase();
-    }
-
-    public static function tearDown()
-    {
-        self::clearDatabase();
-    }
-
-    public function PDOScenario()
-    {
-        $this->pdo->beginTransaction();
-        $stmt = $this->pdo->prepare("SELECT * FROM tests WHERE id = ?");
-        $stmt->execute([1]);
-        $this->pdo->commit();
-    }
-
     /**
      * @BeforeMethods({"disablePDOIntegration"})
      * @Revs(100)
@@ -71,6 +53,24 @@ class PDOBench
     public function benchPDOOverheadWithDBM()
     {
         $this->PDOScenario();
+    }
+
+    public static function setUp()
+    {
+        self::setUpDatabase();
+    }
+
+    public static function tearDown()
+    {
+        self::clearDatabase();
+    }
+
+    public function PDOScenario()
+    {
+        $this->pdo->beginTransaction();
+        $stmt = $this->pdo->prepare("SELECT * FROM tests WHERE id = ?");
+        $stmt->execute([1]);
+        $this->pdo->commit();
     }
 
     public function disablePDOIntegration()

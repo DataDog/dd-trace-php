@@ -2,16 +2,44 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\Benchmarks;
+namespace Benchmarks\Integrations;
 
-use DDTrace\Tests\Common\TracerTestTrait;
-use DDTrace\Tests\Common\Utils;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class WordPressBench extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
+    /**
+     * @BeforeMethods("enableWordPressTracing")
+     * @AfterMethods("afterMethod")
+     * @Revs(10)
+     * @Iterations(10)
+     * @OutputTimeUnit("microseconds")
+     * @RetryThreshold(10.0)
+     */
+    public function benchWordPressOverhead()
+    {
+        $this->call(GetSpec::create(
+            'A simple GET request with a view',
+            '/simple_view?key=value&pwd=should_redact'
+        ));
+    }
+
+    /**
+     * @BeforeMethods("enableEnhancedWordPressTracing")
+     * @AfterMethods("afterMethod")
+     * @Revs(10)
+     * @Iterations(10)
+     * @OutputTimeUnit("microseconds")
+     * @RetryThreshold(10.0)
+     */
+    public function benchEnhancedWordPressOverhead()
+    {
+        $this->call(GetSpec::create(
+            'A simple GET request with a view',
+            '/simple_view?key=value&pwd=should_redact'
+        ));
+    }
 
     public static function getAppIndexScript()
     {
@@ -50,46 +78,14 @@ class WordPressBench extends WebFrameworkTestCase
     /**
      * @BeforeMethods("disableWordPressTracing")
      * @AfterMethods("afterMethod")
-     * @Revs(1)
+     * @Revs(10)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      */
     public function benchWordPressBaseline()
     {
-        Utils::call(GetSpec::create(
-            'A simple GET request with a view',
-            '/simple_view?key=value&pwd=should_redact'
-        ));
-    }
-
-    /**
-     * @BeforeMethods("enableWordPressTracing")
-     * @AfterMethods("afterMethod")
-     * @Revs(1)
-     * @Iterations(10)
-     * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(10.0)
-     */
-    public function benchWordPressOverhead()
-    {
-        Utils::call(GetSpec::create(
-            'A simple GET request with a view',
-            '/simple_view?key=value&pwd=should_redact'
-        ));
-    }
-
-    /**
-     * @BeforeMethods("enableEnhancedWordPressTracing")
-     * @AfterMethods("afterMethod")
-     * @Revs(1)
-     * @Iterations(10)
-     * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(10.0)
-     */
-    public function benchEnhancedWordPressOverhead()
-    {
-        Utils::call(GetSpec::create(
+        $this->call(GetSpec::create(
             'A simple GET request with a view',
             '/simple_view?key=value&pwd=should_redact'
         ));

@@ -29,6 +29,9 @@ class SpanBench
             $childSpan->name = 'bench.basic_scenario.child';
             $childSpan->meta['foo'] = 'bar';
             $childSpan->metrics['bar'] = 1;
+        }
+
+        for ($i = 0; $i < 6; $i++) {
             \DDTrace\close_span();
         }
 
@@ -48,11 +51,16 @@ class SpanBench
         $span->setAttribute('foo', 'bar');
         $span->setAttribute('bar', 1);
 
+        $spans = [];
         for ($i = 0; $i < 6; $i++) {
             $childSpan = $this->otelTracer->spanBuilder('bench.basic_scenario.child')->startSpan();
             $childSpan->setAttribute('foo', 'bar');
             $childSpan->setAttribute('bar', 1);
-            $childSpan->end();
+            $spans[] = $childSpan;
+        }
+
+        for ($i = 5; $i >= 0; $i--) {
+            $spans[$i]->end();
         }
 
         $span->end();

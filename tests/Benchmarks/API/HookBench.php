@@ -6,11 +6,6 @@ namespace Benchmarks\API;
 
 class HookBench
 {
-    public function dummyFunction(): int
-    {
-        return time();
-    }
-
     /**
      * @Revs(1000)
      * @Iterations(10)
@@ -41,5 +36,10 @@ class HookBench
         for ($i = 0; $i < 1000; $i++) {
             $this->dummyFunction();
         }
+    }
+
+    public function dummyFunction(): int
+    {
+        return time();
     }
 }

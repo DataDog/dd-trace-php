@@ -3,7 +3,6 @@
 namespace Benchmarks\Integrations;
 
 use DDTrace\Tests\Common\Utils;
-use PhpBench\Benchmark\Metadata\Annotations\AfterMethods;
 
 class PHPRedisBench
 {
@@ -11,6 +10,32 @@ class PHPRedisBench
     const REDIS_PORT = '6379';
 
     public $redis;
+
+    /**
+     * @BeforeMethods({"disablePHPRedisIntegration"})
+     * @AfterMethods({"closeConnection"})
+     * @Revs(100)
+     * @Iterations(5)
+     * @OutputTimeUnit("microseconds")
+     * @RetryThreshold(10.0)
+     */
+    public function benchRedisBaseline()
+    {
+        $this->redisScenario();
+    }
+
+    /**
+     * @BeforeMethods({"enablePHPRedisIntegration"})
+     * @AfterMethods({"closeConnection"})
+     * @Revs(100)
+     * @Iterations(5)
+     * @OutputTimeUnit("microseconds")
+     * @RetryThreshold(10.0)
+     */
+    public function benchRedisOverhead()
+    {
+        $this->redisScenario();
+    }
 
     public function redisScenario()
     {
@@ -57,31 +82,5 @@ class PHPRedisBench
     public function closeConnection()
     {
         $this->redis->close();
-    }
-
-    /**
-     * @BeforeMethods({"disablePHPRedisIntegration"})
-     * @AfterMethods({"closeConnection"})
-     * @Revs(100)
-     * @Iterations(5)
-     * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(10.0)
-     */
-    public function benchRedisBaseline()
-    {
-        $this->redisScenario();
-    }
-
-    /**
-     * @BeforeMethods({"enablePHPRedisIntegration"})
-     * @AfterMethods({"closeConnection"})
-     * @Revs(100)
-     * @Iterations(5)
-     * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(10.0)
-     */
-    public function benchRedisOverhead()
-    {
-        $this->redisScenario();
     }
 }

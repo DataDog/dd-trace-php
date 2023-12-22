@@ -6,12 +6,6 @@ namespace Benchmarks\API;
 
 class TraceAnnotationsBench
 {
-    #[\DDTrace\Trace]
-    public function dummyFunction(): int
-    {
-        return time();
-    }
-
     /**
      * @Revs(1000)
      * @Iterations(10)
@@ -21,5 +15,11 @@ class TraceAnnotationsBench
     public function benchTraceAnnotationOverhead()
     {
         $this->dummyFunction();
+    }
+
+    #[\DDTrace\Trace]
+    public function dummyFunction(): int
+    {
+        return time();
     }
 }

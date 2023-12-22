@@ -6,19 +6,6 @@ namespace Benchmarks\API;
 
 class SamplingRuleMatchingBench
 {
-    public function runSamplingRuleMatchingBenchmark($servicePattern, $namePattern, $resourcePattern, $format): void
-    {
-        ini_set("datadog.trace.sampling_rules_format", $format);
-        ini_set("datadog.trace.sampling_rules", '[{"name":"' . $namePattern . '","service":"' . $servicePattern . '","resource":"' . $resourcePattern . '","sample_rate":0.7},{"sample_rate": 0.3}]');
-
-        $root = \DDTrace\root_span();
-        $root->service = "webserver";
-        $root->name = "web.request";
-        $root->resource = "/bar";
-
-        \DDTrace\get_priority_sampling();
-    }
-
     /**
      * @Revs(1000)
      * @Iterations(10)
@@ -105,5 +92,18 @@ class SamplingRuleMatchingBench
     public function benchRegexMatching4(): void
     {
         $this->runSamplingRuleMatchingBenchmark("webserver", "web\.request", "\/b\?r", "regex");
+    }
+
+    public function runSamplingRuleMatchingBenchmark($servicePattern, $namePattern, $resourcePattern, $format): void
+    {
+        ini_set("datadog.trace.sampling_rules_format", $format);
+        ini_set("datadog.trace.sampling_rules", '[{"name":"' . $namePattern . '","service":"' . $servicePattern . '","resource":"' . $resourcePattern . '","sample_rate":0.7},{"sample_rate": 0.3}]');
+
+        $root = \DDTrace\root_span();
+        $root->service = "webserver";
+        $root->name = "web.request";
+        $root->resource = "/bar";
+
+        \DDTrace\get_priority_sampling();
     }
 }

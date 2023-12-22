@@ -8,6 +8,18 @@ use DDTrace\Tests\Common\Utils;
 
 class TraceFlushBench
 {
+    /**
+     * @Revs(1)
+     * @Iterations(10)
+     * @OutputTimeUnit("microseconds")
+     * @RetryThreshold(10.0)
+     * @BeforeMethods("setUp")
+     */
+    public function benchFlushTrace()
+    {
+        \DDTrace\flush();
+    }
+
     public function setUp()
     {
         \dd_trace_serialize_closed_spans();
@@ -25,17 +37,5 @@ class TraceFlushBench
         for ($i = 0; $i < 100; $i++) {
             \DDTrace\close_span();
         }
-    }
-
-    /**
-     * @Revs(1)
-     * @Iterations(10)
-     * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(10.0)
-     * @BeforeMethods("setUp")
-     */
-    public function benchFlushTrace()
-    {
-        \DDTrace\flush();
     }
 }

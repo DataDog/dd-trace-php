@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace Benchmarks\API;
+
 class TraceSerializationBench
 {
     /**

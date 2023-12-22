@@ -2,16 +2,44 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\Benchmarks;
+namespace Benchmarks\Integrations;
 
-use DDTrace\Tests\Common\TracerTestTrait;
-use DDTrace\Tests\Common\Utils;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class LaravelBench extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
+    /**
+     * @BeforeMethods("disableLaravelTracing")
+     * @AfterMethods("afterMethod")
+     * @Revs(10)
+     * @Iterations(10)
+     * @OutputTimeUnit("microseconds")
+     * @RetryThreshold(10.0)
+     */
+    public function benchLaravelBaseline()
+    {
+        $this->call(GetSpec::create(
+            'A simple GET request with a view',
+            '/simple_view?key=value&pwd=should_redact'
+        ));
+    }
+
+    /**
+     * @BeforeMethods("enableLaravelTracing")
+     * @AfterMethods("afterMethod")
+     * @Revs(10)
+     * @Iterations(10)
+     * @OutputTimeUnit("microseconds")
+     * @RetryThreshold(10.0)
+     */
+    public function benchLaravelOverhead()
+    {
+        $this->call(GetSpec::create(
+            'A simple GET request with a view',
+            '/simple_view?key=value&pwd=should_redact'
+        ));
+    }
 
     public static function getAppIndexScript()
     {
@@ -21,7 +49,7 @@ class LaravelBench extends WebFrameworkTestCase
     public function disableLaravelTracing()
     {
         $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 0,
+                'DD_TRACE_ENABLED' => 0,
         ]);
     }
 
@@ -35,37 +63,5 @@ class LaravelBench extends WebFrameworkTestCase
         $this->setUpWebServer([
             'DD_TRACE_ENABLED' => 1,
         ]);
-    }
-
-    /**
-     * @BeforeMethods("disableLaravelTracing")
-     * @AfterMethods("afterMethod")
-     * @Revs(1)
-     * @Iterations(10)
-     * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(10.0)
-     */
-    public function benchLaravelBaseline()
-    {
-        Utils::call(GetSpec::create(
-            'A simple GET request with a view',
-            '/simple_view?key=value&pwd=should_redact'
-        ));
-    }
-
-    /**
-     * @BeforeMethods("enableLaravelTracing")
-     * @AfterMethods("afterMethod")
-     * @Revs(1)
-     * @Iterations(10)
-     * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(10.0)
-     */
-    public function benchLaravelOverhead()
-    {
-        Utils::call(GetSpec::create(
-            'A simple GET request with a view',
-            '/simple_view?key=value&pwd=should_redact'
-        ));
     }
 }

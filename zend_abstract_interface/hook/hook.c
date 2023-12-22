@@ -936,17 +936,6 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
         }
 
         if (check_scope) {
-            if (zai_hook_is_excluded(hook, ex->func->common.scope)) {
-                // hook is no longer valid, remove it
-                zai_hook_remove_from_entry(hooks, hook->id);
-
-                zend_hash_iterator_del(ht_iter);
-                memory->hook_count = (zend_ulong)hook_num;
-                zai_hook_finish(ex, NULL, memory);
-
-                return ZAI_HOOK_BAILOUT;
-            }
-
             if (!(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope)) {
                 continue;
             }
