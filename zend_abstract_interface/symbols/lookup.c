@@ -206,10 +206,12 @@ static inline zval* zai_symbol_lookup_constant_class(zai_symbol_scope_t scope_ty
             ce = Z_OBJCE_P((zval*) scope);
         break;
 
-        default: { /* unreachable */ }
+        default: /* unreachable */
+            ce = NULL;
+        break;
     }
 
-    if (!zai_symbol_update(ce	)) {
+    if (!zai_symbol_update(ce)) {
         return NULL;
     }
 
