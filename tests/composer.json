@@ -3,8 +3,7 @@
     "description": "PHP APM Client test suites",
     "autoload-dev": {
         "psr-4": {
-            "DDTrace\\Tests\\": "./",
-            "DDTrace\\Benchmarks\\": "./Benchmarks"
+            "DDTrace\\Tests\\": "./"
         },
         "files": [
             "Appsec/Mock.php"

@@ -24,4 +24,10 @@ class TraceAnnotationsBench
     {
         return time();
     }
+
+    #[\DDTrace\Trace]
+    public function dummyFunction(): int
+    {
+        return time();
+    }
 }
