@@ -35,8 +35,7 @@ class WordPressBench extends WebFrameworkTestCase
     public function enableWordPressTracing()
     {
         $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 1,
-            'DD_TRACE_DEBUG' => 1,
+            'DD_TRACE_ENABLED' => 1
         ]);
     }
 
@@ -44,7 +43,6 @@ class WordPressBench extends WebFrameworkTestCase
     {
         $this->setUpWebServer([
             'DD_TRACE_ENABLED' => 1,
-            'DD_TRACE_DEBUG' => 1,
             'DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION' => '1'
         ]);
     }

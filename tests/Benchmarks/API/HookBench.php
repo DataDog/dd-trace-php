@@ -26,7 +26,7 @@ class HookBench
 
     public function setUp()
     {
-        \DDTrace\trace_method('Benchmarks\API\HookOverheadBench', 'dummyFunction', function () { });
+        \DDTrace\trace_method('Benchmarks\API\HookBench', 'dummyFunction', function () { });
     }
 
     /**
