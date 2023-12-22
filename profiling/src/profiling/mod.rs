@@ -1046,38 +1046,38 @@ impl Profiler {
             let len = 2 + locals.profiling_experimental_cpu_time_enabled as usize;
             sample_types.extend_from_slice(&SAMPLE_TYPES[0..len]);
             sample_values.extend_from_slice(&values[0..len]);
-        }
 
-        // alloc-samples, alloc-size
-        if locals.profiling_allocation_enabled {
-            sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
-            sample_values.extend_from_slice(&values[3..5]);
-        }
+            // alloc-samples, alloc-size
+            if locals.profiling_allocation_enabled {
+                sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
+                sample_values.extend_from_slice(&values[3..5]);
+            }
 
-        #[cfg(feature = "timeline")]
-        if locals.profiling_experimental_timeline_enabled {
-            sample_types.push(SAMPLE_TYPES[5]);
-            sample_values.push(values[5]);
-        }
+            #[cfg(feature = "timeline")]
+            if locals.profiling_experimental_timeline_enabled {
+                sample_types.push(SAMPLE_TYPES[5]);
+                sample_values.push(values[5]);
+            }
 
-        #[cfg(feature = "exception_profiling")]
-        if locals.profiling_exception_enabled {
-            sample_types.push(SAMPLE_TYPES[6]);
-            sample_values.push(values[6]);
-        }
+            #[cfg(feature = "exception_profiling")]
+            if locals.profiling_exception_enabled {
+                sample_types.push(SAMPLE_TYPES[6]);
+                sample_values.push(values[6]);
+            }
 
-        #[cfg(php_has_fibers)]
-        if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
-            // Safety: the fcc is set by Fiber::__construct as part of zpp,
-            // which will always set the function_handler on success, and
-            // there's nothing changing that value in all of fibers
-            // afterwards, from start to destruction of the fiber itself.
-            let func = unsafe { &*fiber.fci_cache.function_handler };
-            if let Some(functionname) = extract_function_name(func) {
-                labels.push(Label {
-                    key: "fiber",
-                    value: LabelValue::Str(functionname.into()),
-                });
+            #[cfg(php_has_fibers)]
+            if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
+                // Safety: the fcc is set by Fiber::__construct as part of zpp,
+                // which will always set the function_handler on success, and
+                // there's nothing changing that value in all of fibers
+                // afterwards, from start to destruction of the fiber itself.
+                let func = unsafe { &*fiber.fci_cache.function_handler };
+                if let Some(functionname) = extract_function_name(func) {
+                    labels.push(Label {
+                        key: "fiber",
+                        value: LabelValue::Str(functionname.into()),
+                    });
+                }
             }
         }
 
