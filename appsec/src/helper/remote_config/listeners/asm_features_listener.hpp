@@ -29,26 +29,29 @@ public:
     [[nodiscard]] std::unordered_map<std::string_view, protocol::capabilities_e>
     get_supported_products() override
     {
-        std::unordered_map<std::string_view, protocol::capabilities_e>
-            supported;
+        protocol::capabilities_e capabilities = protocol::capabilities_e::NONE;
 
         if (dynamic_enablement_) {
-            supported["ASM_FEATURES"] =
-                protocol::capabilities_e::ASM_ACTIVATION;
+            capabilities = protocol::capabilities_e::ASM_ACTIVATION;
         }
         if (api_security_enabled_) {
-            supported["ASM_API_SECURITY_SAMPLE_RATE"] =
+            capabilities |=
                 protocol::capabilities_e::ASM_API_SECURITY_SAMPLE_RATE;
         }
-        return supported;
+
+        if (capabilities != protocol::capabilities_e::NONE) {
+            return {{asm_features, capabilities}};
+        }
+        return {};
     }
 
     void init() override {}
     void commit() override {}
 
 protected:
+    static constexpr std::string_view asm_features = "ASM_FEATURES";
     void parse_asm(const rapidjson::Document &serialized_doc);
-    void parse_api_security(const rapidjson::Document &serialized_doc);
+    double parse_api_security(const rapidjson::Document &serialized_doc);
     std::shared_ptr<service_config> service_config_;
     bool dynamic_enablement_;
     bool api_security_enabled_;

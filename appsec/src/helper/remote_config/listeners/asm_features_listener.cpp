@@ -10,7 +10,7 @@
 #include "utils.hpp"
 #include <algorithm>
 
-void dds::remote_config::asm_features_listener::parse_api_security(
+double dds::remote_config::asm_features_listener::parse_api_security(
     const rapidjson::Document &serialized_doc)
 {
     auto api_security_itr = json_helper::get_field_of_type(
@@ -35,8 +35,7 @@ void dds::remote_config::asm_features_listener::parse_api_security(
                                     "request_sample_rate is not double");
     }
 
-    service_config_->set_request_sample_rate(
-        request_sample_rate_itr->value.GetDouble());
+    return request_sample_rate_itr->value.GetDouble();
 }
 
 void dds::remote_config::asm_features_listener::parse_asm(
@@ -83,7 +82,14 @@ void dds::remote_config::asm_features_listener::on_update(const config &config)
     if (dynamic_enablement_) {
         parse_asm(serialized_doc);
     }
+
     if (api_security_enabled_) {
-        parse_api_security(serialized_doc);
+        double sample_rate = 0;
+        if (!(service_config_->get_asm_enabled_status() ==
+                    enable_asm_status::DISABLED &&
+                dynamic_enablement_)) {
+            sample_rate = parse_api_security(serialized_doc);
+        }
+        service_config_->set_request_sample_rate(sample_rate);
     }
 }
