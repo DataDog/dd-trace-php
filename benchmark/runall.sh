@@ -15,6 +15,7 @@ cargo bench --features stack_walking_tests -- --noplot
 
 # Run Trace Benchmarks
 cd ..
+make composer_tests_update
 ## Non-OPCache Benchmarks > tests/Benchmarks/results.csv
 make benchmarks
 cp tests/Benchmarks/tracer-bench-results.csv "$ARTIFACTS_DIR"
