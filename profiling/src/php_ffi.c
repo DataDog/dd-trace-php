@@ -10,7 +10,7 @@
 #include <dlfcn.h> // for dlsym
 #endif
 
-#if PHP_VERSION_ID >= 70400
+#if PHP_VERSION_ID >= 70400 && PHP_VERSION_ID < 80400
 #define CFG_NEED_OPCODE_HANDLERS 1
 #else
 #define CFG_NEED_OPCODE_HANDLERS 0
@@ -108,23 +108,42 @@ static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
      */
     user_opcode_handler_t dispatch_handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
 
+#if PHP_VERSION_ID < 80100
     /* Issue is fixed in 8.0.26:
      * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
      */
     if (php_version_id < 80026 && zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
         zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, dispatch_handler);
     }
+#endif
 
+#if PHP_VERSION_ID < 80400
     /* Part of the issue was fixed in 8.0.12:
      * https://github.com/php/php-src/commit/ec54ffad1e3b15fedfd07f7d29d97ec3e8d1c45a
      * However, the fix is not complete as it's possible for the opcode to
      * call `zend_array_dup()` before the `SAVE_OPLINE()`.
+     *
+     * This was finally fixed with https://github.com/php/php-src/pull/12758 in
+     * PHP 8.1.27, 8.2.14 and 8.3.1
      */
-    if (zend_get_user_opcode_handler(ZEND_BIND_STATIC) == NULL) {
+    if ((php_version_id < 80127 ||
+        (php_version_id >= 80200 && php_version_id < 80214) ||
+        php_version_id == 80300) &&
+        zend_get_user_opcode_handler(ZEND_BIND_STATIC) == NULL)
+    {
         zend_set_user_opcode_handler(ZEND_BIND_STATIC, dispatch_handler);
     }
-#if PHP_VERSION_ID >= 80400
-#error Check if ZEND_BIND_STATIC needs an opcode handler still. Possibly update things like CFG_NEED_OPCODE_HANDLERS as well.
+
+    /* This was fixed with https://github.com/php/php-src/pull/12768 in
+     * PHP 8.1.27, 8.2.14 and 8.3.1
+     */
+    if ((php_version_id < 80127 ||
+        (php_version_id >= 80200 && php_version_id < 80214) ||
+        php_version_id == 80300) &&
+        zend_get_user_opcode_handler(ZEND_FUNC_GET_ARGS) == NULL)
+    {
+        zend_set_user_opcode_handler(ZEND_FUNC_GET_ARGS, dispatch_handler);
+    }
 #endif
 }
 #endif
