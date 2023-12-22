@@ -7,11 +7,6 @@
 #include <string.h>
 #include "SAPI.h"
 
-/* needed by zend_abstract_interface/sandbox/sandbox.h which is included in
- * zend_abstract_interface/symbols/lookup.c which we need due to
- * zend_abstract_interface/exceptions/exeptions.c */
-long zai_sandbox_active = 0;
-
 #if CFG_STACK_WALKING_TESTS
 #include <dlfcn.h> // for dlsym
 #endif
