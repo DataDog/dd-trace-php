@@ -12,7 +12,6 @@
     "require-dev": {
         "assertwell/phpunit-global-state": "^0.2.2",
         "mockery/mockery": "*",
-        "phpbench/phpbench": "^1.0",
         "phpunit/phpunit": "<10",
         "phpspec/prophecy": "*",
         "symfony/process": "<5",
@@ -211,7 +210,8 @@
             "benchmarks": {
                 "require": {
                     "monolog/monolog": "~2.0",
-                    "open-telemetry/sdk": "@stable"
+                    "open-telemetry/sdk": "@stable",
+                    "phpbench/phpbench": "^1.0"
                 },
                 "scenario-options": {
                     "create-lockfile": false
