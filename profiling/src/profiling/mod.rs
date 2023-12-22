@@ -348,7 +348,7 @@ impl TimeCollector {
     ) {
         if message.key.sample_types.len() == 0 {
             // profiling disabled, this should not happen!
-            warn!("You spot a bug in the profiler, please be so kind and report this do Datadog.");
+            warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
             return;
         }
 
