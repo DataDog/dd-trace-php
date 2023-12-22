@@ -19,7 +19,9 @@ class HookBench
      */
     public function benchWithoutHook()
     {
-        $this->dummyFunction();
+        for ($i = 0; $i < 1000; $i++) {
+            $this->dummyFunction();
+        }
     }
 
     public function setUp()
@@ -36,6 +38,8 @@ class HookBench
      */
     public function benchHookOverhead()
     {
-        $this->dummyFunction();
+        for ($i = 0; $i < 1000; $i++) {
+            $this->dummyFunction();
+        }
     }
 }

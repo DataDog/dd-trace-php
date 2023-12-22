@@ -16,13 +16,9 @@
         "opcache.jit": "1255"
     },
     "report.generators": {
-        "phpbench_aggregate": {
-            "extends": "aggregate",
-            "cols": [ "subject", "its", "mem_peak", "worst", "mean", "mode", "best", "rstdev" ]
-        },
         "all": {
             "generator": "composite",
-            "reports": [ "phpbench_aggregate" ]
+            "reports": [ "default" ]
         }
     },
     "report.outputs": {
