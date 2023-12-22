@@ -41,6 +41,7 @@
 #define DD_TAG_HTTP_RH_CONTENT_LANGUAGE "http.response.headers.content-language"
 #define DD_TAG_HTTP_CLIENT_IP "http.client_ip"
 #define DD_TAG_USER_ID "usr.id"
+#define DD_TAG_SERVER_REQUEST_PATH_PARAMS "server.request.path_params"
 #define DD_MULTIPLE_IP_HEADERS "_dd.multiple-ip-headers"
 #define DD_METRIC_ENABLED "_dd.appsec.enabled"
 #define DD_APPSEC_EVENTS_PREFIX "appsec.events."
@@ -102,6 +103,7 @@ static zend_string *_key_server_name_zstr;
 static zend_string *_key_http_user_agent_zstr;
 static zend_string *_key_https_zstr;
 static zend_string *_key_remote_addr_zstr;
+static zend_string *_key_server_request_path_params;
 static zend_string *_true_zstr;
 static zend_string *_false_zstr;
 static zend_string *_track_zstr;
@@ -176,6 +178,8 @@ void dd_tags_startup()
     _key_https_zstr = zend_string_init_interned(LSTRARG("HTTPS"), 1);
     _key_remote_addr_zstr =
         zend_string_init_interned(LSTRARG("REMOTE_ADDR"), 1);
+    _key_server_request_path_params = zend_string_init_interned(
+        LSTRARG(DD_TAG_SERVER_REQUEST_PATH_PARAMS), 1);
 
     // Event related strings
     _track_zstr =
@@ -1158,22 +1162,10 @@ static PHP_FUNCTION(datadog_appsec_push_params)
 
     zval parameters_zv;
     zend_array *parameters_arr = zend_new_array(1);
-    if (parameters_arr == NULL) {
-        mlog_g(dd_log_debug, "Could not create array");
-        return;
-    }
     ZVAL_ARR(&parameters_zv, parameters_arr);
-    zend_string *key =
-        zend_string_init(ZEND_STRL("server.request.path_params"), 0);
-    if (key == NULL) {
-        zval_ptr_dtor(&parameters_zv);
-        mlog_g(dd_log_debug, "Error creating key");
-        return;
-    }
-
-    zval *res = zend_hash_add(Z_ARRVAL(parameters_zv), key, parameters);
+    zval *res = zend_hash_add(
+        Z_ARRVAL(parameters_zv), _key_server_request_path_params, parameters);
     if (res == NULL) {
-        zend_string_release(key);
         zval_ptr_dtor(&parameters_zv);
         mlog_g(dd_log_debug, "Parameters could not be added");
         return;
@@ -1182,7 +1174,6 @@ static PHP_FUNCTION(datadog_appsec_push_params)
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
-        zend_string_release(key);
         zval_ptr_dtor(&parameters_zv);
         mlog_g(dd_log_debug, "No connection; skipping push_params");
         return;
@@ -1191,7 +1182,6 @@ static PHP_FUNCTION(datadog_appsec_push_params)
     dd_request_exec(conn, &parameters_zv);
 
     zval_ptr_dtor(&parameters_zv);
-    zend_string_release(key);
 }
 
 static bool _set_appsec_enabled(zval *metrics_zv)
