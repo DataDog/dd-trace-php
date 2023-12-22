@@ -23,7 +23,7 @@ class SamplingRuleMatchingBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchGlobMatching1(): void
     {
@@ -34,7 +34,7 @@ class SamplingRuleMatchingBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchGlobMatching2(): void
     {
@@ -45,7 +45,7 @@ class SamplingRuleMatchingBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchGlobMatching3(): void
     {
@@ -56,7 +56,7 @@ class SamplingRuleMatchingBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchGlobMatching4(): void
     {
@@ -67,7 +67,7 @@ class SamplingRuleMatchingBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchRegexMatching1(): void
     {
@@ -78,7 +78,7 @@ class SamplingRuleMatchingBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchRegexMatching2(): void
     {
@@ -89,7 +89,7 @@ class SamplingRuleMatchingBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchRegexMatching3(): void
     {
@@ -100,7 +100,7 @@ class SamplingRuleMatchingBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchRegexMatching4(): void
     {

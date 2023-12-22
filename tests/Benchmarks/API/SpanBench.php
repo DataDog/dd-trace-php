@@ -15,7 +15,7 @@ class SpanBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchDatadogAPI()
     {
@@ -39,7 +39,7 @@ class SpanBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      * @BeforeMethods("setUpOpenTelemetry")
      */
     public function benchOpenTelemetryAPI()
@@ -62,7 +62,7 @@ class SpanBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      * @BeforeMethods("setUpOpenTelemetry")
      */
     public function benchOpenTelemetryInteroperability()

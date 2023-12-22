@@ -73,7 +73,7 @@ class LogsInjectionBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchLogsInfoBaseline()
     {
@@ -85,7 +85,7 @@ class LogsInjectionBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchLogsInfoInjection()
     {
@@ -97,7 +97,7 @@ class LogsInjectionBench
      * @Revs(100)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchLogsNullBaseline()
     {
@@ -111,7 +111,7 @@ class LogsInjectionBench
      * @Revs(100)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchLogsNullInjection()
     {

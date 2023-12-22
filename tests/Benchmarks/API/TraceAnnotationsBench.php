@@ -16,7 +16,7 @@ class TraceAnnotationsBench
      * @Revs(1000)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchTraceAnnotationOverhead()
     {

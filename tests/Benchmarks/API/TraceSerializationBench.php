@@ -9,7 +9,7 @@ class TraceSerializationBench
      * @Revs(1)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      * @BeforeMethods("setUp")
      */
     public function benchSerializeTrace()

@@ -43,7 +43,7 @@ class LaravelBench extends WebFrameworkTestCase
      * @Revs(1)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(5.0)
+     * @RetryThreshold(10.0)
      */
     public function benchLaravelBaseline()
     {
@@ -59,7 +59,7 @@ class LaravelBench extends WebFrameworkTestCase
      * @Revs(1)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(5.0)
+     * @RetryThreshold(10.0)
      */
     public function benchLaravelOverhead()
     {

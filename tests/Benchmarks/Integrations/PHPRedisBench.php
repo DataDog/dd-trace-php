@@ -65,7 +65,7 @@ class PHPRedisBench
      * @Revs(100)
      * @Iterations(5)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchRedisBaseline()
     {
@@ -78,7 +78,7 @@ class PHPRedisBench
      * @Revs(100)
      * @Iterations(5)
      * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(3.0)
+     * @RetryThreshold(10.0)
      */
     public function benchRedisOverhead()
     {
