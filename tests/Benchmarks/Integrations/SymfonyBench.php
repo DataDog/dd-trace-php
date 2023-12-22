@@ -43,7 +43,7 @@ class SymfonyBench extends WebFrameworkTestCase
 
     public static function getAppIndexScript()
     {
-        return __DIR__ . '/../../Frameworks/Symfony/Version_6_2/public/index.php';
+        return __DIR__ . '/../../Frameworks/Symfony/Version_5_2/public/index.php';
     }
 
     public function disableSymfonyTracing()
