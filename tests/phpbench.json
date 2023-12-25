@@ -17,7 +17,7 @@
     "report.outputs": {
         "file": {
             "extends": "csv",
-            "file": "tests/Benchmarks/tracer-bench-results.csv",
+            "file": "tests/Benchmarks/reports/tracer-bench-results.csv",
             "delimiter": ","
         }
     }
