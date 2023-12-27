@@ -21,7 +21,10 @@ class MessagePackSerializationBench
     public function provideTraceArrays()
     {
         for ($i = 0; $i < 100; $i++) {
-            \DDTrace\start_span();
+            $span = \DDTrace\start_span();
+            $span->name = 'bench.trace_serialization';
+            $span->meta['foo'] = 'bar';
+            $span->metrics['bar'] = 1;
         }
 
         for ($i = 0; $i < 100; $i++) {

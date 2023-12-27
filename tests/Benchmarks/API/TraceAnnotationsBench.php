@@ -14,7 +14,9 @@ class TraceAnnotationsBench
      */
     public function benchTraceAnnotationOverhead()
     {
-        $this->dummyFunction();
+        for ($i = 0; $i < 1000; $i++) {
+            $this->dummyFunction();
+        }
     }
 
     #[\DDTrace\Trace]
