@@ -248,46 +248,36 @@ class SymfonyIntegration extends Integration
             }
         );
 
-        $symfonyCommandsIntegrated = [];
-        \DDTrace\hook_method(
+        \DDTrace\trace_method(
             'Symfony\Component\Console\Command\Command',
-            '__construct',
-            null,
-            function ($This, $scope) use (&$symfonyCommandsIntegrated, $integration) {
-                if (isset($symfonyCommandsIntegrated[$scope])) {
-                    return;
+            'run',
+            [
+                /* Commands can evidently call other commands, so allow recursion:
+                 * > Console events are only triggered by the main command being executed.
+                 * > Commands called by the main command will not trigger any event.
+                 * - https://symfony.com/doc/current/components/console/events.html.
+                 */
+                'recurse' => true,
+                'prehook' => function (SpanData $span) use ($integration) {
+                    if (\DDTrace\root_span() === $span) {
+                        return false;
+                    }
+
+                    $namespace = \get_class($this);
+                    if (strpos($namespace, DrupalIntegration::NAME) !== false) {
+                        $integration->frameworkPrefix = DrupalIntegration::NAME;
+                    } else {
+                        $integration->frameworkPrefix = SymfonyIntegration::NAME;
+                    }
+
+                    $span->name = 'symfony.console.command.run';
+                    $span->resource = $this->getName() ?: $span->name;
+                    $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
+                    $span->type = Type::CLI;
+                    $span->meta['symfony.console.command.class'] = get_class($this);
+                    $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                 }
-
-                $symfonyCommandsIntegrated[$scope] = true;
-
-                \DDTrace\trace_method($scope, 'run', [
-                    /* Commands can evidently call other commands, so allow recursion:
-                     * > Console events are only triggered by the main command being executed.
-                     * > Commands called by the main command will not trigger any event.
-                     * - https://symfony.com/doc/current/components/console/events.html.
-                     */
-                    'recurse' => true,
-                    'prehook' => function (SpanData $span) use ($scope, $integration) {
-                        if (\DDTrace\root_span() === $span) {
-                            return false;
-                        }
-
-                        $namespace = \get_class($this);
-                        if (strpos($namespace, DrupalIntegration::NAME) !== false) {
-                            $integration->frameworkPrefix = DrupalIntegration::NAME;
-                        } else {
-                            $integration->frameworkPrefix = SymfonyIntegration::NAME;
-                        }
-
-                        $span->name = 'symfony.console.command.run';
-                        $span->resource = $this->getName() ?: $span->name;
-                        $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
-                        $span->type = Type::CLI;
-                        $span->meta['symfony.console.command.class'] = $scope;
-                        $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-                    }]
-                );
-            }
+            ]
         );
 
         \DDTrace\hook_method(
