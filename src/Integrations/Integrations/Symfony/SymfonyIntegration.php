@@ -274,7 +274,7 @@ class SymfonyIntegration extends Integration
                     $span->resource = $this->getName() ?: $span->name;
                     $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
                     $span->type = Type::CLI;
-                    $span->meta['symfony.console.command.class'] = get_class($this);
+                    $span->meta['symfony.console.command.class'] = \get_class($this);
                     $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                 }
             ]
