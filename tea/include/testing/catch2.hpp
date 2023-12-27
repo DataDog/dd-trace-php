@@ -38,7 +38,7 @@
 *    Code or cases tested with bailout will fail if code does not bail
 *    Code or cases tested without bailout will fail if code bails
 */
-#include <include/testing/fixture.hpp>
+#include "fixture.hpp"
 
 #include <catch2/catch.hpp>
 

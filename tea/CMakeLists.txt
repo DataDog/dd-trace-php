@@ -100,6 +100,9 @@ install(
         ${CMAKE_CURRENT_SOURCE_DIR}/include/sapi.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/tea)
 
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/testing/fixture.hpp
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/tea/testing)
+
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/testing/catch2.hpp
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/tea/testing)
 
