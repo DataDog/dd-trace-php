@@ -926,6 +926,7 @@ TEST_WEB_83 := \
 	test_web_slim_4 \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
+	test_web_symfony_70 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
