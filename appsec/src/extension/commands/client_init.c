@@ -163,7 +163,7 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, "schema_extraction");
     mpack_start_map(w, 2);
 
-    dd_mpack_write_lstr(w, "enabled");
+    dd_mpack_write_lstr(w, "disabled");
 
 #define MIN_SE_SAMPLE_RATE 0.0001
 
