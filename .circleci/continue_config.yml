@@ -978,8 +978,9 @@ jobs:
             - run:
                 name: Install CodeCov Uploader Dependencies
                 command: |
-                  sudo apt update
-                  sudo apt install -y gpg
+                    sudo apt update
+                    sudo apt install -y gpg
+                    curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
