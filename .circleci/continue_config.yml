@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  codecov: codecov/codecov@3.3.0
+  codecov: codecov/codecov@3.2.5
 
 parameters:
   build:
@@ -980,7 +980,6 @@ jobs:
                 command: |
                     sudo apt update
                     sudo apt install -y gpg
-                    curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
