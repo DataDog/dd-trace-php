@@ -40,6 +40,23 @@ class WordPressIntegrationLoader
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
+         \DDTrace\hook_method('WP', 'main',  null, function ($This, $scope, $args) {
+            if (\property_exists($This, 'did_permalink') && $This->did_permalink === true) {
+                $rootSpan = \DDTrace\root_span();
+                if (\property_exists($This, 'matched_rule')) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $This->matched_rule;
+                }
+                if (\method_exists($route, 'parameters') &&
+                    function_exists('\datadog\appsec\push_params') &&
+                    \property_exists($This, 'query_vars')) {
+                    $parameters = $This->query_vars;
+                    if (count($parameters) > 0) {
+                        \datadog\appsec\push_params($parameters);
+                    }
+                }
+            }
+         });
+
         \DDTrace\trace_method('WP', 'init', function (SpanData $span) use ($service) {
             $span->name = $span->resource = 'WP.init';
             $span->type = Type::WEB_SERVLET;
