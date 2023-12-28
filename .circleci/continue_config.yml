@@ -983,6 +983,7 @@ jobs:
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
+                xtra_args: "-v"
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
