@@ -139,6 +139,17 @@ class Helper {
         }
     }
 
+    function get_command($command) {
+        $commands = $this->get_commands();
+        foreach($commands as $c) {
+            if ($c[0] == $command) {
+                return $c;
+            }
+        }
+
+        return [];
+    }
+
     function print_commands($sort = true) {
         $commands = $this->get_commands();
         if (!is_array($commands)) {
