@@ -4035,7 +4035,7 @@ workflows:
             ./build.sh php
           run: |
             cd system-tests
-            rm tests/test_schemas.py
+            ls tests/
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
 
       - system_tests:
