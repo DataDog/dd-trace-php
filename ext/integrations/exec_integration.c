@@ -21,7 +21,7 @@ typedef struct php_process_handle php_process_handle;
 /* popen stream handler close interception */
 
 static int dd_php_stdiop_close_wrapper(php_stream *stream, int close_handle);
-static bool dd_waitpid(ddtrace_span_data *, php_process_id_t);
+static void dd_waitpid(ddtrace_span_data *, php_process_id_t);
 
 ZEND_TLS HashTable *tracked_streams;  // php_stream => span
 static zend_string *cmd_exit_code_zstr;
@@ -110,7 +110,7 @@ static int le_proc;
 static int le_proc_span;
 
 static void dd_proc_wrapper_rsrc_dtor(zend_resource *rsrc) {
-    // this is called from the begginning of proc_open_rsrc_dtor,
+    // this is called from the beginning of proc_open_rsrc_dtor,
     // before the process is possibly reaped
 
     dd_proc_span *proc_span = (dd_proc_span *)rsrc->ptr;
@@ -118,7 +118,7 @@ static void dd_proc_wrapper_rsrc_dtor(zend_resource *rsrc) {
     ddtrace_span_data *span_data = OBJ_SPANDATA(proc_span->span);
 
     if (span_data->duration == 0) {
-        (void)dd_waitpid(span_data, proc_span->child);
+        dd_waitpid(span_data, proc_span->child);
 
         dd_trace_stop_span_time(span_data);
         ddtrace_close_span_restore_stack(span_data);
@@ -128,10 +128,10 @@ static void dd_proc_wrapper_rsrc_dtor(zend_resource *rsrc) {
     efree(proc_span);
 }
 
-static bool /* reaped */ dd_waitpid(ddtrace_span_data *span_data, php_process_id_t pid) {
+static void dd_waitpid(ddtrace_span_data *span_data, php_process_id_t pid) {
     if (span_data->duration) {
         // already closed
-        return false;
+        return;
     }
     zend_array *meta = ddtrace_property_array(&span_data->property_meta);
 
@@ -146,10 +146,13 @@ static bool /* reaped */ dd_waitpid(ddtrace_span_data *span_data, php_process_id
     }
 
     if (pid_res != pid) {
-        return false;  // some other error. Probably the process is no more/not a child
+        return;  // 0 was returned (no changed status) or some error
+                 // Probably the process is no more/not a child
     }
 
+    bool exited = false;
     if (WIFEXITED(wstatus)) {
+        exited = true;
         wstatus = WEXITSTATUS(wstatus);
     } else if (WIFSIGNALED(wstatus)) {
         // wstatus is not modified!
@@ -160,18 +163,16 @@ static bool /* reaped */ dd_waitpid(ddtrace_span_data *span_data, php_process_id
         zval has_signalled_zv;
         ZVAL_INTERNED_STR(&has_signalled_zv, has_signalled_zstr);
         zend_hash_update(meta, error_message_zstr, &has_signalled_zv);
+        exited = true;
     }  // else !FG(pclose_wait) and it hasn't finished
 
-    if (wstatus != -1) {  // we matched one of the two branches above
+    if (exited) {
         zval zexit;
         ZVAL_LONG(&zexit, wstatus);
 
         // set tag 'cmd.exit_code'
         zend_hash_update(meta, cmd_exit_code_zstr, &zexit);
-        return true;
     }
-
-    return false;
 }
 
 static PHP_FUNCTION(DDTrace_integrations_exec_proc_assoc_span) {

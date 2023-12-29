@@ -77,6 +77,17 @@ class ExecIntegration extends Integration
         );
 
 
+        /*
+         * This instrumentation works by creating a span on the enter callback, and then
+         * associating this span with the resource returned by proc_open. This association
+         * is done by adding a resource to the list of pipes of the proc resource. This
+         * resource (of type dd_proc_span) is not an actual pipe, but it doesn't matter;
+         * PHP will only ever destroy this resource.
+         *
+         * When the proc resource is destroyed, the dd_proc_span resource is destroyed as
+         * well, and in the process the span is finished, unless it was finished before
+         * in proc_get_status.
+         */
         \DDTrace\install_hook(
             'proc_open',
             static function (HookData $hook) {
