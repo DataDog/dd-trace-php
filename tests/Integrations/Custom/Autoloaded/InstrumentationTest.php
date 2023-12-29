@@ -84,6 +84,11 @@ final class InstrumentationTest extends WebFrameworkTestCase
                 "enabled" => true,
             ],
             [
+                "name" => "exec",
+                "enabled" => false,
+                "version" => ""
+            ],
+            [
                 "name" => "logs",
                 "enabled" => false,
                 "version" => ""

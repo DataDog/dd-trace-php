@@ -80,6 +80,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
             'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
             'DD_TRACE_DEBUG' => ini_get("datadog.trace.debug"),
+            'DD_TRACE_EXEC_ENABLED' => 'false',
         ];
 
         return $envs;

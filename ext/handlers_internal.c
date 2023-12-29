@@ -2,6 +2,7 @@
 
 #include "arrays.h"
 #include "ddtrace.h"
+#include "integrations/exec_integration.h"
 
 void ddtrace_free_unregistered_class(zend_class_entry *ce) {
 #if PHP_VERSION_ID >= 80100
@@ -108,6 +109,11 @@ static void dd_install_internal_handlers(void) {
     dd_install_internal_function("curl_exec");
     dd_install_internal_function("pcntl_fork");
     dd_install_internal_function("pcntl_rfork");
+    dd_install_internal_function("DDTrace\\Integrations\\Exec\\register_stream");
+    dd_install_internal_function("DDTrace\\Integrations\\Exec\\proc_assoc_span");
+    dd_install_internal_function("DDTrace\\Integrations\\Exec\\proc_get_span");
+    dd_install_internal_function("DDTrace\\Integrations\\Exec\\proc_get_pid");
+    dd_install_internal_function("DDTrace\\Integrations\\Exec\\test_rshutdown");
 }
 #endif
 
@@ -121,7 +127,7 @@ void ddtrace_exception_handlers_rinit(void);
 
 void ddtrace_curl_handlers_rshutdown(void);
 
-void ddtrace_internal_handlers_startup(void) {
+void ddtrace_internal_handlers_startup() {
     // On PHP 8.0 zend_execute_internal is not executed in JIT. Manually ensure internal hooks are executed.
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
 #if PHP_VERSION_ID >= 80100
@@ -139,6 +145,8 @@ void ddtrace_internal_handlers_startup(void) {
     ddtrace_pcntl_handlers_startup();
     // exception handlers have to run otherwise wrapping will fail horribly
     ddtrace_exception_handlers_startup();
+
+    ddtrace_exec_handlers_startup();
 }
 
 void ddtrace_internal_handlers_shutdown(void) {
@@ -150,11 +158,18 @@ void ddtrace_internal_handlers_shutdown(void) {
 #if PHP_VERSION_ID < 80000
     ddtrace_curl_handlers_shutdown();
 #endif
+
+    ddtrace_exec_handlers_shutdown();
 }
 
 void ddtrace_internal_handlers_rinit(void) {
     ddtrace_curl_handlers_rinit();
     ddtrace_exception_handlers_rinit();
+    ddtrace_exec_handlers_rinit();
 }
 
-void ddtrace_internal_handlers_rshutdown(void) { ddtrace_curl_handlers_rshutdown(); }
+void ddtrace_internal_handlers_rshutdown(void) {
+    ddtrace_curl_handlers_rshutdown();
+    // called earlier in zm_deactivate_ddtrace
+    // ddtrace_exec_handlers_rshutdown();
+}
