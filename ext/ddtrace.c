@@ -359,8 +359,9 @@ bool dd_save_sampling_rules_file_config(zend_string *path, int modify_type, int 
     return altered;
 }
 
-bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) {
+bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value, zend_string *new_str) {
     (void) old_value;
+    (void) new_str;
     if (Z_STRLEN_P(new_value) == 0) {
         return true;
     }
@@ -368,8 +369,8 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
-static inline bool dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value) {
-    UNUSED(old_value);
+static inline bool dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_str);
 
     ddtrace_span_properties *pspan = ddtrace_active_span_props();
     while (pspan) {
@@ -382,14 +383,14 @@ static inline bool dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
     return true;
 }
 
-bool ddtrace_alter_dd_service(zval *old_value, zval *new_value) {
-    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value);
+bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
+    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
 }
-bool ddtrace_alter_dd_env(zval *old_value, zval *new_value) {
-    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value);
+bool ddtrace_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
+    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
 }
-bool ddtrace_alter_dd_version(zval *old_value, zval *new_value) {
-    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value);
+bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
+    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
 }
 
 static void dd_activate_once(void) {
@@ -1429,11 +1430,14 @@ static void dd_initialize_request(void) {
         }
     }
 
-    if (!DDTRACE_G(remote_config_state)) {
+    // TODO CONFIG option for RC
+    if (!DDTRACE_G(remote_config_state) && ddtrace_endpoint) {
         DDTRACE_G(remote_config_state) = ddog_init_remote_config(DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION), ddtrace_endpoint);
     }
 
-    ddtrace_rinit_remote_config();
+    if (DDTRACE_G(remote_config_state)) {
+        ddtrace_rinit_remote_config();
+    }
 
     ddtrace_internal_handlers_rinit();
 
@@ -1463,7 +1467,6 @@ static void dd_initialize_request(void) {
 
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();
-        ddtrace_sidecar_submit_root_span_data();
     }
 }
 
@@ -1649,7 +1652,9 @@ void ddtrace_disable_tracing_in_current_request(void) {
     zend_string_release(zero);
 }
 
-bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
+bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, zend_string *new_str) {
+    (void)new_str;
+
     if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value)) {
         return true;
     }

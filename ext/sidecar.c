@@ -312,18 +312,21 @@ void ddtrace_sidecar_submit_root_span_data(void) {
         ddtrace_root_span_data *root = DDTRACE_G(active_stack)->root_span;
         if (root) {
             zval *service = &root->property_service;
-            ddog_CharSlice service_slice = DDOG_CHARSLICE_C("");
-            if (Z_TYPE_P(service) == IS_STRING) {
+            ddog_CharSlice service_slice = DDOG_CHARSLICE_C("unnamed-php-service");
+            if (Z_TYPE_P(service) == IS_STRING && Z_STRLEN_P(service) > 0) {
                 service_slice = dd_zend_string_to_CharSlice(Z_STR_P(service));
             }
 
             zval *env = zend_hash_str_find(ddtrace_property_array(&root->property_meta), ZEND_STRL("env"));
-            ddog_CharSlice env_slice = DDOG_CHARSLICE_C("");
-            if (env && Z_TYPE_P(env) == IS_STRING) {
+            ddog_CharSlice env_slice = DDOG_CHARSLICE_C("none");
+            if (env && Z_TYPE_P(env) == IS_STRING && Z_STRLEN_P(env) > 0) {
                 env_slice = dd_zend_string_to_CharSlice(Z_STR_P(env));
             }
 
             ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, service_slice, env_slice, DDOG_CHARSLICE_C(""));
+            if (DDTRACE_G(remote_config_state)) {
+                ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice);
+            }
         }
     }
 }

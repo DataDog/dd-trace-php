@@ -289,7 +289,6 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
                 _zend_hash_append_ex(stack_frame, ZSTR_KNOWN(ZEND_STR_LINE), &tmp, 1);
                 if ((options & DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS)) {
                     ddtrace_call_get_locals(call, &tmp, (options & DEBUG_BACKTRACE_IGNORE_ARGS) == 0);
-                    GC_ADDREF(key_locals);
                     _zend_hash_append_ex(stack_frame, key_locals, &tmp, 0);
                 }
                 if (prev_stack_frame) {
@@ -349,7 +348,6 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
             _zend_hash_append_ex(stack_frame, ZSTR_KNOWN(ZEND_STR_LINE), &tmp, 1);
             if ((options & DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS)) {
                 ddtrace_call_get_locals(prev, &tmp, (options & DEBUG_BACKTRACE_IGNORE_ARGS) == 0);
-                GC_ADDREF(key_locals);
                 _zend_hash_append_ex(stack_frame, key_locals, &tmp, 0);
             }
 
@@ -377,7 +375,6 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
                     _zend_hash_append_ex(stack_frame, ZSTR_KNOWN(ZEND_STR_LINE), &tmp, 1);
                     if ((options & DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS)) {
                         ddtrace_call_get_locals(prev, &tmp, (options & DEBUG_BACKTRACE_IGNORE_ARGS) == 0);
-                        GC_ADDREF(key_locals);
                         _zend_hash_append_ex(stack_frame, key_locals, &tmp, 0);
                     }
                     break;
@@ -497,9 +494,9 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
             include_filename = filename;
             call = prev;
         }
+    }
 
-        if (key_locals) {
-            zend_string_release(key_locals);
-        }
+    if (key_locals) {
+        zend_string_release(key_locals);
     }
 }

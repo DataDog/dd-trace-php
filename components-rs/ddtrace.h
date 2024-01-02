@@ -8,6 +8,10 @@
 #include "telemetry.h"
 #include "sidecar.h"
 
+typedef struct ddog_Vec_CChar *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
+                                                           ddog_CharSlice value,
+                                                           bool return_old);
+
 /**
  * `QueueId` is a struct that represents a unique identifier for a queue.
  * It contains a single field, `inner`, which is a 64-bit unsigned integer.
@@ -160,7 +164,18 @@ struct ddog_RemoteConfigState *ddog_init_remote_config(ddog_CharSlice tracer_ver
 
 void ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
 
-void ddog_init_live_debugger(const struct ddog_LiveDebuggerSetup *setup);
+struct ddog_Vec_CChar *ddog_CharSlice_to_owned(ddog_CharSlice str);
+
+void ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
+                                            ddog_CharSlice service,
+                                            ddog_CharSlice env);
+
+bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remote_config,
+                                             ddog_CharSlice config,
+                                             ddog_CharSlice new_value);
+
+void ddog_setup_dynamic_configuration(ddog_DynamicConfigUpdate update_config,
+                                      const struct ddog_LiveDebuggerSetup *setup);
 
 void ddog_rinit_remote_config(struct ddog_RemoteConfigState *remote_config);
 

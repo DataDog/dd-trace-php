@@ -198,6 +198,16 @@ typedef struct ddog_RemoteConfigState ddog_RemoteConfigState;
 
 typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_CChar {
+  const char *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_CChar;
+
 typedef enum ddog_IntermediateValue_Tag {
   DDOG_INTERMEDIATE_VALUE_STRING,
   DDOG_INTERMEDIATE_VALUE_NUMBER,

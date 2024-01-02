@@ -239,7 +239,7 @@ zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);
 zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id);
 
-bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value);
+bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value, zend_string *new_str);
 
 static inline bool ddtrace_span_is_dropped(ddtrace_span_data *span) {
     return span->duration == DDTRACE_DROPPED_SPAN || span->duration == DDTRACE_SILENTLY_DROPPED_SPAN;

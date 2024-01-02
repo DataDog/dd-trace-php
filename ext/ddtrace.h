@@ -59,12 +59,12 @@ bool ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace
 void dd_prepare_for_new_trace(void);
 void ddtrace_disable_tracing_in_current_request(void);
-bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value);
-bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value);
-bool ddtrace_alter_default_propagation_style(zval *old_value, zval *new_value);
-bool ddtrace_alter_dd_service(zval *old_value, zval *new_value);
-bool ddtrace_alter_dd_env(zval *old_value, zval *new_value);
-bool ddtrace_alter_dd_version(zval *old_value, zval *new_value);
+bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_default_propagation_style(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str);
 void dd_force_shutdown_tracing(void);
 void dd_internal_handle_fork(void);
 #ifdef CXA_THREAD_ATEXIT_WRAPPER

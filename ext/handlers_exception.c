@@ -494,6 +494,7 @@ void ddtrace_exception_handlers_startup(void) {
     prev_exception_default_create_object = zend_ce_exception->create_object;
     zend_hash_init(&ddtrace_exception_custom_create_object, 8, NULL, NULL, 1);
     zend_class_entry *ce;
+    zend_string *locals_key = zend_string_init_interned(ZEND_STRL("locals"), 1);
     ZEND_HASH_FOREACH_PTR(CG(class_table), ce) {
         if ((ce->ce_flags & ZEND_ACC_INTERFACE) == 0 && instanceof_function_slow(ce, zend_ce_throwable)) {
             if (ce->create_object) {
@@ -515,11 +516,11 @@ void ddtrace_exception_handlers_startup(void) {
                     parent_info = error_prop;
                 }
                 if (base_ce) {
-                    zval *child = zend_hash_find_known_hash(&ce->properties_info, parent_info->name);
+                    zval *child = zend_hash_find_known_hash(&ce->properties_info, locals_key);
                     if (child) {
                         ((zend_property_info *)Z_PTR_P(child))->flags |= ZEND_ACC_CHANGED;
                     } else {
-                        zend_hash_add_new_ptr(&ce->properties_info, parent_info->name, parent_info);
+                        zend_hash_add_new_ptr(&ce->properties_info, locals_key, parent_info);
                     }
 
                     zend_property_info *property_info;
