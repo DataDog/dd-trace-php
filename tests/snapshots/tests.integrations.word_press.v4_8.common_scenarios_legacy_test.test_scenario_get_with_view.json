@@ -11,7 +11,7 @@
       "_dd.p.dm": "-0",
       "component": "wordpress",
       "http.method": "GET",
-      "http.route": "([^/]+)(?:/([0-9]+))?/?$",
+      "http.route": "(.?.+?)(?:/([0-9]+))?/?$",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple_view?key=value&<redacted>",
       "runtime-id": "dccda1ae-615d-4300-bae1-1ba83e60ac15",
