@@ -42,3 +42,7 @@ static inline bool ddtrace_ffi_try(const char *msg, ddog_MaybeError maybe_error)
     }
     return true;
 }
+
+static inline bool ddtrace_exception_debugging_is_active(void) {
+    return ddtrace_sidecar_instance_id;
+}

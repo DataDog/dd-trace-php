@@ -85,9 +85,6 @@ typedef struct {
 // zai_function_location_map maps from a filename to a possibly ordered array of values
 ZEND_TLS HashTable zai_function_location_map; /* }}} */
 
-// Override php_get_module_initialized() check
-bool zai_hook_force_persistent = false;
-
 #define ZAI_IS_SHARED_HOOK_PTR (IS_PTR+1)
 
 #if PHP_VERSION_ID >= 80000
@@ -1218,7 +1215,7 @@ void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
 zend_long zai_hook_install_resolved_generator(zend_function *function,
         zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic) {
-    if (!php_get_module_initialized()) {
+    if (!PG(modules_activated)) {
         /* not allowed: can only do resolved install during request */
         return -1;
     }
@@ -1263,7 +1260,7 @@ static zend_string *zai_zend_string_init_lower(const char *ptr, size_t len, bool
 zend_long zai_hook_install_generator(zai_str scope, zai_str function,
         zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic) {
-    bool persistent = zai_hook_force_persistent || !php_get_module_initialized();
+    bool persistent = !PG(modules_activated);
 
     zai_hook_t *hook = pemalloc(sizeof(*hook), persistent);
     *hook = (zai_hook_t){

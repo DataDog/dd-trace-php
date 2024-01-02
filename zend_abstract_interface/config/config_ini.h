@@ -34,9 +34,9 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
                                         zai_str default_value,
                                         zai_config_id entry_id);
 
-typedef bool (*zai_config_apply_ini_change)(zval *old_value, zval *new_value);
+typedef bool (*zai_config_apply_ini_change)(zval *old_value, zval *new_value, zend_string *new_str);
 typedef bool (*zai_env_config_fallback)(zai_env_buffer buf, bool pre_rinit);
 
-bool zai_config_system_ini_change(zval *old_value, zval *new_value);
+bool zai_config_system_ini_change(zval *old_value, zval *new_value, zend_string *new_str);
 
 bool zai_config_is_modified(zai_config_id entry_id);

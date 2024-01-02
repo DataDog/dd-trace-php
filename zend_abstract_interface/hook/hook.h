@@ -105,9 +105,6 @@ void zai_hook_unresolve_op_array(zend_op_array *op_array);
 extern TSRM_TLS HashTable zai_hook_resolved;
 /* }}} */
 
-// Override php_get_module_initialized() check
-extern bool zai_hook_force_persistent;
-
 #if PHP_VERSION_ID >= 80000
 extern void (*zai_hook_on_update)(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler);
 extern void (*zai_hook_on_function_resolve)(zend_function *func);

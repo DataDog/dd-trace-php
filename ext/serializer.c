@@ -40,6 +40,7 @@
 #include "user_request.h"
 #include "ddshared.h"
 #include "zend_hrtime.h"
+#include "sidecar.h"
 #include "components-rs/live-debugger.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -502,6 +503,10 @@ static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_
 }
 
 static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_string *service_name, uint64_t time, void *context, add_tag_fn_t add_meta) {
+    if (!ddtrace_exception_debugging_is_active()) {
+        return;
+    }
+
     zval *trace = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_TRACE);
     if (Z_TYPE_P(trace) != IS_ARRAY) {
         return;
@@ -532,7 +537,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
         ddog_DebuggerCapture *capture = dd_create_frame_and_collect_locals(exception_id, frame_num, locals, service_name, &capture_config, time, context, add_meta);
         locals = zend_hash_find(Z_ARR_P(frame), key_locals);
 
-        zend_class_entry *ce;
+        zend_class_entry *ce = NULL;
         zend_function *func;
         zval *class_name = zend_hash_find(Z_ARR_P(frame), ZSTR_KNOWN(ZEND_STR_FUNCTION));
         if (class_name && Z_TYPE_P(class_name) == IS_STRING) {
@@ -556,8 +561,13 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
                 if (key) {
                     arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(key), .len = ZSTR_LEN(key)};
                 } else if (func && idx < func->common.num_args) {
-                    zend_string *name = func->common.arg_info[idx].name;
-                    arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
+                    if (ZEND_USER_CODE(func->type)) {
+                        zend_string *name = func->op_array.arg_info[idx].name;
+                        arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
+                    } else {
+                        const char *name = func->internal_function.arg_info[idx].name;
+                        arg_name = (ddog_CharSlice) {.ptr = name, .len = strlen(name)};
+                    }
                 } else {
                     char *integer = zend_arena_alloc(&DDTRACE_G(exception_debugger_arena), 23);
                     int len = sprintf(integer, "arg" ZEND_LONG_FMT, idx);
@@ -1203,6 +1213,10 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
             zval sample_rate;
             ZVAL_DOUBLE(&sample_rate, web_integration->get_sample_rate());
             zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &sample_rate);
+        }
+
+        if (ddtrace_span_is_entrypoint_root(&span->span)) {
+            ddtrace_sidecar_submit_root_span_data();
         }
     }
 

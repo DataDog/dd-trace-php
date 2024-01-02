@@ -123,7 +123,7 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(
     }
     zval runtime_path;
     ZVAL_STR(&runtime_path, get_DD_APPSEC_HELPER_RUNTIME_PATH());
-    dd_on_runtime_path_update(NULL, &runtime_path);
+    dd_on_runtime_path_update(NULL, &runtime_path, NULL);
 
     bool retry = false;
     for (int attempt = 0;; attempt++) {
@@ -197,9 +197,10 @@ dd_conn *nullable dd_helper_mgr_cur_conn(void)
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-bool dd_on_runtime_path_update(zval *nullable old_val, zval *nonnull new_val)
+bool dd_on_runtime_path_update(zval *nullable old_val, zval *nonnull new_val, zend_string *nullable new_str)
 {
     UNUSED(old_val);
+    UNUSED(new_str);
 
     uid_t uid = getuid();
     gid_t gid = getgid();

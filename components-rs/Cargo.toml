@@ -20,6 +20,7 @@ datadog-sidecar-ffi = { path = "../libdatadog/sidecar-ffi" }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }
 const-str = "0.5.6"
+itertools = "0.11.0"
 serde = "1.0.196"
 simd-json = "0.13.8"
 serde_with = "3.6.0"

@@ -11,7 +11,7 @@
 #define DD_TRACE_MAX_ID_LEN 40  // uint64_t -> 2**128 = 20 chars max ID
 
 void ddtrace_seed_prng(void);
-bool ddtrace_reseed_seed_change(zval *old_value, zval *new_value);
+bool ddtrace_reseed_seed_change(zval *old_value, zval *new_value, zend_string *new_str);
 uint64_t ddtrace_generate_span_id(void);
 uint64_t ddtrace_peek_span_id(void);
 ddtrace_trace_id ddtrace_peek_trace_id(void);

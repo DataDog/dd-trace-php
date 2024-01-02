@@ -26,7 +26,7 @@ int ddtrace_bgs_logf(const char *fmt, ...);
 /* }}} */
 
 void ddtrace_log_init(void);
-bool ddtrace_alter_dd_trace_debug(zval *old_value, zval *new_value);
-bool ddtrace_alter_dd_trace_log_level(zval *old_value, zval *new_value);
+bool ddtrace_alter_dd_trace_debug(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_dd_trace_log_level(zval *old_value, zval *new_value, zend_string *new_str);
 
 #endif  // DD_LOGGING_H

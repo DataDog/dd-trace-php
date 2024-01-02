@@ -7,6 +7,9 @@
 #include "json/json.h"
 #include <components/log/log.h>
 #include <zai_string/string.h>
+#include "sidecar.h"
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
@@ -42,9 +45,10 @@ DD_CONFIGURATION
 #undef CALIAS
 #define CONFIG(...)
 #define ELEMENT(arg) 1,
-#define CALIASES(...) APPLY_N(ELEMENT, ##__VA_ARGS__)
+#define CALIASES(...) (APPLY_N(ELEMENT, ##__VA_ARGS__))
+#define ELEMENTS(...) __VA_ARGS__
 #define CALIAS(type, name, default, aliases, ...)                             \
-    _Static_assert(sizeof((uint8_t[]){aliases}) < ZAI_CONFIG_NAMES_COUNT_MAX, \
+    _Static_assert(sizeof((uint8_t[]){ELEMENTS aliases}) < ZAI_CONFIG_NAMES_COUNT_MAX, \
                    #name " has more than the allowed ZAI_CONFIG_NAMES_COUNT_MAX alias names");
 DD_CONFIGURATION
 #undef CALIAS
@@ -88,6 +92,19 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
 
     return true;
 }
+
+#define INI_CHANGE_DYNAMIC_CONFIG(name, config) \
+    static bool ddtrace_alter_##name(zval *old_value, zval *new_value, zend_string *new_str) { \
+        UNUSED(old_value, new_value); \
+        if (!DDTRACE_G(remote_config_state)) {  \
+            return true; \
+        } \
+        return ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C(config), dd_zend_string_to_CharSlice(new_str)); \
+    }
+
+INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_HEADER_TAGS, "datadog.trace.header_tags")
+INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_SAMPLE_RATE, "datadog.trace.sample_rate")
+INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_LOGS_ENABLED, "datadog.logs_injection")
 
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
 
@@ -166,6 +183,7 @@ bool ddtrace_config_minit(int module_number) {
     // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
     zai_config_first_time_rinit(false);
 
+    ddtrace_alter_dd_trace_debug(NULL, &zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_DEBUG].decoded_value, NULL);
     ddtrace_log_ginit();
     return true;
 }

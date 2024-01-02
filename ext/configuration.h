@@ -67,18 +67,18 @@ enum ddtrace_sampling_rules_format {
 
 #define DD_CFG_STR(str) #str
 #define DD_CFG_EXPSTR(str) DD_CFG_STR(str)
-#define INTEGRATION_ALIAS(id, _, initial, alias) \
-    CALIAS(BOOL, DD_TRACE_##id##_ENABLED, initial, CALIASES(DD_CFG_STR(alias)))
+#define INTEGRATION_ALIAS(id, _, initial, ...) \
+    CALIAS(BOOL, id, initial, __VA_ARGS__)
 #define INTEGRATION_WITH_DEFAULT(id, _, initial) \
-    CONFIG(BOOL, DD_TRACE_##id##_ENABLED, initial)
+    CONFIG(BOOL, id, initial)
 #define INTEGRATION_NORMAL(id, _) \
-    CONFIG(BOOL, DD_TRACE_##id##_ENABLED, "true")
-#define GET_INTEGRATION_CONFIG_MACRO(_1, _2, DEFAULT, NAME, ...) NAME
+    CONFIG(BOOL, id, "true")
+#define GET_INTEGRATION_CONFIG_MACRO(_1, _2, _3, DEFAULT, NAME, ...) NAME
 #if defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL
 #define GET_INTEGRATION_CONFIG_MACRO_EXPAND(...) __VA_ARGS__
-#define INTEGRATION_CONFIG_ACTIVE(id, ...) GET_INTEGRATION_CONFIG_MACRO_EXPAND(GET_INTEGRATION_CONFIG_MACRO(__VA_ARGS__, INTEGRATION_ALIAS, INTEGRATION_WITH_DEFAULT, INTEGRATION_NORMAL))GET_INTEGRATION_CONFIG_MACRO_EXPAND((id, __VA_ARGS__))
+#define INTEGRATION_CONFIG_ACTIVE(id, ...) GET_INTEGRATION_CONFIG_MACRO_EXPAND(GET_INTEGRATION_CONFIG_MACRO(__VA_ARGS__, INTEGRATION_ALIAS, INTEGRATION_ALIAS, INTEGRATION_WITH_DEFAULT, INTEGRATION_NORMAL))GET_INTEGRATION_CONFIG_MACRO_EXPAND((DD_TRACE_##id##_ENABLED, __VA_ARGS__))
 #else
-#define INTEGRATION_CONFIG_ACTIVE(id, ...) GET_INTEGRATION_CONFIG_MACRO(__VA_ARGS__, INTEGRATION_ALIAS, INTEGRATION_WITH_DEFAULT, INTEGRATION_NORMAL)(id, __VA_ARGS__)
+#define INTEGRATION_CONFIG_ACTIVE(id, ...) GET_INTEGRATION_CONFIG_MACRO(__VA_ARGS__, INTEGRATION_ALIAS, INTEGRATION_ALIAS, INTEGRATION_WITH_DEFAULT, INTEGRATION_NORMAL)(DD_TRACE_##id##_ENABLED, __VA_ARGS__)
 #endif
 #define INTEGRATION(id, ...)                                                                                           \
     INTEGRATION_CONFIG_ACTIVE(id, __VA_ARGS__)                                                                         \
@@ -140,13 +140,13 @@ enum ddtrace_sampling_rules_format {
     CONFIG(SET, DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED, "*")                                                    \
     CONFIG(SET, DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED, "")                                                     \
     CONFIG(INT, DD_TRACE_RATE_LIMIT, "0", .ini_change = zai_config_system_ini_change)                          \
-    CONFIG(DOUBLE, DD_TRACE_SAMPLE_RATE, "-1",                                                                 \
+    CONFIG(DOUBLE, DD_TRACE_SAMPLE_RATE, "-1", .ini_change = ddtrace_alter_DD_TRACE_SAMPLE_RATE,               \
            .env_config_fallback = ddtrace_conf_otel_sample_rate)                                               \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                                \
     CONFIG(CUSTOM(INT), DD_TRACE_SAMPLING_RULES_FORMAT, "glob", .parser = dd_parse_sampling_rules_format)      \
     CONFIG(JSON, DD_SPAN_SAMPLING_RULES, "[]")                                                                 \
     CONFIG(STRING, DD_SPAN_SAMPLING_RULES_FILE, "", .ini_change = ddtrace_alter_sampling_rules_file_config)    \
-    CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                            \
+    CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "", .ini_change = ddtrace_alter_DD_TRACE_HEADER_TAGS)          \
     CONFIG(INT, DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "512")                                                     \
     CONFIG(MAP, DD_TRACE_PEER_SERVICE_MAPPING, "")                                                             \
     CONFIG(BOOL, DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "false")                                              \

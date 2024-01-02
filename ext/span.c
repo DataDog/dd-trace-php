@@ -378,7 +378,9 @@ DDTRACE_PUBLIC zend_object *ddtrace_get_root_span()
     return &rsd->std;
 }
 
-bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
+bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(new_str);
+
     if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value) || !DDTRACE_G(active_stack)) {
         return true;
     }
@@ -749,10 +751,12 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
             } while (stack);
         } while (rootstack);
 
-        ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(exception_debugger_buffer));
-        if (DDTRACE_G(exception_debugger_arena)) {
-            zend_arena_destroy(DDTRACE_G(exception_debugger_arena));
-            DDTRACE_G(exception_debugger_arena) = NULL;
+        if (ddtrace_exception_debugging_is_active()) {
+            ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(exception_debugger_buffer));
+            if (DDTRACE_G(exception_debugger_arena)) {
+                zend_arena_destroy(DDTRACE_G(exception_debugger_arena));
+                DDTRACE_G(exception_debugger_arena) = NULL;
+            }
         }
     }
 

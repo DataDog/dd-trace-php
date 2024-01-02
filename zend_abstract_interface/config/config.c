@@ -232,8 +232,9 @@ void zai_config_rinit(void) {
 
 void zai_config_rshutdown(void) { zai_config_runtime_config_dtor(); }
 
-bool zai_config_system_ini_change(zval *old_value, zval *new_value) {
+bool zai_config_system_ini_change(zval *old_value, zval *new_value, zend_string *new_str) {
     (void)old_value;
     (void)new_value;
+    (void)new_str;
     return false;
 }

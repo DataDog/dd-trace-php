@@ -25,7 +25,7 @@
     INTEGRATION(LAMINAS, "laminas")             \
     INTEGRATION(LARAVEL, "laravel")             \
     INTEGRATION(LARAVELQUEUE, "laravelqueue")   \
-    INTEGRATION(LOGS, "logs", "false", DD_LOGS_INJECTION) \
+    INTEGRATION(LOGS, "logs", "false", CALIASES("DD_LOGS_INJECTION"), .ini_change = ddtrace_alter_DD_TRACE_LOGS_ENABLED) \
     INTEGRATION(LUMEN, "lumen")                 \
     INTEGRATION(MAGENTO, "magento")            \
     INTEGRATION(MEMCACHE, "memcache")           \
