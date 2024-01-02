@@ -85,9 +85,9 @@ void dds::remote_config::asm_features_listener::on_update(const config &config)
 
     if (api_security_enabled_) {
         double sample_rate = 0;
-        if (!(service_config_->get_asm_enabled_status() ==
-                    enable_asm_status::DISABLED &&
-                dynamic_enablement_)) {
+        if (service_config_->get_asm_enabled_status() !=
+                enable_asm_status::DISABLED ||
+            !dynamic_enablement_) {
             sample_rate = parse_api_security(serialized_doc);
         }
         service_config_->set_request_sample_rate(sample_rate);
