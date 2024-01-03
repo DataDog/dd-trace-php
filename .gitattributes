@@ -12,3 +12,14 @@ RELEASING.md        export-ignore
 .circleci           export-ignore
 .clang-format       export-ignore
 ext/vendor/*        linguist-generated=true
+
+.github           export-ignore
+.gitlab           export-ignore
+.nuke             export-ignore
+benchmark         export-ignore
+docs              export-ignore
+examples          export-ignore
+github-actions-helpers         export-ignore
+
+.gitlab-ci.yml    export-ignore
+phpstan*.neon     export-ignore
