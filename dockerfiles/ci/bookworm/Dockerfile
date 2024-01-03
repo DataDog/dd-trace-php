@@ -34,6 +34,7 @@ ENV DEVLIBS \
     libxml2-dev \
     libxslt1-dev \
     libzip-dev \
+    lsof \
     zlib1g-dev \
     libasan6 \
     gnupg \
