@@ -90,8 +90,8 @@ class SlimIntegration extends Integration
                         'Slim\\Router',
                         'lookupRoute',
                         null,
-                        /** @var \Slim\Interfaces\RouteInterface $return */
                         function ($router, $scope, $args, $return) use ($rootSpan) {
+                            /** @var \Slim\Interfaces\RouteInterface $return */
                             $rootSpan->meta[Tag::HTTP_ROUTE] = $return->getPattern();
 
                             if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
