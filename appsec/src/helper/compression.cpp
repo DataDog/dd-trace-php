@@ -12,7 +12,7 @@
 namespace dds {
 
 namespace {
-constexpr int64_t encoding = -0xf;
+constexpr int64_t encoding = 0x1f;
 constexpr int max_round_decompression = 100;
 // Taken from PHP approach
 // https://heap.space/xref/PHP-7.3/ext/zlib/php_zlib.h?r=8d3f8ca1#36
