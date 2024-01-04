@@ -198,6 +198,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     {
         $hasEnded = $this->hasEnded();
 
+        $this->updateSpanLinks();
+
         return new ImmutableSpan(
             $this,
             $this->getName(),
@@ -435,5 +437,31 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function getDDSpan(): SpanData
     {
         return $this->span;
+    }
+
+    private function updateSpanLinks()
+    {
+        // Important: Links are assumed not to be removable to update the span links from Datadog to OpenTelemetry
+        // For instance, if there are 4 links in Datadog and only 2 in OpenTelemetry, the 2 missing links will be added
+        // to OpenTelemetry
+        $datadogSpanLinks = $this->span->links;
+        $otelSpanLinks = $this->links;
+
+        $datadogSpanLinksCount = count($datadogSpanLinks);
+        $otelSpanLinksCount = count($otelSpanLinks);
+
+        for ($i = $otelSpanLinksCount; $i < $datadogSpanLinksCount; $i++) {
+            $spanLink = $datadogSpanLinks[$i];
+
+            $linkSpanContext = API\SpanContext::create(
+                $spanLink->traceId,
+                $spanLink->spanId,
+                API\TraceFlags::DEFAULT,
+                new API\TraceState($spanLink->traceState ?? null),
+            );
+
+            $this->links[] = new Link($linkSpanContext, Attributes::create($spanLink->attributes ?? []));
+            $this->totalRecordedLinks++;
+        }
     }
 }

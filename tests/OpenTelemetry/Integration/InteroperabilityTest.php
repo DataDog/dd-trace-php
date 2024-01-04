@@ -975,4 +975,59 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertCount(1, $traces[0]);
         $this->assertSame("[{\"trace_id\":\"12345678876543211234567887654321\",\"span_id\":\"8765432112345678\",\"trace_state\":\"dd=t.dm:-0\",\"attributes\":{\"arg1\":\"value1\"},\"dropped_attributes_count\":0}]", $traces[0][0]['meta']['_dd.span_links']);
     }
+
+    public function testSpanLinksInteroperabilityBothTypes()
+    {
+        $sampledSpanContext = SpanContext::create(
+            '12345678876543211234567887654321',
+            '8765432112345678',
+            TraceFlags::SAMPLED,
+            new TraceState('dd=t.dm:-0')
+        );
+
+        $traces = $this->isolateTracer(function () use ($sampledSpanContext) {
+            // Add 1 span link using the OTel API
+            $otelSpan = self::getTracer()->spanBuilder("otel.span")
+                ->addLink($sampledSpanContext, ['arg1' => 'value1'])
+                ->startSpan();
+
+            // Add 1 span link using the DD API
+            $newSpanLink = new SpanLink();
+            $newSpanLink->traceId = "ff0000000000051791e0000000000041";
+            $newSpanLink->spanId = "ff00000000000517";
+            active_span()->links[] = $newSpanLink;
+
+            // Verify the span links from DD's POV
+            $datadogSpanLinks = active_span()->links;
+            $this->assertCount(2, $datadogSpanLinks);
+
+            $this->assertSame('12345678876543211234567887654321', $datadogSpanLinks[0]->traceId);
+            $this->assertSame('8765432112345678', $datadogSpanLinks[0]->spanId);
+            $this->assertSame('dd=t.dm:-0', $datadogSpanLinks[0]->traceState);
+            $this->assertSame(['arg1' => 'value1'], $datadogSpanLinks[0]->attributes);
+            $this->assertEquals(0, $datadogSpanLinks[0]->droppedAttributesCount);
+
+            $this->assertSame('ff0000000000051791e0000000000041', $datadogSpanLinks[1]->traceId);
+            $this->assertSame('ff00000000000517', $datadogSpanLinks[1]->spanId);
+
+            // Verify the span links from OTel's POV
+            $otelSpanLinks = $otelSpan->toSpanData()->getLinks();
+
+            $firstSpanLinkContext = $otelSpanLinks[0]->getSpanContext();
+            $this->assertSame('12345678876543211234567887654321', $firstSpanLinkContext->getTraceId());
+            $this->assertSame('8765432112345678', $firstSpanLinkContext->getSpanId());
+            $this->assertSame('dd=t.dm:-0', (string) $firstSpanLinkContext->getTraceState());
+            $this->assertSame(['arg1' => 'value1'], $otelSpanLinks[0]->getAttributes()->toArray());
+
+            $secondSpanLinkContext = $otelSpanLinks[1]->getSpanContext();
+            $this->assertSame('ff0000000000051791e0000000000041', $secondSpanLinkContext->getTraceId());
+            $this->assertSame('ff00000000000517', $secondSpanLinkContext->getSpanId());
+
+
+            $otelSpan->end();
+        });
+
+        $this->assertCount(1, $traces[0]);
+        $this->assertSame("[{\"trace_id\":\"12345678876543211234567887654321\",\"span_id\":\"8765432112345678\",\"trace_state\":\"dd=t.dm:-0\",\"attributes\":{\"arg1\":\"value1\"},\"dropped_attributes_count\":0},{\"trace_id\":\"ff0000000000051791e0000000000041\",\"span_id\":\"ff00000000000517\"}]", $traces[0][0]['meta']['_dd.span_links']);
+    }
 }
