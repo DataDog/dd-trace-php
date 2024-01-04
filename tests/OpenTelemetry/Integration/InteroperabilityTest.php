@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\OpenTelemetry\Integration;
 
+use DDTrace\SpanLink;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -14,6 +15,8 @@ use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
 use OpenTelemetry\API\Trace\SpanContextValidator;
 use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\TraceFlags;
+use OpenTelemetry\API\Trace\TraceState;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextStorage;
 use OpenTelemetry\Extension\Propagator\B3\B3Propagator;
@@ -907,5 +910,69 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertEquals(2, $traces[0][0]['metrics']['m2']);
     }
 
+    public function testSpanLinksInteroperabilityFromDatadogSpan()
+    {
+        $traces = $this->isolateTracer(function () {
+            $span = start_span();
+            $span->name = "dd.span";
 
+            $spanLink = new SpanLink();
+            $spanLink->traceId = "ff0000000000051791e0000000000041";
+            $spanLink->spanId = "ff00000000000517";
+            $spanLink->traceState = "dd=t.dm:-0";
+            $spanLink->attributes = [
+                'arg1' => 'value1',
+                'arg2' => 'value2',
+            ];
+            $span->links[] = $spanLink;
+
+            /** @var \OpenTelemetry\SDK\Trace\Span $OTelSpan */
+            $OTelSpan = Span::getCurrent();
+            $OTelSpanLink = $OTelSpan->toSpanData()->getLinks()[0];
+            $OTelSpanLinkContext = $OTelSpanLink->getSpanContext();
+
+            $this->assertSame('ff0000000000051791e0000000000041', $OTelSpanLinkContext->getTraceId());
+            $this->assertSame('ff00000000000517', $OTelSpanLinkContext->getSpanId());
+            $this->assertSame('dd=t.dm:-0', (string) $OTelSpanLinkContext->getTraceState());
+
+            $this->assertSame([
+                'arg1' => 'value1',
+                'arg2' => 'value2',
+            ], $OTelSpanLink->getAttributes()->toArray());
+
+            close_span();
+        });
+
+        $this->assertCount(1, $traces[0]);
+        $this->assertSame("[{\"trace_id\":\"ff0000000000051791e0000000000041\",\"span_id\":\"ff00000000000517\",\"trace_state\":\"dd=t.dm:-0\",\"attributes\":{\"arg1\":\"value1\",\"arg2\":\"value2\"}}]", $traces[0][0]['meta']['_dd.span_links']);
+    }
+
+    public function testSpanLinksInteroperabilityFromOpenTelemetrySpan()
+    {
+        $sampledSpanContext = SpanContext::create(
+            '12345678876543211234567887654321',
+            '8765432112345678',
+            TraceFlags::SAMPLED,
+            new TraceState('dd=t.dm:-0')
+        );
+
+        $traces = $this->isolateTracer(function () use ($sampledSpanContext) {
+            $otelSpan = self::getTracer()->spanBuilder("otel.span")
+                ->addLink($sampledSpanContext, ['arg1' => 'value1'])
+                ->startSpan();
+
+            $activeSpan = active_span();
+            $spanLink = $activeSpan->links[0];
+            $this->assertSame('12345678876543211234567887654321', $spanLink->traceId);
+            $this->assertSame('8765432112345678', $spanLink->spanId);
+            $this->assertSame('dd=t.dm:-0', $spanLink->traceState);
+            $this->assertSame(['arg1' => 'value1'], $spanLink->attributes);
+            $this->assertEquals(0, $spanLink->droppedAttributesCount);
+
+            $otelSpan->end();
+        });
+
+        $this->assertCount(1, $traces[0]);
+        $this->assertSame("[{\"trace_id\":\"12345678876543211234567887654321\",\"span_id\":\"8765432112345678\",\"trace_state\":\"dd=t.dm:-0\",\"attributes\":{\"arg1\":\"value1\"},\"dropped_attributes_count\":0}]", $traces[0][0]['meta']['_dd.span_links']);
+    }
 }
