@@ -508,7 +508,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 $client->getAsync('https://google.still.wrong/'),
             ];
             try {
-                Utils::unwrap($promises);
+                sleep(1);
+                Utils::settle($promises)->wait();
             }catch (\Exception $e) {
                 // Ignore
                 echo $e->getMessage();
