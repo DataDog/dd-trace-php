@@ -472,7 +472,7 @@ PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 PHPBENCH_OPTS ?=
 PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
-PHPBENCH_OPCAHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
+PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
 PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run
 
 TEST_INTEGRATIONS_70 := \
@@ -1016,7 +1016,7 @@ benchmarks: global_test_run_dependencies
 benchmarks_opcache: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/benchmarks/composer.lock
 	$(MAKE) test_scenario_benchmarks
-	$(call run_benchmarks,$(PHPBENCH_OPCAHE_CONFIG))
+	$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG))
 
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
