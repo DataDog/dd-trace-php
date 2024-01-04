@@ -441,8 +441,6 @@ bool client::handle_command(network::request_shutdown::request &command)
         auto sampler = service_->get_schema_sampler();
         std::optional<sampler::scope> scope;
         if (sampler) {
-            sampler->set_sampler_rate(
-                service_->get_service_config()->get_request_sample_rate());
             scope = sampler->get();
             if (scope.has_value()) {
                 parameter context_processor = parameter::map();

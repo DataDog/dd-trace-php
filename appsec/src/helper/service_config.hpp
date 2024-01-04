@@ -22,9 +22,6 @@ struct service_config {
     double get_request_sample_rate() { return request_sample_rate; }
     void set_request_sample_rate(double sample_rate)
     {
-        if (sample_rate < 0 || sample_rate > 1) {
-            return;
-        }
         request_sample_rate = sample_rate;
     }
 

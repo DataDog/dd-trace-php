@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include "service_config.hpp"
 #include <sampler.hpp>
 #include <thread>
 
@@ -13,13 +14,11 @@ namespace mock {
 
 class sampler : public dds::sampler {
 public:
-    sampler(double sample_rate) : dds::sampler(sample_rate) {}
+    sampler(std::shared_ptr<service_config> service_config)
+        : dds::sampler(service_config)
+    {}
     void set_request(unsigned int i) { request_ = i; }
     auto get_request() { return request_; }
-    void set_sampler_rate(double sampler_rate)
-    {
-        dds::sampler::set_sampler_rate(sampler_rate);
-    }
 };
 
 } // namespace mock
@@ -38,7 +37,10 @@ void count_picked(dds::sampler &sampler, int iterations)
 
 TEST(SamplerTest, ItPicksAllWhenRateIs1)
 {
-    sampler s(1);
+    auto service_config = std::make_shared<dds::service_config>();
+    service_config->enable_asm();
+    service_config->set_request_sample_rate(1);
+    sampler s(service_config);
     picked = 0;
     count_picked(s, 100);
 
@@ -47,7 +49,10 @@ TEST(SamplerTest, ItPicksAllWhenRateIs1)
 
 TEST(SamplerTest, ItPicksNoneWhenRateIs0)
 {
-    sampler s(0);
+    auto service_config = std::make_shared<dds::service_config>();
+    service_config->enable_asm();
+    service_config->set_request_sample_rate(0);
+    sampler s(service_config);
     picked = 0;
     count_picked(s, 100);
 
@@ -56,7 +61,10 @@ TEST(SamplerTest, ItPicksNoneWhenRateIs0)
 
 TEST(SamplerTest, ItPicksHalfWhenPortionGiven)
 {
-    sampler s(0.5);
+    auto service_config = std::make_shared<dds::service_config>();
+    service_config->enable_asm();
+    service_config->set_request_sample_rate(0.5);
+    sampler s(service_config);
     picked = 0;
     count_picked(s, 100);
 
@@ -65,7 +73,10 @@ TEST(SamplerTest, ItPicksHalfWhenPortionGiven)
 
 TEST(SamplerTest, ItResetTokensAfter100Calls)
 {
-    sampler s(1);
+    auto service_config = std::make_shared<dds::service_config>();
+    service_config->enable_asm();
+    service_config->set_request_sample_rate(1);
+    sampler s(service_config);
 
     picked = 0;
     count_picked(s, 100);
@@ -77,70 +88,100 @@ TEST(SamplerTest, ItResetTokensAfter100Calls)
 TEST(SamplerTest, ItWorksWithDifferentMagnitudes)
 {
     {
-        sampler s(0.1);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.1);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 10);
 
         EXPECT_EQ(1, picked);
     }
     {
-        sampler s(0.5);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.5);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 10);
 
         EXPECT_EQ(5, picked);
     }
     {
-        sampler s(0.01);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.01);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 100);
 
         EXPECT_EQ(1, picked);
     }
     {
-        sampler s(0.02);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.02);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 100);
 
         EXPECT_EQ(2, picked);
     }
     {
-        sampler s(0.001);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.001);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 1000);
 
         EXPECT_EQ(1, picked);
     }
     {
-        sampler s(0.003);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.003);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 1000);
 
         EXPECT_EQ(3, picked);
     }
     {
-        sampler s(0.0001);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.0001);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 10000);
 
         EXPECT_EQ(1, picked);
     }
     {
-        sampler s(0.0007);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.0007);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 10000);
 
         EXPECT_EQ(7, picked);
     }
     {
-        sampler s(0.123);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.123);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 1000);
 
         EXPECT_EQ(123, picked);
     }
     {
-        sampler s(0.6);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.6);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 10);
 
@@ -151,21 +192,30 @@ TEST(SamplerTest, ItWorksWithDifferentMagnitudes)
 TEST(SamplerTest, TestInvalidSampleRatesDefaultToTenPercent)
 {
     {
-        sampler s(2);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(2);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 10);
 
         EXPECT_EQ(10, picked);
     }
     {
-        sampler s(-1);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(-1);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 10);
 
         EXPECT_EQ(0, picked);
     }
     { // Below limit goes to default 10 percent
-        sampler s(0.000001);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.000001);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 1000000);
 
@@ -176,21 +226,30 @@ TEST(SamplerTest, TestInvalidSampleRatesDefaultToTenPercent)
 TEST(SamplerTest, TestLimits)
 {
     {
-        sampler s(0);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 10);
 
         EXPECT_EQ(0, picked);
     }
     {
-        sampler s(1);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(1);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 10);
 
         EXPECT_EQ(10, picked);
     }
     {
-        sampler s(0.0001);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.0001);
+        sampler s(service_config);
         picked = 0;
         count_picked(s, 10000);
 
@@ -200,7 +259,10 @@ TEST(SamplerTest, TestLimits)
 
 TEST(SamplerTest, TestOverflow)
 {
-    mock::sampler s(0);
+    auto service_config = std::make_shared<dds::service_config>();
+    service_config->enable_asm();
+    service_config->set_request_sample_rate(0);
+    mock::sampler s(service_config);
     s.set_request(UINT_MAX);
     s.get();
     EXPECT_EQ(1, s.get_request());
@@ -209,42 +271,62 @@ TEST(SamplerTest, TestOverflow)
 TEST(SamplerTest, ModifySamplerRate)
 {
     { // New sampler rate reset requests
-        mock::sampler s(0.1);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.1);
+        mock::sampler s(service_config);
         s.get();
         EXPECT_EQ(2, s.get_request());
-        s.set_sampler_rate(0.2);
-        EXPECT_EQ(1, s.get_request());
+        service_config->set_request_sample_rate(0.2);
+        s.get();
+        EXPECT_EQ(2, s.get_request());
     }
     { // Setting same sampler rate does do anything
-        mock::sampler s(0.1);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.1);
+        mock::sampler s(service_config);
         s.get();
         EXPECT_EQ(2, s.get_request());
-        s.set_sampler_rate(0.1);
-        EXPECT_EQ(2, s.get_request());
+        service_config->set_request_sample_rate(0.1);
+        s.get();
+        EXPECT_EQ(3, s.get_request());
     }
     { // Over Zero: If given rate is invalid and gets defaulted to a value which
       // is same as before, it does not change anything
-        mock::sampler s(3);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(3);
+        mock::sampler s(service_config);
         s.get();
         EXPECT_EQ(2, s.get_request());
-        s.set_sampler_rate(4);
-        EXPECT_EQ(2, s.get_request());
+        service_config->set_request_sample_rate(4);
+        s.get();
+        EXPECT_EQ(3, s.get_request());
     }
     { // Below zero: If given rate is invalid and gets defaulted to a value
       // which is same as before, it does not change anything
-        mock::sampler s(-3);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(-3);
+        mock::sampler s(service_config);
         s.get();
         EXPECT_EQ(2, s.get_request());
-        s.set_sampler_rate(-4);
-        EXPECT_EQ(2, s.get_request());
+        service_config->set_request_sample_rate(-4);
+        s.get();
+        EXPECT_EQ(3, s.get_request());
     }
     { // Below min: If given rate is invalid and gets defaulted to a value which
       // is same as before, it does not change anything
-        mock::sampler s(0.000001);
+        auto service_config = std::make_shared<dds::service_config>();
+        service_config->enable_asm();
+        service_config->set_request_sample_rate(0.000001);
+        mock::sampler s(service_config);
         s.get();
         EXPECT_EQ(2, s.get_request());
-        s.set_sampler_rate(0.000002);
-        EXPECT_EQ(2, s.get_request());
+        service_config->set_request_sample_rate(0.000002);
+        s.get();
+        EXPECT_EQ(3, s.get_request());
     }
 }
 
@@ -260,7 +342,10 @@ TEST(ScopeTest, TestConcurrent)
 
 TEST(ScopeTest, TestItDoesNotPickTokenUntilScopeReleased)
 {
-    sampler sampler(1);
+    auto service_config = std::make_shared<dds::service_config>();
+    service_config->enable_asm();
+    service_config->set_request_sample_rate(1);
+    sampler sampler(service_config);
     auto is_pick = sampler.get();
     EXPECT_TRUE(is_pick != std::nullopt);
     is_pick = sampler.get();
