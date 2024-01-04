@@ -472,7 +472,7 @@ static inline void zai_hook_resolved_install_shared_hook(zai_hook_t *hook, zend_
 static inline void zai_hook_resolved_install_abstract_recursive(zai_hook_t *hook, zend_ulong index, zend_class_entry *scope) {
     // find implementers by searching through all inheritors, recursively, stopping upon finding a non-abstract implementation
     zai_hook_inheritor_list *inheritors;
-    zend_ulong ce_addr = ((zend_ulong)scope) << 3;
+    zend_ulong ce_addr = ((zend_ulong)scope) >> 3;
     if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
@@ -490,7 +490,7 @@ static inline void zai_hook_resolved_install_abstract_recursive(zai_hook_t *hook
 static inline void zai_hook_resolved_install_inherited_internal_function_recursive(zai_hook_t *hook, zend_ulong index, zend_class_entry *scope, zif_handler handler) {
     // find implementers by searching through all inheritors, recursively, stopping upon finding an explicit override
     zai_hook_inheritor_list *inheritors;
-    zend_ulong ce_addr = ((zend_ulong)scope) << 3;
+    zend_ulong ce_addr = ((zend_ulong)scope) >> 3;
     if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
@@ -554,7 +554,7 @@ static zend_long zai_hook_request_install(zai_hook_t *hook) {
 static inline void zai_hook_register_inheritor(zend_class_entry *child, zend_class_entry *parent, bool persistent) {
     const size_t min_size = 7;
 
-    zend_ulong addr = ((zend_ulong)parent) << 3;
+    zend_ulong addr = ((zend_ulong)parent) >> 3;
     zai_hook_inheritor_list *inheritors;
     zval *inheritors_zv;
     HashTable *ht = persistent ? &zai_hook_static_inheritors : &zai_hook_tls->inheritors;
@@ -842,7 +842,7 @@ static inline void zai_hook_remove_shared_hook(zend_function *func, zend_ulong h
 static void zai_hook_remove_abstract_recursive(zai_hooks_entry *base_hooks, zend_class_entry *scope, zend_string *function_name, zend_ulong hook_id) {
     // find implementers by searching through all inheritors, recursively, stopping upon finding a non-abstract implementation
     zai_hook_inheritor_list *inheritors;
-    zend_ulong ce_addr = ((zend_ulong)scope) << 3;
+    zend_ulong ce_addr = ((zend_ulong)scope) >> 3;
     if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
@@ -860,7 +860,7 @@ static void zai_hook_remove_abstract_recursive(zai_hooks_entry *base_hooks, zend
 static void zai_hook_remove_internal_inherited_recursive(zend_class_entry *scope, zend_string *function_name, zend_ulong hook_id, zif_handler handler) {
     // find implementers by searching through all inheritors, recursively, stopping upon finding an explicit override
     zai_hook_inheritor_list *inheritors;
-    zend_ulong ce_addr = ((zend_ulong)scope) << 3;
+    zend_ulong ce_addr = ((zend_ulong)scope) >> 3;
     if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
@@ -1276,12 +1276,12 @@ void zai_hook_exclude_class_resolved(zai_install_address function_address, zend_
     if (!hooks) {
         return;
     }
-    zai_hook_add_exclusion(hooks, index, lc_classname);
 
     zend_class_entry *ce = NULL;
     zend_string *function_name = hooks->resolved->common.function_name;
     zend_function *resolved = zai_hook_lookup_function(zai_str_from_zstr(lc_classname), zai_str_from_zstr(function_name), &ce);
     if (!ce || !resolved) {
+        zai_hook_add_exclusion(hooks, index, lc_classname);
         return;
     }
     zai_hooks_entry *excluded_hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(resolved));
@@ -1292,6 +1292,16 @@ void zai_hook_exclude_class_resolved(zai_install_address function_address, zend_
     zval *hook_zv = zend_hash_index_find(&excluded_hooks->hooks, index);
     if (!hook_zv || Z_TYPE_INFO_P(hook_zv) != ZAI_IS_SHARED_HOOK_PTR) {
         return;
+    }
+
+    zend_hash_index_del(&excluded_hooks->hooks, (zend_ulong) index);
+    if (zend_hash_num_elements(&excluded_hooks->hooks) == 0) {
+#if PHP_VERSION_ID >= 80200
+        if (excluded_hooks->internal_duplicate_count == 0)
+#endif
+        {
+            zai_hook_entries_remove_resolved((zend_ulong) function_address);
+        }
     }
 
     zai_hook_remove_abstract_recursive(hooks, ce, function_name, (zend_ulong) index);
