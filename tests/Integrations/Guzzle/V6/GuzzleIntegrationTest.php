@@ -8,6 +8,7 @@ use DDTrace\Tracer;
 use DDTrace\Tag;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -484,5 +485,146 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
+    }
+
+    public function testMultiExec()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true',
+            'DD_SERVICE=my-shop',
+            'DD_TRACE_GENERATE_ROOT_SPAN=0'
+        ]);
+        \dd_trace_serialize_closed_spans();
+
+        $traces = $this->isolateTracer(function () {
+            /** @var Tracer $tracer */
+            $tracer = GlobalTracer::get();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
+
+            $client = $this->getRealClient();
+            $promises = [
+                $client->getAsync('https://google.wrong/'),
+                $client->getAsync('https://google.com/'), // Does a 301 Redirection to https://www.google.com/ ==> 2 spans
+                $client->getAsync('https://google.still.wrong/'),
+            ];
+            try {
+                Utils::unwrap($promises);
+            }catch (\Exception $e) {
+                // Ignore
+                echo $e->getMessage();
+            }
+
+            $span->finish();
+        });
+
+        $commonTags = [
+            'network.client.ip',
+            'network.client.port',
+            'network.destination.up',
+            'network.destination.port',
+            'network.bytes_read',
+            'network.bytes_written',
+            'curl.header_size',
+            'curl.request_size',
+            'curl.filetime',
+            'curl.ssl_verify_result',
+            'curl.redirect_count',
+            'curl.total_time',
+            'curl.namelookup_time',
+            'curl.connect_time',
+            'curl.pretransfer_time',
+            'curl.speed_download',
+            'curl.speed_upload',
+            'curl.download_content_length',
+            'curl.upload_content_length',
+            'curl.starttransfer_time',
+            'curl.redirect_time',
+            'curl.ssl_verifyresult',
+            'curl.appconnect_time_us',
+            'curl.connect_time_us',
+            'curl.namelookup_time_us',
+            'curl.pretransfer_time_us',
+            'curl.redirect_time_us',
+            'curl.starttransfer_time_us',
+            'curl.total_time_us',
+            '_dd.base_service',
+        ];
+
+        $expectedSpans = [
+            'https://www.google.com/' => SpanAssertion::exists('curl_exec', 'https://www.google.com/', false, 'host-www.google.com')
+                ->withExactTags([
+                    Tag::COMPONENT => 'curl',
+                    Tag::SPAN_KIND => 'client',
+                    Tag::NETWORK_DESTINATION_NAME => 'www.google.com',
+                    Tag::HTTP_URL => 'https://www.google.com/',
+                    Tag::HTTP_STATUS_CODE => '200',
+                    'curl.http_version' => '2',
+                    'curl.protocol' => '2',
+                    'curl.scheme' => 'HTTPS'
+                ])
+                ->withExistingTagsNames([
+                    $commonTags,
+                    'curl.content_type',
+                ]),
+            'https://google.wrong/' => SpanAssertion::exists('curl_exec', 'https://google.wrong/', true, 'host-google.wrong')
+                ->withExactTags([
+                    Tag::COMPONENT => 'curl',
+                    Tag::SPAN_KIND => 'client',
+                    Tag::NETWORK_DESTINATION_NAME => 'google.wrong',
+                    Tag::HTTP_URL => 'https://google.wrong/',
+                    Tag::HTTP_STATUS_CODE => '0',
+                    'curl.http_version' => '0',
+                    'curl.protocol' => '0',
+                    'error.type' => 'curl error',
+                    'error.message' => "Couldn't resolve host name",
+                ])
+                ->withExistingTagsNames([
+                    $commonTags,
+                    'error.stack'
+                ]),
+            'https://google.com/' => SpanAssertion::exists('curl_exec', 'https://google.com/', false, 'host-google.com')
+                ->withExistingTagsNames([
+                    $commonTags,
+                    'curl.content_type',
+                ])
+                ->withExactTags([
+                    Tag::COMPONENT => 'curl',
+                    Tag::SPAN_KIND => 'client',
+                    Tag::NETWORK_DESTINATION_NAME => 'google.com',
+                    Tag::HTTP_URL => 'https://google.com/',
+                    Tag::HTTP_STATUS_CODE => '301',
+                    'curl.http_version' => '2',
+                    'curl.protocol' => '2',
+                    'curl.scheme' => 'HTTPS',
+                    'curl.redirect_url' => 'https://www.google.com/'
+                ]),
+            'https://google.still.wrong/' => SpanAssertion::exists('curl_exec', 'https://google.still.wrong/', true, 'host-google.still.wrong')
+                ->withExistingTagsNames([
+                    $commonTags,
+                ])
+                ->withExactTags([
+                    Tag::COMPONENT => 'curl',
+                    Tag::SPAN_KIND => 'client',
+                    Tag::NETWORK_DESTINATION_NAME => 'google.still.wrong',
+                    Tag::HTTP_URL => 'https://google.still.wrong/',
+                    Tag::HTTP_STATUS_CODE => '0',
+                    'curl.http_version' => '0',
+                    'curl.protocol' => '0',
+                ])
+                ->setError('curl error', "Couldn't resolve host name", true),
+        ];
+
+        // Check spans
+        foreach ($traces[0] as $span) {
+            if ($span['name'] === 'curl_exec') {
+                $resource = $span['resource'];
+                $expectedSpan = $expectedSpans[$resource];
+                $this->assertExpectedSpans([[$span]], [$expectedSpan]);
+                unset($expectedSpans[$resource]); // Don't expect to find it again
+            }
+        }
+
+        // All expected spans should have been found
+        $this->assertCount(0, $expectedSpans);
     }
 }

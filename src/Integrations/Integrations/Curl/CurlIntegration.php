@@ -28,6 +28,7 @@ function addSpanDataTagFromCurlInfo($span, &$info, $tagName, $curlInfoOpt)
 final class CurlIntegration extends Integration
 {
     const NAME = 'curl';
+    const UNPARSABLE_URL= 'unparsable-host';
 
     public function getName()
     {
@@ -131,6 +132,14 @@ final class CurlIntegration extends Integration
                     // finished
                     foreach ($spans as $requestSpan) {
                         list($ch, $requestSpan) = $requestSpan;
+                        if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME])
+                            && CurlIntegration::UNPARSABLE_URL !== $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) {
+                            // If this tag is set, it means that the following instructions have already been executed
+                            // This tag is only set when set_curl_attributes is called on the span
+                            // Otherwise, a dummy curl_getinfo could overwrite the real curl_getinfo
+                            continue;
+                        }
+
                         $info = curl_getinfo($ch);
                         if (empty($info["http_code"])) {
                             $saveSpans = true;
@@ -195,6 +204,20 @@ final class CurlIntegration extends Integration
                     list($ch, $requestSpan) = $requestSpan;
                     if ($ch === $handle) {
                         $requestSpan->meta[Tag::ERROR_MSG] = curl_strerror($hook->returned["result"]);
+                        $info = curl_getinfo($ch);
+
+                        if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME])
+                            && CurlIntegration::UNPARSABLE_URL !== $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) {
+                            continue;
+                        }
+
+                        $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
+                        $requestSpan->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
+                        CurlIntegration::set_curl_attributes($requestSpan, $info);
+                        if (isset($info["total_time"])) {
+                            $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
+                            \DDTrace\update_span_duration($requestSpan, $endTime);
+                        }
                     }
                 }
             });
