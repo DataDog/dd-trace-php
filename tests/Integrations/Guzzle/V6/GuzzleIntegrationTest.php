@@ -504,11 +504,11 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             $client = $this->getRealClient();
             $promises = [
                 $client->getAsync('https://google.wrong/'),
-                $client->getAsync('https://google.com/'), // Does a 301 Redirection to https://www.google.com/ ==> 2 spans
+                //$client->getAsync('https://google.com/'), // Does a 301 Redirection to https://www.google.com/ ==> 2 spans
+                $client->getAsync(self::URL . '/redirect-to?url=' . self::URL . '/status/200'),
                 $client->getAsync('https://google.still.wrong/'),
             ];
             try {
-                sleep(1);
                 Utils::settle($promises)->wait();
             }catch (\Exception $e) {
                 // Ignore
@@ -552,21 +552,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         ];
 
         $expectedSpans = [
-            'https://www.google.com/' => SpanAssertion::exists('curl_exec', 'https://www.google.com/', false, 'host-www.google.com')
-                ->withExactTags([
-                    Tag::COMPONENT => 'curl',
-                    Tag::SPAN_KIND => 'client',
-                    Tag::NETWORK_DESTINATION_NAME => 'www.google.com',
-                    Tag::HTTP_URL => 'https://www.google.com/',
-                    Tag::HTTP_STATUS_CODE => '200',
-                    'curl.http_version' => '2',
-                    'curl.protocol' => '2',
-                    'curl.scheme' => 'HTTPS'
-                ])
-                ->withExistingTagsNames([
-                    $commonTags,
-                    'curl.content_type',
-                ]),
             'https://google.wrong/' => SpanAssertion::exists('curl_exec', 'https://google.wrong/', true, 'host-google.wrong')
                 ->withExactTags([
                     Tag::COMPONENT => 'curl',
@@ -583,26 +568,38 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     $commonTags,
                     'error.stack'
                 ]),
-            'https://google.com/' => SpanAssertion::exists('curl_exec', 'https://google.com/', false, 'host-google.com')
-                ->withExistingTagsNames([
-                    $commonTags,
-                    'curl.content_type',
-                ])
+            'http://httpbin_integration/redirect-to' => SpanAssertion::exists('curl_exec', 'http:\/\/httpbin_integration\/redirect-to', false, 'host-httpbin_integration')
                 ->withExactTags([
                     Tag::COMPONENT => 'curl',
                     Tag::SPAN_KIND => 'client',
-                    Tag::NETWORK_DESTINATION_NAME => 'google.com',
-                    Tag::HTTP_URL => 'https://google.com/',
-                    Tag::HTTP_STATUS_CODE => '301',
+                    Tag::NETWORK_DESTINATION_NAME => 'httpbin_integration',
+                    Tag::HTTP_URL => 'http://httpbin_integration/redirect-to?url=http://httpbin_integration/status/200',
+                    Tag::HTTP_STATUS_CODE => '302',
+                    'curl.content_type' => 'text/html; charset=utf-8',
                     'curl.http_version' => '2',
-                    'curl.protocol' => '2',
-                    'curl.scheme' => 'HTTPS',
-                    'curl.redirect_url' => 'https://www.google.com/'
-                ]),
-            'https://google.still.wrong/' => SpanAssertion::exists('curl_exec', 'https://google.still.wrong/', true, 'host-google.still.wrong')
+                    'curl.protocol' => '1',
+                    'curl.scheme' => 'HTTP'
+                ])
                 ->withExistingTagsNames([
                     $commonTags,
+                ]),
+            'http://httpbin_integration/status/?' => SpanAssertion::exists('curl_exec', 'http://httpbin_integration/status/?', false, 'host-httpbin_integration')
+                ->withExactTags([
+                    Tag::COMPONENT => 'curl',
+                    Tag::SPAN_KIND => 'client',
+                    Tag::NETWORK_DESTINATION_NAME => 'httpbin_integration',
+                    Tag::HTTP_URL => 'http://httpbin_integration/status/200',
+                    Tag::HTTP_STATUS_CODE => '200',
+                    'curl.content_type' => 'text/html; charset=utf-8',
+                    'curl.http_version' => '2',
+                    'curl.protocol' => '2',
+                    'curl.scheme' => 'HTTP',
+                    'curl.redirect_url' => 'https://www.google.com/'
                 ])
+                ->withExistingTagsNames([
+                    $commonTags,
+                ]),
+            'https://google.still.wrong/' => SpanAssertion::exists('curl_exec', 'https://google.still.wrong/', true, 'host-google.still.wrong')
                 ->withExactTags([
                     Tag::COMPONENT => 'curl',
                     Tag::SPAN_KIND => 'client',
@@ -611,6 +608,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     Tag::HTTP_STATUS_CODE => '0',
                     'curl.http_version' => '0',
                     'curl.protocol' => '0',
+                ])
+                ->withExistingTagsNames([
+                    $commonTags,
                 ])
                 ->setError('curl error', "Couldn't resolve host name", true),
         ];
