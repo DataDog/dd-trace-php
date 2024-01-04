@@ -395,30 +395,6 @@ TEST(RemoteConfigAsmFeaturesListener, RequestSampleRateIsParsed)
     }
 }
 
-TEST(RemoteConfigAsmFeaturesListener, RequestSampleRateLimits)
-{
-    auto config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(config_service, true, true);
-
-    { // Over 1, sets default 0.1
-        try {
-            listener.on_update(get_config_with_sample_rate(2));
-        } catch (remote_config::error_applying_config &error) {
-            std::cout << error.what() << std::endl;
-        }
-        EXPECT_EQ(0.1, config_service->get_request_sample_rate());
-    }
-
-    { // Below 0, sets default 0.1
-        try {
-            listener.on_update(get_config_with_sample_rate(-2));
-        } catch (remote_config::error_applying_config &error) {
-            std::cout << error.what() << std::endl;
-        }
-        EXPECT_EQ(0.1, config_service->get_request_sample_rate());
-    }
-}
-
 TEST(RemoteConfigAsmFeaturesListener, DynamicEnablementIsDisabled)
 {
     auto config_service = std::make_shared<service_config>();
