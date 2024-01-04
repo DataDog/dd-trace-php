@@ -8,6 +8,7 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace as API;
+use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesFactory;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeFactory;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
@@ -176,6 +177,18 @@ final class Context implements ContextInterface
             : null;
         $traceState = new API\TraceState($traceContext['tracestate'] ?? null);
 
+        // Check for span links
+        $links = [];
+        foreach ($currentSpan->links as $spanLink) {
+            $linkSpanContext = API\SpanContext::create(
+                $spanLink->traceId,
+                $spanLink->spanId,
+                API\TraceFlags::DEFAULT,
+                new API\TraceState($spanLink->traceState ?? null),
+            );
+            $links[] = new SDK\Link($linkSpanContext, Attributes::create($spanLink->attributes));
+        }
+
         $OTelCurrentSpan = SDK\Span::startSpan(
             $currentSpan,
             API\SpanContext::create($currentTraceId, $currentSpanId, $traceFlags, $traceState), // $context
@@ -186,8 +199,8 @@ final class Context implements ContextInterface
             NoopSpanProcessor::getInstance(), // $spanProcessor
             ResourceInfoFactory::defaultResource(), // $resource
             (new AttributesFactory())->builder(), // $attributesBuilder
-            [], // TODO: Handle Span Links
-            0, // TODO: Handle Span Links
+            $links, // $links
+            count($links), // $totalRecordedLinks
             false // The span was created using the DD Api
         );
         ObjectKVStore::put($currentSpan, 'otel_span', $OTelCurrentSpan);

@@ -69,7 +69,24 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
     public function addLink(SpanContextInterface $context, iterable $attributes = []): SpanBuilderInterface
     {
-        // TODO: Span Links are future works
+        if (!$context->isValid()) {
+            return $this;
+        }
+
+        $this->totalNumberOfLinksAdded++;
+
+        if (count($this->links) === $this->tracerSharedState->getSpanLimits()->getLinkCountLimit()) {
+            return $this;
+        }
+
+        $this->links[] = new Link(
+            $context,
+            $this->tracerSharedState
+                ->getSpanLimits()
+                ->getLinkAttributesFactory()
+                ->builder($attributes)
+                ->build(),
+        );
 
         return $this;
     }
@@ -186,7 +203,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $this->tracerSharedState->getResource(),
             $attributesBuilder,
             $this->links,
-            0,
+            $this->totalNumberOfLinksAdded,
         );
     }
 

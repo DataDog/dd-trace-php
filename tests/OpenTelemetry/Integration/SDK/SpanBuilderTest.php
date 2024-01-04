@@ -98,7 +98,6 @@ class SpanBuilderTest extends MockeryTestCase
      */
     public function test_add_link(): void
     {
-        $this->markTestSkipped("Span Links aren't yet supported");
         /** @var Span $span */
         $span = $this
             ->tracer
@@ -112,7 +111,6 @@ class SpanBuilderTest extends MockeryTestCase
 
     public function test_add_link_invalid(): void
     {
-        $this->markTestIncomplete("Span Links aren't yet supported");
         /** @var Span $span */
         $span = $this
             ->tracer
@@ -127,7 +125,6 @@ class SpanBuilderTest extends MockeryTestCase
 
     public function test_add_link_dropping_links(): void
     {
-        $this->markTestSkipped("Span Links aren't yet supported");
         $maxNumberOfLinks = 8;
         $tracerProvider = new TracerProvider([], null, null, (new SpanLimitsBuilder())->setLinkCountLimit($maxNumberOfLinks)->build());
         $spanBuilder = $tracerProvider
@@ -156,7 +153,6 @@ class SpanBuilderTest extends MockeryTestCase
 
     public function test_add_link_truncate_link_attributes(): void
     {
-        $this->markTestSkipped("Span Links aren't yet supported");
         $tracerProvider = new TracerProvider([], null, null, (new SpanLimitsBuilder())->setAttributePerLinkCountLimit(1)->build());
         /** @var Span $span */
         $span = $tracerProvider
@@ -178,7 +174,6 @@ class SpanBuilderTest extends MockeryTestCase
 
     public function test_add_link_truncate_link_attribute_value(): void
     {
-        $this->markTestSkipped("Spans Links aren't yet supported");
         $maxLength = 25;
 
         $strVal = str_repeat('a', $maxLength);
@@ -218,7 +213,6 @@ class SpanBuilderTest extends MockeryTestCase
      */
     public function test_add_link_no_effect_after_start_span(): void
     {
-        $this->markTestSkipped("Span Links aren't yet supported");
         $spanBuilder = $this->tracer->spanBuilder(self::SPAN_NAME);
 
         /** @var Span $span */

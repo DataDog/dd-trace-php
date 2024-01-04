@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OpenTelemetry\SDK\Trace;
 
 use DDTrace\SpanData;
+use DDTrace\SpanLink;
 use DDTrace\Tag;
 use DDTrace\Util\Convention;
 use DDTrace\Util\ObjectKVStore;
@@ -35,6 +36,16 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /** @readonly */
     private SpanProcessorInterface $spanProcessor;
 
+    /**
+     * @readonly
+     *
+     * @var list<LinkInterface>
+     */
+    private array $links;
+
+    /** @readonly */
+    private int $totalRecordedLinks;
+
     /** @readonly */
     private int $kind;
 
@@ -56,6 +67,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         API\SpanContextInterface $parentSpanContext,
         SpanProcessorInterface $spanProcessor,
         ResourceInfo $resource,
+        array $links = [],
+        int $totalRecordedLinks = 0,
         bool $isRemapped = true
     ) {
         $this->span = $span;
@@ -65,6 +78,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->parentSpanContext = $parentSpanContext;
         $this->spanProcessor = $spanProcessor;
         $this->resource = $resource;
+        $this->links = $links;
+        $this->totalRecordedLinks = $totalRecordedLinks;
 
         $this->status = StatusData::unset();
 
@@ -74,6 +89,25 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             // under a cli (e.g., phpunit) process would have a default operation name set (e.g., phpunit). This is
             // done in serializer.c:ddtrace_set_root_span_properties (as of v0.92.0)
             $span->name = $this->operationNameConvention = Convention::defaultOperationName($span);
+        }
+
+        // Set the span links
+        if ($isRemapped) {
+            // At initialization time (now), only set the links if the span was created using the OTel API
+            // Otherwise, the links were already set in DD's OpenTelemetry\Context\Context
+            foreach ($links as $link) {
+                /** @var LinkInterface $link */
+                $linkContext = $link->getSpanContext();
+
+                $spanLink = new SpanLink();
+                $spanLink->traceId = $linkContext->getTraceId();
+                $spanLink->spanId = $linkContext->getSpanId();
+                $spanLink->traceState = (string)$linkContext->getTraceState(); // __toString()
+                $spanLink->attributes = $link->getAttributes()->toArray();
+                $spanLink->droppedAttributesCount = 0; // Attributes limit aren't supported/meaningful in DD
+
+                $span->links[] = $spanLink;
+            }
         }
     }
 
@@ -116,6 +150,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $parentSpan->getContext(),
             $spanProcessor,
             $resource,
+            $links,
+            $totalRecordedLinks,
             $isRemapped
         );
 
@@ -165,7 +201,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         return new ImmutableSpan(
             $this,
             $this->getName(),
-            [], // TODO: Handle Span Links
+            $this->links,
             [], // TODO: Handle Span Events
             Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
             0,
@@ -206,7 +242,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     public function getTotalRecordedLinks(): int
     {
-        return 0;
+        return $this->totalRecordedLinks;
     }
 
     public function getTotalRecordedEvents(): int
