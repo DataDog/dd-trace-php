@@ -468,6 +468,7 @@ TEST_EXTRA_INI ?=
 TESTS_ROOT = ./tests
 COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
 COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
+DDPROF_IDENTIFIER ?=
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 PHPBENCH_OPTS ?=
@@ -946,6 +947,10 @@ define run_benchmarks
 	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
 endef
 
+define run_benchmarks_with_ddprof
+	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+endef
+
 
 # use this as the first target if you want to use uncompiled files instead of the _generated_*.php compiled file.
 dev:
@@ -1015,11 +1020,27 @@ benchmarks_run_dependencies: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/benchmarks/composer.lock
 	$(MAKE) test_scenario_benchmarks
 
-benchmarks: benchmarks_run_dependencies
-	$(call run_benchmarks,$(PHPBENCH_CONFIG))
+call_benchmarks:
+	if [ -n "$(DDPROF_IDENTIFIER)" ]; then \
+		$(call run_benchmarks_with_ddprof,$(PHPBENCH_CONFIG)); \
+	else \
+		$(call run_benchmarks,$(PHPBENCH_CONFIG)); \
+	fi
 
-benchmarks_opcache: benchmarks_run_dependencies
-	$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG))
+call_benchmarks_opcache:
+	if [ -n "$(DDPROF_IDENTIFIER)" ]; then \
+		$(call run_benchmarks_with_ddprof,$(PHPBENCH_OPCACHE_CONFIG)); \
+	else \
+		$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG)); \
+	fi
+
+benchmarks:
+	benchmarks_run_dependencies
+	call_benchmarks
+
+benchmarks_opcache:
+	benchmarks_run_dependencies
+	call_benchmarks_opcache
 
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
