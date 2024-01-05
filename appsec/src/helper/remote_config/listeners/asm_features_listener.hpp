@@ -51,7 +51,7 @@ public:
 protected:
     static constexpr std::string_view asm_features = "ASM_FEATURES";
     void parse_asm(const rapidjson::Document &serialized_doc);
-    static double parse_api_security(const rapidjson::Document &serialized_doc);
+    void parse_api_security(const rapidjson::Document &serialized_doc);
     std::shared_ptr<service_config> service_config_;
     bool dynamic_enablement_;
     bool api_security_enabled_;

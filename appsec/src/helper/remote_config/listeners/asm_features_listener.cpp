@@ -10,21 +10,24 @@
 #include "utils.hpp"
 #include <algorithm>
 
-double dds::remote_config::asm_features_listener::parse_api_security(
+void dds::remote_config::asm_features_listener::parse_api_security(
     const rapidjson::Document &serialized_doc)
 {
-    auto api_security_itr = json_helper::get_field_of_type(
-        serialized_doc, "api_security", rapidjson::kObjectType);
+    rapidjson::Value::ConstMemberIterator const api_security_itr =
+        serialized_doc.FindMember("api_security");
 
-    if (!api_security_itr) {
+    if (api_security_itr == serialized_doc.MemberEnd()) {
+        return;
+    }
+
+    if (rapidjson::kObjectType != api_security_itr->value.GetType()) {
         throw error_applying_config("Invalid config json encoded contents: "
-                                    "api_security key missing or invalid");
+                                    "api_security key invalid");
     }
 
     auto request_sample_rate_itr =
-        api_security_itr.value()->value.FindMember("request_sample_rate");
-    if (request_sample_rate_itr ==
-        api_security_itr.value()->value.MemberEnd()) {
+        api_security_itr->value.FindMember("request_sample_rate");
+    if (request_sample_rate_itr == api_security_itr->value.MemberEnd()) {
         throw error_applying_config("Invalid config json encoded contents: "
                                     "request_sample_rate key missing");
     }
@@ -35,22 +38,27 @@ double dds::remote_config::asm_features_listener::parse_api_security(
                                     "request_sample_rate is not double");
     }
 
-    return request_sample_rate_itr->value.GetDouble();
+    service_config_->set_request_sample_rate(
+        request_sample_rate_itr->value.GetDouble());
 }
 
 void dds::remote_config::asm_features_listener::parse_asm(
     const rapidjson::Document &serialized_doc)
 {
-    auto asm_itr = json_helper::get_field_of_type(
-        serialized_doc, "asm", rapidjson::kObjectType);
+    rapidjson::Value::ConstMemberIterator const asm_itr =
+        serialized_doc.FindMember("asm");
 
-    if (!asm_itr) {
-        throw error_applying_config("Invalid config json encoded contents: "
-                                    "asm key missing or invalid");
+    if (asm_itr == serialized_doc.MemberEnd()) {
+        return;
     }
 
-    auto enabled_itr = asm_itr.value()->value.FindMember("enabled");
-    if (enabled_itr == asm_itr.value()->value.MemberEnd()) {
+    if (rapidjson::kObjectType != asm_itr->value.GetType()) {
+        throw error_applying_config("Invalid config json encoded contents: "
+                                    "asm key invalid");
+    }
+
+    auto enabled_itr = asm_itr->value.FindMember("enabled");
+    if (enabled_itr == asm_itr->value.MemberEnd()) {
         throw error_applying_config(
             "Invalid config json encoded contents: enabled key missing");
     }
@@ -84,12 +92,6 @@ void dds::remote_config::asm_features_listener::on_update(const config &config)
     }
 
     if (api_security_enabled_) {
-        double sample_rate = 0;
-        if (service_config_->get_asm_enabled_status() !=
-                enable_asm_status::DISABLED ||
-            !dynamic_enablement_) {
-            sample_rate = parse_api_security(serialized_doc);
-        }
-        service_config_->set_request_sample_rate(sample_rate);
+        parse_api_security(serialized_doc);
     }
 }
