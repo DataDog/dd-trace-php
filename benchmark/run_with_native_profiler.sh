@@ -9,7 +9,11 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
   echo "  -s, --scenario <scenario>  The scenario to run (e.g., benchTelemetryParsing, LaravelBench). Defaults to all scenarios (.)"
   echo "  -t, --style <style>        The style of benchmark to run (base, opcache). Defaults to base"
   echo "  -n, --n <n>                The number of times to run the benchmark. Defaults to 1"
-  echo "  -w, --without-dependencies Do not run the dependencies. Defaults to false"
+  echo "  -w, --without-dependencies If set, the dependencies will not be installed."
+  echo "  --split <true|false>       Whether to split the results into multiple profiles. Defaults to true. Only applies when all scenarios are run at once."
+
+  echo "Example: ./run_with_native_profiler.sh --scenario benchTelemetryParsing --style base -n 5 -w"
+  echo "Example: ./run_with_native_profiler.sh  --style opcache -n 5 -w --split false"
   exit 0
 fi
 
@@ -18,6 +22,7 @@ SCENARIO="."
 STYLE="base"
 N=1
 WITHOUT_DEPENDENCIES=false
+SPLIT=true
 
 # Retrieve the arguments
 while [[ $# -gt 0 ]]; do
@@ -42,6 +47,11 @@ while [[ $# -gt 0 ]]; do
     -w|--without-dependencies)
       WITHOUT_DEPENDENCIES=true
       shift # past argument
+      ;;
+    --split)
+      SPLIT="$2"
+      shift # past argument
+      shift # past value
       ;;
     *)    # unknown option
       echo "Unknown option: $key"
@@ -97,25 +107,7 @@ echo -e "\e[44mSTYLE: $STYLE\e[0m"
 echo -e "\e[44mN: $N\e[0m"
 echo -e "\e[44mWITHOUT_DEPENDENCIES: $WITHOUT_DEPENDENCIES\e[0m"
 
-# Set a pseudo-unique identifier for this run
 TIMESTAMP=$(date +%s)
-
-IDENTIFIER=""
-if [ "$SCENARIO" = "." ]; then
-  IDENTIFIER="bench-all"
-else
-  IDENTIFIER="bench-$SCENARIO"
-fi
-IDENTIFIER="$IDENTIFIER-$STYLE-$TIMESTAMP"
-IDENTIFIER=$(echo "$IDENTIFIER" | tr '[:upper:]' '[:lower:]')
-
-echo -e "\e[44mIDENTIFIER: $IDENTIFIER\e[0m"
-
-# If the scenario is "opcache", run the opcache benchmarks
-MAKE_COMMAND="call_benchmarks"
-if [ "$STYLE" = "opcache" ]; then
-  MAKE_COMMAND="call_benchmarks_opcache"
-fi
 
 # Run the benchmarks
 cd ~/app
@@ -125,18 +117,44 @@ if [ "$WITHOUT_DEPENDENCIES" = false ]; then
   make benchmarks_run_dependencies
 fi
 
-for i in $(seq 1 $N); do
-  echo -e "\e[44mRunning benchmark $i of $N\e[0m"
-  DDPROF_IDENTIFIER="$IDENTIFIER" make $MAKE_COMMAND FILTER="$SCENARIO"
-done
+function call_benchmarks {
+  SUBJECT="$1"
+  STYLE="$2"
+  TIMESTAMP="$3"
+  N="$4"
 
-# echo with a light blue background
-echo -e "\e[92mAll $N benchmarks completed!\e[0m"
-echo -e "\e[92mCheck the results in the Datadog app with the following identifier: $IDENTIFIER\e[0m"
-echo -e "\e[92mIf you're not receiving any profiles, verify the value of DD_TRACE_AGENT_URL, DD_SITE, and DD_API_KEY.\e[0m"
-# Do a clickable link to: https://app.datadoghq.eu/profiling/search?query=service%3A$IDENTIFIER (Note the $IDENTIFIER)
-EU_URL="https://app.datadoghq.eu/profiling/search?query=service%3A$IDENTIFIER"
-COM_URL="https://app.datadoghq.com/profiling/search?query=service%3A$IDENTIFIER"
-echo -e '\e[92mClick here to view the results in the Datadog app:\e[0m'
-echo -e '\e[92m[EU] \e]8;;'$EU_URL'\a'$EU_URL'\e]8;;\a\e[0m'
-echo -e '\e[92m[COM] \e]8;;'$COM_URL'\a'$COM_URL'\e]8;;\a\e[0m'
+  # If the scenario is "opcache", run the opcache benchmarks
+  MAKE_COMMAND="call_benchmarks"
+  if [ "$STYLE" = "opcache" ]; then
+    MAKE_COMMAND="call_benchmarks_opcache"
+  fi
+
+  IDENTIFIER=$(echo "$SUBJECT-$STYLE-$TIMESTAMP" | tr '[:upper:]' '[:lower:]')
+
+  echo -e "\e[44mRunning benchmark for $SUBJECT\e[0m"
+  for i in $(seq 1 $N); do
+    echo -e "\e[44m[$SUBJECT] Running benchmark $i of $N\e[0m"
+    DDPROF_IDENTIFIER="$IDENTIFIER" make $MAKE_COMMAND FILTER="$SUBJECT"
+  done
+
+  echo -e "\e[92m[$SUBJECT] All $N benchmarks completed!\e[0m"
+  echo -e "\e[92m[$SUBJECT] Check the results in the Datadog app with the following identifier: $IDENTIFIER\e[0m"
+  echo -e "\e[92m[$SUBJECT] If you're not receiving any profiles, verify the value of DD_TRACE_AGENT_URL, DD_SITE, and DD_API_KEY.\e[0m"
+
+  EU_URL="https://app.datadoghq.eu/profiling/search?query=service%3A$IDENTIFIER"
+  COM_URL="https://app.datadoghq.com/profiling/search?query=service%3A$IDENTIFIER"
+  echo -e '\e[92m[$SUBJECT] Click here to view the results in the Datadog app:\e[0m'
+  echo -e '\e[92m[$SUBJECT] [EU] \e]8;;'$EU_URL'\a'$EU_URL'\e]8;;\a\e[0m'
+  echo -e '\e[92m[$SUBJECT] [COM] \e]8;;'$COM_URL'\a'$COM_URL'\e]8;;\a\e[0m'
+}
+
+# If all scenarios are run at once, split the results into multiple profiles
+if [ "$SCENARIO" = "." ] && [ "$SPLIT" = true ]; then
+  echo -e "\e[44mSplitting results into multiple profiles\e[0m"
+  SUBJECTS=$(find tests/Benchmarks/ -type f -name "*Bench.php" -exec basename {} .php \;)
+  for SUBJECT in $SUBJECTS; do
+    call_benchmarks "$SUBJECT" "$STYLE" "$TIMESTAMP" "$N"
+  done
+else
+  call_benchmarks "$SCENARIO" "$STYLE" "$TIMESTAMP" "$N"
+fi
