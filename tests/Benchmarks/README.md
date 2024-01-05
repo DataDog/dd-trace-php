@@ -71,7 +71,7 @@ Usage: ./run_with_native_profiler.sh [options]
 Options:
   -s, --scenario <scenario>  The scenario to run (e.g., benchTelemetryParsing, LaravelBench). Defaults to all scenarios (.)
   -t, --style <style>        The style of benchmark to run (base, opcache). Defaults to base
-  -n, --n <n>                The number of times to run the benchmark. Defaults to 1
+  -n, --runs <n>             The number of times to run the benchmark. Defaults to 1
   -w, --without-dependencies If set, the dependencies will not be installed.
   --split <true|false>       Whether to split the results into multiple profiles. Defaults to true. Only applies when all scenarios are run at once.
 Example: ./run_with_native_profiler.sh --scenario benchTelemetryParsing --style base -n 5 -w
