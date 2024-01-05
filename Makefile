@@ -1008,14 +1008,17 @@ test_distributed_tracing: global_test_run_dependencies
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
 
-benchmarks: global_test_run_dependencies
+benchmarks_run_dependencies: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_2 update
+	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_8_x update
 	rm -f tests/.scenarios.lock/benchmarks/composer.lock
 	$(MAKE) test_scenario_benchmarks
+
+benchmarks: benchmarks_run_dependencies
 	$(call run_benchmarks,$(PHPBENCH_CONFIG))
 
-benchmarks_opcache: global_test_run_dependencies
-	rm -f tests/.scenarios.lock/benchmarks/composer.lock
-	$(MAKE) test_scenario_benchmarks
+benchmarks_opcache: benchmarks_run_dependencies
 	$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG))
 
 test_opentelemetry_1: global_test_run_dependencies
