@@ -60,14 +60,13 @@ impl ExceptionProfilingStats {
         #[cfg(php8)]
         let exception_name = unsafe { (*exception).class_name() };
 
-        #[cfg(php7)]
         let message = unsafe {
-            zend::zai_str_from_zstr(zend::zai_exception_message((*exception).value.obj).as_mut())
+            #[cfg(php7)]
+            let exception_obj = (*exception).value.obj;
+            #[cfg(php8)]
+            let exception_obj = exception;
+            zend::zai_str_from_zstr(zend::zai_exception_message(exception_obj).as_mut())
                 .into_string()
-        };
-        #[cfg(php8)]
-        let message = unsafe {
-            zend::zai_str_from_zstr(zend::zai_exception_message(exception).as_mut()).into_string()
         };
 
         self.next_sampling_interval();
