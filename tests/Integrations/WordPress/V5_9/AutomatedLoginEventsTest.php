@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\WordPress\V5_8;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
 class AutomatedLoginEventsTest extends WebFrameworkTestCase
@@ -136,5 +137,15 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
        $this->assertEquals($users[0]['ID'], $signUpEvent['userId']);
        $this->assertEquals($users[0]['user_login'], $signUpEvent['metadata']['username']);
        $this->assertEquals($users[0]['user_email'], $signUpEvent['metadata']['email']);
+    }
+
+     public function testAlex()
+    {
+            var_dump($this->call(
+                GetSpec::create(
+                    'A simple GET request with a view',
+                    '/hello-world'
+                )
+            ));
     }
 }
