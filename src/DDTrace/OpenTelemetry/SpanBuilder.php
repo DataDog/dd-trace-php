@@ -75,10 +75,6 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
         $this->totalNumberOfLinksAdded++;
 
-        if (count($this->links) === $this->tracerSharedState->getSpanLimits()->getLinkCountLimit()) {
-            return $this;
-        }
-
         $this->links[] = new Link(
             $context,
             $this->tracerSharedState

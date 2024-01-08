@@ -1030,4 +1030,96 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertCount(1, $traces[0]);
         $this->assertSame("[{\"trace_id\":\"12345678876543211234567887654321\",\"span_id\":\"8765432112345678\",\"trace_state\":\"dd=t.dm:-0\",\"attributes\":{\"arg1\":\"value1\"},\"dropped_attributes_count\":0},{\"trace_id\":\"ff0000000000051791e0000000000041\",\"span_id\":\"ff00000000000517\"}]", $traces[0][0]['meta']['_dd.span_links']);
     }
+
+    public function testSpanLinksInteroperabilityRemoval()
+    {
+        $sampledSpanContext = SpanContext::create(
+            '12345678876543211234567887654321',
+            '8765432112345678',
+            TraceFlags::SAMPLED,
+            new TraceState('dd=t.dm:-0')
+        );
+
+        $traces = $this->isolateTracer(function () use ($sampledSpanContext) {
+            // Add 1 span link using the OTel API
+            $otelSpan = self::getTracer()->spanBuilder("otel.span")
+                ->addLink($sampledSpanContext, ['arg1' => 'value1'])
+                ->startSpan();
+
+            // Remove the span link using the DD API
+            unset(active_span()->links[0]);
+
+            // Add a span link using the DD API
+            $newSpanLink = new SpanLink();
+            $newSpanLink->traceId = "ff0000000000051791e0000000000041";
+            $newSpanLink->spanId = "ff00000000000517";
+            $newSpanLink->traceState = "dd=t.dm:-1";
+            $newSpanLink->attributes = [
+                'arg3' => 'value3',
+                'arg4' => 'value4',
+            ];
+            active_span()->links[] = $newSpanLink;
+
+            // Verify that there is only 1 span link from OTel's POV
+            $otelSpanLinks = $otelSpan->toSpanData()->getLinks();
+            $this->assertCount(1, $otelSpanLinks);
+            $spanLinkContext = $otelSpanLinks[0]->getSpanContext();
+            $this->assertSame('ff0000000000051791e0000000000041', $spanLinkContext->getTraceId());
+            $this->assertSame('ff00000000000517', $spanLinkContext->getSpanId());
+            $this->assertSame('dd=t.dm:-1', (string) $spanLinkContext->getTraceState());
+            $this->assertSame(['arg3' => 'value3', 'arg4' => 'value4'], $otelSpanLinks[0]->getAttributes()->toArray());
+
+            $otelSpan->end();
+        });
+
+        $this->assertCount(1, $traces[0]);
+    }
+
+    public function testSpanLinksInteroperabilityRemovalDuplicates()
+    {
+        $traces = $this->isolateTracer(function () {
+            $context1 = SpanContext::create('00000000000000000000000000000001', '0000000000000001');
+            $context2 = SpanContext::create('00000000000000000000000000000002', '0000000000000002');
+            $context3 = SpanContext::create('00000000000000000000000000000003', '0000000000000003');
+
+            // Otel -> [Link(T1, S1), Link(T2, S2), Link(T2, S2), Link(T3, S3)]
+            $otelSpan = self::getTracer()->spanBuilder("otel.span")
+                ->addLink($context1)
+                ->addLink($context2)
+                ->addLink($context2) // Duplicate
+                ->addLink($context3)
+                ->startSpan();
+            $initialOtelSpanLinks = $otelSpan->toSpanData()->getLinks();
+
+            // Modify to [Link(T1, S1), Link(T2, S2), Link(T4, S4)]
+            unset(active_span()->links[3]); // Remove Link(T3, S3)
+            unset(active_span()->links[1]); // Remove Link(T2, S2)
+            $newSpanLink = new SpanLink();
+            $newSpanLink->traceId = "00000000000000000000000000000004";
+            $newSpanLink->spanId = "0000000000000004";
+            active_span()->links[] = $newSpanLink; // Add Link(T4, S4)
+
+            // Verify the spans links from OTel's POV
+            $otelSpanLinks = $otelSpan->toSpanData()->getLinks();
+            $this->assertCount(3, $otelSpanLinks);
+
+            // Verify Link(T1, S1) + Instance
+            $spanLinkContext = $otelSpanLinks[0]->getSpanContext();
+            $this->assertSame('00000000000000000000000000000001', $spanLinkContext->getTraceId());
+            $this->assertSame('0000000000000001', $spanLinkContext->getSpanId());
+            $this->assertSame($initialOtelSpanLinks[0], $otelSpanLinks[0]);
+
+            // Verify Link(T2, S2) + Instance
+            $spanLinkContext = $otelSpanLinks[1]->getSpanContext();
+            $this->assertSame('00000000000000000000000000000002', $spanLinkContext->getTraceId());
+            $this->assertSame('0000000000000002', $spanLinkContext->getSpanId());
+            $this->assertSame($initialOtelSpanLinks[2], $otelSpanLinks[1]);
+
+            // Verify Link(T4, S4)
+            $spanLinkContext = $otelSpanLinks[2]->getSpanContext();
+            $this->assertSame('00000000000000000000000000000004', $spanLinkContext->getTraceId());
+            $this->assertSame('0000000000000004', $spanLinkContext->getSpanId());
+        });
+
+    }
 }

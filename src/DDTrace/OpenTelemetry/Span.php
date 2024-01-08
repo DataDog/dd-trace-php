@@ -59,6 +59,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     private string $operationNameConvention = "";
 
+    private string $uniqueIdentifier = "";
+
     private function __construct(
         SpanData $span,
         API\SpanContextInterface $context,
@@ -91,6 +93,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $span->name = $this->operationNameConvention = Convention::defaultOperationName($span);
         }
 
+        $this->uniqueIdentifier = \spl_object_hash($this); // traceId + spanId is NOT a valid unique identifier, as the traceId can be modified
+
         // Set the span links
         if ($isRemapped) {
             // At initialization time (now), only set the links if the span was created using the OTel API
@@ -106,6 +110,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $spanLink->attributes = $link->getAttributes()->toArray();
                 $spanLink->droppedAttributesCount = 0; // Attributes limit aren't supported/meaningful in DD
 
+                // Save the link
+                ObjectKVStore::put($spanLink, $this->uniqueIdentifier, $link);
                 $span->links[] = $spanLink;
             }
         }
@@ -441,27 +447,36 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     private function updateSpanLinks()
     {
-        // Important: Links are assumed not to be removable to update the span links from Datadog to OpenTelemetry
-        // For instance, if there are 4 links in Datadog and only 2 in OpenTelemetry, the 2 missing links will be added
-        // to OpenTelemetry
+        // Important: Span Links are supposed immutable
         $datadogSpanLinks = $this->span->links;
-        $otelSpanLinks = $this->links;
 
-        $datadogSpanLinksCount = count($datadogSpanLinks);
-        $otelSpanLinksCount = count($otelSpanLinks);
+        $otel = [];
+        foreach ($datadogSpanLinks as $datadogSpanLink) {
+            // Check if the link relationship exists
+            $link = ObjectKVStore::get($datadogSpanLink, $this->uniqueIdentifier);
+            if ($link === null) {
+                // Create the link
+                $link = new Link(
+                    API\SpanContext::create(
+                        $datadogSpanLink->traceId,
+                        $datadogSpanLink->spanId,
+                        $this->context->getTraceFlags(),
+                        new API\TraceState($datadogSpanLink->traceState ?? null)
+                    ),
+                    Attributes::create($datadogSpanLink->attributes ?? [])
+                );
 
-        for ($i = $otelSpanLinksCount; $i < $datadogSpanLinksCount; $i++) {
-            $spanLink = $datadogSpanLinks[$i];
-
-            $linkSpanContext = API\SpanContext::create(
-                $spanLink->traceId,
-                $spanLink->spanId,
-                API\TraceFlags::DEFAULT,
-                new API\TraceState($spanLink->traceState ?? null),
-            );
-
-            $this->links[] = new Link($linkSpanContext, Attributes::create($spanLink->attributes ?? []));
-            $this->totalRecordedLinks++;
+                // Save the link
+                ObjectKVStore::put($datadogSpanLink, $this->uniqueIdentifier, $link);
+                $otel[] = $link;
+            } else {
+                // Save the link
+                $otel[] = $link;
+            }
         }
+
+        // Update the links
+        $this->links = $otel;
+        $this->totalRecordedLinks = count($otel);
     }
 }

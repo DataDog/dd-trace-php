@@ -125,6 +125,7 @@ class SpanBuilderTest extends MockeryTestCase
 
     public function test_add_link_dropping_links(): void
     {
+        $this->markTestSkipped("Irrelevant: Span Links Limits aren't supported");
         $maxNumberOfLinks = 8;
         $tracerProvider = new TracerProvider([], null, null, (new SpanLimitsBuilder())->setLinkCountLimit($maxNumberOfLinks)->build());
         $spanBuilder = $tracerProvider
