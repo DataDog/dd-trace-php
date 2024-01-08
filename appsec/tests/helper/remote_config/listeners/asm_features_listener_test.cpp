@@ -364,16 +364,18 @@ TEST_F(RemoteConfigAsmFeaturesListenerTest, DynamicEnablementIsDisabled)
 
 TEST_F(RemoteConfigAsmFeaturesListenerTest, ApiSecurityIsDisabled)
 {
+    auto some_rate = 0.123;
+    service_config->set_request_sample_rate(some_rate);
     remote_config::asm_features_listener listener(service_config, true, false);
 
-    { // Api security value is stored regardless
+    { // Api security is not parsed if not enabled
         try {
             listener.on_update(
                 get_config_with_status_and_sample_rate("true", 0.2));
         } catch (remote_config::error_applying_config &error) {
             std::cout << error.what() << std::endl;
         }
-        EXPECT_EQ(0.2, service_config->get_request_sample_rate());
+        EXPECT_EQ(some_rate, service_config->get_request_sample_rate());
         EXPECT_EQ(enable_asm_status::ENABLED,
             service_config->get_asm_enabled_status());
     }
@@ -386,8 +388,8 @@ TEST_F(RemoteConfigAsmFeaturesListenerTest, ApiSecurityIsDisabled)
         } catch (remote_config::error_applying_config &error) {
             std::cout << error.what() << std::endl;
         }
-        EXPECT_EQ(
-            0.2, service_config->get_request_sample_rate()); // same as before
+        EXPECT_EQ(some_rate,
+            service_config->get_request_sample_rate()); // same as before
         EXPECT_EQ(enable_asm_status::ENABLED,
             service_config->get_asm_enabled_status());
     }

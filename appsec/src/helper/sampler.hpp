@@ -104,7 +104,6 @@ public:
 
     void set_sampler_rate(double sampler_rate)
     {
-
         sampler_rate = valid_sample_rate(sampler_rate);
 
         if (sampler_rate == sample_rate_) {
