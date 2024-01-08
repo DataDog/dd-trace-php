@@ -71,10 +71,14 @@ class WordPressIntegration extends Integration
         });
 
         \DDTrace\hook_method('WP', 'main',  null, function ($This, $scope, $args) {
-            if (\property_exists($This, 'did_permalink') && $This->did_permalink === true) {
+            if (\property_exists($This, 'did_permalink') && $This->did_permalink === true &&
+                function_exists('is_404') && is_404() === false) {
+                $rootSpan = \DDTrace\root_span();
+                if (\property_exists($This, 'matched_rule')) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $This->matched_rule;
+                }
                 if (function_exists('\datadog\appsec\push_params') &&
-                    \property_exists($This, 'query_vars') &&
-                    function_exists('is_404') && is_404() === false) {
+                    \property_exists($This, 'query_vars')) {
                     $parameters = $This->query_vars;
                     if (count($parameters) > 0) {
                         \datadog\appsec\push_params($parameters);
