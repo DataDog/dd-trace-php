@@ -1120,6 +1120,38 @@ final class InteroperabilityTest extends BaseTestCase
             $this->assertSame('00000000000000000000000000000004', $spanLinkContext->getTraceId());
             $this->assertSame('0000000000000004', $spanLinkContext->getSpanId());
         });
+    }
 
+    public function testSpanLinksInteroperabilityAddDuplicates()
+    {
+        $traces = $this->isolateTracer(function () {
+            $context1 = SpanContext::create('00000000000000000000000000000001', '0000000000000001');
+            $context2 = SpanContext::create('00000000000000000000000000000002', '0000000000000002');
+
+            $otelSpan = self::getTracer()->spanBuilder("otel.span")
+                ->addLink($context1)
+                ->addLink($context2)
+                ->startSpan();
+
+            $spanLink2 = active_span()->links[1];
+            active_span()->links[] = $spanLink2; // Duplicate, same instance
+
+            $otelSpanLinks = $otelSpan->toSpanData()->getLinks();
+
+            $this->assertCount(3, $otelSpanLinks);
+            // Verify that the duplicate is the same instance
+            $this->assertSame($otelSpanLinks[1], $otelSpanLinks[2]);
+
+            // Create a new span link with the same trace id and span id
+            $newSpanLink = new SpanLink();
+            $newSpanLink->traceId = $spanLink2->traceId;
+            $newSpanLink->spanId = $spanLink2->spanId;
+            active_span()->links[] = $newSpanLink; // Duplicate, but different instance
+
+            $otelSpanLinks = $otelSpan->toSpanData()->getLinks();
+            $this->assertCount(4, $otelSpanLinks);
+            // Verify that the duplicate is not the same instance
+            $this->assertNotSame($otelSpanLinks[1], $otelSpanLinks[3]);
+        });
     }
 }
