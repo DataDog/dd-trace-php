@@ -773,7 +773,7 @@ impl Profiler {
 
                 labels.push(Label {
                     key: "exception message",
-                    value: LabelValue::Str(message.clone().into()),
+                    value: LabelValue::Str(message.into()),
                 });
 
                 let n_labels = labels.len();

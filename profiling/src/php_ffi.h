@@ -20,6 +20,8 @@
 // And json to cleanup json state for graceful restart
 #include <json/json.h>
 
+// Exception profiling needs to get the message of the exception (and ZAI
+// provides `zai_exception_message()`)
 #include <exceptions/exceptions.h>
 
 // Used to communicate strings from C -> Rust.

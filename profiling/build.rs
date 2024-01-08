@@ -103,7 +103,7 @@ fn build_zend_php_ffis(
         "../zend_abstract_interface/sandbox/php8/sandbox.c"
     };
 
-    // Profiling only needs config and its dependencies.
+    // Profiling only needs config, exceptions and its dependencies.
     let zai_c_files = [
         "../zend_abstract_interface/config/config_decode.c",
         "../zend_abstract_interface/config/config_ini.c",
