@@ -29,7 +29,7 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build profiler
+      - name: Build and install profiler
         run: |
           set -eux
           switch-php nts-asan
@@ -41,9 +41,7 @@ jobs:
           export RUSTC_LINKER=lld-16
           triplet=$(uname -m)-unknown-linux-gnu
           RUSTFLAGS='-Zsanitizer=address' cargo +nightly-2023-05-03 build -Zbuild-std --target $triplet --release
-          cd tests
-          cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
-          php run-tests.php --asan -d extension=$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so phpt
+          cp -v "$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Cache build dependencies
         uses: actions/cache/save@v3
@@ -55,4 +53,12 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run phpt tests
+        run: |
+          set -eux
+          switch-php nts-asan
+          cd profiling/tests
+          cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
+          php run-tests.php --asan -d extension=datadog-profiling.so phpt
 
