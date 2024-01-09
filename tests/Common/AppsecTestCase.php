@@ -22,12 +22,18 @@ abstract class AppsecTestCase extends WebFrameworkTestCase
         return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
     }
 
-    protected function databaseDump() {}
+    protected function databaseDump()
+    {
+        return "";
+    }
 
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        $this->connection()->exec($this->databaseDump());
+        $dump = $this->databaseDump();
+        if (!empty($dump)) {
+            $this->connection()->exec($dump);
+        }
         AppsecStatus::getInstance()->setDefaults();
     }
 
