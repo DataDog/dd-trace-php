@@ -55,13 +55,13 @@ class PathParamsTest extends AppsecTestCase
         $this->call(
             GetSpec::create(
                 'Author',
-                '/author/test'
+                '/author/SammyK'
             )
         );
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
-        $this->assertEquals('test', $events[0]['author_name']);
+        $this->assertEquals('SammyK', $events[0]['author_name']);
         $this->assertEquals('push_params', $events[0]['eventName']);
     }
 

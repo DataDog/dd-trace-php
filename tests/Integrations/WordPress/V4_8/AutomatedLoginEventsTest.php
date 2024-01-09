@@ -17,7 +17,7 @@ class AutomatedLoginEventsTest extends AppsecTestCase
     }
 
     protected function databaseDump() {
-        return file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_5_5/wp_2020-10-21.sql');
+        return file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_4_8/wp_2019-10-01.sql');
     }
 
     protected function ddSetUp()
