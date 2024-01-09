@@ -33,6 +33,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Type::MEMCACHED, 'memcached'],
             [Type::MONGO, 'mongodb'],
             [Type::REDIS, 'redis'],
+            [Type::SYSTEM, 'system'],
         ];
     }
 
@@ -167,6 +168,10 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::RABBITMQ_DELIVERY_MODE, 'messaging.rabbitmq.delivery_mode'],
             [Tag::RABBITMQ_EXCHANGE, 'messaging.rabbitmq.exchange'],
             [Tag::RABBITMQ_ROUTING_KEY, 'messaging.rabbitmq.routing_key'],
+            [Tag::EXEC_CMDLINE_EXEC, 'cmd.exec'],
+            [Tag::EXEC_CMDLINE_SHELL, 'cmd.shell'],
+            [Tag::EXEC_TRUNCATED, 'cmd.truncated'],
+            [Tag::EXEC_EXIT_CODE, 'cmd.exit_code'],
         ];
     }
 

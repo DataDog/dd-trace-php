@@ -470,6 +470,10 @@ COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 c
 COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
+PHPBENCH_OPTS ?=
+PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
+PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
+PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
@@ -879,6 +883,7 @@ TEST_WEB_82 := \
 	test_web_slim_4 \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
+	test_web_symfony_70 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -925,6 +930,7 @@ TEST_WEB_83 := \
 	test_web_slim_4 \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
+	test_web_symfony_70 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -935,6 +941,11 @@ FILTER := .
 define run_tests
 	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
+
+define run_benchmarks
+	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+endef
+
 
 # use this as the first target if you want to use uncompiled files instead of the _generated_*.php compiled file.
 dev:
@@ -996,6 +1007,19 @@ test_distributed_tracing: global_test_run_dependencies
 
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
+
+benchmarks_run_dependencies: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_2 update
+	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_8_x update
+	rm -f tests/.scenarios.lock/benchmarks/composer.lock
+	$(MAKE) test_scenario_benchmarks
+
+benchmarks: benchmarks_run_dependencies
+	$(call run_benchmarks,$(PHPBENCH_CONFIG))
+
+benchmarks_opcache: benchmarks_run_dependencies
+	$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG))
 
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
@@ -1213,6 +1237,10 @@ test_web_symfony_62: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_6_2 update
 	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,--testsuite=symfony-62-test)
+test_web_symfony_70: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_7_0 update
+	php tests/Frameworks/Symfony/Version_7_0/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests,--testsuite=symfony-70-test)
 
 test_web_wordpress_48: global_test_run_dependencies
 	$(call run_tests,tests/Integrations/WordPress/V4_8)

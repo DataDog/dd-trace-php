@@ -158,6 +158,19 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "Dispatcher", "__construct",
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "exec",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "system",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "passthru",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "shell_exec",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "popen",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "proc_open",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_exec",
                                            "DDTrace\\Integrations\\Curl\\CurlIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_multi_exec",

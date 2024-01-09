@@ -58,6 +58,7 @@ typedef struct {
     zval *retval_ptr;
     ddtrace_span_data *span;
     ddtrace_span_stack *prior_stack;
+    bool returns_reference;
 } dd_hook_data;
 
 typedef struct {
@@ -225,6 +226,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     }
 
     dyn->hook_data = (dd_hook_data *)dd_hook_data_create(ddtrace_hook_data_ce);
+    dyn->hook_data->returns_reference = execute_data->func->common.fn_flags & ZEND_ACC_RETURN_REFERENCE;
     dyn->hook_data->vm_stack_top = EG(vm_stack_top);
 
     dyn->hook_data->invocation = invocation;
@@ -773,6 +775,12 @@ ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
     // post-hook check
     if (!hookData->retval_ptr) {
         RETURN_FALSE;
+    }
+
+    if (hookData->returns_reference) {
+        ZVAL_MAKE_REF(retval);
+    } else {
+        ZVAL_DEREF(retval);
     }
 
     zval_ptr_dtor(hookData->retval_ptr);

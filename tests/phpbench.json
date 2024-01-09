@@ -1,0 +1,24 @@
+{
+    "$schema":"vendor/phpbench/phpbench/phpbench.schema.json",
+    "runner.bootstrap": "./bootstrap_utils.php",
+    "runner.path": "Benchmarks",
+    "runner.file_pattern": "*Bench.php",
+    "runner.php_env": {
+        "DD_TRACE_OTEL_ENABLED": "true",
+        "DD_TRACE_TEST_SAPI": "cgi-fcgi",
+        "DD_TRACE_SIDECAR_TRACE_SENDER": "true"
+    },
+    "report.generators": {
+        "all": {
+            "generator": "composite",
+            "reports": [ "default" ]
+        }
+    },
+    "report.outputs": {
+        "file": {
+            "extends": "csv",
+            "file": "tests/Benchmarks/reports/tracer-bench-results.csv",
+            "delimiter": ","
+        }
+    }
+}

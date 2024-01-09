@@ -1,5 +1,5 @@
 --TEST--
-Set DDTrace\start_span() properties
+Test tracing via attributes
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80000) die('skip: No attributes pre-PHP 8'); ?>
 --ENV--

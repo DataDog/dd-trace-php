@@ -12,6 +12,9 @@ indent_size = none
 [*.{yml,yaml}]
 indent_size = 2
 
+[*.json]
+indent_size = 4
+
 [Dockerfile]
 indent_size = 2
 
