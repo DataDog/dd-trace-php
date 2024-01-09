@@ -620,6 +620,47 @@ final class CurlIntegrationTest extends IntegrationTestCase
         ]);
     }
 
+    public function testMultiExecGuzzleLike()
+    {
+        $traces = $this->isolateTracer(function () {
+            $ch1 = curl_init(self::URL . '/status/200');
+            curl_setopt($ch1, CURLOPT_RETURNTRANSFER, false);
+            curl_setopt($ch1, CURLOPT_HEADER, false);
+            $ch2 = curl_init(self::URL . '/status/200');
+            curl_setopt($ch2, CURLOPT_RETURNTRANSFER, false);
+            curl_setopt($ch2, CURLOPT_HEADER, false);
+            $ch3 = curl_init(self::URL . '/status/200');
+            curl_setopt($ch3, CURLOPT_RETURNTRANSFER, false);
+            curl_setopt($ch3, CURLOPT_HEADER, false);
+
+            $mh = curl_multi_init();
+            curl_multi_add_handle($mh, $ch1);
+            curl_multi_add_handle($mh, $ch2);
+            curl_multi_add_handle($mh, $ch3);
+
+            $active = 0;
+
+            do {
+                if ($active) {
+                    curl_multi_select($mh);
+                }
+                $status = curl_multi_exec($mh, $active);
+            } while ($active && $status == CURLM_OK);
+
+            while ($done = curl_multi_info_read($mh)) {
+                var_dump($done);
+                if ($done['result'] !== CURLE_OK) {
+                    continue;
+                }
+                $id = (int) $done['handle'];
+                curl_multi_remove_handle($mh, $done['handle']);
+            }
+        });
+
+        echo json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL;
+
+    }
+
     /**
      * @dataProvider dataProviderTestTraceAnalytics
      */

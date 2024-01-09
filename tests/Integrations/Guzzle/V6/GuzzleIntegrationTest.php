@@ -8,6 +8,7 @@ use DDTrace\Tracer;
 use DDTrace\Tag;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -484,5 +485,44 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'guzzle'
                 ]),
         ]);
+    }
+
+    public function testMultiExec()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true',
+            'DD_SERVICE=my-shop',
+            'DD_TRACE_GENERATE_ROOT_SPAN=0'
+        ]);
+        \dd_trace_serialize_closed_spans();
+
+        $traces = $this->isolateTracer(function () {
+            /** @var Tracer $tracer */
+            $tracer = GlobalTracer::get();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
+
+            $client = $this->getRealClient();
+            try {
+                $promises = [
+                    //$client->getAsync('https://google.wrong/', ['http_errors' => false]),
+                    $client->getAsync('https://google.com/'), // Does a 301 Redirection to https://www.google.com/ ==> 2 spans
+                    $client->getAsync(self::URL . '/redirect-to?url=' . self::URL . '/status/200'), // too flaky
+                    $client->getAsync(self::URL . '/status/200'),
+                    $client->getAsync(self::URL . '/status/201'),
+                    $client->getAsync(self::URL . '/status/202'),
+                    //$client->getAsync('https://google.still.wrong/', ['http_errors' => false]),
+                    $client->getAsync('https://www.google.com'),
+                    $client->getAsync('https://www.google.com'),
+                    $client->getAsync('https://www.google.com'),
+                ];
+                Utils::unwrap($promises);
+            } catch (\Exception $e) {
+                echo $e->getMessage();
+            }
+
+            $span->finish();
+        });
+
+        echo json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL;
     }
 }
