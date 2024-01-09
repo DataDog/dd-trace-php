@@ -236,6 +236,24 @@ final class CurlIntegration extends Integration
                     list($ch, $requestSpan) = $requestSpan;
                     if ($ch === $handle) {
                         $requestSpan->meta[Tag::ERROR_MSG] = curl_strerror($hook->returned["result"]);
+                        $info = curl_getinfo($ch);
+
+                        if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME])
+                            && 'unparsable-host' !== $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) {
+                            echo "Nothing more to do for span: " . $requestSpan->meta['network.destination.name'] . "\n";
+                            continue;
+                        }
+
+                        echo "Settting error to span: " . $requestSpan->meta['network.destination.name'] . "\n";
+
+
+                        $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
+                        $requestSpan->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
+                        CurlIntegration::set_curl_attributes($requestSpan, $info);
+                        if (isset($info["total_time"])) {
+                            $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
+                            \DDTrace\update_span_duration($requestSpan, $endTime);
+                        }
                     }
                 }
             });
