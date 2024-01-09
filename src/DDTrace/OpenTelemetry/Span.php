@@ -93,8 +93,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $span->name = $this->operationNameConvention = Convention::defaultOperationName($span);
         }
 
-        $this->uniqueIdentifier = \spl_object_hash($this); // traceId + spanId is NOT a valid unique identifier, as the traceId can be modified
-
         // Set the span links
         if ($isRemapped) {
             // At initialization time (now), only set the links if the span was created using the OTel API
@@ -111,7 +109,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $spanLink->droppedAttributesCount = 0; // Attributes limit aren't supported/meaningful in DD
 
                 // Save the link
-                ObjectKVStore::put($spanLink, $this->uniqueIdentifier, $link);
+                ObjectKVStore::put($spanLink, "link", $link);
                 $span->links[] = $spanLink;
             }
         }
@@ -453,7 +451,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $otel = [];
         foreach ($datadogSpanLinks as $datadogSpanLink) {
             // Check if the link relationship exists
-            $link = ObjectKVStore::get($datadogSpanLink, $this->uniqueIdentifier);
+            $link = ObjectKVStore::get($datadogSpanLink, "link");
             if ($link === null) {
                 // Create the link
                 $link = new Link(
@@ -467,12 +465,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 );
 
                 // Save the link
-                ObjectKVStore::put($datadogSpanLink, $this->uniqueIdentifier, $link);
-                $otel[] = $link;
-            } else {
-                // Save the link
-                $otel[] = $link;
+                ObjectKVStore::put($datadogSpanLink, "link", $link);
             }
+            $otel[] = $link;
         }
 
         // Update the links
