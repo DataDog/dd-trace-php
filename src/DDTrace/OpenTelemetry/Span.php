@@ -59,8 +59,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     private string $operationNameConvention = "";
 
-    private string $uniqueIdentifier = "";
-
     private function __construct(
         SpanData $span,
         API\SpanContextInterface $context,
