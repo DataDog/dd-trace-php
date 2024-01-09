@@ -2,39 +2,16 @@
 
 namespace DDTrace\Tests\Integrations\Symfony\V5_2;
 
-use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
-class PathParamsTest extends WebFrameworkTestCase
+class PathParamsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_5_2/public/index.php';
-    }
-
-    protected function connection()
-    {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
-    }
-
-    protected function ddSetUp()
-    {
-        parent::ddSetUp();
-        AppsecStatus::getInstance()->setDefaults();
-    }
-
-    public static function ddSetUpBeforeClass()
-    {
-        parent::ddSetUpBeforeClass();
-        AppsecStatus::getInstance()->init();
-    }
-
-    public static function ddTearDownAfterClass()
-    {
-        AppsecStatus::getInstance()->destroy();
-        parent::ddTearDownAfterClass();
     }
 
     public function testDynamicRouteWithOptionalsFilled()

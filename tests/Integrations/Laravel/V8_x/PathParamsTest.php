@@ -2,41 +2,18 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
-use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
 /**
  * @group appsec
  */
-class PathParamsTest extends WebFrameworkTestCase
+class PathParamsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
-    }
-
-    protected function connection()
-    {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
-    }
-
-    public static function ddSetUpBeforeClass()
-    {
-        parent::ddSetUpBeforeClass();
-        AppsecStatus::getInstance()->init();
-    }
-
-    protected function ddSetUp()
-    {
-        parent::ddSetUp();
-        AppsecStatus::getInstance()->setDefaults();
-    }
-
-    public static function ddTearDownAfterClass()
-    {
-        AppsecStatus::getInstance()->destroy();
-        parent::ddTearDownAfterClass();
     }
 
     public function testDynamicRouteWithAllParametersGiven()
