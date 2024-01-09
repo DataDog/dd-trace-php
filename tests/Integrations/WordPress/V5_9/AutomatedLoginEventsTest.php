@@ -2,41 +2,30 @@
 
 namespace DDTrace\Tests\Integrations\WordPress\V5_8;
 
-use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
-class AutomatedLoginEventsTest extends WebFrameworkTestCase
+ /**
+ * @group appsec
+ */
+class AutomatedLoginEventsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_5_9/index.php';
     }
 
-    protected function connection()
-    {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+    protected function databaseDump() {
+        return file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_5_5/wp_2020-10-21.sql');
     }
 
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        $this->connection()->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_5_5/wp_2020-10-21.sql'));
         $this->connection()->exec("DELETE from users where email LIKE 'test-user%'");
         AppsecStatus::getInstance()->setDefaults();
-    }
-
-    public static function ddSetUpBeforeClass()
-    {
-        parent::ddSetUpBeforeClass();
-        AppsecStatus::getInstance()->init();
-    }
-
-    public static function ddTearDownAfterClass()
-    {
-        AppsecStatus::getInstance()->destroy();
-        parent::ddTearDownAfterClass();
     }
 
     public function testUserLoginSuccessEvent()
@@ -137,15 +126,5 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
        $this->assertEquals($users[0]['ID'], $signUpEvent['userId']);
        $this->assertEquals($users[0]['user_login'], $signUpEvent['metadata']['username']);
        $this->assertEquals($users[0]['user_email'], $signUpEvent['metadata']['email']);
-    }
-
-     public function testAlex()
-    {
-            var_dump($this->call(
-                GetSpec::create(
-                    'A simple GET request with a view',
-                    '/hello-world'
-                )
-            ));
     }
 }
