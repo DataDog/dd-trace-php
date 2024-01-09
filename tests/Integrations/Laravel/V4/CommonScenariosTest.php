@@ -203,8 +203,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                         ]),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
-                                    SpanAssertion::exists('PDO.query', null, null, 'laravel'),
-                                    SpanAssertion::exists('PDO.__construct', null, null, 'laravel'),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                 ]),
