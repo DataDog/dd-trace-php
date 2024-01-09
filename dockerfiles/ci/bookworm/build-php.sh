@@ -41,7 +41,7 @@ ${PHP_SRC_DIR}/configure \
         $(if [[ ${PHP_VERSION_ID} -ge 71 ]]; then echo --enable-intl; fi) \
         --enable-mbstring \
         --enable-opcache \
-        $(if [[ ${PHP_VERSION_ID} -ge 80 ]]; then echo --enable-zend-test=shared; fi) \
+        $(if [[ ${PHP_VERSION_ID} -ge 80 ]] && [[ ${INSTALL_VERSION} != *asan* ]]; then echo --enable-zend-test=shared; fi) \
         --enable-pcntl \
         --enable-soap \
         --enable-sockets \
