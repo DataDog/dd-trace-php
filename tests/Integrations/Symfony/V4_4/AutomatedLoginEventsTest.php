@@ -6,6 +6,9 @@ use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 use datadog\appsec\AppsecStatus;
 
+/**
+ * @group appsec
+ */
 class AutomatedLoginEventsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()

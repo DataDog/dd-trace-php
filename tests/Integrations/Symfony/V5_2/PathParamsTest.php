@@ -7,6 +7,9 @@ use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
+/**
+ * @group appsec
+ */
 class PathParamsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()
