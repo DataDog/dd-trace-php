@@ -66,7 +66,7 @@ benchmarks-tracer:
 download_circle_ci_release:
   stage: benchmarks
   rules:
-    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") #&& $CI_COMMIT_REF_NAME == "master"
       when: always
     - when: manual
   tags: [ "arch:amd64" ]
