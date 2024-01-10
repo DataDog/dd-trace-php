@@ -1,14 +1,14 @@
-# Microbenchmarks depends on Google Benchmarks, which was installed globally
 enable_language(CXX)
-
-find_package(benchmark REQUIRED)
-
-# Include the Google Benchmark Directories
-include_directories(${benchmark_INCLUDE_DIRS})
 
 set(CMAKE_CXX_STANDARD 11)
 
-
 add_executable(tea_benchmarks benchmark.cc)
+
+# Google Benchmark is included as a git submodule.
+# It depends on Google Test, which it will download if this option is set.
+set(BENCHMARK_DOWNLOAD_DEPENDENCIES ON)
+# Don't build Google Benchmark's unit tests.
+set(BENCHMARK_ENABLE_TESTING OFF)
+add_subdirectory(google-benchmark)
 
 target_link_libraries(tea_benchmarks PUBLIC benchmark::benchmark Tea::Tea)
