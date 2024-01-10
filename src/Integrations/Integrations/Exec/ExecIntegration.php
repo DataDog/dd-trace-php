@@ -196,7 +196,7 @@ class ExecIntegration extends Integration
             },
             static function (HookData $hook) {
                 /** @var SpanData $span */
-                $span = $hook->data;
+                $span = $hook->data ?? null;
                 if (!$span) {
                     return;
                 }
