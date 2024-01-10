@@ -1,6 +1,6 @@
 FROM datadog/dd-appsec-php-ci:php-7.0-release AS php_agent_debug
 RUN apt-get update && apt-get install -y jq
-COPY ./tooling/ci/ddlib-info.sh ./tooling/ci/binaries* /binaries/
+COPY ./tooling/ci/ddtrace-info.sh ./tooling/ci/binaries* /binaries/
 RUN /binaries/ddtrace-info.sh
 RUN php -d error_reporting='' -r 'echo phpversion("ddtrace");' > /binaries/LIBRARY_VERSION
 RUN touch -c -a -m -d @0 /binaries/*
