@@ -56,7 +56,7 @@ class ContextPropagationBench
 
     /**
      * @Revs(1)
-     * @Iterations(10)
+     * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
