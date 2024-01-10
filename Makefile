@@ -10,10 +10,9 @@ TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
 TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
 TEA_BUILD_TESTS ?= OFF
 TEA_BUILD_BENCHMARKS ?= OFF
-BENCHMARK_REPETITIONS ?= 10
-BENCHMARK_FORMAT ?= json
-BENCHMARK_OUTPUT ?= $(TEA_BUILD_DIR)/benchmarks/benchmarks.$(BENCHMARK_FORMAT)
-BENCHMARK_AGGREGATE ?= true
+TEA_BENCHMARK_REPETITIONS ?= 10
+TEA_BENCHMARK_FORMAT ?= json
+TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/benchmarks.$(TEA_BENCHMARK_FORMAT)
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS = -Wall -Wextra
@@ -189,11 +188,11 @@ test_tea: clean_tea build_tea
 		! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
 	)
 
-bench_tea: clean_tea build_tea_benchmarks
+benchmarks_tea: clean_tea build_tea_benchmarks
 	$(TEA_BUILD_DIR)/benchmarks/tea_benchmarks \
-		--benchmark_repetitions=$(BENCHMARK_REPETITIONS) \
-		--benchmark_out=$(BENCHMARK_OUTPUT) \
-		--benchmark_format=$(BENCHMARK_FORMAT) \
+		--benchmark_repetitions=$(TEA_BENCHMARK_REPETITIONS) \
+		--benchmark_out=$(TEA_BENCHMARK_OUTPUT) \
+		--benchmark_format=$(TEA_BENCHMARK_FORMAT) \
 		--benchmark_time_unit=ms
 
 install_tea: build_tea
