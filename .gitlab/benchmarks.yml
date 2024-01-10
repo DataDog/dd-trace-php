@@ -3,16 +3,8 @@ variables:
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/dd-trace-php
 
-microbenchmarks:
+.microbenchmarks:
   stage: benchmarks
-  rules:
-    - if: $CI_PIPELINE_SOURCE != "schedule"
-      changes:
-        paths:
-          - profiling/**/*
-        compare_to: "master"
-      when: on_success
-    - when: manual
   tags: ["runner:apm-k8s-tweaked-metal"]
   needs: []
   image:
@@ -40,6 +32,36 @@ microbenchmarks:
 
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+
+benchmarks-profiler:
+  extends: .microbenchmarks
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        paths:
+          - profiling/**/*
+        compare_to: "master"
+      when: on_success
+    - when: manual
+  variables:
+    SCENARIO: "profiler"
+
+benchmarks-tracer:
+  extends: .microbenchmarks
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        paths:
+          - bridge/*
+          - ext/**/*
+          - src/**/*
+          - zend_abstract_interface/**/*
+        compare_to: "master"
+      when: on_success
+    - when: manual
+  variables:
+    SCENARIO: "tracer"
+
 
 download_circle_ci_release:
   stage: benchmarks
@@ -117,3 +139,6 @@ macrobenchmarks:
 
       - DD_BENCHMARKS_CONFIGURATION: only-tracing
         PHP_VERSION: "7.4"
+
+      - DD_BENCHMARKS_CONFIGURATION: no-sidecar
+        PHP_VERSION: "8.1"

@@ -17,11 +17,8 @@ mod exception;
 #[cfg(feature = "timeline")]
 mod timeline;
 
-#[cfg(not(php_has_php_version_id_fn))]
-use bindings::zend_long;
-
 use bindings as zend;
-use bindings::{sapi_globals, ZendExtension, ZendResult};
+use bindings::{ddog_php_prof_php_version_id, sapi_globals, ZendExtension, ZendResult};
 use clocks::*;
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
@@ -184,38 +181,6 @@ static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
     unsafe extern "C" fn(execute_data: *mut zend::zend_execute_data, return_value: *mut zend::zval),
 > = MaybeUninit::uninit();
 
-/// # Safety
-/// Only call during minit/startup phase.
-unsafe fn set_run_time_php_version_id() -> anyhow::Result<()> {
-    cfg_if::cfg_if! {
-        if #[cfg(php_has_php_version_id_fn)] {
-            PHP_VERSION_ID = zend::php_version_id();
-            Ok(())
-        } else {
-            let vernum = b"PHP_VERSION_ID";
-            let vernum_zvp = zend::zend_get_constant_str(
-                vernum.as_ptr() as *const c_char,
-                vernum.len()
-            );
-            // SAFETY: if the pointer returned by zend_get_constant_str is not
-            // null, then it points to a valid zval.
-            let Some(vernum_zv) = vernum_zvp.as_mut() else {
-                anyhow::bail!("zend_get_constant_str returned null")
-            };
-            let vernum_long = match zend_long::try_from(vernum_zv) {
-                Ok(x) => x,
-                Err(err) => {
-                    anyhow::bail!("zend_get_constant_str(\"PHP_VERSION_ID\", ...) failed: unexpected zval type {err}");
-                }
-            };
-            let vernum_u32 = u32::try_from(vernum_long)?;
-            // SAFETY: during minit, there shouldn't be any threads.
-            PHP_VERSION_ID = vernum_u32;
-            Ok(())
-        }
-    }
-}
-
 /* Important note on the PHP lifecycle:
  * Based on how some SAPIs work and the documentation, one might expect that
  * MINIT is called once per process, but this is only sort-of true. Some SAPIs
@@ -257,10 +222,8 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
          */
     }
 
-    // SAFETY: calling during minit as required.
-    if let Err(err) = unsafe { set_run_time_php_version_id() } {
-        panic!("error getting PHP_VERSION_ID at run-time: {err:#}");
-    }
+    // SAFETY: setting global mutable value in MINIT.
+    unsafe { PHP_VERSION_ID = ddog_php_prof_php_version_id() };
 
     config::minit(module_number);
 

@@ -25,6 +25,7 @@ fn main() {
         .expect("`php-config`'s stdout to be valid utf8");
 
     let vernum = php_config_vernum();
+    let post_startup_cb = cfg_post_startup_cb(vernum);
     let preload = cfg_preload(vernum);
     let fibers = cfg_fibers(vernum);
     let run_time_cache = cfg_run_time_cache(vernum);
@@ -33,6 +34,7 @@ fn main() {
     generate_bindings(php_config_includes, fibers);
     build_zend_php_ffis(
         php_config_includes,
+        post_startup_cb,
         preload,
         run_time_cache,
         fibers,
@@ -81,6 +83,7 @@ const ZAI_H_FILES: &[&str] = &[
 
 fn build_zend_php_ffis(
     php_config_includes: &str,
+    post_startup_cb: bool,
     preload: bool,
     run_time_cache: bool,
     fibers: bool,
@@ -115,6 +118,7 @@ fn build_zend_php_ffis(
     println!("cargo:rustc-link-search=native={}/lib", prefix.trim());
 
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
+    let post_startup_cb = if post_startup_cb { "1" } else { "0" };
     let preload = if preload { "1" } else { "0" };
     let fibers = if fibers { "1" } else { "0" };
     let run_time_cache = if run_time_cache { "1" } else { "0" };
@@ -128,6 +132,7 @@ fn build_zend_php_ffis(
 
     cc::Build::new()
         .files(files.into_iter().chain(zai_c_files.into_iter()))
+        .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
         .define("CFG_FIBERS", fibers)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
@@ -246,6 +251,15 @@ fn generate_bindings(php_config_includes: &str, fibers: bool) {
         .expect("bindings to be written successfully");
 }
 
+fn cfg_post_startup_cb(vernum: u64) -> bool {
+    if vernum >= 70300 {
+        println!("cargo:rustc-cfg=php_post_startup_cb");
+        true
+    } else {
+        false
+    }
+}
+
 fn cfg_preload(vernum: u64) -> bool {
     if vernum >= 70400 {
         println!("cargo:rustc-cfg=php_preload");
@@ -300,7 +314,6 @@ fn cfg_php_feature_flags(vernum: u64) {
     }
     if vernum >= 80300 {
         println!("cargo:rustc-cfg=php_gc_status_extended");
-        println!("cargo:rustc-cfg=php_has_php_version_id_fn");
     }
 }
 
