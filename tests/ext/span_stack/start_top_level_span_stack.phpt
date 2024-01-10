@@ -37,7 +37,7 @@ That top-level span is, in fact a trace root span without parent: bool(true)
 And it has matching a trace id: bool(true)
 Verify the stack_span stays if the top-level span is closed - this span stack is not tied to a trace directly: bool(true)
 There is no active span now: bool(true)
-There is no user-span on the top of the stack. Cannot close.
+[ddtrace] [error] There is no user-span on the top of the stack. Cannot close.
 Given no active span, the active span stays null: bool(true)
 This also must not affect the active span stack: bool(true)
 Now, we are back on the global span stack: bool(true)

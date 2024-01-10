@@ -104,6 +104,7 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+                'DD_TRACE_DEBUG' => 'false',
             ],
             [],
             "",

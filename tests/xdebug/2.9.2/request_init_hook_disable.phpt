@@ -12,5 +12,5 @@ if (!extension_loaded('Xdebug') || version_compare(phpversion('Xdebug'), '2.9.5'
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-Found incompatible Xdebug version %s; ddtrace requires Xdebug 2.9.5 or greater; disabling conflicting functionality
+[ddtrace] [error] Found incompatible Xdebug version %s; ddtrace requires Xdebug 2.9.5 or greater; disabling conflicting functionality
 Done.

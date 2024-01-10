@@ -6,7 +6,7 @@ class Tracer
 {
     public function flush()
     {
-        echo 'Flushing tracer with exception...' . PHP_EOL;
+        echo '[ddtrace] [info] Flushing tracer with exception...' . PHP_EOL;
         throw new \Exception('You should not see this');
     }
 

@@ -48,10 +48,10 @@ echo "Specific sampling: {$get_sampling()}\n";
 
 ?>
 --EXPECTF--
-Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Initial sampling: 1
-Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Generic sampling: 0
-Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Specific sampling: 1
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

@@ -24,7 +24,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-Found unfinished span while automatically closing spans with name 'my precious span'
+[ddtrace] [warning] Found unfinished span while automatically closing spans with name 'my precious span'
 array(1) {
   [0]=>
   array(10) {
@@ -66,7 +66,7 @@ array(1) {
     }
   }
 }
-There is no user-span on the top of the stack. Cannot close.
+[ddtrace] [error] There is no user-span on the top of the stack. Cannot close.
 array(0) {
 }
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

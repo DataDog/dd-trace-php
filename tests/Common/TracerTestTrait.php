@@ -21,6 +21,11 @@ class FakeSpan extends Span
 {
     public $startTime;
     public $duration;
+
+    public function __destruct()
+    {
+        // Silence destructor warning about unclosed spans for fake spans
+    }
 }
 
 trait TracerTestTrait

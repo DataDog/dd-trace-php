@@ -24,4 +24,4 @@ $foo->test();
 --EXPECTF--
 Foo::test()
 TRACED Foo::test()
-Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 2 to send-queue for %s

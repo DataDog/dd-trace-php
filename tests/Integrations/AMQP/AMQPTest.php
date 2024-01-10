@@ -901,7 +901,7 @@ final class AMQPTest extends IntegrationTestCase
         );
 
         // Assess that user headers weren't lost
-        $this->assertSame("", $output);
+        $this->assertSame("", trim(preg_replace("(.*\[ddtrace].*)", "", $output)));
 
         $sendTraces = $sendTraces[0][0]; // There is a root span
         // Spans: send.php -> basic_publish -> queue_declare -> connect
@@ -942,7 +942,7 @@ final class AMQPTest extends IntegrationTestCase
         );
 
         // Assess that user headers weren't lost
-        $this->assertSame("", $output);
+        $this->assertSame("", trim(preg_replace("(.*\[ddtrace].*)", "", $output)));
 
         $sendTraces = $sendTraces[0][0]; // There is a root span
         // Spans: send.php -> basic_publish -> queue_declare -> connect

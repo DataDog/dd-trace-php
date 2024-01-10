@@ -215,6 +215,7 @@ bool zai_match_regex(zend_string *pattern, zend_string *subject) {
     zai_error_state error_state;
     zai_sandbox_error_state_backup(&error_state);
     zend_replace_error_handling(EH_NORMAL, NULL, NULL);
+    EG(error_reporting) = 0;
 
     pcre_cache_entry *pce = pcre_get_compiled_regex_cache(regex);
 

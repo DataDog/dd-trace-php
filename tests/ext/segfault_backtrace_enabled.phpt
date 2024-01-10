@@ -17,10 +17,10 @@ posix_kill(posix_getpid(), 11); // boom
 
 ?>
 --EXPECTREGEX--
-Segmentation fault
-Datadog PHP Trace extension \(DEBUG MODE\)
-Received Signal 11
-Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime
-Backtrace:
+\[ddtrace] \[error] Segmentation fault
+\[ddtrace] \[error] Datadog PHP Trace extension \(DEBUG MODE\)
+\[ddtrace] \[error] Received Signal 11
+\[ddtrace] \[error] Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime
+\[ddtrace] \[error] Backtrace:
 .*ddtrace\.so.*
 .*

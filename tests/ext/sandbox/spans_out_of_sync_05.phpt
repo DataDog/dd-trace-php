@@ -21,4 +21,4 @@ echo 'Done.' . PHP_EOL;
 ?>
 --EXPECT--
 Done.
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent
