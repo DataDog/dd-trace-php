@@ -10,12 +10,6 @@ if [ "$PKG" != "" ] && [ ! -f "$SETUP" ]; then
 fi
 
 if [ "$PKG" == "" ]; then
-  ARCH=$(uname -m | sed 's/x86_//;s/i[3-6]86/32/')
-  if [ "$ARCH" = "arm64" ]; then
-    ARCH=aarch64
-  else
-    ARCH=x86_64
-  fi
   unset PKG
 fi
 
