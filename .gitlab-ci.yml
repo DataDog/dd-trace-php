@@ -76,18 +76,9 @@ tracer-base-image:
     - ./tooling/ci/download-binary-php.sh dev   
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot
-    #Dev ARM
-    - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh dev aarch64
-    - docker buildx build --load --progress=plain --platform linux/arm64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot     
+ 
     #Prod X86
     - rm -rf ./tooling/ci/binaries
     - ./tooling/ci/download-binary-php.sh prod   
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
-    #Prod ARM
-    - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh prod aarch64
-    - docker buildx build --load --progress=plain --platform linux/arm64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
