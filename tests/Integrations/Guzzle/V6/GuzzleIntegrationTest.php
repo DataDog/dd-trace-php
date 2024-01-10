@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\Guzzle\V6;
 
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Tests\Common\SnapshotTestTrait;
 use DDTrace\Tracer;
 use DDTrace\Tag;
 use GuzzleHttp\Client;
@@ -18,6 +19,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class GuzzleIntegrationTest extends IntegrationTestCase
 {
+    use SnapshotTestTrait;
+
     const URL = 'http://httpbin_integration';
 
     public static function ddSetUpBeforeClass()
@@ -496,7 +499,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         ]);
         \dd_trace_serialize_closed_spans();
 
-        $traces = $this->isolateTracer(function () {
+        $this->isolateTracerSnapshot(function () {
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             $span = $tracer->startActiveSpan('custom')->getSpan();
@@ -520,9 +523,40 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 echo $e->getMessage();
             }
 
-            $span->finish();
-        });
+            sleep(1);
 
-        echo json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL;
+            $span->finish();
+        }, [
+            'metrics.php.compilation.total_time_ms',
+            'meta.error.stack',
+            'meta._dd.p.tid',
+            'meta.curl.appconnect_time_us',
+            'meta.curl.connect_time',
+            'meta.curl.connect_time_us',
+            'meta.curl.download_content_length',
+            'meta.curl.filetime',
+            'meta.curl.header_size',
+            'meta.curl.namelookup_time',
+            'meta.curl.namelookup_time_us',
+            'meta.curl.pretransfer_time',
+            'meta.curl.pretransfer_time_us',
+            'meta.curl.redirect_time',
+            'meta.curl.redirect_time_us',
+            'meta.curl.request_size',
+            'meta.curl.speed_download',
+            'meta.curl.speed_upload',
+            'meta.curl.starttransfer_time',
+            'meta.curl.starttransfer_time_us',
+            'meta.curl.total_time',
+            'meta.curl.total_time_us',
+            'meta.curl.upload_content_length',
+            'meta.network.bytes_read',
+            'meta.network.bytes_written',
+            'meta.network.client.ip',
+            'meta.network.client.port',
+            'meta.network.destination.ip',
+            'meta.network.destination.port',
+            'meta._dd.base_service',
+        ]);
     }
 }

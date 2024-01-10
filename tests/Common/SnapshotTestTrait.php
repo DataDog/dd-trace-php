@@ -151,4 +151,30 @@ trait SnapshotTestTrait
 
         $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, $numExpectedTraces);
     }
+
+    public function isolateTracerSnapshot(
+        $fn,
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
+        $numExpectedTraces = 1,
+        $tracer = null,
+        $config = []
+    ) {
+        $token = $this->generateToken();
+        $this->startSnapshotSession($token);
+
+        $this->resetTracer($tracer, $config);
+
+        $tracer = GlobalTracer::get();
+        if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
+            $tracer->startRootSpan("root span");
+        }
+        $fn($tracer);
+
+        $traces = $this->flushAndGetTraces($tracer);
+        if (!empty($traces)) {
+            $this->sendTracesToTestAgent($traces);
+        }
+
+        $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, $numExpectedTraces);
+    }
 }
