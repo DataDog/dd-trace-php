@@ -18,6 +18,7 @@ spawn_worker = { path = "../libdatadog/spawn_worker" }
 bitflags = "2.3.3"
 json = "0.12.4"
 lazy_static = "1.4"
+libc = "0.2"
 uuid = { version = "1.0", features = ["v4"] }
 paste = "1"
 tempfile = {version = "3.3"}

@@ -12,6 +12,7 @@ use spawn_worker::LibDependency;
 use std::error::Error;
 use std::path::Path;
 use std::{fs, io};
+use std::ptr::null_mut;
 
 #[must_use]
 #[no_mangle]
@@ -80,10 +81,20 @@ pub extern "C" fn ddog_sidecar_connect_php(
 ) -> MaybeError {
     let mut cfg = config::FromEnv::config();
     cfg.self_telemetry = enable_telemetry;
-    let stream = Box::new(try_c!(run_sidecar(cfg)));
-    *connection = Box::into_raw(stream);
-
-    MaybeError::None
+    cfg.blocking_connect = false;
+    match run_sidecar(cfg) {
+        Ok(stream) => {
+            *connection = Box::into_raw(Box::new(stream));
+            MaybeError::None
+        }
+        Err(e) => {
+            *connection = null_mut();
+            match e.raw_os_error() {
+                Some(libc::EINPROGRESS) | Some(libc::EAGAIN) => MaybeError::None,
+                _ => MaybeError::Some(ddcommon_ffi::Vec::from(e.to_string().into_bytes())),
+            }
+        }
+    }
 }
 
 #[derive(Default)]

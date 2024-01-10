@@ -956,6 +956,7 @@ dependencies = [
  "ddtelemetry-ffi",
  "json",
  "lazy_static",
+ "libc 0.2.149",
  "paste",
  "sidecar_mockgen",
  "spawn_worker",

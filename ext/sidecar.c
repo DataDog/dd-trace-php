@@ -1,7 +1,7 @@
 #include "ddtrace.h"
 #include "configuration.h"
 #include "coms.h"
-#include "logging.h"
+#include <components/log/log.h>
 #include <components-rs/ddtrace.h>
 #include "sidecar.h"
 #include "telemetry.h"
@@ -21,8 +21,10 @@ static void ddtrace_set_sidecar_globals(void) {
 
 static bool dd_sidecar_connection_init(void) {
     if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&ddtrace_sidecar, get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()))) {
-        ddtrace_sidecar = NULL;
         return false;
+    }
+    if (!ddtrace_sidecar) {
+        LOG(Error, "Could not instantaneously connect to the sidecar. Is the sidecar busy? Retrying later.");
     }
 
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
