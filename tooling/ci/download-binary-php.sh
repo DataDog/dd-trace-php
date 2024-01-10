@@ -7,7 +7,7 @@ mkdir -p tooling/ci/binaries
 cd tooling/ci/binaries
 
 #This script resides inside of docker image (ci_docker_base)
-source download-binary-tracer.sh
+source /download-binary-tracer.sh
 
 if [ $VERSION = 'dev' ]; then
     get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-.*-$PLATFORM-linux-gnu.tar.gz" "dd-library-php-$PLATFORM-linux-gnu.tar.gz"
