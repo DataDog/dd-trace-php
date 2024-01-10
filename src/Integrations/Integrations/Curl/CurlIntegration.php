@@ -132,11 +132,7 @@ final class CurlIntegration extends Integration
                     foreach ($spans as $requestSpan) {
                         list($ch, $requestSpan) = $requestSpan;
                         $info = curl_getinfo($ch);
-                        echo "Handle: " . (int)$ch . "\n";
-                        var_dump($info);
                         if (isset($requestSpan->meta['network.destination.name']) && $requestSpan->meta['network.destination.name'] !== 'unparsable-host') {
-                            echo "Handle: " . (int)$ch . "\n";
-                            echo "SKIPPED because it already has a destination name set to: " . $requestSpan->meta['network.destination.name'] . "\n";
                             continue;
                         }
 
@@ -198,17 +194,10 @@ final class CurlIntegration extends Integration
                 list(, $spans) = $data;
 
                 if (!isset($hook->returned["result"]) || $hook->returned["result"] == CURLE_OK) {
-                    var_dump($hook->returned);
-                    echo "We were gonna skip this\n";
-                    echo "Count: " . count($spans) . "\n";
                     foreach ($spans as $requestSpan) {
                         list($ch, $requestSpan) = $requestSpan;
                         if ($ch === $handle) {
-                            echo "Found handle\n";
                             if (isset($requestSpan->meta['network.destination.name']) && $requestSpan->meta['network.destination.name'] !== 'unparsable-host') {
-                                echo "Handle: " . (int)$ch . "\n";
-                                echo "SKIPPED\n";
-                                echo "Span already has a destination name: " . $requestSpan->meta['network.destination.name'] . "\n";
                                 continue;
                             }
                             $info = curl_getinfo($ch);
@@ -226,7 +215,6 @@ final class CurlIntegration extends Integration
                                 $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
                                 \DDTrace\update_span_duration($requestSpan, $endTime);
                             }
-                            echo "Set attributes to span: " . $requestSpan->meta['network.destination.name'] . "\n";
                         }
                     }
                     return;
@@ -240,13 +228,8 @@ final class CurlIntegration extends Integration
 
                         if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME])
                             && 'unparsable-host' !== $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) {
-                            echo "Nothing more to do for span: " . $requestSpan->meta['network.destination.name'] . "\n";
                             continue;
                         }
-
-                        echo "Settting error to span: " . $requestSpan->meta['network.destination.name'] . "\n";
-
-
                         $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
                         $requestSpan->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
                         CurlIntegration::set_curl_attributes($requestSpan, $info);
