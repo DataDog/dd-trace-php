@@ -139,3 +139,6 @@ macrobenchmarks:
 
       - DD_BENCHMARKS_CONFIGURATION: only-tracing
         PHP_VERSION: "7.4"
+
+      - DD_BENCHMARKS_CONFIGURATION: no-sidecar
+        PHP_VERSION: "8.1"
