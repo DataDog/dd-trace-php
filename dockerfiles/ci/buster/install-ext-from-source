@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+
+sourceUrl=$1
+sourceSha=$2
+configure_flags=$3
+
+cd /tmp
+rm -rf /tmp/ext
+
+curl -L --output ext.tar.gz $sourceUrl
+echo "${sourceSha} ext.tar.gz" | sha256sum -c -
+
+mkdir -p /tmp/ext
+tar -xf ext.tar.gz -C /tmp/ext --strip 1
+cd /tmp/ext
+
+phpize
+./configure $configure_flags
+make
+make install

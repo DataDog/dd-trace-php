@@ -1,0 +1,288 @@
+From f1ad9199eff32dd805bb5b155002bdb6ca69bf01 Mon Sep 17 00:00:00 2001
+From: Dmitry Stogov <dmitry@zend.com>
+Date: Fri, 16 Apr 2021 17:28:54 +0300
+Subject: [PATCH] Better support for cross-compilation
+
+---
+ Zend/Zend.m4                  |  2 +
+ build/php.m4                  | 24 ++++++++++--
+ configure.ac                  | 35 ++++++++++++++++-
+ ext/opcache/config.m4         | 71 +++++++++++++++++++----------------
+ ext/opcache/jit/Makefile.frag |  2 +-
+ ext/standard/config.m4        | 12 +++++-
+ 6 files changed, 106 insertions(+), 40 deletions(-)
+
+diff --git a/Zend/Zend.m4 b/Zend/Zend.m4
+index 081a237012..a2e506412d 100644
+--- a/Zend/Zend.m4
++++ b/Zend/Zend.m4
+@@ -276,6 +276,8 @@ int main()
+ ], [], [
+   dnl Cross compilation needs something here.
+   LIBZEND_MM_ALIGN=8
++  AC_DEFINE_UNQUOTED(ZEND_MM_ALIGNMENT, 8, [ ])
++  AC_DEFINE_UNQUOTED(ZEND_MM_ALIGNMENT_LOG2, 3, [ ])
+ ])
+ 
+ AC_MSG_RESULT(done)
+diff --git a/build/php.m4 b/build/php.m4
+index 8994e1fe6a..a4469ac0b1 100644
+--- a/build/php.m4
++++ b/build/php.m4
+@@ -1477,7 +1477,15 @@ int main() {
+ ], [
+   cookie_io_functions_use_off64_t=no
+ ], [
+-  cookie_io_functions_use_off64_t=no
++  dnl Cross compilation.
++  case $host_alias in
++    *linux*)
++      cookie_io_functions_use_off64_t=yes
++      ;;
++    *)
++      cookie_io_functions_use_off64_t=no
++      ;;
++  esac
+ ])
+ 
+     else
+@@ -1582,7 +1590,10 @@ AC_DEFUN([PHP_CHECK_FUNC_LIB],[
+   if test "$found" = "yes"; then
+     ac_libs=$LIBS
+     LIBS="$LIBS -l$2"
+-    AC_RUN_IFELSE([AC_LANG_SOURCE([[int main() { return (0); }]])],[found=yes],[found=no],[found=no])
++    AC_RUN_IFELSE([AC_LANG_SOURCE([[int main() { return (0); }]])],[found=yes],[found=no],[
++      dnl Cross compilation.
++      found=yes
++    ])
+     LIBS=$ac_libs
+   fi
+ 
+@@ -2298,7 +2309,14 @@ int main()
+     ],[
+       ac_cv_write_stdout=no
+     ],[
+-      ac_cv_write_stdout=no
++      case $host_alias in
++        *linux*)
++          ac_cv_write_stdout=yes
++          ;;
++        *)
++          ac_cv_write_stdout=no
++          ;;
++      esac
+     ])
+   ])
+   if test "$ac_cv_write_stdout" = "yes"; then
+diff --git a/configure.ac b/configure.ac
+index e626fd7687..b358a666a7 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -133,6 +133,14 @@ AC_PROG_CPP
+ AC_USE_SYSTEM_EXTENSIONS
+ AC_PROG_LN_S
+ 
++if test "$cross_compiling" = yes ; then
++  AC_MSG_CHECKING(for native build C compiler)
++  AC_CHECK_PROGS(BUILD_CC, [gcc clang c99 c89 cc cl],none)
++  AC_MSG_RESULT($BUILD_CC)
++else
++  BUILD_CC=$CC
++fi
++
+ dnl Support systems with system libraries in e.g. /usr/lib64.
+ PHP_ARG_WITH([libdir],
+   [for system library directory],
+@@ -645,7 +653,17 @@ int main(void) {
+   freeaddrinfo(ai);
+   return 0;
+ }
+-  ]])],[ac_cv_func_getaddrinfo=yes], [ac_cv_func_getaddrinfo=no], [ac_cv_func_getaddrinfo=no])],
++  ]])],[ac_cv_func_getaddrinfo=yes], [ac_cv_func_getaddrinfo=no], [
++    dnl Cross compilation.
++    case $host_alias in
++      *linux*)
++        ac_cv_func_getaddrinfo=yes
++        ;;
++      *)
++        ac_cv_func_getaddrinfo=no
++        ;;
++    esac
++  ])],
+ [ac_cv_func_getaddrinfo=no])])
+ if test "$ac_cv_func_getaddrinfo" = yes; then
+   AC_DEFINE(HAVE_GETADDRINFO,1,[Define if you have the getaddrinfo function])
+@@ -674,7 +692,19 @@ int main(void) {
+ end:
+     return 0;
+ }
+-  ]])], [ac_cv__asm_goto=yes], [ac_cv__asm_goto=no], [ac_cv__asm_goto=no])])
++  ]])], [ac_cv__asm_goto=yes], [ac_cv__asm_goto=no], [
++    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++int main(void) {
++#if defined(__x86_64__) || defined(__i386__)
++    __asm__ goto("jmp %l0\n" :::: end);
++#elif defined(__aarch64__)
++    __asm__ goto("b %l0\n" :::: end);
++#endif
++end:
++    return 0;
++}
++  ]])], [ac_cv__asm_goto=yes], [ac_cv__asm_goto=no])
++])])
+ 
+ if test "$ac_cv__asm_goto" = yes; then
+   AC_DEFINE(HAVE_ASM_GOTO,1,[Define if asm goto support])
+@@ -1334,6 +1364,7 @@ PHP_SUBST(sysconfdir)
+ 
+ PHP_SUBST(EXEEXT)
+ PHP_SUBST(CC)
++PHP_SUBST(BUILD_CC)
+ PHP_SUBST(CFLAGS)
+ PHP_SUBST(CFLAGS_CLEAN)
+ PHP_SUBST(CPP)
+diff --git a/ext/opcache/config.m4 b/ext/opcache/config.m4
+index 19514b9b1c..2002eaa9b6 100644
+--- a/ext/opcache/config.m4
++++ b/ext/opcache/config.m4
+@@ -43,28 +43,26 @@ if test "$PHP_OPCACHE" != "no"; then
+     ZEND_JIT_SRC="jit/zend_jit.c jit/zend_jit_vm_helpers.c"
+ 
+     dnl Find out which ABI we are using.
+-    AC_RUN_IFELSE([AC_LANG_SOURCE([[
+-      int main(void) {
+-        return sizeof(void*) == 4;
+-      }
+-    ]])],[
+-      ac_cv_32bit_build=no
+-    ],[
+-      ac_cv_32bit_build=yes
+-    ],[
+-      ac_cv_32bit_build=no
+-    ])
+-
+-    if test "$ac_cv_32bit_build" = "no"; then
+-      case $host_alias in
+-        *x86_64-*-darwin*)
+-          DASM_FLAGS="-D X64APPLE=1 -D X64=1"
++    case $host_alias in
++      x86_64-*-darwin*)
++        DASM_FLAGS="-D X64APPLE=1 -D X64=1"
++        DASM_ARCH="x86"
+         ;;
+-        *x86_64*)
+-          DASM_FLAGS="-D X64=1"
++      x86_64*)
++        DASM_FLAGS="-D X64=1"
++        DASM_ARCH="x86"
+         ;;
+-      esac
+-    fi
++      i[34567]86*)
++        DASM_ARCH="x86"
++        ;;
++      x86*)
++        DASM_ARCH="x86"
++        ;;
++      aarch64*)
++        DASM_FLAGS="-D ARM64=1"
++        DASM_ARCH="arm64"
++        ;;
++    esac
+ 
+     if test "$PHP_THREAD_SAFETY" = "yes"; then
+       DASM_FLAGS="$DASM_FLAGS -D ZTS=1"
+@@ -173,9 +171,10 @@ int main() {
+   }
+   return 0;
+ }
+-]])],[dnl
++]])],[have_shm_ipc=yes],[have_shm_ipc=no],[have_shm_ipc=no])
++  if test "$have_shm_ipc" = "yes"; then
+     AC_DEFINE(HAVE_SHM_IPC, 1, [Define if you have SysV IPC SHM support])
+-    have_shm_ipc=yes],[have_shm_ipc=no],[have_shm_ipc=no])
++  fi
+   AC_MSG_RESULT([$have_shm_ipc])
+ 
+   AC_MSG_CHECKING(for mmap() using MAP_ANON shared memory support)
+@@ -225,9 +224,19 @@ int main() {
+   }
+   return 0;
+ }
+-]])],[dnl
++]])],[have_shm_mmap_anon=yes],[have_shm_mmap_anon=no],[
++  case $host_alias in
++    *linux*)
++      have_shm_mmap_anon=yes
++      ;;
++    *)
++      have_shm_mmap_anon=no
++      ;;
++  esac
++])
++  if test "$have_shm_mmap_anon" = "yes"; then
+     AC_DEFINE(HAVE_SHM_MMAP_ANON, 1, [Define if you have mmap(MAP_ANON) SHM support])
+-    have_shm_mmap_anon=yes],[have_shm_mmap_anon=no],[have_shm_mmap_anon=no])
++  fi
+   AC_MSG_RESULT([$have_shm_mmap_anon])
+ 
+   PHP_CHECK_FUNC_LIB(shm_open, rt, root)
+@@ -295,16 +304,12 @@ int main() {
+   }
+   return 0;
+ }
+-]])],[dnl
++]])],[have_shm_mmap_posix=yes],[have_shm_mmap_posix=no],[have_shm_mmap_posix=no])
++  if test "$have_shm_mmap_posix" = "yes"; then
+     AC_DEFINE(HAVE_SHM_MMAP_POSIX, 1, [Define if you have POSIX mmap() SHM support])
+-    AC_MSG_RESULT([yes])
+-    have_shm_mmap_posix=yes
+     PHP_CHECK_LIBRARY(rt, shm_unlink, [PHP_ADD_LIBRARY(rt,1,OPCACHE_SHARED_LIBADD)])
+-  ],[
+-    AC_MSG_RESULT([no])
+-  ],[
+-    AC_MSG_RESULT([no])
+-  ])
++  fi
++  AC_MSG_RESULT([$have_shm_mmap_posix])
+ 
+   PHP_NEW_EXTENSION(opcache,
+ 	ZendAccelerator.c \
+diff --git a/ext/opcache/jit/Makefile.frag b/ext/opcache/jit/Makefile.frag
+index eac6bb84c3..d44e06a3ad 100644
+--- a/ext/opcache/jit/Makefile.frag
++++ b/ext/opcache/jit/Makefile.frag
+@@ -1,6 +1,6 @@
+ 
+ $(builddir)/minilua: $(srcdir)/jit/dynasm/minilua.c
+-	$(CC) $(srcdir)/jit/dynasm/minilua.c -lm -o $@
++	$(BUILD_CC) $(srcdir)/jit/dynasm/minilua.c -lm -o $@
+ 
+ $(builddir)/jit/zend_jit_x86.c: $(srcdir)/jit/zend_jit_x86.dasc $(srcdir)/jit/dynasm/*.lua $(builddir)/minilua
+ 	$(builddir)/minilua $(srcdir)/jit/dynasm/dynasm.lua  $(DASM_FLAGS) -o $@ $(srcdir)/jit/zend_jit_x86.dasc
+diff --git a/ext/standard/config.m4 b/ext/standard/config.m4
+index d04add9629..4b687b3df5 100644
+--- a/ext/standard/config.m4
++++ b/ext/standard/config.m4
+@@ -295,7 +295,17 @@ if test "$ac_cv_attribute_aligned" = "yes"; then
+   AC_DEFINE([HAVE_ATTRIBUTE_ALIGNED], 1, [whether the compiler supports __attribute__ ((__aligned__))])
+ fi
+ 
+-AC_FUNC_FNMATCH
++if test "$cross_compiling" = yes ; then
++  case $host_alias in
++    *linux*)
++      AC_DEFINE([HAVE_FNMATCH], 1,
++		     [Define to 1 if your system has a working POSIX `fnmatch'
++		      function.])
++      ;;
++  esac
++else
++  AC_FUNC_FNMATCH
++fi
+ 
+ dnl
+ dnl Check if there is a support means of creating a new process and defining
+-- 
+2.37.1
+
