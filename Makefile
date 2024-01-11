@@ -11,8 +11,9 @@ TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
 TEA_BUILD_TESTS ?= OFF
 TEA_BUILD_BENCHMARKS ?= OFF
 TEA_BENCHMARK_REPETITIONS ?= 10
+# Note: If the tea benchmark format or output is changed, make changes to ./benchmark/runall.sh
 TEA_BENCHMARK_FORMAT ?= json
-TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/benchmarks.$(TEA_BENCHMARK_FORMAT)
+TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tea-bench-results.$(TEA_BENCHMARK_FORMAT)
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS = -Wall -Wextra

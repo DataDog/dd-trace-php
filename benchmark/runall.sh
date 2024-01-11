@@ -25,4 +25,8 @@ elif [ "$SCENARIO" = "tracer" ]; then
   ## OPCache Benchmarks
   make benchmarks_opcache
   cp tests/Benchmarks/reports/tracer-bench-results-opcache.csv "$ARTIFACTS_DIR"
+
+  ## Request Startup/Shutdown Benchmarks
+  make benchmarks_tea
+  cp tea/benchmarks/reports/tea-bench-results.json "$ARTIFACTS_DIR"
 fi
