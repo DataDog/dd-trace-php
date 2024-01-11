@@ -540,6 +540,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             'meta.curl.namelookup_time_us',
             'meta.curl.pretransfer_time',
             'meta.curl.pretransfer_time_us',
+            'meta.curl.protocol',
             'meta.curl.redirect_time',
             'meta.curl.redirect_time_us',
             'meta.curl.request_size',
