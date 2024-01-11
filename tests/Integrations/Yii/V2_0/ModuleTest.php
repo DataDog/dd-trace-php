@@ -42,6 +42,7 @@ class ModuleTest extends WebFrameworkTestCase
                     Tag::HTTP_URL => 'http://localhost:9999/forum/new-york/new-york/manhattan?key=value&<redacted>',
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.route.path' => '/forum/:state/:city/:neighborhood',
+                    Tag::HTTP_ROUTE => '/forum/:state/:city/:neighborhood',
                     'app.endpoint' => 'app\modules\forum\controllers\ModuleController::actionView',
                     Tag::SPAN_KIND => "server",
                     Tag::COMPONENT => "yii",

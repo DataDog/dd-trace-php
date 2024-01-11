@@ -30,4 +30,9 @@ class SimpleController extends Controller
     {
         throw new \Exception('datadog');
     }
+
+    public function actionParameterized($value)
+    {
+        return 'Hello ' . $value;
+    }
 }
