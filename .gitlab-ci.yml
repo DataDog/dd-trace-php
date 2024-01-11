@@ -68,12 +68,11 @@ tracer-base-image:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: always
   stage: deploy
+  tags: [ "arch:arm64" ]
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
     - ./tooling/ci/download-binary-php.sh dev
-    - docker build -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot
+    - docker buildx build --platform linux/amd64 -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot --push -f ./tooling/ci/Dockerfile .
     - rm -rf ./tooling/ci/binaries
     - ./tooling/ci/download-binary-php.sh prod
-    - docker build -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-trace-php:latest
+    - docker buildx build --platform linux/amd64 -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest --push -f ./tooling/ci/Dockerfile .
