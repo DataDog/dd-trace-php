@@ -1,15 +1,22 @@
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster as src
+ARG BUILD_BASE
+FROM --platform=$BUILDPLATFORM $BUILD_BASE as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
+COPY 0001-Better-support-for-cross-compilation.patch /home/circleci
+COPY 0001-Fix-GH-10611-fpm_env_init_main-leaks-environ.patch /home/circleci
+COPY 0001-Fix-OpenSSL-3.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
-    ./buildconf --force;
+    git apply /home/circleci/0001-Better-support-for-cross-compilation.patch; \
+    patch -p1 /home/circleci/0001-Fix-GH-10611-fpm_env_init_main-leaks-environ.patch; \
+    ./buildconf --force; \
+    patch ext/openssl/openssl.c /home/circleci/0001-Fix-OpenSSL-3.patch;
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
+FROM --platform=$BUILDPLATFORM $BUILD_BASE AS build
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
@@ -56,7 +63,7 @@ COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 RUN cp /tmp/build-php/sapi/cli/php-asan $PHP_INSTALL_DIR/debug-zts-asan/bin/php
 
-FROM datadog/dd-trace-ci:buster as final
+FROM $BUILD_BASE as final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug
@@ -67,12 +74,12 @@ USER root
 
 RUN set -eux; \
     # Enable the apache config \
-    echo "LoadModule php7_module /usr/lib/apache2/modules/libphp.so" | tee /etc/apache2/mods-enabled/php.load; \
+    echo "LoadModule php_module /usr/lib/apache2/modules/libphp.so" | tee /etc/apache2/mods-enabled/php.load; \
     # Set the default PHP version
     switch-php debug;
 
 # Install Composer
-COPY --from=composer:2.2 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:1 /usr/bin/composer /usr/local/bin/composer
 
 COPY welcome /etc/motd
 RUN sudo sed -i "s/VERSIONS/$(ls $PHP_INSTALL_DIR | xargs)/" /etc/motd

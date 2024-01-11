@@ -1,26 +1,26 @@
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster as src
+ARG BUILD_BASE
+FROM $BUILD_BASE AS base
+
+ARG phpVersion
+ENV PHP_VERSION=${phpVersion}
+
+FROM --platform=$BUILDPLATFORM $BUILD_BASE as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
-COPY 0001-Better-support-for-cross-compilation.patch /home/circleci
-COPY 0001-Fix-GH-10611-fpm_env_init_main-leaks-environ.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
-    git apply /home/circleci/0001-Better-support-for-cross-compilation.patch; \
-    patch -p1 /home/circleci/0001-Fix-GH-10611-fpm_env_init_main-leaks-environ.patch; \
-    ./buildconf --force
+    ./buildconf --force;
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
+FROM --platform=$BUILDPLATFORM $BUILD_BASE AS build
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
-ARG sharedBuild=0
-ENV SHARED_BUILD=${sharedBuild}
 # install cross-compiling packages
 RUN if [ "$BUILDPLATFORM" != "$TARGETPLATFORM" ]; then \
         sudo dpkg --add-architecture ${TARGETPLATFORM#linux/}; \
@@ -32,25 +32,25 @@ COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 
 FROM build as php-debug
 ARG TARGETPLATFORM
-RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug $PHP_VERSION $SHARED_BUILD
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
 FROM build as php-nts
 ARG TARGETPLATFORM
-RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSION $SHARED_BUILD
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
 FROM build as php-zts
 ARG TARGETPLATFORM
-RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR zts $PHP_VERSION $SHARED_BUILD
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR zts $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
 FROM build as php-debug-zts-asan
 ARG TARGETPLATFORM
-RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug-zts-asan $PHP_VERSION $SHARED_BUILD \
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug-zts-asan $PHP_VERSION \
     && mv /tmp/build-php/sapi/cli/php /tmp/build-php/sapi/cli/php-asan
 # for reasons the asan build just ... crashes in qemu (or executed via bytecode interpreter). The binary itself however perfectly works on the target platform
 # just put a working php binary there to continue installation and be happy, then copy back later.
@@ -60,7 +60,7 @@ COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 RUN cp /tmp/build-php/sapi/cli/php-asan $PHP_INSTALL_DIR/debug-zts-asan/bin/php
 
-FROM datadog/dd-trace-ci:buster as final
+FROM base as final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug

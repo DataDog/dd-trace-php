@@ -1,15 +1,20 @@
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster as src
+ARG BUILD_BASE
+FROM --platform=$BUILDPLATFORM $BUILD_BASE as src
 ARG phpTarGzUrl
 ARG phpSha256Hash
+COPY 0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch /home/circleci
+COPY 0001-Fix-OpenSSL-3.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
-    ./buildconf --force;
+    ./buildconf --force; \
+    patch Zend/zend_alloc.c /home/circleci/0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch; \
+    patch ext/openssl/openssl.c /home/circleci/0001-Fix-OpenSSL-3.patch;
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
+FROM --platform=$BUILDPLATFORM $BUILD_BASE AS build
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
@@ -21,6 +26,7 @@ RUN if [ "$BUILDPLATFORM" != "$TARGETPLATFORM" ]; then \
         sudo apt update; \
         sudo apt-get install -y --no-install-recommends valgrind:${TARGETPLATFORM#linux/} $(echo $DEVLIBS | sed "s/\(\s\|$\)/:${TARGETPLATFORM#linux/}\1/g"); \
     fi
+
 COPY build-php.sh /home/circleci
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 
@@ -42,7 +48,7 @@ RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSIO
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM datadog/dd-trace-ci:buster as final
+FROM $BUILD_BASE as final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR/debug-zts $PHP_INSTALL_DIR/debug-zts
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug
