@@ -527,6 +527,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
             $span->finish();
         }, [
+            'start',
             'metrics.php.compilation.total_time_ms',
             'meta.error.stack',
             'meta._dd.p.tid',
@@ -536,6 +537,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             'meta.curl.download_content_length',
             'meta.curl.filetime',
             'meta.curl.header_size',
+            'curl.http_version',
             'meta.curl.namelookup_time',
             'meta.curl.namelookup_time_us',
             'meta.curl.pretransfer_time',
