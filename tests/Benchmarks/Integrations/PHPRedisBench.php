@@ -15,7 +15,7 @@ class PHPRedisBench
      * @BeforeMethods({"disablePHPRedisIntegration"})
      * @AfterMethods({"closeConnection"})
      * @Revs(100)
-     * @Iterations(5)
+     * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      */
@@ -28,7 +28,7 @@ class PHPRedisBench
      * @BeforeMethods({"enablePHPRedisIntegration"})
      * @AfterMethods({"closeConnection"})
      * @Revs(100)
-     * @Iterations(5)
+     * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      */

@@ -22,7 +22,7 @@ class PDOBench
     /**
      * @BeforeMethods({"disablePDOIntegration"})
      * @Revs(100)
-     * @Iterations(5)
+     * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      */
@@ -34,7 +34,7 @@ class PDOBench
     /**
      * @BeforeMethods({"enablePDOIntegration"})
      * @Revs(100)
-     * @Iterations(5)
+     * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      */
@@ -46,7 +46,7 @@ class PDOBench
     /**
      * @BeforeMethods({"enablePDOIntegrationWithDBM"})
      * @Revs(100)
-     * @Iterations(5)
+     * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      */
