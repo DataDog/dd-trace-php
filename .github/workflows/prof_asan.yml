@@ -4,7 +4,7 @@ on:
   pull_request:
 
 jobs:
-  prof-correctness:
+  prof-asan:
     runs-on: ubuntu-latest
     container:
       image: datadog/dd-trace-ci:php-8.3_bookworm-1
