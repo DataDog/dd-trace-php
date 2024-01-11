@@ -546,6 +546,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             'meta.curl.request_size',
             'meta.curl.speed_download',
             'meta.curl.speed_upload',
+            'meta.curl.ssl_verifyresult',
             'meta.curl.starttransfer_time',
             'meta.curl.starttransfer_time_us',
             'meta.curl.total_time',
