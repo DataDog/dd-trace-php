@@ -14,7 +14,7 @@
 
 #define NS "DDTrace\\Integrations\\Exec\\"
 
-#if PHP_VERSION_ID <= 80000
+#if PHP_VERSION_ID < 80000
 typedef struct php_process_handle php_process_handle;
 #endif
 
