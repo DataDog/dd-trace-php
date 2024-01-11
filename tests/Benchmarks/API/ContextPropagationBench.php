@@ -31,7 +31,7 @@ class ContextPropagationBench
     ];
 
     /**
-     * @Revs(1)
+     * @Revs(20)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
@@ -43,7 +43,7 @@ class ContextPropagationBench
     }
 
     /**
-     * @Revs(1)
+     * @Revs(20)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
@@ -55,7 +55,7 @@ class ContextPropagationBench
     }
 
     /**
-     * @Revs(1)
+     * @Revs(20)
      * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
@@ -67,7 +67,7 @@ class ContextPropagationBench
     }
 
     /**
-     * @Revs(1)
+     * @Revs(20)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
@@ -79,7 +79,7 @@ class ContextPropagationBench
     }
 
     /**
-     * @Revs(1)
+     * @Revs(20)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
@@ -91,7 +91,7 @@ class ContextPropagationBench
     }
 
     /**
-     * @Revs(1)
+     * @Revs(20)
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
