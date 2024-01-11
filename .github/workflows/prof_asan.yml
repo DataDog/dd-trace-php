@@ -51,7 +51,7 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
+            /tmp/build-cargo/
           key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run phpt tests
