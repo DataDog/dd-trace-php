@@ -57,6 +57,7 @@ benchmarks-tracer:
           - src/**/*
           - zend_abstract_interface/**/*
           - tests/Benchmarks/**/*
+          - benchmark/*
         compare_to: "master"
       when: on_success
     - when: manual
