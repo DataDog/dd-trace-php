@@ -945,12 +945,7 @@ jobs:
       resource_class:
         type: string
         default: medium
-      codecov_token:
-        type: env_var_name
-        default: CODECOV_TOKEN
     working_directory: ~/datadog
-    environment:
-      - CODECOV_TOKEN: << parameters.codecov_token >>
     <<: *BARE_DOCKER_MACHINE
     steps:
       - restore_cache:
@@ -963,6 +958,15 @@ jobs:
           extra: with_httpbin_and_request_replayer
       - switch_php:
           php_version: << parameters.switch_php_version >>
+      - run:
+          name: Verify the value of CODECOV_TOKEN
+          command: |
+            echo "CODECOV_TOKEN: $CODECOV_TOKEN"
+      - run:
+          name: Setup CODECOV_TOKEN Environment Variable
+          command: |
+            echo 'export CODECOV_TOKEN=${CODECOV_TOKEN}' >> "$BASH_ENV"
+            source "$BASH_ENV"
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
