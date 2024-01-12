@@ -2,11 +2,20 @@
 //! implementation reasons, it has cpu-time code as well.
 
 use crate::bindings::{
-    zend_execute_data, zend_interrupt_function, zval, VmInterruptFn, ZEND_ACC_CALL_VIA_TRAMPOLINE,
+    zend_execute_data, zend_execute_internal, zend_interrupt_function, zval, VmInterruptFn,
+    ZEND_ACC_CALL_VIA_TRAMPOLINE,
 };
-use crate::{PREV_EXECUTE_INTERNAL, PROFILER, REQUEST_LOCALS};
+use crate::{zend, PROFILER, REQUEST_LOCALS};
+use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::sync::atomic::Ordering;
+
+/// The engine's previous [zend::zend_execute_internal] value, or
+/// [zend::execute_internal] if none. This is a highly active path, so although
+/// it could be made safe with Mutex, the cost is too high.
+static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
+    unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval),
+> = MaybeUninit::uninit();
 
 /// The engine's previous `zend_interrupt_function` value, if there is one.
 /// Note that because of things like Apache reload which call minit more than
@@ -121,12 +130,13 @@ pub extern "C" fn execute_internal(execute_data: *mut zend_execute_data, return_
 /// Only call during PHP's minit phase.
 pub unsafe fn minit() {
     PREV_INTERRUPT_FUNCTION = zend_interrupt_function;
-
     let function = if zend_interrupt_function.is_some() {
         ddog_php_prof_interrupt_function_wrapper
     } else {
         ddog_php_prof_interrupt_function
     };
-
     zend_interrupt_function = Some(function);
+
+    PREV_EXECUTE_INTERNAL.write(zend_execute_internal.unwrap_or(zend::execute_internal));
+    zend_execute_internal = Some(execute_internal);
 }

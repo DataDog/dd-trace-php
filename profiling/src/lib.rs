@@ -33,7 +33,6 @@ use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::ffi::CStr;
-use std::mem::MaybeUninit;
 use std::os::raw::c_int;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -168,13 +167,6 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     unsafe { &mut *MODULE }
 }
 
-/// The engine's previous `zend::zend_execute_internal` value, or
-/// `zend::execute_internal` if none. This is a highly active path, so although
-/// it could be made safe with Mutex, the cost is too high.
-static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
-    unsafe extern "C" fn(execute_data: *mut zend::zend_execute_data, return_value: *mut zend::zval),
-> = MaybeUninit::uninit();
-
 /* Important note on the PHP lifecycle:
  * Based on how some SAPIs work and the documentation, one might expect that
  * MINIT is called once per process, but this is only sort-of true. Some SAPIs
@@ -279,13 +271,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     };
 
     // Safety: during minit there shouldn't be any threads to race against these writes.
-    unsafe {
-        PREV_EXECUTE_INTERNAL.write(zend::zend_execute_internal.unwrap_or(zend::execute_internal));
-
-        wall_time::minit();
-
-        zend::zend_execute_internal = Some(wall_time::execute_internal);
-    };
+    unsafe { wall_time::minit() };
 
     /* Safety: all arguments are valid for this C call.
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
