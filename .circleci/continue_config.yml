@@ -959,10 +959,6 @@ jobs:
           extra: with_httpbin_and_request_replayer
       - switch_php:
           php_version: << parameters.switch_php_version >>
-      - run:
-          name: Verify the value of CODECOV_TOKEN
-          command: |
-            echo "CODECOV_TOKEN: $CODECOV_TOKEN"
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
@@ -985,10 +981,6 @@ jobs:
                 command: |
                   sudo apt update
                   sudo apt install -y gpg
-            - run:
-                name: Verify the value of CODECOV_TOKEN
-                command: |
-                  echo "CODECOV_TOKEN: $CODECOV_TOKEN"
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
