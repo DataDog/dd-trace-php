@@ -16,6 +16,7 @@ mod exception;
 
 #[cfg(feature = "timeline")]
 mod timeline;
+mod wall_time;
 
 use bindings as zend;
 use bindings::{ddog_php_prof_php_version_id, sapi_globals, ZendExtension, ZendResult};
@@ -33,7 +34,6 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
-use std::ops::Deref;
 use std::os::raw::c_int;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -168,12 +168,6 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     unsafe { &mut *MODULE }
 }
 
-/// The engine's previous `zend_interrupt_function` value, if there is one.
-/// Note that because of things like Apache reload which call minit more than
-/// once per process, this cannot be made into a OnceCell nor lazy_static.
-static mut PREV_INTERRUPT_FUNCTION: MaybeUninit<Option<zend::VmInterruptFn>> =
-    MaybeUninit::uninit();
-
 /// The engine's previous `zend::zend_execute_internal` value, or
 /// `zend::execute_internal` if none. This is a highly active path, so although
 /// it could be made safe with Mutex, the cost is too high.
@@ -286,16 +280,11 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
 
     // Safety: during minit there shouldn't be any threads to race against these writes.
     unsafe {
-        PREV_INTERRUPT_FUNCTION.write(zend::zend_interrupt_function);
         PREV_EXECUTE_INTERNAL.write(zend::zend_execute_internal.unwrap_or(zend::execute_internal));
 
-        zend::zend_interrupt_function = Some(if zend::zend_interrupt_function.is_some() {
-            interrupt_function_wrapper
-        } else {
-            capi::datadog_profiling_interrupt_function
-        });
+        wall_time::minit();
 
-        zend::zend_execute_internal = Some(execute_internal);
+        zend::zend_execute_internal = Some(wall_time::execute_internal);
     };
 
     /* Safety: all arguments are valid for this C call.
@@ -996,104 +985,6 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
             }
         }
     });
-}
-
-/// Gathers a time sample if the configured period has elapsed and resets the
-/// interrupt_count.
-fn interrupt_function(execute_data: *mut zend::zend_execute_data) {
-    REQUEST_LOCALS.with(|cell| {
-        // try to borrow and bail out if not successful
-        let locals = match cell.try_borrow() {
-            Ok(locals) => locals,
-            Err(_) => {
-                return;
-            }
-        };
-
-        if !locals.profiling_enabled {
-            return;
-        }
-
-        /* Other extensions/modules or the engine itself may trigger an
-         * interrupt, but given how expensive it is to gather a stack trace,
-         * it should only be done if we triggered it ourselves. So
-         * interrupt_count serves dual purposes:
-         *  1. Track how many interrupts there were.
-         *  2. Ensure we don't collect on someone else's interrupt.
-         */
-        let interrupt_count = locals.interrupt_count.swap(0, Ordering::SeqCst);
-        if interrupt_count == 0 {
-            return;
-        }
-
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            profiler.collect_time(execute_data, interrupt_count, locals.deref());
-        }
-    });
-}
-
-/// A wrapper for the `datadog_profiling_interrupt_function` to call the
-/// previous interrupt handler, if there was one.
-extern "C" fn interrupt_function_wrapper(execute_data: *mut zend::zend_execute_data) {
-    interrupt_function(execute_data);
-
-    // Safety: PREV_INTERRUPT_FUNCTION was written during minit, doesn't change during runtime.
-    unsafe {
-        if let Some(prev_interrupt) = *PREV_INTERRUPT_FUNCTION.as_mut_ptr() {
-            prev_interrupt(execute_data);
-        }
-    }
-}
-
-/// Returns true if the func tied to the execute_data is a trampoline.
-/// # Safety
-/// This is only safe to execute _before_ executing the trampoline, because the trampoline may
-/// free the `execute_data.func` _without_ setting it to NULL:
-/// https://heap.space/xref/PHP-8.2/Zend/zend_closures.c?r=af2110e6#60-63
-/// So no code can inspect the func after the call has been made, which is why you would call this function: find out before you
-/// call the function if indeed you need to skip certain code after it has been executed.
-unsafe fn execute_data_func_is_trampoline(execute_data: *const zend::zend_execute_data) -> bool {
-    if execute_data.is_null() {
-        return false;
-    }
-
-    if (*execute_data).func.is_null() {
-        return false;
-    }
-    return ((*(*execute_data).func).common.fn_flags & zend::ZEND_ACC_CALL_VIA_TRAMPOLINE) != 0;
-}
-
-/// Overrides the engine's zend_execute_internal hook in order to process pending VM interrupts
-/// while the internal function is still on top of the call stack. The VM does not process the
-/// interrupt until the call returns so that it could theoretically jump to a different opcode,
-/// like a fiber scheduler.
-/// For our particular case this is problematic. For example, when the user does something like
-/// `sleep(seconds: 10)`, the normal interrupt handling will not trigger until sleep returns, so
-/// we'd then attribute all that time spent sleeping to whatever runs next. This is why we intercept
-/// `zend_execute_internal` and process our own VM interrupts, but it doesn't delegate to the
-/// previous VM interrupt hook, as it's not expecting to be called from this state.
-extern "C" fn execute_internal(
-    execute_data: *mut zend::zend_execute_data,
-    return_value: *mut zend::zval,
-) {
-    // SAFETY: called before executing the trampoline.
-    let leaf_frame = if unsafe { execute_data_func_is_trampoline(execute_data) } {
-        // SAFETY: if is_trampoline is set, then there must be a valid execute_data.
-        unsafe { *execute_data }.prev_execute_data
-    } else {
-        execute_data
-    };
-
-    // SAFETY: PREV_EXECUTE_INTERNAL was written during minit, doesn't change during runtime.
-    let prev_execute_internal = unsafe { *PREV_EXECUTE_INTERNAL.as_mut_ptr() };
-
-    // SAFETY: calling prev_execute without modification will be safe.
-    unsafe { prev_execute_internal(execute_data, return_value) };
-
-    // See safety section of `execute_data_func_is_trampoline` docs for why the leaf frame is used
-    // instead of the execute_data ptr.
-    interrupt_function(leaf_frame);
 }
 
 #[cfg(test)]

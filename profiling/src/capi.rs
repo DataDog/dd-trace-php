@@ -62,7 +62,7 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
 /// its sub-objects are valid.
 #[no_mangle]
 pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend_execute_data) {
-    crate::interrupt_function(execute_data);
+    crate::wall_time::interrupt_function(execute_data);
 }
 
 #[cfg(test)]
