@@ -949,6 +949,8 @@ jobs:
         type: env_var_name
         default: CODECOV_TOKEN
     working_directory: ~/datadog
+    environment:
+      - CODECOV_TOKEN: << parameters.codecov_token >>
     <<: *BARE_DOCKER_MACHINE
     steps:
       - restore_cache:
@@ -990,7 +992,6 @@ jobs:
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
-                token: << parameters.codecov_token >>
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
