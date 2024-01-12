@@ -88,18 +88,15 @@ download_circle_ci_release:
 
 .macrobenchmarks:
   stage: benchmarks
-  rules:
-    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
-      when: always
-    - when: manual
+  when: always
   tags: ["runner:apm-k8s-same-cpu"]
   needs: ["download_circle_ci_release"]
   interruptible: true
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
   script:
-    - git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
-    - bp-runner bp-runner.yml --debug
+    - git clone --branch ddyurchenko/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
+    - ./steps/run-benchmarks.sh
   artifacts:
     name: "artifacts"
     when: always
@@ -109,15 +106,21 @@ download_circle_ci_release:
   variables:
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
 
+    K6_OPTIONS_WARMUP_RATE: 70
+    K6_OPTIONS_WARMUP_DURATION: 1m
+    K6_OPTIONS_WARMUP_GRACEFUL_STOP: 10s
+    K6_OPTIONS_WARMUP_PRE_ALLOCATED_VUS: 4
+    K6_OPTIONS_WARMUP_MAX_VUS: 4
+
     K6_OPTIONS_NORMAL_OPERATION_RATE: 50
-    K6_OPTIONS_NORMAL_OPERATION_DURATION: 20m
-    K6_OPTIONS_NORMAL_OPERATION_GRACEFUL_STOP: 1m
+    K6_OPTIONS_NORMAL_OPERATION_DURATION: 2m
+    K6_OPTIONS_NORMAL_OPERATION_GRACEFUL_STOP: 10s
     K6_OPTIONS_NORMAL_OPERATION_PRE_ALLOCATED_VUS: 4
     K6_OPTIONS_NORMAL_OPERATION_MAX_VUS: 4
 
     K6_OPTIONS_HIGH_LOAD_RATE: 200
-    K6_OPTIONS_HIGH_LOAD_DURATION: 5m
-    K6_OPTIONS_HIGH_LOAD_GRACEFUL_STOP: 1m
+    K6_OPTIONS_HIGH_LOAD_DURATION: 1m
+    K6_OPTIONS_HIGH_LOAD_GRACEFUL_STOP: 10s
     K6_OPTIONS_HIGH_LOAD_PRE_ALLOCATED_VUS: 4
     K6_OPTIONS_HIGH_LOAD_MAX_VUS: 4
 
@@ -130,17 +133,5 @@ macrobenchmarks:
   extends: .macrobenchmarks
   parallel:
     matrix:
-      - DD_BENCHMARKS_CONFIGURATION: baseline
-        PHP_VERSION: "8.1"
-
-      - DD_BENCHMARKS_CONFIGURATION: baseline
-        PHP_VERSION: "7.4"
-
-      - DD_BENCHMARKS_CONFIGURATION: only-tracing
-        PHP_VERSION: "8.1"
-
-      - DD_BENCHMARKS_CONFIGURATION: only-tracing
-        PHP_VERSION: "7.4"
-
-      - DD_BENCHMARKS_CONFIGURATION: no-sidecar
-        PHP_VERSION: "8.1"
+      - PHP_VERSION: "7.4"
+      - PHP_VERSION: "8.1"
