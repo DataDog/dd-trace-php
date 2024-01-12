@@ -45,6 +45,11 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
 
     public function testMultiExec()
     {
+        // Only run for PHP 7.3+
+        if (\PHP_VERSION_ID < 70300) {
+            $this->markTestSkipped('This test loose a lot of relevance with old cURL versions');
+        }
+
         $this->putEnvAndReloadConfig([
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true',
             'DD_SERVICE=my-shop',
