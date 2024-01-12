@@ -275,6 +275,10 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         dd_trace_stop_span_time(span);
     }
 
+    if (0) {
+        return;
+    }
+
     bool keep_span = true;
 
     if (def->end && !def->running && get_DD_TRACE_ENABLED()) {
