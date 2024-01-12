@@ -987,7 +987,7 @@ jobs:
                   sudo apt install -y gpg
             - run:
                 name: Verify the value of CODECOV_TOKEN
-                run: |
+                command: |
                   echo "CODECOV_TOKEN: $CODECOV_TOKEN"
             - codecov/upload:
                 file: tmp/coverage.info
