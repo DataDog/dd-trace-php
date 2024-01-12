@@ -14,15 +14,3 @@ comment: # See https://docs.codecov.com/docs/pull-request-comments
   require_changes: false
   require_head: false
   require_base: false
-
-flag_management:
-  default_rules:
-    carryforward: true
-    statuses:
-      - name_prefix: project-
-        type: project
-        target: auto
-        threshold: 1%
-      - name_prefix: patch-
-        type: patch
-        target: 90%"
