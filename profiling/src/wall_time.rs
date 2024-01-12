@@ -4,7 +4,7 @@
 use crate::bindings::{
     zend_execute_data, zend_interrupt_function, zval, VmInterruptFn, ZEND_ACC_CALL_VIA_TRAMPOLINE,
 };
-use crate::{capi, PREV_EXECUTE_INTERNAL, PROFILER, REQUEST_LOCALS};
+use crate::{PREV_EXECUTE_INTERNAL, PROFILER, REQUEST_LOCALS};
 use std::ops::Deref;
 use std::sync::atomic::Ordering;
 
@@ -13,9 +13,18 @@ use std::sync::atomic::Ordering;
 /// once per process, this cannot be made into a OnceCell nor lazy_static.
 static mut PREV_INTERRUPT_FUNCTION: Option<VmInterruptFn> = None;
 
-/// Gathers a time sample if the configured period has elapsed and resets the
-/// interrupt_count.
-pub fn interrupt_function(execute_data: *mut zend_execute_data) {
+/// Gathers a time sample if the configured period has elapsed.
+///
+/// Exposed to the C API so the tracer can handle pending profiler interrupts
+/// before calling a tracing closure from an internal function hook; if this
+/// isn't done then the closure is erroneously at the top of the stack.
+///
+/// # Safety
+/// The zend_execute_data pointer should come from the engine to ensure it and
+/// its sub-objects are valid.
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend_execute_data) {
     REQUEST_LOCALS.with(|cell| {
         // try to borrow and bail out if not successful
         let locals = match cell.try_borrow() {
@@ -52,7 +61,7 @@ pub fn interrupt_function(execute_data: *mut zend_execute_data) {
 /// previous interrupt handler, if there was one.
 #[no_mangle]
 extern "C" fn datadog_profiling_interrupt_function_wrapper(execute_data: *mut zend_execute_data) {
-    interrupt_function(execute_data);
+    datadog_profiling_interrupt_function(execute_data);
 
     // SAFETY: PREV_INTERRUPT_FUNCTION was written during minit, doesn't change during runtime.
     if let Some(prev_interrupt) = unsafe { PREV_INTERRUPT_FUNCTION.as_ref() } {
@@ -105,7 +114,7 @@ pub extern "C" fn execute_internal(execute_data: *mut zend_execute_data, return_
 
     // See safety section of `execute_data_func_is_trampoline` docs for why the leaf frame is used
     // instead of the execute_data ptr.
-    interrupt_function(leaf_frame);
+    datadog_profiling_interrupt_function(leaf_frame);
 }
 
 /// # Safety
@@ -116,7 +125,7 @@ pub unsafe fn minit() {
     let function = if zend_interrupt_function.is_some() {
         datadog_profiling_interrupt_function_wrapper
     } else {
-        capi::datadog_profiling_interrupt_function
+        datadog_profiling_interrupt_function
     };
 
     zend_interrupt_function = Some(function);

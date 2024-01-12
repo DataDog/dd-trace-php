@@ -1,7 +1,7 @@
 //! Definitions for interacting with the profiler from a C API, such as the
 //! ddtrace extension.
 
-use crate::bindings::{zend_execute_data, ZaiStr};
+use crate::bindings::ZaiStr;
 use crate::runtime_id;
 
 #[no_mangle]
@@ -52,18 +52,7 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
     })
 }
 
-/// Gathers a time sample if the configured period has elapsed. Used by the
-/// tracer to handle pending profiler interrupts before calling a tracing
-/// closure from an internal function hook; if this isn't done then the
-/// closure is erroneously at the top of the stack.
-///
-/// # Safety
-/// The zend_execute_data pointer should come from the engine to ensure it and
-/// its sub-objects are valid.
-#[no_mangle]
-pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend_execute_data) {
-    crate::wall_time::interrupt_function(execute_data);
-}
+pub use crate::wall_time::datadog_profiling_interrupt_function;
 
 #[cfg(test)]
 mod tests {
