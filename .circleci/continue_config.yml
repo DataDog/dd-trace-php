@@ -494,6 +494,7 @@ commands:
                   -e BASH_ENV=/home/circleci/bashenv/bash.sh \
                   -e CIRCLE_SHA1 \
                   -e CIRCLE_BRANCH \
+                  -e CODECOV_TOKEN \
                   -v $(pwd):/home/circleci/datadog \
                   -v /tmp/bashenv:/home/circleci/bashenv \
                   -v /rust:/rust \
@@ -962,11 +963,6 @@ jobs:
           name: Verify the value of CODECOV_TOKEN
           command: |
             echo "CODECOV_TOKEN: $CODECOV_TOKEN"
-      - run:
-          name: Setup CODECOV_TOKEN Environment Variable
-          command: |
-            echo 'export CODECOV_TOKEN=${CODECOV_TOKEN}' >> "$BASH_ENV"
-            source "$BASH_ENV"
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
