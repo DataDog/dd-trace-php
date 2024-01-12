@@ -1169,6 +1169,11 @@ jobs:
               pattern: "^[^.]+$"
               value: << parameters.resource_class >>
           steps:
+            - run:
+                name: Install CodeCov Uploader Dependencies
+                command: |
+                  sudo apt update
+                  sudo apt install -y gpg
             - codecov/upload:
                 file: appsec/coverage.xml
                 upload_name: "appsec-coverage >>"

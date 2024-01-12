@@ -12,7 +12,5 @@ coverage:
 
 comment: # See https://docs.codecov.com/docs/pull-request-comments
   behavior: default
-  require_changes: false
-  require_head: false
-  require_base: false
-  layout: "reach,diff,flags,files"
+  layout: "header,reach,diff,flags,files,footer"
+  require_changes: true
