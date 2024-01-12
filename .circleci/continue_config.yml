@@ -986,9 +986,9 @@ jobs:
                   sudo apt update
                   sudo apt install -y gpg
             - run:
-                name: Verify the value of parameters.codecov_token
+                name: Verify the value of CODECOV_TOKEN
                 run: |
-                  echo "CODECOV_TOKEN: << parameters.codecov_token >>"
+                  echo "CODECOV_TOKEN: $CODECOV_TOKEN"
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
