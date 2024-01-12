@@ -981,6 +981,7 @@ jobs:
                 command: |
                   sudo apt update
                   sudo apt install -y gpg
+                  sudo touch /root/.gnupg/trustedkeys.gpg
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
