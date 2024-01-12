@@ -1174,7 +1174,7 @@ jobs:
                 name: Install CodeCov Uploader Dependencies
                 command: |
                   sudo apt update
-                  sudo apt install -y gpg
+                  sudo apt install -y gpg gnupg
                   sudo touch /root/.gnupg/trustedkeys.gpg
             - codecov/upload:
                 file: appsec/coverage.xml
