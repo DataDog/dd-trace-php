@@ -980,10 +980,17 @@ jobs:
                 command: |
                   sudo apt update
                   sudo apt install -y gpg
+            - run:
+                name: Verify that CODECOV_TOKEN is set
+                command: |
+                  if [[ -z "${CODECOV_TOKEN}" ]]; then
+                    echo "CODECOV_TOKEN is not set"
+                    exit 1
+                  fi
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
-                token: ${CODECOV_TOKEN}
+                token: CODECOV_TOKEN
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
