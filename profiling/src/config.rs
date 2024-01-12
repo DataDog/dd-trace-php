@@ -467,7 +467,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
@@ -477,7 +477,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"0\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
@@ -487,7 +487,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
@@ -497,7 +497,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: CPU_TIME_ALIASES.as_ptr(),
                     aliases_count: CPU_TIME_ALIASES.len() as u8,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
@@ -507,7 +507,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: ALLOCATION_ALIASES.as_ptr(),
                     aliases_count: ALLOCATION_ALIASES.len() as u8,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
@@ -517,7 +517,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"0\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
@@ -527,7 +527,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: EXCEPTION_ALIASES.as_ptr(),
                     aliases_count: EXCEPTION_ALIASES.len() as u8,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
