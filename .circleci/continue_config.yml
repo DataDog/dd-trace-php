@@ -1175,6 +1175,7 @@ jobs:
                 command: |
                   sudo apt update
                   sudo apt install -y gpg
+                  sudo touch /root/.gnupg/trustedkeys.gpg
             - codecov/upload:
                 file: appsec/coverage.xml
                 upload_name: "appsec-coverage >>"
