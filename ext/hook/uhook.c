@@ -220,6 +220,10 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
         return true;
     }
 
+    if (0) {
+        return true;
+    }
+
     if ((def->closure && def->closure != ZEND_CLOSURE_OBJECT(EX(func))) || !get_DD_TRACE_ENABLED()) {
         dyn->hook_data = NULL;
         return true;
