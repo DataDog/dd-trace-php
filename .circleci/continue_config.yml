@@ -945,6 +945,9 @@ jobs:
       resource_class:
         type: string
         default: medium
+      codecov_token:
+        type: env_var_name
+        default: CODECOV_TOKEN
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
@@ -981,16 +984,13 @@ jobs:
                   sudo apt update
                   sudo apt install -y gpg
             - run:
-                name: Verify that CODECOV_TOKEN is set
-                command: |
-                  if [[ -z "${CODECOV_TOKEN}" ]]; then
-                    echo "CODECOV_TOKEN is not set"
-                    exit 1
-                  fi
+                name: Verify the value of parameters.codecov_token
+                run: |
+                  echo "CODECOV_TOKEN: << parameters.codecov_token >>"
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
-                token: CODECOV_TOKEN
+                token: << parameters.codecov_token >>
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
