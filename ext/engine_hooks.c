@@ -30,10 +30,9 @@ void dd_search_for_profiling_symbols(void *arg) {
     if (extension->name && strcmp(extension->name, "datadog-profiling") == 0) {
         DL_HANDLE handle = extension->handle;
 
-        profiling_interrupt_function = DL_FETCH_SYMBOL(handle, "datadog_profiling_interrupt_function");
+        profiling_interrupt_function = DL_FETCH_SYMBOL(handle, "ddog_php_prof_interrupt_function");
         if (UNEXPECTED(!profiling_interrupt_function)) {
-            LOG(Warn, "[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n", "datadog_profiling_interrupt_function",
-                               DL_ERROR());
+            LOG(Warn, "[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n", "ddog_php_prof_interrupt_function", DL_ERROR());
         }
 
         profiling_notify_trace_finished = DL_FETCH_SYMBOL(handle, "datadog_profiling_notify_trace_finished");

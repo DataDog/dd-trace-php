@@ -24,7 +24,7 @@ static mut PREV_INTERRUPT_FUNCTION: Option<VmInterruptFn> = None;
 /// its sub-objects are valid.
 #[no_mangle]
 #[inline(never)]
-pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend_execute_data) {
+pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execute_data) {
     REQUEST_LOCALS.with(|cell| {
         // try to borrow and bail out if not successful
         let locals = match cell.try_borrow() {
@@ -57,11 +57,11 @@ pub extern "C" fn datadog_profiling_interrupt_function(execute_data: *mut zend_e
     });
 }
 
-/// A wrapper for the `datadog_profiling_interrupt_function` to call the
+/// A wrapper for the `ddog_php_prof_interrupt_function` to call the
 /// previous interrupt handler, if there was one.
 #[no_mangle]
-extern "C" fn datadog_profiling_interrupt_function_wrapper(execute_data: *mut zend_execute_data) {
-    datadog_profiling_interrupt_function(execute_data);
+extern "C" fn ddog_php_prof_interrupt_function_wrapper(execute_data: *mut zend_execute_data) {
+    ddog_php_prof_interrupt_function(execute_data);
 
     // SAFETY: PREV_INTERRUPT_FUNCTION was written during minit, doesn't change during runtime.
     if let Some(prev_interrupt) = unsafe { PREV_INTERRUPT_FUNCTION.as_ref() } {
@@ -114,7 +114,7 @@ pub extern "C" fn execute_internal(execute_data: *mut zend_execute_data, return_
 
     // See safety section of `execute_data_func_is_trampoline` docs for why the leaf frame is used
     // instead of the execute_data ptr.
-    datadog_profiling_interrupt_function(leaf_frame);
+    ddog_php_prof_interrupt_function(leaf_frame);
 }
 
 /// # Safety
@@ -123,9 +123,9 @@ pub unsafe fn minit() {
     PREV_INTERRUPT_FUNCTION = zend_interrupt_function;
 
     let function = if zend_interrupt_function.is_some() {
-        datadog_profiling_interrupt_function_wrapper
+        ddog_php_prof_interrupt_function_wrapper
     } else {
-        datadog_profiling_interrupt_function
+        ddog_php_prof_interrupt_function
     };
 
     zend_interrupt_function = Some(function);
