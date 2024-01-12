@@ -984,6 +984,7 @@ jobs:
             - codecov/upload:
                 file: tmp/coverage.info
                 upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
+                flags: tracer-extension
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
@@ -1177,6 +1178,7 @@ jobs:
             - codecov/upload:
                 file: appsec/coverage.xml
                 upload_name: "appsec-coverage >>"
+                flags: appsec-extension
 
   lint_appsec:
     parameters:
