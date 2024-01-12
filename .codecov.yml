@@ -1,3 +1,6 @@
+codecov:
+  require_ci_to_pass: false
+
 coverage:
   range: 90..100
   round: down
@@ -5,3 +8,21 @@ coverage:
   status:
     project: off
     patch: off
+
+comment: # See https://docs.codecov.com/docs/pull-request-comments
+  behavior: default
+  require_changes: false
+  require_head: false
+  require_base: false
+
+flag_management:
+  default_rules:
+    carryforward: true
+    statuses:
+      - name_prefix: project-
+        type: project
+        target: auto
+        threshold: 1%
+      - name_prefix: patch-
+        type: patch
+        target: 90%"
