@@ -14,6 +14,34 @@ use std::path::Path;
 pub use std::path::PathBuf;
 use std::str::FromStr;
 
+pub struct SystemSettings {
+    pub profiling_enabled: bool,
+    pub profiling_experimental_features_enabled: bool,
+    pub profiling_endpoint_collection_enabled: bool,
+    pub profiling_experimental_cpu_time_enabled: bool,
+    pub profiling_allocation_enabled: bool,
+    pub profiling_experimental_timeline_enabled: bool,
+    pub profiling_exception_enabled: bool,
+
+    // todo: can't this be Option<String>? I don't think the string can ever be static.
+    pub output_pprof: Option<Cow<'static, str>>,
+    pub profiling_exception_sampling_distance: u32,
+    pub profiling_log_level: LevelFilter,
+    pub uri: AgentEndpoint,
+}
+
+impl SystemSettings {
+    pub fn disable_all(&mut self) {
+        self.profiling_enabled = false;
+        self.profiling_experimental_features_enabled = false;
+        self.profiling_endpoint_collection_enabled = false;
+        self.profiling_experimental_cpu_time_enabled = false;
+        self.profiling_allocation_enabled = false;
+        self.profiling_experimental_timeline_enabled = false;
+        self.profiling_exception_enabled = false;
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum AgentEndpoint {
     Uri(Uri),
