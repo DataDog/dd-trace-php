@@ -1073,6 +1073,7 @@ impl Profiler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use datadog_profiling::exporter::Uri;
     use log::LevelFilter;
 
     fn get_frames() -> Vec<ZendFrame> {
@@ -1083,23 +1084,19 @@ mod tests {
         }]
     }
 
-    fn get_request_locals() -> RequestLocals {
-        RequestLocals {
-            env: None,
-            interrupt_count: AtomicU32::new(0),
+    fn get_system_settings() -> SystemSettings {
+        SystemSettings {
             profiling_enabled: true,
             profiling_experimental_features_enabled: false,
-            profiling_endpoint_collection_enabled: true,
+            profiling_endpoint_collection_enabled: false,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
             profiling_experimental_timeline_enabled: false,
             profiling_exception_enabled: false,
-            profiling_exception_sampling_distance: 1,
+            output_pprof: None,
+            profiling_exception_sampling_distance: 100,
             profiling_log_level: LevelFilter::Off,
-            service: None,
-            uri: Box::<AgentEndpoint>::default(),
-            version: None,
-            vm_interrupt_addr: std::ptr::null_mut(),
+            uri: AgentEndpoint::Uri(Uri::default()),
         }
     }
 
@@ -1121,11 +1118,15 @@ mod tests {
         // yet this is how it has to behave in case profiling is disabled
         let frames = get_frames();
         let samples = get_samples();
+
+        let mut settings = get_system_settings();
+
+        settings.profiling_enabled = false;
+        settings.profiling_allocation_enabled = false;
+        settings.profiling_experimental_cpu_time_enabled = false;
+
+        let profiler = Profiler::new(settings);
         let labels = Profiler::message_labels();
-        let mut locals = get_request_locals();
-        locals.profiling_enabled = false;
-        locals.profiling_allocation_enabled = false;
-        locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
             profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
@@ -1139,14 +1140,19 @@ mod tests {
     fn profiler_prepare_sample_message_works_with_profiling_enabled() {
         let frames = get_frames();
         let samples = get_samples();
+
+        let mut settings = get_system_settings();
+
+        settings.profiling_enabled = true;
+        settings.profiling_allocation_enabled = false;
+        settings.profiling_experimental_cpu_time_enabled = false;
+
+        let profiler = Profiler::new(settings);
+
         let labels = Profiler::message_labels();
-        let mut locals = get_request_locals();
-        locals.profiling_enabled = true;
-        locals.profiling_allocation_enabled = false;
-        locals.profiling_experimental_cpu_time_enabled = false;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
+            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
 
         assert_eq!(
             message.key.sample_types,
@@ -1162,14 +1168,16 @@ mod tests {
     fn profiler_prepare_sample_message_works_with_cpu_time() {
         let frames = get_frames();
         let samples = get_samples();
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_allocation_enabled = false;
+        settings.profiling_experimental_cpu_time_enabled = true;
+        let profiler = Profiler::new(settings);
+
         let labels = Profiler::message_labels();
-        let mut locals = get_request_locals();
-        locals.profiling_enabled = true;
-        locals.profiling_allocation_enabled = false;
-        locals.profiling_experimental_cpu_time_enabled = true;
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
+            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
 
         assert_eq!(
             message.key.sample_types,
@@ -1187,13 +1195,14 @@ mod tests {
         let frames = get_frames();
         let samples = get_samples();
         let labels = Profiler::message_labels();
-        let mut locals = get_request_locals();
-        locals.profiling_enabled = true;
-        locals.profiling_allocation_enabled = true;
-        locals.profiling_experimental_cpu_time_enabled = false;
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_allocation_enabled = true;
+        settings.profiling_experimental_cpu_time_enabled = false;
+        let profiler = Profiler::new(settings);
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
+            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
 
         assert_eq!(
             message.key.sample_types,
@@ -1212,13 +1221,15 @@ mod tests {
         let frames = get_frames();
         let samples = get_samples();
         let labels = Profiler::message_labels();
-        let mut locals = get_request_locals();
-        locals.profiling_enabled = true;
-        locals.profiling_allocation_enabled = true;
-        locals.profiling_experimental_cpu_time_enabled = true;
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_allocation_enabled = true;
+        settings.profiling_experimental_cpu_time_enabled = true;
+
+        let profiler = Profiler::new(settings);
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
+            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
 
         assert_eq!(
             message.key.sample_types,
@@ -1239,13 +1250,14 @@ mod tests {
         let frames = get_frames();
         let samples = get_samples();
         let labels = Profiler::message_labels();
-        let mut locals = get_request_locals();
-        locals.profiling_enabled = true;
-        locals.profiling_experimental_cpu_time_enabled = true;
-        locals.profiling_experimental_timeline_enabled = true;
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_experimental_cpu_time_enabled = true;
+        settings.profiling_experimental_timeline_enabled = true;
 
-        let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, 900);
+        let profiler = Profiler::new(settings);
+
+        let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 
         assert_eq!(
             message.key.sample_types,
@@ -1266,13 +1278,15 @@ mod tests {
         let frames = get_frames();
         let samples = get_samples();
         let labels = Profiler::message_labels();
-        let mut locals = get_request_locals();
-        locals.profiling_enabled = true;
-        locals.profiling_experimental_cpu_time_enabled = true;
-        locals.profiling_exception_enabled = true;
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_experimental_cpu_time_enabled = true;
+        settings.profiling_exception_enabled = true;
+
+        let profiler = Profiler::new(settings);
 
         let message: SampleMessage =
-            Profiler::prepare_sample_message(frames, samples, labels, &locals, NO_TIMESTAMP);
+            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
 
         assert_eq!(
             message.key.sample_types,
