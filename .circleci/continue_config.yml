@@ -4255,7 +4255,7 @@ workflows:
                 - '8.2'
                 - '8.3'
               make_target:
-                - test_distributed_tracing
+                - test_distributed_tracing_coverage
 
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
