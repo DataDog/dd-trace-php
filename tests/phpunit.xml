@@ -96,10 +96,10 @@
 
     <coverage>
         <include>
-            <directory suffix=".php">../src/Integrations</directory>
+            <directory suffix=".php">../src/</directory>
         </include>
-        <report>
-            <clover outputFile="../reports/coverage.xml"/>
-        </report>
+        <exclude>
+            <directory>../src/dogstatsd</directory>
+        </exclude>
     </coverage>
 </phpunit>

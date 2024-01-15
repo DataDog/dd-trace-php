@@ -464,6 +464,7 @@ cores:
 REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(REQUEST_INIT_HOOK_PATH)
 ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true) DD_TRACE_CLI_ENABLED=true
 TEST_EXTRA_INI ?=
+TEST_EXTRA_ENV ?=
 
 ### DDTrace tests ###
 TESTS_ROOT = ./tests
@@ -476,6 +477,7 @@ PHPBENCH_OPTS ?=
 PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
 PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
 PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run
+PHPCOV = $(TESTS_ROOT)/vendor/bin/phpcov
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
@@ -942,13 +944,14 @@ FILTER := .
 
 define run_tests
 	@if [ "$(PHPUNIT_COVERAGE)" -eq 1 ]; then \
-		echo "Running tests with coverage"; \
-		echo "$(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)"; \
-        $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER); \
+		$(eval coverage_file := $(shell echo $(1) | tr '[:upper:]' '[:lower:]' | tr '/=' '_' | tr -d '-').cov) \
+		echo "Running tests with coverage to reports/cov/$(coverage_file)"; \
+		echo "$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)"; \
+        $(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file); \
     else \
     	echo "Running tests without coverage"; \
-    	echo "$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)"; \
-        $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER); \
+    	echo "$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)"; \
+        $(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER); \
     fi
 endef
 
@@ -1046,7 +1049,8 @@ benchmarks_opcache: benchmarks_run_dependencies
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
 	$(MAKE) test_scenario_opentelemetry1
-	$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo "") DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0 $(call run_tests,--testsuite=opentelemetry1 $(TESTS))
+	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0)
+	$(call run_tests,--testsuite=opentelemetry1 $(TESTS))
 
 test_opentracing_beta5: global_test_run_dependencies
 	$(MAKE) test_scenario_opentracing_beta5
@@ -1302,6 +1306,9 @@ test_web_custom: global_test_run_dependencies
 
 test_scenario_%:
 	$(Q) $(COMPOSER_TESTS) scenario $*
+
+merge_coverage_reports:
+	$(PHPCOV) merge --clover reports/coverage.xml reports/cov
 
 ### Api tests ###
 API_TESTS_ROOT := ./tests/api

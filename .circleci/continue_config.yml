@@ -1414,6 +1414,10 @@ jobs:
               value: << parameters.resource_class >>
           steps:
             - run:
+                name: Merge coverage reports
+                command: |
+                  make merge_coverage_reports
+            - run:
                 name: Install CodeCov Uploader Dependencies
                 command: |
                   sudo apt update
@@ -1499,6 +1503,10 @@ jobs:
               pattern: "^[^.]+$"
               value: << parameters.resource_class >>
           steps:
+            - run:
+                name: Merge coverage reports
+                command: |
+                  make merge_coverage_reports
             - run:
                 name: Install CodeCov Uploader Dependencies
                 command: |
