@@ -88,8 +88,10 @@ ZEND_TLS HashTable zai_function_location_map; /* }}} */
 #define ZAI_IS_SHARED_HOOK_PTR (IS_PTR+1)
 
 #if PHP_VERSION_ID >= 80000
-static void zai_hook_on_update_empty(zend_function *func, bool remove) { (void)func, (void)remove; }
-void (*zai_hook_on_update)(zend_function *func, bool remove) = zai_hook_on_update_empty;
+ZEND_TLS zend_observer_fcall_end_handler zai_hook_last_observer;
+
+static void zai_hook_on_update_empty(zend_function *func, bool remove, zend_observer_fcall_end_handler *handler) { (void)func, (void)remove, (void)handler; }
+void (*zai_hook_on_update)(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler) = zai_hook_on_update_empty;
 void zai_hook_on_function_resolve_empty(zend_function *func) { (void)func; }
 void (*zai_hook_on_function_resolve)(zend_function *func) = zai_hook_on_function_resolve_empty;
 #endif
@@ -181,7 +183,7 @@ static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_
         if (!hooks->internal_duplicate)
 #endif
         {
-            zai_hook_on_update(hooks->resolved, true);
+            zai_hook_on_update(hooks->resolved, true, &zai_hook_last_observer);
         }
     } else if (hooks->run_time_cache) {
         zend_function func;
@@ -192,7 +194,7 @@ static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_
 #else
         ZEND_MAP_PTR_INIT(func.op_array.run_time_cache, hooks->run_time_cache);
 #endif
-        zai_hook_on_update(&func, true);
+        zai_hook_on_update(&func, true, &zai_hook_last_observer);
     }
 #else
     (void)install_address;
@@ -438,7 +440,7 @@ static inline zai_hooks_entry *zai_hook_resolved_ensure_hooks_entry(zend_functio
         if (!hooks->internal_duplicate)
 #endif
         {
-            zai_hook_on_update(resolved, false);
+            zai_hook_on_update(resolved, false, NULL);
         }
 #else
         (void)ce;
@@ -1059,7 +1061,15 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
                     if (hooks->internal_duplicate_count == 0)
 #endif
                     {
+#if PHP_VERSION_ID >= 80000
+                        zai_hook_last_observer = NULL;
                         zai_hook_entries_remove_resolved(address);
+                        if (zai_hook_last_observer) {
+                            zai_hook_last_observer(ex, rv);
+                        }
+#else
+                        zai_hook_entries_remove_resolved(address);
+#endif
                     }
                 }
             }
