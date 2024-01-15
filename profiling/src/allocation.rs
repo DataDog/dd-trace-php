@@ -7,6 +7,7 @@ use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, error, trace, warn};
 use rand::rngs::ThreadRng;
 use std::cell::RefCell;
+use std::cell::UnsafeCell;
 use std::ffi::CStr;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering::SeqCst;
@@ -18,18 +19,6 @@ use crate::bindings::{
 };
 
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
-
-/// The engine's previous custom allocation function, if there is one.
-static mut PREV_CUSTOM_MM_ALLOC: Option<zend::VmMmCustomAllocFn> = None;
-
-/// The engine's previous custom reallocation function, if there is one.
-static mut PREV_CUSTOM_MM_REALLOC: Option<zend::VmMmCustomReallocFn> = None;
-
-/// The engine's previous custom free function, if there is one.
-static mut PREV_CUSTOM_MM_FREE: Option<zend::VmMmCustomFreeFn> = None;
-
-/// The heap installed in ZendMM at the time we install our custom handlers
-static mut HEAP: Option<*mut zend::_zend_mm_heap> = None;
 
 /// take a sample every 4096 KiB
 pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 4096.0;
@@ -48,6 +37,17 @@ pub struct AllocationProfilingStats {
     next_sample: i64,
     poisson: Poisson<f64>,
     rng: ThreadRng,
+}
+
+struct ZendMMState {
+    /// The heap installed in ZendMM at the time we install our custom handlers
+    heap: Option<*mut zend::zend_mm_heap>,
+    /// The engine's previous custom allocation function, if there is one.
+    prev_custom_mm_alloc: Option<zend::VmMmCustomAllocFn>,
+    /// The engine's previous custom reallocation function, if there is one.
+    prev_custom_mm_realloc: Option<zend::VmMmCustomReallocFn>,
+    /// The engine's previous custom free function, if there is one.
+    prev_custom_mm_free: Option<zend::VmMmCustomFreeFn>,
 }
 
 impl AllocationProfilingStats {
@@ -91,6 +91,18 @@ impl AllocationProfilingStats {
 
 thread_local! {
     static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats::new());
+    /// Using an `UnsafeCell` here should be okay. There might not be any synchronisation issues,
+    /// as it is used in as thread local and only mutated in RINIT and RSHUTDOWN.
+    static ZEND_MM_STATE: UnsafeCell<ZendMMState> = const {
+        UnsafeCell::new(
+            ZendMMState{
+                heap: None,
+                prev_custom_mm_alloc: None,
+                prev_custom_mm_realloc: None,
+                prev_custom_mm_free: None
+            }
+        )
+    };
 }
 
 const NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT: bool =
@@ -106,9 +118,6 @@ lazy_static! {
 }
 
 pub fn allocation_profiling_minit() {
-    #[cfg(php_zts)]
-    return;
-
     unsafe { zend::ddog_php_opcache_init_handle() };
 }
 
@@ -125,9 +134,6 @@ pub fn first_rinit_should_disable_due_to_jit() -> bool {
 }
 
 pub fn allocation_profiling_rinit() {
-    #[cfg(php_zts)]
-    return;
-
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
             Ok(locals) => {
@@ -145,47 +151,50 @@ pub fn allocation_profiling_rinit() {
         return;
     }
 
-    unsafe {
-        HEAP = Some(zend::zend_mm_get_heap());
-    }
-
-    if !is_zend_mm() {
-        // Neighboring custom memory handlers found
-        debug!("Found another extension using the ZendMM custom handler hook");
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
         unsafe {
-            zend::zend_mm_get_custom_handlers(
-                // Safety: `unwrap()` is safe here, as `HEAP` is initialized just above
-                HEAP.unwrap(),
-                &mut PREV_CUSTOM_MM_ALLOC,
-                &mut PREV_CUSTOM_MM_FREE,
-                &mut PREV_CUSTOM_MM_REALLOC,
+            (*zend_mm_state).heap = Some(zend::zend_mm_get_heap());
+        }
+
+        if !is_zend_mm() {
+            // Neighboring custom memory handlers found
+            debug!("Found another extension using the ZendMM custom handler hook");
+            unsafe {
+                zend::zend_mm_get_custom_handlers(
+                    // Safety: `unwrap()` is safe here, as `heap` is initialized just above
+                    (*zend_mm_state).heap.unwrap(),
+                    &mut (*zend_mm_state).prev_custom_mm_alloc,
+                    &mut (*zend_mm_state).prev_custom_mm_free,
+                    &mut (*zend_mm_state).prev_custom_mm_realloc,
+                );
+                ALLOCATION_PROFILING_ALLOC = allocation_profiling_prev_alloc;
+                ALLOCATION_PROFILING_FREE = allocation_profiling_prev_free;
+                ALLOCATION_PROFILING_REALLOC = allocation_profiling_prev_realloc;
+                ALLOCATION_PROFILING_PREPARE_ZEND_HEAP = prepare_zend_heap_none;
+                ALLOCATION_PROFILING_RESTORE_ZEND_HEAP = restore_zend_heap_none;
+            }
+        } else {
+            unsafe {
+                ALLOCATION_PROFILING_ALLOC = allocation_profiling_orig_alloc;
+                ALLOCATION_PROFILING_FREE = allocation_profiling_orig_free;
+                ALLOCATION_PROFILING_REALLOC = allocation_profiling_orig_realloc;
+                ALLOCATION_PROFILING_PREPARE_ZEND_HEAP = prepare_zend_heap;
+                ALLOCATION_PROFILING_RESTORE_ZEND_HEAP = restore_zend_heap;
+            }
+        }
+
+        // install our custom handler to ZendMM
+        unsafe {
+            zend::ddog_php_prof_zend_mm_set_custom_handlers(
+                // Safety: `unwrap()` is safe here, as `heap` is initialized just above
+                (*zend_mm_state).heap.unwrap(),
+                Some(alloc_profiling_malloc),
+                Some(alloc_profiling_free),
+                Some(alloc_profiling_realloc),
             );
-            ALLOCATION_PROFILING_ALLOC = allocation_profiling_prev_alloc;
-            ALLOCATION_PROFILING_FREE = allocation_profiling_prev_free;
-            ALLOCATION_PROFILING_REALLOC = allocation_profiling_prev_realloc;
-            ALLOCATION_PROFILING_PREPARE_ZEND_HEAP = prepare_zend_heap_none;
-            ALLOCATION_PROFILING_RESTORE_ZEND_HEAP = restore_zend_heap_none;
         }
-    } else {
-        unsafe {
-            ALLOCATION_PROFILING_ALLOC = allocation_profiling_orig_alloc;
-            ALLOCATION_PROFILING_FREE = allocation_profiling_orig_free;
-            ALLOCATION_PROFILING_REALLOC = allocation_profiling_orig_realloc;
-            ALLOCATION_PROFILING_PREPARE_ZEND_HEAP = prepare_zend_heap;
-            ALLOCATION_PROFILING_RESTORE_ZEND_HEAP = restore_zend_heap;
-        }
-    }
-
-    // install our custom handler to ZendMM
-    unsafe {
-        zend::ddog_php_prof_zend_mm_set_custom_handlers(
-            // Safety: `unwrap()` is safe here, as `HEAP` is initialized just above
-            HEAP.unwrap(),
-            Some(alloc_profiling_malloc),
-            Some(alloc_profiling_free),
-            Some(alloc_profiling_realloc),
-        );
-    }
+    });
 
     // `is_zend_mm()` should be `false` now, as we installed our custom handlers
     if is_zend_mm() {
@@ -198,9 +207,6 @@ pub fn allocation_profiling_rinit() {
 }
 
 pub fn allocation_profiling_rshutdown() {
-    #[cfg(php_zts)]
-    return;
-
     let allocation_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
             .map(|locals| locals.system_settings().profiling_allocation_enabled)
@@ -219,57 +225,57 @@ pub fn allocation_profiling_rshutdown() {
         return;
     }
 
-    let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
-    let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
-    let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
-    unsafe {
-        zend::zend_mm_get_custom_handlers(
-            // Safety: `unwrap()` is safe here, as `HEAP` is initialized in `RINIT`
-            HEAP.unwrap(),
-            &mut custom_mm_malloc,
-            &mut custom_mm_free,
-            &mut custom_mm_realloc,
-        );
-    }
-    if custom_mm_free != Some(alloc_profiling_free)
-        || custom_mm_malloc != Some(alloc_profiling_malloc)
-        || custom_mm_realloc != Some(alloc_profiling_realloc)
-    {
-        // Custom handlers are installed, but it's not us. Someone, somewhere might have
-        // function pointers to our custom handlers. Best bet to avoid segfaults is to not
-        // touch custom handlers in ZendMM and make sure our extension will not be
-        // `dlclose()`-ed so the pointers stay valid
-        let zend_extension =
-            unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
-        if !zend_extension.is_null() {
-            // Safety: Checked for null pointer above.
-            unsafe {
-                (*zend_extension).handle = std::ptr::null_mut();
-            }
-        }
-        warn!("Found another extension using the custom heap which is unexpected at this point, so the extension handle was `null`'ed to avoid being `dlclose()`'ed.");
-    } else {
-        // This is the happy path (restore previously installed custom handlers)!
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
+        let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
+        let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
         unsafe {
-            zend::ddog_php_prof_zend_mm_set_custom_handlers(
-                // Safety: `unwrap()` is safe here, as `HEAP` is initialized in `RINIT`
-                HEAP.unwrap(),
-                PREV_CUSTOM_MM_ALLOC,
-                PREV_CUSTOM_MM_FREE,
-                PREV_CUSTOM_MM_REALLOC,
+            zend::zend_mm_get_custom_handlers(
+                // Safety: `unwrap()` is safe here, as `heap` is initialized in `RINIT`
+                (*zend_mm_state).heap.unwrap(),
+                &mut custom_mm_malloc,
+                &mut custom_mm_free,
+                &mut custom_mm_realloc,
             );
         }
-        trace!("Memory allocation profiling shutdown gracefully.");
-    }
-    unsafe {
-        HEAP = None;
-    }
+        if custom_mm_free != Some(alloc_profiling_free)
+            || custom_mm_malloc != Some(alloc_profiling_malloc)
+            || custom_mm_realloc != Some(alloc_profiling_realloc)
+        {
+            // Custom handlers are installed, but it's not us. Someone, somewhere might have
+            // function pointers to our custom handlers. Best bet to avoid segfaults is to not
+            // touch custom handlers in ZendMM and make sure our extension will not be
+            // `dlclose()`-ed so the pointers stay valid
+            let zend_extension =
+                unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
+            if !zend_extension.is_null() {
+                // Safety: Checked for null pointer above.
+                unsafe {
+                    (*zend_extension).handle = std::ptr::null_mut();
+                }
+            }
+            warn!("Found another extension using the custom heap which is unexpected at this point, so the extension handle was `null`'ed to avoid being `dlclose()`'ed.");
+        } else {
+            // This is the happy path (restore previously installed custom handlers)!
+            unsafe {
+                zend::ddog_php_prof_zend_mm_set_custom_handlers(
+                    // Safety: `unwrap()` is safe here, as `heap` is initialized in `RINIT`
+                    (*zend_mm_state).heap.unwrap(),
+                    (*zend_mm_state).prev_custom_mm_alloc,
+                    (*zend_mm_state).prev_custom_mm_free,
+                    (*zend_mm_state).prev_custom_mm_realloc,
+                );
+            }
+            trace!("Memory allocation profiling shutdown gracefully.");
+        }
+        unsafe {
+            (*zend_mm_state).heap = None;
+        }
+    });
 }
 
 pub fn allocation_profiling_startup() {
-    #[cfg(php_zts)]
-    return;
-
     unsafe {
         let handle = datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0"),
@@ -366,8 +372,11 @@ static mut ALLOCATION_PROFILING_ALLOC: unsafe fn(size_t) -> *mut c_void =
     allocation_profiling_orig_alloc;
 
 unsafe fn allocation_profiling_prev_alloc(len: size_t) -> *mut c_void {
-    let prev = PREV_CUSTOM_MM_ALLOC.unwrap();
-    prev(len)
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        let prev = (*zend_mm_state).prev_custom_mm_alloc.unwrap();
+        prev(len)
+    })
 }
 
 unsafe fn allocation_profiling_orig_alloc(len: size_t) -> *mut c_void {
@@ -389,8 +398,11 @@ unsafe extern "C" fn alloc_profiling_free(ptr: *mut c_void) {
 static mut ALLOCATION_PROFILING_FREE: unsafe fn(*mut c_void) = allocation_profiling_orig_free;
 
 unsafe fn allocation_profiling_prev_free(ptr: *mut c_void) {
-    let prev = PREV_CUSTOM_MM_FREE.unwrap();
-    prev(ptr);
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        let prev = (*zend_mm_state).prev_custom_mm_free.unwrap();
+        prev(ptr)
+    })
 }
 
 unsafe fn allocation_profiling_orig_free(ptr: *mut c_void) {
@@ -422,8 +434,11 @@ static mut ALLOCATION_PROFILING_REALLOC: unsafe fn(*mut c_void, size_t) -> *mut 
     allocation_profiling_orig_realloc;
 
 unsafe fn allocation_profiling_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    let prev = PREV_CUSTOM_MM_REALLOC.unwrap();
-    prev(prev_ptr, len)
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        let prev = (*zend_mm_state).prev_custom_mm_realloc.unwrap();
+        prev(prev_ptr, len)
+    })
 }
 
 unsafe fn allocation_profiling_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
