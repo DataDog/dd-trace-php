@@ -995,7 +995,7 @@ impl Profiler {
         &self,
         frames: Vec<ZendFrame>,
         samples: SampleValues,
-        #[cfg(php_has_fibers)] mut labels: Vec<Label>,
+        #[cfg(any(php_has_fibers, php_zts))] mut labels: Vec<Label>,
         #[cfg(not(php_has_fibers))] labels: Vec<Label>,
         timestamp: i64,
     ) -> SampleMessage {
@@ -1021,6 +1021,12 @@ impl Profiler {
                 }
             }
         }
+
+        #[cfg(php_zts)]
+        labels.push(Label {
+            key: "thread id",
+            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
+        });
 
         let tags = TAGS.with(|cell| Arc::clone(&cell.borrow()));
 
