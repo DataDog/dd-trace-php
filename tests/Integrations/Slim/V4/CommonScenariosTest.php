@@ -115,7 +115,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
-                        Tag::COMPONENT => 'slim'
+                        Tag::COMPONENT => 'slim',
+                        Tag::HTTP_ROUTE => '/simple',
                     ])->withChildren([
                         $this->wrapMiddleware([
                             SpanAssertion::build(
@@ -142,7 +143,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
-                        Tag::COMPONENT => 'slim'
+                        Tag::COMPONENT => 'slim',
+                        Tag::HTTP_ROUTE => '/simple_view',
                     ])->withChildren([
                         $this->wrapMiddleware([
                             SpanAssertion::build(
@@ -178,7 +180,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
-                        Tag::COMPONENT => 'slim'
+                        Tag::COMPONENT => 'slim',
+                        Tag::HTTP_ROUTE => '/error',
                     ])
                     ->setError(null, null)
                     ->withChildren([
@@ -197,6 +200,33 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             ],
                             [null, 'Foo error']
                         )
+                    ]),
+                ],
+                'A GET request to a route with a parameter' => [
+                    SpanAssertion::build(
+                        'web.request',
+                        'slim_test_app',
+                        'web',
+                        'GET /parameterized/paramValue'
+                    )->withExactTags([
+                        'slim.route.handler' => 'Closure::__invoke',
+                        'http.method' => 'GET',
+                        'http.url' => 'http://localhost:9999/parameterized/paramValue',
+                        'http.status_code' => '200',
+                        Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'slim',
+                        Tag::HTTP_ROUTE => '/parameterized/{value}',
+                    ])->withChildren([
+                        $this->wrapMiddleware([
+                            SpanAssertion::build(
+                                'slim.route',
+                                'slim_test_app',
+                                'web',
+                                'Closure::__invoke'
+                            )->withExactTags([
+                                Tag::COMPONENT => 'slim',
+                            ])
+                        ]),
                     ]),
                 ],
             ]
