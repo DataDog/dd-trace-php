@@ -39,6 +39,11 @@ const char *datadog_extension_build_id(void);
 const char *datadog_module_build_id(void);
 
 /**
+ * Returns the `sapi_request_info` from the SAPI_GLOBALS
+ */
+sapi_request_info datadog_sapi_globals_request_info();
+
+/**
  * Lookup module by name in the module registry. Returns NULL if not found.
  * This is meant to be called from Rust, so it uses uintptr_t, not size_t, for
  * the length for convenience.

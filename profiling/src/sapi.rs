@@ -1,4 +1,4 @@
-use crate::bindings::sapi_globals_struct;
+use crate::zend::sapi_request_info;
 use log::warn;
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
@@ -49,17 +49,16 @@ impl Sapi {
 
     pub fn request_script_name<'a>(
         &self,
-        sapi_globals: &'a sapi_globals_struct,
+        sapi_request_info: sapi_request_info,
     ) -> Option<Cow<'a, str>> {
         match self {
             /* Right now all we need is CLI support, but theoretically it can
              * be obtained for web requests too if we care.
              */
             Sapi::Cli => {
-                let request_info = &sapi_globals.request_info;
-                if request_info.argc > 0 && !request_info.argv.is_null() {
+                if sapi_request_info.argc > 0 && !sapi_request_info.argv.is_null() {
                     // Safety: It's not null; the VM should do the rest.
-                    let cstr = unsafe { CStr::from_ptr(*request_info.argv) };
+                    let cstr = unsafe { CStr::from_ptr(*sapi_request_info.argv) };
                     let bytes = cstr.to_bytes();
                     return if !bytes.is_empty() {
                         let osstr = OsStr::from_bytes(bytes);

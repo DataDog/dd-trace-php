@@ -8,6 +8,10 @@ on:
 jobs:
   prof-correctness:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-versions: ['8.1', '8.2', '8.3']
+        phpts: ['nts', 'zts']
 
     steps:
       - name: Checkout
@@ -19,7 +23,9 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: ${{ matrix.php-versions }}
+        env:
+          phpts: ${{ matrix.phpts }}
 
       - name: Restore build cache
         uses: actions/cache/restore@v3
@@ -30,7 +36,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.php-versions }}-${{ matrix.phpts }}
 
       - name: Build profiler
         run: |
@@ -55,12 +61,13 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.php-versions }}-${{ matrix.phpts }}
 
       - name: Run no profile test
         run: |
           export DD_PROFILING_ENABLED=Off
           export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
+          php -v
           php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
@@ -77,6 +84,7 @@ jobs:
           export DD_PROFILING_LOG_LEVEL=trace
           export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
+          php -v
           php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
