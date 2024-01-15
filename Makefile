@@ -745,11 +745,6 @@ TEST_WEB_74 := \
 	test_web_zend_1 \
 	test_web_custom
 
-# NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that only
-# shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
-# Since we run tests in CI using php debug builds, we run test_integrations_phpredis5 in a separate non-debug container.
-# Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove that additional container
-# and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
 TEST_INTEGRATIONS_80 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
@@ -769,6 +764,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
+	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
 	test_opentracing_10
@@ -814,6 +810,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
+	test_integrations_phpredis5 \
 	test_integrations_elasticsearch7 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
@@ -860,6 +857,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
+	test_integrations_phpredis5 \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
 	test_integrations_predis1 \
@@ -911,6 +909,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
+	test_integrations_phpredis5 \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
 	test_integrations_predis1 \
