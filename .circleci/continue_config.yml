@@ -1406,6 +1406,22 @@ jobs:
       - run:
           name: Run tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+      - when:
+          # codecov uploader only on amd64
+          condition:
+            matches:
+              pattern: "^[^.]+$"
+              value: << parameters.resource_class >>
+          steps:
+            - run:
+                name: Install CodeCov Uploader Dependencies
+                command: |
+                  sudo apt update
+                  sudo apt install -y gpg
+            - codecov/upload:
+                file: reports/coverage.xml
+                upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
+                flags: tracer-integrations
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -1476,6 +1492,22 @@ jobs:
       - run:
           name: Run tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+      - when:
+          # codecov uploader only on amd64
+          condition:
+            matches:
+              pattern: "^[^.]+$"
+              value: << parameters.resource_class >>
+          steps:
+            - run:
+                name: Install CodeCov Uploader Dependencies
+                command: |
+                  sudo apt update
+                  sudo apt install -y gpg
+            - codecov/upload:
+                file: reports/coverage.xml
+                upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
+                flags: tracer-integrations
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -4172,10 +4204,10 @@ workflows:
                 - '8.2'
                 - '8.3'
               make_target:
-                - test_composer
-                - test_integration
-                - test_distributed_tracing
-                - test_auto_instrumentation
+                - test_composer_coverage
+                - test_integration_coverage
+                - test_distributed_tracing_coverage
+                - test_auto_instrumentation_coverage
 
       - integration_snapshots:
           requires: [ 'Prepare Code' ]
@@ -4194,8 +4226,8 @@ workflows:
                 - '8.2'
                 - '8.3'
               make_target:
-                - test_web
-                - test_integrations
+                - test_web_coverage
+                - test_integrations_coverage
 
       - integration:
           requires: [ 'Prepare Code' ]

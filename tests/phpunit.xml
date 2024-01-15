@@ -93,9 +93,13 @@
             <directory>./Unit/</directory>
         </testsuite>
     </testsuites>
-    <filter>
-        <whitelist processUncoveredFilesFromWhitelist="true">
-            <directory suffix=".php">src</directory>
-        </whitelist>
-    </filter>
+
+    <coverage>
+        <include>
+            <directory suffix=".php">../src/Integrations</directory>
+        </include>
+        <report>
+            <clover outputFile="../reports/coverage.xml"/>
+        </report>
+    </coverage>
 </phpunit>

@@ -36,6 +36,7 @@ TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkee
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(BUILD_DIR)/config.m4
+XDEBUG_SO_FILE = $(shell find /opt/php/debug/lib/php/extensions/ -type f -name "xdebug*.so" -exec basename {} \;)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
@@ -470,6 +471,7 @@ COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 c
 COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
+PHPUNIT_COVERAGE ?= 0
 PHPBENCH_OPTS ?=
 PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
 PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
@@ -939,7 +941,15 @@ TEST_WEB_83 := \
 FILTER := .
 
 define run_tests
-	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
+	@if [ "$(PHPUNIT_COVERAGE)" -eq 1 ]; then \
+		echo "Running tests with coverage"; \
+		echo "$(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)"; \
+        $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER); \
+    else \
+    	echo "Running tests without coverage"; \
+    	echo "$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)"; \
+        $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER); \
+    fi
 endef
 
 define run_tests_debug
@@ -997,17 +1007,25 @@ test_unit: global_test_run_dependencies
 
 test_integration: global_test_run_dependencies
 	$(call run_tests,--testsuite=integration $(TESTS))
+test_integration_coverage:
+	PHPUNIT_COVERAGE=1 $(MAKE) test_integration
 
 test_auto_instrumentation: global_test_run_dependencies
 	$(call run_tests,--testsuite=auto-instrumentation $(TESTS))
 	# Cleaning up composer.json files in tests/AutoInstrumentation modified for TLS during tests
 	git checkout $(TESTS_ROOT)/AutoInstrumentation/**/composer.json
+test_auto_instrumentation_coverage:
+	PHPUNIT_COVERAGE=1 $(MAKE) test_auto_instrumentation
 
 test_composer: global_test_run_dependencies
 	$(call run_tests,--testsuite=composer-tests $(TESTS))
+test_composer_coverage:
+	PHPUNIT_COVERAGE=1 $(MAKE) test_composer
 
 test_distributed_tracing: global_test_run_dependencies
 	$(call run_tests,--testsuite=distributed-tracing $(TESTS))
+test_distributed_tracing_coverage:
+	PHPUNIT_COVERAGE=1 $(MAKE) test_distributed_tracing
 
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
@@ -1044,6 +1062,11 @@ test_opentracing_10: global_test_run_dependencies
 
 test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
 test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))
+
+test_web_coverage:
+	PHPUNIT_COVERAGE=1 $(MAKE) test_web
+test_integrations_coverage:
+	PHPUNIT_COVERAGE=1 $(MAKE) test_integrations
 
 test_integrations_amqp2: global_test_run_dependencies
 	$(MAKE) test_scenario_amqp2
