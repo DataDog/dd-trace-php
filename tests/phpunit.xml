@@ -94,9 +94,12 @@
         </testsuite>
     </testsuites>
 
-    <coverage includeUncoveredFiles="false">
+    <coverage>
         <include>
             <directory suffix=".php">../src/</directory>
         </include>
+        <exclude>
+            <directory>../src/dogstatsd</directory>
+        </exclude>
     </coverage>
 </phpunit>
