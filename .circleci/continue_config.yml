@@ -4219,7 +4219,6 @@ workflows:
               make_target:
                 - test_composer
                 - test_integration
-                - test_integrations
                 - test_distributed_tracing
                 - test_auto_instrumentation
 
@@ -4254,6 +4253,7 @@ workflows:
                 - '7.3'
               make_target:
                 - test_web
+                - test_integrations
 
       - integration_snapshots:
           requires: [ 'Prepare Code' ]

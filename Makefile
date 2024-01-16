@@ -472,7 +472,7 @@ COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 c
 COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
-PHPUNIT_COVERAGE ?= 0
+PHPUNIT_COVERAGE ?=
 PHPBENCH_OPTS ?=
 PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
 PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
@@ -942,22 +942,28 @@ TEST_WEB_83 := \
 
 FILTER := .
 
+define run_tests_without_coverage
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
+endef
+
+define run_tests_with_coverage
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)
+endef
+
+# Note: The condition below only checks for existence - i.e., whether PHPUNIT_COVERAGE is set to anything.
 define run_tests
-	@if [ "$(PHPUNIT_COVERAGE)" -eq 1 ]; then \
-		$(eval coverage_file := $(shell echo $(1) | tr '[:upper:]' '[:lower:]' | tr '/=' '_' | tr -d '-').cov) \
-		echo "Running tests with coverage to reports/cov/$(coverage_file)"; \
-		echo "$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)"; \
-        $(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file); \
-    else \
-    	echo "Running tests without coverage"; \
-    	echo "$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)"; \
-        $(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER); \
-    fi
+	$(if $(PHPUNIT_COVERAGE),$(call run_tests_with_coverage,$(1)),$(call run_tests_without_coverage,$(1)))
 endef
 
 define run_tests_debug
-	(set -o pipefail; { DD_TRACE_DEBUG=1 $(call run_tests,$(1)) 2>&1 >&3 | tee >(grep -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | { ! (grep -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1)
+	$(eval TEST_EXTRA_ENV=$(TEST_EXTRA_ENV) DD_TRACE_DEBUG=1)
+	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 | \
+		tee >(grep -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | \
+		{ ! (grep -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && \
+		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1)
+	$(eval TEST_EXTRA_ENV=)
 endef
+
 
 define run_benchmarks
 	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
