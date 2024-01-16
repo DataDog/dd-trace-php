@@ -102,6 +102,16 @@ final class Tracer implements TracerInterface
         $this->serviceVersion = \ddtrace_config_service_version();
         $this->environment = \ddtrace_config_env();
 
+        $this->initializeScopeManager();
+    }
+
+    public function limited()
+    {
+        return dd_trace_tracer_is_limited();
+    }
+
+    private function initializeScopeManager()
+    {
         $context = current_context();
         if (isset($context["distributed_tracing_parent_id"])) {
             $parentId = $context["distributed_tracing_parent_id"];
@@ -114,11 +124,6 @@ final class Tracer implements TracerInterface
         $this->scopeManager = new ScopeManager($this->rootContext);
     }
 
-    public function limited()
-    {
-        return dd_trace_tracer_is_limited();
-    }
-
     /**
      * Resets this tracer to its original state.
      */
@@ -129,7 +134,8 @@ final class Tracer implements TracerInterface
             ini_set("datadog.trace.enabled", 0);
             ini_set("datadog.trace.enabled", 1);
         }
-        $this->scopeManager = new ScopeManager($this->rootContext);
+
+        $this->initializeScopeManager();
     }
 
     /**
