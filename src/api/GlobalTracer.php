@@ -51,4 +51,10 @@ final class GlobalTracer
 
         return self::$instance = NoopTracer::create();
     }
+
+    public static function reset()
+    {
+        GlobalTracer::get()->reset();
+        GlobalTracer::set(new Tracer());
+    }
 }
