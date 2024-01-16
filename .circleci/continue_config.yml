@@ -1367,6 +1367,9 @@ jobs:
       disable_runner_distributed_tracing:
         type: boolean
         default: false
+      coverage:
+        type: boolean
+        default: false
     <<: *BARE_DOCKER_MACHINE
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
@@ -1408,10 +1411,12 @@ jobs:
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - when:
           # codecov uploader only on amd64
-          condition:
-            matches:
-              pattern: "^[^.]+$"
-              value: << parameters.resource_class >>
+          and:
+            condition:
+              - equal: [ "true", << parameters.coverage >> ]
+              - matches:
+                  pattern: "^[^.]+$"
+                  value: << parameters.resource_class >>
           steps:
             - run:
                 name: Merge coverage reports
@@ -1457,6 +1462,9 @@ jobs:
       disable_runner_distributed_tracing:
         type: boolean
         default: false
+      coverage:
+        type: boolean
+        default: false
     resource_class: << parameters.resource_class >>
     executor:
       name: with_integrations
@@ -1498,10 +1506,12 @@ jobs:
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - when:
           # codecov uploader only on amd64
-          condition:
-            matches:
-              pattern: "^[^.]+$"
-              value: << parameters.resource_class >>
+          and:
+            condition:
+              - equal: [ "true", << parameters.coverage >> ]
+              - matches:
+                  pattern: "^[^.]+$"
+                  value: << parameters.resource_class >>
           steps:
             - run:
                 name: Merge coverage reports
@@ -4206,6 +4216,20 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
+              make_target:
+                - test_composer
+                - test_integration
+                - test_integrations
+                - test_distributed_tracing
+                - test_auto_instrumentation
+
+      - integration:
+          requires: [ 'Prepare Code' ]
+          resource_class: medium+
+          coverage: true
+          matrix:
+            parameters:
+              php_major_minor:
                 - '7.4'
                 - '8.0'
                 - '8.1'
@@ -4228,6 +4252,17 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
+              make_target:
+                - test_web
+
+      - integration_snapshots:
+          requires: [ 'Prepare Code' ]
+          # Due to Symfony OOM during composer update
+          resource_class: xlarge
+          coverage: true
+          matrix:
+            parameters:
+              php_major_minor:
                 - '7.4'
                 - '8.0'
                 - '8.1'
@@ -4249,6 +4284,18 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
+              make_target:
+                - test_distributed_tracing
+
+      - integration:
+          requires: [ 'Prepare Code' ]
+          resource_class: medium+
+          sapi: fpm-fcgi
+          disable_runner_distributed_tracing: true
+          coverage: true
+          matrix:
+            parameters:
+              php_major_minor:
                 - '7.4'
                 - '8.0'
                 - '8.1'
