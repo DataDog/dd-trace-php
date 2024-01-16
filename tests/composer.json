@@ -191,6 +191,17 @@
                     ]
                 }
             },
+            "phpredis6": {
+                "scenario-options": {
+                    "create-lockfile": false
+                },
+                "scripts": {
+                    "pre-autoload-dump": [
+                        "sudo pecl uninstall redis",
+                        "printf 'no' | sudo pecl install -f redis-6.0.2"
+                    ]
+                }
+            },
             "amqp2": {
                 "require": {
                     "php-amqplib/php-amqplib": "^v2.6.2"

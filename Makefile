@@ -585,6 +585,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
+	test_integrations_phpredis6 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
 	test_opentracing_beta5 \
@@ -643,6 +644,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
+	test_integrations_phpredis6 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
 	test_opentracing_beta5 \
@@ -702,6 +704,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
+	test_integrations_phpredis6 \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
@@ -760,6 +763,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_mysqli \
 	test_opentelemetry_1 \
 	test_integrations_pdo \
+	test_integrations_phpredis6 \
 	test_integrations_elasticsearch7 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
@@ -810,6 +814,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
+	test_integrations_phpredis6 \
 	test_integrations_elasticsearch7 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
@@ -856,6 +861,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
+	test_integrations_phpredis6 \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
 	test_integrations_predis1 \
@@ -1111,6 +1117,9 @@ test_integrations_phpredis4: global_test_run_dependencies
 test_integrations_phpredis5: global_test_run_dependencies
 	$(MAKE) test_scenario_phpredis5
 	$(call run_tests,tests/Integrations/PHPRedis/V5)
+test_integrations_phpredis6: global_test_run_dependencies
+	$(MAKE) test_scenario_phpredis6
+	$(call run_tests,tests/Integrations/PHPRedis/V6)
 test_integrations_predis1: global_test_run_dependencies
 	$(MAKE) test_scenario_predis1
 	$(call run_tests,tests/Integrations/Predis)
