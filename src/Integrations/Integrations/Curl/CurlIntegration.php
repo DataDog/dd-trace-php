@@ -189,11 +189,17 @@ final class CurlIntegration extends Integration
                     $data = ObjectKVStore::get($hook->args[0], "span");
                 } elseif ($lastMh[0] == (int)$hook->args[0]) {
                     $data = $lastMh[1];
+                } else {
+                    $data = null;
                 }
 
                 list(, $spans) = $data;
 
                 if (!isset($hook->returned["result"]) || $hook->returned["result"] == CURLE_OK) {
+                    if (empty($spans)) {
+                        return;
+                    }
+
                     foreach ($spans as $requestSpan) {
                         list($ch, $requestSpan) = $requestSpan;
                         if ($ch === $handle) {

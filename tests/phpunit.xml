@@ -93,9 +93,13 @@
             <directory>./Unit/</directory>
         </testsuite>
     </testsuites>
-    <filter>
-        <whitelist processUncoveredFilesFromWhitelist="true">
-            <directory suffix=".php">src</directory>
-        </whitelist>
-    </filter>
+
+    <coverage includeUncoveredFiles="false">
+        <include>
+            <directory suffix=".php">../src/</directory>
+        </include>
+        <exclude>
+            <directory>../src/dogstatsd</directory>
+        </exclude>
+    </coverage>
 </phpunit>

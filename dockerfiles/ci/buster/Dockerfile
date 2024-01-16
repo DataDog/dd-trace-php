@@ -35,6 +35,7 @@ ENV DEVLIBS \
     zlib1g-dev \
     libasan5 \
     gnupg \
+    gpg \
     unixodbc-dev \
     unixodbc
 
