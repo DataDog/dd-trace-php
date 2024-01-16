@@ -37,10 +37,10 @@ static void dd_set_observed_frame(zend_execute_data *execute_data) {
     fake_ex.prev_execute_data = execute_data;
 
     volatile void *run_time_cache_start;
-    zend_observer_fcall_data handlers = { .end = handlers.handlers + 1, .handlers = { { NULL, &dd_dummy_end_observer } } };
+    zend_observer_fcall_data handlers = { .end = handlers.handlers + 1, .handlers = { { NULL, &dd_dummy_end_observer } } }, *handlers_ptr = &handlers;
     zend_observer_fcall_end_handler end_handlers[2] = { &dd_dummy_end_observer, NULL };
     if (dd_legacy_observers) {
-        run_time_cache_start = ((void **) &handlers) - zend_observer_fcall_op_array_extension;
+        run_time_cache_start = ((void **) &handlers_ptr) - zend_observer_fcall_op_array_extension;
     } else {
         run_time_cache_start = ((void **) end_handlers) - zend_observer_fcall_op_array_extension - zai_registered_observers;
     }
