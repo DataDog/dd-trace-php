@@ -1050,6 +1050,7 @@ test_opentelemetry_1: global_test_run_dependencies
 	$(MAKE) test_scenario_opentelemetry1
 	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0)
 	$(call run_tests,--testsuite=opentelemetry1 $(TESTS))
+	$(eval TEST_EXTRA_ENV=)
 
 test_opentracing_beta5: global_test_run_dependencies
 	$(MAKE) test_scenario_opentracing_beta5
