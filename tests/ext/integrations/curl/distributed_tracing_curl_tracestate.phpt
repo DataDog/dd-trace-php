@@ -50,4 +50,4 @@ x-datadog-origin: phpt-test
 x-datadog-tags: _dd.p.tid=1234567890123456,_dd.p.test=qvalue,_dd.p.dm=-0
 bool(false)
 Done.
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

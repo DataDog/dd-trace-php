@@ -20,7 +20,7 @@ mod wall_time;
 
 use crate::config::SystemSettings;
 use bindings as zend;
-use bindings::{ddog_php_prof_php_version_id, sapi_globals, ZendExtension, ZendResult};
+use bindings::{ddog_php_prof_php_version_id, ZendExtension, ZendResult};
 use clocks::*;
 use config::AgentEndpoint;
 use datadog_profiling::exporter::{Tag, Uri};
@@ -41,6 +41,8 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
+
+use crate::zend::datadog_sapi_globals_request_info;
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
@@ -455,7 +457,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 match *SAPI {
                     Sapi::Cli => {
                         // Safety: sapi globals are safe to access during rinit
-                        SAPI.request_script_name(&sapi_globals)
+                        SAPI.request_script_name(datadog_sapi_globals_request_info())
                             .or(Some(Cow::Borrowed("cli.command")))
                     }
                     _ => Some(Cow::Borrowed("web.request")),

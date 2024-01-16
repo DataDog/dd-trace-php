@@ -18,4 +18,4 @@ var_dump($outerSpan->getDuration());
 --EXPECTF--
 int(1)
 int(-1)
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

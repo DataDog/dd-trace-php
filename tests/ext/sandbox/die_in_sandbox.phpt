@@ -15,5 +15,5 @@ x();
 
 ?>
 --EXPECTF--
-UnwindExit thrown in ddtrace's closure defined at %s:%d for x(): <exit>
-Flushing trace of size 2 to send-queue for %s
+[ddtrace] [warning] UnwindExit thrown in ddtrace's closure defined at %s:%d for x(): <exit>
+[ddtrace] [info] Flushing trace of size 2 to send-queue for %s

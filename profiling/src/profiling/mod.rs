@@ -348,6 +348,12 @@ impl TimeCollector {
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         started_at: &WallTime,
     ) {
+        if message.key.sample_types.len() == 0 {
+            // profiling disabled, this should not happen!
+            warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
+            return;
+        }
+
         let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key) {
             value
         } else {
@@ -1012,6 +1018,7 @@ impl Profiler {
 
         let mut sample_types = Vec::with_capacity(SAMPLE_TYPES.len());
         let mut sample_values = Vec::with_capacity(SAMPLE_TYPES.len());
+
         if self.system_settings.profiling_enabled {
             // sample, wall-time, cpu-time
             let len = 2 + self.system_settings.profiling_experimental_cpu_time_enabled as usize;

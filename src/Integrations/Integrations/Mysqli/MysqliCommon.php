@@ -15,7 +15,8 @@ class MysqliCommon
      */
     public static function extractHostInfo($mysqli)
     {
-        if (!isset($mysqli->host_info) || !is_string($mysqli->host_info)) {
+        // silence "Property access is not allowed yet" for PHP <= 7.3
+        if (@(!isset($mysqli->host_info) || !is_string($mysqli->host_info))) {
             return [];
         }
         $hostInfo = $mysqli->host_info;

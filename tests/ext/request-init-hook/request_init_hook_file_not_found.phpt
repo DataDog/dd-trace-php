@@ -10,6 +10,6 @@ echo "Request start" . PHP_EOL;
 
 ?>
 --EXPECTF--
-Cannot open request init hook; file does not exist: '%s/this_file_doesnt_exist.php'
+[ddtrace] [warning] Cannot open request init hook; file does not exist: '%s/this_file_doesnt_exist.php'
 Request start
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 1 to send-queue for %s

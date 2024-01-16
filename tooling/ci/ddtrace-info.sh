@@ -1,28 +1,19 @@
 #!/bin/bash
 set -eu
 
-echo "Loading install script"
-curl -Lf -o /tmp/dd-library-php-setup.php \
-  https://raw.githubusercontent.com/DataDog/dd-appsec-php/installer/dd-library-php-setup.php
+PKG=$(find /binaries -maxdepth 1 -name 'dd-library-php-*-gnu.tar.gz')
+SETUP=/binaries/datadog-setup.php
 
-cd /binaries
+if [ "$PKG" != "" ] && [ ! -f "$SETUP" ]; then
+  echo "local install failed: package located in /binaries but datadog-setup.php not present, please include it."
+  exit 1
+fi
 
-INSTALLER_ARGS=(--tracer-file /binaries/datadog-php-tracer*.tar.gz --appsec-file /binaries/dd-appsec-php-*.tar.gz)
+if [ "$PKG" == "" ]; then
+  unset PKG
+fi
 
-PHP_INI_SCAN_DIR="/etc/php" php /tmp/dd-library-php-setup.php \
-    "${INSTALLER_ARGS[@]}"\
-    --php-bin all
+export PHP_INI_SCAN_DIR="/etc/php"
 
-export DD_APPSEC_ENABLED=1
-
-php -d error_reporting='' -d extension=ddtrace.so -d extension=ddappsec.so -r 'echo phpversion("ddtrace");' > \
-  ./LIBRARY_VERSION
-
-php -d error_reporting='' -d extension=ddtrace.so -d extension=ddappsec.so -r 'echo phpversion("ddappsec");' > \
-  ./PHP_APPSEC_VERSION
-
-touch LIBDDWAF_VERSION
-
-appsec_version=$(<./PHP_APPSEC_VERSION)
-rule_file="/opt/datadog/dd-library/appsec-${appsec_version}/etc/dd-appsec/recommended.json"
-jq -r '.metadata.rules_version // "1.2.5"' "${rule_file}" > APPSEC_EVENT_RULES_VERSION
+echo "Installing php package ${PKG-"{default}"} with setup script $SETUP"
+php $SETUP --php-bin=all ${PKG+"--file=$PKG"}

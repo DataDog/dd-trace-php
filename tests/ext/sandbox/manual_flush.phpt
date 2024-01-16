@@ -21,5 +21,5 @@ main();
 
 ?>
 --EXPECTF--
-Flushing trace of size 1 to send-queue for %s
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 1 to send-queue for %s

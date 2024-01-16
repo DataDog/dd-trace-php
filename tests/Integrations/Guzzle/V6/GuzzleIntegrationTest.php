@@ -4,10 +4,12 @@ namespace DDTrace\Tests\Integrations\Guzzle\V6;
 
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Tests\Common\SnapshotTestTrait;
 use DDTrace\Tracer;
 use DDTrace\Tag;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -17,6 +19,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class GuzzleIntegrationTest extends IntegrationTestCase
 {
+    use SnapshotTestTrait;
+
     const URL = 'http://httpbin_integration';
 
     public static function ddSetUpBeforeClass()
@@ -483,6 +487,81 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle'
                 ]),
+        ]);
+    }
+
+    public function testMultiExec()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true',
+            'DD_SERVICE=my-shop',
+            'DD_TRACE_GENERATE_ROOT_SPAN=0'
+        ]);
+        \dd_trace_serialize_closed_spans();
+
+        $this->isolateTracerSnapshot(function () {
+            /** @var Tracer $tracer */
+            $tracer = GlobalTracer::get();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
+
+            $client = $this->getRealClient();
+            try {
+                $promises = [
+                    $client->getAsync('https://google.wrong/', ['http_errors' => false]),
+                    $client->getAsync('https://google.com/'), // Does a 301 Redirection to https://www.google.com/ ==> 2 spans
+                    $client->getAsync(self::URL . '/redirect-to?url=' . self::URL . '/status/200'), // too flaky
+                    $client->getAsync(self::URL . '/status/200'),
+                    $client->getAsync(self::URL . '/status/201'),
+                    $client->getAsync(self::URL . '/status/202'),
+                    $client->getAsync('https://google.still.wrong/', ['http_errors' => false]),
+                    $client->getAsync('https://www.google.com'),
+                    $client->getAsync('https://www.google.com'),
+                    $client->getAsync('https://www.google.com'),
+                ];
+                Utils::unwrap($promises);
+            } catch (\Exception $e) {
+                echo $e->getMessage();
+            }
+
+            sleep(1);
+
+            $span->finish();
+        }, [
+            'start',
+            'metrics.php.compilation.total_time_ms',
+            'meta.error.stack',
+            'meta._dd.p.tid',
+            'meta.curl.appconnect_time_us',
+            'meta.curl.connect_time',
+            'meta.curl.connect_time_us',
+            'meta.curl.download_content_length',
+            'meta.curl.filetime',
+            'meta.curl.header_size',
+            'meta.curl.http_version',
+            'meta.curl.namelookup_time',
+            'meta.curl.namelookup_time_us',
+            'meta.curl.pretransfer_time',
+            'meta.curl.pretransfer_time_us',
+            'meta.curl.protocol',
+            'meta.curl.redirect_time',
+            'meta.curl.redirect_time_us',
+            'meta.curl.request_size',
+            'meta.curl.scheme',
+            'meta.curl.speed_download',
+            'meta.curl.speed_upload',
+            'meta.curl.ssl_verifyresult',
+            'meta.curl.starttransfer_time',
+            'meta.curl.starttransfer_time_us',
+            'meta.curl.total_time',
+            'meta.curl.total_time_us',
+            'meta.curl.upload_content_length',
+            'meta.network.bytes_read',
+            'meta.network.bytes_written',
+            'meta.network.client.ip',
+            'meta.network.client.port',
+            'meta.network.destination.ip',
+            'meta.network.destination.port',
+            'meta._dd.base_service',
         ]);
     }
 }

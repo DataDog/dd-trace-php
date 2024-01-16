@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "SAPI.h"
 
 #if CFG_STACK_WALKING_TESTS
 #include <dlfcn.h> // for dlsym
@@ -69,6 +70,10 @@ static unsigned int php_version_id(void) {
     exit_php_version_id(constant_str);
 }
 #endif
+
+sapi_request_info datadog_sapi_globals_request_info() {
+    return SG(request_info);
+}
 
 /**
  * Returns the PHP_VERSION_ID of the engine at run-time, not the version the

@@ -494,6 +494,11 @@ commands:
                   -e BASH_ENV=/home/circleci/bashenv/bash.sh \
                   -e CIRCLE_SHA1 \
                   -e CIRCLE_BRANCH \
+                  -e CODECOV_TOKEN \
+                  -e CI \
+                  -e CIRCLECI \
+                  -e CIRCLE_PROJECT_USERNAME \
+                  -e CIRCLE_PROJECT_REPONAME \
                   -v $(pwd):/home/circleci/datadog \
                   -v /tmp/bashenv:/home/circleci/bashenv \
                   -v /rust:/rust \
@@ -982,7 +987,8 @@ jobs:
                   sudo apt install -y gpg
             - codecov/upload:
                 file: tmp/coverage.info
-                upload_name: "PHP<< parameters.php_major_minor >>.dd-trace-php"
+                upload_name: "PHP<< parameters.php_major_minor >>.extension.dd-trace-php"
+                flags: tracer-extension
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
@@ -1135,7 +1141,7 @@ jobs:
           command: |
             export DEBIAN_FRONTEND=noninteractive
             apt update
-            apt install -y wget git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php-cgi cargo
+            apt install -y wget sudo git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php-cgi cargo
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
@@ -1168,9 +1174,17 @@ jobs:
               pattern: "^[^.]+$"
               value: << parameters.resource_class >>
           steps:
+            - run:
+                name: Install CodeCov Uploader Dependencies
+                command: |
+                  sudo apt update
+                  sudo apt install -y gpg gnupg
+                  sudo mkdir -p /root/.gnupg
+                  sudo touch /root/.gnupg/trustedkeys.gpg
             - codecov/upload:
                 file: appsec/coverage.xml
                 upload_name: "appsec-coverage >>"
+                flags: appsec-extension
 
   lint_appsec:
     parameters:
@@ -1353,6 +1367,9 @@ jobs:
       disable_runner_distributed_tracing:
         type: boolean
         default: false
+      coverage:
+        type: boolean
+        default: false
     <<: *BARE_DOCKER_MACHINE
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
@@ -1392,6 +1409,28 @@ jobs:
       - run:
           name: Run tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+      - when:
+          # codecov uploader only on amd64
+          condition:
+            and:
+              - equal: [ true, << parameters.coverage >> ]
+              - matches:
+                  pattern: "^[^.]+$"
+                  value: << parameters.resource_class >>
+          steps:
+            - run:
+                name: Merge coverage reports
+                command: |
+                  make merge_coverage_reports
+            - run:
+                name: Install CodeCov Uploader Dependencies
+                command: |
+                  sudo apt update
+                  sudo apt install -y gpg
+            - codecov/upload:
+                file: reports/coverage.xml
+                upload_name: "PHP<< parameters.php_major_minor >>.<< parameters.make_target >>.dd-trace-php"
+                flags: tracer-integrations
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -1421,6 +1460,9 @@ jobs:
         type: string
         default: cli-server
       disable_runner_distributed_tracing:
+        type: boolean
+        default: false
+      coverage:
         type: boolean
         default: false
     resource_class: << parameters.resource_class >>
@@ -1462,6 +1504,28 @@ jobs:
       - run:
           name: Run tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+      - when:
+          # codecov uploader only on amd64
+          condition:
+            and:
+              - equal: [ true, << parameters.coverage >> ]
+              - matches:
+                  pattern: "^[^.]+$"
+                  value: << parameters.resource_class >>
+          steps:
+            - run:
+                name: Merge coverage reports
+                command: |
+                  make merge_coverage_reports
+            - run:
+                name: Install CodeCov Uploader Dependencies
+                command: |
+                  sudo apt update
+                  sudo apt install -y gpg
+            - codecov/upload:
+                file: reports/coverage.xml
+                upload_name: "PHP<< parameters.php_major_minor >>.<< parameters.make_target >>.dd-trace-php"
+                flags: tracer-integrations
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -3053,7 +3117,7 @@ jobs:
           name: Copy .tar.gz file to system test binaries folder
           command: |
             ls -la build/packages
-            installable_bundle=$(find build/packages -maxdepth 1 -name 'datadog-php-tracer-*.x86_64.tar.gz' -o -name 'dd-library-php-*-x86_64-linux-gnu.tar.gz' | xargs)
+            installable_bundle=$(find build/packages -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-gnu.tar.gz' | xargs)
             echo using $installable_bundle
             cp $installable_bundle build/packages/datadog-setup.php system-tests/binaries/
       - run:
@@ -4152,17 +4216,29 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
+              make_target:
+                - test_composer
+                - test_integration
+                - test_distributed_tracing
+                - test_auto_instrumentation
+
+      - integration:
+          requires: [ 'Prepare Code' ]
+          resource_class: medium+
+          coverage: true
+          matrix:
+            parameters:
+              php_major_minor:
                 - '7.4'
                 - '8.0'
                 - '8.1'
                 - '8.2'
                 - '8.3'
               make_target:
-                - test_composer
-                - test_integration
-                - test_integrations
-                - test_distributed_tracing
-                - test_auto_instrumentation
+                - test_composer_coverage
+                - test_integration_coverage
+                - test_distributed_tracing_coverage
+                - test_auto_instrumentation_coverage
 
       - integration_snapshots:
           requires: [ 'Prepare Code' ]
@@ -4175,13 +4251,26 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
+              make_target:
+                - test_web
+                - test_integrations
+
+      - integration_snapshots:
+          requires: [ 'Prepare Code' ]
+          # Due to Symfony OOM during composer update
+          resource_class: xlarge
+          coverage: true
+          matrix:
+            parameters:
+              php_major_minor:
                 - '7.4'
                 - '8.0'
                 - '8.1'
                 - '8.2'
                 - '8.3'
               make_target:
-                - test_web
+                - test_web_coverage
+                - test_integrations_coverage
 
       - integration:
           requires: [ 'Prepare Code' ]
@@ -4195,11 +4284,6 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
-                - '7.4'
-                - '8.0'
-                - '8.1'
-                - '8.2'
-                - '8.3'
               make_target:
                 - test_distributed_tracing
 
@@ -4222,6 +4306,23 @@ workflows:
                 - nts
               make_target:
                 - test_integrations_phpredis5
+
+      - integration:
+          requires: [ 'Prepare Code' ]
+          resource_class: medium+
+          sapi: fpm-fcgi
+          disable_runner_distributed_tracing: true
+          coverage: true
+          matrix:
+            parameters:
+              php_major_minor:
+                - '7.4'
+                - '8.0'
+                - '8.1'
+                - '8.2'
+                - '8.3'
+              make_target:
+                - test_distributed_tracing_coverage
 
       - xdebug_tests:
           requires: [ 'Prepare Code' ]

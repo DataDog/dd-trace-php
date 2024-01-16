@@ -50,4 +50,4 @@ x-datadog-tags: _dd.p.tid=0000001234567890,_dd.p.usr.id=baz64==,_dd.p.url=http:/
 x-datadog-trace-id: 8687463697196027922
 bool(false)
 Done.
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

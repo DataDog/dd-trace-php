@@ -51,6 +51,8 @@ class Psr18Integration extends Integration
                 }
             }
         );
+
+        return Integration::LOADED;
     }
 
     public function addRequestInfo(SpanData $span, $request)

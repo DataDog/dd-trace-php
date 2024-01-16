@@ -70,10 +70,15 @@ tracer-base-image:
   stage: deploy
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
-    - ./tooling/ci/download-binary-php.sh dev
-    - docker build -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot
+
+    #Dev X86
     - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh prod
-    - docker build -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-trace-php:latest
+    - ./tooling/ci/download-binary-php.sh dev   
+    - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot .
+    - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot
+ 
+    #Prod X86
+    - rm -rf ./tooling/ci/binaries
+    - ./tooling/ci/download-binary-php.sh prod   
+    - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
+    - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest

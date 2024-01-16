@@ -33,14 +33,14 @@ echo PHP_EOL;
 --EXPECTF--
 3
 6
-Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 3 to send-queue for %s
 
 10
 15
-Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 3 to send-queue for %s
 
 21
 28
-Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 3 to send-queue for %s
 
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

@@ -16,7 +16,7 @@ var_dump(DDTrace\active_span() != null);
 
 ?>
 --EXPECTF--
-Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 2 to send-queue for %s
 bool(true)
 bool(true)
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 1 to send-queue for %s
