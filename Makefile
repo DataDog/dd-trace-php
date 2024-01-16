@@ -36,7 +36,7 @@ TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkee
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(BUILD_DIR)/config.m4
-XDEBUG_SO_FILE = $(shell find /opt/php/debug/lib/php/extensions/ -type f -name "xdebug*.so" -exec basename {} \; | tail -n 1)
+XDEBUG_SO_FILE = $(shell find $(shell php-config --extension-dir) -type f -name "xdebug*.so" -exec basename {} \; | tail -n 1)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
