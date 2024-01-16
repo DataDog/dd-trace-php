@@ -1413,7 +1413,7 @@ jobs:
           # codecov uploader only on amd64
           and:
             condition:
-              - equal: [ "true", << parameters.coverage >> ]
+              - equal: [ true, << parameters.coverage >> ]
               - matches:
                   pattern: "^[^.]+$"
                   value: << parameters.resource_class >>
@@ -1508,7 +1508,7 @@ jobs:
           # codecov uploader only on amd64
           and:
             condition:
-              - equal: [ "true", << parameters.coverage >> ]
+              - equal: [ true, << parameters.coverage >> ]
               - matches:
                   pattern: "^[^.]+$"
                   value: << parameters.resource_class >>
