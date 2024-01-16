@@ -108,16 +108,16 @@ x_forwarded_for: [2001::1]:1111
 string(7) "2001::1"
 
 x_forwarded_for: bad_value, 1.1.1.1
-Not recognized as IP address: "bad_value"
-Not recognized as IP address: "bad_value"
+[ddtrace] [error] Not recognized as IP address: "bad_value"
+[ddtrace] [error] Not recognized as IP address: "bad_value"
 string(7) "1.1.1.1"
 
 x_real_ip: 2.2.2.2
 string(7) "2.2.2.2"
 
 x_real_ip: 2.2.2.2, 3.3.3.3
-Not recognized as IP address: "2.2.2.2, 3.3.3.3"
-Not recognized as IP address: "2.2.2.2, 3.3.3.3"
+[ddtrace] [error] Not recognized as IP address: "2.2.2.2, 3.3.3.3"
+[ddtrace] [error] Not recognized as IP address: "2.2.2.2, 3.3.3.3"
 NULL
 
 x_real_ip: 127.0.0.1
@@ -157,16 +157,16 @@ x_forwarded: for="2001:abcf::1"
 string(12) "2001:abcf::1"
 
 x_forwarded: for=some_host
-Not recognized as IP address: "some_host"
-Not recognized as IP address: "some_host"
+[ddtrace] [error] Not recognized as IP address: "some_host"
+[ddtrace] [error] Not recognized as IP address: "some_host"
 NULL
 
 x_forwarded: for=127.0.0.1, FOR=1.1.1.1
 string(7) "1.1.1.1"
 
 x_forwarded: for="\"foobar";proto=http,FOR="1.1.1.1"
-Not recognized as IP address: "\"foobar"
-Not recognized as IP address: "\"foobar"
+[ddtrace] [error] Not recognized as IP address: "\"foobar"
+[ddtrace] [error] Not recognized as IP address: "\"foobar"
 string(7) "1.1.1.1"
 
 x_forwarded: for="8.8.8.8:2222",
@@ -191,8 +191,8 @@ fastly_client_ip: 2.2.2.2
 string(7) "2.2.2.2"
 
 fastly_client_ip: 2.2.2.2, 3.3.3.3
-Not recognized as IP address: "2.2.2.2, 3.3.3.3"
-Not recognized as IP address: "2.2.2.2, 3.3.3.3"
+[ddtrace] [error] Not recognized as IP address: "2.2.2.2, 3.3.3.3"
+[ddtrace] [error] Not recognized as IP address: "2.2.2.2, 3.3.3.3"
 NULL
 
 fastly_client_ip: 127.0.0.1
@@ -226,8 +226,8 @@ cf_connecting_ip: 2.2.2.2
 string(7) "2.2.2.2"
 
 cf_connecting_ip: 2.2.2.2, 3.3.3.3
-Not recognized as IP address: "2.2.2.2, 3.3.3.3"
-Not recognized as IP address: "2.2.2.2, 3.3.3.3"
+[ddtrace] [error] Not recognized as IP address: "2.2.2.2, 3.3.3.3"
+[ddtrace] [error] Not recognized as IP address: "2.2.2.2, 3.3.3.3"
 NULL
 
 cf_connecting_ip: 127.0.0.1

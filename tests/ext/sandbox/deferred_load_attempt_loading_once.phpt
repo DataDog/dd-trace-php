@@ -40,4 +40,4 @@ namespace
 autoload_attempted
 PUBLIC STATIC METHOD
 PUBLIC STATIC METHOD
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 1 to send-queue for %s

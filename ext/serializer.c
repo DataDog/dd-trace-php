@@ -1568,6 +1568,11 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
     // On fatal error we explicitly bail out.
     bool is_fatal_error = orig_type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
     if (zai_sandbox_active) {
+        // Do not track silenced errors like via @ operator
+        if (!is_fatal_error && (orig_type & EG(error_reporting)) == 0) {
+            return;
+        }
+
         clear_last_error();
         PG(last_error_type) = orig_type & E_ALL;
 #if PHP_VERSION_ID < 80000

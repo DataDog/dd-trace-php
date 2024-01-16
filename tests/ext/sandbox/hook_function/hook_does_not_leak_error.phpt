@@ -27,5 +27,5 @@ foo();
 ?>
 --EXPECTF--
 int(200)
-Error raised in ddtrace's closure defined at %s:%d for foo(): Fatal in %s on line %d
-Flushing trace of size %s
+[ddtrace] [warning] Error raised in ddtrace's closure defined at %s:%d for foo(): Fatal in %s on line %d
+[ddtrace] [info] Flushing trace of size %s

@@ -49,4 +49,4 @@ x-datadog-origin: ∂~,=;:
 x-datadog-tags: _dd.p.tid=%s,_dd.p.escaped=_=;: ,_dd.p.dm=-0
 bool(false)
 Done.
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

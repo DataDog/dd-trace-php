@@ -31,7 +31,7 @@ try {
 ?>
 --EXPECTF--
 greet hooked.
-Exception thrown in ddtrace's closure defined at %s:%d for greet(): !
+[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %s:%d for greet(): !
 Hello, Datadog.
 Done.
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 1 to send-queue for %s

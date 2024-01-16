@@ -83,4 +83,4 @@ x-datadog-parent-id: %d
 x-orig-header: foo
 
 Done.
-Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 3 to send-queue for %s
