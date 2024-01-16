@@ -194,6 +194,10 @@ final class CurlIntegration extends Integration
                 list(, $spans) = $data;
 
                 if (!isset($hook->returned["result"]) || $hook->returned["result"] == CURLE_OK) {
+                    if (empty($spans)) {
+                        return;
+                    }
+
                     foreach ($spans as $requestSpan) {
                         list($ch, $requestSpan) = $requestSpan;
                         if ($ch === $handle) {
