@@ -1411,8 +1411,8 @@ jobs:
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - when:
           # codecov uploader only on amd64
-          and:
-            condition:
+          condition:
+            and:
               - equal: [ true, << parameters.coverage >> ]
               - matches:
                   pattern: "^[^.]+$"
@@ -1506,8 +1506,8 @@ jobs:
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - when:
           # codecov uploader only on amd64
-          and:
-            condition:
+          condition:
+            and:
               - equal: [ true, << parameters.coverage >> ]
               - matches:
                   pattern: "^[^.]+$"
