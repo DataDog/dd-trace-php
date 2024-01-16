@@ -952,6 +952,7 @@ endef
 
 # Note: The condition below only checks for existence - i.e., whether PHPUNIT_COVERAGE is set to anything.
 define run_tests
+	$(eval coverage_file := $(shell echo $(1) | tr '[:upper:]' '[:lower:]' | tr '/=' '_' | tr -d '-').cov) \
 	$(if $(PHPUNIT_COVERAGE),$(call run_tests_with_coverage,$(1)),$(call run_tests_without_coverage,$(1)))
 endef
 
