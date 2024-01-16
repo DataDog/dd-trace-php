@@ -1429,7 +1429,7 @@ jobs:
                   sudo apt install -y gpg
             - codecov/upload:
                 file: reports/coverage.xml
-                upload_name: "PHP<< parameters.php_major_minor >>.integration_snapshots.dd-trace-php"
+                upload_name: "PHP<< parameters.php_major_minor >>.<< parameters.make_target >>.dd-trace-php"
                 flags: tracer-integrations
       - run:
           command: |
@@ -1524,7 +1524,7 @@ jobs:
                   sudo apt install -y gpg
             - codecov/upload:
                 file: reports/coverage.xml
-                upload_name: "PHP<< parameters.php_major_minor >>.integrations.dd-trace-php"
+                upload_name: "PHP<< parameters.php_major_minor >>.<< parameters.make_target >>.dd-trace-php"
                 flags: tracer-integrations
       - run:
           command: |
