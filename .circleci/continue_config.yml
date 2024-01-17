@@ -829,20 +829,11 @@ jobs:
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - <<: *STEP_WAIT_TEST_AGENT
-      - when:
-          condition:
-            equal: [ true, << parameters.coverage >> ]
-          steps:
-            - run:
-                name: Allow un-compiled files instead of the generated ones
-                command: |
-                  unset CI
-                  unset CIRCLECI
-                  export DD_AUTOLOAD_NO_COMPILE=true
       - run:
           name: Run tests
           command: |
             set -euo pipefail
+            <<# parameters.coverage >> unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true <<# parameters.coverage >>
             make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
             rm -rf tmp/build_extension/tests/opcache/file_cache/* || true
       - <<: *STEP_CODE_COVERAGE
@@ -1571,22 +1562,15 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
-      - when:
-          condition:
-            equal: [ true, << parameters.coverage >> ]
-          steps:
-            - run:
-                name: Allow un-compiled files instead of the generated ones
-                command: |
-                  unset CI
-                  unset CIRCLECI
-                  export DD_AUTOLOAD_NO_COMPILE=true
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run tests
-          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+          command: |
+            set -euo pipefail
+            <<# parameters.coverage >> unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true <<# parameters.coverage >>
+            DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - <<: *STEP_CODE_COVERAGE
       - run:
           command: |
@@ -1667,16 +1651,6 @@ jobs:
             - <<: *STEP_DISABLE_XDEBUG
       - when:
           condition:
-            equal: [ true, << parameters.coverage >> ]
-          steps:
-            - run:
-                name: Allow un-compiled files instead of the generated ones
-                command: |
-                  unset CI
-                  unset CIRCLECI
-                  export DD_AUTOLOAD_NO_COMPILE=true
-      - when:
-          condition:
             equal: [ "with_integrations", << parameters.with_executor >> ]
           steps:
             - <<: *STEP_WAIT_MYSQL
@@ -1684,7 +1658,10 @@ jobs:
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run tests
-          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+          command: |
+            set -euo pipefail
+            <<# parameters.coverage >> unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true <<# parameters.coverage >>
+            DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - <<: *STEP_CODE_COVERAGE
       - run:
           command: |
