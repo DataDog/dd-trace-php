@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Symfony;
 use DDTrace\HookData;
 use DDTrace\Integrations\Drupal\DrupalIntegration;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\Symfony\PathExtractor;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -409,6 +410,12 @@ class SymfonyIntegration extends Integration
                         $rootSpan->resource = $route;
                     }
                     $rootSpan->meta['symfony.route.name'] = $route;
+                }
+
+                $extractor = new PathExtractor();
+                $path = $extractor->extract($request->attributes->get('_controller'), $route, $request->getLocale());
+                if ($path !== null) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
                 }
             }
         );
