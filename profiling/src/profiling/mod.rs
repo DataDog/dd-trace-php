@@ -1028,6 +1028,15 @@ impl Profiler {
             value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
         });
 
+        let thread_name = match std::thread::current().name() {
+            Some(name) => name,
+            None => "",
+        };
+        labels.push(Label {
+            key: "thread name",
+            value: LabelValue::Str(thread_name.into()),
+        });
+
         let tags = TAGS.with(|cell| Arc::clone(&cell.borrow()));
 
         SampleMessage {
