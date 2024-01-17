@@ -4541,9 +4541,26 @@ workflows:
                 - '7.2'
                 - '7.3'
               make_target:
-                - test_composer
                 - test_integration
                 - test_distributed_tracing
+
+      - integration:
+          requires: [ 'Prepare Code' ]
+          resource_class: medium+
+          matrix:
+            parameters:
+              php_major_minor:
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
+                - '8.1'
+                - '8.2'
+                - '8.3'
+              make_target:
+                - test_composer
                 - test_auto_instrumentation
 
       - integration:
@@ -4560,10 +4577,8 @@ workflows:
                 - '8.2'
                 - '8.3'
               make_target:
-                - test_composer_coverage
                 - test_integration_coverage
                 - test_distributed_tracing_coverage
-                - test_auto_instrumentation_coverage
 
       - integration_snapshots:
           requires: [ 'Prepare Code' ]
