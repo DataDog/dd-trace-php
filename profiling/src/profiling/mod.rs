@@ -1,9 +1,11 @@
 mod interrupts;
+mod sample_type_filter;
 pub mod stalk_walking;
 mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
+pub use sample_type_filter::*;
 pub use stalk_walking::*;
 use uploader::*;
 
@@ -60,7 +62,7 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 ///  2. On by default types.
 ///  3. Off by default types.
 #[derive(Default)]
-struct SampleValues {
+pub struct SampleValues {
     interrupt_count: i64,
     wall_time: i64,
     cpu_time: i64,
@@ -207,6 +209,7 @@ pub struct Profiler {
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
     system_settings: SystemSettings,
+    sample_types_filter: SampleTypeFilter,
 }
 
 struct TimeCollector {
@@ -520,6 +523,7 @@ impl Profiler {
 
         let ddprof_time = "ddprof_time";
         let ddprof_upload = "ddprof_upload";
+        let sample_types_filter = SampleTypeFilter::new(&system_settings);
         Profiler {
             fork_barrier,
             interrupt_manager,
@@ -535,6 +539,7 @@ impl Profiler {
             }),
             should_join: AtomicBool::new(true),
             system_settings,
+            sample_types_filter,
         }
     }
 
@@ -994,54 +999,12 @@ impl Profiler {
         #[cfg(not(php_has_fibers))] labels: Vec<Label>,
         timestamp: i64,
     ) -> SampleMessage {
-        // Lay this out in the same order as SampleValues
-        static SAMPLE_TYPES: &[ValueType; 7] = &[
-            ValueType::new("sample", "count"),
-            ValueType::new("wall-time", "nanoseconds"),
-            ValueType::new("cpu-time", "nanoseconds"),
-            ValueType::new("alloc-samples", "count"),
-            ValueType::new("alloc-size", "bytes"),
-            ValueType::new("timeline", "nanoseconds"),
-            ValueType::new("exception-samples", "count"),
-        ];
-
-        // Allows us to slice the SampleValues as if they were an array.
-        let values: [i64; 7] = [
-            samples.interrupt_count,
-            samples.wall_time,
-            samples.cpu_time,
-            samples.alloc_samples,
-            samples.alloc_size,
-            samples.timeline,
-            samples.exception,
-        ];
-
-        let mut sample_types = Vec::with_capacity(SAMPLE_TYPES.len());
-        let mut sample_values = Vec::with_capacity(SAMPLE_TYPES.len());
+        let mut sample_types = Vec::new();
+        let mut sample_values = Vec::new();
 
         if self.system_settings.profiling_enabled {
-            // sample, wall-time, cpu-time
-            let len = 2 + self.system_settings.profiling_experimental_cpu_time_enabled as usize;
-            sample_types.extend_from_slice(&SAMPLE_TYPES[0..len]);
-            sample_values.extend_from_slice(&values[0..len]);
-
-            // alloc-samples, alloc-size
-            if self.system_settings.profiling_allocation_enabled {
-                sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
-                sample_values.extend_from_slice(&values[3..5]);
-            }
-
-            #[cfg(feature = "timeline")]
-            if self.system_settings.profiling_experimental_timeline_enabled {
-                sample_types.push(SAMPLE_TYPES[5]);
-                sample_values.push(values[5]);
-            }
-
-            #[cfg(feature = "exception_profiling")]
-            if self.system_settings.profiling_exception_enabled {
-                sample_types.push(SAMPLE_TYPES[6]);
-                sample_values.push(values[6]);
-            }
+            sample_types = self.sample_types_filter.sample_types();
+            sample_values = self.sample_types_filter.filter(samples);
 
             #[cfg(php_has_fibers)]
             if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
@@ -1145,74 +1108,61 @@ mod tests {
 
     #[test]
     fn profiler_prepare_sample_message_works_with_profiling_enabled() {
-        let frames = get_frames();
-        let samples = get_samples();
-
         let mut settings = get_system_settings();
 
         settings.profiling_enabled = true;
         settings.profiling_allocation_enabled = false;
         settings.profiling_experimental_cpu_time_enabled = false;
 
-        let profiler = Profiler::new(settings);
-
-        let labels = Profiler::message_labels();
-
-        let message: SampleMessage =
-            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
 
         assert_eq!(
-            message.key.sample_types,
+            types,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20]);
+        assert_eq!(values, vec![10, 20]);
     }
 
     #[test]
     fn profiler_prepare_sample_message_works_with_cpu_time() {
-        let frames = get_frames();
-        let samples = get_samples();
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_allocation_enabled = false;
         settings.profiling_experimental_cpu_time_enabled = true;
-        let profiler = Profiler::new(settings);
 
-        let labels = Profiler::message_labels();
-
-        let message: SampleMessage =
-            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
 
         assert_eq!(
-            message.key.sample_types,
+            types,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("cpu-time", "nanoseconds"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20, 30]);
+        assert_eq!(values, vec![10, 20, 30]);
     }
 
     #[test]
     fn profiler_prepare_sample_message_works_with_allocations() {
-        let frames = get_frames();
-        let samples = get_samples();
-        let labels = Profiler::message_labels();
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_allocation_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = false;
-        let profiler = Profiler::new(settings);
 
-        let message: SampleMessage =
-            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
 
         assert_eq!(
-            message.key.sample_types,
+            types,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
@@ -1220,26 +1170,22 @@ mod tests {
                 ValueType::new("alloc-size", "bytes"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20, 40, 50]);
+        assert_eq!(values, vec![10, 20, 40, 50]);
     }
 
     #[test]
     fn profiler_prepare_sample_message_works_with_allocations_and_cpu_time() {
-        let frames = get_frames();
-        let samples = get_samples();
-        let labels = Profiler::message_labels();
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_allocation_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
 
-        let profiler = Profiler::new(settings);
-
-        let message: SampleMessage =
-            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
 
         assert_eq!(
-            message.key.sample_types,
+            types,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
@@ -1248,7 +1194,7 @@ mod tests {
                 ValueType::new("alloc-size", "bytes"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20, 30, 40, 50]);
+        assert_eq!(values, vec![10, 20, 30, 40, 50]);
     }
 
     #[test]
@@ -1282,21 +1228,17 @@ mod tests {
     #[test]
     #[cfg(feature = "exception_profiling")]
     fn profiler_prepare_sample_message_works_cpu_time_and_expceptions() {
-        let frames = get_frames();
-        let samples = get_samples();
-        let labels = Profiler::message_labels();
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
         settings.profiling_exception_enabled = true;
 
-        let profiler = Profiler::new(settings);
-
-        let message: SampleMessage =
-            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
 
         assert_eq!(
-            message.key.sample_types,
+            types,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
@@ -1304,6 +1246,6 @@ mod tests {
                 ValueType::new("exception-samples", "count"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20, 30, 70]);
+        assert_eq!(values, vec![10, 20, 30, 70]);
     }
 }
