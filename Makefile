@@ -1351,6 +1351,7 @@ test_scenario_%:
 
 merge_coverage_reports:
 	$(PHPCOV) merge --clover reports/coverage.xml reports/cov
+	perl -pi -e 's/\/home\/circleci\/datadog\//dd-trace-php\//g' reports/coverage.xml
 
 ### Api tests ###
 API_TESTS_ROOT := ./tests/api

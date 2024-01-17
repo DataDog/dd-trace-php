@@ -22,7 +22,3 @@ comment: # See https://docs.codecov.com/docs/pull-request-comments
   require_changes: true
   require_base: false
   require_head: false
-
-fixes:
-  - "/home/circleci/datadog/::dd-trace-php/"
-  - "/home/circleci/app/::dd-trace-php/"
