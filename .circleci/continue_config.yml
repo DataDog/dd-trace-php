@@ -1559,8 +1559,8 @@ jobs:
       - when:
           condition:
             equal: [ false, << parameters.coverage >> ]
-            steps:
-                - <<: *STEP_DISABLE_XDEBUG
+          steps:
+            - <<: *STEP_DISABLE_XDEBUG
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
