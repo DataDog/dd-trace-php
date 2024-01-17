@@ -1556,7 +1556,11 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_DISABLE_XDEBUG
+      - when:
+          condition:
+            equal: [ false, << parameters.coverage >> ]
+            steps:
+                - <<: *STEP_DISABLE_XDEBUG
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
@@ -1636,12 +1640,16 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_DISABLE_XDEBUG
       - when:
-            condition:
-                equal: [ "with_integrations", << parameters.with_executor >> ]
+          condition:
+            equal: [ false, << parameters.coverage >> ]
             steps:
-              - <<: *STEP_WAIT_MYSQL
+              - <<: *STEP_DISABLE_XDEBUG
+      - when:
+          condition:
+            equal: [ "with_integrations", << parameters.with_executor >> ]
+          steps:
+            - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
