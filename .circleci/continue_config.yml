@@ -1521,7 +1521,7 @@ jobs:
       coverage:
         type: boolean
         default: false
-      coverage_flags:
+      codecov_flags:
         type: string
         default: ""
     <<: *BARE_DOCKER_MACHINE
@@ -1598,7 +1598,7 @@ jobs:
       coverage:
         type: boolean
         default: false
-      coverage_flags:
+      codecov_flags:
         type: string
         default: ""
       with_executor:
@@ -4416,7 +4416,7 @@ workflows:
       - test:
           requires: [ 'Prepare Code' ]
           coverage: true
-          coverage_flags: tracer-php-api
+          codecov_flags: tracer-php-api
           matrix:
             parameters:
               php_major_minor:
@@ -4550,7 +4550,7 @@ workflows:
           requires: [ 'Prepare Code' ]
           resource_class: medium+
           coverage: true
-          coverage_flags: tracer-integrations
+          codecov_flags: tracer-integrations
           matrix:
             parameters:
               php_major_minor:
@@ -4585,7 +4585,7 @@ workflows:
           # Due to Symfony OOM during composer update
           resource_class: xlarge
           coverage: true
-          coverage_flags: tracer-integrations
+          codecov_flags: tracer-integrations
           matrix:
             parameters:
               php_major_minor:
@@ -4641,8 +4641,8 @@ workflows:
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
           coverage: true
+          codecov_flags: tracer-integrations
           with_executor: 'with_httpbin_and_request_replayer'
-          coverage_flags: tracer-integrations
           matrix:
             parameters:
               php_major_minor:
