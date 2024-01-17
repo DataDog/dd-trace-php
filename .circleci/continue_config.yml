@@ -1561,6 +1561,10 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
+      - when:
+          condition:
+            equal: [ true, << parameters.coverage >> ]
+          steps:
             - run:
                 name: Use un-compiled files instead of the generated ones
                 command: |
@@ -1651,6 +1655,10 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
+      - when:
+          condition:
+            equal: [ true, << parameters.coverage >> ]
+          steps:
             - run:
                 name: Use un-compiled files instead of the generated ones
                 command: |
