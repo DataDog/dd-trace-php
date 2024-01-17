@@ -1566,11 +1566,11 @@ jobs:
             equal: [ true, << parameters.coverage >> ]
           steps:
             - run:
-                name: Use un-compiled files instead of the generated ones
+                name: Allow un-compiled files instead of the generated ones
                 command: |
                   unset CI
                   unset CIRCLECI
-                  make dev
+                  export DD_AUTOLOAD_NO_COMPILE=true
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
@@ -1660,11 +1660,11 @@ jobs:
             equal: [ true, << parameters.coverage >> ]
           steps:
             - run:
-                name: Use un-compiled files instead of the generated ones
+                name: Allow un-compiled files instead of the generated ones
                 command: |
                   unset CI
                   unset CIRCLECI
-                  make dev
+                  export DD_AUTOLOAD_NO_COMPILE=true
       - when:
           condition:
             equal: [ "with_integrations", << parameters.with_executor >> ]
