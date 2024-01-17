@@ -829,6 +829,16 @@ jobs:
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - <<: *STEP_WAIT_TEST_AGENT
+      - when:
+          condition:
+            equal: [ true, << parameters.coverage >> ]
+          steps:
+            - run:
+                name: Allow un-compiled files instead of the generated ones
+                command: |
+                  unset CI
+                  unset CIRCLECI
+                  export DD_AUTOLOAD_NO_COMPILE=true
       - run:
           name: Run tests
           command: |
