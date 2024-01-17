@@ -1561,6 +1561,12 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
+            - run:
+                name: Use un-compiled files instead of the generated ones
+                command: |
+                  unset CI
+                  unset CIRCLECI
+                  make dev
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
@@ -1643,8 +1649,14 @@ jobs:
       - when:
           condition:
             equal: [ false, << parameters.coverage >> ]
-            steps:
-              - <<: *STEP_DISABLE_XDEBUG
+          steps:
+            - <<: *STEP_DISABLE_XDEBUG
+            - run:
+                name: Use un-compiled files instead of the generated ones
+                command: |
+                  unset CI
+                  unset CIRCLECI
+                  make dev
       - when:
           condition:
             equal: [ "with_integrations", << parameters.with_executor >> ]
@@ -4548,28 +4560,16 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
-              make_target:
-                - test_integration
-                - test_distributed_tracing
-
-      - integration:
-          requires: [ 'Prepare Code' ]
-          resource_class: medium+
-          matrix:
-            parameters:
-              php_major_minor:
-                - '7.0'
-                - '7.1'
-                - '7.2'
-                - '7.3'
                 - '7.4'
                 - '8.0'
                 - '8.1'
                 - '8.2'
                 - '8.3'
               make_target:
-                - test_composer
                 - test_auto_instrumentation
+                - test_composer
+                - test_distributed_tracing
+                - test_integration
 
       - integration:
           requires: [ 'Prepare Code' ]
@@ -4599,6 +4599,11 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
+                - '7.4'
+                - '8.0'
+                - '8.1'
+                - '8.2'
+                - '8.3'
               make_target:
                 - test_web
                 - test_integrations
@@ -4634,6 +4639,11 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
+                - '7.4'
+                - '8.0'
+                - '8.1'
+                - '8.2'
+                - '8.3'
               make_target:
                 - test_distributed_tracing
 
