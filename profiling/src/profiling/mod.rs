@@ -1023,19 +1023,10 @@ impl Profiler {
         }
 
         #[cfg(php_zts)]
-        {
-            labels.push(Label {
-                key: "thread id",
-                value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
-            });
-
-            if let Some(name) = std::thread::current().name() {
-                labels.push(Label {
-                    key: "thread name",
-                    value: LabelValue::Str(name.to_string().into()),
-                });
-            }
-        }
+        labels.push(Label {
+            key: "thread id",
+            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
+        });
 
         let tags = TAGS.with(|cell| Arc::clone(&cell.borrow()));
 
