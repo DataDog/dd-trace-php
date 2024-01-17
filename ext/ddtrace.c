@@ -218,6 +218,7 @@ static void dd_patch_zend_call_known_function(void) {
         page_size <<= 1; // if overlapping pages, use two
     }
     if (mprotect(page, page_size, PROT_READ | PROT_WRITE) != 0) { // Some architectures enforce W^X (either write _or_ execute, but not both).
+        LOG(Error, "Could not alter the memory protection for zend_call_known_function. Tracer execution continues, but may crash when encountering attributes.");
         return; // Make absolutely sure we can write
     }
 
