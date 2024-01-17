@@ -1047,6 +1047,8 @@ test: global_test_run_dependencies
 
 test_unit: global_test_run_dependencies
 	$(call run_tests,--testsuite=unit $(TESTS))
+test_unit_coverage: global_test_run_dependencies
+	PHPUNIT_COVERAGE=1 $(MAKE) test_unit
 
 test_integration: global_test_run_dependencies
 	$(call run_tests,--testsuite=integration $(TESTS))

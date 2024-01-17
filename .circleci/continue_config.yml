@@ -123,6 +123,30 @@ aliases:
       name: Build and install extension
       command: make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension
 
+  - &STEP_CODE_COVERAGE
+    when:
+      # codecov uploader only on amd64
+      condition:
+        and:
+          - equal: [ true, << parameters.coverage >> ]
+          - matches:
+              pattern: "^[^.]+$"
+              value: << parameters.resource_class >>
+      steps:
+        - run:
+            name: Merge coverage reports
+            command: |
+              make merge_coverage_reports
+        - run:
+            name: Install CodeCov Uploader Dependencies
+            command: |
+              sudo apt update
+              sudo apt install -y gpg
+        - codecov/upload:
+            file: reports/coverage.xml
+            upload_name: "PHP<< parameters.php_major_minor >>.<< parameters.make_target >>.dd-trace-php"
+            flags: << parameters.codecov_flags >>
+
   - &STEP_COMPOSER_CACHE_RESTORE
     restore_cache:
       <<: *CACHE_COMPOSER_KEY
@@ -775,6 +799,12 @@ jobs:
       resource_class:
         type: string
         default: medium
+      coverage:
+        type: boolean
+        default: false
+      codecov_flags:
+        type: string
+        default: ""
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
@@ -805,6 +835,7 @@ jobs:
             set -euo pipefail
             make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
             rm -rf tmp/build_extension/tests/opcache/file_cache/* || true
+      - <<: *STEP_CODE_COVERAGE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -1490,6 +1521,9 @@ jobs:
       coverage:
         type: boolean
         default: false
+      coverage_flags:
+        type: string
+        default: ""
     <<: *BARE_DOCKER_MACHINE
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
@@ -1529,28 +1563,7 @@ jobs:
       - run:
           name: Run tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
-      - when:
-          # codecov uploader only on amd64
-          condition:
-            and:
-              - equal: [ true, << parameters.coverage >> ]
-              - matches:
-                  pattern: "^[^.]+$"
-                  value: << parameters.resource_class >>
-          steps:
-            - run:
-                name: Merge coverage reports
-                command: |
-                  make merge_coverage_reports
-            - run:
-                name: Install CodeCov Uploader Dependencies
-                command: |
-                  sudo apt update
-                  sudo apt install -y gpg
-            - codecov/upload:
-                file: reports/coverage.xml
-                upload_name: "PHP<< parameters.php_major_minor >>.<< parameters.make_target >>.dd-trace-php"
-                flags: tracer-integrations
+      - <<: *STEP_CODE_COVERAGE
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -1585,6 +1598,9 @@ jobs:
       coverage:
         type: boolean
         default: false
+      coverage_flags:
+        type: string
+        default: ""
       with_executor:
         type: string
         default: 'with_integrations'
@@ -1631,28 +1647,7 @@ jobs:
       - run:
           name: Run tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
-      - when:
-          # codecov uploader only on amd64
-          condition:
-            and:
-              - equal: [ true, << parameters.coverage >> ]
-              - matches:
-                  pattern: "^[^.]+$"
-                  value: << parameters.resource_class >>
-          steps:
-            - run:
-                name: Merge coverage reports
-                command: |
-                  make merge_coverage_reports
-            - run:
-                name: Install CodeCov Uploader Dependencies
-                command: |
-                  sudo apt update
-                  sudo apt install -y gpg
-            - codecov/upload:
-                file: reports/coverage.xml
-                upload_name: "PHP<< parameters.php_major_minor >>.<< parameters.make_target >>.dd-trace-php"
-                flags: tracer-integrations
+      - <<: *STEP_CODE_COVERAGE
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -4420,6 +4415,21 @@ workflows:
 
       - test:
           requires: [ 'Prepare Code' ]
+          coverage: true
+          coverage_flags: tracer-php-api
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.4"
+                - "8.0"
+                - "8.1"
+                - "8.2"
+                - "8.3"
+              make_target:
+                - test_unit_coverage
+
+      - test:
+          requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               php_major_minor:
@@ -4540,6 +4550,7 @@ workflows:
           requires: [ 'Prepare Code' ]
           resource_class: medium+
           coverage: true
+          coverage_flags: tracer-integrations
           matrix:
             parameters:
               php_major_minor:
@@ -4574,6 +4585,7 @@ workflows:
           # Due to Symfony OOM during composer update
           resource_class: xlarge
           coverage: true
+          coverage_flags: tracer-integrations
           matrix:
             parameters:
               php_major_minor:
@@ -4630,6 +4642,7 @@ workflows:
           disable_runner_distributed_tracing: true
           coverage: true
           with_executor: 'with_httpbin_and_request_replayer'
+          coverage_flags: tracer-integrations
           matrix:
             parameters:
               php_major_minor:
