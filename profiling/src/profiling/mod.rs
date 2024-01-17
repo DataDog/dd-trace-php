@@ -1054,7 +1054,7 @@ mod tests {
         }]
     }
 
-    fn get_system_settings() -> SystemSettings {
+    pub fn get_system_settings() -> SystemSettings {
         SystemSettings {
             profiling_enabled: true,
             profiling_experimental_features_enabled: false,
@@ -1070,7 +1070,7 @@ mod tests {
         }
     }
 
-    fn get_samples() -> SampleValues {
+    pub fn get_samples() -> SampleValues {
         SampleValues {
             interrupt_count: 10,
             wall_time: 20,
@@ -1080,121 +1080,6 @@ mod tests {
             timeline: 60,
             exception: 70,
         }
-    }
-
-    #[test]
-    fn profiler_prepare_sample_message_works_with_profiling_disabled() {
-        // the `Profiler::prepare_sample_message()` method will never be called with this setup,
-        // yet this is how it has to behave in case profiling is disabled
-        let frames = get_frames();
-        let samples = get_samples();
-
-        let mut settings = get_system_settings();
-
-        settings.profiling_enabled = false;
-        settings.profiling_allocation_enabled = false;
-        settings.profiling_experimental_cpu_time_enabled = false;
-
-        let profiler = Profiler::new(settings);
-        let labels = Profiler::message_labels();
-
-        let message: SampleMessage =
-            profiler.prepare_sample_message(frames, samples, labels, NO_TIMESTAMP);
-
-        assert_eq!(message.key.sample_types, vec![]);
-        let expected: Vec<i64> = vec![];
-        assert_eq!(message.value.sample_values, expected);
-    }
-
-    #[test]
-    fn profiler_prepare_sample_message_works_with_profiling_enabled() {
-        let mut settings = get_system_settings();
-
-        settings.profiling_enabled = true;
-        settings.profiling_allocation_enabled = false;
-        settings.profiling_experimental_cpu_time_enabled = false;
-
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-            ]
-        );
-        assert_eq!(values, vec![10, 20]);
-    }
-
-    #[test]
-    fn profiler_prepare_sample_message_works_with_cpu_time() {
-        let mut settings = get_system_settings();
-        settings.profiling_enabled = true;
-        settings.profiling_allocation_enabled = false;
-        settings.profiling_experimental_cpu_time_enabled = true;
-
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-time", "nanoseconds"),
-            ]
-        );
-        assert_eq!(values, vec![10, 20, 30]);
-    }
-
-    #[test]
-    fn profiler_prepare_sample_message_works_with_allocations() {
-        let mut settings = get_system_settings();
-        settings.profiling_enabled = true;
-        settings.profiling_allocation_enabled = true;
-        settings.profiling_experimental_cpu_time_enabled = false;
-
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("alloc-samples", "count"),
-                ValueType::new("alloc-size", "bytes"),
-            ]
-        );
-        assert_eq!(values, vec![10, 20, 40, 50]);
-    }
-
-    #[test]
-    fn profiler_prepare_sample_message_works_with_allocations_and_cpu_time() {
-        let mut settings = get_system_settings();
-        settings.profiling_enabled = true;
-        settings.profiling_allocation_enabled = true;
-        settings.profiling_experimental_cpu_time_enabled = true;
-
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-time", "nanoseconds"),
-                ValueType::new("alloc-samples", "count"),
-                ValueType::new("alloc-size", "bytes"),
-            ]
-        );
-        assert_eq!(values, vec![10, 20, 30, 40, 50]);
     }
 
     #[test]
@@ -1223,29 +1108,5 @@ mod tests {
         );
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
         assert_eq!(message.value.timestamp, 900);
-    }
-
-    #[test]
-    #[cfg(feature = "exception_profiling")]
-    fn profiler_prepare_sample_message_works_cpu_time_and_expceptions() {
-        let mut settings = get_system_settings();
-        settings.profiling_enabled = true;
-        settings.profiling_experimental_cpu_time_enabled = true;
-        settings.profiling_exception_enabled = true;
-
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-time", "nanoseconds"),
-                ValueType::new("exception-samples", "count"),
-            ]
-        );
-        assert_eq!(values, vec![10, 20, 30, 70]);
     }
 }
