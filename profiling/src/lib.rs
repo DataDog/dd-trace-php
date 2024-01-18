@@ -16,6 +16,7 @@ mod exception;
 
 #[cfg(feature = "timeline")]
 mod timeline;
+
 mod wall_time;
 
 use bindings as zend;
@@ -315,7 +316,7 @@ pub struct RequestLocals {
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
-    pub profiling_experimental_timeline_enabled: bool,
+    pub profiling_timeline_enabled: bool,
     pub profiling_exception_enabled: bool,
     pub profiling_exception_sampling_distance: u32,
     pub profiling_log_level: LevelFilter, // Only used for minfo
@@ -332,7 +333,7 @@ impl RequestLocals {
         self.profiling_endpoint_collection_enabled = false;
         self.profiling_experimental_cpu_time_enabled = false;
         self.profiling_allocation_enabled = false;
-        self.profiling_experimental_timeline_enabled = false;
+        self.profiling_timeline_enabled = false;
         self.profiling_exception_enabled = false;
     }
 }
@@ -347,7 +348,7 @@ impl Default for RequestLocals {
             profiling_endpoint_collection_enabled: true,
             profiling_experimental_cpu_time_enabled: true,
             profiling_allocation_enabled: true,
-            profiling_experimental_timeline_enabled: true,
+            profiling_timeline_enabled: true,
             profiling_exception_enabled: true,
             profiling_exception_sampling_distance: 100,
             profiling_log_level: LevelFilter::Off,
@@ -412,7 +413,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         profiling_endpoint_collection_enabled,
         profiling_experimental_cpu_time_enabled,
         profiling_allocation_enabled,
-        profiling_experimental_timeline_enabled,
+        profiling_timeline_enabled,
         profiling_exception_enabled,
         profiling_exception_sampling_distance,
         log_level,
@@ -424,7 +425,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             config::profiling_endpoint_collection_enabled(),
             config::profiling_experimental_cpu_time_enabled(),
             config::profiling_allocation_enabled(),
-            config::profiling_experimental_timeline_enabled(),
+            config::profiling_timeline_enabled(),
             config::profiling_exception_enabled(),
             config::profiling_exception_sampling_distance(),
             config::profiling_log_level(),
@@ -444,7 +445,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         locals.profiling_endpoint_collection_enabled = profiling_endpoint_collection_enabled;
         locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
         locals.profiling_allocation_enabled = profiling_allocation_enabled;
-        locals.profiling_experimental_timeline_enabled = profiling_experimental_timeline_enabled;
+        locals.profiling_timeline_enabled = profiling_timeline_enabled;
         locals.profiling_exception_enabled = profiling_exception_enabled;
         locals.profiling_exception_sampling_distance = profiling_exception_sampling_distance;
         locals.profiling_log_level = log_level;
@@ -777,13 +778,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             if #[cfg(feature = "timeline")] {
                 zend::php_info_print_table_row(
                     2,
-                    b"Experimental Timeline Enabled\0".as_ptr(),
-                    if locals.profiling_experimental_timeline_enabled {
-                        if locals.profiling_experimental_features_enabled {
-                            yes_exp
-                        } else {
-                            yes
-                        }
+                    b"Timeline Enabled\0".as_ptr(),
+                    if locals.profiling_timeline_enabled {
+                        yes
                     } else if locals.profiling_enabled {
                         no
                     } else {
@@ -793,7 +790,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             } else {
                 zend::php_info_print_table_row(
                     2,
-                    b"Experimental Timeline Enabled\0".as_ptr(),
+                    b"Timeline Enabled\0".as_ptr(),
                     b"Not available. The profiler was build without timeline support.\0"
                 );
             }

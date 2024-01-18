@@ -663,7 +663,7 @@ impl Profiler {
                 let labels = Profiler::message_labels();
                 let mut timestamp = 0;
                 #[cfg(feature = "timeline")]
-                if locals.profiling_experimental_timeline_enabled {
+                if locals.profiling_timeline_enabled {
                     if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
                         timestamp = now.as_nanos() as i64;
                     }
@@ -1054,7 +1054,7 @@ impl Profiler {
             }
 
             #[cfg(feature = "timeline")]
-            if locals.profiling_experimental_timeline_enabled {
+            if locals.profiling_timeline_enabled {
                 sample_types.push(SAMPLE_TYPES[5]);
                 sample_values.push(values[5]);
             }
@@ -1121,7 +1121,7 @@ mod tests {
             profiling_endpoint_collection_enabled: true,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
-            profiling_experimental_timeline_enabled: false,
+            profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_sampling_distance: 1,
             profiling_log_level: LevelFilter::Off,
@@ -1271,7 +1271,7 @@ mod tests {
         let mut locals = get_request_locals();
         locals.profiling_enabled = true;
         locals.profiling_experimental_cpu_time_enabled = true;
-        locals.profiling_experimental_timeline_enabled = true;
+        locals.profiling_timeline_enabled = true;
 
         let message: SampleMessage =
             Profiler::prepare_sample_message(frames, samples, labels, &locals, 900);

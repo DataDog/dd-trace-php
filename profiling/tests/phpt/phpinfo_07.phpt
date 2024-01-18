@@ -15,7 +15,7 @@ DD_PROFILING_LOG_LEVEL=off
 DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
 DD_PROFILING_ALLOCATION_ENABLED=no
 DD_PROFILING_EXCEPTION_ENABLED=no
-DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED=no
+DD_PROFILING_TIMELINE_ENABLED=no
 --INI--
 assert.exception=1
 opcache.jit=off
@@ -47,7 +47,7 @@ $sections = [
     ["Experimental CPU Time Profiling Enabled", "true (all experimental features enabled)"],
     ["Allocation Profiling Enabled", "false"],
     ["Exception Profiling Enabled", "false"],
-    ["Experimental Timeline Enabled", "true (all experimental features enabled)"],
+    ["Timeline Enabled", "false"],
 ];
 
 foreach ($sections as [$key, $expected]) {

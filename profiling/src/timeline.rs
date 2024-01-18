@@ -39,7 +39,7 @@ fn try_sleeping_fn(
 ) -> anyhow::Result<()> {
     let timeline_enabled = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.profiling_experimental_timeline_enabled)
+            .map(|locals| locals.profiling_timeline_enabled)
             .unwrap_or(false)
     });
 
@@ -197,7 +197,7 @@ pub fn timeline_rinit() {
             return;
         };
 
-        if !locals.profiling_experimental_timeline_enabled {
+        if !locals.profiling_timeline_enabled {
             return;
         }
 
@@ -228,7 +228,7 @@ pub fn timeline_rinit() {
 pub fn timeline_prshutdown() {
     let timeline_enabled = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.profiling_experimental_timeline_enabled)
+            .map(|locals| locals.profiling_timeline_enabled)
             .unwrap_or(false)
     });
 
@@ -255,7 +255,7 @@ pub(crate) fn timeline_mshutdown() {
             return;
         };
 
-        if !locals.profiling_experimental_timeline_enabled {
+        if !locals.profiling_timeline_enabled {
             return;
         }
 
@@ -295,7 +295,7 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
     if let Some(prev) = PREV_ZEND_COMPILE_STRING {
         let timeline_enabled = REQUEST_LOCALS.with(|cell| {
             cell.try_borrow()
-                .map(|locals| locals.profiling_experimental_timeline_enabled)
+                .map(|locals| locals.profiling_timeline_enabled)
                 .unwrap_or(false)
         });
 
@@ -363,7 +363,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
     if let Some(prev) = PREV_ZEND_COMPILE_FILE {
         let timeline_enabled = REQUEST_LOCALS.with(|cell| {
             cell.try_borrow()
-                .map(|locals| locals.profiling_experimental_timeline_enabled)
+                .map(|locals| locals.profiling_timeline_enabled)
                 .unwrap_or(false)
         });
 
@@ -448,7 +448,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if let Some(prev) = PREV_GC_COLLECT_CYCLES {
         let timeline_enabled = REQUEST_LOCALS.with(|cell| {
             cell.try_borrow()
-                .map(|locals| locals.profiling_experimental_timeline_enabled)
+                .map(|locals| locals.profiling_timeline_enabled)
                 .unwrap_or(false)
         });
 
