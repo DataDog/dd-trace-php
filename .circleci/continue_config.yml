@@ -4436,10 +4436,7 @@ workflows:
             parameters:
               php_major_minor:
                 - "7.4"
-                - "8.0"
-                - "8.1"
                 - "8.2"
-                - "8.3"
               make_target:
                 - test_unit_coverage
 
@@ -4575,10 +4572,7 @@ workflows:
             parameters:
               php_major_minor:
                 - '7.4'
-                - '8.0'
-                - '8.1'
                 - '8.2'
-                - '8.3'
               make_target:
                 - test_integration_coverage
                 - test_distributed_tracing_coverage
@@ -4613,10 +4607,7 @@ workflows:
             parameters:
               php_major_minor:
                 - '7.4'
-                - '8.0'
-                - '8.1'
                 - '8.2'
-                - '8.3'
               make_target:
                 - test_web_coverage
                 - test_integrations_coverage
@@ -4675,10 +4666,7 @@ workflows:
             parameters:
               php_major_minor:
                 - '7.4'
-                - '8.0'
-                - '8.1'
                 - '8.2'
-                - '8.3'
               make_target:
                 - test_distributed_tracing_coverage
 
