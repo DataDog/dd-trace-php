@@ -20,7 +20,7 @@ class PathExtractor
 
     public function extract($classMethod, $routeName, $locale)
     {
-        $className = $classMethod; //It may not come with method when __invoke
+        $className = $classMethod; //It may not come with method when invokable controller
         $methodName = null;
         if (str_contains($classMethod, "::")) {
             $exploded = explode("::", $classMethod);
@@ -95,17 +95,15 @@ class PathExtractor
         $name = $annot->getName() ?? $this->getDefaultRouteName($class, $method);
         $name = $globals['name'].$name;
 
-        if (!empty($routeName) && $name !== $routeName) {
-            return;
-        }
-
         $path = $annot->getLocalizedPaths() ?: $annot->getPath();
         $prefix = $globals['localized_paths'] ?: $globals['path'];
         $paths = [];
         if (\is_array($path)) {
             if (!\is_array($prefix)) {
                 foreach ($path as $locale => $localePath) {
-                    $paths[$locale] = $prefix.$localePath;
+                    if ($routeName ==  $name) {
+                        $paths[$locale] = $prefix.$localePath;
+                    }
                 }
             } elseif (array_diff_key($prefix, $path)) {
                 return;
@@ -114,15 +112,18 @@ class PathExtractor
                     if (!isset($prefix[$locale])) {
                         return;
                     }
-
-                    $paths[$locale] = $prefix[$locale].$localePath;
+                    if ($routeName ==  $name) {
+                        $paths[$locale] = $prefix[$locale].$localePath;
+                    }
                 }
             }
         } elseif (\is_array($prefix)) {
             foreach ($prefix as $locale => $localePrefix) {
-                $paths[$locale] = $localePrefix.$path;
+                if ($routeName ==  $name) {
+                    $paths[$locale] = $localePrefix.$path;
+                }
             }
-        } else {
+        } elseif ($routeName ==  $name) {
             $path = $prefix.$path;
             $paths[] = empty($path) ? '/': $path;
         }
