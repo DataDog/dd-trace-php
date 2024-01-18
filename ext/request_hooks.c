@@ -172,7 +172,7 @@ void dd_request_init_hook_rinit(void) {
 
     PG(auto_prepend_file) = ZSTR_VAL(hook_path);
     if (DDTRACE_G(auto_prepend_file) && DDTRACE_G(auto_prepend_file)[0]) {
-        LOG(WARN, "Backing up auto_prepend_file '%s'", DDTRACE_G(auto_prepend_file));
+        LOG(INFO, "Backing up auto_prepend_file '%s'", DDTRACE_G(auto_prepend_file));
     }
 }
 

@@ -1,7 +1,6 @@
 # Validate using: cat codecov.yml | curl --data-binary @- https://codecov.io/validate
 codecov:
   require_ci_to_pass: false # See coverage on CI test failures
-  disable_default_path_fixes: true
 
 coverage:
   range: 90..100

@@ -1350,7 +1350,7 @@ test_scenario_%:
 	$(Q) $(COMPOSER_TESTS) scenario $*
 
 merge_coverage_reports:
-	$(PHPCOV) merge --clover reports/coverage.xml reports/cov
+	php -d memory_limit=-1 $(PHPCOV) merge --clover reports/coverage.xml reports/cov
 
 ### Api tests ###
 API_TESTS_ROOT := ./tests/api
