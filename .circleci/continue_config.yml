@@ -833,7 +833,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            <<# parameters.coverage >> unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true <<# parameters.coverage >>
+            <<# parameters.coverage >> unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true <</ parameters.coverage >>
             make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
             rm -rf tmp/build_extension/tests/opcache/file_cache/* || true
       - <<: *STEP_CODE_COVERAGE
@@ -1569,7 +1569,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            <<# parameters.coverage >> unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true <<# parameters.coverage >>
+            <<# parameters.coverage >> unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true <</ parameters.coverage >>
             DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - <<: *STEP_CODE_COVERAGE
       - run:
@@ -1660,7 +1660,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            <<# parameters.coverage >> unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true <<# parameters.coverage >>
+            <<# parameters.coverage >> unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true <</ parameters.coverage >>
             DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - <<: *STEP_CODE_COVERAGE
       - run:
