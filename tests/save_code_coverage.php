@@ -19,7 +19,7 @@ if (extension_loaded('xdebug')) {
         $filter
     );
 
-    $coverage->start($_SERVER['REQUEST_URI']);
+    $coverage->start(bin2hex(random_bytes(16)));
 
     function save_coverage()
     {
