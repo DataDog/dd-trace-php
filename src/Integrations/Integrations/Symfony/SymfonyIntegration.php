@@ -402,8 +402,7 @@ class SymfonyIntegration extends Integration
                     $rootSpan->meta['symfony.route.name'] = $route;
                 }
 
-                $extractor = new PathExtractor();
-                $path = $extractor->extract($request->attributes->get('_controller'), $route, $request->getLocale());
+                $path = (new PathExtractor())->extract($request->attributes->get('_controller'), $route, $request->get('_locale'));
                 if ($path !== null) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
                 }
