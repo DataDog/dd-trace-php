@@ -13,7 +13,7 @@ class PathExtractor
     /**
      * Sets the annotation class to read route properties from.
      */
-    public function setRouteAnnotationClass(string $class)
+    public function setRouteAnnotationClass($class)
     {
         $this->routeAnnotationClass = $class;
     }
@@ -54,7 +54,7 @@ class PathExtractor
             if (!empty($paths) && is_array($paths)) {
                 if (isset($paths[$locale])) {
                     return $paths[$locale];
-                } else if (isset($paths[$this->defaultRouteIndex])) {
+                } elseif (isset($paths[$this->defaultRouteIndex])) {
                     return $paths[$this->defaultRouteIndex];
                 }
                 return reset($paths);
@@ -73,7 +73,7 @@ class PathExtractor
             if (!empty($paths) && is_array($paths)) {
                 if (isset($paths[$locale])) {
                     return $paths[$locale];
-                } else if (isset($paths[$this->defaultRouteIndex])) {
+                } elseif (isset($paths[$this->defaultRouteIndex])) {
                     return $paths[$this->defaultRouteIndex];
                 }
                 return reset($paths);
