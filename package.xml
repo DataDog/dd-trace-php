@@ -81,7 +81,7 @@
 - Fix fibers on PHP 8.1.2 #2473
 
 ### Internal Changes
-- Add MicroBenchmarks #2435, #2458, #2546
+- Add MicroBenchmarks #2435, #2456, #2458
 - Add Symfony 7.0 test suite #2437
 - Track DD_TRACE_DEBUG=1 errors in integration and web tests #2472
 - Reduce noise in composer package download #2401
