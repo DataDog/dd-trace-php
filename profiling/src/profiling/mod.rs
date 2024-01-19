@@ -351,7 +351,7 @@ impl TimeCollector {
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         started_at: &WallTime,
     ) {
-        if message.key.sample_types.len() == 0 {
+        if message.key.sample_types.is_empty() {
             // profiling disabled, this should not happen!
             warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
             return;

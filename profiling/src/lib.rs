@@ -167,7 +167,7 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     });
 
     // SAFETY: well, it's as least as safe as what every single C extension does.
-    unsafe { &mut *MODULE }
+    unsafe { &mut MODULE }
 }
 
 /* Important note on the PHP lifecycle:

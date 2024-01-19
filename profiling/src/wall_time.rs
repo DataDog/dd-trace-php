@@ -90,7 +90,7 @@ unsafe fn execute_data_func_is_trampoline(execute_data: *const zend_execute_data
     if (*execute_data).func.is_null() {
         return false;
     }
-    return ((*(*execute_data).func).common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) != 0;
+    ((*(*execute_data).func).common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) != 0
 }
 
 /// Overrides the engine's zend_execute_internal hook in order to process pending VM interrupts
