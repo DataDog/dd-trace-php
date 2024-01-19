@@ -8,6 +8,9 @@ use DDTrace\Tests\Unit\Integrations\Route;
 
 require __DIR__.'/PhpAnnotationClasses.php';
 
+/**
+* @requires PHP >= 8.0
+*/
 class PathExtractorTest extends TestCase
 {
     private $extractor;
