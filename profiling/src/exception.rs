@@ -53,23 +53,12 @@ impl ExceptionProfilingStats {
 
         self.next_sampling_interval();
 
-        REQUEST_LOCALS.with(|cell| {
-            // try to borrow and bail out if not successful
-            let Ok(locals) = cell.try_borrow() else {
-                return;
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+            unsafe {
+                profiler.collect_exception(zend::ddog_php_prof_get_current_execute_data(), name)
             };
-
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-                unsafe {
-                    profiler.collect_exception(
-                        zend::ddog_php_prof_get_current_execute_data(),
-                        name,
-                        &locals,
-                    )
-                };
-            }
-        });
+        }
     }
 }
 

@@ -62,31 +62,45 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-Exception profiling is now enabled by default. You can manage it using the `DD_PROFILING_EXCEPTION_ENABLED` environment variable or the `datadog.profiling.exception_enabled` setting in the INI file. Although the `DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED` environment variable and `datadog.profiling.experimental_exception_enabled` INI setting still work, the new ones take precedence.
-
 ## Tracer
-
 ### Added
-- Implement extended sampling #2384
+- Add span links capabilities to the OTel API #2451
+- Add exec integration #2361, #2455, #2459
+
+### Changed
+- Implement http.route for Yii #2430
+- Implement http.route for Slim #2402
 
 ### Fixed
-- Add PHP 8.3 to supported versions #2417 (thank you @markwalet)
-- OTel: Fix analytics.event override (#2409)
-- Fix dddbs service mapping #2413
-- WordPress: Avoid Setting User ID When Unauthenticated #2424
+- Remove Symfony controller hook after execution #2436
+- Move the dummy function of call_attribute_constructor onto the VM stack #2446
+- Avoid resolving unresolved functions and classes #2450
+- Fix removal of the directly accessed hook after binding in DDTrace\remove_hook #2449
+- Handle async requests using Guzzle #2460
+- Fix removing an end observer with other observers active #2469
+- Fix fibers on PHP 8.1.2 #2473
 
 ### Internal Changes
-- CI: Handle latest Alpine 3.19 image #2418
-- CI: Complements PHP 8.3 test suites #2419
+- Add MicroBenchmarks #2435, #2456, #2458
+- Add Symfony 7.0 test suite #2437
+- Track DD_TRACE_DEBUG=1 errors in integration and web tests #2472
+- Reduce noise in composer package download #2401
 
 ## Profiling
-
 ### Added
-- GA exception profiling #2403
-- allow enabling all experimental features using `datadog.profiling.experimental_features_enabled` #2385
+- prevent emitting empty profiles #2397
+
+### Fixed
+- potential allocation profiling crashes with certain opcodes #2352
 
 ### Internal Changes
-- run prof-correctness nightly in `master` branch #2420
+- test with address sanitizer on bookworm with GH actions #2432
+- make the profiler compile in ZTS PHP #2463
+- extract wall_time.rs file #2467
+
+## Application Security Management
+### Internal changes
+- Change schema extraction zip compression to PHP_ZLIB_ENCODING_GZIP #2447
 ]]></notes>
     <contents>
         <dir name="/">
