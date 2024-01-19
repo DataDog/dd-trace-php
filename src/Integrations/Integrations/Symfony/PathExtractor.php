@@ -3,6 +3,10 @@
 namespace DDTrace\Integrations\Symfony;
 
 use Symfony\Component\Routing\Annotation\Route as RouteAnnotation;
+use ReflectionClass;
+use ReflectionMethod;
+use ReflectionAttribute;
+use ReflectionException;
 
 class PathExtractor
 {
@@ -20,6 +24,11 @@ class PathExtractor
 
     public function extract($classMethod, $routeName, $locale)
     {
+        //This method is only available on PHP8. On coming PRs this class will also parse Docblocks
+        if (!\method_exists(ReflectionClass::class, 'getAttributes')) {
+            return;
+        }
+
         $className = $classMethod; //It may not come with method when invokable controller
         $methodName = null;
         if (str_contains($classMethod, "::")) {
@@ -31,8 +40,11 @@ class PathExtractor
         if (!class_exists($className)) {
             return;
         }
-        $class = new \ReflectionClass($className);
+        $class = new ReflectionClass($className);
         if ($class->isAbstract()) {
+            return;
+        }
+        if (!\method_exists(ReflectionClass::class, 'getAttributes')) {
             return;
         }
 
@@ -40,7 +52,7 @@ class PathExtractor
             $globals = $this->getGlobals($class);
             try {
                 $method = $class->getMethod($methodName);
-            } catch (\ReflectionException $e) {
+            } catch (ReflectionException $e) {
                 return;
             }
 
@@ -85,12 +97,12 @@ class PathExtractor
 
     private function getAnnotations(object $reflection): iterable
     {
-        foreach ($reflection->getAttributes($this->routeAnnotationClass, \ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
+        foreach ($reflection->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
             yield $attribute->newInstance();
         }
     }
 
-    protected function getPath(object $annot, array $globals, \ReflectionClass $class, \ReflectionMethod $method, $routeName)
+    protected function getPath(object $annot, array $globals, ReflectionClass $class, ReflectionMethod $method, $routeName)
     {
         $name = $annot->getName() ?? $this->getDefaultRouteName($class, $method);
         $name = $globals['name'].$name;
@@ -140,12 +152,12 @@ class PathExtractor
         ];
     }
 
-    protected function getGlobals(\ReflectionClass $class)
+    protected function getGlobals(ReflectionClass $class)
     {
         $globals = $this->resetGlobals();
 
         $annot = null;
-        if ($attribute = $class->getAttributes($this->routeAnnotationClass, \ReflectionAttribute::IS_INSTANCEOF)[0] ?? null) {
+        if ($attribute = $class->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null) {
             $annot = $attribute->newInstance();
         }
 
@@ -160,7 +172,7 @@ class PathExtractor
         return $globals;
     }
 
-    protected function getDefaultRouteName(\ReflectionClass $class, \ReflectionMethod $method)
+    protected function getDefaultRouteName(ReflectionClass $class, ReflectionMethod $method)
     {
         $name = str_replace('\\', '_', $class->name).'_'.$method->name;
         $name = \function_exists('mb_strtolower') && preg_match('//u', $name) ? mb_strtolower($name, 'UTF-8') : strtolower($name);
