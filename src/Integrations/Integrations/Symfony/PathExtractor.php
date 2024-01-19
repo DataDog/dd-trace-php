@@ -31,12 +31,6 @@ class PathExtractor
             return;
         }
         $class = new ReflectionClass($className);
-        if ($class->isAbstract()) {
-            return;
-        }
-        if (!\method_exists(ReflectionClass::class, 'getAttributes')) {
-            return;
-        }
 
         if ($methodName != null) {
             $globals = $this->getGlobals($class);
