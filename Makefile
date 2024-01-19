@@ -1296,7 +1296,7 @@ test_web_symfony_44: global_test_run_dependencies
 	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-44-test)
 test_web_symfony_50: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_0 install # EOL; install from lock
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_0 install --no-dev # EOL; install from lock
 	php tests/Frameworks/Symfony/Version_5_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V5_0)
 test_web_symfony_51: global_test_run_dependencies
