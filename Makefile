@@ -1284,7 +1284,7 @@ test_web_symfony_34: global_test_run_dependencies
 test_web_symfony_40: global_test_run_dependencies
 	# We hit broken updates in this unmaintained version, so we committed a
 	# working composer.lock and we composer install instead of composer update
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 install
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 install --no-dev
 	php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V4_0)
 test_web_symfony_42: global_test_run_dependencies
