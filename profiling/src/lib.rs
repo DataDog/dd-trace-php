@@ -290,6 +290,17 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_minit();
 
+    // There are a few things which need to do something on the first rinit of
+    // each minit/mshutdown cycle. In Apache, when doing `apachectl graceful`,
+    // there can be more than one of these cycles per process.
+    // Re-initializing these on each minit allows us to do it once per cycle.
+    // This is unsafe generally, but all SAPIs are supposed to only have one
+    // thread alive during minit, so it should be safe here specifically.
+    unsafe {
+        ZAI_CONFIG_ONCE = Once::new();
+        RINIT_ONCE = Once::new();
+    }
+
     ZendResult::Success
 }
 
@@ -389,6 +400,11 @@ extern "C" fn activate() {
     unsafe { profiling::activate_run_time_cache() };
 }
 
+/// The mut here is *only* for resetting this back to uninitialized each minit.
+static mut ZAI_CONFIG_ONCE: Once = Once::new();
+/// The mut here is *only* for resetting this back to uninitialized each minit.
+static mut RINIT_ONCE: Once = Once::new();
+
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
  * using it for catastrophic errors only.
  */
@@ -396,11 +412,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RINIT({_type}, {_module_number})");
 
-    /* At the moment, logging is truly global, so init it exactly once whether
-     * profiling is enabled or not.
-     */
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
+    // SAFETY: not being mutated during rinit.
+    unsafe { &ZAI_CONFIG_ONCE }.call_once(|| {
         unsafe { bindings::zai_config_first_time_rinit() };
     });
 
@@ -476,8 +489,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         }
     });
 
-    static ONCE2: Once = Once::new();
-    ONCE2.call_once(|| {
+    // SAFETY: not being mutated during rinit.
+    unsafe { &RINIT_ONCE }.call_once(|| {
         // Don't log when profiling is disabled as that can mess up tests.
         let profiling_log_level = if profiling_enabled {
             log_level
@@ -485,10 +498,14 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             LevelFilter::Off
         };
 
-        #[cfg(not(debug_assertions))]
-        logging::log_init(profiling_log_level);
-        #[cfg(debug_assertions)]
-        log::set_max_level(profiling_log_level);
+        cfg_if::cfg_if! {
+            if #[cfg(debug_assertions)] {
+                // previously initialized in minit, just set level.
+                log::set_max_level(profiling_log_level);
+            } else {
+                logging::log_init(profiling_log_level);
+            }
+        }
 
         if profiling_enabled {
             /* Safety: sapi_module is initialized by rinit and shouldn't be
