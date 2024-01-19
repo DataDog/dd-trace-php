@@ -4431,7 +4431,7 @@ workflows:
       - test:
           requires: [ 'Prepare Code' ]
           coverage: true
-          codecov_flags: tracer-php-api
+          codecov_flags: tracer-php
           matrix:
             parameters:
               php_major_minor:
@@ -4567,7 +4567,7 @@ workflows:
           requires: [ 'Prepare Code' ]
           resource_class: medium+
           coverage: true
-          codecov_flags: tracer-integrations
+          codecov_flags: tracer-php
           matrix:
             parameters:
               php_major_minor:
@@ -4602,7 +4602,7 @@ workflows:
           # Due to Symfony OOM during composer update
           resource_class: xlarge
           coverage: true
-          codecov_flags: tracer-integrations
+          codecov_flags: tracer-php
           matrix:
             parameters:
               php_major_minor:
@@ -4660,7 +4660,7 @@ workflows:
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
           coverage: true
-          codecov_flags: tracer-integrations
+          codecov_flags: tracer-php
           with_executor: 'with_httpbin_and_request_replayer'
           matrix:
             parameters:
