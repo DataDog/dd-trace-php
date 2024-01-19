@@ -16,6 +16,7 @@
         "phpunit/phpunit": "<10",
         "phpspec/prophecy": "*",
         "symfony/process": "<5",
+        "symfony/routing": "*",
         "g1a/composer-test-scenarios": "~3.0"
     },
     "config": {

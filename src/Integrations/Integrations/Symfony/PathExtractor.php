@@ -10,17 +10,7 @@ use ReflectionException;
 
 class PathExtractor
 {
-    protected $routeAnnotationClass = RouteAnnotation::class;
     protected $defaultRouteIndex = 0;
-
-
-    /**
-     * Sets the annotation class to read route properties from.
-     */
-    public function setRouteAnnotationClass($class)
-    {
-        $this->routeAnnotationClass = $class;
-    }
 
     public function extract($classMethod, $routeName, $locale)
     {
@@ -97,7 +87,7 @@ class PathExtractor
 
     private function getAnnotations(object $reflection): iterable
     {
-        foreach ($reflection->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
+        foreach ($reflection->getAttributes(RouteAnnotation::class, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
             yield $attribute->newInstance();
         }
     }
@@ -157,7 +147,7 @@ class PathExtractor
         $globals = $this->resetGlobals();
 
         $annot = null;
-        if ($attribute = $class->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null) {
+        if ($attribute = $class->getAttributes(RouteAnnotation::class, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null) {
             $annot = $attribute->newInstance();
         }
 

@@ -2,6 +2,8 @@
 
 namespace DDTrace\Tests\Unit\Integrations;
 
+use Symfony\Component\Routing\Annotation\Route;
+
 class PhpActionAnnotationsController
 {
     #[Route("/basic-path", name: "basic action")]

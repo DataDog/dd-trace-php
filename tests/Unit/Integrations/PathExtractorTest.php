@@ -4,7 +4,7 @@ namespace DDTrace\Tests\Unit\Integrations;
 
 use PHPUnit\Framework\TestCase;
 use DDTrace\Integrations\Symfony\PathExtractor;
-use DDTrace\Tests\Unit\Integrations\Route;
+use Symfony\Component\Routing\Annotation\Route;
 
 require __DIR__.'/PhpAnnotationClasses.php';
 
@@ -13,14 +13,6 @@ require __DIR__.'/PhpAnnotationClasses.php';
 */
 class PathExtractorTest extends TestCase
 {
-    private $extractor;
-
-    protected function setUp(): void
-    {
-        $this->extractor = new PathExtractor();
-        $this->extractor->setRouteAnnotationClass(Route::class);
-    }
-
     public function scenarios()
     {
         return [
@@ -74,9 +66,10 @@ class PathExtractorTest extends TestCase
 
     /**
     * @dataProvider scenarios
-     */
+    */
     public function testExtractions($url, $classMethod, $name = '', $locale = 'en')
     {
-        $this->assertEquals($url, $this->extractor->extract($classMethod, $name, $locale));
+        $extractor = new PathExtractor();
+        $this->assertEquals($url, $extractor->extract($classMethod, $name, $locale));
     }
 }
