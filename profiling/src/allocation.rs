@@ -80,23 +80,16 @@ impl AllocationProfilingStats {
 
         self.next_sampling_interval();
 
-        REQUEST_LOCALS.with(|cell| {
-            let Ok(locals) = cell.try_borrow() else {
-                return;
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+            unsafe {
+                profiler.collect_allocations(
+                    zend::ddog_php_prof_get_current_execute_data(),
+                    1_i64,
+                    len as i64,
+                )
             };
-
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-                unsafe {
-                    profiler.collect_allocations(
-                        zend::ddog_php_prof_get_current_execute_data(),
-                        1_i64,
-                        len as i64,
-                        &locals,
-                    )
-                };
-            }
-        });
+        }
     }
 }
 

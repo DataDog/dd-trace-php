@@ -18,6 +18,7 @@ mod exception;
 mod timeline;
 mod wall_time;
 
+use crate::config::SystemSettings;
 use bindings as zend;
 use bindings::{ddog_php_prof_php_version_id, ZendExtension, ZendResult};
 use clocks::*;
@@ -166,7 +167,7 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     });
 
     // SAFETY: well, it's as least as safe as what every single C extension does.
-    unsafe { &mut *MODULE }
+    unsafe { &mut MODULE }
 }
 
 /* Important note on the PHP lifecycle:
@@ -549,7 +550,28 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
          */
         let mut profiler = PROFILER.lock().unwrap();
         if profiler.is_none() {
-            *profiler = Some(Profiler::new(output_pprof))
+            // Select agent URI/UDS
+            // SAFETY: config is called in rinit after its been initialized.
+            let uri = unsafe {
+                let agent_host = config::agent_host();
+                let trace_agent_port = config::trace_agent_port();
+                let trace_agent_url = config::trace_agent_url();
+                detect_uri_from_config(trace_agent_url, agent_host, trace_agent_port)
+            };
+
+            *profiler = Some(Profiler::new(SystemSettings {
+                profiling_enabled,
+                profiling_experimental_features_enabled,
+                profiling_endpoint_collection_enabled,
+                profiling_experimental_cpu_time_enabled,
+                profiling_allocation_enabled,
+                profiling_experimental_timeline_enabled,
+                profiling_exception_enabled,
+                output_pprof,
+                profiling_exception_sampling_distance,
+                profiling_log_level: log_level,
+                uri,
+            }))
         }
     };
 

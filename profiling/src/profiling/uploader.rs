@@ -48,7 +48,8 @@ impl Uploader {
 
         let profiling_library_name: &str = &PROFILER_NAME_STR;
         let profiling_library_version: &str = &PROFILER_VERSION_STR;
-        let endpoint: Endpoint = (&*index.endpoint).try_into()?;
+        let endpoint_string = index.endpoint.to_string();
+        let endpoint = Endpoint::try_from(index.endpoint)?;
 
         // This is the currently unstable Arc::unwrap_or_clone.
         let tags = Some(Arc::try_unwrap(index.tags).unwrap_or_else(|arc| (*arc).clone()));
@@ -80,7 +81,7 @@ impl Uploader {
             Self::create_internal_metadata(),
             timeout,
         )?;
-        debug!("Sending profile to: {}", index.endpoint);
+        debug!("Sending profile to: {endpoint_string}");
         let result = exporter.send(request, None)?;
         Ok(result.status().as_u16())
     }

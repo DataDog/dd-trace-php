@@ -7,7 +7,6 @@ use crate::bindings::{
 };
 use crate::{zend, PROFILER, REQUEST_LOCALS};
 use std::mem::MaybeUninit;
-use std::ops::Deref;
 use std::sync::atomic::Ordering;
 
 /// The engine's previous [zend::zend_execute_internal] value, or
@@ -36,11 +35,8 @@ static mut PREV_INTERRUPT_FUNCTION: Option<VmInterruptFn> = None;
 pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execute_data) {
     REQUEST_LOCALS.with(|cell| {
         // try to borrow and bail out if not successful
-        let locals = match cell.try_borrow() {
-            Ok(locals) => locals,
-            Err(_) => {
-                return;
-            }
+        let Ok(locals) = cell.try_borrow() else {
+            return;
         };
 
         if !locals.profiling_enabled {
@@ -61,7 +57,7 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            profiler.collect_time(execute_data, interrupt_count, locals.deref());
+            profiler.collect_time(execute_data, interrupt_count);
         }
     });
 }
@@ -94,7 +90,7 @@ unsafe fn execute_data_func_is_trampoline(execute_data: *const zend_execute_data
     if (*execute_data).func.is_null() {
         return false;
     }
-    return ((*(*execute_data).func).common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) != 0;
+    ((*(*execute_data).func).common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) != 0
 }
 
 /// Overrides the engine's zend_execute_internal hook in order to process pending VM interrupts

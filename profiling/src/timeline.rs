@@ -50,6 +50,10 @@ fn try_sleeping_fn(
 
     let start = Instant::now();
 
+    // Consciously not holding request locals/profiler during the forwarded
+    // call. If they are, then it's possible to get a deadlock/bad borrow
+    // because the call triggers something to happen like a time/allocation
+    // sample and the extension tries to re-acquire these.
     // SAFETY: simple forwarding to original func with original args.
     unsafe { func(execute_data, return_value) };
 
@@ -61,28 +65,18 @@ fn try_sleeping_fn(
     // case it does, short-circuit the function.
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?;
 
-    // Consciously not holding request locals/profiler during the forwarded
-    // call. If they are, then it's possible to get a deadlock/bad borrow
-    // because the call triggers something to happen like a time/allocation
-    // sample and the extension tries to re-acquire these.
-    REQUEST_LOCALS.with(|cell| {
-        // try to borrow and bail out if not successful
-        let locals = cell.try_borrow()?;
-
-        match PROFILER.lock() {
-            Ok(guard) => match guard.as_ref() {
-                Some(profiler) => profiler.collect_idle(
-                    now.as_nanos() as i64,
-                    duration.as_nanos() as i64,
-                    "sleeping",
-                    &locals,
-                ),
-                None => { /* Profiling is probably disabled, no worries */ }
-            },
-            Err(err) => anyhow::bail!("profiler mutex: {err:#}"),
-        }
-        Ok(())
-    })
+    match PROFILER.lock() {
+        Ok(guard) => match guard.as_ref() {
+            Some(profiler) => profiler.collect_idle(
+                now.as_nanos() as i64,
+                duration.as_nanos() as i64,
+                "sleeping",
+            ),
+            None => { /* Profiling is probably disabled, no worries */ }
+        },
+        Err(err) => anyhow::bail!("profiler mutex: {err:#}"),
+    }
+    Ok(())
 }
 
 fn sleeping_fn(
@@ -191,35 +185,27 @@ pub unsafe fn timeline_startup() {
 /// This function is run during the RINIT phase and reports any `IDLE_SINCE` duration as an idle
 /// period for this PHP thread
 pub fn timeline_rinit() {
-    REQUEST_LOCALS.with(|cell| {
+    IDLE_SINCE.with(|cell| {
         // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
+        let Ok(idle_since) = cell.try_borrow() else {
             return;
         };
 
-        if !locals.profiling_experimental_timeline_enabled {
-            return;
-        }
-
-        IDLE_SINCE.with(|cell| {
-            // try to borrow and bail out if not successful
-            let Ok(idle_since) = cell.try_borrow() else {
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            if !profiler.is_experimental_timeline_enabled() {
                 return;
-            };
-
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                profiler.collect_idle(
-                    // Safety: checked for `is_err()` above
-                    SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_nanos() as i64,
-                    idle_since.elapsed().as_nanos() as i64,
-                    "idle",
-                    &locals,
-                );
             }
-        });
+
+            profiler.collect_idle(
+                // Safety: checked for `is_err()` above
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos() as i64,
+                idle_since.elapsed().as_nanos() as i64,
+                "idle",
+            );
+        }
     });
 }
 
@@ -249,35 +235,26 @@ pub fn timeline_prshutdown() {
 /// period for this PHP thread. This will report the last `IDLE_SINCE` duration created in the last
 /// `P-RSHUTDOWN` (just above) when the PHP process is shutting down.
 pub(crate) fn timeline_mshutdown() {
-    REQUEST_LOCALS.with(|cell| {
+    IDLE_SINCE.with(|cell| {
         // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
+        let Ok(idle_since) = cell.try_borrow() else {
             return;
         };
 
-        if !locals.profiling_experimental_timeline_enabled {
-            return;
-        }
-
-        IDLE_SINCE.with(|cell| {
-            // try to borrow and bail out if not successful
-            let Ok(idle_since) = cell.try_borrow() else {
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            if !profiler.is_experimental_timeline_enabled() {
                 return;
-            };
-
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                profiler.collect_idle(
-                    // Safety: checked for `is_err()` above
-                    SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_nanos() as i64,
-                    idle_since.elapsed().as_nanos() as i64,
-                    "idle",
-                    &locals,
-                );
             }
-        });
+            profiler.collect_idle(
+                // Safety: checked for `is_err()` above
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos() as i64,
+                idle_since.elapsed().as_nanos() as i64,
+                "idle",
+            );
+        }
     });
 }
 
@@ -329,23 +306,16 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
             "Compiling eval()'ed code in \"{filename}\" at line {line} took {} nanoseconds",
             duration.as_nanos(),
         );
-        REQUEST_LOCALS.with(|cell| {
-            // try to borrow and bail out if not successful
-            let Ok(locals) = cell.try_borrow() else {
-                return;
-            };
 
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                profiler.collect_compile_string(
-                    // Safety: checked for `is_err()` above
-                    now.unwrap().as_nanos() as i64,
-                    duration.as_nanos() as i64,
-                    filename,
-                    line,
-                    &locals,
-                );
-            }
-        });
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            profiler.collect_compile_string(
+                // Safety: checked for `is_err()` above
+                now.unwrap().as_nanos() as i64,
+                duration.as_nanos() as i64,
+                filename,
+                line,
+            );
+        }
         return op_array;
     }
     error!("No previous `zend_compile_string` handler found! This is a huge problem as your eval() won't work and PHP will higly likely crash. I am sorry, but the die is cast.");
@@ -402,23 +372,16 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
             duration.as_nanos(),
         );
-        REQUEST_LOCALS.with(|cell| {
-            // try to borrow and bail out if not successful
-            let Ok(locals) = cell.try_borrow() else {
-                return;
-            };
 
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                profiler.collect_compile_file(
-                    // Safety: checked for `is_err()` above
-                    now.unwrap().as_nanos() as i64,
-                    duration.as_nanos() as i64,
-                    filename,
-                    include_type,
-                    &locals,
-                );
-            }
-        });
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            profiler.collect_compile_file(
+                // Safety: checked for `is_err()` above
+                now.unwrap().as_nanos() as i64,
+                duration.as_nanos() as i64,
+                filename,
+                include_type,
+            );
+        }
         return op_array;
     }
     error!("No previous `zend_compile_file` handler found! This is a huge problem as your include()/require() won't work and PHP will higly likely crash. I am sorry, but the die is cast.");
@@ -480,37 +443,28 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
             duration.as_nanos()
         );
 
-        REQUEST_LOCALS.with(|cell| {
-            // try to borrow and bail out if not successful
-            let Ok(locals) = cell.try_borrow() else {
-                return;
-            };
-
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                cfg_if::cfg_if! {
-                    if #[cfg(php_gc_status)] {
-                        profiler.collect_garbage_collection(
-                            // Safety: checked for `is_err()` above
-                            now.unwrap().as_nanos() as i64,
-                            duration.as_nanos() as i64,
-                            reason,
-                            collected as i64,
-                            status.runs as i64,
-                            &locals,
-                        );
-                    } else {
-                        profiler.collect_garbage_collection(
-                            // Safety: checked for `is_err()` above
-                            now.unwrap().as_nanos() as i64,
-                            duration.as_nanos() as i64,
-                            reason,
-                            collected as i64,
-                            &locals,
-                        );
-                    }
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            cfg_if::cfg_if! {
+                if #[cfg(php_gc_status)] {
+                    profiler.collect_garbage_collection(
+                        // Safety: checked for `is_err()` above
+                        now.unwrap().as_nanos() as i64,
+                        duration.as_nanos() as i64,
+                        reason,
+                        collected as i64,
+                        status.runs as i64,
+                    );
+                } else {
+                    profiler.collect_garbage_collection(
+                        // Safety: checked for `is_err()` above
+                        now.unwrap().as_nanos() as i64,
+                        duration.as_nanos() as i64,
+                        reason,
+                        collected as i64,
+                    );
                 }
             }
-        });
+        }
         collected
     } else {
         // this should never happen, as it would mean that no `gc_collect_cycles` function pointer
