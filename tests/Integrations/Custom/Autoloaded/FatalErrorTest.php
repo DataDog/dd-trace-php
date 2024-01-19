@@ -25,6 +25,10 @@ final class FatalErrorTest extends WebFrameworkTestCase
 
     public function testScenario()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped("Test doesn't work in coverage mode");
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Fatal error tracking', '/fatal');
             $this->call($spec);
