@@ -2066,7 +2066,7 @@ jobs:
     working_directory: ~/datadog
     machine:
       image: ubuntu-2004:2023.04.2
-    resource_class: large
+    resource_class: xlarge
     environment:
       - RANDOMIZED_RESTRICT_PLATFORMS: centos7
     parameters:
