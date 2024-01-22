@@ -372,7 +372,7 @@ class LaravelQueueIntegration extends Integration
     {
         $metadata = [
             Tag::LARAVELQ_MAX_TRIES => $job->tries ?? null,
-            Tag::LARAVELQ_ATTEMPTS => $job->attempts() ?? null,
+            Tag::LARAVELQ_ATTEMPTS => \method_exists($job, 'attempts') ? $job->attempts() : null,
             Tag::LARAVELQ_TIMEOUT => $job->timeout ?? null,
             Tag::LARAVELQ_BATCH_ID => $job->batchId ?? null, // Laravel 8
             Tag::MQ_SYSTEM => 'laravel',

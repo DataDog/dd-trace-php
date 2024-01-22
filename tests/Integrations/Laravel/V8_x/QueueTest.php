@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
 use DDTrace\Log\Logger;
 use DDTrace\Tag;
+use DDTrace\Tests\Common\SnapshotTestTrait;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\SpanChecker;
@@ -16,6 +17,7 @@ class QueueTest extends WebFrameworkTestCase
 {
     use TracerTestTrait;
     use SpanAssertionTrait;
+    use SnapshotTestTrait;
 
     protected static function getAppIndexScript()
     {
@@ -79,6 +81,23 @@ class QueueTest extends WebFrameworkTestCase
         } while ($newLen != 0);
 
         return $result;
+    }
+
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS'
+        ];
+    }
+
+    public function testBroadcast()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS=1']);
+        $this->tracesFromWebRequestSnapshot(function () {
+            $spec = GetSpec::create('Broadcast', '/queue/broadcast');
+            $this->call($spec);
+            sleep(3);
+        });
     }
 
     public function testSimplePushAndProcess()

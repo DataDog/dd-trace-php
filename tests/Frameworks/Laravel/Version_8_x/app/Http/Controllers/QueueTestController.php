@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\NoopEvent;
 use App\Jobs\SendVerificationEmail;
 use Illuminate\Queue\Queue;
 use Illuminate\Queue\RedisQueue;
@@ -10,6 +11,11 @@ use Illuminate\Support\Facades\Bus;
 
 class QueueTestController extends Controller
 {
+    public function broadcast()
+    {
+        broadcast(new NoopEvent());
+    }
+
     public function create()
     {
         $temp = dispatch(new SendVerificationEmail())
