@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DDTrace\OpenTelemetry\API\Trace;
 
 use DDTrace\OpenTelemetry\SDK\Trace\Span;
+use DDTrace\RootSpanData;
 use DDTrace\SpanData;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Trace\SpanContextInterface;
@@ -23,27 +24,22 @@ final class SpanContext implements SpanContextInterface
 
     private bool $remote;
 
-    private ?string $traceId;
-
     private ?string $spanId;
 
-    private bool $isValid = true;
+    private static function getRootSpan(SpanData $span): RootSpanData
+    {
+        while (!($span instanceof RootSpanData) && $span->parent) {
+            $span = $span->parent;
+        }
+        return $span;
+    }
 
-    private function __construct(SpanData $span, bool $sampled, bool $remote, ?string $traceId = null, ?string $spanId = null)
+    private function __construct(SpanData $span, bool $sampled, bool $remote, ?string $spanId = null)
     {
         $this->span = $span;
         $this->sampled = $sampled;
         $this->remote = $remote;
-        $this->traceId = $traceId ?: \DDTrace\root_span()->traceId;
         $this->spanId = $spanId ?: $this->span->hexId();
-
-        // TraceId must be exactly 16 bytes (32 chars) and at least one non-zero byte
-        // SpanId must be exactly 8 bytes (16 chars) and at least one non-zero byte
-        if (!SpanContextValidator::isValidTraceId($this->traceId) || !SpanContextValidator::isValidSpanId($this->spanId)) {
-            $this->traceId = SpanContextValidator::INVALID_TRACE;
-            $this->spanId = SpanContextValidator::INVALID_SPAN;
-            $this->isValid = false;
-        }
     }
 
     /**
@@ -51,7 +47,8 @@ final class SpanContext implements SpanContextInterface
      */
     public function getTraceId(): string
     {
-        return $this->traceId;
+        $rootSpan = self::getRootSpan($this->span);
+        return $rootSpan->traceId;
     }
 
     public function getTraceIdBinary(): string
@@ -85,7 +82,7 @@ final class SpanContext implements SpanContextInterface
 
     public function isValid(): bool
     {
-        return $this->isValid;
+        return SpanContextValidator::isValidTraceId(self::getRootSpan($this->span)->traceId) && SpanContextValidator::isValidSpanId($this->spanId);
     }
 
     public function isRemote(): bool
@@ -116,13 +113,12 @@ final class SpanContext implements SpanContextInterface
         return API\SpanContext::getInvalid();
     }
 
-    public static function createFromLocalSpan(SpanData $span, bool $sampled, ?string $traceId = null, ?string $spanId = null)
+    public static function createFromLocalSpan(SpanData $span, bool $sampled, ?string $spanId = null)
     {
         return new self(
             $span,
             $sampled,
             false,
-            $traceId,
             $spanId
         );
     }

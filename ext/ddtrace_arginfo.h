@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 1d07ca443c39ea7a0a831b062bb0efe4baf69b0f */
+ * Stub hash: e001e68def98ce39cf3f6a11337dc109cca4868f */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -61,7 +61,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_update_span_duration, 0,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, finishTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_trace_span, 0, 0, DDTrace\\SpanData, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_trace_span, 0, 0, DDTrace\\RootSpanData, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
@@ -568,6 +568,13 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_string *property_peerServiceSources_name = zend_string_init("peerServiceSources", sizeof("peerServiceSources") - 1, 1);
 	zend_declare_typed_property(class_entry, property_peerServiceSources_name, &property_peerServiceSources_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_peerServiceSources_name);
+
+	zval property_endCallback_default_value;
+	ZVAL_NULL(&property_endCallback_default_value);
+	zend_string *property_endCallback_name = zend_string_init("endCallback", sizeof("endCallback") - 1, 1);
+	zend_string *property_endCallback_class_Closure = zend_string_init("Closure", sizeof("Closure")-1, 1);
+	zend_declare_typed_property(class_entry, property_endCallback_name, &property_endCallback_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_endCallback_class_Closure, 0, MAY_BE_STRING|MAY_BE_NULL));
+	zend_string_release(property_endCallback_name);
 
 	zval property_parent_default_value;
 	ZVAL_UNDEF(&property_parent_default_value);

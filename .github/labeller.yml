@@ -22,3 +22,6 @@ labels:
 
   - name: "tracing"
     allFilesIn: "(.*\/ext\/.*|.*\/src\/.*|.*\/tests\/.*|.*\/zend_abstract_interface\/.*|docker-compose.yml|.*\/.circleci\/.*)"
+
+  - name: "cat:opentelemetry"
+    allFilesIn: "(.*\/OpenTelemetry\/.*)"

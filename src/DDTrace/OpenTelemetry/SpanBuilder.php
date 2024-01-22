@@ -138,8 +138,13 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $parentSpan = Span::fromContext($parentContext);
         $parentSpanContext = $parentSpan->getContext();
 
-        $span = $parentSpanContext->isValid() ? null : \DDTrace\start_trace_span($this->startEpochNanos);
-        $traceId = $parentSpanContext->isValid() ? $parentSpanContext->getTraceId() : \DDTrace\root_span()->traceId;
+        if ($parentSpanContext->isValid()) {
+            $span = null;
+            $traceId = $parentSpanContext->getTraceId();
+        } else {
+            $span = \DDTrace\start_trace_span($this->startEpochNanos);
+            $traceId = $span->traceId;
+        }
 
         $samplingResult = $this
             ->tracerSharedState
@@ -174,7 +179,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
         }
 
         $hexSpanId = $span->hexId();
-        $spanContext = DDTraceAPI\SpanContext::createFromLocalSpan($span, $sampled, $traceId, $hexSpanId);
+        $spanContext = DDTraceAPI\SpanContext::createFromLocalSpan($span, $sampled, $hexSpanId);
 
         if (!in_array($samplingDecision, [SamplingResult::RECORD_AND_SAMPLE, SamplingResult::RECORD_ONLY], true)) {
             return Span::wrap($spanContext);

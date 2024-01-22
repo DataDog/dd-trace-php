@@ -111,6 +111,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $span->links[] = $spanLink;
             }
         }
+
+        $span->endCallback = fn () => $this->endOTelSpan();
     }
 
     /**
@@ -401,6 +403,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             return;
         }
 
+        $this->span->endCallback = null; // No need for the callback
         $this->endOTelSpan($endEpochNanos);
 
         switch_stack($this->span);

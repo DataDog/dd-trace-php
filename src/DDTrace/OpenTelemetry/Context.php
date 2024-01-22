@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Context;
 
+use DDTrace\OpenTelemetry\API\Trace as DDTraceAPI;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
@@ -191,7 +192,7 @@ final class Context implements ContextInterface
 
         $OTelCurrentSpan = SDK\Span::startSpan(
             $currentSpan,
-            API\SpanContext::create($currentTraceId, $currentSpanId, $traceFlags, $traceState), // $context
+            DDTraceAPI\SpanContext::createFromLocalSpan($currentSpan, $traceFlags === API\TraceFlags::SAMPLED, $currentSpanId),
             self::getDDInstrumentationScope(), // $instrumentationScope
             isset($currentSpan->meta[Tag::SPAN_KIND]) ? self::convertDDSpanKindToOtel($currentSpan->meta[Tag::SPAN_KIND]) : API\SpanKind::KIND_INTERNAL, // $kind
             API\Span::fromContext($parentContext), // $parentSpan (TODO: Handle null parent span) ?

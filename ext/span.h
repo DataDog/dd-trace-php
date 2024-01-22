@@ -50,6 +50,7 @@ typedef union ddtrace_span_properties {
         };
         zval property_links;
         zval property_peer_service_sources;
+        zval property_end_closure;
         union {
             union ddtrace_span_properties *parent;
             zval property_parent;
