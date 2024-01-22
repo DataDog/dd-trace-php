@@ -31,10 +31,6 @@ static mut PREV_CUSTOM_MM_FREE: Option<zend::VmMmCustomFreeFn> = None;
 /// The heap installed in ZendMM at the time we install our custom handlers
 static mut HEAP: Option<*mut zend::_zend_mm_heap> = None;
 
-pub fn allocation_profiling_minit() {
-    unsafe { zend::ddog_php_opcache_init_handle() };
-}
-
 /// take a sample every 4096 KiB
 pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 4096.0;
 
@@ -109,7 +105,17 @@ lazy_static! {
     static ref JIT_ENABLED: bool = unsafe { zend::ddog_php_jit_enabled() };
 }
 
+pub fn allocation_profiling_minit() {
+    #[cfg(php_zts)]
+    return;
+
+    unsafe { zend::ddog_php_opcache_init_handle() };
+}
+
 pub fn allocation_profiling_rinit() {
+    #[cfg(php_zts)]
+    return;
+
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
             Ok(locals) => locals.profiling_allocation_enabled,
@@ -191,6 +197,9 @@ pub fn allocation_profiling_rinit() {
 }
 
 pub fn allocation_profiling_rshutdown() {
+    #[cfg(php_zts)]
+    return;
+
     let allocation_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
             .map(|locals| locals.profiling_allocation_enabled)
@@ -257,6 +266,9 @@ pub fn allocation_profiling_rshutdown() {
 }
 
 pub fn allocation_profiling_startup() {
+    #[cfg(php_zts)]
+    return;
+
     unsafe {
         let handle = datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0"),
