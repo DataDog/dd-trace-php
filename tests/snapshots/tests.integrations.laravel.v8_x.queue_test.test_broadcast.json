@@ -1,0 +1,338 @@
+[[
+  {
+    "name": "laravel.request",
+    "service": "laravel_queue_test",
+    "resource": "App\\Http\\Controllers\\QueueTestController@broadcast broadcast",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 6000204433543756950,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "65ae455500000000",
+      "component": "laravel",
+      "http.method": "GET",
+      "http.route": "queue/broadcast",
+      "http.status_code": "200",
+      "http.url": "http://localhost:9999/queue/broadcast",
+      "laravel.route.action": "App\\Http\\Controllers\\QueueTestController@broadcast",
+      "laravel.route.name": "broadcast",
+      "runtime-id": "0673d6ca-953c-4616-8321-2c869a874f50",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
+       "trace_id": 0,
+       "span_id": 6,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
+       "trace_id": 0,
+       "span_id": 7,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
+       "trace_id": 0,
+       "span_id": 8,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
+       "trace_id": 0,
+       "span_id": 9,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
+       "trace_id": 0,
+       "span_id": 10,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.provider.load",
+       "service": "laravel_queue_test",
+       "resource": "Illuminate\\Foundation\\ProviderRepository::load",
+       "trace_id": 0,
+       "span_id": 11,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
+       "trace_id": 0,
+       "span_id": 12,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\BootProviders",
+       "trace_id": 0,
+       "span_id": 13,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\BootProviders",
+       "trace_id": 0,
+       "span_id": 14,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "Illuminate\\Routing\\Events\\RouteMatched",
+       "trace_id": 0,
+       "span_id": 15,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.action",
+       "service": "laravel_queue_test",
+       "resource": "queue/broadcast",
+       "trace_id": 0,
+       "span_id": 16,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+        {
+          "name": "laravel.event.handle",
+          "service": "laravel_queue_test",
+          "resource": "App\\Events\\NoopEvent",
+          "trace_id": 0,
+          "span_id": 18,
+          "parent_id": 16,
+          "type": "web",
+          "meta": {
+            "component": "laravel"
+          }
+        },
+           {
+             "name": "laravel.queue.push",
+             "service": "laravel_queue_test",
+             "resource": "Illuminate\\Queue\\SyncQueue",
+             "trace_id": 0,
+             "span_id": 19,
+             "parent_id": 18,
+             "type": "queue",
+             "meta": {
+               "component": "laravelqueue",
+               "messaging.destination": "default",
+               "messaging.destination_kind": "queue",
+               "messaging.laravel.connection": "sync",
+               "messaging.laravel.name": "App\\Events\\NoopEvent",
+               "messaging.operation": "send",
+               "messaging.system": "laravel",
+               "span.kind": "client"
+             }
+           },
+              {
+                "name": "laravel.event.handle",
+                "service": "laravel_queue_test",
+                "resource": "Illuminate\\Queue\\Events\\JobProcessing",
+                "trace_id": 0,
+                "span_id": 20,
+                "parent_id": 19,
+                "type": "web",
+                "meta": {
+                  "component": "laravel"
+                }
+              },
+              {
+                "name": "laravel.queue.fire",
+                "service": "laravel_queue_test",
+                "resource": "App\\Events\\NoopEvent -> sync",
+                "trace_id": 0,
+                "span_id": 21,
+                "parent_id": 19,
+                "type": "queue",
+                "meta": {
+                  "component": "laravelqueue",
+                  "messaging.destination": "sync",
+                  "messaging.destination_kind": "queue",
+                  "messaging.laravel.attempts": "1",
+                  "messaging.laravel.connection": "sync",
+                  "messaging.laravel.name": "App\\Events\\NoopEvent",
+                  "messaging.operation": "process",
+                  "messaging.system": "laravel",
+                  "span.kind": "client"
+                }
+              },
+                 {
+                   "name": "laravel.queue.resolve",
+                   "service": "laravel_queue_test",
+                   "resource": "App\\Events\\NoopEvent -> sync",
+                   "trace_id": 0,
+                   "span_id": 23,
+                   "parent_id": 21,
+                   "type": "queue",
+                   "meta": {
+                     "component": "laravelqueue",
+                     "messaging.destination": "sync",
+                     "messaging.destination_kind": "queue",
+                     "messaging.laravel.attempts": "1",
+                     "messaging.laravel.connection": "sync",
+                     "messaging.laravel.name": "App\\Events\\NoopEvent",
+                     "messaging.operation": "process",
+                     "messaging.system": "laravel",
+                     "span.kind": "client"
+                   }
+                 },
+                 {
+                   "name": "laravel.queue.action",
+                   "service": "laravelqueue",
+                   "resource": "Illuminate\\Broadcasting\\BroadcastEvent@handle",
+                   "trace_id": 0,
+                   "span_id": 24,
+                   "parent_id": 21,
+                   "type": "queue",
+                   "meta": {
+                     "_dd.base_service": "laravel_queue_test",
+                     "component": "laravelqueue"
+                   }
+                 },
+                    {
+                      "name": "laravel.event.handle",
+                      "service": "laravel_queue_test",
+                      "resource": "Illuminate\\Log\\Events\\MessageLogged",
+                      "trace_id": 0,
+                      "span_id": 25,
+                      "parent_id": 24,
+                      "type": "web",
+                      "meta": {
+                        "component": "laravel"
+                      }
+                    },
+              {
+                "name": "laravel.event.handle",
+                "service": "laravel_queue_test",
+                "resource": "Illuminate\\Queue\\Events\\JobProcessed",
+                "trace_id": 0,
+                "span_id": 22,
+                "parent_id": 19,
+                "type": "web",
+                "meta": {
+                  "component": "laravel"
+                }
+              },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_queue_test",
+       "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
+       "trace_id": 0,
+       "span_id": 17,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     }]]
