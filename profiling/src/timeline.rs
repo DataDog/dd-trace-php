@@ -66,14 +66,14 @@ fn try_sleeping_fn(
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?;
 
     match PROFILER.lock() {
-        Ok(guard) => match guard.as_ref() {
-            Some(profiler) => profiler.collect_idle(
-                now.as_nanos() as i64,
-                duration.as_nanos() as i64,
-                "sleeping",
-            ),
-            None => { /* Profiling is probably disabled, no worries */ }
-        },
+        Ok(guard) => {
+            // If the profiler isn't there, it's probably just not enabled.
+            if let Some(profiler) = guard.as_ref() {
+                let now = now.as_nanos() as i64;
+                let duration = duration.as_nanos() as i64;
+                profiler.collect_idle(now, duration, "sleeping")
+            }
+        }
         Err(err) => anyhow::bail!("profiler mutex: {err:#}"),
     }
     Ok(())
