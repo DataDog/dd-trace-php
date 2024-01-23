@@ -17,7 +17,7 @@ class PathExtractorTest extends TestCase
     {
         return [
             ['/basic-path', 'DDTrace\Tests\Unit\Integrations\PhpActionAnnotationsController::basicAction', 'basic action'],
-            ['/missing-name', 'DDTrace\Tests\Unit\Integrations\PhpActionAnnotationsController::missingName', 'ddtrace_tests_unit_integrations_phpactionannotationscontroller_missingname'],
+            ['/missing-name', 'DDTrace\Tests\Unit\Integrations\PhpActionAnnotationsController::missingName', 'ddtrace_tests_unit_integrations_phpactionannotations_missingname'],
             ['/', 'DDTrace\Tests\Unit\Integrations\PhpActionAnnotationsController::nothingButName', 'only the name'],
             ['/dynamic-path/{argument}', 'DDTrace\Tests\Unit\Integrations\PhpActionAnnotationsController::actionWithArguments', 'action with dynamic arguments'],
             ['/invokable', 'DDTrace\Tests\Unit\Integrations\InvokableController', 'lol'],
