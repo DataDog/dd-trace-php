@@ -1803,6 +1803,12 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
                 . ' Acceptable values are off, error, warn, info, debug, and trace.'
                 . ' The profiler’s logs are written to the standard error stream of the process.',
         ],
+        [
+            'name' => 'datadog.profiling.timeline_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enable the timeline profile type.',
+        ],
 
         [
             'name' => 'datadog.trace.request_init_hook',

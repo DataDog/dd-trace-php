@@ -543,8 +543,8 @@ impl Profiler {
         }
     }
 
-    pub fn is_experimental_timeline_enabled(&self) -> bool {
-        self.system_settings.profiling_experimental_timeline_enabled
+    pub fn is_timeline_enabled(&self) -> bool {
+        self.system_settings.profiling_timeline_enabled
     }
 
     pub fn add_interrupt(&self, interrupt: VmInterrupt) {
@@ -674,7 +674,7 @@ impl Profiler {
                 let labels = Profiler::message_labels();
                 let mut timestamp = 0;
                 #[cfg(feature = "timeline")]
-                if self.system_settings.profiling_experimental_timeline_enabled {
+                if self.is_timeline_enabled() {
                     if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
                         timestamp = now.as_nanos() as i64;
                     }
@@ -1061,7 +1061,7 @@ mod tests {
             profiling_endpoint_collection_enabled: false,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
-            profiling_experimental_timeline_enabled: false,
+            profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             output_pprof: None,
             profiling_exception_sampling_distance: 100,
@@ -1091,7 +1091,7 @@ mod tests {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
-        settings.profiling_experimental_timeline_enabled = true;
+        settings.profiling_timeline_enabled = true;
 
         let profiler = Profiler::new(settings);
 

@@ -40,7 +40,7 @@ impl SampleTypeFilter {
             }
 
             #[cfg(feature = "timeline")]
-            if system_settings.profiling_experimental_timeline_enabled {
+            if system_settings.profiling_timeline_enabled {
                 sample_types.push(SAMPLE_TYPES[5]);
                 sample_types_mask[5] = true;
             }

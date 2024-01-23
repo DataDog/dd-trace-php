@@ -20,7 +20,7 @@ pub struct SystemSettings {
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
-    pub profiling_experimental_timeline_enabled: bool,
+    pub profiling_timeline_enabled: bool,
     pub profiling_exception_enabled: bool,
 
     // todo: can't this be Option<String>? I don't think the string can ever be static.
@@ -37,7 +37,7 @@ impl SystemSettings {
         self.profiling_endpoint_collection_enabled = false;
         self.profiling_experimental_cpu_time_enabled = false;
         self.profiling_allocation_enabled = false;
-        self.profiling_experimental_timeline_enabled = false;
+        self.profiling_timeline_enabled = false;
         self.profiling_exception_enabled = false;
     }
 }
@@ -169,7 +169,7 @@ pub(crate) enum ConfigId {
     ProfilingEndpointCollectionEnabled,
     ProfilingExperimentalCpuTimeEnabled,
     ProfilingAllocationEnabled,
-    ProfilingExperimentalTimelineEnabled,
+    ProfilingTimelineEnabled,
     ProfilingExceptionEnabled,
     ProfilingExceptionSamplingDistance,
     ProfilingLogLevel,
@@ -195,7 +195,7 @@ impl ConfigId {
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
             ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
-            ProfilingExperimentalTimelineEnabled => b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
+            ProfilingTimelineEnabled => b"DD_PROFILING_TIMELINE_ENABLED\0",
             ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
             ProfilingExceptionSamplingDistance => b"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
@@ -259,10 +259,8 @@ pub(crate) unsafe fn profiling_allocation_enabled() -> bool {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_timeline_enabled() -> bool {
-    profiling_enabled()
-        && (profiling_experimental_features_enabled()
-            || get_bool(ProfilingExperimentalTimelineEnabled, false))
+pub(crate) unsafe fn profiling_timeline_enabled() -> bool {
+    profiling_enabled() && get_bool(ProfilingTimelineEnabled, true)
 }
 
 /// # Safety
@@ -484,6 +482,12 @@ pub(crate) fn minit(module_number: libc::c_int) {
             )]
         };
 
+        const TIMELINE_ALIASES: &[ZaiStr] = unsafe {
+            &[ZaiStr::literal(
+                b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
+            )]
+        };
+
         // Note that function pointers cannot appear in const functions, so we
         // can't extract each entry into a helper function.
         static mut ENTRIES: &mut [zai_config_entry] = unsafe {
@@ -539,12 +543,12 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalTimelineEnabled),
-                    name: ProfilingExperimentalTimelineEnabled.env_var_name(),
+                    id: transmute(ProfilingTimelineEnabled),
+                    name: ProfilingTimelineEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: std::ptr::null_mut(),
-                    aliases_count: 0,
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
+                    aliases: TIMELINE_ALIASES.as_ptr(),
+                    aliases_count: TIMELINE_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
@@ -711,6 +715,11 @@ mod tests {
             (
                 b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
                 "datadog.profiling.experimental_timeline_enabled",
+            ),
+            #[cfg(feature = "timeline")]
+            (
+                b"DD_PROFILING_TIMELINE_ENABLED\0",
+                "datadog.profiling.timeline_enabled",
             ),
             (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
             (
