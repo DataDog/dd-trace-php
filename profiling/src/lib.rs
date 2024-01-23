@@ -321,6 +321,7 @@ pub struct RequestLocals {
 }
 
 impl RequestLocals {
+    #[track_caller]
     pub fn system_settings(&self) -> &SystemSettings {
         // SAFETY: system_settings should be non-null except during edge cases
         // like after module creation but before first rinit. Request locals
@@ -834,8 +835,14 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
         profiler.shutdown(Duration::from_secs(2));
     }
 
+    // SAFETY: calling in shutdown before zai config is shutdown, and after
+    // all configuration is done being accessed. Well... in the happy-path,
+    // anyway. If the join with the uploader times out, there could become a
+    // data race condition.
     unsafe { config::shutdown() };
 
+    // SAFETY: zai_config_mshutdown should be safe to cal in shutdown instead
+    // of mshutdown.
     unsafe { bindings::zai_config_mshutdown() };
 }
 
