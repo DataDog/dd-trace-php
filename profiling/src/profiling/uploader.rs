@@ -1,4 +1,5 @@
 use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
+use crate::config::AgentEndpoint;
 use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
@@ -16,6 +17,7 @@ pub struct Uploader {
     fork_barrier: Arc<Barrier>,
     receiver: Receiver<UploadMessage>,
     output_pprof: Option<Cow<'static, str>>,
+    endpoint: AgentEndpoint,
 }
 
 impl Uploader {
@@ -23,11 +25,13 @@ impl Uploader {
         fork_barrier: Arc<Barrier>,
         receiver: Receiver<UploadMessage>,
         output_pprof: Option<Cow<'static, str>>,
+        endpoint: AgentEndpoint,
     ) -> Self {
         Self {
             fork_barrier,
             receiver,
             output_pprof,
+            endpoint,
         }
     }
 
@@ -42,14 +46,14 @@ impl Uploader {
         Some(metadata)
     }
 
-    fn upload(message: UploadRequest) -> anyhow::Result<u16> {
+    fn upload(&self, message: UploadRequest) -> anyhow::Result<u16> {
         let index = message.index;
         let profile = message.profile;
 
         let profiling_library_name: &str = &PROFILER_NAME_STR;
         let profiling_library_version: &str = &PROFILER_VERSION_STR;
-        let endpoint_string = index.endpoint.to_string();
-        let endpoint = Endpoint::try_from(index.endpoint)?;
+        let agent_endpoint = &self.endpoint;
+        let endpoint = Endpoint::try_from(agent_endpoint)?;
 
         // This is the currently unstable Arc::unwrap_or_clone.
         let tags = Some(Arc::try_unwrap(index.tags).unwrap_or_else(|arc| (*arc).clone()));
@@ -81,7 +85,7 @@ impl Uploader {
             Self::create_internal_metadata(),
             timeout,
         )?;
-        debug!("Sending profile to: {endpoint_string}");
+        debug!("Sending profile to: {agent_endpoint}");
         let result = exporter.send(request, None)?;
         Ok(result.status().as_u16())
     }
@@ -115,7 +119,7 @@ impl Uploader {
                                 i += 1;
                                 std::fs::write(format!("{filename}.{i}.lz4"), r.buffer).expect("write to succeed")
                             },
-                            None => match Self::upload(request) {
+                            None => match self.upload(request) {
                                 Ok(status) => {
                                     if status >= 400 {
                                         warn!("Unexpected HTTP status when sending profile (HTTP {status}).")

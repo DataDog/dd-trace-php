@@ -4,15 +4,17 @@ use crate::bindings::{
     zai_config_minit, zai_config_name, zai_config_system_ini_change, zend_long, zval, ZaiStr,
     IS_LONG, ZAI_CONFIG_ENTRIES_COUNT_MAX,
 };
+use core::fmt::{Display, Formatter};
+use core::mem::{swap, transmute};
+use core::ptr;
+use core::str::FromStr;
 pub use datadog_profiling::exporter::Uri;
 use libc::c_char;
 use log::{warn, LevelFilter};
 use std::borrow::Cow;
-use std::fmt::{Display, Formatter};
-use std::mem::transmute;
+use std::mem::MaybeUninit;
 use std::path::Path;
 pub use std::path::PathBuf;
-use std::str::FromStr;
 
 pub struct SystemSettings {
     pub profiling_enabled: bool,
@@ -39,6 +41,104 @@ impl SystemSettings {
         self.profiling_allocation_enabled = false;
         self.profiling_timeline_enabled = false;
         self.profiling_exception_enabled = false;
+    }
+
+    /// # Safety
+    /// This function must only be called after ZAI config has been
+    /// initialized in first rinit, and before config is uninitialized in
+    /// shutdown.
+    unsafe fn new() -> SystemSettings {
+        // Select agent URI/UDS.
+        let agent_host = agent_host();
+        let trace_agent_port = trace_agent_port();
+        let trace_agent_url = trace_agent_url();
+        let uri = detect_uri_from_config(trace_agent_url, agent_host, trace_agent_port);
+        Self {
+            profiling_enabled: profiling_enabled(),
+            profiling_experimental_features_enabled: profiling_experimental_features_enabled(),
+            profiling_endpoint_collection_enabled: profiling_endpoint_collection_enabled(),
+            profiling_experimental_cpu_time_enabled: profiling_experimental_cpu_time_enabled(),
+            profiling_allocation_enabled: profiling_allocation_enabled(),
+            profiling_timeline_enabled: profiling_timeline_enabled(),
+            profiling_exception_enabled: profiling_exception_enabled(),
+            output_pprof: profiling_output_pprof(),
+            profiling_exception_sampling_distance: profiling_exception_sampling_distance(),
+            profiling_log_level: profiling_log_level(),
+            uri,
+        }
+    }
+}
+
+static mut SYSTEM_SETTINGS: MaybeUninit<SystemSettings> = MaybeUninit::uninit();
+
+impl SystemSettings {
+    /// # Safety
+    /// Must be called after [first_rinit] and before [mshutdown].
+    pub unsafe fn get() -> *const SystemSettings {
+        SYSTEM_SETTINGS.as_ptr()
+    }
+
+    /// # Safety
+    /// Must be called exactly once on the first request after each minit.
+    /// Must be done while the caller holds some kind of mutex across all
+    /// threads. Must be done after zai config is initialized in first rinit.
+    unsafe fn on_first_request() {
+        let mut system_settings = SystemSettings::new();
+        // Work around version-specific issues.
+        if allocation::first_rinit_should_disable_due_to_jit() {
+            system_settings.profiling_allocation_enabled = false;
+        }
+        swap(&mut system_settings, SYSTEM_SETTINGS.assume_init_mut());
+    }
+
+    /// # Safety
+    /// Must be called exactly once each startup in either minit or startup,
+    /// whether profiling is enabled or not.
+    unsafe fn on_startup() {
+        let system_settings = SystemSettings {
+            profiling_enabled: false,
+            profiling_experimental_features_enabled: false,
+            profiling_endpoint_collection_enabled: false,
+            profiling_experimental_cpu_time_enabled: false,
+            profiling_allocation_enabled: false,
+            profiling_timeline_enabled: false,
+            profiling_exception_enabled: false,
+            output_pprof: None,
+            profiling_exception_sampling_distance: 0,
+            profiling_log_level: LevelFilter::Off,
+            uri: Default::default(),
+        };
+        SYSTEM_SETTINGS.write(system_settings);
+    }
+
+    /// # Safety
+    /// Must be called exactly once per shutdown in either mshutdown or shutdown.
+    unsafe fn on_shutdown() {
+        let system_settings = SYSTEM_SETTINGS.assume_init_mut();
+        *system_settings = SystemSettings {
+            profiling_enabled: false,
+            profiling_experimental_features_enabled: false,
+            profiling_endpoint_collection_enabled: false,
+            profiling_experimental_cpu_time_enabled: false,
+            profiling_allocation_enabled: false,
+            profiling_timeline_enabled: false,
+            profiling_exception_enabled: false,
+            output_pprof: None,
+            profiling_exception_sampling_distance: 0,
+            profiling_log_level: LevelFilter::Off,
+            uri: Default::default(),
+        };
+    }
+
+    unsafe fn on_fork_in_child() {
+        let system_settings = SYSTEM_SETTINGS.assume_init_mut();
+        system_settings.profiling_enabled;
+        system_settings.profiling_experimental_features_enabled = false;
+        system_settings.profiling_endpoint_collection_enabled = false;
+        system_settings.profiling_experimental_cpu_time_enabled = false;
+        system_settings.profiling_allocation_enabled = false;
+        system_settings.profiling_timeline_enabled = false;
+        system_settings.profiling_exception_enabled = false;
     }
 }
 
@@ -92,6 +192,61 @@ impl Display for AgentEndpoint {
     }
 }
 
+fn detect_uri_from_config(
+    url: Option<Cow<'static, str>>,
+    host: Option<Cow<'static, str>>,
+    port: Option<u16>,
+) -> AgentEndpoint {
+    /* Priority:
+     *  1. DD_TRACE_AGENT_URL
+     *     - RFC allows unix:///path/to/some/socket so parse these out.
+     *     - Maybe emit diagnostic if an invalid URL is detected or the path is non-existent, but
+     *       continue down the priority list.
+     *  2. DD_AGENT_HOST and/or DD_TRACE_AGENT_PORT. If only one is set, default the other.
+     *  3. Unix Domain Socket at /var/run/datadog/apm.socket
+     *  4. http://localhost:8126
+     */
+    if let Some(trace_agent_url) = url {
+        // check for UDS first
+        if let Some(path) = trace_agent_url.strip_prefix("unix://") {
+            let path = PathBuf::from(path);
+            if path.exists() {
+                return AgentEndpoint::Socket(path);
+            } else {
+                warn!(
+                    "Unix socket specified in DD_TRACE_AGENT_URL does not exist: {} ",
+                    path.to_string_lossy()
+                );
+            }
+        } else {
+            match Uri::from_str(trace_agent_url.as_ref()) {
+                Ok(uri) => return AgentEndpoint::Uri(uri),
+                Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {err}"),
+            }
+        }
+        // continue down priority list
+    }
+    if port.is_some() || host.is_some() {
+        let host = host.unwrap_or(Cow::Borrowed("localhost"));
+        let port = port.unwrap_or(8126u16);
+        let url = if host.contains(':') {
+            format!("http://[{host}]:{port}")
+        } else {
+            format!("http://{host}:{port}")
+        };
+
+        match Uri::from_str(url.as_str()) {
+            Ok(uri) => return AgentEndpoint::Uri(uri),
+            Err(err) => {
+                warn!("The combination of DD_AGENT_HOST({host}) and DD_TRACE_AGENT_PORT({port}) was not a valid URL: {err}")
+            }
+        }
+        // continue down priority list
+    }
+
+    AgentEndpoint::default()
+}
+
 unsafe extern "C" fn env_to_ini_name(env_name: ZaiStr, ini_name: *mut zai_config_name) {
     assert!(!ini_name.is_null());
     let ini_name = &mut *ini_name;
@@ -124,7 +279,7 @@ unsafe extern "C" fn env_to_ini_name(env_name: ZaiStr, ini_name: *mut zai_config
          *  4. These pointers do not overlap, the src string is a constant
          *     and the destination is an in-place array in a struct.
          */
-        std::ptr::copy_nonoverlapping(
+        ptr::copy_nonoverlapping(
             dest_prefix.as_ptr() as *const c_char,
             ini_name.ptr.as_mut_ptr(),
             dest_prefix.len(),
@@ -185,6 +340,7 @@ pub(crate) enum ConfigId {
     Version,
 }
 
+use crate::allocation;
 use ConfigId::*;
 
 impl ConfigId {
@@ -222,28 +378,28 @@ impl ConfigId {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_enabled() -> bool {
+unsafe fn profiling_enabled() -> bool {
     get_bool(ProfilingEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_features_enabled() -> bool {
+unsafe fn profiling_experimental_features_enabled() -> bool {
     profiling_enabled() && get_bool(ProfilingExperimentalFeaturesEnabled, false)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_endpoint_collection_enabled() -> bool {
+unsafe fn profiling_endpoint_collection_enabled() -> bool {
     profiling_enabled() && get_bool(ProfilingEndpointCollectionEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
+unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
     profiling_enabled()
         && (profiling_experimental_features_enabled()
             || get_bool(ProfilingExperimentalCpuTimeEnabled, true))
@@ -252,35 +408,35 @@ pub(crate) unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_allocation_enabled() -> bool {
+unsafe fn profiling_allocation_enabled() -> bool {
     profiling_enabled() && get_bool(ProfilingAllocationEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_timeline_enabled() -> bool {
+unsafe fn profiling_timeline_enabled() -> bool {
     profiling_enabled() && get_bool(ProfilingTimelineEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_exception_enabled() -> bool {
+unsafe fn profiling_exception_enabled() -> bool {
     profiling_enabled() && get_bool(ProfilingExceptionEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_exception_sampling_distance() -> u32 {
+unsafe fn profiling_exception_sampling_distance() -> u32 {
     get_uint32(ProfilingExceptionSamplingDistance, 100)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
+unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
     get_str(ProfilingOutputPprof)
 }
 
@@ -315,7 +471,7 @@ unsafe fn get_uint32(id: ConfigId, default: u32) -> u32 {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn agent_host() -> Option<Cow<'static, str>> {
+unsafe fn agent_host() -> Option<Cow<'static, str>> {
     get_str(AgentHost)
 }
 
@@ -343,7 +499,7 @@ pub(crate) unsafe fn version() -> Option<Cow<'static, str>> {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn trace_agent_port() -> Option<u16> {
+unsafe fn trace_agent_port() -> Option<u16> {
     let port = get_value(ConfigId::TraceAgentPort)
         .try_into()
         .unwrap_or(0_i64);
@@ -357,14 +513,17 @@ pub(crate) unsafe fn trace_agent_port() -> Option<u16> {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn trace_agent_url() -> Option<Cow<'static, str>> {
+unsafe fn trace_agent_url() -> Option<Cow<'static, str>> {
     get_str(TraceAgentUrl)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
-/// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_log_level() -> LevelFilter {
+/// first rinit, and before it is uninitialized in mshutdown.
+unsafe fn profiling_log_level() -> LevelFilter {
+    if !profiling_enabled() {
+        return LevelFilter::Off;
+    }
     match zend_long::try_from(get_value(ProfilingLogLevel)) {
         // If this is an lval, then we know we can transmute it because the parser worked.
         Ok(enabled) => transmute(enabled as usize),
@@ -497,7 +656,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: ProfilingEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"1\0"),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
@@ -507,7 +666,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: ProfilingExperimentalFeaturesEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
@@ -517,7 +676,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: ProfilingEndpointCollectionEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"1\0"),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
@@ -577,7 +736,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: ProfilingLogLevel.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM, // store it as an int
                     default_encoded_value: ZaiStr::literal(b"off\0"),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_level_filter),
@@ -587,7 +746,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: ProfilingOutputPprof.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
@@ -597,7 +756,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: AgentHost.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
@@ -607,7 +766,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: Env.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
                     parser: Some(parse_utf8_string),
@@ -617,7 +776,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: Service.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
                     parser: Some(parse_utf8_string),
@@ -627,7 +786,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: Tags.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_MAP,
                     default_encoded_value: ZaiStr::new(),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
                     parser: None,
@@ -637,7 +796,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: TraceAgentPort.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_INT,
                     default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
@@ -647,7 +806,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: TraceAgentUrl.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING, // TYPE?
                     default_encoded_value: ZaiStr::new(),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
@@ -657,7 +816,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     name: Version.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
-                    aliases: std::ptr::null_mut(),
+                    aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: None,
                     parser: Some(parse_utf8_string),
@@ -672,14 +831,33 @@ pub(crate) fn minit(module_number: libc::c_int) {
             module_number,
         );
         assert!(tmp); // It's literally return true in the source.
+
+        SystemSettings::on_startup();
     }
+}
+
+pub(crate) unsafe fn first_rinit() {
+    SystemSettings::on_first_request();
+}
+
+pub(crate) unsafe fn mshutdown() {
+    SystemSettings::on_shutdown();
+}
+
+/// # Safety
+/// Must be done in the child of a forked process as soon as possible, before
+/// threads are spawned.
+/// However, it must be done after any config needs to be used to properly
+/// shutdown other items.
+pub(crate) unsafe fn on_fork_in_child() {
+    SystemSettings::on_fork_in_child()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use core::mem::MaybeUninit;
     use libc::memcmp;
-    use std::mem::MaybeUninit;
 
     #[test]
     fn test_env_to_ini_name() {
@@ -756,5 +934,43 @@ mod tests {
                 assert_eq!(ini.ptr[ini.len] as u8, b'\0');
             }
         }
+    }
+
+    #[test]
+    fn detect_uri_from_config_works() {
+        // expected
+        let endpoint = detect_uri_from_config(None, None, None);
+        let expected = AgentEndpoint::default();
+        assert_eq!(endpoint, expected);
+
+        // ipv4 host
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("127.0.0.1".to_owned())), None);
+        let expected = AgentEndpoint::Uri(Uri::from_static("http://127.0.0.1:8126"));
+        assert_eq!(endpoint, expected);
+
+        // ipv6 host
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), None);
+        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
+        assert_eq!(endpoint, expected);
+
+        // ipv6 host, custom port
+        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), Some(9000));
+        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:9000"));
+        assert_eq!(endpoint, expected);
+
+        // agent_url
+        let endpoint =
+            detect_uri_from_config(Some(Cow::Owned("http://[::1]:8126".to_owned())), None, None);
+        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
+        assert_eq!(endpoint, expected);
+
+        // fallback on non existing UDS
+        let endpoint = detect_uri_from_config(
+            Some(Cow::Owned("unix://foo/bar/baz/I/do/not/exist".to_owned())),
+            None,
+            None,
+        );
+        let expected = AgentEndpoint::default();
+        assert_eq!(endpoint, expected);
     }
 }

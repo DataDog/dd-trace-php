@@ -23,8 +23,8 @@ use crate::config::SystemSettings;
 use bindings as zend;
 use bindings::{ddog_php_prof_php_version_id, ZendExtension, ZendResult};
 use clocks::*;
-use config::AgentEndpoint;
-use datadog_profiling::exporter::{Tag, Uri};
+use core::ptr;
+use datadog_profiling::exporter::Tag;
 use ddcommon::cstr;
 use lazy_static::lazy_static;
 use libc::c_char;
@@ -36,8 +36,6 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::os::raw::c_int;
-use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
 use std::time::{Duration, Instant};
@@ -252,7 +250,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         unsafe {
             let module = &mut *ptr;
             let handle = module.handle;
-            module.handle = std::ptr::null_mut();
+            module.handle = ptr::null_mut();
             handle
         }
     };
@@ -312,30 +310,22 @@ extern "C" fn prshutdown() -> ZendResult {
 pub struct RequestLocals {
     pub env: Option<Cow<'static, str>>,
     pub interrupt_count: AtomicU32,
-    pub profiling_enabled: bool,
-    pub profiling_experimental_features_enabled: bool,
-    pub profiling_endpoint_collection_enabled: bool,
-    pub profiling_experimental_cpu_time_enabled: bool,
-    pub profiling_allocation_enabled: bool,
-    pub profiling_timeline_enabled: bool,
-    pub profiling_exception_enabled: bool,
-    pub profiling_exception_sampling_distance: u32,
-    pub profiling_log_level: LevelFilter, // Only used for minfo
     pub service: Option<Cow<'static, str>>,
-    pub uri: Box<AgentEndpoint>,
+
+    /// SystemSettings are global. This ptr must be non-null after rinit
+    /// through rshutdown.
+    pub system_settings: *const SystemSettings,
+
     pub version: Option<Cow<'static, str>>,
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
 impl RequestLocals {
-    pub fn disable(&mut self) {
-        self.profiling_enabled = false;
-        self.profiling_experimental_features_enabled = false;
-        self.profiling_endpoint_collection_enabled = false;
-        self.profiling_experimental_cpu_time_enabled = false;
-        self.profiling_allocation_enabled = false;
-        self.profiling_timeline_enabled = false;
-        self.profiling_exception_enabled = false;
+    pub fn system_settings(&self) -> &SystemSettings {
+        // SAFETY: system_settings should be non-null except during edge cases
+        // like after module creation but before first rinit. Request locals
+        // should not generally be used at such times anyway.
+        unsafe { self.system_settings.as_ref().unwrap() }
     }
 }
 
@@ -344,19 +334,10 @@ impl Default for RequestLocals {
         RequestLocals {
             env: None,
             interrupt_count: AtomicU32::new(0),
-            profiling_enabled: false,
-            profiling_experimental_features_enabled: false,
-            profiling_endpoint_collection_enabled: true,
-            profiling_experimental_cpu_time_enabled: true,
-            profiling_allocation_enabled: true,
-            profiling_timeline_enabled: true,
-            profiling_exception_enabled: true,
-            profiling_exception_sampling_distance: 100,
-            profiling_log_level: LevelFilter::Off,
             service: None,
-            uri: Box::<AgentEndpoint>::default(),
+            system_settings: ptr::null(),
             version: None,
-            vm_interrupt_addr: std::ptr::null_mut(),
+            vm_interrupt_addr: ptr::null_mut(),
         }
     }
 }
@@ -397,42 +378,21 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RINIT({_type}, {_module_number})");
 
-    /* At the moment, logging is truly global, so init it exactly once whether
-     * profiling is enabled or not.
-     */
     static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        unsafe { bindings::zai_config_first_time_rinit() };
+    ONCE.call_once(|| unsafe {
+        bindings::zai_config_first_time_rinit();
     });
 
     unsafe { bindings::zai_config_rinit() };
 
+    // todo: why can't I move this before `zai_config_rinit`?
+    static CONFIG_ONCE: Once = Once::new();
+    CONFIG_ONCE.call_once(|| unsafe {
+        config::first_rinit();
+    });
+
     // Safety: We are after first rinit and before mshutdown.
-    let (
-        profiling_enabled,
-        profiling_experimental_features_enabled,
-        profiling_endpoint_collection_enabled,
-        profiling_experimental_cpu_time_enabled,
-        profiling_allocation_enabled,
-        profiling_timeline_enabled,
-        profiling_exception_enabled,
-        profiling_exception_sampling_distance,
-        log_level,
-        output_pprof,
-    ) = unsafe {
-        (
-            config::profiling_enabled(),
-            config::profiling_experimental_features_enabled(),
-            config::profiling_endpoint_collection_enabled(),
-            config::profiling_experimental_cpu_time_enabled(),
-            config::profiling_allocation_enabled(),
-            config::profiling_timeline_enabled(),
-            config::profiling_exception_enabled(),
-            config::profiling_exception_sampling_distance(),
-            config::profiling_log_level(),
-            config::profiling_output_pprof(),
-        )
-    };
+    let system_settings = unsafe { &*SystemSettings::get() };
 
     // initialize the thread local storage and cache some items
     REQUEST_LOCALS.with(|cell| {
@@ -440,16 +400,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         // Safety: we are in rinit on a PHP thread.
         locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
         locals.interrupt_count.store(0, Ordering::SeqCst);
-
-        locals.profiling_enabled = profiling_enabled;
-        locals.profiling_experimental_features_enabled = profiling_experimental_features_enabled;
-        locals.profiling_endpoint_collection_enabled = profiling_endpoint_collection_enabled;
-        locals.profiling_experimental_cpu_time_enabled = profiling_experimental_cpu_time_enabled;
-        locals.profiling_allocation_enabled = profiling_allocation_enabled;
-        locals.profiling_timeline_enabled = profiling_timeline_enabled;
-        locals.profiling_exception_enabled = profiling_exception_enabled;
-        locals.profiling_exception_sampling_distance = profiling_exception_sampling_distance;
-        locals.profiling_log_level = log_level;
 
         // Safety: We are after first rinit and before mshutdown.
         unsafe {
@@ -465,33 +415,21 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 }
             });
             locals.version = config::version();
-
-            // Select agent URI/UDS
-            let agent_host = config::agent_host();
-            let trace_agent_port = config::trace_agent_port();
-            let trace_agent_url = config::trace_agent_url();
-            let endpoint = detect_uri_from_config(trace_agent_url, agent_host, trace_agent_port);
-            locals.uri = Box::new(endpoint);
-
-            // todo: tags
         }
+        locals.system_settings = system_settings;
     });
 
     static ONCE2: Once = Once::new();
     ONCE2.call_once(|| {
         // Don't log when profiling is disabled as that can mess up tests.
-        let profiling_log_level = if profiling_enabled {
-            log_level
-        } else {
-            LevelFilter::Off
-        };
+        let profiling_log_level = system_settings.profiling_log_level;
 
         #[cfg(not(debug_assertions))]
         logging::log_init(profiling_log_level);
         #[cfg(debug_assertions)]
         log::set_max_level(profiling_log_level);
 
-        if profiling_enabled {
+        if system_settings.profiling_enabled {
             /* Safety: sapi_module is initialized by rinit and shouldn't be
              * modified at this point (safe to read values).
              */
@@ -511,12 +449,12 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 }
             }
             if let Err(err) = cpu_time::ThreadTime::try_now() {
-                if profiling_experimental_cpu_time_enabled {
+                if system_settings.profiling_experimental_cpu_time_enabled {
                     warn!("CPU Time collection was enabled but collection failed: {err}");
                 } else {
                     debug!("CPU Time collection was not enabled and isn't available: {err}");
                 }
-            } else if profiling_experimental_cpu_time_enabled {
+            } else if system_settings.profiling_experimental_cpu_time_enabled {
                 info!("CPU Time profiling enabled.");
             }
         }
@@ -551,35 +489,14 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
          */
         let mut profiler = PROFILER.lock().unwrap();
         if profiler.is_none() {
-            // Select agent URI/UDS
-            // SAFETY: config is called in rinit after its been initialized.
-            let uri = unsafe {
-                let agent_host = config::agent_host();
-                let trace_agent_port = config::trace_agent_port();
-                let trace_agent_url = config::trace_agent_url();
-                detect_uri_from_config(trace_agent_url, agent_host, trace_agent_port)
-            };
-
-            *profiler = Some(Profiler::new(SystemSettings {
-                profiling_enabled,
-                profiling_experimental_features_enabled,
-                profiling_endpoint_collection_enabled,
-                profiling_experimental_cpu_time_enabled,
-                profiling_allocation_enabled,
-                profiling_timeline_enabled,
-                profiling_exception_enabled,
-                output_pprof,
-                profiling_exception_sampling_distance,
-                profiling_log_level: log_level,
-                uri,
-            }))
+            *profiler = Some(Profiler::new(system_settings))
         }
     };
 
-    if profiling_enabled {
+    if system_settings.profiling_enabled {
         REQUEST_LOCALS.with(|cell| {
             let locals = cell.borrow();
-            let cpu_time_enabled = locals.profiling_experimental_cpu_time_enabled;
+            let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
             CLOCKS.with(|cell| cell.borrow_mut().initialize(cpu_time_enabled));
 
             TAGS.with(|cell| {
@@ -609,8 +526,11 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     allocation::allocation_profiling_rinit();
 
+    // SAFETY: called after config is initialized.
     #[cfg(feature = "timeline")]
-    timeline::timeline_rinit();
+    unsafe {
+        timeline::timeline_rinit()
+    };
 
     ZendResult::Success
 }
@@ -633,61 +553,6 @@ fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
     }
 }
 
-fn detect_uri_from_config(
-    url: Option<Cow<'static, str>>,
-    host: Option<Cow<'static, str>>,
-    port: Option<u16>,
-) -> AgentEndpoint {
-    /* Priority:
-     *  1. DD_TRACE_AGENT_URL
-     *     - RFC allows unix:///path/to/some/socket so parse these out.
-     *     - Maybe emit diagnostic if an invalid URL is detected or the path is non-existent, but
-     *       continue down the priority list.
-     *  2. DD_AGENT_HOST and/or DD_TRACE_AGENT_PORT. If only one is set, default the other.
-     *  3. Unix Domain Socket at /var/run/datadog/apm.socket
-     *  4. http://localhost:8126
-     */
-    if let Some(trace_agent_url) = url {
-        // check for UDS first
-        if let Some(path) = trace_agent_url.strip_prefix("unix://") {
-            let path = PathBuf::from(path);
-            if path.exists() {
-                return AgentEndpoint::Socket(path);
-            } else {
-                warn!(
-                    "Unix socket specified in DD_TRACE_AGENT_URL does not exist: {} ",
-                    path.to_string_lossy()
-                );
-            }
-        } else {
-            match Uri::from_str(trace_agent_url.as_ref()) {
-                Ok(uri) => return AgentEndpoint::Uri(uri),
-                Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {err}"),
-            }
-        }
-        // continue down priority list
-    }
-    if port.is_some() || host.is_some() {
-        let host = host.unwrap_or(Cow::Borrowed("localhost"));
-        let port = port.unwrap_or(8126u16);
-        let url = if host.contains(':') {
-            format!("http://[{host}]:{port}")
-        } else {
-            format!("http://{host}:{port}")
-        };
-
-        match Uri::from_str(url.as_str()) {
-            Ok(uri) => return AgentEndpoint::Uri(uri),
-            Err(err) => {
-                warn!("The combination of DD_AGENT_HOST({host}) and DD_TRACE_AGENT_PORT({port}) was not a valid URL: {err}")
-            }
-        }
-        // continue down priority list
-    }
-
-    AgentEndpoint::default()
-}
-
 extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RSHUTDOWN({_type}, {_module_number})");
@@ -703,8 +568,9 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 
     REQUEST_LOCALS.with(|cell| {
         let locals = cell.borrow();
+        let system_settings = locals.system_settings();
 
-        if locals.profiling_enabled {
+        if system_settings.profiling_enabled {
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 let interrupt = VmInterrupt {
                     interrupt_count_ptr: &locals.interrupt_count,
@@ -732,6 +598,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
     REQUEST_LOCALS.with(|cell| {
         let locals = cell.borrow();
+        let system_settings = locals.system_settings();
         let yes: &[u8] = b"true\0";
         let yes_exp: &[u8] = b"true (all experimental features enabled)\0";
         let no: &[u8] = b"false\0";
@@ -741,15 +608,15 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         zend::php_info_print_table_row(
             2,
             b"Profiling Enabled\0".as_ptr(),
-            if locals.profiling_enabled { yes } else { no },
+            if system_settings.profiling_enabled { yes } else { no },
         );
 
         zend::php_info_print_table_row(
             2,
             b"Profiling Experimental Features Enabled\0".as_ptr(),
-            if locals.profiling_experimental_features_enabled {
+            if system_settings.profiling_experimental_features_enabled {
                 yes
-            } else if locals.profiling_enabled {
+            } else if system_settings.profiling_enabled {
                 no
             } else {
                 no_all
@@ -759,13 +626,13 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         zend::php_info_print_table_row(
             2,
             b"Experimental CPU Time Profiling Enabled\0".as_ptr(),
-            if locals.profiling_experimental_cpu_time_enabled {
-                if locals.profiling_experimental_features_enabled {
+            if system_settings.profiling_experimental_cpu_time_enabled {
+                if system_settings.profiling_experimental_features_enabled {
                     yes_exp
                 } else {
                     yes
                 }
-            } else if locals.profiling_enabled {
+            } else if system_settings.profiling_enabled {
                 no
             } else {
                 no_all
@@ -777,11 +644,11 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                 zend::php_info_print_table_row(
                     2,
                     b"Allocation Profiling Enabled\0".as_ptr(),
-                    if locals.profiling_allocation_enabled {
+                    if system_settings.profiling_allocation_enabled {
                         yes
                     } else if zend::ddog_php_jit_enabled() {
                         b"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.\0"
-                    } else if locals.profiling_enabled {
+                    } else if system_settings.profiling_enabled {
                         no
                     } else {
                         no_all
@@ -801,9 +668,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                 zend::php_info_print_table_row(
                     2,
                     b"Timeline Enabled\0".as_ptr(),
-                    if locals.profiling_timeline_enabled {
+                    if system_settings.profiling_timeline_enabled {
                         yes
-                    } else if locals.profiling_enabled {
+                    } else if system_settings.profiling_enabled {
                         no
                     } else {
                         no_all
@@ -823,9 +690,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                 zend::php_info_print_table_row(
                     2,
                     b"Exception Profiling Enabled\0".as_ptr(),
-                    if locals.profiling_exception_enabled {
+                    if system_settings.profiling_exception_enabled {
                         yes
-                    } else if locals.profiling_enabled {
+                    } else if system_settings.profiling_enabled {
                         no
                     } else {
                         no_all
@@ -843,9 +710,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         zend::php_info_print_table_row(
             2,
             b"Endpoint Collection Enabled\0".as_ptr(),
-            if locals.profiling_endpoint_collection_enabled {
+            if system_settings.profiling_endpoint_collection_enabled {
                 yes
-            } else if locals.profiling_enabled {
+            } else if system_settings.profiling_enabled {
                 no
             } else {
                 no_all
@@ -862,12 +729,12 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             },
         );
 
-        let mut log_level = format!("{}\0", locals.profiling_log_level);
+        let mut log_level = format!("{}\0", system_settings.profiling_log_level);
         log_level.make_ascii_lowercase();
         zend::php_info_print_table_row(2, b"Profiling Log Level\0".as_ptr(), log_level.as_ptr());
 
         let key = b"Profiling Agent Endpoint\0".as_ptr();
-        let agent_endpoint = format!("{}\0", locals.uri);
+        let agent_endpoint = format!("{}\0", system_settings.uri);
         zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr());
 
         let vars = [
@@ -895,8 +762,11 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("MSHUTDOWN({_type}, {_module_number})");
 
+    // SAFETY: being called before config::mshutdown.
     #[cfg(feature = "timeline")]
-    timeline::timeline_mshutdown();
+    unsafe {
+        timeline::timeline_mshutdown()
+    };
 
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();
@@ -907,6 +777,8 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     if let Some(profiler) = profiler.as_mut() {
         profiler.stop(Duration::from_secs(1));
     }
+
+    unsafe { config::mshutdown() };
 
     ZendResult::Success
 }
@@ -968,7 +840,8 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
 fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource: Cow<str>) {
     REQUEST_LOCALS.with(|cell| {
         let locals = cell.borrow();
-        if locals.profiling_enabled && locals.profiling_endpoint_collection_enabled {
+        let system_settings = locals.system_settings();
+        if system_settings.profiling_enabled && system_settings.profiling_endpoint_collection_enabled {
             // Only gather Endpoint Profiling data for web spans, partly for PII reasons.
             if span_type != "web" {
                 debug!(
@@ -992,47 +865,4 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
             }
         }
     });
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn detect_uri_from_config_works() {
-        // expected
-        let endpoint = detect_uri_from_config(None, None, None);
-        let expected = AgentEndpoint::default();
-        assert_eq!(endpoint, expected);
-
-        // ipv4 host
-        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("127.0.0.1".to_owned())), None);
-        let expected = AgentEndpoint::Uri(Uri::from_static("http://127.0.0.1:8126"));
-        assert_eq!(endpoint, expected);
-
-        // ipv6 host
-        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), None);
-        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
-        assert_eq!(endpoint, expected);
-
-        // ipv6 host, custom port
-        let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), Some(9000));
-        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:9000"));
-        assert_eq!(endpoint, expected);
-
-        // agent_url
-        let endpoint =
-            detect_uri_from_config(Some(Cow::Owned("http://[::1]:8126".to_owned())), None, None);
-        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
-        assert_eq!(endpoint, expected);
-
-        // fallback on non existing UDS
-        let endpoint = detect_uri_from_config(
-            Some(Cow::Owned("unix://foo/bar/baz/I/do/not/exist".to_owned())),
-            None,
-            None,
-        );
-        let expected = AgentEndpoint::default();
-        assert_eq!(endpoint, expected);
-    }
 }

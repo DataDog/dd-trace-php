@@ -39,7 +39,7 @@ fn try_sleeping_fn(
 ) -> anyhow::Result<()> {
     let timeline_enabled = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.profiling_timeline_enabled)
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
             .unwrap_or(false)
     });
 
@@ -183,29 +183,37 @@ pub unsafe fn timeline_startup() {
 }
 
 /// This function is run during the RINIT phase and reports any `IDLE_SINCE` duration as an idle
-/// period for this PHP thread
-pub fn timeline_rinit() {
+/// period for this PHP thread.
+/// # SAFETY
+/// Must be called only in rinit and after [crate::config::first_rinit].
+pub unsafe fn timeline_rinit() {
     IDLE_SINCE.with(|cell| {
         // try to borrow and bail out if not successful
         let Ok(idle_since) = cell.try_borrow() else {
             return;
         };
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            if !profiler.is_timeline_enabled() {
+        REQUEST_LOCALS.with(|cell| {
+            let is_timeline_enabled = cell
+                .try_borrow()
+                .map(|locals| locals.system_settings().profiling_timeline_enabled)
+                .unwrap_or(false);
+            if !is_timeline_enabled {
                 return;
             }
 
-            profiler.collect_idle(
-                // Safety: checked for `is_err()` above
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos() as i64,
-                idle_since.elapsed().as_nanos() as i64,
-                "idle",
-            );
-        }
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                profiler.collect_idle(
+                    // Safety: checked for `is_err()` above
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos() as i64,
+                    idle_since.elapsed().as_nanos() as i64,
+                    "idle",
+                );
+            }
+        });
     });
 }
 
@@ -214,7 +222,7 @@ pub fn timeline_rinit() {
 pub fn timeline_prshutdown() {
     let timeline_enabled = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.profiling_timeline_enabled)
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
             .unwrap_or(false)
     });
 
@@ -234,27 +242,36 @@ pub fn timeline_prshutdown() {
 /// This function is run during the MSHUTDOWN phase and reports any `IDLE_SINCE` duration as an idle
 /// period for this PHP thread. This will report the last `IDLE_SINCE` duration created in the last
 /// `P-RSHUTDOWN` (just above) when the PHP process is shutting down.
-pub(crate) fn timeline_mshutdown() {
+/// # Saftey
+/// Must be called in mshutdown before [crate::config::mshutdown].
+pub(crate) unsafe fn timeline_mshutdown() {
     IDLE_SINCE.with(|cell| {
         // try to borrow and bail out if not successful
         let Ok(idle_since) = cell.try_borrow() else {
             return;
         };
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-            if !profiler.is_timeline_enabled() {
+        REQUEST_LOCALS.with(|cell| {
+            let is_timeline_enabled = cell
+                .try_borrow()
+                .map(|locals| locals.system_settings().profiling_timeline_enabled)
+                .unwrap_or(false);
+            if !is_timeline_enabled {
                 return;
             }
-            profiler.collect_idle(
-                // Safety: checked for `is_err()` above
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos() as i64,
-                idle_since.elapsed().as_nanos() as i64,
-                "idle",
-            );
-        }
+
+            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+                profiler.collect_idle(
+                    // Safety: checked for `is_err()` above
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos() as i64,
+                    idle_since.elapsed().as_nanos() as i64,
+                    "idle",
+                );
+            }
+        });
     });
 }
 
@@ -272,7 +289,7 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
     if let Some(prev) = PREV_ZEND_COMPILE_STRING {
         let timeline_enabled = REQUEST_LOCALS.with(|cell| {
             cell.try_borrow()
-                .map(|locals| locals.profiling_timeline_enabled)
+                .map(|locals| locals.system_settings().profiling_timeline_enabled)
                 .unwrap_or(false)
         });
 
@@ -333,7 +350,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
     if let Some(prev) = PREV_ZEND_COMPILE_FILE {
         let timeline_enabled = REQUEST_LOCALS.with(|cell| {
             cell.try_borrow()
-                .map(|locals| locals.profiling_timeline_enabled)
+                .map(|locals| locals.system_settings().profiling_timeline_enabled)
                 .unwrap_or(false)
         });
 
@@ -411,7 +428,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if let Some(prev) = PREV_GC_COLLECT_CYCLES {
         let timeline_enabled = REQUEST_LOCALS.with(|cell| {
             cell.try_borrow()
-                .map(|locals| locals.profiling_timeline_enabled)
+                .map(|locals| locals.system_settings().profiling_timeline_enabled)
                 .unwrap_or(false)
         });
 
