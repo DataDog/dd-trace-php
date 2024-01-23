@@ -1,0 +1,25 @@
+FROM datadog/dd-appsec-php-ci:toolchain
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libxml2-dev \
+    libzip-dev \
+    zlib1g-dev \
+    libcurl4-gnutls-dev \
+    libgmp-dev \
+    libpng-dev \
+    libonig-dev \
+    libpq-dev \
+    apache2-dev \
+    libsqlite3-dev \
+    netcat-openbsd \
+    gdb \
+    procps \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+ADD build_dev_php.sh /build/php/
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.73.0 -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN USER=root /build/php/build_dev_php.sh deps

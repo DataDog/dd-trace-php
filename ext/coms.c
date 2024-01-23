@@ -751,7 +751,7 @@ char *ddtrace_agent_url(void) {
             port = 8126;
         }
         char *formatted_url;
-        asprintf(&formatted_url, isIPv6 ? HOST_V6_FORMAT_STR : HOST_V4_FORMAT_STR, ZSTR_VAL(hostname), (uint32_t)port);
+        UNUSED(asprintf(&formatted_url, isIPv6 ? HOST_V6_FORMAT_STR : HOST_V4_FORMAT_STR, ZSTR_VAL(hostname), (uint32_t)port));
         return formatted_url;
     }
 
@@ -764,7 +764,7 @@ char *ddtrace_agent_url(void) {
         port = 8126;
     }
     char *formatted_url;
-    asprintf(&formatted_url, HOST_V4_FORMAT_STR, "localhost", (uint32_t)port);
+    UNUSED(asprintf(&formatted_url, HOST_V4_FORMAT_STR, "localhost", (uint32_t)port));
     return formatted_url;
 }
 

@@ -43,7 +43,7 @@ if(COMPILER_HAS_NO_GNU_UNIQUE)
 target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-gnu-unique>)
 endif()
 target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti -fno-exceptions>)
-target_compile_options(extension PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_compile_options(extension PRIVATE -Wall -Wextra -Werror)
 # our thread local variables are only used by ourselves
 target_compile_options(extension PRIVATE -ftls-model=local-dynamic)
 
@@ -54,9 +54,10 @@ target_linker_flag_conditional(extension -Wl,--as-needed)
 target_linker_flag_conditional(extension "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/ddappsec.version")
 
 # Mac OS
-target_linker_flag_conditional(extension -flat_namespace -undefined suppress)
+target_linker_flag_conditional(extension -flat_namespace "-undefined suppress")
 target_linker_flag_conditional(extension -Wl,-exported_symbol -Wl,_get_module)
 
+patch_away_libc(extension)
 
 if(DD_APPSEC_TESTING)
     if(DD_APPSEC_ENABLE_COVERAGE)

@@ -10,6 +10,8 @@
 
 #include "../limiter/limiter.h"
 #include "ddshared.h"
+#include "ddtrace.h"
+#include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -308,7 +310,7 @@ zend_long ddtrace_fetch_priority_sampling_from_span(ddtrace_root_span_data *root
     return zval_get_long(&root_span->property_sampling_priority);
 }
 
-DDTRACE_PUBLIC void ddtrace_set_priority_sampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism) {
+void ddtrace_set_priority_sampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism) {
     ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
 
     if (!root_span) {
@@ -327,4 +329,10 @@ void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, ze
         dd_update_decision_maker_tag(root_span, mechanism);
         root_span->explicit_sampling_priority = true;
     }
+}
+
+DDTRACE_PUBLIC void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root_span, zend_long priority, enum dd_sampling_mechanism mechanism) {
+    assert(root_span->ce == ddtrace_ce_root_span_data);
+
+    ddtrace_set_priority_sampling_on_span(ROOTSPANDATA(root_span), priority, mechanism);
 }

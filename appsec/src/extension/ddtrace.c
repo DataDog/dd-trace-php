@@ -6,7 +6,6 @@
 #include "ddtrace.h"
 #include <fcntl.h>
 #include <unistd.h>
-#include <zend_API.h>
 
 #include "configuration.h"
 #include "ddappsec.h"
@@ -14,7 +13,10 @@
 #include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
+#include "request_lifecycle.h"
 #include "string_helpers.h"
+#include "zend_object_handlers.h"
+#include "zend_types.h"
 
 static int (*_orig_ddtrace_shutdown)(SHUTDOWN_FUNC_ARGS);
 static int _mod_type;
@@ -25,19 +27,20 @@ static zend_string *_ddtrace_root_span_fname;
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
-static THREAD_LOCAL_ON_ZTS zval *_span_meta;
-static THREAD_LOCAL_ON_ZTS zval *_span_metrics;
 static uint8_t *_ddtrace_runtime_id = NULL;
 
 static zend_module_entry *_find_ddtrace_module(void);
 static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS);
 static void _register_testing_objects(void);
 
-static zval *(*nullable _ddtrace_root_span_get_meta)();
-static zval *(*nullable _ddtrace_root_span_get_metrics)();
-static void (*nullable _ddtrace_close_all_spans_and_flush)();
-static void (*nullable _ddtrace_set_priority_sampling_on_root)(
-    zend_long priority, enum dd_sampling_mechanism mechanism);
+static zend_object *(*nullable _ddtrace_get_root_span)(void);
+static void (*nullable _ddtrace_close_all_spans_and_flush)(void);
+static void (*nullable _ddtrace_set_priority_sampling_on_span_zobj)(
+    zend_object *nonnull zobj, zend_long priority,
+    enum dd_sampling_mechanism mechanism);
+
+static bool (*nullable _ddtrace_user_req_add_listeners)(
+    ddtrace_user_req_listeners *listeners);
 
 static void dd_trace_load_symbols(void)
 {
@@ -54,24 +57,15 @@ static void dd_trace_load_symbols(void)
     _ddtrace_close_all_spans_and_flush =
         dlsym(handle, "ddtrace_close_all_spans_and_flush");
     if (_ddtrace_close_all_spans_and_flush == NULL && !testing) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
         mlog(dd_log_error,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
             "Failed to load ddtrace_close_all_spans_and_flush: %s", dlerror());
     }
 
-    _ddtrace_root_span_get_meta = dlsym(handle, "ddtrace_root_span_get_meta");
-    if (_ddtrace_root_span_get_meta == NULL && !testing) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        mlog(dd_log_error, "Failed to load ddtrace_root_span_get_meta: %s",
-            dlerror());
-    }
-
-    _ddtrace_root_span_get_metrics =
-        dlsym(handle, "ddtrace_root_span_get_metrics");
-    if (_ddtrace_root_span_get_metrics == NULL && !testing) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        mlog(dd_log_error, "Failed to load ddtrace_root_span_get_metrics: %s",
-            dlerror());
+    _ddtrace_get_root_span = dlsym(handle, "ddtrace_get_root_span");
+    if (_ddtrace_get_root_span == NULL && !testing) {
+        mlog(dd_log_error, "Failed to load ddtrace_get_root_span: %s",
+            dlerror()); // NOLINT(concurrency-mt-unsafe)
     }
 
     _ddtrace_runtime_id = dlsym(handle, "ddtrace_runtime_id");
@@ -80,14 +74,21 @@ static void dd_trace_load_symbols(void)
         mlog(dd_log_debug, "Failed to load ddtrace_runtime_id: %s", dlerror());
     }
 
-    _ddtrace_set_priority_sampling_on_root =
-        dlsym(handle, "ddtrace_set_priority_sampling_on_root");
-    if (_ddtrace_set_priority_sampling_on_root == NULL) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    _ddtrace_set_priority_sampling_on_span_zobj =
+        dlsym(handle, "ddtrace_set_priority_sampling_on_span_zobj");
+    if (_ddtrace_set_priority_sampling_on_span_zobj == NULL) {
         mlog(dd_log_error,
-            "Failed to load ddtrace_set_priority_sampling_on_root: %s",
-            dlerror());
+            "Failed to load ddtrace_set_priority_sampling_on_span_zobj: %s",
+            dlerror()); // NOLINT(concurrency-mt-unsafe)
     }
+
+    _ddtrace_user_req_add_listeners =
+        dlsym(handle, "ddtrace_user_req_add_listeners");
+    if (_ddtrace_user_req_add_listeners == NULL) {
+        mlog(dd_log_error, "Failed to load ddtrace_user_req_add_listeners: %s",
+            dlerror()); // NOLINT(concurrency-mt-unsafe)
+    }
+
     dlclose(handle);
 }
 
@@ -120,18 +121,6 @@ void dd_trace_startup()
         _orig_ddtrace_shutdown = mod->request_shutdown_func;
         mod->request_shutdown_func = _ddtrace_rshutdown_testing;
     }
-}
-
-void dd_trace_rinit()
-{
-    _span_meta = NULL;
-    _span_metrics = NULL;
-    // DDTrace might not be loaded during tests
-    if (!dd_trace_enabled()) {
-        return;
-    }
-    _span_meta = dd_trace_root_span_get_meta();
-    _span_metrics = dd_trace_root_span_get_metrics();
 }
 
 static zend_module_entry *_find_ddtrace_module()
@@ -169,9 +158,10 @@ const char *nullable dd_trace_version() { return _mod_version; }
 bool dd_trace_loaded() { return _ddtrace_loaded; }
 bool dd_trace_enabled() { return _ddtrace_loaded && get_DD_TRACE_ENABLED(); }
 
-bool dd_trace_root_span_add_tag(zend_string *nonnull tag, zval *nonnull value)
+bool dd_trace_span_add_tag(
+    zend_object *nonnull span, zend_string *nonnull tag, zval *nonnull value)
 {
-    zval *meta = dd_trace_root_span_get_meta();
+    zval *meta = dd_trace_span_get_meta(span);
     if (!meta) {
         if (!get_global_DD_APPSEC_TESTING()) {
             mlog(dd_log_warning, "Failed to retrieve root span meta");
@@ -195,15 +185,16 @@ bool dd_trace_root_span_add_tag(zend_string *nonnull tag, zval *nonnull value)
     return true;
 }
 
-bool dd_trace_root_span_add_tag_str(const char *nonnull tag, size_t tag_len,
-    const char *nonnull value, size_t value_len)
+bool dd_trace_span_add_tag_str(zend_object *nonnull span,
+    const char *nonnull tag, size_t tag_len, const char *nonnull value,
+    size_t value_len)
 {
     if (UNEXPECTED(value_len > INT_MAX)) {
         mlog(dd_log_warning, "Value for tag is too large");
         return false;
     }
 
-    zval *meta = dd_trace_root_span_get_meta();
+    zval *meta = dd_trace_span_get_meta(span);
     if (!meta) {
         if (!get_global_DD_APPSEC_TESTING()) {
             mlog(dd_log_warning, "Failed to retrieve root span meta");
@@ -244,22 +235,46 @@ void dd_trace_close_all_spans_and_flush()
     (*_ddtrace_close_all_spans_and_flush)();
 }
 
-zval *nullable dd_trace_root_span_get_meta()
+static zval *_get_span_modifiable_array_property(
+    zend_object *nonnull zobj, zend_string *nonnull propname)
 {
-    if (_ddtrace_root_span_get_meta == NULL) {
+#if PHP_VERSION_ID >= 80000
+    zval *res =
+        zobj->handlers->get_property_ptr_ptr(zobj, propname, BP_VAR_R, NULL);
+#else
+    zval obj;
+    ZVAL_OBJ(&obj, zobj);
+    zval prop;
+    ZVAL_STR(&prop, propname);
+    zval *res =
+        zobj->handlers->get_property_ptr_ptr(&obj, &prop, BP_VAR_R, NULL);
+
+#endif
+
+    if (Z_TYPE_P(res) == IS_REFERENCE) {
+        ZVAL_DEREF(res);
+        if (Z_TYPE_P(res) == IS_ARRAY) {
+            return res;
+        }
+        return NULL;
+    }
+    if (Z_TYPE_P(res) != IS_ARRAY) {
         return NULL;
     }
 
-    return _ddtrace_root_span_get_meta();
+    SEPARATE_ZVAL_NOREF(res);
+
+    return res;
 }
 
-zval *nullable dd_trace_root_span_get_metrics()
+zval *nullable dd_trace_span_get_meta(zend_object *nonnull zobj)
 {
-    if (_ddtrace_root_span_get_metrics == NULL) {
-        return NULL;
-    }
+    return _get_span_modifiable_array_property(zobj, _meta_propname);
+}
 
-    return _ddtrace_root_span_get_metrics();
+zval *nullable dd_trace_span_get_metrics(zend_object *nonnull zobj)
+{
+    return _get_span_modifiable_array_property(zobj, _metrics_propname);
 }
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
@@ -290,14 +305,33 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 }
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 
-void dd_trace_set_priority_sampling_on_root(
+void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,
     zend_long priority, enum dd_sampling_mechanism mechanism)
 {
-    if (_ddtrace_set_priority_sampling_on_root == NULL) {
+    if (_ddtrace_set_priority_sampling_on_span_zobj == NULL) {
         return;
     }
 
-    _ddtrace_set_priority_sampling_on_root(priority, mechanism);
+    _ddtrace_set_priority_sampling_on_span_zobj(root_span, priority, mechanism);
+}
+
+bool dd_trace_user_req_add_listeners(
+    ddtrace_user_req_listeners *nonnull listeners)
+{
+    if (_ddtrace_user_req_add_listeners == NULL) {
+        return false;
+    }
+
+    return _ddtrace_user_req_add_listeners(listeners);
+}
+
+zend_object *nullable dd_trace_get_active_root_span()
+{
+    if (UNEXPECTED(_ddtrace_get_root_span == NULL)) {
+        return NULL;
+    }
+
+    return _ddtrace_get_root_span();
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)
@@ -334,8 +368,13 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_add_tag)
         RETURN_FALSE;
     }
 
+    __auto_type root_span = dd_trace_get_active_root_span();
+    if (!root_span) {
+        RETURN_FALSE;
+    }
+
     Z_TRY_ADDREF_P(value);
-    bool result = dd_trace_root_span_add_tag(tag, value);
+    bool result = dd_trace_span_add_tag(root_span, tag, value);
 
     RETURN_BOOL(result);
 }
@@ -346,7 +385,12 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta) // NOLINT
         RETURN_FALSE;
     }
 
-    zval *meta_zv = dd_trace_root_span_get_meta();
+    __auto_type root_span = dd_trace_get_active_root_span();
+    if (!root_span) {
+        RETURN_NULL();
+    }
+
+    zval *meta_zv = dd_trace_span_get_meta(root_span);
     if (meta_zv) {
         RETURN_ZVAL(meta_zv, 1 /* copy */, 0 /* no destroy original */);
     }
@@ -358,7 +402,12 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_metrics) // NOLINT
         RETURN_FALSE;
     }
 
-    zval *metrics_zv = dd_trace_root_span_get_metrics();
+    __auto_type root_span = dd_trace_get_active_root_span();
+    if (!root_span) {
+        RETURN_NULL();
+    }
+
+    zval *metrics_zv = dd_trace_span_get_metrics(root_span);
     if (metrics_zv) {
         RETURN_ZVAL(metrics_zv, 1 /* copy */, 0 /* no destroy original */);
     }

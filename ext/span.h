@@ -72,7 +72,8 @@ struct ddtrace_span_data {
     uint64_t start;
     uint64_t duration_start;
     uint64_t duration;
-    enum ddtrace_span_dataype type;
+    enum ddtrace_span_dataype type : 8;
+    bool notify_user_req_end;
     struct ddtrace_span_data *next;
     struct ddtrace_root_span_data *root;
 
@@ -181,9 +182,8 @@ static inline ddtrace_span_properties *ddtrace_active_span_props(void) {
 ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong invocation, zend_execute_data *execute_data);
 void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
 
-// Note that these functions are used externally by the appsec extension.
-DDTRACE_PUBLIC zval *ddtrace_root_span_get_meta(void);
-DDTRACE_PUBLIC zval *ddtrace_root_span_get_metrics(void);
+// Note that this function is used externally by the appsec extension.
+DDTRACE_PUBLIC zend_object *ddtrace_get_root_span(void);
 
 void dd_trace_stop_span_time(ddtrace_span_data *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end);

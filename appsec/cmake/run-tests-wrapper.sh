@@ -9,6 +9,7 @@ export DD_TRACE_ENABLED=true
 export DD_TRACE_GENERATE_ROOT_SPAN=true
 export DD_TRACE_CLI_ENABLED=true
 export DD_TRACE_AGENT_PORT=18126
+export PHPRC=
 
 CMAKE_BINARY_DIR="$1"
 MOCK_HELPER_BINARY="$2"
@@ -44,7 +45,7 @@ function link_extensions {
     if [[ -L $ddtrace && $(readlink "$ddtrace") != $TRACER_EXT_FILE ]]; then
       rm -v "$ddtrace"
     fi
-    if [[ ! -f $ddtrace ]]; then
+    if [[ ! -L $ddtrace ]]; then
       ln -s -v "$TRACER_EXT_FILE" $ddtrace
     fi
   fi

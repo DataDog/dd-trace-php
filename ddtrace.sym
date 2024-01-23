@@ -1,8 +1,8 @@
 ddtrace_close_all_spans_and_flush
 ddtrace_get_profiling_context
-ddtrace_set_priority_sampling_on_root
-ddtrace_root_span_get_meta
-ddtrace_root_span_get_metrics
+ddtrace_get_root_span
+ddtrace_set_priority_sampling_on_span_zobj
 ddtrace_runtime_id
+ddtrace_user_req_add_listeners
 get_module
 ddog_daemon_entry_point

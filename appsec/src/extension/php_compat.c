@@ -15,4 +15,22 @@ zend_bool zend_ini_parse_bool(zend_string *str)
     }
     return atoi(ZSTR_VAL(str)) != 0; // NOLINT
 }
+
+static const uint32_t uninitialized_bucket[-HT_MIN_MASK] = {
+    HT_INVALID_IDX, HT_INVALID_IDX};
+
+const HashTable zend_empty_array = {.gc.refcount = 2,
+    .gc.u.v.type = IS_ARRAY,
+    .gc.u.v.flags = IS_ARRAY_IMMUTABLE,
+    .u.flags =
+        HASH_FLAG_STATIC_KEYS | HASH_FLAG_INITIALIZED | HASH_FLAG_PERSISTENT,
+    .nTableMask = HT_MIN_MASK,
+    .arData = (Bucket *)(((char *)(&uninitialized_bucket)) +
+                         HT_HASH_SIZE(HT_MIN_MASK)),
+    .nNumUsed = 0,
+    .nNumOfElements = 0,
+    .nTableSize = HT_MIN_SIZE,
+    .nInternalPointer = HT_INVALID_IDX,
+    .nNextFreeElement = 0,
+    .pDestructor = ZVAL_PTR_DTOR};
 #endif

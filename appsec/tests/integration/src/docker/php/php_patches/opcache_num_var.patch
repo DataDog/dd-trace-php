@@ -1,0 +1,11 @@
+--- ext/opcache/Optimizer/zend_optimizer_internal-old.h	2019-12-10 17:53:44.594305810 +0000
++++ ext/opcache/Optimizer/zend_optimizer_internal.h	2019-12-10 17:54:33.230531129 +0000
+@@ -25,7 +25,7 @@
+ #include "ZendAccelerator.h"
+ 
+ #if ZEND_EXTENSION_API_NO > PHP_5_4_X_API_NO
+-# define VAR_NUM(v) ((zend_uint)(EX_TMP_VAR_NUM(0, 0) - EX_TMP_VAR(0, v)))
++# define VAR_NUM(v) ( (zend_uint) (-1U + (-v) / sizeof(temp_variable)) )
+ # define NUM_VAR(v) ((zend_uint)(zend_uintptr_t)EX_TMP_VAR_NUM(0, v))
+ #elif ZEND_EXTENSION_API_NO > PHP_5_2_X_API_NO
+ # define VAR_NUM(v) ((v)/ZEND_MM_ALIGNED_SIZE(sizeof(temp_variable)))

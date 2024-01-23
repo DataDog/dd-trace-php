@@ -25,7 +25,10 @@ add_executable(mock_helper
 set_property(TARGET mock_helper
     PROPERTY CXX_STANDARD 17)
 target_compile_definitions(mock_helper PRIVATE
-    BOOST_ASIO_NO_DEPRECATED SPDLOG_ACTIVE_LEVEL=0 BOOST_STACKTRACE_LINK=1)
+    BOOST_ASIO_NO_DEPRECATED
+    BOOST_STACKTRACE_LINK=1
+    BOOST_NO_CXX98_FUNCTION_BASE
+    BOOST_NO_CXX98_FUNCTION_BASE)
 target_compile_options(mock_helper PRIVATE
     -Wall -pedantic -Werror)
 target_link_libraries(mock_helper PRIVATE

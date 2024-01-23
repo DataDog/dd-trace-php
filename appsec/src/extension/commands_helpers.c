@@ -4,6 +4,8 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "commands_helpers.h"
+#include "commands_ctx.h"
+#include "configuration.h"
 #include "ddappsec.h"
 #include "ddtrace.h"
 #include "logging.h"
@@ -167,8 +169,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
         err = _imsg_destroy(&imsg);
         if (err != mpack_ok) {
             mlog(dd_log_warning,
-                "Response message for %.*s does not "
-                "have the expected form",
+                "Response message for %.*s does not have the expected form",
                 NAME_L);
 
             return dd_error;
@@ -411,8 +412,11 @@ static void _command_process_redirect_parameters(mpack_node_t root)
 }
 
 dd_result dd_command_proc_resp_verd_span_data(
-    mpack_node_t root, ATTR_UNUSED void *unspecnull ctx)
+    mpack_node_t root, void *unspecnull _ctx)
 {
+    struct req_info *ctx = _ctx;
+    assert(ctx != NULL);
+
     // expected: ['ok' / 'record' / 'block' / 'redirect']
     mpack_node_t verdict = mpack_node_array_at(root, 0);
     if (mlog_should_log(dd_log_debug)) {
@@ -450,12 +454,14 @@ dd_result dd_command_proc_resp_verd_span_data(
     }
 
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    if (mpack_node_array_length(root) >= 6) {
+    if (mpack_node_array_length(root) >= 6 && ctx->root_span) {
+        zend_object *span = ctx->root_span;
+
         mpack_node_t meta = mpack_node_array_at(root, 4);
-        dd_command_process_meta(meta);
+        dd_command_process_meta(meta, span);
         // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
         mpack_node_t metrics = mpack_node_array_at(root, 5);
-        dd_command_process_metrics(metrics);
+        dd_command_process_metrics(metrics, span);
     }
 
     return res;
@@ -488,11 +494,12 @@ static void _set_appsec_span_data(mpack_node_t node)
     }
 }
 
-void dd_command_process_meta(mpack_node_t root)
+void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
 {
     if (mpack_node_type(root) != mpack_type_map) {
         return;
     }
+
     size_t count = mpack_node_map_count(root);
 
     for (size_t i = 0; i < count; i++) {
@@ -514,8 +521,8 @@ void dd_command_process_meta(mpack_node_t root)
             key_len = INT_MAX;
         }
 
-        bool res = dd_trace_root_span_add_tag_str(
-            key_str, key_len, mpack_node_str(value), mpack_node_strlen(value));
+        bool res = dd_trace_span_add_tag_str(span, key_str, key_len,
+            mpack_node_str(value), mpack_node_strlen(value));
 
         if (!res) {
             mlog(dd_log_warning, "Failed to add tag %.*s", (int)key_len,
@@ -525,9 +532,9 @@ void dd_command_process_meta(mpack_node_t root)
     }
 }
 
-bool dd_command_process_metrics(mpack_node_t root)
+bool dd_command_process_metrics(mpack_node_t root, zend_object *nonnull span)
 {
-    zval *metrics_zv = dd_trace_root_span_get_metrics();
+    zval *metrics_zv = dd_trace_span_get_metrics(span);
     if (metrics_zv == NULL) {
         return false;
     }
@@ -632,13 +639,24 @@ dd_result dd_command_process_config_features(
     mpack_node_t first_element = mpack_node_array_at(root, 0);
     bool new_status = mpack_node_bool(first_element);
 
-    if (DDAPPSEC_G(enabled_by_configuration) == ENABLED && !new_status) {
-        DDAPPSEC_G(enabled) = ENABLED; // Configuration dictates
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_ENABLED && !new_status) {
         mlog(dd_log_debug, "Remote config is trying to disable extension but "
                            "it is enabled by config");
-        return dd_success;
+    } else {
+        DDAPPSEC_G(to_be_configured) = false;
+
+        if (DDAPPSEC_G(active) == new_status) {
+            mlog(dd_log_debug,
+                "Remote config has not changed extension status: still %s",
+                new_status ? "enabled" : "disabled");
+        } else {
+            mlog(dd_log_info,
+                "Remote config has changed extension status from %s to %s",
+                DDAPPSEC_G(active) ? "enabled" : "disabled",
+                new_status ? "enabled" : "disabled");
+            DDAPPSEC_G(active) = new_status;
+        }
     }
-    DDAPPSEC_G(enabled) = new_status ? ENABLED : DISABLED;
     return dd_success;
 }
 

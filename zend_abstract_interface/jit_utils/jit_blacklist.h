@@ -14,6 +14,7 @@
 
 #if ZAI_JIT_BLACKLIST_ACTIVE
 void zai_jit_minit(void);
+int zai_get_zend_func_rid(zend_op_array *op_array);
 void zai_jit_blacklist_function_inlining(zend_op_array *op_array);
 #endif
 

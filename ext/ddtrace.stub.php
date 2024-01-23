@@ -618,6 +618,41 @@ namespace DDTrace\Config {
     function integration_analytics_sample_rate(string $integrationName): float {}
 }
 
+namespace DDTrace\UserRequest {
+    /**
+     * If there are any listeners of user request events.
+     * @return bool true iif there are any listeners
+     */
+    function has_listeners(): bool {}
+
+    /**
+     * Notifies the user request listeners of the start of a user request.
+     *
+     * @param \DDTrace\Span $span the span associated with this user request.
+     * @param array $data an array with keys named '_GET', '_POST', '_SERVER', '_FILES', '_COOKIE'
+     * @return array|null an array with the keys 'status', 'headers' and 'body', or null
+     */
+    function notify_start(\DDTrace\RootSpanData $span, array $data): ?array {}
+
+    /**
+     * Notifies the user request listeners of the imminence of a commit, and allows for the replacement of the response.
+     * @param \DDTrace\Span $span the span associated with this user request.
+     * @param int $status the HTTP status code of the response
+     * @param array $headers the HTTP headers of the response in the form name => array(values)
+     * @return array|null an array with the keys 'status', 'headers' and 'body', or null
+     */
+    function notify_commit(\DDTrace\RootSpanData $span, int $status, array $headers): ?array {}
+
+    /**
+     * Sets a function to be called when blocking a request midway.
+     *
+     * @param \DDTrace\RootSpanData $span
+     * @param callable $blockingFunction a blocking function taking an array with the keys 'status', 'headers', 'body'
+     * @return void
+     */
+    function set_blocking_function(\DDTrace\RootSpanData $span, callable $blockingFunction): void {}
+}
+
 namespace DDTrace\Testing {
     /**
      * Overrides PHP's default error handling.
