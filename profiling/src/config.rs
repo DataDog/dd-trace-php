@@ -1,3 +1,4 @@
+use crate::allocation;
 use crate::bindings::zai_config_type::*;
 use crate::bindings::{
     datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_get_memoized_config,
@@ -15,6 +16,7 @@ use log::{warn, LevelFilter};
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
+#[derive(Clone, Debug)]
 pub struct SystemSettings {
     pub profiling_enabled: bool,
     pub profiling_experimental_features_enabled: bool,
@@ -73,8 +75,8 @@ static mut SYSTEM_SETTINGS: MaybeUninit<SystemSettings> = MaybeUninit::uninit();
 impl SystemSettings {
     /// # Safety
     /// Must be called after [first_rinit] and before [shutdown].
-    pub unsafe fn get() -> *const SystemSettings {
-        SYSTEM_SETTINGS.as_ptr()
+    pub unsafe fn get() -> ptr::NonNull<SystemSettings> {
+        ptr::NonNull::from(SYSTEM_SETTINGS.assume_init_ref())
     }
 
     /// # Safety
@@ -83,6 +85,16 @@ impl SystemSettings {
     /// threads. Must be done after zai config is initialized in first rinit.
     unsafe fn on_first_request() {
         let mut system_settings = SystemSettings::new();
+
+        // Initialize logging before allocation's rinit, as it logs.
+        cfg_if::cfg_if! {
+            if #[cfg(debug_assertions)] {
+                log::set_max_level(system_settings.profiling_log_level);
+            } else {
+                crate::logging::log_init(system_settings.profiling_log_level);
+            }
+        }
+
         // Work around version-specific issues.
         if allocation::first_rinit_should_disable_due_to_jit() {
             system_settings.profiling_allocation_enabled = false;
@@ -94,20 +106,7 @@ impl SystemSettings {
     /// Must be called exactly once each startup in either minit or startup,
     /// whether profiling is enabled or not.
     unsafe fn on_startup() {
-        let system_settings = SystemSettings {
-            profiling_enabled: false,
-            profiling_experimental_features_enabled: false,
-            profiling_endpoint_collection_enabled: false,
-            profiling_experimental_cpu_time_enabled: false,
-            profiling_allocation_enabled: false,
-            profiling_timeline_enabled: false,
-            profiling_exception_enabled: false,
-            output_pprof: None,
-            profiling_exception_sampling_distance: 0,
-            profiling_log_level: LevelFilter::Off,
-            uri: Default::default(),
-        };
-        SYSTEM_SETTINGS.write(system_settings);
+        SYSTEM_SETTINGS.write(INITIAL_SYSTEM_SETTINGS.clone());
     }
 
     /// # Safety
@@ -347,7 +346,6 @@ pub(crate) enum ConfigId {
     Version,
 }
 
-use crate::allocation;
 use ConfigId::*;
 
 impl ConfigId {
@@ -382,25 +380,75 @@ impl ConfigId {
     }
 }
 
+lazy_static::lazy_static! {
+    /// In some SAPIs, full configuration is not known until the first request
+    /// is served. This is ripe for edge cases. Consider this order of events:
+    ///  1. Worker is created.
+    ///  2. No requests are served.
+    ///  3. As the worker shuts down, the timeline profiler will attempt to
+    ///     add idle time to timeline.
+    /// What state should the configuration be in?
+    ///
+    /// Since the real configuration was never learned, assume everything is
+    /// disabled, which should cause fewer issues for customers than assuming
+    /// defaults.
+    pub static ref INITIAL_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
+        profiling_enabled: false,
+        profiling_experimental_features_enabled: false,
+        profiling_endpoint_collection_enabled: false,
+        profiling_experimental_cpu_time_enabled: false,
+        profiling_allocation_enabled: false,
+        profiling_timeline_enabled: false,
+        profiling_exception_enabled: false,
+        output_pprof: None,
+        profiling_exception_sampling_distance: u32::MAX,
+        profiling_log_level: LevelFilter::Off,
+        uri: Default::default(),
+    };
+
+    /// Keep these in sync with the INI defaults.
+    static ref DEFAULT_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
+        profiling_enabled: true,
+        profiling_experimental_features_enabled: false,
+        profiling_endpoint_collection_enabled: true,
+        profiling_experimental_cpu_time_enabled: true,
+        profiling_allocation_enabled: true,
+        profiling_timeline_enabled: true,
+        profiling_exception_enabled: true,
+        output_pprof: None,
+        profiling_exception_sampling_distance: 100,
+        profiling_log_level: LevelFilter::Off,
+        uri: Default::default(),
+    };
+}
+
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_enabled() -> bool {
-    get_system_bool(ProfilingEnabled, true)
+    get_system_bool(ProfilingEnabled, DEFAULT_SYSTEM_SETTINGS.profiling_enabled)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_experimental_features_enabled() -> bool {
-    profiling_enabled() && get_system_bool(ProfilingExperimentalFeaturesEnabled, false)
+    profiling_enabled()
+        && get_system_bool(
+            ProfilingExperimentalFeaturesEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_experimental_features_enabled,
+        )
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_endpoint_collection_enabled() -> bool {
-    profiling_enabled() && get_system_bool(ProfilingEndpointCollectionEnabled, true)
+    profiling_enabled()
+        && get_system_bool(
+            ProfilingEndpointCollectionEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_endpoint_collection_enabled,
+        )
 }
 
 /// # Safety
@@ -409,35 +457,53 @@ unsafe fn profiling_endpoint_collection_enabled() -> bool {
 unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
     profiling_enabled()
         && (profiling_experimental_features_enabled()
-            || get_system_bool(ProfilingExperimentalCpuTimeEnabled, true))
+            || get_system_bool(
+                ProfilingExperimentalCpuTimeEnabled,
+                DEFAULT_SYSTEM_SETTINGS.profiling_experimental_cpu_time_enabled,
+            ))
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_allocation_enabled() -> bool {
-    profiling_enabled() && get_system_bool(ProfilingAllocationEnabled, true)
+    profiling_enabled()
+        && get_system_bool(
+            ProfilingAllocationEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_allocation_enabled,
+        )
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_timeline_enabled() -> bool {
-    profiling_enabled() && get_system_bool(ProfilingTimelineEnabled, true)
+    profiling_enabled()
+        && get_system_bool(
+            ProfilingTimelineEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_timeline_enabled,
+        )
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_exception_enabled() -> bool {
-    profiling_enabled() && get_system_bool(ProfilingExceptionEnabled, true)
+    profiling_enabled()
+        && get_system_bool(
+            ProfilingExceptionEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_exception_enabled,
+        )
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_exception_sampling_distance() -> u32 {
-    get_system_uint32(ProfilingExceptionSamplingDistance, 100)
+    get_system_uint32(
+        ProfilingExceptionSamplingDistance,
+        DEFAULT_SYSTEM_SETTINGS.profiling_exception_sampling_distance,
+    )
 }
 
 /// # Safety
@@ -553,7 +619,7 @@ unsafe fn profiling_log_level() -> LevelFilter {
         Ok(enabled) => transmute(enabled as usize),
         Err(err) => {
             warn!("config::profiling_log_level() failed: {err}");
-            LevelFilter::Off // the default is off
+            DEFAULT_SYSTEM_SETTINGS.profiling_log_level
         }
     }
 }

@@ -243,7 +243,7 @@ pub fn timeline_prshutdown() {
 /// period for this PHP thread. This will report the last `IDLE_SINCE` duration created in the last
 /// `P-RSHUTDOWN` (just above) when the PHP process is shutting down.
 /// # Saftey
-/// Must be called in mshutdown before [crate::config::shutdown].
+/// Must be called in shutdown before [crate::config::shutdown].
 pub(crate) unsafe fn timeline_mshutdown() {
     IDLE_SINCE.with(|cell| {
         // try to borrow and bail out if not successful
@@ -256,6 +256,7 @@ pub(crate) unsafe fn timeline_mshutdown() {
                 .try_borrow()
                 .map(|locals| locals.system_settings().profiling_timeline_enabled)
                 .unwrap_or(false);
+
             if !is_timeline_enabled {
                 return;
             }

@@ -19,7 +19,7 @@ mod timeline;
 
 mod wall_time;
 
-use crate::config::SystemSettings;
+use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
 use bindings as zend;
 use bindings::{ddog_php_prof_php_version_id, ZendExtension, ZendResult};
 use clocks::*;
@@ -35,6 +35,7 @@ use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::ffi::CStr;
+use std::ops::Deref;
 use std::os::raw::c_int;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
@@ -309,24 +310,27 @@ extern "C" fn prshutdown() -> ZendResult {
 
 pub struct RequestLocals {
     pub env: Option<Cow<'static, str>>,
-    pub interrupt_count: AtomicU32,
     pub service: Option<Cow<'static, str>>,
-
-    /// SystemSettings are global. This ptr must be non-null after rinit
-    /// through rshutdown.
-    pub system_settings: *const SystemSettings,
-
     pub version: Option<Cow<'static, str>>,
+
+    /// SystemSettings are global. Note that if this is being read in fringe
+    /// conditions such as in mshutdown when there were no requests served,
+    /// then the settings are still memory safe but they may not have the real
+    /// configuration. Instead they have a best-effort values such as
+    /// INITIAL_SYSTEM_SETTINGS, or possibly the values which were available
+    /// in MINIT.
+    pub system_settings: ptr::NonNull<SystemSettings>,
+
+    pub interrupt_count: AtomicU32,
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
 impl RequestLocals {
     #[track_caller]
     pub fn system_settings(&self) -> &SystemSettings {
-        // SAFETY: system_settings should be non-null except during edge cases
-        // like after module creation but before first rinit. Request locals
-        // should not generally be used at such times anyway.
-        unsafe { self.system_settings.as_ref().unwrap() }
+        // SAFETY: it should always be valid, either set to the
+        // INITIAL_SYSTEM_SETTINGS or to the SYSTEM_SETTINGS.
+        unsafe { self.system_settings.as_ref() }
     }
 }
 
@@ -334,10 +338,10 @@ impl Default for RequestLocals {
     fn default() -> RequestLocals {
         RequestLocals {
             env: None,
-            interrupt_count: AtomicU32::new(0),
             service: None,
-            system_settings: ptr::null(),
             version: None,
+            system_settings: ptr::NonNull::from(INITIAL_SYSTEM_SETTINGS.deref()),
+            interrupt_count: AtomicU32::new(0),
             vm_interrupt_addr: ptr::null_mut(),
         }
     }
@@ -349,9 +353,7 @@ thread_local! {
         wall_time: Instant::now(),
     });
 
-    static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals{
-        ..Default::default()
-    });
+    static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals::default());
 
     /// The tags for this thread/request. These get sent to other threads,
     /// which is why they are Arc. However, they are wrapped in a RefCell
@@ -386,8 +388,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     });
 
     unsafe { bindings::zai_config_rinit() };
-    // Safety: We are after first rinit and before mshutdown.
-    let system_settings = unsafe { &*SystemSettings::get() };
+
+    // Safety: We are after first rinit and before config mshutdown.
+    let system_settings = unsafe { SystemSettings::get() };
 
     // initialize the thread local storage and cache some items
     REQUEST_LOCALS.with(|cell| {
@@ -414,16 +417,11 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         locals.system_settings = system_settings;
     });
 
+    // SAFETY: still safe to access in rinit after first_rinit.
+    let system_settings = unsafe { system_settings.as_ref() };
+
     static ONCE2: Once = Once::new();
     ONCE2.call_once(|| {
-        // Don't log when profiling is disabled as that can mess up tests.
-        let profiling_log_level = system_settings.profiling_log_level;
-
-        #[cfg(not(debug_assertions))]
-        logging::log_init(profiling_log_level);
-        #[cfg(debug_assertions)]
-        log::set_max_level(profiling_log_level);
-
         if system_settings.profiling_enabled {
             /* Safety: sapi_module is initialized by rinit and shouldn't be
              * modified at this point (safe to read values).
@@ -767,7 +765,7 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("MSHUTDOWN({_type}, {_module_number})");
 
-    // SAFETY: being called before config::mshutdown.
+    // SAFETY: being called before [config::shutdown].
     #[cfg(feature = "timeline")]
     unsafe {
         timeline::timeline_mshutdown()
