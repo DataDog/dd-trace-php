@@ -32,48 +32,36 @@ class PathExtractor
         }
         $class = new ReflectionClass($className);
 
-        if ($methodName != null) {
-            $globals = $this->getGlobals($class);
-            try {
-                $method = $class->getMethod($methodName);
-            } catch (ReflectionException $e) {
+        $globals = $this->getGlobals($class);
+        if ($methodName == null) {
+            if (!$class->hasMethod('__invoke')) {
                 return;
             }
-
-            $paths = [];
-            foreach ($this->getAnnotations($method) as $annot) {
-                $path = $this->getPath($annot, $globals, $class, $method, $routeName);
-                if ($path !== null) {
-                    $paths = array_merge($paths, $path);
-                }
-            }
-            if (!empty($paths) && is_array($paths)) {
-                if (isset($paths[$locale])) {
-                    return $paths[$locale];
-                } elseif (isset($paths[$this->defaultRouteIndex])) {
-                    return $paths[$this->defaultRouteIndex];
-                }
-                return reset($paths);
-            }
+            $methodName = '__invoke';
+            $globals = $this->resetGlobals();
         }
 
-        if ($class->hasMethod('__invoke')) {
-            $globals = $this->resetGlobals();
-            $paths = [];
-            foreach ($this->getAnnotations($class) as $annot) {
-                $path = $this->getPath($annot, $globals, $class, $class->getMethod('__invoke'), $routeName);
-                if ($path !== null) {
-                    $paths = array_merge($paths, $path);
-                }
+        try {
+            $method = $class->getMethod($methodName);
+        } catch (ReflectionException $e) {
+            return;
+        }
+
+        $paths = [];
+        $annotationsTarget = $methodName == '__invoke' ? $class: $method;
+        foreach ($this->getAnnotations($annotationsTarget) as $annot) {
+            $path = $this->getPath($annot, $globals, $class, $method, $routeName);
+            if ($path !== null) {
+                $paths = array_merge($paths, $path);
             }
-            if (!empty($paths) && is_array($paths)) {
-                if (isset($paths[$locale])) {
-                    return $paths[$locale];
-                } elseif (isset($paths[$this->defaultRouteIndex])) {
-                    return $paths[$this->defaultRouteIndex];
-                }
-                return reset($paths);
+        }
+        if (!empty($paths) && is_array($paths)) {
+            if (isset($paths[$locale])) {
+                return $paths[$locale];
+            } elseif (isset($paths[$this->defaultRouteIndex])) {
+                return $paths[$this->defaultRouteIndex];
             }
+            return reset($paths);
         }
 
         return;
