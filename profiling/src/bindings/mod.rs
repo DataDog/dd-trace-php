@@ -302,6 +302,11 @@ extern "C" {
     /// (single byte of null, len of 0).
     pub fn zai_str_from_zstr(zstr: Option<&mut zend_string>) -> zai_str;
 
+    /// Returns the configuration item for the given config id. Note that the
+    /// lifetime is roughly static, but technically it is from first rinit
+    /// until mshutdown.
+    pub(crate) fn ddog_php_prof_get_memoized_config(config_id: ConfigId) -> *mut zval;
+
     /// Registers the run_time_cache slot with the engine. Must be done in
     /// module init or extension startup.
     pub fn ddog_php_prof_function_run_time_cache_init(module_name: *const c_char);
@@ -332,6 +337,7 @@ extern "C" {
     pub fn ddog_php_prof_is_post_startup() -> bool;
 }
 
+use crate::config::ConfigId;
 pub use zend_module_dep as ModuleDep;
 
 impl ModuleDep {
@@ -468,15 +474,25 @@ impl TryFrom<&mut zval> for String {
     type Error = StringError;
 
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        Cow::try_from(zval).map(Cow::into_owned)
+    }
+}
+
+impl<'a> TryFrom<&'a mut zval> for Cow<'a, str> {
+    type Error = StringError;
+
+    fn try_from(zval: &'a mut zval) -> Result<Self, Self::Error> {
         let r#type = unsafe { zval.u1.v.type_ };
         if r#type == IS_STRING {
             // This shouldn't happen, very bad, something screwed up.
             if unsafe { zval.value.str_.is_null() } {
                 return Err(StringError::Null);
             }
+            // SAFETY: checked the pointer wasn't null above.
+            let reference: Option<&'a mut zend_string> = unsafe { zval.value.str_.as_mut() };
 
-            // Safety: checked the pointer wasn't null above.
-            let str = unsafe { zai_str_from_zstr(zval.value.str_.as_mut()) }.into_string();
+            // SAFETY: calling extern "C" with correct params.
+            let str = unsafe { zai_str_from_zstr(reference) }.into_string_lossy();
             Ok(str)
         } else {
             Err(StringError::Type(r#type))
@@ -572,6 +588,12 @@ impl<'a> ZaiStr<'a> {
     #[inline]
     pub fn to_string_lossy(&self) -> Cow<str> {
         String::from_utf8_lossy(self.as_bytes())
+    }
+
+    #[inline]
+    pub fn into_string_lossy(self) -> Cow<'a, str> {
+        let bytes = self.as_bytes();
+        String::from_utf8_lossy(bytes)
     }
 }
 

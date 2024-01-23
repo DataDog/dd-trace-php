@@ -1,20 +1,19 @@
 use crate::bindings::zai_config_type::*;
 use crate::bindings::{
-    datadog_php_profiling_copy_string_view_into_zval, zai_config_entry, zai_config_get_value,
-    zai_config_minit, zai_config_name, zai_config_system_ini_change, zend_long, zval, ZaiStr,
-    IS_LONG, ZAI_CONFIG_ENTRIES_COUNT_MAX,
+    datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_get_memoized_config,
+    zai_config_entry, zai_config_get_value, zai_config_minit, zai_config_name,
+    zai_config_system_ini_change, zend_long, zval, StringError, ZaiStr, IS_LONG,
+    ZAI_CONFIG_ENTRIES_COUNT_MAX,
 };
 use core::fmt::{Display, Formatter};
-use core::mem::{swap, transmute};
+use core::mem::{swap, transmute, MaybeUninit};
 use core::ptr;
 use core::str::FromStr;
 pub use datadog_profiling::exporter::Uri;
 use libc::c_char;
 use log::{warn, LevelFilter};
 use std::borrow::Cow;
-use std::mem::MaybeUninit;
-use std::path::Path;
-pub use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub struct SystemSettings {
     pub profiling_enabled: bool,
@@ -73,7 +72,7 @@ static mut SYSTEM_SETTINGS: MaybeUninit<SystemSettings> = MaybeUninit::uninit();
 
 impl SystemSettings {
     /// # Safety
-    /// Must be called after [first_rinit] and before [mshutdown].
+    /// Must be called after [first_rinit] and before [shutdown].
     pub unsafe fn get() -> *const SystemSettings {
         SYSTEM_SETTINGS.as_ptr()
     }
@@ -112,7 +111,8 @@ impl SystemSettings {
     }
 
     /// # Safety
-    /// Must be called exactly once per shutdown in either mshutdown or shutdown.
+    /// Must be called exactly once per shutdown in either mshutdown or
+    /// shutdown, before zai config is shutdown.
     unsafe fn on_shutdown() {
         let system_settings = SYSTEM_SETTINGS.assume_init_mut();
         *system_settings = SystemSettings {
@@ -316,6 +316,13 @@ pub(crate) unsafe fn get_value(id: ConfigId) -> &'static mut zval {
     &mut *value
 }
 
+unsafe fn get_system_value(id: ConfigId) -> &'static mut zval {
+    let value = ddog_php_prof_get_memoized_config(id);
+    // Panic: the implementation makes this guarantee.
+    assert!(!value.is_null());
+    &mut *value
+}
+
 #[repr(u16)]
 #[derive(Clone, Copy)]
 pub(crate) enum ConfigId {
@@ -379,21 +386,21 @@ impl ConfigId {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_enabled() -> bool {
-    get_bool(ProfilingEnabled, true)
+    get_system_bool(ProfilingEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_experimental_features_enabled() -> bool {
-    profiling_enabled() && get_bool(ProfilingExperimentalFeaturesEnabled, false)
+    profiling_enabled() && get_system_bool(ProfilingExperimentalFeaturesEnabled, false)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_endpoint_collection_enabled() -> bool {
-    profiling_enabled() && get_bool(ProfilingEndpointCollectionEnabled, true)
+    profiling_enabled() && get_system_bool(ProfilingEndpointCollectionEnabled, true)
 }
 
 /// # Safety
@@ -402,52 +409,72 @@ unsafe fn profiling_endpoint_collection_enabled() -> bool {
 unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
     profiling_enabled()
         && (profiling_experimental_features_enabled()
-            || get_bool(ProfilingExperimentalCpuTimeEnabled, true))
+            || get_system_bool(ProfilingExperimentalCpuTimeEnabled, true))
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_allocation_enabled() -> bool {
-    profiling_enabled() && get_bool(ProfilingAllocationEnabled, true)
+    profiling_enabled() && get_system_bool(ProfilingAllocationEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_timeline_enabled() -> bool {
-    profiling_enabled() && get_bool(ProfilingTimelineEnabled, true)
+    profiling_enabled() && get_system_bool(ProfilingTimelineEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_exception_enabled() -> bool {
-    profiling_enabled() && get_bool(ProfilingExceptionEnabled, true)
+    profiling_enabled() && get_system_bool(ProfilingExceptionEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_exception_sampling_distance() -> u32 {
-    get_uint32(ProfilingExceptionSamplingDistance, 100)
+    get_system_uint32(ProfilingExceptionSamplingDistance, 100)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
-/// rinit, and before it is uninitialized in mshutdown.
+/// first rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
-    get_str(ProfilingOutputPprof)
+    get_system_str(ProfilingOutputPprof)
 }
 
-unsafe fn get_bool(id: ConfigId, default: bool) -> bool {
-    get_value(id).try_into().unwrap_or(default)
+unsafe fn get_system_bool(id: ConfigId, default: bool) -> bool {
+    get_system_value(id).try_into().unwrap_or(default)
+}
+
+#[track_caller]
+unsafe fn get_system_str(config_id: ConfigId) -> Option<Cow<'static, str>> {
+    let entry = get_system_value(config_id);
+    match Cow::<str>::try_from(entry) {
+        Ok(value) => {
+            if value.is_empty() {
+                None
+            } else {
+                Some(value)
+            }
+        }
+        Err(err) => {
+            let env_var = config_id.env_var_name().into_string_lossy();
+            match err {
+                StringError::Null => panic!("When fetching {env_var}, found a null string pointer inside a zval of type string"),
+                StringError::Type(type_code) => panic!("When fetching {env_var}, expected type IS_STRING, found {type_code}"),
+            }
+        }
+    }
 }
 
 unsafe fn get_str(id: ConfigId) -> Option<Cow<'static, str>> {
     let value = get_value(id);
-    let str: Result<String, _> = value.try_into();
-    match str {
+    match String::try_from(value) {
         Ok(value) => {
             if value.is_empty() {
                 None
@@ -459,20 +486,19 @@ unsafe fn get_str(id: ConfigId) -> Option<Cow<'static, str>> {
     }
 }
 
-unsafe fn get_uint32(id: ConfigId, default: u32) -> u32 {
-    let value = get_value(id);
-    let num: Result<u32, _> = value.try_into();
-    match num {
-        Ok(value) => value,
-        Err(_err) => default,
-    }
+unsafe fn get_system_zend_long(config_id: ConfigId) -> Result<zend_long, u8> {
+    zend_long::try_from(get_system_value(config_id))
+}
+
+unsafe fn get_system_uint32(id: ConfigId, default: u32) -> u32 {
+    get_system_value(id).try_into().unwrap_or(default)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
-/// rinit, and before it is uninitialized in mshutdown.
+/// first rinit, and before it is uninitialized in mshutdown.
 unsafe fn agent_host() -> Option<Cow<'static, str>> {
-    get_str(AgentHost)
+    get_system_str(AgentHost)
 }
 
 /// # Safety
@@ -498,11 +524,9 @@ pub(crate) unsafe fn version() -> Option<Cow<'static, str>> {
 
 /// # Safety
 /// This function must only be called after config has been initialized in
-/// rinit, and before it is uninitialized in mshutdown.
+/// first rinit, and before it is uninitialized in mshutdown.
 unsafe fn trace_agent_port() -> Option<u16> {
-    let port = get_value(ConfigId::TraceAgentPort)
-        .try_into()
-        .unwrap_or(0_i64);
+    let port = get_system_zend_long(TraceAgentPort).unwrap_or(0);
     if port <= 0 || port > (u16::MAX as zend_long) {
         None
     } else {
@@ -512,9 +536,9 @@ unsafe fn trace_agent_port() -> Option<u16> {
 
 /// # Safety
 /// This function must only be called after config has been initialized in
-/// rinit, and before it is uninitialized in mshutdown.
+/// first rinit, and before it is uninitialized in mshutdown.
 unsafe fn trace_agent_url() -> Option<Cow<'static, str>> {
-    get_str(TraceAgentUrl)
+    get_system_str(TraceAgentUrl)
 }
 
 /// # Safety
@@ -524,7 +548,7 @@ unsafe fn profiling_log_level() -> LevelFilter {
     if !profiling_enabled() {
         return LevelFilter::Off;
     }
-    match zend_long::try_from(get_value(ProfilingLogLevel)) {
+    match get_system_zend_long(ProfilingLogLevel) {
         // If this is an lval, then we know we can transmute it because the parser worked.
         Ok(enabled) => transmute(enabled as usize),
         Err(err) => {
@@ -840,7 +864,7 @@ pub(crate) unsafe fn first_rinit() {
     SystemSettings::on_first_request();
 }
 
-pub(crate) unsafe fn mshutdown() {
+pub(crate) unsafe fn shutdown() {
     SystemSettings::on_shutdown();
 }
 

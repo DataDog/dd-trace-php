@@ -28,7 +28,7 @@ use datadog_profiling::exporter::Tag;
 use ddcommon::cstr;
 use lazy_static::lazy_static;
 use libc::c_char;
-use log::{debug, error, info, trace, warn, LevelFilter};
+use log::{debug, error, info, trace, warn};
 use once_cell::sync::{Lazy, OnceCell};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
@@ -190,7 +190,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
      */
     #[cfg(debug_assertions)]
     {
-        logging::log_init(LevelFilter::Trace);
+        logging::log_init(log::LevelFilter::Trace);
         trace!("MINIT({_type}, {module_number})");
     }
 
@@ -381,16 +381,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| unsafe {
         bindings::zai_config_first_time_rinit();
-    });
-
-    unsafe { bindings::zai_config_rinit() };
-
-    // todo: why can't I move this before `zai_config_rinit`?
-    static CONFIG_ONCE: Once = Once::new();
-    CONFIG_ONCE.call_once(|| unsafe {
         config::first_rinit();
     });
 
+    unsafe { bindings::zai_config_rinit() };
     // Safety: We are after first rinit and before mshutdown.
     let system_settings = unsafe { &*SystemSettings::get() };
 
@@ -729,9 +723,19 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             },
         );
 
-        let mut log_level = format!("{}\0", system_settings.profiling_log_level);
-        log_level.make_ascii_lowercase();
-        zend::php_info_print_table_row(2, b"Profiling Log Level\0".as_ptr(), log_level.as_ptr());
+        let printable_log_level = if system_settings.profiling_enabled {
+            let mut log_level = format!("{}\0", system_settings.profiling_log_level);
+            log_level.make_ascii_lowercase();
+            Cow::from(log_level)
+        } else {
+            Cow::from(String::from("off (profiling disabled)\0"))
+        };
+
+        zend::php_info_print_table_row(
+            2,
+            b"Profiling Log Level\0".as_ptr(),
+            printable_log_level.as_ptr()
+        );
 
         let key = b"Profiling Agent Endpoint\0".as_ptr();
         let agent_endpoint = format!("{}\0", system_settings.uri);
@@ -771,14 +775,10 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();
 
-    unsafe { bindings::zai_config_mshutdown() };
-
     let mut profiler = PROFILER.lock().unwrap();
     if let Some(profiler) = profiler.as_mut() {
         profiler.stop(Duration::from_secs(1));
     }
-
-    unsafe { config::mshutdown() };
 
     ZendResult::Success
 }
@@ -833,6 +833,10 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
     if let Some(profiler) = profiler.take() {
         profiler.shutdown(Duration::from_secs(2));
     }
+
+    unsafe { config::shutdown() };
+
+    unsafe { bindings::zai_config_mshutdown() };
 }
 
 /// Notifies the profiler a trace has finished so it can update information

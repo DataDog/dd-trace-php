@@ -115,9 +115,10 @@ impl Uploader {
                     Ok(UploadMessage::Upload(request)) => {
                         match pprof_filename {
                             Some(filename) => {
+                                let filename_str = filename.as_ref();
                                 let r = request.profile.serialize_into_compressed_pprof(None, None).unwrap();
                                 i += 1;
-                                std::fs::write(format!("{filename}.{i}.lz4"), r.buffer).expect("write to succeed")
+                                std::fs::write(format!("{filename_str}.{i}.lz4"), r.buffer).expect("write to succeed")
                             },
                             None => match self.upload(request) {
                                 Ok(status) => {
