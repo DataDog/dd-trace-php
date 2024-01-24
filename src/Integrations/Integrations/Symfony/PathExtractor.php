@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Symfony;
 
-use Symfony\Component\Routing\Annotation\Route as RouteAnnotation;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionAttribute;
@@ -11,14 +10,16 @@ use ReflectionException;
 class PathExtractor
 {
     protected $defaultRouteIndex = 0;
+    protected $reader;
+    protected $routeAnnotationClass = \Symfony\Component\Routing\Annotation\Route::class;
+
+    public function __construct()
+    {
+        $this->reader = new \Doctrine\Common\Annotations\AnnotationReader(new \Doctrine\Common\Annotations\DocParser());
+    }
 
     public function extract($classMethod, $routeName, $locale)
     {
-        //This method is only available on PHP8. On coming PRs this class will also parse Docblocks
-        if (!\method_exists(ReflectionClass::class, 'getAttributes')) {
-            return;
-        }
-
         $className = $classMethod; //It may not come with method when invokable controller
         $methodName = null;
         if (str_contains($classMethod, "::")) {
@@ -49,6 +50,7 @@ class PathExtractor
 
         $paths = [];
         $annotationsTarget = $methodName == '__invoke' ? $class: $method;
+
         foreach ($this->getAnnotations($annotationsTarget) as $annot) {
             $path = $this->getPath($annot, $globals, $class, $method, $routeName);
             if ($path !== null) {
@@ -69,8 +71,22 @@ class PathExtractor
 
     private function getAnnotations(object $reflection): iterable
     {
-        foreach ($reflection->getAttributes(RouteAnnotation::class, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
+        foreach ($reflection->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
             yield $attribute->newInstance();
+        }
+
+        if (!$this->reader) {
+            return;
+        }
+
+        $annotations = $reflection instanceof \ReflectionClass
+            ? $this->reader->getClassAnnotations($reflection)
+            : $this->reader->getMethodAnnotations($reflection);
+
+        foreach ($annotations as $annotation) {
+            if ($annotation instanceof $this->routeAnnotationClass) {
+                yield $annotation;
+            }
         }
     }
 
@@ -129,8 +145,11 @@ class PathExtractor
         $globals = $this->resetGlobals();
 
         $annot = null;
-        if ($attribute = $class->getAttributes(RouteAnnotation::class, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null) {
+        if ($attribute = $class->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null) {
             $annot = $attribute->newInstance();
+        }
+        if (!$annot && $this->reader) {
+            $annot = $this->reader->getClassAnnotation($class, $this->routeAnnotationClass);
         }
 
         if ($annot) {
@@ -149,20 +168,20 @@ class PathExtractor
 
     protected function getDefaultRouteName(ReflectionClass $class, ReflectionMethod $method)
     {
-       $name = str_replace('\\', '_', $class->name).'_'.$method->name;
-       $name = \function_exists('mb_strtolower') && preg_match('//u', $name) ? mb_strtolower($name, 'UTF-8') : strtolower($name);
-       if ($this->defaultRouteIndex > 0) {
-           $name .= '_'.$this->defaultRouteIndex;
-       }
-       ++$this->defaultRouteIndex;
+        $name = str_replace('\\', '_', $class->name).'_'.$method->name;
+        $name = \function_exists('mb_strtolower') && preg_match('//u', $name) ? mb_strtolower($name, 'UTF-8') : strtolower($name);
+        if ($this->defaultRouteIndex > 0) {
+            $name .= '_'.$this->defaultRouteIndex;
+        }
+        ++$this->defaultRouteIndex;
 
-       $name = preg_replace('/(bundle|controller)_/', '_', $name);
+        $name = preg_replace('/(bundle|controller)_/', '_', $name);
 
-       if (str_ends_with($method->name, 'Action') || str_ends_with($method->name, '_action')) {
-           $name = preg_replace('/action(_\d+)?$/', '\\1', $name);
-       }
+        if (str_ends_with($method->name, 'Action') || str_ends_with($method->name, '_action')) {
+            $name = preg_replace('/action(_\d+)?$/', '\\1', $name);
+        }
 
-       return str_replace('__', '_', $name);
+        return str_replace('__', '_', $name);
     }
 
 }
