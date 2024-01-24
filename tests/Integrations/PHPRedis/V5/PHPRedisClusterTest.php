@@ -32,13 +32,30 @@ class PHPRedisClusterTest extends IntegrationTestCase
     private $redis;
     private $redisSecondInstance;
 
+    public function identifyMasterNodes()
+    {
+        for ($i = 7001; $i < 7006; $i++) {
+            try {
+                $redis = new \RedisCluster(null, ["$this->clusterIp:$i"]);
+                $masters = $redis->_masters(); // [0 => [0 => 'ip', 1 => 'port'], 1 => [0 => 'ip', 1 => 'port'], ...]
+                return $masters;
+            } catch (\Exception $e) {
+                echo $e->getMessage() . "\n";
+                continue;
+            }
+        }
+
+        return [];
+    }
+
     public function ddSetUp()
     {
         parent::ddSetUp();
         $this->clusterIp = gethostbyname($this->host);
-        $this->connection1 = [$this->clusterIp, 7001];
-        $this->connection2 = [$this->clusterIp, 7002];
-        $this->connection3 = [$this->clusterIp, 7003];
+        $masterNodes = $this->identifyMasterNodes();
+        $this->connection1 = array_shift($masterNodes);
+        $this->connection2 = array_shift($masterNodes);
+        $this->connection3 = array_shift($masterNodes);
         $this->redis = new \RedisCluster(null, [
             \implode(':', $this->connection1),
             \implode(':', $this->connection2),
