@@ -4166,6 +4166,25 @@ workflows:
                 - test_internal_api_randomized
                 - test_opcache
 
+      - test:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              resource_class:
+                - medium+
+              php_major_minor:
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+                - "7.4"
+                - "8.0"
+                - "8.1"
+                - "8.2"
+                - "8.3"
+              make_target:
+                - test_extension_ci
+
       # sidecar is version independent
       - test_sidecar_sender:
           requires: [ 'Prepare Code' ]
