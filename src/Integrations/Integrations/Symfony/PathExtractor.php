@@ -20,6 +20,12 @@ class PathExtractor
         if (class_exists($annotationReaderClass) && class_exists($docParserClass)) {
             $this->reader = new $annotationReaderClass(new $docParserClass());
         }
+
+        if (!class_exists('\Symfony\Component\Routing\Annotation\Route') &&
+            class_exists('\Sensio\Bundle\FrameworkExtraBundle\Configuration\Route')
+         ) {
+            $this->routeAnnotationClass = Sensio\Bundle\FrameworkExtraBundle\Configuration\Route::class;
+        }
     }
 
     public function extract($classMethod, $routeName, $locale)
