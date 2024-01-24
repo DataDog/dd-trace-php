@@ -15,7 +15,11 @@ class PathExtractor
 
     public function __construct()
     {
-        $this->reader = new \Doctrine\Common\Annotations\AnnotationReader(new \Doctrine\Common\Annotations\DocParser());
+        $annotationReaderClass = '\Doctrine\Common\Annotations\AnnotationReader';
+        $docParserClass = '\Doctrine\Common\Annotations\DocParser';
+        if (class_exists($annotationReaderClass) && class_exists($docParserClass)) {
+            $this->reader = new $annotationReaderClass(new $docParserClass());
+        }
     }
 
     public function extract($classMethod, $routeName, $locale)
@@ -71,8 +75,10 @@ class PathExtractor
 
     private function getAnnotations(object $reflection): iterable
     {
-        foreach ($reflection->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
-            yield $attribute->newInstance();
+        if (method_exists($reflection, 'getAttributes')) {
+            foreach ($reflection->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
+                yield $attribute->newInstance();
+            }
         }
 
         if (!$this->reader) {
@@ -145,7 +151,10 @@ class PathExtractor
         $globals = $this->resetGlobals();
 
         $annot = null;
-        if ($attribute = $class->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null) {
+        if (
+            method_exists($class, 'getAttributes') &&
+            $attribute = $class->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null
+        ) {
             $annot = $attribute->newInstance();
         }
         if (!$annot && $this->reader) {
