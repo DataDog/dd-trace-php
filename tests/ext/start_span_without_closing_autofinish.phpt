@@ -1,7 +1,7 @@
 --TEST--
 Use DDTrace\close_span() on span started within internal span
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_AUTOFINISH_SPANS=1
 --FILE--
 <?php

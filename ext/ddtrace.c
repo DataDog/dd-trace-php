@@ -961,7 +961,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
 
-    ddtrace_bgs_log_minit();
+    ddtrace_log_minit();
 
     ddtrace_dogstatsd_client_minit();
     ddshared_minit();
@@ -1011,10 +1011,10 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_coms_mshutdown();
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
-
-            ddtrace_bgs_log_mshutdown();
         }
     }
+
+    ddtrace_log_mshutdown();
 
     ddtrace_engine_hooks_mshutdown();
 
@@ -1081,9 +1081,7 @@ static void dd_initialize_request(void) {
 
     ddtrace_internal_handlers_rinit();
 
-    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        ddtrace_bgs_log_rinit(PG(error_log));
-    }
+    ddtrace_log_rinit(PG(error_log));
 
     ddtrace_dogstatsd_client_rinit();
 

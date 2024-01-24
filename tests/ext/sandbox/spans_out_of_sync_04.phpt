@@ -1,7 +1,7 @@
 --TEST--
 Gracefully handle out-of-sync spans from traced function [user][default properties]
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php
 
@@ -21,6 +21,6 @@ echo 'Done.' . PHP_EOL;
 --EXPECT--
 array(0) {
 }
-[ddtrace] [error] Cannot run tracing closure for shutdown_and_flush(); spans out of sync
+[ddtrace] [error] Cannot run tracing closure for shutdown_and_flush(); spans out of sync; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
 Done.
 [ddtrace] [info] No finished traces to be sent to the agent

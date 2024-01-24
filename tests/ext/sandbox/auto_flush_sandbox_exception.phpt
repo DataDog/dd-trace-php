@@ -1,7 +1,7 @@
 --TEST--
 Auto-flushing will sandbox an exception thrown from the tracer flush
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_AUTO_FLUSH_ENABLED=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--

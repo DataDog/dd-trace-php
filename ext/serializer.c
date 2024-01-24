@@ -1639,6 +1639,48 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         add_assoc_double(&metrics_zv, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
     }
 
+    LOGEV(Span, {
+        zend_string *key;
+        zval *tag_zv;
+        zval *serialized_meta = zend_hash_str_find(Z_ARR_P(el), ZEND_STRL("meta"));
+        smart_str meta_str = {0};
+        if (serialized_meta) {
+            ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(serialized_meta), key, tag_zv) {
+                if (meta_str.s) {
+                    smart_str_appends(&meta_str, ", ");
+                }
+                smart_str_append(&meta_str, key);
+                smart_str_appends(&meta_str, "='");
+                smart_str_append(&meta_str, Z_STR_P(tag_zv));
+                smart_str_appendc(&meta_str, '\'');
+            } ZEND_HASH_FOREACH_END();
+            smart_str_0(&meta_str);
+        }
+        smart_str metrics_str = {0};
+        if (zend_hash_num_elements(Z_ARR(metrics_zv))) {
+            ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR(metrics_zv), key, tag_zv) {
+                if (metrics_str.s) {
+                    smart_str_appends(&metrics_str, ", ");
+                }
+                smart_str_append(&metrics_str, key);
+                smart_str_appends(&metrics_str, "='");
+                smart_str_append_double(&metrics_str, Z_DVAL_P(tag_zv), 12, false);
+                smart_str_appendc(&metrics_str, '\'');
+            } ZEND_HASH_FOREACH_END();
+            smart_str_0(&metrics_str);
+        }
+        log("Encoding span %" PRIu64 ": trace_id=%s, name='%s', service='%s', resource: '%s', type '%s' with tags: %s; and metrics: %s",
+            span->span_id,
+            Z_STRVAL(span->root->property_trace_id), Z_TYPE_P(prop_name) == IS_STRING ? Z_STRVAL_P(prop_name) : "",
+            Z_TYPE(prop_service_as_string) == IS_STRING ? Z_STRVAL(prop_service_as_string) : "",
+            Z_TYPE(prop_resource_as_string) == IS_STRING ? Z_STRVAL(prop_resource_as_string) : "",
+            Z_TYPE(prop_type_as_string) == IS_STRING ? Z_STRVAL(prop_type_as_string) : "",
+            meta_str.s ? ZSTR_VAL(meta_str.s) : "-",
+            metrics_str.s ? ZSTR_VAL(metrics_str.s) : "-");
+        smart_str_free(&meta_str);
+        smart_str_free(&metrics_str);
+    })
+
     if (zend_hash_num_elements(Z_ARR(metrics_zv))) {
         zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("metrics"), &metrics_zv);
     } else {

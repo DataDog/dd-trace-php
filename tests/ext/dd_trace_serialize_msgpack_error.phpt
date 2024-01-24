@@ -1,7 +1,7 @@
 --TEST--
 dd_trace_serialize_msgpack() error conditions
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php
 array_map(function ($data) {

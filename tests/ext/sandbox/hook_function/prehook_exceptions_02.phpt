@@ -1,7 +1,7 @@
 --TEST--
 DDTrace\hook_function prehook exception is sandboxed (debug)
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 --INI--
 zend.assertions=1
 assert.exception=1

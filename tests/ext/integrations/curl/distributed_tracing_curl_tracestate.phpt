@@ -6,7 +6,7 @@ Distributed tracing headers propagate with curl_exec()
 --INI--
 ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_GENERATE_ROOT_SPAN=0
 HTTP_TRACEPARENT=00-12345678901234567890123456789012-6543210987654321-01
 HTTP_TRACESTATE=foo=bar:;=,dd=o:phpt-test;unknown1:val;t.test:qvalue;s:2;unknown2:1,baz=qux

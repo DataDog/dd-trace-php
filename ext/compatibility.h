@@ -392,4 +392,8 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
 #define zend_zval_value_name zend_zval_type_name
 #endif
 
+#if PHP_VERSION_ID < 80400
+#define zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error, free_trampoline) zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error)
+#endif
+
 #endif  // DD_COMPATIBILITY_H
