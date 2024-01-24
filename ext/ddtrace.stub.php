@@ -885,9 +885,9 @@ namespace {
      * @internal
      * @param string $functionName Internal function name
      * @param mixed $args,... Arguments of the function
-     * @return bool 'true' if void function was properly executed, else the return value of it
+     * @return mixed false if void function was properly executed, else the return value of it
      */
-    function dd_trace_internal_fn(string $functionName, mixed ...$args): bool {}
+    function dd_trace_internal_fn(string $functionName, mixed ...$args) {}
 
     /**
      * Set the distributed trace id

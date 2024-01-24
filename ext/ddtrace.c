@@ -1907,6 +1907,13 @@ PHP_FUNCTION(dd_trace_internal_fn) {
         } else if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
             dd_finalize_telemtry();
             RETVAL_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
+            if (!ddtrace_sidecar) {
+                RETURN_FALSE;
+            }
+            ddog_CharSlice slice = ddog_sidecar_dump(&ddtrace_sidecar);
+            RETVAL_STRINGL(slice.ptr, slice.len);
+            free((void *) slice.ptr);
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
             ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), path);
@@ -2442,7 +2449,7 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         DD_PARAM_PROLOGUE(0, 0);
-        if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error))) {
+        if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error, true))) {
             if (!_error) {
                 zend_argument_type_error(1, "must be a valid callback or of type array, %s given", zend_zval_value_name(_arg));
                 _error_code = ZPP_ERROR_FAILURE;

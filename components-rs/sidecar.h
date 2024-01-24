@@ -132,4 +132,6 @@ ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(ddog_SidecarTransport **transp
                                                   ddog_CharSlice data,
                                                   const struct ddog_TracerHeaderTags *tracer_header_tags);
 
+ddog_CharSlice ddog_sidecar_dump(ddog_SidecarTransport **transport);
+
 #endif /* DDOG_SIDECAR_H */
