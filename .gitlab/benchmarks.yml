@@ -88,7 +88,10 @@ download_circle_ci_release:
 
 .macrobenchmarks:
   stage: benchmarks
-  when: always
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+      when: always
+    - when: manual
   tags: ["runner:apm-k8s-same-cpu"]
   needs: ["download_circle_ci_release"]
   interruptible: true
