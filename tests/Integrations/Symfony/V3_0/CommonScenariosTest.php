@@ -42,6 +42,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleAction',
                         'symfony.route.name' => 'simple',
+                        'http.route' => '/simple',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
                         'http.status_code' => '200',
@@ -79,6 +80,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleViewAction',
                         'symfony.route.name' => 'simple_view',
+                        'http.route' => '/simple_view',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
@@ -125,6 +127,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@errorAction',
                         'symfony.route.name' => 'error',
+                        'http.route' => '/error',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
                         'http.status_code' => '500',
