@@ -587,6 +587,20 @@ executors:
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
       - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_SQLSRV
+  with_redis:
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+      COMPOSER_MEMORY_LIMIT: -1 # disable composer memory limit completely
+    parameters:
+      docker_image:
+        type: string
+    docker:
+        - image: << parameters.docker_image >>
+        - <<: *IMAGE_DOCKER_HTTPBIN
+        - <<: *IMAGE_DOCKER_REDIS
+        - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+        - <<: *IMAGE_DOCKER_DD_TEST_AGENT
+
 
 jobs:
   "Lint PHP 5":
@@ -1483,9 +1497,12 @@ jobs:
       coverage:
         type: boolean
         default: false
+      with_executor:
+        type: string
+        default: with_integrations
     resource_class: << parameters.resource_class >>
     executor:
-      name: with_integrations
+      name: << parameters.with_executor >>
       docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
@@ -4318,6 +4335,8 @@ workflows:
           resource_class: medium+
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
+          with_executor:
+            - with_httpbin_and_request_replayer
           matrix:
             parameters:
               php_major_minor:
@@ -4336,6 +4355,8 @@ workflows:
           # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove this additional
           # runner and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
           requires: [ 'Prepare Code' ]
+          with_executor:
+            - with_redis
           matrix:
             parameters:
               php_major_minor:
@@ -4354,6 +4375,8 @@ workflows:
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
           coverage: true
+          with_executor:
+            - with_httpbin_and_request_replayer
           matrix:
             parameters:
               php_major_minor:
