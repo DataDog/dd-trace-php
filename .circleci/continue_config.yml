@@ -1499,7 +1499,7 @@ jobs:
         default: false
       with_executor:
         type: string
-        default: with_integrations
+        default: 'with_integrations'
     resource_class: << parameters.resource_class >>
     executor:
       name: << parameters.with_executor >>
@@ -4335,8 +4335,7 @@ workflows:
           resource_class: medium+
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
-          with_executor:
-            - with_httpbin_and_request_replayer
+          with_executor: 'with_httpbin_and_request_replayer'
           matrix:
             parameters:
               php_major_minor:
@@ -4355,8 +4354,7 @@ workflows:
           # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove this additional
           # runner and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
           requires: [ 'Prepare Code' ]
-          with_executor:
-            - with_redis
+          with_executor: 'with_redis'
           matrix:
             parameters:
               php_major_minor:
@@ -4375,8 +4373,7 @@ workflows:
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
           coverage: true
-          with_executor:
-            - with_httpbin_and_request_replayer
+          with_executor: 'with_httpbin_and_request_replayer'
           matrix:
             parameters:
               php_major_minor:
