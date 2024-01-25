@@ -4179,7 +4179,6 @@ workflows:
                 - "8.3"
               make_target:
                 - test_coverage
-                - test_extension_ci
                 - test_unit
                 - test_api_unit
                 - test_c2php
@@ -4191,13 +4190,21 @@ workflows:
           requires: [ 'Prepare Code' ]
           matrix:
             parameters:
-              resource_class:
-                - medium+
               php_major_minor:
                 - "7.0"
                 - "7.1"
                 - "7.2"
                 - "7.3"
+              make_target:
+                - test_extension_ci
+
+      - test:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              resource_class:
+                - medium+
+              php_major_minor:
                 - "7.4"
                 - "8.0"
                 - "8.1"
