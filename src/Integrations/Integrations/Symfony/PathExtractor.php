@@ -32,7 +32,7 @@ class PathExtractor
     {
         $className = $classMethod; //It may not come with method when invokable controller
         $methodName = null;
-        if (str_contains($classMethod, "::")) {
+        if (strpos($classMethod, "::") !== false) {
             $exploded = explode("::", $classMethod);
             $className = $exploded[0];
             $methodName = $exploded[1];
@@ -104,11 +104,13 @@ class PathExtractor
 
     protected function getPath(object $annot, array $globals, ReflectionClass $class, ReflectionMethod $method, $routeName)
     {
-        $name = $annot->getName() ?? $this->getDefaultRouteName($class, $method);
+        $name = $annot->getName() ? $annot->getName(): $this->getDefaultRouteName($class, $method);
         $name = $globals['name'].$name;
 
-        $path = $annot->getLocalizedPaths() ?: $annot->getPath();
-        $prefix = $globals['localized_paths'] ?: $globals['path'];
+        $path = \method_exists($annot, 'getLocalizedPaths') && $annot->getLocalizedPaths() ?
+            $annot->getLocalizedPaths():
+            $annot->getPath();
+        $prefix = $globals['localized_paths'] ? $globals['localized_paths']: $globals['path'];
         $paths = [];
         if (\is_array($path)) {
             if (!\is_array($prefix)) {
@@ -175,7 +177,10 @@ class PathExtractor
                 $globals['path'] = $annot->getPath();
             }
 
-            $globals['localized_paths'] = $annot->getLocalizedPaths();
+            //Old versions of Symfony dont have this
+            if (\method_exists($annot, 'getLocalizedPaths')) {
+                $globals['localized_paths'] = $annot->getLocalizedPaths();
+            }
         }
 
         return $globals;
