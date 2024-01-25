@@ -2123,7 +2123,7 @@ jobs:
           command: make -C tests/randomized generate PLATFORMS=$RANDOMIZED_RESTRICT_PLATFORMS
       - run:
           name: Execute tests
-          command: make -C tests/randomized test CONCURRENT_JOBS=3 DURATION=1m30s
+          command: make -C tests/randomized test CONCURRENT_JOBS=2 DURATION=1m30s
       - run:
           name: Fix PHP-FPM logs permissions before storing artifacts
           command: sudo chown -R circleci:circleci tests/randomized/.tmp.scenarios/.results
