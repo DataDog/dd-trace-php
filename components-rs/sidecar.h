@@ -120,7 +120,8 @@ ddog_MaybeError ddog_sidecar_session_set_config(ddog_SidecarTransport **transpor
                                                 uint64_t flush_interval_milliseconds,
                                                 uintptr_t force_flush_size,
                                                 uintptr_t force_drop_size,
-                                                ddog_CharSlice log_level);
+                                                ddog_CharSlice log_level,
+                                                ddog_CharSlice log_path);
 
 ddog_MaybeError ddog_sidecar_send_trace_v04_shm(ddog_SidecarTransport **transport,
                                                 const struct ddog_InstanceId *instance_id,
