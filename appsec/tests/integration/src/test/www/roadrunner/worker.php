@@ -13,6 +13,8 @@ $httpWorker = new HttpWorker($worker);
 
 $router = new \App\Router();
 $router->addRoute('/', new \App\HomePageHandler());
+$router->addRoute('/json', new \App\JsonHandler());
+$router->addRoute('/xml', new \App\XmlHandler());
 
 while ($req = $httpWorker->waitRequest()) {
     /** @var \Spiral\RoadRunner\Http\Request $req */

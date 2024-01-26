@@ -58,6 +58,7 @@ extern bool runtime_config_first_init;
     CONFIG(CUSTOM(uint32_t), DD_REMOTE_CONFIG_POLL_INTERVAL, "1000", .parser = _parse_uint32)                                         \
     CONFIG(STRING, DD_AGENT_HOST, "")                                                                                                 \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0")                                                                                             \
+    CONFIG(INT, DD_APPSEC_MAX_BODY_BUFF_SIZE, "524288")                                                                               \
     CONFIG(STRING, DD_TRACE_AGENT_URL, "")                                                                                            \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true")                                                                                            \
     CONFIG(CUSTOM(STRING), DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING, "safe", .parser = dd_parse_automated_user_events_tracking)       \

@@ -22,8 +22,10 @@ std::size_t socket::recv(char *buffer, std::size_t len)
 {
     size_t received = 0;
     while (received < len) {
-        ssize_t const res =
-            ::recv(sock_, &buffer[received], len - received, MSG_WAITALL);
+        ssize_t res;
+        do {
+            res = ::recv(sock_, &buffer[received], len - received, MSG_WAITALL);
+        } while (res == -1 && errno == EINTR);
         if (res == -1) {
             throw std::system_error(errno, std::generic_category());
         }
@@ -38,7 +40,11 @@ std::size_t socket::recv(char *buffer, std::size_t len)
 
 std::size_t socket::send(const char *buffer, std::size_t len)
 {
-    ssize_t const res = ::send(sock_, buffer, len, 0);
+    ssize_t res;
+    do {
+        res = ::send(sock_, buffer, len, 0);
+    } while (res == -1 && errno == EINTR);
+
     if (res == -1) {
         throw std::system_error(errno, std::generic_category());
     }
@@ -54,7 +60,10 @@ std::size_t socket::discard(std::size_t len)
     std::size_t total_size = 0;
     while (total_size < len) {
         auto read_size = std::min<std::size_t>(len - total_size, max_size);
-        ssize_t const res = ::recv(sock_, buffer.data(), read_size, 0);
+        ssize_t res;
+        do {
+            res = ::recv(sock_, buffer.data(), read_size, 0);
+        } while (res == -1 && errno == EINTR);
         if (res <= 0) {
             break;
         }

@@ -164,7 +164,6 @@ function build_php {
     --enable-opcache=shared
     --enable-pdo=shared
     --enable-phar=shared
-    --with-libxml
     --enable-xml
     --enable-simplexml=shared
     --enable-xmlreader=shared
@@ -361,6 +360,40 @@ function install_icu {
   echo "Installed ICU in $install_dir"
 }
 
+function download_and_extract_libxml2 {
+  local -r libxml2_version="2.12.4"
+  local -r url="https://download.gnome.org/sources/libxml2/2.12/libxml2-${libxml2_version}.tar.xz"
+  local libxml2_source_dir="$HOME/php/sources/libxml2-${libxml2_version}"
+
+  if [[ ! -f $libxml2_source_dir/.extracted ]]; then
+    mkdir -p "$libxml2_source_dir"
+    curl -Lf "$url" -o - | tar -xJ -C "$libxml2_source_dir" --strip-components=1
+    touch "$libxml2_source_dir/.extracted"
+  fi
+  echo "$libxml2_source_dir"
+}
+
+function install_libxml2 {
+  local -r install_dir="$HOME/php/libxml2"
+  if [[ -f $install_dir/.installed ]]; then
+    return
+  fi
+
+  local -r source_dir="$(download_and_extract_libxml2)"
+  local -r build_dir="$HOME/php/build/libxml2"
+
+  mkdir -p "$build_dir"
+  cd "$build_dir"
+  CXXFLAGS="-g -ggdb -O0" "$source_dir/configure" --prefix="$install_dir"
+
+  make -j && make install
+  touch "$install_dir/.installed"
+  cd -
+  rm -rf "$build_dir"
+
+  echo "Installed libxml2 in $install_dir"
+}
+
 function download_and_extract_xdebug {
   local -r xdebug_version="$1"
   local url
@@ -423,6 +456,7 @@ fi
 install_openssl 1.0.2u
 install_openssl 1.1.1w
 install_icu
+install_libxml2
 
 if [[ $1 == deps ]]; then
   exit 0
@@ -430,7 +464,7 @@ fi
 
 download_php "$1"
 
-export PKG_CONFIG_PATH=$(openssl_pkg_config "$1"):$HOME/php/icu-60/lib/pkgconfig
+export PKG_CONFIG_PATH=$(openssl_pkg_config "$1"):$HOME/php/icu-60/lib/pkgconfig:$HOME/php/libxml2/lib/pkgconfig
 PATH=$HOME/php/icu-60/bin:$PATH
 CXXFLAGS='-g -ggdb' build_php "$1" "${2:-}" PREFIX
 

@@ -1,6 +1,7 @@
 configure_file(src/extension/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/extension/version.h)
 
 find_package(PhpConfig REQUIRED)
+message(STATUS "Configuring for PHP ${PhpConfig_VERNUM}")
 
 set(EXT_SOURCE_DIR src/extension)
 
