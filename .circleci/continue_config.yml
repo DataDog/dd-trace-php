@@ -4631,7 +4631,7 @@ workflows:
         matrix:
           parameters:
             resource_class:
-              - medium
+              - medium+
               - arm.medium
 
   profiling_tests:
