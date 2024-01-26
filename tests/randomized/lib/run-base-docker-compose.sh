@@ -21,6 +21,7 @@ while true; do
         docker-compose up -d
       done
     fi
+    docker-compose logs -f > ./../.tmp.scenarios/.results/$SCENARIO/docker-compose.log &
     exit 0
   fi
   sleep 1
