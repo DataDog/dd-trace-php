@@ -79,7 +79,7 @@ class PathExtractor
         return;
     }
 
-    private function getAnnotations($reflection): iterable
+    private function getAnnotations($reflection)
     {
         if (method_exists($reflection, 'getAttributes')) {
             foreach ($reflection->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
@@ -203,5 +203,4 @@ class PathExtractor
 
         return str_replace('__', '_', $name);
     }
-
 }
