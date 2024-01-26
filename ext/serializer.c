@@ -1669,6 +1669,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             } ZEND_HASH_FOREACH_END();
             smart_str_0(&metrics_str);
         }
+        prop_name = zend_hash_str_find(Z_ARR_P(el), ZEND_STRL("name")); // refetch, array may have been rehashed
         log("Encoding span %" PRIu64 ": trace_id=%s, name='%s', service='%s', resource: '%s', type '%s' with tags: %s; and metrics: %s",
             span->span_id,
             Z_STRVAL(span->root->property_trace_id), Z_TYPE_P(prop_name) == IS_STRING ? Z_STRVAL_P(prop_name) : "",
