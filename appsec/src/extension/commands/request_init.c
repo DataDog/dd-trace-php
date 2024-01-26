@@ -11,11 +11,11 @@
 #include "../configuration.h"
 #include "../ddappsec.h"
 #include "../ddtrace.h"
+#include "../entity_body.h"
 #include "../ip_extraction.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
 #include "../php_compat.h"
-#include "../request_body.h"
 #include "../string_helpers.h"
 #include "request_init.h"
 #include <mpack.h>
@@ -126,7 +126,7 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
     if (send_raw_body && !ctx->superglob_equiv) {
         dd_mpack_write_lstr(w, "server.request.body.raw");
         zend_string *nonnull req_body =
-            dd_request_body_buffered(DD_MAX_REQ_BODY_TO_BUFFER);
+            dd_request_body_buffered(get_DD_APPSEC_MAX_BODY_BUFF_SIZE());
         dd_mpack_write_zstr(w, req_body);
         zend_string_release(req_body);
     }

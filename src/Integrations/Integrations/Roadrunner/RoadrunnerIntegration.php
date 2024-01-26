@@ -221,46 +221,60 @@ class RoadrunnerIntegration extends Integration
                 }
             });
 
-        \DDTrace\install_hook('Spiral\RoadRunner\Http\HttpWorker::respond',
-            function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
-                $hook->disableJitInlining();
-                if (!$activeSpan || count($hook->args) < 3) {
-                    return;
-                }
-
-                if ($suppressResponse === $activeSpan) {
-                    // we're blocking midrequest and trying to second a second response.
-                    // (Maybe the application caught the RuntimeException thrown by the blocking function, and
-                    // now it's trying to respond with a 500)
-                    // Suppress this second response
-                    $hook->suppressCall();
-                    return;
-                }
-
-                $blocking = notify_commit($activeSpan, $hook->args[0], $hook->args[2]);
-                if ($blocking) {
-                    $hook->args[0] = $blocking['status'];
-                    $hook->args[1] = $blocking['body'];
-                    $hook->args[2] = RoadrunnerIntegration::ensure_headers_map_fmt($blocking['headers']);
-                    $hook->overrideArguments($hook->args);
-                }
-            },
-            function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
-                if (!$activeSpan || count($hook->args) < 3) {
-                    return;
-                }
-
-                /** @var int $status */
-                $status = $hook->args[0];
-
-                $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
-                if ($hook->exception && empty($activeSpan->exception)) {
-                    $activeSpan->exception = $hook->exception;
-                } elseif ($status >= 500 && $ex = \DDTrace\find_active_exception()) {
-                    $activeSpan->exception = $ex;
-                }
+        $respondBefore = function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
+            $hook->disableJitInlining();
+            if (!$activeSpan || count($hook->args) < 3) {
+                return;
             }
-        );
+
+            if ($suppressResponse === $activeSpan) {
+                // we're blocking midrequest and trying to second a second response.
+                // (Maybe the application caught the RuntimeException thrown by the blocking function, and
+                // now it's trying to respond with a 500)
+                // Suppress this second response
+                $hook->suppressCall();
+                return;
+            }
+
+            $body = $hook->args[1];
+            if (!is_string($body)) {
+                // we're in respondStream and the body is a Generator
+                // what we could do here would be to wrap the Generator until it is exhausted or
+                // we read a certain amount of data from it, and only then call notify_commit, but...
+                // 1. we don't really know what amount of data appsec is interested in
+                // 2. we'd lose the ability to block because the response would have already been committed
+                // While blocking is impossible, we could provide the chunks in a separate
+                // user request hook or do away with abstraction and call an appsec function to
+                // send arbitrary addresses.
+                $body = null;
+            }
+            $blocking = notify_commit($activeSpan, $hook->args[0], $hook->args[2], $body);
+            if ($blocking) {
+                $hook->args[0] = $blocking['status'];
+                $hook->args[1] = $blocking['body'];
+                $hook->args[2] = RoadrunnerIntegration::ensure_headers_map_fmt($blocking['headers']);
+                $hook->overrideArguments($hook->args);
+            }
+        };
+
+        $respondAfter = function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
+            if (!$activeSpan || count($hook->args) < 3) {
+                return;
+            }
+
+            /** @var int $status */
+            $status = $hook->args[0];
+
+            $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
+            if ($hook->exception && empty($activeSpan->exception)) {
+                $activeSpan->exception = $hook->exception;
+            } elseif ($status >= 500 && $ex = \DDTrace\find_active_exception()) {
+                $activeSpan->exception = $ex;
+            }
+        };
+
+        \DDTrace\install_hook('Spiral\RoadRunner\Http\HttpWorker::respond', $respondBefore, $respondAfter);
+        \DDTrace\install_hook('Spiral\RoadRunner\Http\HttpWorker::respondStream', $respondBefore, $respondAfter);
 
         return Integration::LOADED;
     }

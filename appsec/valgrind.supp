@@ -212,3 +212,30 @@
    fun:zend_verify_arg_error
    ...
 }
+{
+   <store_func_location>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:zai_store_func_location
+   fun:zai_hook_resolve_class
+   fun:_zend_observer_class_linked_notify
+   fun:zend_observer_class_linked_notify
+   fun:zend_compile_class_decl
+   fun:zend_compile_top_stmt
+   fun:zend_compile_top_stmt
+   fun:zend_compile
+   fun:compile_file
+}
+{
+   <wrong_parameter_error>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   ...
+   fun:zend_argument_error_variadic
+   fun:zend_argument_type_error
+   fun:zend_wrong_parameter_class_error
+   fun:zend_wrong_parameter_error
+}

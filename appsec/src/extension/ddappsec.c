@@ -28,6 +28,7 @@
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "ddtrace.h"
+#include "entity_body.h"
 #include "helper_process.h"
 #include "ip_extraction.h"
 #include "logging.h"
@@ -211,6 +212,8 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_request_abort_startup();
     dd_tags_startup();
     dd_ip_extraction_startup();
+    dd_entity_body_startup();
+    dd_request_shutdown_startup();
 
     return SUCCESS;
 }
@@ -224,6 +227,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     // no other thread is running now. reset config to global config only.
     runtime_config_first_init = false;
 
+    dd_entity_body_shutdown();
     dd_tags_shutdown();
     dd_user_tracking_shutdown();
     dd_trace_shutdown();
@@ -255,6 +259,8 @@ static PHP_RINIT_FUNCTION(ddappsec)
         return SUCCESS;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
+
+    dd_entity_body_activate();
 
     dd_req_lifecycle_rinit(false);
 

@@ -23,7 +23,7 @@ export TEST_PHP_EXECUTABLE TEST_PHP_CGI_EXECUTABLE TEST_PHPDBG_EXECUTABLE \
 shift 3
 
 function link_extensions {
-  local extensions=(opcache posix pcntl sockets json)
+  local extensions=(opcache posix pcntl sockets json xml)
   local -r link_ext_dir="${CMAKE_BINARY_DIR}/extensions"
   local -r extension_dir=$("$TEST_PHP_EXECUTABLE" -d display_errors=0 -r "echo ini_get('extension_dir');")
   mkdir -p "$link_ext_dir"

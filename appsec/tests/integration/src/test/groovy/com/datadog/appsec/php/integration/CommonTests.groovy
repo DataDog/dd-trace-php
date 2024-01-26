@@ -148,21 +148,21 @@ trait CommonTests {
         assertThat appsecJson, matchesJson(expJson, false, true)
     }
 
-   @Test
-   void 'test blocking'() {
-       // Set ip which is blocked
-       HttpRequest req = container.buildReq('/phpinfo.php')
-               .header('X-Forwarded-For', '80.80.80.80').GET().build()
-       def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
-           assert re.statusCode() == 403
-           assert re.body().contains('blocked')
-       }
+    @Test
+    void 'test blocking'() {
+        // Set ip which is blocked
+        HttpRequest req = container.buildReq('/phpinfo.php')
+                .header('X-Forwarded-For', '80.80.80.80').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+            assert re.body().contains('blocked')
+        }
 
-       Span span = trace.first()
-       assert span.metrics."_dd.appsec.enabled" == 1.0d
-       assert span.metrics."_dd.appsec.waf.duration" > 0.0d
-       assert span.meta."_dd.appsec.event_rules.version" != ''
-       assert span.meta."appsec.blocked" == "true"
+        Span span = trace.first()
+        assert span.metrics."_dd.appsec.enabled" == 1.0d
+        assert span.metrics."_dd.appsec.waf.duration" > 0.0d
+        assert span.meta."_dd.appsec.event_rules.version" != ''
+        assert span.meta."appsec.blocked" == "true"
     }
 
     @Test
@@ -221,20 +221,113 @@ trait CommonTests {
         assert span.meta."_dd.appsec.event_rules.version" != ''
     }
 
-  @Test
-  void 'test redirecting'() {
-      // Set ip which is set to be redirected
-      def req = container.buildReq('/phpinfo.php')
-              .header('X-Forwarded-For', '80.80.80.81').GET().build()
-      def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> conn ->
-          assert conn.statusCode() == 303
-      }
+    @Test
+    void 'test redirecting'() {
+        // Set ip which is set to be redirected
+        def req = container.buildReq('/phpinfo.php')
+                .header('X-Forwarded-For', '80.80.80.81').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> conn ->
+            assert conn.statusCode() == 303
+        }
 
-      Span span = trace.first()
-      assert span.metrics."_dd.appsec.enabled" == 1.0d
-      assert span.metrics."_dd.appsec.waf.duration" > 0.0d
-      assert span.meta."_dd.appsec.event_rules.version" != ''
-      assert span.meta."appsec.blocked" == "true"
+        Span span = trace.first()
+        assert span.metrics."_dd.appsec.enabled" == 1.0d
+        assert span.metrics."_dd.appsec.waf.duration" > 0.0d
+        assert span.meta."_dd.appsec.event_rules.version" != ''
+        assert span.meta."appsec.blocked" == "true"
+    }
+
+    @Test
+    void 'match against json response body'() {
+        HttpRequest req = container.buildReq('/parseable_resp_entity.php?json=1').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.body() == '{"message":["Hello world!",42,true,"poison"]}'
+        }
+
+        Span span = trace.first()
+
+        def appsecJson = span.meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : {
+                    "id" : "poison-in-json",
+                    "name" : "poison-in-json",
+                    "tags" : {
+                       "category" : "attack_attempt",
+                       "type" : "security_scanner"
+                    }
+                 },
+                 "rule_matches" : [
+                    {
+                       "operator" : "match_regex",
+                       "operator_value" : "(?i)poison",
+                       "parameters" : [
+                          {
+                             "address" : "server.response.body",
+                             "highlight" : [
+                                "poison"
+                             ],
+                             "key_path" : [
+                                "message",
+                                "3"
+                             ],
+                             "value" : "poison"
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+    }
+
+    @Test
+    void 'match against xml response body'() {
+        HttpRequest req = container.buildReq('/parseable_resp_entity.php?xml=1').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.body().contains('poison')
+        }
+
+        Span span = trace.first()
+
+        def appsecJson = span.meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : {
+                    "id" : "poison-in-xml",
+                    "name" : "poison-in-xml",
+                    "tags" : {
+                       "category" : "attack_attempt",
+                       "type" : "security_scanner"
+                    }
+                 },
+                 "rule_matches" : [
+                    {
+                       "operator" : "match_regex",
+                       "operator_value" : "(?i).*poison.*",
+                       "parameters" : [
+                          {
+                             "address" : "server.response.body",
+                             "highlight" : [
+                                "  poison"
+                             ],
+                             "key_path" : [
+                                "note",
+                                "content",
+                                "1"
+                             ],
+                             "value" : "\\n  poison\\n"
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
     }
 
     @Test

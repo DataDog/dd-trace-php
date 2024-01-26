@@ -6686,6 +6686,85 @@
         }
       ],
       "transformers": []
+    },
+    {
+      "id": "poison-in-json",
+      "name": "poison-in-json",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.response.body",
+                "key_path": [
+                    "message"
+                ]
+              }
+            ],
+            "regex": "(?i)poison"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": []
+    },
+    {
+      "id": "poison-in-json-block",
+      "name": "poison-in-json-block",
+      "tags": {
+          "type": "security_scanner",
+          "category": "attack_attempt"
+      },
+      "conditions": [
+          {
+              "parameters": {
+                  "inputs": [
+                      {
+                          "address": "server.response.body",
+                          "key_path": [
+                              "message"
+                          ]
+                      }
+                  ],
+                  "regex": "(?i)block_this"
+              },
+              "operator": "match_regex"
+          }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+        "id": "poison-in-xml",
+        "name": "poison-in-xml",
+        "tags": {
+            "type": "security_scanner",
+            "category": "attack_attempt"
+        },
+        "conditions": [
+            {
+                "parameters": {
+                    "inputs": [
+                        {
+                            "address": "server.response.body",
+                            "key_path": [
+                                "note",
+                                "content"
+                            ]
+                        }
+                    ],
+                    "regex": "(?i).*poison.*"
+                },
+                "operator": "match_regex"
+            }
+        ],
+        "transformers": []
     }
   ],
   "rules_data": [
