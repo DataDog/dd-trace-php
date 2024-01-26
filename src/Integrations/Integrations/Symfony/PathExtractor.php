@@ -79,7 +79,7 @@ class PathExtractor
         return;
     }
 
-    private function getAnnotations(object $reflection): iterable
+    private function getAnnotations($reflection): iterable
     {
         if (method_exists($reflection, 'getAttributes')) {
             foreach ($reflection->getAttributes($this->routeAnnotationClass, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
@@ -102,7 +102,7 @@ class PathExtractor
         }
     }
 
-    protected function getPath(object $annot, array $globals, ReflectionClass $class, ReflectionMethod $method, $routeName)
+    protected function getPath($annot, array $globals, ReflectionClass $class, ReflectionMethod $method, $routeName)
     {
         $name = $annot->getName() ? $annot->getName(): $this->getDefaultRouteName($class, $method);
         $name = $globals['name'].$name;
