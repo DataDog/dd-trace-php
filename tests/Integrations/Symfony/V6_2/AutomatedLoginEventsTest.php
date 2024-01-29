@@ -42,13 +42,13 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         $email = 'test-user@email.com';
         $password = 'test';
         //Password is password
-        $this->connection()->exec('insert into user (roles, email, password) VALUES ("{}", "'.$email.'", "$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i")');
+        $this->connection()->exec('insert into user (roles, email, password) VALUES ("{}", "' . $email . '", "$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i")');
 
         $spec = PostSpec::create('request', '/login', [
-                        'Content-Type: application/x-www-form-urlencoded'
-                    ], "_username=$email&_password=$password");
+            'Content-Type: application/x-www-form-urlencoded'
+        ], "_username=$email&_password=$password");
 
-        $this->call($spec, [ CURLOPT_FOLLOWLOCATION => false ]);
+        $this->call($spec, [CURLOPT_FOLLOWLOCATION => false]);
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
@@ -63,36 +63,35 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         $email = 'non-existing@email.com';
         $password = 'some password';
         $spec = PostSpec::create('request', '/login', [
-                        'Content-Type: application/x-www-form-urlencoded'
-                    ], "_username=$email&_password=$password");
+            'Content-Type: application/x-www-form-urlencoded'
+        ], "_username=$email&_password=$password");
 
-         $this->call($spec, [ CURLOPT_FOLLOWLOCATION => false ]);
+        $this->call($spec, [CURLOPT_FOLLOWLOCATION => false]);
 
-         $events = AppsecStatus::getInstance()->getEvents();
-         $this->assertEquals(1, count($events));
-         $this->assertEmpty($events[0]['userId']);
-         $this->assertEmpty($events[0]['metadata']);
-         $this->assertTrue($events[0]['automated']);
-         $this->assertEquals('track_user_login_failure_event', $events[0]['eventName']);
+        $events = AppsecStatus::getInstance()->getEvents();
+        $this->assertEquals(1, count($events));
+        $this->assertEmpty($events[0]['userId']);
+        $this->assertEmpty($events[0]['metadata']);
+        $this->assertTrue($events[0]['automated']);
+        $this->assertEquals('track_user_login_failure_event', $events[0]['eventName']);
     }
 
     public function testUserSignUp()
     {
-       $email = 'test-user@email.com';
-       $password = 'some password';
-       $spec = PostSpec::create('Signup', '/register', [
-                       'Content-Type: application/x-www-form-urlencoded'
-                   ], "registration_form[email]=$email&registration_form[plainPassword]=$password&registration_form[agreeTerms]=1");
+        $email = 'test-user@email.com';
+        $password = 'some password';
+        $spec = PostSpec::create('Signup', '/register', [
+            'Content-Type: application/x-www-form-urlencoded'
+        ], "registration_form[email]=$email&registration_form[plainPassword]=$password&registration_form[agreeTerms]=1");
 
-       $this->call($spec, [ CURLOPT_FOLLOWLOCATION => false ]);
+        $this->call($spec, [CURLOPT_FOLLOWLOCATION => false]);
 
-       $users = $this->connection()->query("SELECT * FROM user where email='".$email."'")->fetchAll();
+        $users = $this->connection()->query("SELECT * FROM user where email='" . $email . "'")->fetchAll();
 
         $this->assertEquals(1, count($users));
 
         $signUpEvent = null;
-        foreach(AppsecStatus::getInstance()->getEvents() as $event)
-        {
+        foreach (AppsecStatus::getInstance()->getEvents() as $event) {
             if ($event['eventName'] == 'track_user_signup_event') {
                 $signUpEvent = $event;
             }

@@ -18,7 +18,8 @@ class CommonScenariosTest extends IntegrationTestCase
         list($traces) = $this->inCli(self::getConsoleScript(), [
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
-            'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true'
+            'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+            'DD_TRACE_EXEC_ENABLED' => 'false',
         ], [], 'app:throw');
 
         $this->assertFlameGraph(
@@ -36,7 +37,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'cli',
                         'symfony.console.terminate'
                     )->withExactTags([
-                        Tag::COMPONENT => 'symfony'
+                        Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.console.command.run',
@@ -45,7 +47,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'app:throw'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
-                        'symfony.console.command.class' => 'App\\Command\\ThrowCommand'
+                        'symfony.console.command.class' => 'App\\Command\\ThrowCommand',
+                        '_dd.base_service' => 'console',
                     ])->setError(
                         "Exception",
                         "This is an exception",
@@ -58,6 +61,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony.console.error'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.console.command',
@@ -65,7 +69,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'cli',
                         'symfony.console.command'
                     )->withExactTags([
-                        Tag::COMPONENT => 'symfony'
+                        Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.httpkernel.kernel.boot',
@@ -73,7 +78,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'web',
                         'App\Kernel'
                     )->withExactTags([
-                        Tag::COMPONENT => 'symfony'
+                        Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ])
                 ])->setError("Exception", "This is an exception", true)
             ]
@@ -86,6 +92,7 @@ class CommonScenariosTest extends IntegrationTestCase
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+            'DD_TRACE_EXEC_ENABLED' => 'false',
         ], [], 'about');
 
         $this->assertFlameGraph(
@@ -103,7 +110,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'cli',
                         'symfony.console.terminate'
                     )->withExactTags([
-                        Tag::COMPONENT => 'symfony'
+                        Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.console.command.run',
@@ -112,7 +120,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'about'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
-                        'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand'
+                        'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.console.command',
@@ -120,7 +129,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'cli',
                         'symfony.console.command'
                     )->withExactTags([
-                        Tag::COMPONENT => 'symfony'
+                        Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                     SpanAssertion::build(
                         'symfony.httpkernel.kernel.boot',
@@ -128,7 +138,8 @@ class CommonScenariosTest extends IntegrationTestCase
                         'web',
                         'App\Kernel'
                     )->withExactTags([
-                        Tag::COMPONENT => 'symfony'
+                        Tag::COMPONENT => 'symfony',
+                        '_dd.base_service' => 'console',
                     ]),
                 ]),
             ]
@@ -141,6 +152,7 @@ class CommonScenariosTest extends IntegrationTestCase
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
             'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+            'DD_TRACE_EXEC_ENABLED' => 'false',
         ], [], 'about');
 
         $this->assertFlameGraph(

@@ -115,7 +115,7 @@ trait SnapshotTestTrait
      */
     private function stopAndCompareSnapshotSession(
         string $token,
-        array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack'],
+        array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
         int $numExpectedTraces = 1
     ) {
         $this->waitForTraces($token, $numExpectedTraces);
@@ -136,7 +136,7 @@ trait SnapshotTestTrait
 
     public function tracesFromWebRequestSnapshot(
         $fn,
-        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack'],
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
         $numExpectedTraces = 1,
         $tracer = null
     ) {
@@ -148,6 +148,32 @@ trait SnapshotTestTrait
         $this->startSnapshotSession($token);
 
         $fn($tracer);
+
+        $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, $numExpectedTraces);
+    }
+
+    public function isolateTracerSnapshot(
+        $fn,
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
+        $numExpectedTraces = 1,
+        $tracer = null,
+        $config = []
+    ) {
+        $token = $this->generateToken();
+        $this->startSnapshotSession($token);
+
+        $this->resetTracer($tracer, $config);
+
+        $tracer = GlobalTracer::get();
+        if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
+            $tracer->startRootSpan("root span");
+        }
+        $fn($tracer);
+
+        $traces = $this->flushAndGetTraces($tracer);
+        if (!empty($traces)) {
+            $this->sendTracesToTestAgent($traces);
+        }
 
         $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, $numExpectedTraces);
     }

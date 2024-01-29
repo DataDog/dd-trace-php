@@ -36,19 +36,21 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["runtime-id"]=>
       string(36) "%s"
+      ["_dd.p.dm"]=>
+      string(2) "-0"
       ["_dd.origin"]=>
       string(7) "datadog"
-      ["_dd.p.dm"]=>
-      string(2) "-1"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {
       ["process_id"]=>
       float(%f)
-      ["_dd.rule_psr"]=>
+      ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)

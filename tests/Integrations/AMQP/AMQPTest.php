@@ -203,7 +203,8 @@ final class AMQPTest extends IntegrationTestCase
                     Tag::RABBITMQ_EXCHANGE          => '<default>',
                 ])->withExistingTagsNames([
                     Tag::MQ_CONSUMER_ID,
-                    '_dd.span_links'
+                    '_dd.span_links',
+                    '_dd.p.tid'
                 ])
             ]),
             SpanAssertion::build(
@@ -459,7 +460,8 @@ final class AMQPTest extends IntegrationTestCase
                     Tag::MQ_OPERATION               => 'receive',
                 ])->withExistingTagsNames([
                     Tag::MQ_CONSUMER_ID,
-                    '_dd.span_links'
+                    '_dd.span_links',
+                    '_dd.p.tid'
                 ])
             ]),
             SpanAssertion::build(
@@ -899,7 +901,7 @@ final class AMQPTest extends IntegrationTestCase
         );
 
         // Assess that user headers weren't lost
-        $this->assertSame("", $output);
+        $this->assertSame("", trim(preg_replace("(.*\[ddtrace].*)", "", $output)));
 
         $sendTraces = $sendTraces[0][0]; // There is a root span
         // Spans: send.php -> basic_publish -> queue_declare -> connect
@@ -940,7 +942,7 @@ final class AMQPTest extends IntegrationTestCase
         );
 
         // Assess that user headers weren't lost
-        $this->assertSame("", $output);
+        $this->assertSame("", trim(preg_replace("(.*\[ddtrace].*)", "", $output)));
 
         $sendTraces = $sendTraces[0][0]; // There is a root span
         // Spans: send.php -> basic_publish -> queue_declare -> connect

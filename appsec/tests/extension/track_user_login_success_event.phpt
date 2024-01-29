@@ -26,6 +26,8 @@ print_r(root_span_get_meta());
 
 echo "root_span_get_metrics():\n";
 print_r(root_span_get_metrics());
+
+var_dump(\DDTrace\get_priority_sampling());
 ?>
 --EXPECTF--
 root_span_get_meta():
@@ -39,11 +41,12 @@ Array
     [appsec.events.users.login.success.metadata] => some other metadata
     [appsec.events.users.login.success.email] => noneofyour@business.com
     [_dd.runtime_family] => php
+    [_dd.p.dm] => -4
 )
 root_span_get_metrics():
 Array
 (
     [%s] => %d
     [_dd.appsec.enabled] => 1
-    [_sampling_priority_v1] => 2
 )
+int(2)

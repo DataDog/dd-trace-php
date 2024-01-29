@@ -6,6 +6,7 @@ const INI_SCANDIR = 'Scan this dir for additional .ini files';
 const INI_MAIN = 'Loaded Configuration File';
 const EXTENSION_DIR = 'extension_dir';
 const THREAD_SAFETY = 'Thread Safety';
+const PHP_VER = 'PHP Version';
 const PHP_API = 'PHP API';
 const IS_DEBUG = 'Debug Build';
 
@@ -467,6 +468,7 @@ function install($options)
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
+    $tmpSrcDir = $tmpArchiveTraceRoot . '/src';
     if (!file_exists($tmpDir)) {
         execute_or_exit("Cannot create directory '$tmpDir'", "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($tmpDir));
     }
@@ -510,6 +512,12 @@ function install($options)
         "Cannot copy files from '$tmpBridgeDir' to '$installDirBridgeDir'",
         (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirBridgeDir)
     );
+    if (file_exists($tmpSrcDir)) {
+        execute_or_exit(
+            "Cannot copy files from '$tmpSrcDir' to '$installDirSourcesDir'",
+            "cp -r " . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSourcesDir)
+        );
+    }
     echo "Installed required source files to '$installDir'\n";
 
     // Appsec helper and rules
@@ -568,7 +576,8 @@ function install($options)
         $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/"
             . EXTENSION_PREFIX . "ddtrace$extensionSuffix." . EXTENSION_SUFFIX;
         if (!file_exists($extensionRealPath)) {
-            print_error_and_exit(substr($extensionSuffix ?: '-nts', 1) . ' builds of PHP are currently not supported');
+            print_error_and_exit(substr($extensionSuffix ?: '-nts', 1)
+                . ' builds of PHP ' . $phpProperties[PHP_VER] . ' are currently not supported');
         }
 
         $extensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddtrace.' . EXTENSION_SUFFIX;
@@ -1434,7 +1443,7 @@ function on_download_progress($curlHandle, $download_size, $downloaded)
  */
 function ini_values($binary)
 {
-    $properties = [INI_MAIN, INI_SCANDIR, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
+    $properties = [PHP_VER, INI_MAIN, INI_SCANDIR, EXTENSION_DIR, THREAD_SAFETY, PHP_API, IS_DEBUG];
     $lines = [];
     // Timezone is irrelevant to this script. Quick-and-dirty workaround to the PHP 5 warning with missing timezone
     exec(escapeshellarg($binary) . " -d date.timezone=UTC -i", $lines);
@@ -1811,19 +1820,31 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'name' => 'datadog.profiling.experimental_allocation_enabled',
             'default' => '1',
             'commented' => true,
-            'description' => 'Enable the allocation profile type.',
+            'description' => 'Enable the allocation profile type. Superseded by `datadog.profiling.allocation_enabled`.',
         ],
         [
-            'name' => 'datadog.profiling.experimental_exception_enabled',
+            'name' => 'datadog.profiling.exception_enabled',
             'default' => '1',
             'commented' => true,
             'description' => 'Enable the exception profile type.',
         ],
         [
-            'name' => 'datadog.profiling.experimental_exception_sampling_distance',
+            'name' => 'datadog.profiling.experimental_exception_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enable the exception profile type. Superseded by `datadog.profiling.exception_enabled`.',
+        ],
+        [
+            'name' => 'datadog.profiling.exception_sampling_distance',
             'default' => '100',
             'commented' => true,
             'description' => 'Sampling distance for exception profiling (the higher the distance, the fewer samples are created).',
+        ],
+        [
+            'name' => 'datadog.profiling.experimental_exception_sampling_distance',
+            'default' => '100',
+            'commented' => true,
+            'description' => 'Sampling distance for exception profiling (the higher the distance, the fewer samples are created). Superseded by `datadog.profiling.exception_sampling_distance`.',
         ],
         [
             'name' => 'datadog.profiling.log_level',
@@ -1832,6 +1853,12 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
             'description' => 'Set the profiler’s log level.'
                 . ' Acceptable values are off, error, warn, info, debug, and trace.'
                 . ' The profiler’s logs are written to the standard error stream of the process.',
+        ],
+        [
+            'name' => 'datadog.profiling.timeline_enabled',
+            'default' => '1',
+            'commented' => true,
+            'description' => 'Enable the timeline profile type.',
         ],
 
         [
@@ -2206,7 +2233,7 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
  */
 function get_supported_php_versions()
 {
-    return ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2'];
+    return ['5.4', '5.5', '5.6', '7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3'];
 }
 
 main();

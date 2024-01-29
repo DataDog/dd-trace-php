@@ -40,7 +40,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
             if (!zai_config_decode_value(env_value, memoized->type, memoized->parser, &tmp, /* persistent */ true)) {
                 // TODO Log decoding error
             } else {
-                zai_config_dtor_pzval(&tmp);
+                zai_json_dtor_pzval(&tmp);
                 value = zai_option_str_from_str(env_value);
             }
             break;
@@ -58,7 +58,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
         // TODO If name_index > 0, log deprecation notice
         zai_config_decode_value(value_view, memoized->type, memoized->parser, &tmp, /* persistent */ true);
         assert(Z_TYPE(tmp) > IS_NULL);
-        zai_config_dtor_pzval(&memoized->decoded_value);
+        zai_json_dtor_pzval(&memoized->decoded_value);
         ZVAL_COPY_VALUE(&memoized->decoded_value, &tmp);
         memoized->name_index = name_index;
     }
@@ -127,7 +127,7 @@ bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
 
 static void zai_config_dtor_memoized_zvals(void) {
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
-        zai_config_dtor_pzval(&zai_config_memoized_entries[i].decoded_value);
+        zai_json_dtor_pzval(&zai_config_memoized_entries[i].decoded_value);
     }
 }
 

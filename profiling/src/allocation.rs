@@ -5,8 +5,11 @@ use crate::REQUEST_LOCALS;
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, error, trace, warn};
+use rand::rngs::ThreadRng;
 use std::cell::RefCell;
 use std::ffi::CStr;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering::SeqCst;
 
 use rand_distr::{Distribution, Poisson};
 
@@ -32,25 +35,40 @@ pub fn allocation_profiling_minit() {
     unsafe { zend::ddog_php_opcache_init_handle() };
 }
 
-/// take a sample every 2048 KB
-pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 2048.0;
+/// take a sample every 4096 KiB
+pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 4096.0;
+
+/// this will store the count of allocations (including reallocations) during a profiling period.
+/// This will overflow when doing more then u64::MAX allocations, which seems big enough to ignore.
+pub static ALLOCATION_PROFILING_COUNT: AtomicU64 = AtomicU64::new(0);
+
+/// this will store the accumulated size of all allocations in bytes during the profiling period.
+/// This will overflow when allocating more then 18 exabyte of memory (u64::MAX) which might not
+/// happen, so we can ignore this
+pub static ALLOCATION_PROFILING_SIZE: AtomicU64 = AtomicU64::new(0);
 
 pub struct AllocationProfilingStats {
     /// number of bytes until next sample collection
     next_sample: i64,
+    poisson: Poisson<f64>,
+    rng: ThreadRng,
 }
 
 impl AllocationProfilingStats {
     fn new() -> AllocationProfilingStats {
-        AllocationProfilingStats {
-            next_sample: AllocationProfilingStats::next_sampling_interval(),
-        }
+        // Safety: this will only error if lambda <= 0
+        let poisson = Poisson::new(ALLOCATION_PROFILING_INTERVAL).unwrap();
+        let mut stats = AllocationProfilingStats {
+            next_sample: 0,
+            poisson,
+            rng: rand::thread_rng(),
+        };
+        stats.next_sampling_interval();
+        stats
     }
 
-    fn next_sampling_interval() -> i64 {
-        Poisson::new(ALLOCATION_PROFILING_INTERVAL)
-            .unwrap()
-            .sample(&mut rand::thread_rng()) as i64
+    fn next_sampling_interval(&mut self) {
+        self.next_sample = self.poisson.sample(&mut self.rng) as i64;
     }
 
     fn track_allocation(&mut self, len: size_t) {
@@ -60,25 +78,18 @@ impl AllocationProfilingStats {
             return;
         }
 
-        self.next_sample = AllocationProfilingStats::next_sampling_interval();
+        self.next_sampling_interval();
 
-        REQUEST_LOCALS.with(|cell| {
-            let Ok(locals) = cell.try_borrow() else {
-                return;
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+            unsafe {
+                profiler.collect_allocations(
+                    zend::ddog_php_prof_get_current_execute_data(),
+                    1_i64,
+                    len as i64,
+                )
             };
-
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-                unsafe {
-                    profiler.collect_allocations(
-                        zend::ddog_php_prof_get_current_execute_data(),
-                        1_i64,
-                        len as i64,
-                        &locals,
-                    )
-                };
-            }
-        });
+        }
     }
 }
 
@@ -143,12 +154,16 @@ pub fn allocation_profiling_rinit() {
             ALLOCATION_PROFILING_ALLOC = allocation_profiling_prev_alloc;
             ALLOCATION_PROFILING_FREE = allocation_profiling_prev_free;
             ALLOCATION_PROFILING_REALLOC = allocation_profiling_prev_realloc;
+            ALLOCATION_PROFILING_PREPARE_ZEND_HEAP = prepare_zend_heap_none;
+            ALLOCATION_PROFILING_RESTORE_ZEND_HEAP = restore_zend_heap_none;
         }
     } else {
         unsafe {
             ALLOCATION_PROFILING_ALLOC = allocation_profiling_orig_alloc;
             ALLOCATION_PROFILING_FREE = allocation_profiling_orig_free;
             ALLOCATION_PROFILING_REALLOC = allocation_profiling_orig_realloc;
+            ALLOCATION_PROFILING_PREPARE_ZEND_HEAP = prepare_zend_heap;
+            ALLOCATION_PROFILING_RESTORE_ZEND_HEAP = restore_zend_heap;
         }
     }
 
@@ -176,6 +191,16 @@ pub fn allocation_profiling_rinit() {
 }
 
 pub fn allocation_profiling_rshutdown() {
+    let allocation_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.profiling_allocation_enabled)
+            .unwrap_or(false)
+    });
+
+    if !allocation_profiling {
+        return;
+    }
+
     // If `is_zend_mm()` is true, the custom handlers have been reset to `None`
     // already. This is unexpected, therefore we will not touch the ZendMM handlers
     // anymore as resetting to prev handlers might result in segfaults and other
@@ -242,6 +267,10 @@ pub fn allocation_profiling_startup() {
     }
 }
 
+static mut ALLOCATION_PROFILING_PREPARE_ZEND_HEAP: unsafe fn(
+    heap: *mut zend::_zend_mm_heap,
+) -> c_int = prepare_zend_heap;
+
 /// Overrides the ZendMM heap's `use_custom_heap` flag with the default `ZEND_MM_CUSTOM_HEAP_NONE`
 /// (currently a `u32: 0`). This needs to be done, as the `zend_mm_gc()` and `zend_mm_shutdown()`
 /// functions alter behaviour in case custom handlers are installed.
@@ -256,10 +285,21 @@ unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
     custom_heap
 }
 
+fn prepare_zend_heap_none(_heap: *mut zend::_zend_mm_heap) -> c_int {
+    0
+}
+
+static mut ALLOCATION_PROFILING_RESTORE_ZEND_HEAP: unsafe fn(
+    heap: *mut zend::_zend_mm_heap,
+    custom_heap: c_int,
+) = restore_zend_heap;
+
 /// Restore the ZendMM heap's `use_custom_heap` flag, see `prepare_zend_heap` for details
 unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) {
     std::ptr::write(heap as *mut c_int, custom_heap);
 }
+
+fn restore_zend_heap_none(_heap: *mut zend::_zend_mm_heap, _custom_heap: c_int) {}
 
 /// The PHP userland function `gc_mem_caches()` directly calls the `zend_mm_gc()` function which
 /// does nothing in case custom handlers are installed on the heap used. So we prepare the heap for
@@ -278,9 +318,9 @@ unsafe extern "C" fn alloc_profiling_gc_mem_caches(
     if let Some(func) = GC_MEM_CACHES_HANDLER {
         if allocation_profiling {
             let heap = zend::zend_mm_get_heap();
-            let custom_heap = prepare_zend_heap(heap);
+            let custom_heap = ALLOCATION_PROFILING_PREPARE_ZEND_HEAP(heap);
             func(execute_data, return_value);
-            restore_zend_heap(heap, custom_heap);
+            ALLOCATION_PROFILING_RESTORE_ZEND_HEAP(heap, custom_heap);
         } else {
             func(execute_data, return_value);
         }
@@ -290,6 +330,9 @@ unsafe extern "C" fn alloc_profiling_gc_mem_caches(
 }
 
 unsafe extern "C" fn alloc_profiling_malloc(len: size_t) -> *mut c_void {
+    ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
+    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
+
     let ptr: *mut c_void = ALLOCATION_PROFILING_ALLOC(len);
 
     // during startup, minit, rinit, ... current_execute_data is null
@@ -316,9 +359,9 @@ unsafe fn allocation_profiling_prev_alloc(len: size_t) -> *mut c_void {
 
 unsafe fn allocation_profiling_orig_alloc(len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let custom_heap = prepare_zend_heap(heap);
+    let custom_heap = ALLOCATION_PROFILING_PREPARE_ZEND_HEAP(heap);
     let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
-    restore_zend_heap(heap, custom_heap);
+    ALLOCATION_PROFILING_RESTORE_ZEND_HEAP(heap, custom_heap);
     ptr
 }
 
@@ -343,6 +386,9 @@ unsafe fn allocation_profiling_orig_free(ptr: *mut c_void) {
 }
 
 unsafe extern "C" fn alloc_profiling_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
+    ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
+    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
+
     let ptr: *mut c_void = ALLOCATION_PROFILING_REALLOC(prev_ptr, len);
 
     // during startup, minit, rinit, ... current_execute_data is null
@@ -369,9 +415,9 @@ unsafe fn allocation_profiling_prev_realloc(prev_ptr: *mut c_void, len: size_t) 
 
 unsafe fn allocation_profiling_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let custom_heap = prepare_zend_heap(heap);
+    let custom_heap = ALLOCATION_PROFILING_PREPARE_ZEND_HEAP(heap);
     let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
-    restore_zend_heap(heap, custom_heap);
+    ALLOCATION_PROFILING_RESTORE_ZEND_HEAP(heap, custom_heap);
     ptr
 }
 

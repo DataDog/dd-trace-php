@@ -68,7 +68,7 @@ final class CliServer implements Sapi
          * As a result auto_prepend_file (and the request init hook) is not executed.
          */
         $cmd = sprintf(
-            'php %s -S %s:%d -t %s', // . ' %s'
+            PHP_BINARY . ' %s -S %s:%d -t %s', // . ' %s'
             new IniSerializer($this->inis),
             $this->host,
             $this->port,
@@ -102,7 +102,7 @@ final class CliServer implements Sapi
     public function checkErrors()
     {
         $newLogs = $this->process->getIncrementalErrorOutput();
-        if (preg_match("(=== Total [0-9]+ memory leaks detected ===)", $newLogs)) {
+        if (preg_match("(=== Total [0-9]+ memory leaks detected ===|AddressSanitizer:)", $newLogs)) {
             return $newLogs;
         }
 

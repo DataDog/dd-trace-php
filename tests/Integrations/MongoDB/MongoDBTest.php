@@ -193,19 +193,25 @@ class MongoDBTest extends IntegrationTestCase
             } catch (Exception $e) {
             }
         });
-
+        $tags = [
+            'mongodb.db' => self::DATABASE,
+            'mongodb.collection' => 'cars',
+            'mongodb.query' => '"?"',
+            'span.kind' => 'client',
+            Tag::COMPONENT => 'mongodb',
+            Tag::DB_SYSTEM => 'mongodb',
+        ];
+        // On newer versions of the mongodb library, the datadog subscriber is only called after the arguments check
+        if (PHP_VERSION_ID < 70400) {
+            $tags += [
+                'out.host' => self::HOST,
+                'out.port' => self::PORT,
+            ];
+        }
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', 'find test_db cars "?"')
-                ->withExactTags([
-                    'mongodb.db' => self::DATABASE,
-                    'mongodb.collection' => 'cars',
-                    'mongodb.query' => '"?"',
-                    'span.kind' => 'client',
-                    'out.host' => self::HOST,
-                    'out.port' => self::PORT,
-                    Tag::COMPONENT => 'mongodb',
-                    Tag::DB_SYSTEM => 'mongodb',
-                ])->setError('MongoDB\Exception\InvalidArgumentException')
+                ->withExactTags($tags)
+                ->setError('MongoDB\Exception\InvalidArgumentException')
                 ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
         ]);
     }
@@ -948,6 +954,7 @@ class MongoDBTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig([
             'DD_SERVICE=configured_service',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+            'DD_TRACE_GENERATE_ROOT_SPAN=true'
         ]);
 
         // As array
@@ -970,7 +977,9 @@ class MongoDBTest extends IntegrationTestCase
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
                 ]),
-            ]
+            ],
+            true,
+            false
         );
     }
 

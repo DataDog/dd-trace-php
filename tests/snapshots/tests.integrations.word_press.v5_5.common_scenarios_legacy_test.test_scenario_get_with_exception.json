@@ -9,7 +9,7 @@
     "type": "web",
     "error": 1,
     "meta": {
-      "_dd.p.dm": "-1",
+      "_dd.p.dm": "-0",
       "component": "wordpress",
       "error.message": "Uncaught Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-content/plugins/datadog/datadog.php:23",
       "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(287): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp-hook.php(311): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/plugin.php(544): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/class-wp.php(745): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-includes/functions.php(1285): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_5/index.php(17): require()\n#8 {main}",
@@ -49,6 +49,7 @@
           "parent_id": 2,
           "type": "sql",
           "meta": {
+            "_dd.base_service": "wordpress_55_test_app",
             "component": "mysqli",
             "db.system": "mysql",
             "db.type": "mysql",
@@ -66,6 +67,7 @@
           "parent_id": 2,
           "type": "sql",
           "meta": {
+            "_dd.base_service": "wordpress_55_test_app",
             "component": "mysqli",
             "db.system": "mysql",
             "db.type": "mysql",
@@ -83,6 +85,7 @@
           "parent_id": 2,
           "type": "sql",
           "meta": {
+            "_dd.base_service": "wordpress_55_test_app",
             "component": "mysqli",
             "db.system": "mysql",
             "db.type": "mysql",
@@ -103,6 +106,7 @@
           "parent_id": 2,
           "type": "sql",
           "meta": {
+            "_dd.base_service": "wordpress_55_test_app",
             "component": "mysqli",
             "db.system": "mysql",
             "db.type": "mysql",
@@ -132,6 +136,7 @@
           "parent_id": 3,
           "type": "sql",
           "meta": {
+            "_dd.base_service": "wordpress_55_test_app",
             "component": "mysqli",
             "db.name": "test",
             "db.system": "mysql",
@@ -225,6 +230,7 @@
           "parent_id": 9,
           "type": "sql",
           "meta": {
+            "_dd.base_service": "wordpress_55_test_app",
             "component": "mysqli",
             "db.name": "test",
             "db.system": "mysql",
@@ -306,6 +312,7 @@
              "parent_id": 22,
              "type": "sql",
              "meta": {
+               "_dd.base_service": "wordpress_55_test_app",
                "component": "mysqli",
                "db.name": "test",
                "db.system": "mysql",
@@ -339,6 +346,7 @@
           "parent_id": 14,
           "type": "sql",
           "meta": {
+            "_dd.base_service": "wordpress_55_test_app",
             "component": "mysqli",
             "db.name": "test",
             "db.system": "mysql",
@@ -416,6 +424,7 @@
                 "parent_id": 27,
                 "type": "sql",
                 "meta": {
+                  "_dd.base_service": "wordpress_55_test_app",
                   "component": "mysqli",
                   "db.name": "test",
                   "db.system": "mysql",

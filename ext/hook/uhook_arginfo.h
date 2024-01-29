@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 01f2bb558e7a4e81a309bd02af464ca618ea62ff */
+ * Stub hash: eccfac3f3ffe92ae1390f729e053a3e161bdab4b */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING|MAY_BE_CALLABLE, NULL)
@@ -8,8 +8,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_L
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_remove_hook, 0, 1, IS_VOID, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_DDTrace_remove_hook, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, id, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, location, IS_STRING, 0, "\"\"")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_HookData_span, 0, 0, DDTrace\\SpanData, 0)
@@ -26,6 +27,17 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_HookData_overrideR
 	ZEND_ARG_TYPE_INFO(ZEND_SEND_PREFER_REF, value, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_HookData_overrideException, 0, 1, _IS_BOOL, 0)
+	ZEND_ARG_OBJ_INFO(0, exception, Throwable, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_HookData_disableJitInlining, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_class_DDTrace_HookData_suppressCall arginfo_class_DDTrace_HookData_disableJitInlining
+
+#define arginfo_class_DDTrace_HookData_allowNestedHook arginfo_class_DDTrace_HookData_disableJitInlining
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_HookData_getSourceFile, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
@@ -36,6 +48,10 @@ ZEND_METHOD(DDTrace_HookData, span);
 ZEND_METHOD(DDTrace_HookData, unlimitedSpan);
 ZEND_METHOD(DDTrace_HookData, overrideArguments);
 ZEND_METHOD(DDTrace_HookData, overrideReturnValue);
+ZEND_METHOD(DDTrace_HookData, overrideException);
+ZEND_METHOD(DDTrace_HookData, disableJitInlining);
+ZEND_METHOD(DDTrace_HookData, suppressCall);
+ZEND_METHOD(DDTrace_HookData, allowNestedHook);
 ZEND_METHOD(DDTrace_HookData, getSourceFile);
 
 
@@ -51,6 +67,10 @@ static const zend_function_entry class_DDTrace_HookData_methods[] = {
 	ZEND_ME(DDTrace_HookData, unlimitedSpan, arginfo_class_DDTrace_HookData_unlimitedSpan, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_HookData, overrideArguments, arginfo_class_DDTrace_HookData_overrideArguments, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_HookData, overrideReturnValue, arginfo_class_DDTrace_HookData_overrideReturnValue, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_HookData, overrideException, arginfo_class_DDTrace_HookData_overrideException, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_HookData, disableJitInlining, arginfo_class_DDTrace_HookData_disableJitInlining, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_HookData, suppressCall, arginfo_class_DDTrace_HookData_suppressCall, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_HookData, allowNestedHook, arginfo_class_DDTrace_HookData_allowNestedHook, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_HookData, getSourceFile, arginfo_class_DDTrace_HookData_getSourceFile, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };

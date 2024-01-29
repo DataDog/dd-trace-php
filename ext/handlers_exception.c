@@ -32,7 +32,7 @@ static void dd_check_exception_in_header(int old_response_code) {
         return;
     }
 
-    ddtrace_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
     if (!root_span) {
         return;
     }
@@ -43,7 +43,7 @@ static void dd_check_exception_in_header(int old_response_code) {
 
     ddtrace_save_active_error_to_metadata();
 
-    zval *root_exception = ddtrace_spandata_property_exception(root_span);
+    zval *root_exception = &root_span->property_exception;
     if (Z_TYPE_P(root_exception) > IS_FALSE) {
         return;
     }
@@ -266,7 +266,7 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
 
         DDTRACE_G(active_error).type = 0;
     } else {
-        ddtrace_span_data *volatile root_span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
+        ddtrace_root_span_data *volatile root_span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
         zend_object *volatile exception;
         zval *volatile span_exception;
         volatile zval old_exception = {0};
@@ -279,7 +279,7 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
 
         // Assign early so that exceptions thrown inside the exception handler won't gain priority
         if (root_span) {
-            span_exception = ddtrace_spandata_property_exception(root_span);
+            span_exception = &root_span->property_exception;
             ZVAL_COPY_VALUE((zval *)&old_exception, span_exception);
             ZVAL_OBJ_COPY(span_exception, exception);
         }

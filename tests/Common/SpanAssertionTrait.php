@@ -14,9 +14,9 @@ trait SpanAssertionTrait
      * @param SpanAssertion[] $expectedSpans
      * @param bool $isSandbox
      */
-    public function assertExpectedSpans($traces, $expectedSpans, $isSandbox = false)
+    public function assertExpectedSpans($traces, $expectedSpans, $applyDefaults = true)
     {
-        (new SpanChecker())->assertSpans($traces, $expectedSpans, $isSandbox);
+        (new SpanChecker())->assertSpans($traces, $expectedSpans, $applyDefaults);
     }
 
     /**
@@ -25,9 +25,9 @@ trait SpanAssertionTrait
      * @param array[] $traces
      * @param SpanAssertion[] $expectedSpans
      */
-    public function assertFlameGraph($traces, $expectedSpans, bool $assertExactCount = true)
+    public function assertFlameGraph($traces, $expectedSpans, bool $assertExactCount = true, bool $applyDefaults = true)
     {
-        (new SpanChecker())->assertFlameGraph($traces, $expectedSpans, $assertExactCount);
+        (new SpanChecker())->assertFlameGraph($traces, $expectedSpans, $assertExactCount, $applyDefaults);
     }
 
     /**

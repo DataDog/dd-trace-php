@@ -78,16 +78,24 @@ int ddtrace_bgs_logf(const char *fmt, ...) {
 }
 
 static void ddtrace_log_callback(ddog_Log log, ddog_CharSlice msg) {
-    (void)log; // maybe use?
-
-    char *message = (char*)msg.ptr;
-    if (msg.ptr[msg.len]) {
-        message = zend_strndup(msg.ptr, msg.len);
-        php_log_err(message);
-        free(message);
+    const char *name = "debug";
+    uint32_t bits = log.bits & ~ddog_Log_Once.bits;
+    if (bits == (ddog_Log_Deprecated.bits & ~ddog_Log_Once.bits)) {
+        name = "deprecated";
+    } else if (bits == ddog_Log_Warn.bits) {
+        name = "warning";
+    } else if (bits == ddog_Log_Info.bits) {
+        name = "info";
+    } else if (bits == ddog_Log_Startup.bits) {
+        name = "startup";
     } else {
-        php_log_err(message);
+        name = "error";
     }
+
+    char *message;
+    asprintf(&message, "[ddtrace] [%s] %.*s", name, (int)msg.len, msg.ptr);
+    php_log_err(message);
+    free(message);
 }
 
 

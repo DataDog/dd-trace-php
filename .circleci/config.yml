@@ -17,5 +17,10 @@ workflows:
             components/.*  components-c  true
             zend_abstract_interface/.*  zend_abstract_interface true
             zend_abstract_interface/.*  profiling true
+            zend_abstract_interface/.*  appsec true
             profiling/.*  profiling true
+            profiling/src/capi.rs  zend_abstract_interface true
             ext/handlers_api.[ch] profiling true
+            appsec/.* appsec true
+            ext/.* appsec true
+            .circleci/continue_config.yml appsec true

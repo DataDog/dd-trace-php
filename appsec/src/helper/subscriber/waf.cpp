@@ -3,8 +3,6 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include "../std_logging.hpp"
-#include "ddwaf.h"
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
@@ -18,7 +16,11 @@
 #include <string_view>
 
 #include "../json_helper.hpp"
+#include "../std_logging.hpp"
 #include "../tags.hpp"
+#include "base64.h"
+#include "compression.hpp"
+#include "ddwaf.h"
 #include "waf.hpp"
 
 namespace dds::waf {
@@ -38,6 +40,7 @@ dds::subscriber::event format_waf_result(ddwaf_result &res)
         for (const auto &event : events) {
             output.data.emplace_back(std::move(parameter_to_json(event)));
         }
+
     } catch (const std::exception &e) {
         SPDLOG_ERROR("failed to parse WAF output: {}", e.what());
     }
@@ -99,7 +102,7 @@ void log_cb(DDWAF_LOG_LEVEL level, const char *function, const char *file,
 }
 
 void extract_tags_and_metrics(parameter_view diagnostics, std::string &version,
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
     try {
@@ -123,11 +126,12 @@ void extract_tags_and_metrics(parameter_view diagnostics, std::string &version,
 
             it = rules.find("errors");
             if (it != rules.end()) {
-                meta[tag::event_rules_errors] = parameter_to_json(it->second);
+                meta[std::string(tag::event_rules_errors)] =
+                    parameter_to_json(it->second);
             }
         }
 
-        meta[tag::waf_version] = ddwaf_get_version();
+        meta[std::string(tag::waf_version)] = ddwaf_get_version();
 
         auto version_it = info.find("ruleset_version");
         if (version_it != info.end()) {
@@ -177,7 +181,7 @@ std::optional<subscriber::event> instance::listener::call(
     ddwaf_result res;
     DDWAF_RET_CODE code;
     auto run_waf = [&]() {
-        code = ddwaf_run(handle_, data, &res, waf_timeout_.count());
+        code = ddwaf_run(handle_, data, nullptr, &res, waf_timeout_.count());
     };
 
     if (spdlog::should_log(spdlog::level::debug)) {
@@ -202,6 +206,11 @@ std::optional<subscriber::event> instance::listener::call(
     // NOLINTNEXTLINE
     total_runtime_ += res.total_runtime / 1000.0;
 
+    const parameter_view schemas{res.derivatives};
+    for (const auto &schema : schemas) {
+        schemas_.emplace(schema.key(), std::move(parameter_to_json(schema)));
+    }
+
     switch (code) {
     case DDWAF_MATCH:
         return format_waf_result(res);
@@ -224,15 +233,28 @@ std::optional<subscriber::event> instance::listener::call(
 }
 
 void instance::listener::get_meta_and_metrics(
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
-    meta[tag::event_rules_version] = ruleset_version_;
+    meta[std::string(tag::event_rules_version)] = ruleset_version_;
     metrics[tag::waf_duration] = total_runtime_;
+
+    for (const auto &[key, value] : schemas_) {
+        std::string schema = value;
+        if (value.length() > max_plain_schema_allowed) {
+            auto encoded = compress(schema);
+            if (encoded) {
+                schema = base64_encode(encoded.value(), false);
+            }
+        }
+
+        if (schema.length() <= max_schema_size) {
+            meta.emplace(key, std::move(schema));
+        }
+    }
 }
 
-instance::instance(parameter &rule,
-    std::map<std::string_view, std::string> &meta,
+instance::instance(parameter &rule, std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us,
     std::string_view key_regex, std::string_view value_regex)
     : waf_timeout_{waf_timeout_us}
@@ -245,7 +267,7 @@ instance::instance(parameter &rule,
 
     extract_tags_and_metrics(
         parameter_view{diagnostics}, ruleset_version_, meta, metrics);
-    meta[tag::waf_version] = ddwaf_get_version();
+    meta[std::string(tag::waf_version)] = ddwaf_get_version();
 
     ddwaf_object_free(&diagnostics);
 
@@ -254,7 +276,7 @@ instance::instance(parameter &rule,
     }
 
     uint32_t size;
-    const auto *addrs = ddwaf_required_addresses(handle_, &size);
+    const auto *addrs = ddwaf_known_addresses(handle_, &size);
 
     addresses_.clear();
     for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
@@ -302,14 +324,14 @@ instance::instance(
       ruleset_version_(std::move(version))
 {
     uint32_t size;
-    const auto *addrs = ddwaf_required_addresses(handle_, &size);
+    const auto *addrs = ddwaf_known_addresses(handle_, &size);
 
     addresses_.clear();
     for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
 }
 
 subscriber::ptr instance::update(parameter &rule,
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
     ddwaf_object diagnostics;
@@ -318,7 +340,7 @@ subscriber::ptr instance::update(parameter &rule,
     std::string version;
     extract_tags_and_metrics(
         parameter_view{diagnostics}, version, meta, metrics);
-    meta[tag::waf_version] = ddwaf_get_version();
+    meta[std::string(tag::waf_version)] = ddwaf_get_version();
     if (version.empty()) {
         version = ruleset_version_;
     }
@@ -334,8 +356,7 @@ subscriber::ptr instance::update(parameter &rule,
 }
 
 instance::ptr instance::from_settings(const engine_settings &settings,
-    const engine_ruleset &ruleset,
-    std::map<std::string_view, std::string> &meta,
+    const engine_ruleset &ruleset, std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
     dds::parameter param = json_to_parameter(ruleset.get_document());
@@ -345,7 +366,7 @@ instance::ptr instance::from_settings(const engine_settings &settings,
 }
 
 instance::ptr instance::from_string(std::string_view rule,
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us,
     std::string_view key_regex, std::string_view value_regex)
 {

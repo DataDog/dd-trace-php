@@ -75,8 +75,7 @@ class PDOIntegration extends Integration
                 PDOIntegration::setCommonSpanInfo($this, $span);
                 $integration->addTraceAnalyticsIfEnabled($span);
 
-                $driver = $this->getAttribute(\PDO::ATTR_DRIVER_NAME);
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, $driver);
+                PDOIntegration::injectDBIntegration($this, $hook);
             }, function (HookData $hook) use ($integration) {
                 $span = $hook->span();
                 if (is_numeric($hook->returned)) {
@@ -102,8 +101,7 @@ class PDOIntegration extends Integration
                 PDOIntegration::setCommonSpanInfo($this, $span);
                 $integration->addTraceAnalyticsIfEnabled($span);
 
-                $driver = $this->getAttribute(\PDO::ATTR_DRIVER_NAME);
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, $driver);
+                PDOIntegration::injectDBIntegration($this, $hook);
             }, function (HookData $hook) use ($integration) {
                 $span = $hook->span();
                 if ($hook->returned instanceof \PDOStatement) {
@@ -122,8 +120,7 @@ class PDOIntegration extends Integration
                 $span->resource = Integration::toString($query);
                 PDOIntegration::setCommonSpanInfo($this, $span);
 
-                $driver = $this->getAttribute(\PDO::ATTR_DRIVER_NAME);
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, $driver);
+                PDOIntegration::injectDBIntegration($this, $hook);
             }, function (HookData $hook) use ($integration) {
                 ObjectKVStore::propagate($this, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
             });
@@ -266,10 +263,27 @@ class PDOIntegration extends Integration
                 case 'port':
                     $tags[Tag::TARGET_PORT] = $value;
                     break;
+                case 'driver':
+                    // This is more specific than just "odbc"
+                    $tags[Tag::DB_SYSTEM] = strtolower($value);
+                    break;
             }
         }
 
         return $tags;
+    }
+
+    public static function injectDBIntegration($pdo, $hook)
+    {
+        $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        if ($driver === "odbc") {
+            $cached_driver = ObjectKVStore::get($pdo, PDOIntegration::CONNECTION_TAGS_KEY, []);
+            // This particular driver is not supported for DBM
+            if (isset($cached_driver[Tag::DB_SYSTEM]) && $cached_driver[Tag::DB_SYSTEM] === "ingres") {
+                return;
+            }
+        }
+        DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, $driver);
     }
 
     public static function extractConnectionMetadata(array $constructorArgs)

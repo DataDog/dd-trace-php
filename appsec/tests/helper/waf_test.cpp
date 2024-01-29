@@ -3,8 +3,6 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include <libddwaf/src/log.hpp>
-
 #include "common.hpp"
 #include "engine_settings.hpp"
 #include "json_helper.hpp"
@@ -16,7 +14,7 @@
 #include <utils.hpp>
 
 const std::string waf_rule =
-    R"({"version":"2.1","metadata":{"rules_version":"1.2.3"},"rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}],"action":"record"}]})";
+    R"({"version": "2.1", "metadata": {"rules_version": "1.2.3"}, "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1"}, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*"} }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*"} } ], "action": "record"} ], "processors": [{"id": "processor-001", "generator": "extract_schema", "parameters": {"mappings": [{"inputs": [{"address": "arg2"} ], "output": "_dd.appsec.s.arg2"} ], "scanners": [{"tags": {"category": "pii"} } ] }, "evaluate": false, "output": true } ], "scanners": [] })";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
@@ -43,17 +41,17 @@ TEST(WafTest, InitWithInvalidRules)
     engine_settings cs;
     cs.rules_file = create_sample_rules_invalid();
     auto ruleset = engine_ruleset::from_path(cs.rules_file);
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     subscriber::ptr wi{
         waf::instance::from_settings(cs, ruleset, meta, metrics)};
 
     EXPECT_EQ(meta.size(), 2);
-    EXPECT_STREQ(meta[tag::waf_version].c_str(), "1.14.0");
+    EXPECT_STREQ(meta[std::string(tag::waf_version)].c_str(), "1.15.1");
 
     rapidjson::Document doc;
-    doc.Parse(meta[tag::event_rules_errors]);
+    doc.Parse(meta[std::string(tag::event_rules_errors)]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
     EXPECT_TRUE(doc.HasMember("missing key 'type'"));
@@ -69,7 +67,7 @@ TEST(WafTest, InitWithInvalidRules)
 
 TEST(WafTest, RunWithInvalidParam)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
@@ -80,7 +78,7 @@ TEST(WafTest, RunWithInvalidParam)
 
 TEST(WafTest, RunWithTimeout)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     subscriber::ptr wi(waf::instance::from_string(waf_rule, meta, metrics, 0));
@@ -96,7 +94,7 @@ TEST(WafTest, RunWithTimeout)
 
 TEST(WafTest, ValidRunGood)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
@@ -110,13 +108,13 @@ TEST(WafTest, ValidRunGood)
     EXPECT_TRUE(!res);
 
     ctx->get_meta_and_metrics(meta, metrics);
-    EXPECT_STREQ(meta[tag::event_rules_version].c_str(), "1.2.3");
+    EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
     EXPECT_GT(metrics[tag::waf_duration], 0.0);
 }
 
 TEST(WafTest, ValidRunMonitor)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
@@ -139,13 +137,13 @@ TEST(WafTest, ValidRunMonitor)
 
     EXPECT_TRUE(res->actions.empty());
     ctx->get_meta_and_metrics(meta, metrics);
-    EXPECT_STREQ(meta[tag::event_rules_version].c_str(), "1.2.3");
+    EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
     EXPECT_GT(metrics[tag::waf_duration], 0.0);
 }
 
 TEST(WafTest, ValidRunMonitorObfuscated)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics,
@@ -175,13 +173,13 @@ TEST(WafTest, ValidRunMonitorObfuscated)
     EXPECT_TRUE(res->actions.empty());
 
     ctx->get_meta_and_metrics(meta, metrics);
-    EXPECT_STREQ(meta[tag::event_rules_version].c_str(), "1.2.3");
+    EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
     EXPECT_GT(metrics[tag::waf_duration], 0.0);
 }
 
 TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     engine_settings cs;
@@ -214,13 +212,13 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
         "<Redacted>");
 
     ctx->get_meta_and_metrics(meta, metrics);
-    EXPECT_STREQ(meta[tag::event_rules_version].c_str(), "1.2.3");
+    EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
     EXPECT_GT(metrics[tag::waf_duration], 0.0);
 }
 
 TEST(WafTest, UpdateRuleData)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     subscriber::ptr wi{
@@ -279,7 +277,7 @@ TEST(WafTest, UpdateRuleData)
 
 TEST(WafTest, UpdateInvalid)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     subscriber::ptr wi{
@@ -302,83 +300,31 @@ TEST(WafTest, UpdateInvalid)
     ASSERT_THROW(wi->update(param, meta, metrics), invalid_object);
 }
 
-TEST(WafTest, Logging)
+TEST(WafTest, SchemasAreAdded)
 {
-    auto d = defer([old_logger = spdlog::default_logger()]() {
-        spdlog::set_default_logger(old_logger);
-    });
+    std::map<std::string, std::string> meta;
+    std::map<std::string_view, double> metrics;
 
-    auto sink = std::make_shared<log_counter_sink_st>();
-    auto logger = std::make_shared<spdlog::logger>("ddappsec_test", sink);
+    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+    auto ctx = wi->get_listener();
 
-    spdlog::set_default_logger(logger);
-    spdlog::set_level(spdlog::level::trace);
+    auto p = parameter::map(), sub_p = parameter::map();
+    sub_p.add("password", parameter::string("string 1"sv));
+    p.add("arg1", std::move(sub_p));
+    p.add("arg2", parameter::string("string 3"sv));
 
-    {
-        dds::waf::initialise_logging(spdlog::level::off);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 0);
-    }
+    parameter_view pv(p);
+    auto res = ctx->call(pv);
+    EXPECT_TRUE(res);
 
-    {
-        dds::waf::initialise_logging(spdlog::level::err);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 1);
-        sink->clear();
-    }
+    EXPECT_EQ(res->data.size(), 1);
+    rapidjson::Document doc;
+    doc.Parse(res->data[0]);
+    EXPECT_FALSE(doc.HasParseError());
+    EXPECT_TRUE(doc.IsObject());
 
-    {
-        dds::waf::initialise_logging(spdlog::level::warn);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 2);
-        sink->clear();
-    }
-
-    // Count the extra info message from the WAF "Sending log messages..."
-    {
-        dds::waf::initialise_logging(spdlog::level::info);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 4);
-        sink->clear();
-    }
-
-    {
-        dds::waf::initialise_logging(spdlog::level::debug);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 5);
-        sink->clear();
-    }
-
-    {
-        dds::waf::initialise_logging(spdlog::level::trace);
-        DDWAF_TRACE("trace");
-        DDWAF_DEBUG("debug");
-        DDWAF_INFO("info");
-        DDWAF_WARN("warn");
-        DDWAF_ERROR("error");
-        EXPECT_EQ(sink->count(), 6);
-        sink->clear();
-    }
+    ctx->get_meta_and_metrics(meta, metrics);
+    EXPECT_FALSE(meta.empty());
+    EXPECT_STREQ(meta["_dd.appsec.s.arg2"].c_str(), "[8]");
 }
-
 } // namespace dds

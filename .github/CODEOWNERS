@@ -1,9 +1,16 @@
 # Default owners
 * @DataDog/apm-php
-Cargo.lock @DataDog/apm-php @DataDog/profiling-php
 
 # Profiling team
 /profiling/ @DataDog/profiling-php
 
 # ASM Team
 /appsec/ @DataDog/asm-php
+
+# Release files
+Cargo.lock @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
+package.xml @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
+profiling/Cargo.toml @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
+src/DDTrace/Tracer.php @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
+appsec/CMakeLists.txt @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
+ext/version.h @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php

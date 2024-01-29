@@ -147,7 +147,8 @@ function runOneIteration()
     $functions = array_filter($ext->getFunctions(), function ($f) {
         return $f->name != "dd_trace_internal_fn"
             && !strpos($f->name, "Testing")
-            && $f->name != "dd_trace_disable_in_request";
+            && $f->name != "dd_trace_disable_in_request"
+            && (PHP_VERSION_ID >= 70100 || $f->name != 'DDTrace\curl_multi_exec_get_request_spans');
     });
 
     $props = array_filter(

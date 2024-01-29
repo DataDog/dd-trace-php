@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Laravel;
 
 use DDTrace\Integrations\Lumen\LumenIntegration;
+use DDTrace\RootSpanData;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
@@ -49,6 +50,18 @@ class LaravelIntegration extends Integration
                 'horizon',
                 'horizon:supervisor',
             ]);
+    }
+
+    public static function handleOrphan(SpanData $span)
+    {
+        if (dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+            && (
+                \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                || \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_USER_KEEP
+            ) && $span instanceof RootSpanData && empty($span->parentId)
+        ) {
+            \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+        }
     }
 
     /**
@@ -181,13 +194,7 @@ class LaravelIntegration extends Integration
             'fire',
             [
                 'prehook' => function (SpanData $span, $args) use ($integration) {
-                    if (
-                        dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                        && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
-                        && \DDTrace\trace_id() == $span->id
-                    ) {
-                        \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
-                    }
+                    LaravelIntegration::handleOrphan($span);
 
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
@@ -224,13 +231,7 @@ class LaravelIntegration extends Integration
             'dispatch',
             [
                 'prehook' => function (SpanData $span, $args) use ($integration) {
-                    if (
-                        dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                        && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
-                        && \DDTrace\trace_id() == $span->id
-                    ) {
-                        \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
-                    }
+                    LaravelIntegration::handleOrphan($span);
 
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
@@ -260,8 +261,8 @@ class LaravelIntegration extends Integration
                 // users would see a span changing name as they upgrade to the new version.
                 $span->name = $integration->isLumen($rootSpan) ? 'lumen.view' : 'laravel.view';
                 $span->meta[Tag::COMPONENT] = $span->name === 'laravel.view'
-                        ? LaravelIntegration::NAME
-                        : LumenIntegration::NAME;
+                    ? LaravelIntegration::NAME
+                    : LumenIntegration::NAME;
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
                 if (isset($args[0]) && \is_string($args[0])) {
@@ -282,13 +283,7 @@ class LaravelIntegration extends Integration
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
-                if (
-                    dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                    && \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
-                    && \DDTrace\trace_id() == $span->id
-                ) {
-                    \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
-                }
+                LaravelIntegration::handleOrphan($span);
 
                 $rootSpan = \DDTrace\root_span();
                 $rootSpan->name = 'laravel.request';

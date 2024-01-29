@@ -2,6 +2,7 @@ use crate::bindings as zend;
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
 use log::{error, info};
+use rand::rngs::ThreadRng;
 use std::cell::RefCell;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -11,52 +12,53 @@ use rand_distr::{Distribution, Poisson};
 /// The engine's previous throw exception hook
 static mut PREV_ZEND_THROW_EXCEPTION_HOOK: Option<zend::VmZendThrowExceptionHook> = None;
 
-/// take a sample every 100 exceptions
+/// Take a sample every 100 exceptions
 pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 = AtomicU32::new(100);
+
+/// This will store the number of exceptions thrown during a profiling period. It will overflow
+/// when throwing more then 4_294_967_295 exceptions during this period which we currently
+/// believe will bring down your application anyway, so accurate numbers are not a problem.
+pub static EXCEPTION_PROFILING_EXCEPTION_COUNT: AtomicU32 = AtomicU32::new(0);
 
 pub struct ExceptionProfilingStats {
     /// number of exceptions until next sample collection
     next_sample: u32,
+    poisson: Poisson<f64>,
+    rng: ThreadRng,
 }
 
 impl ExceptionProfilingStats {
     fn new() -> ExceptionProfilingStats {
-        ExceptionProfilingStats {
-            next_sample: ExceptionProfilingStats::next_sampling_interval(),
-        }
+        // Safety: this will only error if lambda <= 0
+        let poisson =
+            Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64).unwrap();
+        let mut stats = ExceptionProfilingStats {
+            next_sample: 0,
+            poisson,
+            rng: rand::thread_rng(),
+        };
+        stats.next_sampling_interval();
+        stats
     }
 
-    fn next_sampling_interval() -> u32 {
-        // Panic: `unwrap()` only panics if lambda <= 0 and in the parser we ensure it is not
-        Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f32)
-            .unwrap()
-            .sample(&mut rand::thread_rng()) as u32
+    fn next_sampling_interval(&mut self) {
+        self.next_sample = self.poisson.sample(&mut self.rng) as u32;
     }
 
     fn track_exception(&mut self, name: String) {
-        if self.next_sample.checked_sub(1).is_none() {
+        if let Some(next_sample) = self.next_sample.checked_sub(1) {
+            self.next_sample = next_sample;
             return;
         }
 
-        self.next_sample = ExceptionProfilingStats::next_sampling_interval();
+        self.next_sampling_interval();
 
-        REQUEST_LOCALS.with(|cell| {
-            // try to borrow and bail out if not successful
-            let Ok(locals) = cell.try_borrow() else {
-                return;
+        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+            unsafe {
+                profiler.collect_exception(zend::ddog_php_prof_get_current_execute_data(), name)
             };
-
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-                unsafe {
-                    profiler.collect_exception(
-                        zend::ddog_php_prof_get_current_execute_data(),
-                        name,
-                        &locals,
-                    )
-                };
-            }
-        });
+        }
     }
 }
 
@@ -77,7 +79,7 @@ pub fn exception_profiling_minit() {
 pub fn exception_profiling_first_rinit() {
     let sampling_distance = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
-            Ok(locals) => locals.profiling_experimental_exception_sampling_distance,
+            Ok(locals) => locals.profiling_exception_sampling_distance,
             Err(_err) => {
                 error!("Exception profiling was not initialized correctly due to a borrow error. Please report this to Datadog.");
                 100
@@ -87,7 +89,7 @@ pub fn exception_profiling_first_rinit() {
 
     EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::SeqCst);
 
-    info!("Exception profiling sampling disance initialized to {sampling_distance}");
+    info!("Exception profiling sampling distance initialized to {sampling_distance}");
 }
 
 pub fn exception_profiling_mshutdown() {
@@ -101,9 +103,11 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     #[cfg(php7)] exception: *mut zend::zval,
     #[cfg(php8)] exception: *mut zend::zend_object,
 ) {
+    EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::SeqCst);
+
     let exception_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.profiling_experimental_exception_enabled)
+            .map(|locals| locals.profiling_exception_enabled)
             .unwrap_or(false)
     });
 

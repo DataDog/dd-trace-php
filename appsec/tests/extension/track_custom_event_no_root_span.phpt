@@ -23,7 +23,7 @@ track_custom_event("myevent",
 ]);
 
 require __DIR__ . '/inc/logging.php';
-match_log("/Failed to retrieve root span meta/");
+match_log("/No root span available on request init/");
 ?>
 --EXPECTF--
-found message in log matching /Failed to retrieve root span meta/
+found message in log matching /No root span available on request init/

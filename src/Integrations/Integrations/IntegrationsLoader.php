@@ -5,7 +5,6 @@ namespace DDTrace\Integrations;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
 use DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration;
 use DDTrace\Integrations\Curl\CurlIntegration;
-use DDTrace\Integrations\Drupal\DrupalIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleIntegration;
@@ -15,10 +14,8 @@ use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\Nette\NetteIntegration;
-use DDTrace\Integrations\Pcntl\PcntlIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
-use DDTrace\Integrations\Psr18\Psr18Integration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
@@ -71,8 +68,6 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration';
             $this->integrations[CurlIntegration::NAME] =
                 '\DDTrace\Integrations\Curl\CurlIntegration';
-            $this->integrations[DrupalIntegration::NAME] =
-                '\DDTrace\Integrations\Drupal\DrupalIntegration';
             $this->integrations[ElasticSearchIntegration::NAME] =
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration';
             $this->integrations[EloquentIntegration::NAME] =

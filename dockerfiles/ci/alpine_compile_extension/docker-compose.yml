@@ -96,8 +96,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.1.22
-        php_sha: f5140e94b139b4adec4b29c337537b7b6f1ef023197eb32be909e724e3da157a
+        php_version: 8.1.26
+        php_sha: d954cecfc3d294c2fccbe2b1a6bef784ce0d6c5d44a9e28f8a527e092825f2cb
         php_api: 20210902
     command: build-dd-trace-php
     volumes:
@@ -109,9 +109,23 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.2.8
-        php_sha: 6419b74e9b675c8d5a1afd2788c4d7996a19bbe2be409716ccb2067897af9df1
+        php_version: 8.2.13
+        php_sha: 6a194038f5a9e46d8f70a9d59c072c3b08d6edbdd8e304096e24ccf2225bcf1b
         php_api: 20220829
+    command: build-dd-trace-php
+    volumes:
+      - ../../:/app
+
+  8.3-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.3
+    build:
+      context: .
+      x-bake: *bake
+      args:
+        php_version: 8.3.0
+        php_url: https://www.php.net/distributions/php-8.3.0.tar.gz
+        php_sha: "557ae14650f1d1984d3213e3fcd8d93a5f11418b3f8026d3a2d5022251163951"
+        php_api: 20230831
     command: build-dd-trace-php
     volumes:
       - ../../:/app

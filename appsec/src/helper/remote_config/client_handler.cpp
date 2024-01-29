@@ -46,12 +46,6 @@ client_handler::ptr client_handler::from_settings(service_identifier &&id,
         return {};
     }
 
-    // TODO runtime_id will be send by the extension when the extension can get
-    // it from the profiler. When that happen, this wont be needed
-    if (id.runtime_id.empty()) {
-        id.runtime_id = generate_random_uuid();
-    }
-
     std::vector<remote_config::listener_base::shared_ptr> listeners = {};
     if (dynamic_enablement) {
         listeners.emplace_back(
@@ -126,6 +120,7 @@ void client_handler::discover()
 
 void client_handler::tick() { rc_action_(); }
 
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 void client_handler::run(std::future<bool> &&exit_signal)
 {
     std::chrono::time_point<std::chrono::steady_clock> before{0s};

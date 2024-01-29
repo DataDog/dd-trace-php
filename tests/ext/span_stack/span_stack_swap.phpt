@@ -45,6 +45,7 @@ DDTrace\switch_stack();
 echo 'Switching to the parent of the active stack: '; var_dump($between_stack == DDTrace\active_stack());
 
 $new_root = DDTrace\start_trace_span();
+$new_root->name = "other root";
 
 # Closes the primary trace itself
 DDTrace\switch_stack();
@@ -78,10 +79,12 @@ But we can still swap to stacks started before that: bool(true)
 We closed the active stack after all other stacks were closed. No other span is active right now: bool(true)
 spans(\DDTrace\SpanData) (2) {
   span_stack_swap.php (span_stack_swap.php, span_stack_swap.php, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
+    _dd.p.tid => %s
      (span_stack_swap.php, cli)
        (span_stack_swap.php, cli)
      (span_stack_swap.php, cli)
-  span_stack_swap.php (span_stack_swap.php, span_stack_swap.php, cli)
-    _dd.p.dm => -1
+  other root (span_stack_swap.php, other root, cli)
+    _dd.p.dm => -0
+    _dd.p.tid => %s
 }

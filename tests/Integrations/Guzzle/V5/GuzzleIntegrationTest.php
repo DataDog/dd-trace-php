@@ -256,8 +256,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
          * without an event loop.
          * @see https://github.com/guzzle/guzzle/issues/1439
          */
-        self::assertDistributedTracingSpan($traces[0][2], $headers1['headers']);
-        self::assertDistributedTracingSpan($traces[0][1], $headers2['headers']);
+        self::assertDistributedTracingSpan($traces[0][6], $headers1['headers']);
+        self::assertDistributedTracingSpan($traces[0][3], $headers2['headers']);
     }
 
     private static function assertDistributedTracingSpan($span, $headers)
@@ -369,6 +369,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             [
                 'DD_SERVICE' => 'top_level_app',
                 'DD_TRACE_NO_AUTOLOADER' => true,
+                'DD_TRACE_GENERATE_ROOT_SPAN' => true,
             ]
         );
 
@@ -384,7 +385,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                             'network.destination.name' => 'httpbin_integration',
                             TAG::SPAN_KIND => 'client',
-                            Tag::COMPONENT => 'guzzle'
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('curl_exec'),

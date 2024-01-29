@@ -22,6 +22,9 @@ if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php81 || true)
 fi
 if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php82 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php7 || true)
 fi
 
@@ -34,7 +37,7 @@ else
     echo "Installing dd-trace-php using the new PHP installer"
     apk add --no-cache libgcc
     installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name "dd-library-php-*-$(uname -m)-linux-musl.tar.gz")
-    $PHP_BIN datadog-setup.php --file "$installable_bundle" --php-bin all
+    $PHP_BIN datadog-setup.php --file "$installable_bundle" --php-bin all --enable-appsec
 fi
 
 # Preparing NGINX
@@ -45,6 +48,9 @@ cp $(pwd)/dockerfiles/verify_packages/nginx.conf /etc/nginx/nginx.conf
 # Preparing PHP-FPM
 if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm82 || true)
 fi
 if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm81 || true)
@@ -62,6 +68,10 @@ fi
 WWW_CONF=/etc/php/php-fpm.d/www.conf
 if [ ! -f "${WWW_CONF}" ]; then
     WWW_CONF=/usr/local/etc/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
+    # Alpine 3.19
+    WWW_CONF=/etc/php82/php-fpm.d/www.conf
 fi
 if [ ! -f "${WWW_CONF}" ]; then
     # Alpine 3.17

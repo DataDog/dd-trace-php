@@ -38,10 +38,10 @@ echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
-Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 
 datadog-container-id: 9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f
 datadog-meta-lang: php
 
 Done.
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

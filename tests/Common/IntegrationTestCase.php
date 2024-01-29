@@ -30,6 +30,7 @@ abstract class IntegrationTestCase extends BaseTestCase
     protected function ddSetUp()
     {
         $this->errorReportingBefore = error_reporting();
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         parent::ddSetUp();
     }
 
@@ -58,9 +59,9 @@ abstract class IntegrationTestCase extends BaseTestCase
      * @param array[] $traces
      * @param SpanAssertion[] $expectedSpans
      */
-    public function assertSpans($traces, $expectedSpans)
+    public function assertSpans($traces, $expectedSpans, $applyDefaults = true)
     {
-        $this->assertExpectedSpans($traces, $expectedSpans);
+        $this->assertExpectedSpans($traces, $expectedSpans, $applyDefaults);
     }
 
     /**

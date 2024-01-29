@@ -6,5 +6,11 @@
 #pragma once
 
 #include "../network.h"
+#include "../commands_ctx.h"
 
-dd_result dd_request_init(dd_conn *nonnull conn);
+struct req_info_init {
+    struct req_info req_info;
+    zend_array *nullable superglob_equiv;
+};
+dd_result dd_request_init(
+    dd_conn *nonnull conn, struct req_info_init *nonnull ctx);

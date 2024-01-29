@@ -19,7 +19,7 @@ Greeter::greet('Datadog');
 
 ?>
 --EXPECTF--
-DDTrace\hook_method was given neither prehook nor posthook in %s on line %d
+[ddtrace] [warning] DDTrace\hook_method was given neither prehook nor posthook in %s on line %d
 bool(false)
 Hello, Datadog.
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 1 to send-queue for %s

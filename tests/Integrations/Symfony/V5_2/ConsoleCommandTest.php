@@ -15,7 +15,10 @@ class ConsoleCommandTest extends IntegrationTestCase
 
     public function testScenario()
     {
-        list($traces) = $this->inCli(self::getConsoleScript(), [], [], 'about');
+        list($traces) = $this->inCli(self::getConsoleScript(), [
+            'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+            'DD_TRACE_EXEC_ENABLED' => 'false',
+        ], [], 'about');
 
         $this->assertFlameGraph(
             $traces,
@@ -26,6 +29,7 @@ class ConsoleCommandTest extends IntegrationTestCase
                             ->withExactTags([
                                 'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand',
                                 Tag::COMPONENT => 'symfony',
+                                '_dd.base_service' => 'console'
                             ]),
                         SpanAssertion::exists('symfony.console.command', 'symfony.console.command'),
                         SpanAssertion::exists('symfony.console.terminate', 'symfony.console.terminate'),

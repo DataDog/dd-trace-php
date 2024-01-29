@@ -68,7 +68,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
         return $logger;
     }
 
-    protected static function putEnv($putenv)
+    public static function putEnv($putenv)
     {
         // cleanup: properly replace this function by ini_set() in test code ...
         if (strpos($putenv, "DD_") === 0) {
@@ -92,7 +92,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
      * @param array $putenvs In the format ['ENV_1=value1', 'ENV_2=value2']
      * @return void
      */
-    protected function putEnvAndReloadConfig($putenvs = [])
+    public static function putEnvAndReloadConfig($putenvs = [])
     {
         foreach ($putenvs as $putenv) {
             self::putEnv($putenv);

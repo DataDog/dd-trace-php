@@ -26,7 +26,7 @@ void engine::subscribe(const subscriber::ptr &sub)
 }
 
 void engine::update(engine_ruleset &ruleset,
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
     auto new_actions =
@@ -119,7 +119,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
 }
 
 void engine::context::get_meta_and_metrics(
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
     for (const auto &[subscriber, listener] : listeners_) {
@@ -203,14 +203,14 @@ engine::action_map engine::parse_actions(
     const auto &actions_array = it->value;
     if (actions_array.GetType() != rapidjson::kArrayType) {
         SPDLOG_ERROR("unexpected 'actions' type {}, expected array",
-            actions_array.GetType());
+            static_cast<unsigned>(actions_array.GetType()));
         return actions;
     }
 
     for (auto &action_object : actions_array.GetArray()) {
         if (action_object.GetType() != rapidjson::kObjectType) {
             SPDLOG_ERROR("unexpected action item type {}, expected object",
-                action_object.GetType());
+                static_cast<unsigned>(action_object.GetType()));
             continue;
         }
 
@@ -231,7 +231,7 @@ engine::action_map engine::parse_actions(
 }
 
 engine::ptr engine::from_settings(const dds::engine_settings &eng_settings,
-    std::map<std::string_view, std::string> &meta,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 
 {

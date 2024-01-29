@@ -87,6 +87,28 @@ parameter parameter::string(std::string_view str) noexcept
     return parameter{obj};
 }
 
+parameter parameter::as_boolean(bool value) noexcept
+{
+    ddwaf_object obj;
+    ddwaf_object_bool(&obj, value);
+    return parameter{obj};
+}
+
+parameter parameter::float64(float value) noexcept
+{
+    ddwaf_object obj;
+    ddwaf_object_float(&obj, value);
+    return parameter{obj};
+}
+
+parameter parameter::null() noexcept
+{
+    ddwaf_object obj;
+    ddwaf_object_null(&obj);
+    return parameter{obj};
+}
+
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 bool parameter::add(parameter &&entry) noexcept
 {
     if (!ddwaf_object_array_add(this, entry)) {
@@ -96,6 +118,7 @@ bool parameter::add(parameter &&entry) noexcept
     return true;
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 bool parameter::add(std::string_view name, parameter &&entry) noexcept
 {
     length_type const length =

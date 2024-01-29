@@ -131,6 +131,7 @@ ext/standard/tests/array/array_unique_variation3.phpt
 ext/standard/tests/file/bug52820.phpt
 ext/standard/tests/file/disk_free_space_basic.phpt
 ext/standard/tests/file/lstat_stat_variation10.phpt
+ext/standard/tests/file/lstat_stat_variation15.phpt
 ext/standard/tests/filters/bug54350.phpt
 ext/standard/tests/general_functions/bug73973.phpt
 ext/standard/tests/general_functions/floatval.phpt
@@ -160,6 +161,7 @@ ext/standard/tests/strings/sprintf_variation54.phpt
 ext/tokenizer/tests/PhpToken_getAll.phpt
 ext/zend_test/tests/
 ext/zip/tests/bug38943.phpt
+sapi/cli/tests/bug80092.phpt
 sapi/cli/tests/upload_2G.phpt
 sapi/fpm/tests/log-bm-in-shutdown-fn.phpt
 sapi/fpm/tests/log-bm-limit-1024-msg-80.phpt
@@ -181,3 +183,4 @@ sapi/phpdbg/tests/stepping_001.phpt
 tests/classes/__call_007.phpt
 tests/lang/bug45392.phpt
 tests/output/ob_start_basic_002.phpt
+Zend/tests/gh12073.phpt

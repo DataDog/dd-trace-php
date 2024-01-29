@@ -42,6 +42,6 @@ var_dump(dd_trace_serialize_closed_spans()); // Spans should be flushed, so this
 --EXPECTF--
 tracing process
 process
-Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 3 to send-queue for %s
 kill
-Killed%r\n*(Termsig=9)?%r
+%r\n*(Killed\n*)?(Termsig=9)?%r

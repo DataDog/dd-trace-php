@@ -18,8 +18,8 @@ array_map(function($span) {
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-Error thrown in ddtrace's closure defined at %s:%d for array_sum(): Call to undefined function this_function_does_not_exist()
+[ddtrace] [warning] Error thrown in ddtrace's closure defined at %s:%d for array_sum(): Call to undefined function this_function_does_not_exist()
 int(100)
 array_sum
 NULL
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

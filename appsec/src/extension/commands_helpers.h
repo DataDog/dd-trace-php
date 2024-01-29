@@ -6,10 +6,10 @@
 #pragma once
 
 #include "attributes.h"
+#include "commands_ctx.h"
 #include "dddefs.h"
 #include "network.h"
 #include <mpack.h>
-#include <php.h>
 
 typedef struct _dd_command_spec {
     const char *nonnull name;
@@ -29,12 +29,12 @@ dd_result ATTR_WARN_UNUSED dd_command_exec_cred(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx);
 
 /* Baked response */
-dd_result dd_command_proc_resp_verd_span_data(
-    mpack_node_t root, ATTR_UNUSED void *unspecnull ctx);
+dd_result dd_command_proc_resp_verd_span_data(mpack_node_t root,
+    void *unspecnull ctx /* actually struct req_info* nonnull */);
 
 /* Common helpers */
-void dd_command_process_meta(mpack_node_t root);
-bool dd_command_process_metrics(mpack_node_t root);
+void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span);
+bool dd_command_process_metrics(mpack_node_t root, zend_object *nonnull span);
 dd_result dd_command_process_config_features(
     mpack_node_t root, ATTR_UNUSED void *nullable ctx);
 dd_result dd_command_process_config_features_unexpected(

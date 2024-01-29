@@ -1,11 +1,17 @@
 name: Profiling correctness
 
 on:
-  - pull_request
+  pull_request:
+  schedule:
+    - cron: '0 0 * * *'
 
 jobs:
   prof-correctness:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-versions: ['8.1', '8.2', '8.3']
+        phpts: ['nts', 'zts']
 
     steps:
       - name: Checkout
@@ -17,7 +23,9 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: ${{ matrix.php-versions }}
+        env:
+          phpts: ${{ matrix.phpts }}
 
       - name: Restore build cache
         uses: actions/cache/restore@v3
@@ -28,7 +36,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.php-versions }}-${{ matrix.phpts }}
 
       - name: Build profiler
         run: |
@@ -53,22 +61,37 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.php-versions }}-${{ matrix.phpts }}
+
+      - name: Run no profile test
+        run: |
+          export DD_PROFILING_ENABLED=Off
+          export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
+          php -v
+          php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
+          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
+              mkdir -p profiling/tests/correctness/"$test_case"/
+              export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
+              php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
+              if [ -f "$DD_PROFILING_OUTPUT_PPROF".1.lz4 ]; then
+                echo "File $DD_PROFILING_OUTPUT_PPROF.1.lz4 should not exist!"
+                exit 1;
+              fi
+          done
 
       - name: Run tests
         run: |
           export DD_PROFILING_LOG_LEVEL=trace
-          php -d extension=target/release/libdatadog_php_profiling.so -v
-          mkdir profiling/tests/correctness/allocations/
-          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
-          mkdir profiling/tests/correctness/time/
-          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/time/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/time.php
-          mkdir profiling/tests/correctness/strange_frames/
-          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/strange_frames/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/strange_frames.php
-          mkdir profiling/tests/correctness/timeline/
-          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/timeline/test.pprof DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED=1 php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/timeline.php
-          mkdir profiling/tests/correctness/exceptions/
-          DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/exceptions/test.pprof php -d extension=$PWD/target/release/libdatadog_php_profiling.so -d datadog.profiling.experimental_exception_sampling_distance=1 -d datadog.profiling.experimental_exception_enabled=On profiling/tests/correctness/exceptions.php
+          export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
+          export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
+          php -v
+          php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
+          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
+              mkdir -p profiling/tests/correctness/"$test_case"/
+              export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
+              php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
+              lz4 -d --rm "$DD_PROFILING_OUTPUT_PPROF".1.lz4 "$DD_PROFILING_OUTPUT_PPROF"
+          done
 
       - name: Check profiler correctness for allocations
         uses: Datadog/prof-correctness/analyze@main

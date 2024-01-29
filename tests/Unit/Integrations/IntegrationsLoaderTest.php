@@ -167,12 +167,14 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'drupal';
             $excluded[] = 'elasticsearch';
             $excluded[] = 'eloquent';
+            $excluded[] = 'exec';
             $excluded[] = 'guzzle';
             $excluded[] = 'laminas';
             $excluded[] = 'laravel';
             $excluded[] = 'laravelqueue';
             $excluded[] = 'logs';
             $excluded[] = 'lumen';
+            $excluded[] = 'magento';
             $excluded[] = 'memcache';
             $excluded[] = 'memcached';
             $excluded[] = 'mongo';

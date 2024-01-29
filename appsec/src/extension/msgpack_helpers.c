@@ -3,6 +3,8 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+
+// NOLINTNEXTLINE(misc-header-include-cycle)
 #include <php.h>
 
 #include "logging.h"
@@ -59,6 +61,47 @@ void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv)
     _mpack_write_zval(w, zv);
 }
 
+// NOLINTNEXTLINE(misc-no-recursion)
+void dd_mpack_write_array(
+    mpack_writer_t *nonnull w, const zend_array *nullable arr)
+{
+    if (!arr) {
+        mpack_write_nil(w);
+    }
+
+    uint32_t num_elems = zend_hash_num_elements(arr);
+    dd_php_array_type arr_type = dd_php_determine_array_type(arr);
+    if (arr_type == php_array_type_sequential) {
+        mpack_start_array(w, num_elems);
+        zval *val;
+        ZEND_HASH_FOREACH_VAL((zend_array *)arr, val)
+        {
+            _mpack_write_zval(w, val);
+        }
+        ZEND_HASH_FOREACH_END();
+        mpack_finish_array(w);
+    } else {
+        mpack_start_map(w, num_elems);
+
+        zend_string *key_s;
+        zend_ulong key_i;
+        zval *val;
+        ZEND_HASH_FOREACH_KEY_VAL((zend_array *)arr, key_i, key_s, val)
+        {
+            if (key_s) {
+                mpack_write_str(w, ZSTR_VAL(key_s), ZSTR_LEN(key_s));
+            } else {
+                char buf[ZEND_LTOA_BUF_LEN];
+                ZEND_LTOA((zend_long)key_i, buf, sizeof(buf));
+                mpack_write(w, buf);
+            }
+            _mpack_write_zval(w, val);
+        }
+        ZEND_HASH_FOREACH_END();
+        mpack_finish_map(w);
+    }
+}
+
 // NOLINTNEXTLINE
 static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv)
 {
@@ -96,34 +139,7 @@ static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv)
 
     case IS_ARRAY: {
         zend_array *arr = Z_ARRVAL_P(zv);
-        uint32_t num_elems = zend_hash_num_elements(arr);
-        dd_php_array_type arr_type = dd_php_determine_array_type(zv);
-        if (arr_type == php_array_type_sequential) {
-            mpack_start_array(w, num_elems);
-            zval *val;
-            ZEND_HASH_FOREACH_VAL(arr, val) { _mpack_write_zval(w, val); }
-            ZEND_HASH_FOREACH_END();
-            mpack_finish_array(w);
-        } else {
-            mpack_start_map(w, num_elems);
-
-            zend_string *key_s;
-            zend_ulong key_i;
-            zval *val;
-            ZEND_HASH_FOREACH_KEY_VAL(arr, key_i, key_s, val)
-            {
-                if (key_s) {
-                    mpack_write_str(w, ZSTR_VAL(key_s), ZSTR_LEN(key_s));
-                } else {
-                    char buf[ZEND_LTOA_BUF_LEN];
-                    ZEND_LTOA((zend_long)key_i, buf, sizeof(buf));
-                    mpack_write(w, buf);
-                }
-                _mpack_write_zval(w, val);
-            }
-            ZEND_HASH_FOREACH_END();
-            mpack_finish_map(w);
-        }
+        dd_mpack_write_array(w, arr);
         break;
     }
 

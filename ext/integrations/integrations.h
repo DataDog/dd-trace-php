@@ -11,6 +11,7 @@
     INTEGRATION(AMQP, "amqp")                   \
     INTEGRATION(CAKEPHP, "cakephp")             \
     INTEGRATION(CODEIGNITER, "codeigniter")     \
+    INTEGRATION(EXEC, "exec")                   \
     INTEGRATION(CURL, "curl")                   \
     INTEGRATION(DRUPAL, "drupal")               \
     INTEGRATION(ELASTICSEARCH, "elasticsearch") \
@@ -19,8 +20,9 @@
     INTEGRATION(LAMINAS, "laminas")             \
     INTEGRATION(LARAVEL, "laravel")             \
     INTEGRATION(LARAVELQUEUE, "laravelqueue")   \
-    INTEGRATION(LOGS, "logs", DD_LOGS_INJECTION) \
+    INTEGRATION(LOGS, "logs", "false", DD_LOGS_INJECTION) \
     INTEGRATION(LUMEN, "lumen")                 \
+    INTEGRATION(MAGENTO, "magento")            \
     INTEGRATION(MEMCACHE, "memcache")           \
     INTEGRATION(MEMCACHED, "memcached")         \
     INTEGRATION(MONGO, "mongo")                 \

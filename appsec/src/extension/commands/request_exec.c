@@ -12,8 +12,12 @@
 #include <zend_hash.h>
 #include <zend_types.h>
 
-static dd_result _pack_command(
-    mpack_writer_t *nonnull w, ATTR_UNUSED void *nullable ctx);
+struct ctx {
+    struct req_info req_info; // dd_command_proc_resp_verd_span_data expect it
+    zval *nonnull data;
+};
+
+static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull ctx);
 
 static const dd_command_spec _spec = {
     .name = "request_exec",
@@ -32,14 +36,17 @@ dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data)
         return dd_error;
     }
 
-    return dd_command_exec(conn, &_spec, (void *)data);
+    struct ctx ctx = {.data = data};
+
+    return dd_command_exec(conn, &_spec, &ctx);
 }
 
-static dd_result _pack_command(
-    mpack_writer_t *nonnull w, ATTR_UNUSED void *nullable ctx)
+static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)
 {
-    zval *data = (zval *)ctx;
-    dd_mpack_write_zval(w, data);
+    assert(_ctx != NULL);
+    struct ctx *ctx = _ctx;
+
+    dd_mpack_write_zval(w, ctx->data);
 
     return dd_success;
 }

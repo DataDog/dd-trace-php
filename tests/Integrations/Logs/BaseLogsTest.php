@@ -37,7 +37,8 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
             'DD_ENV=my-env',
             'DD_SERVICE=my-service',
             'DD_VERSION=4.2',
-            'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=' . ($is128bit ? '1' : '0')
+            'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=' . ($is128bit ? '1' : '0'),
+            'DD_LOGS_INJECTION=1'
         ]);
 
         $this->isolateTracer(function () use ($levelNameFn, $logger, $is128bit, $logLevelName) {
@@ -72,7 +73,8 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
             'DD_ENV=my-env',
             'DD_SERVICE=my-service',
             'DD_VERSION=4.2',
-            'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=' . ($is128bit ? '1' : '0')
+            'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=' . ($is128bit ? '1' : '0'),
+            'DD_LOGS_INJECTION=1'
         ]);
 
         $this->isolateTracer(function () use ($levelNameFn, $logger, $is128bit, $logLevelName) {
@@ -107,7 +109,8 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
             'DD_ENV=my-env',
             'DD_SERVICE=my-service',
             'DD_VERSION=4.2',
-            'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=' . ($is128bit ? '1' : '0')
+            'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=' . ($is128bit ? '1' : '0'),
+            'DD_LOGS_INJECTION=1'
         ]);
 
         $this->isolateTracer(function () use ($levelNameFn, $logger, $is128bit, $logLevelName) {

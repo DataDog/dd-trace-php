@@ -1,0 +1,207 @@
+ext.repo = 'datadog/dd-appsec-php-ci'
+final String repo = ext.repo
+
+def phpVersions = [
+        '7.0': '7.0.33',
+        '7.1': '7.1.33',
+        '7.2': '7.2.34',
+        '7.3': '7.3.33',
+        '7.4': '7.4.29',
+        '8.0': '8.0.18',
+        '8.1': '8.1.26',
+        '8.2': '8.2.13',
+        '8.3': '8.3.0',
+]
+
+def imageUpToDate = { inputs, String image ->
+    return {
+        long volumeTime = creationDateOf(image)
+        if (volumeTime == 0) {
+            return false
+        }
+        long latestInputDate = inputs.files.collect { it.lastModified() }.max()
+        latestInputDate <= volumeTime
+    }
+}
+def imageIsNewerThan = { image1, image2 ->
+    creationDateOf(image1) > creationDateOf(image2)
+}
+
+tasks.register('buildToolchain', Exec) {
+    description = "Build the toolchain image"
+    inputs.dir 'src/docker/toolchain'
+    outputs.upToDateWhen imageUpToDate(inputs, "$repo:toolchain")
+    commandLine 'docker', 'build', '-t', "$repo:toolchain", 'src/docker/toolchain'
+}
+
+tasks.register('buildPhpDeps', Exec) {
+    description = "Build the PHP deps image"
+    inputs.file file('src/docker/php/Dockerfile-php-deps')
+    inputs.file file('src/docker/php/build_dev_php.sh')
+    outputs.upToDateWhen {
+        imageUpToDate(inputs, "$repo:php-deps")() &&
+                imageIsNewerThan("$repo:php-deps", "$repo:toolchain")
+    }
+    commandLine 'docker', 'build', '-t', "$repo:php-deps", '-f', 'src/docker/php/Dockerfile-php-deps', 'src/docker/php'
+
+    dependsOn 'buildToolchain'
+}
+
+def buildPhp = { String version, String variant ->
+    tasks.register("buildPhp-$version-$variant", Exec) {
+        String tag = "php-${version}-${variant}"
+        String image = "$repo:$tag"
+        description = "Build the image for PHP ${version} ${variant}"
+        inputs.file file('src/docker/php/Dockerfile')
+        inputs.file file('src/docker/php/build_dev_php.sh')
+        inputs.file file('src/docker/php/php.ini')
+        inputs.dir 'src/docker/php/php_patches'
+        outputs.upToDateWhen {
+            imageUpToDate(inputs, image)() &&
+                    imageIsNewerThan(image, "$repo:php-deps")
+        }
+        commandLine 'docker', 'build', '--build-arg', "PHP_VERSION=${phpVersions[version]}",
+                '--build-arg', "VARIANT=$variant", '-t', "$repo:$tag", 'src/docker/php'
+
+        dependsOn 'buildPhpDeps'
+    }
+}
+
+testMatrix.each { spec ->
+    buildPhp(spec[0], spec[1])
+}
+tasks.register('buildAllPhp') {
+    testMatrix.each { spec ->
+        dependsOn "buildPhp-${spec[0]}-${spec[1]}"
+    }
+}
+
+def buildApache2ModTask = { String version, String variant ->
+    tasks.register("buildApache2Mod-$version-$variant", Exec) {
+        String tag = "apache2-mod-php-${version}-${variant}"
+        String image = "$repo:$tag"
+        description = "Build the image for Apache2 mod_php ${version} ${variant}"
+        inputs.dir 'src/docker/apache2-mod'
+        outputs.upToDateWhen {
+            imageUpToDate(inputs, image)() &&
+                    imageIsNewerThan(image, "$repo:php-$version-$variant")
+        }
+        commandLine 'docker', 'build', '--build-arg', "PHP_VERSION=$version",
+                '--build-arg', "VARIANT=$variant", '-t', "$repo:$tag", 'src/docker',
+                '-f', 'src/docker/apache2-mod/Dockerfile'
+
+        dependsOn "buildPhp-${version}-${variant}"
+    }
+}
+
+testMatrix.each { spec ->
+    buildApache2ModTask(spec[0], spec[1])
+}
+tasks.register('buildAllApache2Mod') {
+    testMatrix.each { spec ->
+        dependsOn "buildApache2Mod-${spec[0]}-${spec[1]}"
+    }
+}
+
+def buildApache2FpmTask = { String version, String variant ->
+    tasks.register("buildApache2Fpm-$version-$variant", Exec) {
+        String tag = "apache2-fpm-php-${version}-${variant}"
+        String image = "$repo:$tag"
+        description = "Build the image for Apache2 + fpm ${version} ${variant}"
+        inputs.dir 'src/docker/apache2-fpm'
+        inputs.dir 'src/docker/fpm-common'
+        outputs.upToDateWhen {
+            imageUpToDate(inputs, image)() &&
+                    imageIsNewerThan(image, "$repo:php-$version-$variant")
+        }
+        commandLine 'docker', 'build', '--build-arg', "PHP_VERSION=$version",
+                '--build-arg', "VARIANT=$variant", '-t', "$repo:$tag", 'src/docker',
+                '-f', 'src/docker/apache2-fpm/Dockerfile'
+
+        dependsOn "buildPhp-${version}-${variant}"
+    }
+}
+
+testMatrix.each { spec ->
+    buildApache2FpmTask(spec[0], spec[1])
+}
+
+tasks.register('buildAllApache2Fpm') {
+    testMatrix.each { spec ->
+        dependsOn "buildApache2Fpm-${spec[0]}-${spec[1]}"
+    }
+}
+
+def buildNginxFpmTask = { String version, String variant ->
+    tasks.register("buildNginxFpm-$version-$variant", Exec) {
+        String tag = "nginx-fpm-php-${version}-${variant}"
+        String image = "$repo:$tag"
+        description = "Build the image for Nginx + fpm ${version} ${variant}"
+        inputs.dir 'src/docker/nginx-fpm'
+        inputs.dir 'src/docker/fpm-common'
+        outputs.upToDateWhen {
+            imageUpToDate(inputs, image)() &&
+                    imageIsNewerThan(image, "$repo:php-$version-$variant")
+        }
+        commandLine 'docker', 'build', '--build-arg', "PHP_VERSION=$version",
+                '--build-arg', "VARIANT=$variant", '-t', "$repo:$tag", 'src/docker',
+                '-f', 'src/docker/nginx-fpm/Dockerfile'
+
+        dependsOn "buildPhp-${version}-${variant}"
+    }
+}
+testMatrix.each { spec ->
+    buildNginxFpmTask(spec[0], spec[1])
+}
+tasks.register('buildAllNginxFpm') {
+    testMatrix.each { spec ->
+        dependsOn "buildNginxFpm-${spec[0]}-${spec[1]}"
+    }
+}
+task buildAll {
+    dependsOn 'buildAllPhp', 'buildAllApache2Mod', 'buildAllApache2Fpm', 'buildAllNginxFpm'
+}
+
+def buildPushTask = { String tag, requirement ->
+    def task = tasks.register("pushImage-${tag}", Exec) {
+        String image = "$repo:$tag"
+        description = "Push image $image"
+
+        dependsOn requirement
+        commandLine 'docker', 'push', image
+    }
+}
+def allPushTasks = [
+        buildPushTask("toolchain", 'buildToolchain'),
+        buildPushTask("php-deps", 'buildPhpDeps'),
+        *testMatrix.collect { spec ->
+            buildPushTask("php-${spec[0]}-${spec[1]}", "buildPhp-${spec[0]}-${spec[1]}")
+        },
+        *testMatrix.collect { spec ->
+            buildPushTask("apache2-mod-php-${spec[0]}-${spec[1]}", "buildApache2Mod-${spec[0]}-${spec[1]}")
+        },
+        *testMatrix.collect { spec ->
+            buildPushTask("apache2-fpm-php-${spec[0]}-${spec[1]}", "buildApache2Fpm-${spec[0]}-${spec[1]}")
+        },
+        *testMatrix.collect { spec ->
+            buildPushTask("nginx-fpm-php-${spec[0]}-${spec[1]}", "buildNginxFpm-${spec[0]}-${spec[1]}")
+        },
+]
+tasks.register('pushAll') {
+    dependsOn allPushTasks
+}
+
+task saveCaches(type: Exec) {
+    description = "Save the docker caches"
+    outputs.file "${project.buildDir}/php-appsec-volume-caches.tar.gz"
+    commandLine 'docker', 'run', '--rm',
+            '-e', "UUID=${uuid}",
+            '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
+            '-v', 'php-appsec-hunter-cache:/caches/php-appsec-hunter-cache',
+            '-v', "${project.buildDir}:/build",
+            'busybox',
+            'sh', '-c',
+            'tar -czf /build/php-appsec-volume-caches.tar.gz \
+              -C /caches php-tracer-cargo-cache php-appsec-hunter-cache && \
+              chown \$UUID /build/php-appsec-volume-caches.tar.gz'
+}

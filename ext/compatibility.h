@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <php.h>
+#include <Zend/zend_closures.h>
 
 #include "ext/standard/base64.h"
 
@@ -16,7 +17,19 @@
 #endif
 #endif
 
-#define UNUSED_1(x) (void)(x)
+#if defined(__has_attribute) && __has_attribute(unused)
+#define ATTR_UNUSED __attribute((unused))
+#define UNUSED_1(x)                             \
+    do {                                        \
+        ATTR_UNUSED __auto_type _ignored = (x); \
+    } while (0)
+#else
+#define ATTR_UNUSED
+#define UNUSED_1(x) \
+    do {            \
+        (void)(x);  \
+    } while (0)
+#endif
 #define UNUSED_2(x, y) \
     do {               \
         UNUSED_1(x);   \
@@ -49,6 +62,14 @@
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 
+static inline zval *ddtrace_assign_variable(zval *variable_ptr, zval *value) {
+#if PHP_VERSION_ID < 70400
+    return zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR);
+#else
+    return zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, false);
+#endif
+}
+
 #if PHP_VERSION_ID < 70100
 #define IS_VOID 0
 #define MAY_BE_NULL 0
@@ -56,6 +77,15 @@
 #define MAY_BE_ARRAY 0
 
 #define Z_EXTRA_P(z) Z_NEXT_P(z)
+
+#undef zval_get_long
+#define zval_get_long ddtrace_zval_get_long
+static inline zend_long zval_get_long(zval *op) {
+    if (Z_ISUNDEF_P(op)) {
+        return 0;
+    }
+    return _zval_get_long(op);
+}
 #endif
 
 #if PHP_VERSION_ID < 70200
@@ -109,6 +139,8 @@ static inline zend_string *php_base64_encode_str(const zend_string *str) {
 #define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
 #define GC_DEL_FLAGS(c, flag) GC_FLAGS(c) &= ~(flag)
 
+#define rc_dtor_func zval_dtor_func
+
 static inline HashTable *zend_new_array(uint32_t nSize) {
     HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
     zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
@@ -122,9 +154,13 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
     } while (0)
 #define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
 
-#define Z_IS_RECURSIVE_P(zv) (Z_OBJPROP_P(zv)->u.v.nApplyCount > 0)
-#define Z_PROTECT_RECURSION_P(zv) (++Z_OBJPROP_P(zv)->u.v.nApplyCount)
-#define Z_UNPROTECT_RECURSION_P(zv) (--Z_OBJPROP_P(zv)->u.v.nApplyCount)
+#define GC_IS_RECURSIVE(gc) ((gc)->u.v.nApplyCount > 0)
+#define GC_PROTECT_RECURSION(gc) (++(gc)->u.v.nApplyCount)
+#define GC_UNPROTECT_RECURSION(gc) (--(gc)->u.v.nApplyCount)
+
+#define Z_IS_RECURSIVE_P(zv) GC_IS_RECURSIVE(Z_OBJPROP_P(zv))
+#define Z_PROTECT_RECURSION_P(zv) GC_PROTECT_RECURSION(Z_OBJPROP_P(zv))
+#define Z_UNPROTECT_RECURSION_P(zv) GC_UNPROTECT_RECURSION(Z_OBJPROP_P(zv))
 
 #define ZEND_CLOSURE_OBJECT(op_array) \
     ((zend_object*)((char*)(op_array) - sizeof(zend_object)))
@@ -267,6 +303,8 @@ static zend_always_inline void zend_array_release(zend_array *array)
         }
     }
 }
+
+#define ZEND_ARG_SEND_MODE(arg_info) (arg_info)->pass_by_reference
 #endif
 
 #if PHP_VERSION_ID < 80100
@@ -277,6 +315,14 @@ static zend_always_inline void zend_array_release(zend_array *array)
 #define ZEND_ATOL(s) atol((s))
 #endif
 #define ZEND_ACC_READONLY 0
+
+static zend_always_inline zend_result add_next_index_object(zval *arg, zend_object *obj) {
+    zval tmp;
+
+    ZVAL_OBJ(&tmp, obj);
+    return zend_hash_next_index_insert(Z_ARRVAL_P(arg), &tmp) ? SUCCESS : FAILURE;
+}
+
 #endif
 
 #if PHP_VERSION_ID < 80200

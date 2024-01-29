@@ -93,7 +93,7 @@ static bool _parse_list(
     zai_str value, zval *nonnull decoded_value, bool persistent)
 {
     zval tmp;
-    ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
+    ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent)); // NOLINT
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL,
         persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
 
@@ -299,9 +299,15 @@ static void _register_testing_objects()
     dd_phpobj_reg_funcs(testing_functions);
 }
 
-bool dd_is_config_using_default(dd_config_id id)
+static bool _is_config_using_default(dd_config_id id)
 {
     zai_config_memoized_entry config = zai_config_memoized_entries[id];
 
     return config.name_index == -1;
+}
+
+bool dd_cfg_enable_via_remcfg(void)
+{
+    return _is_config_using_default(DDAPPSEC_CONFIG_DD_APPSEC_ENABLED) &&
+           get_DD_REMOTE_CONFIG_ENABLED();
 }

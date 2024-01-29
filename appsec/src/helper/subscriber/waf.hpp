@@ -23,7 +23,8 @@ void initialise_logging(spdlog::level::level_enum level);
 class instance : public dds::subscriber {
 public:
     static constexpr int default_waf_timeout_us = 10000;
-
+    static constexpr int max_plain_schema_allowed = 260;
+    static constexpr int max_schema_size = 25000;
     using ptr = std::shared_ptr<instance>;
     class listener : public dds::subscriber::listener {
     public:
@@ -38,7 +39,7 @@ public:
         std::optional<event> call(dds::parameter_view &data) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
-        void get_meta_and_metrics(std::map<std::string_view, std::string> &meta,
+        void get_meta_and_metrics(std::map<std::string, std::string> &meta,
             std::map<std::string_view, double> &metrics) override;
 
     protected:
@@ -46,11 +47,11 @@ public:
         std::chrono::microseconds waf_timeout_;
         double total_runtime_{0.0};
         std::string_view ruleset_version_;
+        std::map<std::string, std::string> schemas_;
     };
 
     // NOLINTNEXTLINE(google-runtime-references)
-    instance(dds::parameter &rule,
-        std::map<std::string_view, std::string> &meta,
+    instance(dds::parameter &rule, std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics,
         std::uint64_t waf_timeout_us,
         std::string_view key_regex = std::string_view(),
@@ -71,17 +72,16 @@ public:
     listener::ptr get_listener() override;
 
     subscriber::ptr update(parameter &rule,
-        std::map<std::string_view, std::string> &meta,
+        std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics) override;
 
     static instance::ptr from_settings(const engine_settings &settings,
-        const engine_ruleset &ruleset,
-        std::map<std::string_view, std::string> &meta,
+        const engine_ruleset &ruleset, std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics);
 
     // testing only
     static instance::ptr from_string(std::string_view rule,
-        std::map<std::string_view, std::string> &meta,
+        std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics,
         std::uint64_t waf_timeout_us = default_waf_timeout_us,
         std::string_view key_regex = std::string_view(),

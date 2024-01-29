@@ -6,7 +6,6 @@ IFS=$'\n\t'
 release_version=$1
 packages_build_dir=$2
 profiling_url=$3
-appsec_url=$4
 
 tmp_folder=/tmp/bundle
 tmp_folder_final=$tmp_folder/final
@@ -35,7 +34,7 @@ for architecture in "${architectures[@]}"; do
     tmp_folder_final_musl_trace=$tmp_folder_final_musl/dd-library-php/trace
     tmp_folder_final_windows_trace=$tmp_folder_final_windows/dd-library-php/trace
 
-    php_apis=(20190902 20200930 20210902 20220829)
+    php_apis=(20190902 20200930 20210902 20220829 20230831)
     if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
         php_apis+=(20151012 20160303 20170718 20180731)
         if [[ $architecture == "x86_64" ]]; then
@@ -58,7 +57,9 @@ for architecture in "${architectures[@]}"; do
             cp ./extensions_${architecture}/ddtrace-$php_api-debug-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug-zts.so;
         fi
     done;
+    cp -r ./src ${tmp_folder_final_gnu_trace};
     cp -r ./bridge ${tmp_folder_final_gnu_trace};
+    cp -r ./src ${tmp_folder_final_musl_trace};
     cp -r ./bridge ${tmp_folder_final_musl_trace};
     if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} && $architecture == "x86_64" ]]; then
       cp -r ./bridge ${tmp_folder_final_windows_trace};
@@ -81,7 +82,7 @@ for architecture in "${architectures[@]}"; do
         tar -xf $tmp_folder_profiling_archive -C $tmp_folder_profiling
 
         # Extension
-        php_apis=(20160303 20170718 20180731 20190902 20200930 20210902 20220829)
+        php_apis=(20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831)
         for version in "${php_apis[@]}"
         do
             mkdir -v -p \
@@ -112,60 +113,47 @@ for architecture in "${architectures[@]}"; do
     ########################
     # AppSec
     ########################
-    if [[ "x86_64" == "$architecture" && -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
-        tmp_folder_appsec="$tmp_folder/appsec"
+    if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
         tmp_folder_final_gnu_appsec=$tmp_folder_final_gnu/dd-library-php/appsec
         tmp_folder_final_musl_appsec=$tmp_folder_final_musl/dd-library-php/appsec
 
-        # Starting from a clean directory
-        rm -rf "$tmp_folder_appsec"
-        mkdir -p "$tmp_folder_appsec"
-
-        # Downloading archive
-        tmp_folder_appsec_archive="$tmp_folder/ddappsec.tar.gz"
-        curl -L --output "$tmp_folder_appsec_archive" "$appsec_url"
-        tar -xf "$tmp_folder_appsec_archive" -C $tmp_folder_appsec
-
         # Extensions
-        php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829);
+        php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831);
         for php_api in "${php_apis[@]}"; do
             mkdir -p \
                 ${tmp_folder_final_gnu_appsec}/ext/$php_api \
                 ${tmp_folder_final_musl_appsec}/ext/$php_api
 
-            # Appsec does not differentiate between gnu and musl
-            #    non-zts
             cp \
-                "$tmp_folder_appsec/dd-appsec-php/lib/php/no-debug-non-zts-$php_api/ddappsec.so" \
+                "./appsec_${architecture}/ddappsec-$php_api.so" \
                 "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec.so"
+
             cp \
-                "$tmp_folder_appsec/dd-appsec-php/lib/php/no-debug-non-zts-$php_api/ddappsec.so" \
-                "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec.so"
-            #    zts
-            cp \
-                "$tmp_folder_appsec/dd-appsec-php/lib/php/no-debug-zts-$php_api/ddappsec.so" \
+                "./appsec_${architecture}/ddappsec-$php_api-zts.so" \
                 "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec-zts.so"
+
             cp \
-                "$tmp_folder_appsec/dd-appsec-php/lib/php/no-debug-zts-$php_api/ddappsec.so" \
-                "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-zts.so"
+                "./appsec_${architecture}/ddappsec-$php_api-alpine.so" \
+                "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec.so"
         done
 
         # Helper
         mkdir -p "${tmp_folder_final_gnu_appsec}/bin" "${tmp_folder_final_musl_appsec}/bin"
         cp \
-            "$tmp_folder_appsec/dd-appsec-php/bin/ddappsec-helper" \
+            "./appsec_${architecture}/ddappsec-helper" \
             "${tmp_folder_final_gnu_appsec}/bin/ddappsec-helper"
+
         cp \
-            "$tmp_folder_appsec/dd-appsec-php/bin/ddappsec-helper" \
+            "./appsec_${architecture}/ddappsec-helper" \
             "${tmp_folder_final_musl_appsec}/bin/ddappsec-helper"
 
         # Recommended rules
         mkdir -p "${tmp_folder_final_gnu_appsec}/etc" "${tmp_folder_final_musl_appsec}/etc"
         cp \
-            "$tmp_folder_appsec/dd-appsec-php/etc/dd-appsec/recommended.json" \
+            "./appsec_${architecture}/recommended.json" \
             "${tmp_folder_final_gnu_appsec}/etc/recommended.json"
         cp \
-            "$tmp_folder_appsec/dd-appsec-php/etc/dd-appsec/recommended.json" \
+            "./appsec_${architecture}/recommended.json" \
             "${tmp_folder_final_musl_appsec}/etc/recommended.json"
     fi
 

@@ -29,6 +29,6 @@ try {
 ?>
 --EXPECTF--
 array_sum hooked.
-Exception thrown in ddtrace's closure defined at %s:%d for array_sum(): !
+[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %s:%d for array_sum(): !
 Sum = 4.
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 1 to send-queue for %s

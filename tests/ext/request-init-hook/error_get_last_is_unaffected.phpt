@@ -12,4 +12,4 @@ var_dump(error_get_last());
 --EXPECTF--
 %s in request init hook: Undefined variable%sthis_does_not_%s
 NULL
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 1 to send-queue for %s

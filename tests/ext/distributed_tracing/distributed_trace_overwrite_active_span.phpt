@@ -7,6 +7,36 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 
+// Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
+function largeBaseConvert($numString, $fromBase, $toBase)
+{
+    $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+    $toString = substr($chars, 0, $toBase);
+
+    $length = strlen($numString);
+    $result = '';
+    for ($i = 0; $i < $length; $i++) {
+        $number[$i] = strpos($chars, $numString[$i]);
+    }
+    do {
+        $divide = 0;
+        $newLen = 0;
+        for ($i = 0; $i < $length; $i++) {
+            $divide = $divide * $fromBase + $number[$i];
+            if ($divide >= $toBase) {
+                $number[$newLen++] = (int)($divide / $toBase);
+                $divide = $divide % $toBase;
+            } elseif ($newLen > 0) {
+                $number[$newLen++] = 0;
+            }
+        }
+        $length = $newLen;
+        $result = $toString[$divide] . $result;
+    } while ($newLen != 0);
+
+    return $result;
+}
+
 function dump_spans() {
     foreach (dd_trace_serialize_closed_spans() as $span) {
         unset($span["meta"]["process_id"], $span["meta"]["runtime-id"], $span["meta"]["_dd.p.dm"]);
@@ -34,13 +64,13 @@ var_dump(DDTrace\set_distributed_tracing_context("0", "0", "", []));
 var_dump(DDTrace\current_context());
 $trace_id = DDTrace\trace_id();
 var_dump($trace_id != 123);
-var_dump($trace_id == DDTrace\root_span()->id);
-
+var_dump(largeBaseConvert($trace_id, 10, 16) == DDTrace\root_span()->traceId);
+$id = DDTrace\root_span()->id;
 DDTrace\close_span();
 DDTrace\close_span();
 
 $span = dump_spans();
-echo "all spans trace_id updated: "; var_dump($span["trace_id"] == $trace_id);
+echo "all spans trace_id updated: "; var_dump($span["trace_id"] == $id);
 
 ?>
 --EXPECTF--
@@ -65,7 +95,7 @@ array(7) {
   }
 }
 bool(true)
-parent: 321, trace: 123, meta: {"_dd.origin":"foo","a":"b"}
+parent: 321, trace: 123, meta: {"a":"b","_dd.origin":"foo"}
 parent: %d, trace: 123, meta: {"_dd.origin":"foo"}
 bool(true)
 array(5) {
@@ -83,6 +113,6 @@ array(5) {
 }
 bool(true)
 bool(true)
-parent: 0, trace: %d, meta: []
+parent: 0, trace: %d, meta: {"_dd.p.tid":"%s"}
 parent: %d, trace: %d, meta: []
 all spans trace_id updated: bool(true)

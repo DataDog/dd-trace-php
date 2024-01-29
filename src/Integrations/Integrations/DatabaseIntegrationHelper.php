@@ -49,7 +49,9 @@ class DatabaseIntegrationHelper
             $query = self::propagateViaSqlComments($hook->args[$argNum], $databaseService, $propagationMode);
             $hook->args[$argNum] = $query;
             $hook->overrideArguments($hook->args);
-            $hook->span()->meta["_dd.dbm_trace_injected"] = "true";
+            if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL) {
+                $hook->span()->meta["_dd.dbm_trace_injected"] = "true";
+            }
         }
     }
 
@@ -77,6 +79,10 @@ class DatabaseIntegrationHelper
             $service = ddtrace_config_app_name();
         }
         if ($service != "") {
+            $mapping = dd_trace_env_config('DD_SERVICE_MAPPING');
+            if (isset($mapping[$service])) {
+                $service = $mapping[$service];
+            }
             $tags["ddps"] = $service;
         }
 

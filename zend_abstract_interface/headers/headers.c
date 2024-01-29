@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include "headers.h"
 
 #include <php.h>

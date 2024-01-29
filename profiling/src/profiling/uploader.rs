@@ -1,10 +1,14 @@
+use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
+use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use crossbeam_channel::{select, Receiver};
 use datadog_profiling::exporter::{Endpoint, File};
 use log::{debug, info, warn};
+use serde_json::json;
 use std::borrow::Cow;
 use std::str;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
 use std::time::Duration;
 
@@ -27,13 +31,25 @@ impl Uploader {
         }
     }
 
+    /// This function will not only create the internal metadata JSON representation, but is also
+    /// in charge to reset all those counters back to 0.
+    fn create_internal_metadata() -> Option<serde_json::Value> {
+        let metadata = json!({
+            "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
+            "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
+            "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
+        });
+        Some(metadata)
+    }
+
     fn upload(message: UploadRequest) -> anyhow::Result<u16> {
         let index = message.index;
         let profile = message.profile;
 
         let profiling_library_name: &str = &PROFILER_NAME_STR;
         let profiling_library_version: &str = &PROFILER_VERSION_STR;
-        let endpoint: Endpoint = (&*index.endpoint).try_into()?;
+        let endpoint_string = index.endpoint.to_string();
+        let endpoint = Endpoint::try_from(index.endpoint)?;
 
         // This is the currently unstable Arc::unwrap_or_clone.
         let tags = Some(Arc::try_unwrap(index.tags).unwrap_or_else(|arc| (*arc).clone()));
@@ -45,7 +61,8 @@ impl Uploader {
             endpoint,
         )?;
 
-        let serialized = profile.serialize(Some(message.end_time), message.duration)?;
+        let serialized =
+            profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
         let endpoint_counts = Some(&serialized.endpoints_stats);
         let start = serialized.start.into();
         let end = serialized.end.into();
@@ -54,8 +71,17 @@ impl Uploader {
             bytes: serialized.buffer.as_slice(),
         }];
         let timeout = Duration::from_secs(10);
-        let request = exporter.build(start, end, files, None, endpoint_counts, None, timeout)?;
-        debug!("Sending profile to: {}", index.endpoint);
+        let request = exporter.build(
+            start,
+            end,
+            &[],
+            files,
+            None,
+            endpoint_counts,
+            Self::create_internal_metadata(),
+            timeout,
+        )?;
+        debug!("Sending profile to: {endpoint_string}");
         let result = exporter.send(request, None)?;
         Ok(result.status().as_u16())
     }
@@ -85,9 +111,9 @@ impl Uploader {
                     Ok(UploadMessage::Upload(request)) => {
                         match pprof_filename {
                             Some(filename) => {
-                                let r = request.profile.serialize(None, None).unwrap();
+                                let r = request.profile.serialize_into_compressed_pprof(None, None).unwrap();
                                 i += 1;
-                                std::fs::write(format!("{filename}.{i}"), r.buffer).expect("write to succeed")
+                                std::fs::write(format!("{filename}.{i}.lz4"), r.buffer).expect("write to succeed")
                             },
                             None => match Self::upload(request) {
                                 Ok(status) => {

@@ -1,0 +1,149 @@
+version: '3.7'
+
+services:
+
+  base:
+    image: datadog/dd-trace-ci:bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      x-bake: &bake
+        platforms:
+          - linux/arm64
+          - linux/amd64
+      args: &build-base
+        BUILD_BASE: datadog/dd-trace-ci:bookworm-$BOOKWORM_NEXT_VERSION
+
+  php-8.3:
+    image: datadog/dd-trace-ci:php-8.3_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-8.3/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: "8.3"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.3.0.tar.gz
+        phpSha256Hash: "557ae14650f1d1984d3213e3fcd8d93a5f11418b3f8026d3a2d5022251163951"
+
+  php-8.2:
+    image: datadog/dd-trace-ci:php-8.2_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-8.2/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: "8.2"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.2.13.tar.gz
+        phpSha256Hash: "6a194038f5a9e46d8f70a9d59c072c3b08d6edbdd8e304096e24ccf2225bcf1b"
+
+  php-8.1:
+    image: datadog/dd-trace-ci:php-8.1_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-8.1/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: "8.1"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.1.26.tar.gz
+        phpSha256Hash: "d954cecfc3d294c2fccbe2b1a6bef784ce0d6c5d44a9e28f8a527e092825f2cb"
+
+  php-8.0:
+    image: datadog/dd-trace-ci:php-8.0_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-8.0/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: "8.0"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.30.tar.gz
+        phpSha256Hash: "449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c"
+
+  php-8.0-shared-ext:
+    image: datadog/dd-trace-ci:php-8.0-shared-ext-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-8.0/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        sharedBuild: 1
+        phpVersion: "8.0"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.30.tar.gz
+        phpSha256Hash: "449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c"
+
+  php-7.4:
+    image: datadog/dd-trace-ci:php-7.4_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-7.4/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: "7.4"
+        phpTarGzUrl: https://www.php.net/distributions/php-7.4.33.tar.gz
+        phpSha256Hash: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
+
+  php-7.4-shared-ext:
+    image: datadog/dd-trace-ci:php-7.4-shared-ext-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-7.4/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        sharedBuild: 1
+        phpVersion: "7.4"
+        phpTarGzUrl: https://www.php.net/distributions/php-7.4.33.tar.gz
+        phpSha256Hash: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
+
+  php-7.3:
+    image: datadog/dd-trace-ci:php-7.3_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-7.3/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: "7.3"
+        phpTarGzUrl: https://www.php.net/distributions/php-7.3.33.tar.gz
+        phpSha256Hash: 9a369c32c6f52036b0a890f290327f148a1904ee66aa56e2c9a7546da6525ec8
+
+  php-7.2:
+    image: datadog/dd-trace-ci:php-7.2_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-7.2/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: "7.2"
+        phpTarGzUrl: https://www.php.net/distributions/php-7.2.34.tar.gz
+        phpSha256Hash: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
+
+  php-7.1:
+    image: datadog/dd-trace-ci:php-7.1_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-7.1/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: "7.1"
+        phpTarGzUrl: https://www.php.net/distributions/php-7.1.33.tar.gz
+        phpSha256Hash: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
+
+  php-7.0:
+    image: datadog/dd-trace-ci:php-7.0_bookworm-$BOOKWORM_NEXT_VERSION
+    build:
+      context: .
+      dockerfile: php-7.0/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        phpVersion: "7.0"
+        phpTarGzUrl: https://www.php.net/distributions/php-7.0.33.tar.gz
+        phpSha256Hash: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
+

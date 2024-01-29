@@ -25,28 +25,15 @@
  * on buf or risk shenanigans.
  */
 
-#if PHP_VERSION_ID < 70100
-extern void (*zai_json_encode)(smart_str *buf, zval *val, int options TSRMLS_DC);
-extern void (*zai_json_decode_ex)(zval *return_value, char *str, int str_len, int options, long depth TSRMLS_DC);
+int zai_json_decode_assoc_safe(zval *return_value, const char *str, int str_len, long depth, bool persistent);
 
-static inline void zai_json_decode_assoc(zval *return_value, const char *str, int str_len, long depth TSRMLS_DC) {
-    zai_json_decode_ex(return_value, (char *)str, str_len, PHP_JSON_OBJECT_AS_ARRAY, depth TSRMLS_CC);
-}
+#if PHP_VERSION_ID < 70100
+extern void (*zai_json_encode)(smart_str *buf, zval *val, int options);
+extern void (*zai_json_decode_ex)(zval *return_value, char *str, int str_len, int options, long depth);
 #elif PHP_VERSION_ID < 80000
 extern int (*zai_json_encode)(smart_str *buf, zval *val, int options);
-extern int (*zai_json_decode_ex)(zval *return_value, char *str, size_t str_len, zend_long options, zend_long depth);
-
-static inline int zai_json_decode_assoc(zval *return_value, const char *str, int str_len, zend_long depth) {
-    return zai_json_decode_ex(return_value, (char *)str, str_len, PHP_JSON_OBJECT_AS_ARRAY, depth);
-}
 #else
 extern int (*zai_json_encode)(smart_str *buf, zval *val, int options);
-extern int (*zai_json_decode_ex)(zval *return_value, const char *str, size_t str_len, zend_long options,
-                                 zend_long depth);
-
-static inline int zai_json_decode_assoc(zval *return_value, const char *str, int str_len, zend_long depth) {
-    return zai_json_decode_ex(return_value, str, str_len, PHP_JSON_OBJECT_AS_ARRAY, depth);
-}
 #endif
 
 #ifdef __APPLE__
@@ -57,6 +44,8 @@ extern zend_class_entry *php_json_serializable_ce;
 extern __attribute__((weak)) zend_class_entry *php_json_serializable_ce;
 #endif
 
+void zai_json_release_persistent_array(HashTable *ht);
+void zai_json_dtor_pzval(zval *pval);
 bool zai_json_setup_bindings(void);
 
 #endif  // ZAI_JSON_H

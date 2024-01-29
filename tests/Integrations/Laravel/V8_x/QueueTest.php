@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
 use DDTrace\Log\Logger;
 use DDTrace\Tag;
+use DDTrace\Tests\Common\SnapshotTestTrait;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\SpanChecker;
@@ -16,6 +17,7 @@ class QueueTest extends WebFrameworkTestCase
 {
     use TracerTestTrait;
     use SpanAssertionTrait;
+    use SnapshotTestTrait;
 
     protected static function getAppIndexScript()
     {
@@ -81,6 +83,23 @@ class QueueTest extends WebFrameworkTestCase
         return $result;
     }
 
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS'
+        ];
+    }
+
+    public function testBroadcast()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS=1']);
+        $this->tracesFromWebRequestSnapshot(function () {
+            $spec = GetSpec::create('Broadcast', '/queue/broadcast');
+            $this->call($spec);
+            sleep(3);
+        });
+    }
+
     public function testSimplePushAndProcess()
     {
         $createTraces = $this->tracesFromWebRequest(function () {
@@ -141,8 +160,8 @@ class QueueTest extends WebFrameworkTestCase
 
         $spanLinks = $processSpanFromArtisanTrace['meta']['_dd.span_links'];
         $spanLinks = json_decode($spanLinks, true)[0];
-        $spanLinksTraceId = ltrim($spanLinks['trace_id'], '0');
-        $spanLinksSpanId = ltrim($spanLinks['span_id'], '0');
+        $spanLinksTraceId = $spanLinks['trace_id'];
+        $spanLinksSpanId = $spanLinks['span_id'];
 
         $processSpanFromProcessTrace = array_filter($processTrace1[0], function ($span) {
             return $span['name'] === 'laravel.queue.process';
@@ -152,11 +171,19 @@ class QueueTest extends WebFrameworkTestCase
         $processSpanId = $processSpanFromProcessTrace['span_id'];
         $processParentId = $processSpanFromProcessTrace['parent_id'];
 
-        $hexProcessTraceId = self::largeBaseConvert($processTraceId, 10, 16);
-        $hexProcessSpanId = self::largeBaseConvert($processSpanId, 10, 16);
+        $tid = $processSpanFromProcessTrace["meta"]['_dd.p.tid'];
+        $hexProcessTraceId = str_pad(self::largeBaseConvert($processTraceId, 10, 16), 16, '0', STR_PAD_LEFT);
+        $hexProcessSpanId = str_pad(self::largeBaseConvert($processSpanId, 10, 16), 16, '0', STR_PAD_LEFT);
 
-        $this->assertTrue($spanLinksTraceId == $hexProcessTraceId);
-        $this->assertTrue($spanLinksSpanId == $hexProcessSpanId);
+        print("spanLinksTraceId: " . $spanLinksTraceId . "\n");
+        print("tid: " . $tid . "\n");
+        print("hexProcessTraceId: " . $hexProcessTraceId . "\n");
+        print("hexProcessSpanId: " . $hexProcessSpanId . "\n");
+        print("processTraceId: " . $processTraceId . "\n");
+        print("processSpanId: " . $processSpanId . "\n");
+
+        $this->assertSame($spanLinksTraceId, $tid . $hexProcessTraceId);
+        $this->assertSame($spanLinksSpanId, $hexProcessSpanId);
 
         $pushSpanFromCreateTrace = array_filter($createTraces[0], function ($span) {
             return $span['name'] === 'laravel.queue.push';
@@ -209,7 +236,6 @@ class QueueTest extends WebFrameworkTestCase
             $processTrace1,
             [
                 $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
-                    ->withExistingTagsNames([Tag::HTTP_URL, Tag::HTTP_METHOD, Tag::HTTP_STATUS_CODE])
                     ->setError('Exception', 'Triggered Exception', true)
                     ->withChildren([
                         $this->spanQueueResolve('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails'),
@@ -495,11 +521,7 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags([
-            Tag::HTTP_URL => 'http://localhost:9999/queue/workOn',
-            Tag::HTTP_METHOD => 'GET',
-            Tag::HTTP_STATUS_CODE => 200
-        ])->withExactTags(
+        )->withExactTags(
             $this->getCommonTags('receive', $queue, $connection)
         )->withExistingTagsNames([
             Tag::MQ_MESSAGE_ID,

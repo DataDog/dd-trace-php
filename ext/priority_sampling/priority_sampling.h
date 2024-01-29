@@ -2,6 +2,7 @@
 #define DDTRACE_PRIORITY_SAMPLING_H
 
 #include "../ddtrace.h"
+#include "../ddtrace_export.h"
 
 #define DDTRACE_PRIORITY_SAMPLING_UNKNOWN (1 << 30)
 #define DDTRACE_PRIORITY_SAMPLING_UNSET ((1 << 30) + 1)
@@ -19,9 +20,12 @@ enum dd_sampling_mechanism {
     DD_MECHANISM_MANUAL = 4,
 };
 
-void ddtrace_set_prioritySampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism);
-zend_long ddtrace_fetch_prioritySampling_from_span(ddtrace_span_data *root_span);
-zend_long ddtrace_fetch_prioritySampling_from_root(void);
+void ddtrace_set_priority_sampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism);
+void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);
+DDTRACE_PUBLIC void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);
+zend_long ddtrace_fetch_priority_sampling_from_span(ddtrace_root_span_data *root_span);
+zend_long ddtrace_fetch_priority_sampling_from_root(void);
+void ddtrace_decide_on_closed_span_sampling(ddtrace_span_data *span);
 
 void ddtrace_try_read_agent_rate(void);
 

@@ -23,6 +23,12 @@ enum ddtrace_dbm_propagation_mode {
     DD_TRACE_DBM_PROPAGATION_FULL,
 };
 
+// To remove in 1.0
+enum ddtrace_sampling_rules_format {
+    DD_TRACE_SAMPLING_RULES_FORMAT_REGEX,
+    DD_TRACE_SAMPLING_RULES_FORMAT_GLOB
+};
+
 /* From the curl docs on CONNECT_TIMEOUT_MS:
  *     If libcurl is built to use the standard system name resolver, that
  *     portion of the transfer will still use full-second resolution for
@@ -52,16 +58,18 @@ enum ddtrace_dbm_propagation_mode {
 
 #define DD_CFG_STR(str) #str
 #define DD_CFG_EXPSTR(str) DD_CFG_STR(str)
-#define INTEGRATION_ALIAS(id, _, alias) \
-    CALIAS(BOOL, DD_TRACE_##id##_ENABLED, "true", CALIASES(DD_CFG_STR(alias)))
+#define INTEGRATION_ALIAS(id, _, initial, alias) \
+    CALIAS(BOOL, DD_TRACE_##id##_ENABLED, initial, CALIASES(DD_CFG_STR(alias)))
+#define INTEGRATION_WITH_DEFAULT(id, _, initial) \
+    CONFIG(BOOL, DD_TRACE_##id##_ENABLED, initial)
 #define INTEGRATION_NORMAL(id, _) \
     CONFIG(BOOL, DD_TRACE_##id##_ENABLED, "true")
-#define GET_INTEGRATION_CONFIG_MACRO(_1, _2, NAME, ...) NAME
+#define GET_INTEGRATION_CONFIG_MACRO(_1, _2, DEFAULT, NAME, ...) NAME
 #if defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL
 #define GET_INTEGRATION_CONFIG_MACRO_EXPAND(...) __VA_ARGS__
-#define INTEGRATION_CONFIG_ACTIVE(id, ...) GET_INTEGRATION_CONFIG_MACRO_EXPAND(GET_INTEGRATION_CONFIG_MACRO(__VA_ARGS__, INTEGRATION_ALIAS, INTEGRATION_NORMAL))GET_INTEGRATION_CONFIG_MACRO_EXPAND((id, __VA_ARGS__))
+#define INTEGRATION_CONFIG_ACTIVE(id, ...) GET_INTEGRATION_CONFIG_MACRO_EXPAND(GET_INTEGRATION_CONFIG_MACRO(__VA_ARGS__, INTEGRATION_ALIAS, INTEGRATION_WITH_DEFAULT, INTEGRATION_NORMAL))GET_INTEGRATION_CONFIG_MACRO_EXPAND((id, __VA_ARGS__))
 #else
-#define INTEGRATION_CONFIG_ACTIVE(id, ...) GET_INTEGRATION_CONFIG_MACRO(__VA_ARGS__, INTEGRATION_ALIAS, INTEGRATION_NORMAL)(id, __VA_ARGS__)
+#define INTEGRATION_CONFIG_ACTIVE(id, ...) GET_INTEGRATION_CONFIG_MACRO(__VA_ARGS__, INTEGRATION_ALIAS, INTEGRATION_WITH_DEFAULT, INTEGRATION_NORMAL)(id, __VA_ARGS__)
 #endif
 #define INTEGRATION(id, ...)                                                                                           \
     INTEGRATION_CONFIG_ACTIVE(id, __VA_ARGS__)                                                                         \
@@ -71,7 +79,7 @@ enum ddtrace_dbm_propagation_mode {
            CALIASES(DD_CFG_STR(DD_##id##_ANALYTICS_SAMPLE_RATE), DD_CFG_STR(DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE)))
 
 #define DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP_DEFAULT \
-    "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\\s|%20)*(?:=|%3D)[^&]+|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22))|bearer(?:\\s|%20)+[a-z0-9\\._\\-]|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L](?:[\\w=-]|%3D)+\\.ey[I-L](?:[\\w=-]|%3D)+(?:\\.(?:[\\w.+\\/=-]|%3D|%2F|%2B)+)?|[\\-]{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY[\\-]{5}[^\\-]+[\\-]{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY|ssh-rsa(?:\\s|%20)*(?:[a-z0-9\\/\\.+]|%2F|%5C|%2B){100,}"
+    "(?i)(?:(?:\"|%22)?)(?:(?:old[-_]?|new[-_]?)?p(?:ass)?w(?:or)?d(?:1|2)?|pass(?:[-_]?phrase)?|secret|(?:api[-_]?|private[-_]?|public[-_]?|access[-_]?|secret[-_]?|app(?:lication)?[-_]?)key(?:[-_]?id)?|token|consumer[-_]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\\s|%20)*(?:=|%3D)[^&]+|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22))|(?:bearer(?:\\s|%20)+[a-z0-9._\\-]+|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L](?:[\\w=-]|%3D)+\\.ey[I-L](?:[\\w=-]|%3D)+(?:\\.(?:[\\w.+/=-]|%3D|%2F|%2B)+)?|-{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY-{5}[^\\-]+-{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY(?:-{5})?(?:\\n|%0A)?|(?:ssh-(?:rsa|dss)|ecdsa-[a-z0-9]+-[a-z0-9]+)(?:\\s|%20|%09)+(?:[a-z0-9/.+]|%2F|%5C|%2B){100,}(?:=|%3D)*(?:(?:\\s|%20|%09)+[a-z0-9._-]+)?)"
 
 #define DD_CONFIGURATION_ALL                                                                                   \
     CALIAS(STRING, DD_TRACE_REQUEST_INIT_HOOK, DD_DEFAULT_REQUEST_INIT_HOOK_PATH,                              \
@@ -108,6 +116,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                  \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                            \
     CONFIG(BOOL, DD_TRACE_FLUSH_COLLECT_CYCLES, "false")                                                       \
+    CONFIG(BOOL, DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING, "true")                                           \
     CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE, "true")                                              \
     CONFIG(BOOL, DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS, "false")                                         \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                      \
@@ -119,6 +128,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(INT, DD_TRACE_RATE_LIMIT, "0", .ini_change = zai_config_system_ini_change)                          \
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "-1", CALIASES("DD_SAMPLING_RATE"))                                   \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                                \
+    CONFIG(CUSTOM(INT), DD_TRACE_SAMPLING_RULES_FORMAT, "regex", .parser = dd_parse_sampling_rules_format)     \
     CONFIG(JSON, DD_SPAN_SAMPLING_RULES, "[]")                                                                 \
     CONFIG(STRING, DD_SPAN_SAMPLING_RULES_FILE, "", .ini_change = ddtrace_alter_sampling_rules_file_config)    \
     CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                            \
@@ -141,7 +151,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(BOOL, DD_LOG_BACKTRACE, "false")                                                                    \
     CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)       \
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                  \
-    CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "false")                                         \
+    CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "true")                                         \
     CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED, "false")                                                                                                           \
     CONFIG(INT, DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES,                                                       \
            DD_CFG_EXPSTR(DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES))                           \
@@ -176,6 +186,7 @@ enum ddtrace_dbm_propagation_mode {
     CONFIG(SET, DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS, "")                                                      \
     CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "false")                                                          \
     CONFIG(BOOL, DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION, "false")                                              \
+    CONFIG(BOOL, DD_TRACE_OTEL_ENABLED, "false")                                                               \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

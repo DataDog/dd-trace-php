@@ -3,6 +3,8 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+
+// NOLINTNEXTLINE(misc-header-include-cycle)
 #include <php.h>
 #include <php_output.h>
 #include <spprintf.h>
@@ -109,7 +111,8 @@ static void _inc_failed_counter(void);
 static void _prevent_launch_attempts(int lock_fd);
 static bool /* retry */ _maybe_launch_helper(void);
 static void _connection_succeeded(void);
-dd_conn *nullable dd_helper_mgr_acquire_conn(client_init_func nonnull init_func)
+dd_conn *nullable dd_helper_mgr_acquire_conn(
+    client_init_func nonnull init_func, void *unspecnull ctx)
 {
     dd_conn *conn = &_mgr.conn;
     if (dd_conn_connected(conn)) {
@@ -157,7 +160,7 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(client_init_func nonnull init_func)
         dd_conn_set_timeout(conn, comm_type_send, timeout_send);
         dd_conn_set_timeout(conn, comm_type_recv, timeout_recv_initial);
 
-        res = init_func(conn);
+        res = init_func(conn, ctx);
         if (res) {
             mlog_g(dd_log_warning, "Initial exchange with helper failed; "
                                    "abandoning the connection");
@@ -522,8 +525,8 @@ static char **nullable _split_params(
     }
 
     // we never write more than the original size of the params
-    char *params_buffer = emalloc(strlen(orig_params_str) + 1);
-    char *wp = params_buffer; // write pointer
+    char *params_buffer = emalloc(strlen(orig_params_str) + 1); // NOLINT
+    char *wp = params_buffer;                                   // write pointer
     char *param_start; // position of write pointer where we started writing the
                        // current parameter
     enum {

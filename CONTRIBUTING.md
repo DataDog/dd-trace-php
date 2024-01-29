@@ -144,6 +144,12 @@ Then you can run tests:
     # Run C Tests (the ones in tests/ext)
     $ make test_c
 
+    # Run PHP benchmarks
+    $ make benchmarks
+
+    # Run OPcache PHP benchmarks
+    $ make benchmarks_opcache
+
 In order to run the `phpt` tests for the php extension:
 
 ```bash

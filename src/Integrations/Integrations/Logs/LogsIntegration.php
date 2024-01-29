@@ -4,8 +4,9 @@ namespace DDTrace\Integrations\Logs;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\SpanData;
+use DDTrace\Log\Logger;
 use DDTrace\Util\ObjectKVStore;
+use Psr\Log\NullLogger;
 
 use function DDTrace\logs_correlation_trace_id;
 
@@ -220,8 +221,6 @@ class LogsIntegration extends Integration
 
     public function init()
     {
-        $integration = $this;
-
         $levelNames = [
             'debug',
             'info',
@@ -234,16 +233,18 @@ class LogsIntegration extends Integration
         ];
 
         foreach ($levelNames as $levelName) {
-            \DDTrace\install_hook(
+            $hook = \DDTrace\install_hook(
                 "Psr\Log\LoggerInterface::$levelName",
                 self::getHookFn($levelName, 0, 1)
             );
+            \DDTrace\remove_hook($hook, NullLogger::class);
         }
 
-        \DDTrace\install_hook(
+        $hook = \DDTrace\install_hook(
             "Psr\Log\LoggerInterface::log",
             self::getHookFn('log', 1, 2, 0)
         );
+        \DDTrace\remove_hook($hook, NullLogger::class);
 
         return Integration::LOADED;
     }

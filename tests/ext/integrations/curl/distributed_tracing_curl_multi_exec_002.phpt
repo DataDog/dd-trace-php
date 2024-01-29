@@ -74,4 +74,4 @@ x-datadog-parent-id: %d
 x-datadog-origin: phpt-test
 x-datadog-parent-id: %d
 Done.
-Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 2 to send-queue for %s

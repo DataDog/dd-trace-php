@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 414789fb27e3a704af44a6c25ae021ce97c85b43 */
+ * Stub hash: 1354719701dbfb97c14995b1f228acc33caa343e */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -45,7 +45,8 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_active_span, 0, 0, DDTrace\\SpanData, 1)
 ZEND_END_ARG_INFO()
 
-#define arginfo_DDTrace_root_span arginfo_DDTrace_active_span
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_root_span, 0, 0, DDTrace\\RootSpanData, 1)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_DDTrace_start_span, 0, 0, DDTrace\\SpanData, MAY_BE_FALSE)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTime, IS_DOUBLE, 0, "0")
@@ -55,7 +56,13 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_close_span, 0, 0, IS_FAL
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, finishTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_update_span_duration, 0, 1, IS_NULL, 1)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, finishTime, IS_DOUBLE, 0, "0")
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_trace_span, 0, 0, DDTrace\\SpanData, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_active_stack, 0, 0, DDTrace\\SpanStack, 1)
@@ -79,6 +86,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_get_sanitized_exception_trace, 0, 1, IS_STRING, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, exception, Exception|Throwable, 0, NULL)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, skipFrames, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_consume_distributed_tracing_headers, 0, 1, IS_VOID, 0)
@@ -116,6 +124,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_flush, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_curl_multi_exec_get_request_spans, 0, 1, IS_VOID, 0)
+	ZEND_ARG_INFO(1, array)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
 ZEND_END_ARG_INFO()
 
@@ -127,6 +139,25 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Config_integration_analy
 	ZEND_ARG_TYPE_INFO(0, integrationName, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_has_listeners, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_notify_start, 0, 2, IS_ARRAY, 1)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\RootSpanData, 0)
+	ZEND_ARG_TYPE_INFO(0, data, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_notify_commit, 0, 3, IS_ARRAY, 1)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\RootSpanData, 0)
+	ZEND_ARG_TYPE_INFO(0, status, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO(0, headers, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_set_blocking_function, 0, 2, IS_VOID, 0)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\RootSpanData, 0)
+	ZEND_ARG_TYPE_INFO(0, blockingFunction, IS_CALLABLE, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Testing_trigger_error, 0, 2, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, message, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, errorType, IS_LONG, 0)
@@ -136,10 +167,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_env_config, 0, 1, IS_MI
 	ZEND_ARG_TYPE_INFO(0, envName, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_disable_in_request, 0, 0, _IS_BOOL, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_dd_trace_disable_in_request arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_dd_trace_reset arginfo_dd_trace_disable_in_request
+#define arginfo_dd_trace_reset arginfo_DDTrace_UserRequest_has_listeners
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_dd_trace_serialize_msgpack, 0, 1, MAY_BE_BOOL|MAY_BE_STRING)
 	ZEND_ARG_TYPE_INFO(0, traceArray, IS_ARRAY, 0)
@@ -152,13 +182,13 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_dd_get_memory_limit, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_dd_trace_check_memory_under_limit arginfo_dd_trace_disable_in_request
+#define arginfo_dd_trace_check_memory_under_limit arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_dd_tracer_circuit_breaker_register_error arginfo_dd_trace_disable_in_request
+#define arginfo_dd_tracer_circuit_breaker_register_error arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_dd_tracer_circuit_breaker_register_success arginfo_dd_trace_disable_in_request
+#define arginfo_dd_tracer_circuit_breaker_register_success arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_dd_tracer_circuit_breaker_can_try arginfo_dd_trace_disable_in_request
+#define arginfo_dd_tracer_circuit_breaker_can_try arginfo_DDTrace_UserRequest_has_listeners
 
 #define arginfo_dd_tracer_circuit_breaker_info arginfo_DDTrace_current_context
 
@@ -166,9 +196,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, I
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, fallbackName, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
 
-#define arginfo_ddtrace_config_distributed_tracing_enabled arginfo_dd_trace_disable_in_request
+#define arginfo_ddtrace_config_distributed_tracing_enabled arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_ddtrace_config_trace_enabled arginfo_dd_trace_disable_in_request
+#define arginfo_ddtrace_config_trace_enabled arginfo_DDTrace_UserRequest_has_listeners
 
 #define arginfo_ddtrace_config_integration_enabled arginfo_DDTrace_Config_integration_analytics_enabled
 
@@ -199,7 +229,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_dd_trace_closed_spans_count arginfo_dd_trace_dd_get_memory_limit
 
-#define arginfo_dd_trace_tracer_is_limited arginfo_dd_trace_disable_in_request
+#define arginfo_dd_trace_tracer_is_limited arginfo_DDTrace_UserRequest_has_listeners
 
 #define arginfo_dd_trace_compile_time_microseconds arginfo_dd_trace_dd_get_memory_limit
 
@@ -226,7 +256,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_synchronous_flush, 0, 1
 	ZEND_ARG_TYPE_INFO(0, timeout, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_dd_trace_forward_call arginfo_dd_trace_disable_in_request
+#define arginfo_dd_trace_forward_call arginfo_DDTrace_UserRequest_has_listeners
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_generate_id, 0, 1, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, existingID, IS_STRING, 0)
@@ -241,12 +271,18 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_SpanLink_jsonSerialize, 0, 0, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_SpanLink_fromHeaders, 0, 1, DDTrace\\SpanLink, 0)
+	ZEND_ARG_TYPE_MASK(0, headersOrCallback, MAY_BE_ARRAY|MAY_BE_CALLABLE, NULL)
+ZEND_END_ARG_INFO()
+
 #define arginfo_class_DDTrace_SpanData_getDuration arginfo_dd_trace_dd_get_memory_limit
 
 #define arginfo_class_DDTrace_SpanData_getStartTime arginfo_dd_trace_dd_get_memory_limit
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_SpanData_getLink, 0, 0, DDTrace\\SpanLink, 0)
 ZEND_END_ARG_INFO()
+
+#define arginfo_class_DDTrace_SpanData_hexId arginfo_DDTrace_startup_logs
 
 
 ZEND_FUNCTION(DDTrace_trace_method);
@@ -261,6 +297,7 @@ ZEND_FUNCTION(DDTrace_active_span);
 ZEND_FUNCTION(DDTrace_root_span);
 ZEND_FUNCTION(DDTrace_start_span);
 ZEND_FUNCTION(DDTrace_close_span);
+ZEND_FUNCTION(DDTrace_update_span_duration);
 ZEND_FUNCTION(DDTrace_start_trace_span);
 ZEND_FUNCTION(DDTrace_active_stack);
 ZEND_FUNCTION(DDTrace_create_stack);
@@ -278,9 +315,14 @@ ZEND_FUNCTION(DDTrace_logs_correlation_trace_id);
 ZEND_FUNCTION(DDTrace_current_context);
 ZEND_FUNCTION(DDTrace_set_distributed_tracing_context);
 ZEND_FUNCTION(DDTrace_flush);
+ZEND_FUNCTION(DDTrace_curl_multi_exec_get_request_spans);
 ZEND_FUNCTION(DDTrace_System_container_id);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_sample_rate);
+ZEND_FUNCTION(DDTrace_UserRequest_has_listeners);
+ZEND_FUNCTION(DDTrace_UserRequest_notify_start);
+ZEND_FUNCTION(DDTrace_UserRequest_notify_commit);
+ZEND_FUNCTION(DDTrace_UserRequest_set_blocking_function);
 ZEND_FUNCTION(DDTrace_Testing_trigger_error);
 ZEND_FUNCTION(dd_trace_env_config);
 ZEND_FUNCTION(dd_trace_disable_in_request);
@@ -318,9 +360,11 @@ ZEND_FUNCTION(dd_trace_push_span_id);
 ZEND_FUNCTION(dd_trace_pop_span_id);
 ZEND_FUNCTION(additional_trace_meta);
 ZEND_METHOD(DDTrace_SpanLink, jsonSerialize);
+ZEND_METHOD(DDTrace_SpanLink, fromHeaders);
 ZEND_METHOD(DDTrace_SpanData, getDuration);
 ZEND_METHOD(DDTrace_SpanData, getStartTime);
 ZEND_METHOD(DDTrace_SpanData, getLink);
+ZEND_METHOD(DDTrace_SpanData, hexId);
 
 
 static const zend_function_entry ext_functions[] = {
@@ -336,6 +380,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace", root_span, DDTrace_root_span, arginfo_DDTrace_root_span)
 	ZEND_NS_FALIAS("DDTrace", start_span, DDTrace_start_span, arginfo_DDTrace_start_span)
 	ZEND_NS_FALIAS("DDTrace", close_span, DDTrace_close_span, arginfo_DDTrace_close_span)
+	ZEND_NS_FALIAS("DDTrace", update_span_duration, DDTrace_update_span_duration, arginfo_DDTrace_update_span_duration)
 	ZEND_NS_FALIAS("DDTrace", start_trace_span, DDTrace_start_trace_span, arginfo_DDTrace_start_trace_span)
 	ZEND_NS_FALIAS("DDTrace", active_stack, DDTrace_active_stack, arginfo_DDTrace_active_stack)
 	ZEND_NS_FALIAS("DDTrace", create_stack, DDTrace_create_stack, arginfo_DDTrace_create_stack)
@@ -353,9 +398,14 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace", current_context, DDTrace_current_context, arginfo_DDTrace_current_context)
 	ZEND_NS_FALIAS("DDTrace", set_distributed_tracing_context, DDTrace_set_distributed_tracing_context, arginfo_DDTrace_set_distributed_tracing_context)
 	ZEND_NS_FALIAS("DDTrace", flush, DDTrace_flush, arginfo_DDTrace_flush)
+	ZEND_NS_FALIAS("DDTrace", curl_multi_exec_get_request_spans, DDTrace_curl_multi_exec_get_request_spans, arginfo_DDTrace_curl_multi_exec_get_request_spans)
 	ZEND_NS_FALIAS("DDTrace\\System", container_id, DDTrace_System_container_id, arginfo_DDTrace_System_container_id)
 	ZEND_NS_FALIAS("DDTrace\\Config", integration_analytics_enabled, DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled)
 	ZEND_NS_FALIAS("DDTrace\\Config", integration_analytics_sample_rate, DDTrace_Config_integration_analytics_sample_rate, arginfo_DDTrace_Config_integration_analytics_sample_rate)
+	ZEND_NS_FALIAS("DDTrace\\UserRequest", has_listeners, DDTrace_UserRequest_has_listeners, arginfo_DDTrace_UserRequest_has_listeners)
+	ZEND_NS_FALIAS("DDTrace\\UserRequest", notify_start, DDTrace_UserRequest_notify_start, arginfo_DDTrace_UserRequest_notify_start)
+	ZEND_NS_FALIAS("DDTrace\\UserRequest", notify_commit, DDTrace_UserRequest_notify_commit, arginfo_DDTrace_UserRequest_notify_commit)
+	ZEND_NS_FALIAS("DDTrace\\UserRequest", set_blocking_function, DDTrace_UserRequest_set_blocking_function, arginfo_DDTrace_UserRequest_set_blocking_function)
 	ZEND_NS_FALIAS("DDTrace\\Testing", trigger_error, DDTrace_Testing_trigger_error, arginfo_DDTrace_Testing_trigger_error)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
 	ZEND_FE(dd_trace_disable_in_request, arginfo_dd_trace_disable_in_request)
@@ -399,6 +449,7 @@ static const zend_function_entry ext_functions[] = {
 
 static const zend_function_entry class_DDTrace_SpanLink_methods[] = {
 	ZEND_ME(DDTrace_SpanLink, jsonSerialize, arginfo_class_DDTrace_SpanLink_jsonSerialize, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_SpanLink, fromHeaders, arginfo_class_DDTrace_SpanLink_fromHeaders, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_FE_END
 };
 
@@ -407,6 +458,12 @@ static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 	ZEND_ME(DDTrace_SpanData, getDuration, arginfo_class_DDTrace_SpanData_getDuration, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, getStartTime, arginfo_class_DDTrace_SpanData_getStartTime, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, getLink, arginfo_class_DDTrace_SpanData_getLink, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_SpanData, hexId, arginfo_class_DDTrace_SpanData_hexId, ZEND_ACC_PUBLIC)
+	ZEND_FE_END
+};
+
+
+static const zend_function_entry class_DDTrace_RootSpanData_methods[] = {
 	ZEND_FE_END
 };
 
@@ -551,6 +608,64 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_string *property_stack_class_DDTrace_SpanStack = zend_string_init("DDTrace\\SpanStack", sizeof("DDTrace\\SpanStack")-1, 1);
 	zend_declare_typed_property(class_entry, property_stack_name, &property_stack_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_stack_class_DDTrace_SpanStack, 0, 0));
 	zend_string_release(property_stack_name);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_DDTrace_RootSpanData(zend_class_entry *class_entry_DDTrace_SpanData)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "RootSpanData", class_DDTrace_RootSpanData_methods);
+	class_entry = zend_register_internal_class_ex(&ce, class_entry_DDTrace_SpanData);
+
+	zval property_origin_default_value;
+	ZVAL_UNDEF(&property_origin_default_value);
+	zend_string *property_origin_name = zend_string_init("origin", sizeof("origin") - 1, 1);
+	zend_declare_typed_property(class_entry, property_origin_name, &property_origin_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
+	zend_string_release(property_origin_name);
+
+	zval property_propagatedTags_default_value;
+	ZVAL_EMPTY_ARRAY(&property_propagatedTags_default_value);
+	zend_string *property_propagatedTags_name = zend_string_init("propagatedTags", sizeof("propagatedTags") - 1, 1);
+	zend_declare_typed_property(class_entry, property_propagatedTags_name, &property_propagatedTags_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_propagatedTags_name);
+
+	zval property_samplingPriority_default_value;
+	ZVAL_LONG(&property_samplingPriority_default_value, DDTRACE_PRIORITY_SAMPLING_UNKNOWN);
+	zend_string *property_samplingPriority_name = zend_string_init("samplingPriority", sizeof("samplingPriority") - 1, 1);
+	zend_declare_typed_property(class_entry, property_samplingPriority_name, &property_samplingPriority_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_samplingPriority_name);
+
+	zval property_propagatedSamplingPriority_default_value;
+	ZVAL_UNDEF(&property_propagatedSamplingPriority_default_value);
+	zend_string *property_propagatedSamplingPriority_name = zend_string_init("propagatedSamplingPriority", sizeof("propagatedSamplingPriority") - 1, 1);
+	zend_declare_typed_property(class_entry, property_propagatedSamplingPriority_name, &property_propagatedSamplingPriority_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_propagatedSamplingPriority_name);
+
+	zval property_tracestate_default_value;
+	ZVAL_UNDEF(&property_tracestate_default_value);
+	zend_string *property_tracestate_name = zend_string_init("tracestate", sizeof("tracestate") - 1, 1);
+	zend_declare_typed_property(class_entry, property_tracestate_name, &property_tracestate_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
+	zend_string_release(property_tracestate_name);
+
+	zval property_tracestateTags_default_value;
+	ZVAL_EMPTY_ARRAY(&property_tracestateTags_default_value);
+	zend_string *property_tracestateTags_name = zend_string_init("tracestateTags", sizeof("tracestateTags") - 1, 1);
+	zend_declare_typed_property(class_entry, property_tracestateTags_name, &property_tracestateTags_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_tracestateTags_name);
+
+	zval property_parentId_default_value;
+	ZVAL_UNDEF(&property_parentId_default_value);
+	zend_string *property_parentId_name = zend_string_init("parentId", sizeof("parentId") - 1, 1);
+	zend_declare_typed_property(class_entry, property_parentId_name, &property_parentId_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
+	zend_string_release(property_parentId_name);
+
+	zval property_traceId_default_value;
+	ZVAL_EMPTY_STRING(&property_traceId_default_value);
+	zend_string *property_traceId_name = zend_string_init("traceId", sizeof("traceId") - 1, 1);
+	zend_declare_typed_property(class_entry, property_traceId_name, &property_traceId_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
+	zend_string_release(property_traceId_name);
 
 	return class_entry;
 }

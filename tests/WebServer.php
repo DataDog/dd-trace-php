@@ -74,6 +74,8 @@ final class WebServer
         'datadog.trace.client_ip_header_disabled' => 'true',
     ];
 
+    private $errorLogSize = 0;
+
     /**
      * Persisted apache instance for the lifetime of the testsuite - we use reload instead of restart to apply changes.
      * The primary use case is verifying repeated MINIT+MSHUTDOWN invocations within a same process.
@@ -104,6 +106,8 @@ final class WebServer
 
     public function start()
     {
+        $this->errorLogSize = (int)@filesize($this->defaultInis['error_log']);
+
         if ($this->roadrunnerVersion) {
             $this->sapi = new RoadrunnerServer(
                 $this->roadrunnerVersion,
@@ -222,8 +226,15 @@ final class WebServer
      */
     public function checkErrors()
     {
-        if (!$this->sapi) {
-            return null;
+        $diff = @file_get_contents($this->defaultInis['error_log'], false, null, $this->errorLogSize);
+        $out = "";
+        foreach (explode("\n", $diff) as $line) {
+            if (preg_match("(\[ddtrace] \[(error|warn|deprecated)])", $line)) {
+                $out .= $line;
+            }
+        }
+        if ($out) {
+            return $out . ($this->sapi ? $this->sapi->checkErrors() : "");
         }
         return $this->sapi->checkErrors();
     }

@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include <hook/hook.h>
 #include <hook/table.h>
 
@@ -17,6 +18,7 @@ typedef struct {
     bool is_abstract;
     zend_long id;
     int refcount; // one ref held by the existence in the array, one ref held by each frame
+    HashTable exclusions;
 } zai_hook_t; /* }}} */
 
 typedef struct _zai_hooks_entry {
@@ -27,6 +29,7 @@ typedef struct _zai_hooks_entry {
     // But to ensure consistency between existence of hooks and Closure actually being hooked, we need to keep track of the run_time_cache, so that we eventually may remove the hook again.
 #if PHP_VERSION_ID >= 80200
     struct _zai_hooks_entry *internal_duplicate;
+    int internal_duplicate_count;
     void **run_time_cache; // used only if Closure
 #else
     void ***run_time_cache; // used only if Closure
@@ -85,8 +88,10 @@ ZEND_TLS HashTable zai_function_location_map; /* }}} */
 #define ZAI_IS_SHARED_HOOK_PTR (IS_PTR+1)
 
 #if PHP_VERSION_ID >= 80000
-static void zai_hook_on_update_empty(zend_function *func, bool remove) { (void)func, (void)remove; }
-void (*zai_hook_on_update)(zend_function *func, bool remove) = zai_hook_on_update_empty;
+ZEND_TLS zend_observer_fcall_end_handler zai_hook_last_observer;
+
+static void zai_hook_on_update_empty(zend_function *func, bool remove, zend_observer_fcall_end_handler *handler) { (void)func, (void)remove, (void)handler; }
+void (*zai_hook_on_update)(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler) = zai_hook_on_update_empty;
 void zai_hook_on_function_resolve_empty(zend_function *func) { (void)func; }
 void (*zai_hook_on_function_resolve)(zend_function *func) = zai_hook_on_function_resolve_empty;
 #endif
@@ -106,6 +111,10 @@ static void zai_hook_data_dtor(zai_hook_t *hook) {
 
     if (hook->function) {
         zend_string_release(hook->function);
+    }
+
+    if (hook->exclusions.arData) {
+        zend_hash_destroy(&hook->exclusions);
     }
 }
 
@@ -174,7 +183,7 @@ static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_
         if (!hooks->internal_duplicate)
 #endif
         {
-            zai_hook_on_update(hooks->resolved, true);
+            zai_hook_on_update(hooks->resolved, true, &zai_hook_last_observer);
         }
     } else if (hooks->run_time_cache) {
         zend_function func;
@@ -185,7 +194,7 @@ static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_
 #else
         ZEND_MAP_PTR_INIT(func.op_array.run_time_cache, hooks->run_time_cache);
 #endif
-        zai_hook_on_update(&func, true);
+        zai_hook_on_update(&func, true, &zai_hook_last_observer);
     }
 #else
     (void)install_address;
@@ -203,7 +212,7 @@ static void zai_hook_entries_remove_resolved(zend_ulong install_address) {
 #if PHP_VERSION_ID >= 80200
         if (hooks->internal_duplicate) {
             // We refcount parents of internal function duplicates, remove here again if necessary
-            if (--hooks->internal_duplicate->hooks.nNumOfElements == 0) {
+            if (--hooks->internal_duplicate->internal_duplicate_count == 0 && zend_hash_num_elements(&hooks->internal_duplicate->hooks) == 0) {
                 zai_hook_entries_remove_resolved(zai_hook_install_address(hooks->internal_duplicate->resolved));
             }
         }
@@ -224,6 +233,30 @@ static void zai_hook_hash_destroy(zval *zv) {
     zend_hash_destroy(hooks);
 
     efree(hooks);
+}
+
+static inline bool zai_hook_is_excluded(zai_hook_t *hook, zend_class_entry *ce) {
+    if (hook->exclusions.arData && ce) {
+        do {
+            zend_string *lower_class = zend_string_tolower(ce->name);
+            if (zend_hash_exists(&hook->exclusions, lower_class)) {
+                zend_string_release(lower_class);
+                return true;
+            }
+            zend_string_release(lower_class);
+
+            for (uint32_t i = 0; i < ce->num_interfaces; ++i) {
+                zend_string *interface = ce->interfaces[i]->name;
+                zend_string *lower_interface = zend_string_tolower(interface);
+                if (zend_hash_exists(&hook->exclusions, lower_interface)) {
+                    zend_string_release(lower_interface);
+                    return true;
+                }
+                zend_string_release(lower_interface);
+            }
+        } while ((ce = ce->parent));
+    }
+    return false;
 }
 
 /* {{{ */
@@ -343,6 +376,9 @@ static zai_hooks_entry *zai_hook_alloc_hooks_entry(void) {
 #if PHP_VERSION_ID >= 80000
     hooks->run_time_cache = NULL;
 #endif
+#if PHP_VERSION_ID >= 80200
+    hooks->internal_duplicate_count = 0;
+#endif
     zend_hash_init(&hooks->hooks, 8, NULL, zai_hook_destroy, 0);
     hooks->hooks.nNextFreeElement = ZEND_LONG_MAX >> 1;
     return hooks;
@@ -376,12 +412,12 @@ static inline void zai_hook_handle_internal_duplicate_function(zai_hooks_entry *
     bool is_internal_duplicate = !ZEND_USER_CODE(function->type) && (function->common.fn_flags & ZEND_ACC_ARENA_ALLOCATED) && function->common.scope != ce;
     if (is_internal_duplicate) {
         // Hence we need to ensure that each top-level internal function is responsible for its run-time cache.
-        // We achieve that by refcounting on top of the anyway checked nNumOfElements.
+        // We achieve that by refcounting it.
         zend_string *lcname = zend_string_tolower(function->common.function_name);
         zend_function *original_function = zend_hash_find_ptr(&ce->parent->function_table, lcname);
         zend_string_release(lcname);
         hooks->internal_duplicate = zai_hook_resolved_ensure_hooks_entry(original_function, ce->parent);
-        ++hooks->internal_duplicate->hooks.nNumOfElements;
+        ++hooks->internal_duplicate->internal_duplicate_count;
     } else {
         hooks->internal_duplicate = NULL;
     }
@@ -404,7 +440,7 @@ static inline zai_hooks_entry *zai_hook_resolved_ensure_hooks_entry(zend_functio
         if (!hooks->internal_duplicate)
 #endif
         {
-            zai_hook_on_update(resolved, false);
+            zai_hook_on_update(resolved, false, NULL);
         }
 #else
         (void)ce;
@@ -417,6 +453,10 @@ static inline zai_hooks_entry *zai_hook_resolved_ensure_hooks_entry(zend_functio
 }
 
 static inline void zai_hook_resolved_install_shared_hook(zai_hook_t *hook, zend_ulong index, zend_function *func, zend_class_entry *ce) {
+    if (zai_hook_is_excluded(hook, ce)) {
+        return;
+    }
+
     zai_hooks_entry *hooks = zai_hook_resolved_ensure_hooks_entry(func, ce);
 
     zval hook_zv;
@@ -434,7 +474,7 @@ static inline void zai_hook_resolved_install_shared_hook(zai_hook_t *hook, zend_
 static inline void zai_hook_resolved_install_abstract_recursive(zai_hook_t *hook, zend_ulong index, zend_class_entry *scope) {
     // find implementers by searching through all inheritors, recursively, stopping upon finding a non-abstract implementation
     zai_hook_inheritor_list *inheritors;
-    zend_ulong ce_addr = ((zend_ulong)scope) << 3;
+    zend_ulong ce_addr = ((zend_ulong)scope) >> 3;
     if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
@@ -452,7 +492,7 @@ static inline void zai_hook_resolved_install_abstract_recursive(zai_hook_t *hook
 static inline void zai_hook_resolved_install_inherited_internal_function_recursive(zai_hook_t *hook, zend_ulong index, zend_class_entry *scope, zif_handler handler) {
     // find implementers by searching through all inheritors, recursively, stopping upon finding an explicit override
     zai_hook_inheritor_list *inheritors;
-    zend_ulong ce_addr = ((zend_ulong)scope) << 3;
+    zend_ulong ce_addr = ((zend_ulong)scope) >> 3;
     if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
@@ -519,7 +559,7 @@ static zend_long zai_hook_request_install(zai_hook_t *hook) {
 static inline void zai_hook_register_inheritor(zend_class_entry *child, zend_class_entry *parent, bool persistent) {
     const size_t min_size = 7;
 
-    zend_ulong addr = ((zend_ulong)parent) << 3;
+    zend_ulong addr = ((zend_ulong)parent) >> 3;
     zai_hook_inheritor_list *inheritors;
     zval *inheritors_zv;
     HashTable *ht = persistent ? &zai_hook_static_inheritors : &zai_hook_tls->inheritors;
@@ -552,20 +592,24 @@ static inline void zai_hook_merge_inherited_hooks(zai_hooks_entry **hooks_entry,
     zai_hooks_entry *protoHooks;
     if ((protoHooks = zend_hash_index_find_ptr(&zai_hook_resolved, addr))) {
         zai_hooks_entry *hooks = *hooks_entry;
-        if (!hooks && !(hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(function)))) {
-            *hooks_entry = hooks = zend_hash_index_add_ptr(&zai_hook_resolved, zai_hook_install_address(function), zai_hook_alloc_hooks_entry());
-            zai_hook_resolve_hooks_entry(hooks, function);
-#if PHP_VERSION_ID >= 80200
-            // Internal functions duplicated onto userland classes share their run_time_cache with their parent function
-            zai_hook_handle_internal_duplicate_function(hooks, ce, function);
-#else
-            (void)ce;
-#endif
-        }
-
         zval *hook_zv;
         zend_ulong index;
         ZEND_HASH_FOREACH_NUM_KEY_VAL(&protoHooks->hooks, index, hook_zv) {
+            if (zai_hook_is_excluded(Z_PTR_P(hook_zv), ce)) {
+                continue;
+            }
+
+            if (!hooks && !(hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(function)))) {
+                *hooks_entry = hooks = zend_hash_index_add_ptr(&zai_hook_resolved, zai_hook_install_address(function), zai_hook_alloc_hooks_entry());
+                zai_hook_resolve_hooks_entry(hooks, function);
+#if PHP_VERSION_ID >= 80200
+                // Internal functions duplicated onto userland classes share their run_time_cache with their parent function
+                zai_hook_handle_internal_duplicate_function(hooks, ce, function);
+#else
+                (void)ce;
+#endif
+            }
+
             if ((hook_zv = zend_hash_index_add(&hooks->hooks, index, hook_zv))) {
                 zai_hook_t *hook = Z_PTR_P(hook_zv);
                 hooks->dynamic += hook->dynamic;
@@ -790,7 +834,12 @@ static inline void zai_hook_remove_shared_hook(zend_function *func, zend_ulong h
     if (hooks && hooks != base_hooks) {
         zend_hash_index_del(&hooks->hooks, hook_id);
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
-            zai_hook_entries_remove_resolved(addr);
+#if PHP_VERSION_ID >= 80200
+            if (hooks->internal_duplicate_count == 0)
+#endif
+            {
+                zai_hook_entries_remove_resolved(addr);
+            }
         }
     }
 }
@@ -798,7 +847,7 @@ static inline void zai_hook_remove_shared_hook(zend_function *func, zend_ulong h
 static void zai_hook_remove_abstract_recursive(zai_hooks_entry *base_hooks, zend_class_entry *scope, zend_string *function_name, zend_ulong hook_id) {
     // find implementers by searching through all inheritors, recursively, stopping upon finding a non-abstract implementation
     zai_hook_inheritor_list *inheritors;
-    zend_ulong ce_addr = ((zend_ulong)scope) << 3;
+    zend_ulong ce_addr = ((zend_ulong)scope) >> 3;
     if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
@@ -816,7 +865,7 @@ static void zai_hook_remove_abstract_recursive(zai_hooks_entry *base_hooks, zend
 static void zai_hook_remove_internal_inherited_recursive(zend_class_entry *scope, zend_string *function_name, zend_ulong hook_id, zif_handler handler) {
     // find implementers by searching through all inheritors, recursively, stopping upon finding an explicit override
     zai_hook_inheritor_list *inheritors;
-    zend_ulong ce_addr = ((zend_ulong)scope) << 3;
+    zend_ulong ce_addr = ((zend_ulong)scope) >> 3;
     if ((inheritors = zend_hash_index_find_ptr(&zai_hook_tls->inheritors, ce_addr))) {
         for (size_t i = inheritors->size; i--;) {
             zend_class_entry *inheritor = inheritors->inheritor[i];
@@ -863,6 +912,11 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
     uint32_t allocated_hook_count = zend_hash_num_elements(&hooks->hooks);
     if (allocated_hook_count == 0) {
         return ZAI_HOOK_SKIP;
+    }
+
+    // Ensure there's a bit of space in case arguments are going to be overridden.
+    if (!ZEND_USER_CODE(ex->func->type) && ZEND_CALL_NUM_ARGS(ex) < ex->func->common.num_args) {
+        EG(vm_stack_top) = MIN(EG(vm_stack_end), EG(vm_stack_top) + ex->func->common.num_args - ZEND_CALL_NUM_ARGS(ex));
     }
 
     size_t hook_info_size = allocated_hook_count * sizeof(zai_hook_info);
@@ -1006,7 +1060,20 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
                 }
                 zend_hash_index_del(&hooks->hooks, (zend_ulong) -hook->id);
                 if (zend_hash_num_elements(&hooks->hooks) == 0) {
-                    zai_hook_entries_remove_resolved(address);
+#if PHP_VERSION_ID >= 80200
+                    if (hooks->internal_duplicate_count == 0)
+#endif
+                    {
+#if PHP_VERSION_ID >= 80000
+                        zai_hook_last_observer = NULL;
+                        zai_hook_entries_remove_resolved(address);
+                        if (zai_hook_last_observer) {
+                            zai_hook_last_observer(ex, rv);
+                        }
+#else
+                        zai_hook_entries_remove_resolved(address);
+#endif
+                    }
                 }
             }
         }
@@ -1142,6 +1209,7 @@ zend_long zai_hook_install_resolved_generator(zend_function *function,
         .id = 0,
         .dynamic = dynamic,
         .refcount = 1,
+        .exclusions = {{ 0 }},
     };
 
     return hook->id = zai_hook_resolved_install(hook, function, function->common.scope);
@@ -1183,6 +1251,7 @@ zend_long zai_hook_install_generator(zai_str scope, zai_str function,
         .id = 0,
         .dynamic = dynamic,
         .refcount = 1,
+        .exclusions = {{ 0 }},
     };
 
     if (persistent) {
@@ -1199,6 +1268,78 @@ zend_long zai_hook_install(zai_str scope, zai_str function,
     return zai_hook_install_generator(scope, function, begin, NULL, NULL, end, aux, dynamic);
 } /* }}} */
 
+static inline void zai_hook_add_exclusion(zai_hooks_entry *hooks, zend_long index, zend_string *lc_classname) {
+    if (hooks) {
+        zai_hook_t *hook = zend_hash_index_find_ptr(&hooks->hooks, index);
+
+        if (!hook || hook->id < 0) {
+            return;
+        }
+
+        if (!hook->exclusions.arData) {
+            zend_hash_init(&hook->exclusions, 8, NULL, NULL, 0);
+        }
+
+        zend_hash_add_empty_element(&hook->exclusions, lc_classname);
+    }
+}
+
+void zai_hook_exclude_class_resolved(zai_install_address function_address, zend_long index, zend_string *lc_classname) {
+    zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, function_address);
+    if (!hooks) {
+        return;
+    }
+
+    zend_class_entry *ce = NULL;
+    zend_string *function_name = hooks->resolved->common.function_name;
+    zend_function *resolved = zai_hook_lookup_function(zai_str_from_zstr(lc_classname), zai_str_from_zstr(function_name), &ce);
+    if (!ce || !resolved) {
+        zai_hook_add_exclusion(hooks, index, lc_classname);
+        return;
+    }
+    zai_hooks_entry *excluded_hooks = zend_hash_index_find_ptr(&zai_hook_resolved, zai_hook_install_address(resolved));
+    if (!excluded_hooks) {
+        return;
+    }
+
+    zval *hook_zv = zend_hash_index_find(&excluded_hooks->hooks, index);
+    if (!hook_zv || Z_TYPE_INFO_P(hook_zv) != ZAI_IS_SHARED_HOOK_PTR) {
+        return;
+    }
+
+    zend_hash_index_del(&excluded_hooks->hooks, (zend_ulong) index);
+    if (zend_hash_num_elements(&excluded_hooks->hooks) == 0) {
+#if PHP_VERSION_ID >= 80200
+        if (excluded_hooks->internal_duplicate_count == 0)
+#endif
+        {
+            zai_hook_entries_remove_resolved((zend_ulong) function_address);
+        }
+    }
+
+    zai_hook_remove_abstract_recursive(hooks, ce, function_name, (zend_ulong) index);
+}
+
+void zai_hook_exclude_class(zai_str scope, zai_str function, zend_long index, zend_string *lc_classname) {
+    if (!function.len || !scope.len) {
+        return;
+    }
+
+    zend_class_entry *ce;
+    zend_function *resolved = zai_hook_lookup_function(scope, function, &ce);
+    if (resolved) {
+        zai_hook_exclude_class_resolved(zai_hook_install_address(resolved), index, lc_classname);
+        return;
+    }
+
+    HashTable *base_ht = zend_hash_str_find_ptr_lc(&zai_hook_tls->request_classes, scope.ptr, scope.len);
+    if (!base_ht) {
+        return;
+    }
+    zai_hooks_entry *hooks = zend_hash_str_find_ptr_lc(base_ht, function.ptr, function.len);
+    zai_hook_add_exclusion(hooks, index, lc_classname);
+}
+
 bool zai_hook_remove_resolved(zai_install_address function_address, zend_long index) {
     zai_hooks_entry *hooks = zend_hash_index_find_ptr(&zai_hook_resolved, function_address);
     if (hooks) {
@@ -1207,7 +1348,12 @@ bool zai_hook_remove_resolved(zai_install_address function_address, zend_long in
         }
 
         if (zend_hash_num_elements(&hooks->hooks) == 0) {
-            zai_hook_entries_remove_resolved(function_address);
+#if PHP_VERSION_ID >= 80200
+            if (hooks->internal_duplicate_count == 0)
+#endif
+            {
+                zai_hook_entries_remove_resolved(function_address);
+            }
         }
 
         return true;

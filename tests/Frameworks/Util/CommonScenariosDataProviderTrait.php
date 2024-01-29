@@ -46,6 +46,11 @@ trait CommonScenariosDataProviderTrait
         if ($i !== false) {
             unset($unexpectedRequest[$i]);
         }
+        //Only available in frameworks implementing http.route
+        $i = array_search('A GET request to a route with a parameter', $unexpectedRequest, true);
+        if ($i !== false) {
+            unset($unexpectedRequest[$i]);
+        }
         if ($unexpectedRequest) {
             throw new \Exception(
                 'Found the following scenarios not having any expectation defined: '

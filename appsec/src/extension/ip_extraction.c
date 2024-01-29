@@ -53,7 +53,6 @@ typedef enum _priority_header_id {
 static header_map_node priority_header_map[MAX_HEADER_ID];
 
 static zend_string *nonnull _remote_addr_key;
-static THREAD_LOCAL_ON_ZTS zend_string *nullable client_ip;
 
 static void _register_testing_objects(void);
 static zend_string *nullable _fetch_arr_str(
@@ -195,27 +194,6 @@ zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
     return _try_extract(server, _remote_addr_key, &_parse_plain_raw);
 }
 
-void dd_ip_extraction_rinit(void)
-{
-    zval *_server =
-        dd_php_get_autoglobal(TRACK_VARS_SERVER, LSTRARG("_SERVER"));
-    if (!_server) {
-        mlog(dd_log_info, "No SERVER autoglobal available");
-        return;
-    }
-    client_ip = dd_ip_extraction_find(_server);
-}
-
-void dd_ip_extraction_rshutdown(void)
-{
-    if (client_ip) {
-        zend_string_release(client_ip);
-        client_ip = NULL;
-    }
-}
-
-zend_string *nullable dd_ip_extraction_get_ip() { return client_ip; }
-
 static zend_string *_try_extract(const zval *nonnull server,
     zend_string *nonnull key, extract_func_t nonnull extract_func)
 {
@@ -291,7 +269,7 @@ static bool _parse_forwarded(zend_string *nonnull zvalue, ipaddr *nonnull out)
     } state = between;
     const char *r = ZSTR_VAL(zvalue);
     const char *end = r + ZSTR_LEN(zvalue);
-    const char *start;
+    const char *start = r; // meaningless assignment to satisfy static analysis
     bool consider_value = false;
 
     // https://datatracker.ietf.org/doc/html/rfc7239#section-4

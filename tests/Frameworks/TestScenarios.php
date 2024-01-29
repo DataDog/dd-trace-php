@@ -17,6 +17,7 @@ class TestScenarios
             )->expectStatusCode(500),
             GetSpec::create('A GET request to a missing route', '/does_not_exist?key=value&pwd=should_redact'),
             GetSpec::create('A GET request to a dynamic route returning a string', '/dynamic_route/dynamic01/static/dynamic02'),
+            GetSpec::create('A GET request to a route with a parameter', '/parameterized/paramValue'),
         ];
     }
 }

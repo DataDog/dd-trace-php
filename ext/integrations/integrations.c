@@ -158,7 +158,22 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "Dispatcher", "__construct",
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "exec",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "system",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "passthru",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "shell_exec",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "popen",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "proc_open",
+                                         "DDTrace\\Integrations\\Exec\\ExecIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_exec",
+                                           "DDTrace\\Integrations\\Curl\\CurlIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_multi_exec",
                                            "DDTrace\\Integrations\\Curl\\CurlIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_DRUPAL, "Drupal\\Core\\DrupalKernel", "__construct",
@@ -184,6 +199,8 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "init",
                                          "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "bootstrap",
+                                             "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "__construct",
                                          "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
 
@@ -195,6 +212,10 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LUMEN, "Laravel\\Lumen\\Application", "__construct",
                                          "DDTrace\\Integrations\\Lumen\\LumenIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MAGENTO, "Magento\\Framework\\App\\Bootstrap", "__construct",
+                                         "DDTrace\\Integrations\\Magento\\MagentoIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MAGENTO, "Magento\\Framework\\Console\\Cli", "__construct",
+                                         "DDTrace\\Integrations\\Magento\\MagentoIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHE, "Memcache", "connect",
                                          "DDTrace\\Integrations\\Memcache\\MemcacheIntegration");
@@ -305,6 +326,8 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Symfony\\Component\\HttpKernel\\HttpKernel", "__construct",
                                          "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Magento\\Framework\\Console\\Cli", "__construct",
+                                             "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Drupal\\Core\\DrupalKernel", "__construct",
                                              "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
 

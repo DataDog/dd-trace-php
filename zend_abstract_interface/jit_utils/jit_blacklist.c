@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include "jit_blacklist.h"
 #include "zend_extensions.h"
 #include <Zend/zend_types.h>
@@ -130,40 +131,41 @@ static inline bool check_pointer_near(void *a, void *b) {
 }
 #endif
 
-void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
-    if (zend_func_info_rid < 0) {
+int zai_get_zend_func_rid(zend_op_array *op_array) {
 #if PHP_VERSION_ID < 80100
-        if (zend_func_info_rid == -2) {
-            if (!opcache_handle) {
-                zai_jit_func_info_rid = -1;
-            } else {
-                // On PHP 8.0 we impossibly can get hold of zend_func_info_rid.
-                // We determine it on our own heuristically, assuming:
-                // a) The zend_func_info_rid is allocated in shared memory.
-                // b) The op_array data is also allocated in shared memory, and thus relatively near.
-                // c) The first matching pointer in op_array->reserved is the zend_func_info_rid.
-                // d) "Normal" memory, like the VM stack is far away
+    if (zend_func_info_rid == -2) {
+        if (!opcache_handle) {
+            zai_jit_func_info_rid = -1;
+        } else {
+            // On PHP 8.0 we impossibly can get hold of zend_func_info_rid.
+            // We determine it on our own heuristically, assuming:
+            // a) The zend_func_info_rid is allocated in shared memory.
+            // b) The op_array data is also allocated in shared memory, and thus relatively near.
+            // c) The first matching pointer in op_array->reserved is the zend_func_info_rid.
+            // d) "Normal" memory, like the VM stack is far away
 
-                if (check_pointer_near(op_array->arg_info, EG(vm_stack))) {
-                    // This function does not seem JITted
-                    return;
-                }
+            if (check_pointer_near(op_array->arg_info, EG(vm_stack))) {
+                // This function does not seem JITted
+                return -1;
+            }
 
-                for (int i = 0; i < ZEND_MAX_RESERVED_RESOURCES; ++i) {
-                    if (check_pointer_near(op_array->reserved, op_array->arg_info)) {
-                        zend_func_info_rid = i;
-                        break;
-                    }
+            for (int i = 0; i < ZEND_MAX_RESERVED_RESOURCES; ++i) {
+                if (check_pointer_near(op_array->reserved, op_array->arg_info)) {
+                    return (zend_func_info_rid = i);
                 }
             }
         }
-        if (zend_func_info_rid < 0) {
-            return;
-        }
-#else
-        return;
-#endif
     }
+#endif
+    (void)op_array;
+    return zend_func_info_rid;
+}
+
+void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
+    if (zai_get_zend_func_rid(op_array) < 0) {
+        return;
+    }
+    // now in PHP < 8.1, zend_func_info_rid is set
 
     zend_jit_op_array_trace_extension *jit_extension = (zend_jit_op_array_trace_extension *)ZEND_FUNC_INFO(op_array);
     if (!jit_extension) {

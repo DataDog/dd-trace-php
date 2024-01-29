@@ -51,13 +51,18 @@ A clone of the primary trace has the root stack as parent: bool(true)
 Switching to an initial stacks parent has no effect: bool(true)
 spans(\DDTrace\SpanData) (5) {
   primary (span_stack_clone.php, primary, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
+    _dd.p.tid => %s
   root (span_stack_clone.php, root, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
+    _dd.p.tid => %s
   root clone (span_stack_clone.php, root clone, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
+    _dd.p.tid => %s
   primary clone (span_stack_clone.php, primary clone, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
+    _dd.p.tid => %s
   initial clone (span_stack_clone.php, initial clone, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
+    _dd.p.tid => %s
 }

@@ -45,4 +45,10 @@ return function (App $app) {
     $app->get('/error', function (Request $request, Response $response, $args) {
         throw new \Exception('Foo error');
     });
+
+    $app->get('/parameterized/{value}', function (Request $request, Response $response, $args) {
+        $value = $args['value'];
+        $response->getBody()->write("Hello, $value");
+        return $response;
+    });
 };

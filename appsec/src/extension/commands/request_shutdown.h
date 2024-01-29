@@ -7,5 +7,21 @@
 
 #include "../network.h"
 #include "../attributes.h"
+#include "../commands_ctx.h"
+#include <Zend/zend_llist.h>
 
-dd_result dd_request_shutdown(dd_conn *nonnull conn);
+struct req_shutdown_info {
+    struct req_info req_info;
+    int status_code;
+    enum {
+        RESP_HEADERS_LLIST,
+        RESP_HEADERS_MAP_STRING_LIST,
+    } resp_headers_fmt;
+    union {
+        zend_llist *nonnull resp_headers_llist;
+        const zend_array *nonnull resp_headers_arr;
+    };
+};
+
+dd_result dd_request_shutdown(
+    dd_conn *nonnull conn, struct req_shutdown_info *nonnull req_info);

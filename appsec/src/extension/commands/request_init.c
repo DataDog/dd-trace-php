@@ -21,12 +21,14 @@
 #include <mpack.h>
 #include <zend_string.h>
 
-static dd_result _request_pack(
-    mpack_writer_t *nonnull w, void *nullable ATTR_UNUSED ctx);
+static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
 static void _init_autoglobals(void);
-static void _pack_headers(mpack_writer_t *nonnull w);
-static void _pack_filenames(mpack_writer_t *nonnull w);
-static void _pack_files_field_names(mpack_writer_t *nonnull w);
+static void _pack_headers(
+    mpack_writer_t *nonnull w, const zend_array *nonnull server);
+static void _pack_filenames(
+    mpack_writer_t *nonnull w, const zend_array *nonnull files);
+static void _pack_files_field_names(
+    mpack_writer_t *nonnull w, const zend_array *nonnull files);
 static void _pack_path_params(
     mpack_writer_t *nonnull w, const zend_string *nullable uri_raw);
 
@@ -39,15 +41,15 @@ static const dd_command_spec _spec = {
     .config_features_cb = dd_command_process_config_features,
 };
 
-dd_result dd_request_init(dd_conn *nonnull conn)
+dd_result dd_request_init(
+    dd_conn *nonnull conn, struct req_info_init *nonnull ctx)
 {
-    return dd_command_exec(conn, &_spec, NULL);
+    return dd_command_exec(conn, &_spec, ctx);
 }
 
-static dd_result _request_pack(
-    mpack_writer_t *nonnull w, void *nullable ATTR_UNUSED ctx)
+static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
 {
-    UNUSED(ctx);
+    struct req_info_init *nonnull ctx = _ctx;
 
     bool send_raw_body = get_global_DD_APPSEC_TESTING() &&
                          get_global_DD_APPSEC_TESTING_RAW_BODY();
@@ -63,45 +65,54 @@ static dd_result _request_pack(
 
     // 1.
     dd_mpack_write_lstr(w, "server.request.query");
-    dd_mpack_write_zval(
-        w, dd_php_get_autoglobal(TRACK_VARS_GET, ZEND_STRL("_GET")));
+    dd_mpack_write_array(w, dd_get_superglob_or_equiv(ZEND_STRL("_GET"),
+                                TRACK_VARS_GET, ctx->superglob_equiv));
 
     // 2.
+    const zend_array *nonnull server = dd_get_superglob_or_equiv(
+        ZEND_STRL("_SERVER"), TRACK_VARS_SERVER, ctx->superglob_equiv);
     dd_mpack_write_lstr(w, "server.request.method");
-    mpack_write(w, request_info->request_method);
+    if (ctx->superglob_equiv) {
+        dd_mpack_write_nullable_zstr(w,
+            dd_php_get_string_elem_cstr(server, ZEND_STRL("REQUEST_METHOD")));
+    } else {
+        mpack_write(w, request_info->request_method);
+    }
 
     // Pack data from server global
-    _init_autoglobals();
+    if (!ctx->superglob_equiv) {
+        _init_autoglobals();
+    }
 
     // 3.
     dd_mpack_write_lstr(w, "server.request.cookies");
-    dd_mpack_write_zval(
-        w, dd_php_get_autoglobal(TRACK_VARS_COOKIE, ZEND_STRL("_COOKIE")));
+    dd_mpack_write_array(w, dd_get_superglob_or_equiv(ZEND_STRL("_COOKIE"),
+                                TRACK_VARS_COOKIE, ctx->superglob_equiv));
 
     // 4.
-    zval *nullable server_ag =
-        dd_php_get_autoglobal(TRACK_VARS_SERVER, ZEND_STRL("_SERVER"));
     const zend_string *nullable request_uri =
-        dd_php_get_string_elem_cstr(server_ag, ZEND_STRL("REQUEST_URI"));
+        dd_php_get_string_elem_cstr(server, ZEND_STRL("REQUEST_URI"));
     dd_mpack_write_lstr(w, "server.request.uri.raw");
     dd_mpack_write_nullable_zstr(w, request_uri);
 
     // 5.
     dd_mpack_write_lstr(w, "server.request.headers.no_cookies");
-    _pack_headers(w);
+    _pack_headers(w, server);
 
     // 6.
     dd_mpack_write_lstr(w, "server.request.body");
-    dd_mpack_write_zval(
-        w, dd_php_get_autoglobal(TRACK_VARS_POST, ZEND_STRL("_POST")));
+    dd_mpack_write_array(w, dd_get_superglob_or_equiv(ZEND_STRL("_POST"),
+                                TRACK_VARS_POST, ctx->superglob_equiv));
 
     // 7.
+    const zend_array *nonnull files = dd_get_superglob_or_equiv(
+        ZEND_STRL("_FILES"), TRACK_VARS_FILES, ctx->superglob_equiv);
     dd_mpack_write_lstr(w, "server.request.body.filenames");
-    _pack_filenames(w);
+    _pack_filenames(w, files);
 
     // 8.
     dd_mpack_write_lstr(w, "server.request.body.files_field_names");
-    _pack_files_field_names(w);
+    _pack_files_field_names(w, files);
 
     // 9.
     dd_mpack_write_lstr(w, "server.request.path_params");
@@ -109,10 +120,10 @@ static dd_result _request_pack(
 
     // 10.
     dd_mpack_write_lstr(w, "http.client_ip");
-    dd_mpack_write_nullable_zstr(w, dd_ip_extraction_get_ip());
+    dd_mpack_write_nullable_zstr(w, ctx->req_info.client_ip);
 
     // 11.
-    if (send_raw_body) {
+    if (send_raw_body && !ctx->superglob_equiv) {
         dd_mpack_write_lstr(w, "server.request.body.raw");
         zend_string *nonnull req_body =
             dd_request_body_buffered(DD_MAX_REQ_BODY_TO_BUFFER);
@@ -150,28 +161,17 @@ static zend_string *_transform_header_name(const zend_string *orig)
     dd_string_normalize_header2(rp, wp, header_len);
     return ret;
 }
-static void _pack_headers(mpack_writer_t *nonnull w)
+static void _pack_headers(
+    mpack_writer_t *nonnull w, const zend_array *nonnull server)
 {
-    zval *server =
-        dd_php_get_autoglobal(TRACK_VARS_SERVER, ZEND_STRL("_SERVER"));
-    if (server == NULL) {
-        mpack_start_map(w, 0);
-        mpack_finish_map(w);
-        return;
-    }
-
     mpack_build_map(w);
 
     // Pack headers
     zend_string *key;
     zval *val;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(server), key, val)
+    ZEND_HASH_FOREACH_STR_KEY_VAL((zend_array *)server, key, val)
     {
         if (!key) {
-            continue;
-        }
-
-        if (Z_TYPE_P(val) != IS_STRING) {
             continue;
         }
 
@@ -179,7 +179,7 @@ static void _pack_headers(mpack_writer_t *nonnull w)
             zend_string *transf_header_name = _transform_header_name(key);
             dd_mpack_write_zstr(w, transf_header_name);
             zend_string_efree(transf_header_name);
-            dd_mpack_write_zstr(w, Z_STR_P(val));
+            dd_mpack_write_zval(w, val);
         }
     }
     ZEND_HASH_FOREACH_END();
@@ -187,19 +187,13 @@ static void _pack_headers(mpack_writer_t *nonnull w)
     mpack_complete_map(w);
 }
 
-static void _pack_filenames(mpack_writer_t *nonnull w)
+static void _pack_filenames(
+    mpack_writer_t *nonnull w, const zend_array *nonnull files)
 {
-    zval *files = dd_php_get_autoglobal(TRACK_VARS_FILES, ZEND_STRL("_FILES"));
-    if (!files) {
-        mpack_start_array(w, 0);
-        mpack_finish_array(w);
-        return;
-    }
-
     mpack_build_array(w);
 
     zval *val;
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(files), val)
+    ZEND_HASH_FOREACH_VAL((zend_array *)files, val)
     {
         if (!val || Z_TYPE_P(val) != IS_ARRAY) {
             continue;
@@ -217,20 +211,14 @@ static void _pack_filenames(mpack_writer_t *nonnull w)
     mpack_complete_array(w);
 }
 
-static void _pack_files_field_names(mpack_writer_t *nonnull w)
+static void _pack_files_field_names(
+    mpack_writer_t *nonnull w, const zend_array *nonnull files)
 {
-    zval *files = dd_php_get_autoglobal(TRACK_VARS_FILES, ZEND_STRL("_FILES"));
-    if (!files) {
-        mpack_start_array(w, 0);
-        mpack_finish_array(w);
-        return;
-    }
-
     mpack_build_array(w);
 
     zend_ulong key_i;
     zend_string *key_s;
-    ZEND_HASH_FOREACH_KEY(Z_ARRVAL_P(files), key_i, key_s)
+    ZEND_HASH_FOREACH_KEY((zend_array *)files, key_i, key_s)
     {
         if (key_s) {
             dd_mpack_write_zstr(w, key_s);

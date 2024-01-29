@@ -111,7 +111,7 @@ array(5) {
     ["type"]=>
     string(7) "BarType"
     ["meta"]=>
-    array(6) {
+    array(7) {
       ["runtime-id"]=>
       string(36) "%s"
       ["args.0"]=>
@@ -123,7 +123,9 @@ array(5) {
       ["retval.rand"]=>
       string(%d) "%d"
       ["_dd.p.dm"]=>
-      string(2) "-1"
+      string(2) "-0"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(6) {
@@ -133,7 +135,7 @@ array(5) {
       float(1.2)
       ["bar"]=>
       float(25)
-      ["_dd.rule_psr"]=>
+      ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
@@ -142,7 +144,7 @@ array(5) {
     }
   }
   [1]=>
-  array(9) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -161,9 +163,14 @@ array(5) {
     string(29) "dd_trace_function_complex.php"
     ["type"]=>
     string(3) "cli"
+    ["meta"]=>
+    array(1) {
+      ["_dd.base_service"]=>
+      string(10) "BarService"
+    }
   }
   [2]=>
-  array(9) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -182,6 +189,11 @@ array(5) {
     string(29) "dd_trace_function_complex.php"
     ["type"]=>
     string(3) "cli"
+    ["meta"]=>
+    array(1) {
+      ["_dd.base_service"]=>
+      string(10) "BarService"
+    }
   }
   [3]=>
   array(10) {
@@ -202,17 +214,19 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["runtime-id"]=>
       string(36) "%s"
       ["_dd.p.dm"]=>
-      string(2) "-1"
+      string(2) "-0"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {
       ["process_id"]=>
       float(%f)
-      ["_dd.rule_psr"]=>
+      ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
@@ -239,17 +253,19 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["runtime-id"]=>
       string(36) "%s"
       ["_dd.p.dm"]=>
-      string(2) "-1"
+      string(2) "-0"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {
       ["process_id"]=>
       float(%f)
-      ["_dd.rule_psr"]=>
+      ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)

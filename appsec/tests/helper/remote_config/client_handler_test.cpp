@@ -5,20 +5,12 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "../common.hpp"
+#include "mocks.hpp"
 #include "remote_config/client_handler.hpp"
 
 namespace dds {
 
 namespace mock {
-class client : public remote_config::client {
-public:
-    client(service_identifier &&sid)
-        : remote_config::client(nullptr, std::move(sid), {})
-    {}
-    ~client() = default;
-    MOCK_METHOD0(poll, bool());
-    MOCK_METHOD0(is_remote_config_available, bool());
-};
 
 class client_handler : public remote_config::client_handler {
 public:
@@ -97,19 +89,6 @@ TEST_F(ClientHandlerTest, RuntimeIdIsNotGeneratedIfProvided)
                                  .runtime_id.c_str());
 }
 
-TEST_F(ClientHandlerTest, RuntimeIdIsGeneratedWhenNotProvided)
-{
-    id.runtime_id.clear();
-
-    EXPECT_TRUE(id.runtime_id.empty());
-    auto client_handler = remote_config::client_handler::from_settings(
-        dds::service_identifier(id), settings, service_config, rc_settings,
-        engine, false);
-    EXPECT_FALSE(client_handler->get_client()
-                     ->get_service_identifier()
-                     .runtime_id.empty());
-}
-
 TEST_F(ClientHandlerTest, AsmFeatureProductIsAddeWhenDynamicEnablement)
 {
     auto dynamic_enablement = true;
@@ -181,8 +160,7 @@ TEST_F(ClientHandlerTest, ValidateRCThread)
     std::promise<bool> available_call_promise;
     auto available_call_future = available_call_promise.get_future();
 
-    auto rc_client =
-        std::make_unique<mock::client>(dds::service_identifier(sid));
+    auto rc_client = std::make_unique<remote_config::mock::client>(sid);
     EXPECT_CALL(*rc_client, is_remote_config_available)
         .Times(1)
         .WillOnce(DoAll(SignalCall(&available_call_promise), Return(true)));
@@ -202,8 +180,8 @@ TEST_F(ClientHandlerTest, ValidateRCThread)
 
 TEST_F(ClientHandlerTest, WhenRcNotAvailableItKeepsDiscovering)
 {
-    auto rc_client =
-        std::make_unique<mock::client>(dds::service_identifier(sid));
+    auto rc_client = std::make_unique<remote_config::mock::client>(
+        dds::service_identifier(sid));
     EXPECT_CALL(*rc_client, is_remote_config_available)
         .Times(2)
         .WillOnce(Return(false))
@@ -219,8 +197,8 @@ TEST_F(ClientHandlerTest, WhenRcNotAvailableItKeepsDiscovering)
 
 TEST_F(ClientHandlerTest, WhenPollFailsItGoesBackToDiscovering)
 {
-    auto rc_client =
-        std::make_unique<mock::client>(dds::service_identifier(sid));
+    auto rc_client = std::make_unique<remote_config::mock::client>(
+        dds::service_identifier(sid));
     EXPECT_CALL(*rc_client, is_remote_config_available)
         .Times(2)
         .WillOnce(Return(true))
@@ -238,8 +216,8 @@ TEST_F(ClientHandlerTest, WhenPollFailsItGoesBackToDiscovering)
 
 TEST_F(ClientHandlerTest, WhenDiscoverFailsItStaysOnDiscovering)
 {
-    auto rc_client =
-        std::make_unique<mock::client>(dds::service_identifier(sid));
+    auto rc_client = std::make_unique<remote_config::mock::client>(
+        dds::service_identifier(sid));
     EXPECT_CALL(*rc_client, is_remote_config_available)
         .Times(3)
         .WillOnce(Return(false))
@@ -257,8 +235,8 @@ TEST_F(ClientHandlerTest, WhenDiscoverFailsItStaysOnDiscovering)
 
 TEST_F(ClientHandlerTest, ItKeepsPollingWhileNoError)
 {
-    auto rc_client =
-        std::make_unique<mock::client>(dds::service_identifier(sid));
+    auto rc_client = std::make_unique<remote_config::mock::client>(
+        dds::service_identifier(sid));
     EXPECT_CALL(*rc_client, is_remote_config_available)
         .Times(1)
         .WillOnce(Return(true));
@@ -286,8 +264,8 @@ TEST_F(ClientHandlerTest, ItDoesNotStartIfNoRcClientGiven)
 
 TEST_F(ClientHandlerTest, ItDoesNotGoOverMaxIfGivenInitialIntervalIsLower)
 {
-    auto rc_client =
-        std::make_unique<mock::client>(dds::service_identifier(sid));
+    auto rc_client = std::make_unique<remote_config::mock::client>(
+        dds::service_identifier(sid));
     EXPECT_CALL(*rc_client, is_remote_config_available)
         .Times(3)
         .WillRepeatedly(Return(false));
@@ -307,8 +285,8 @@ TEST_F(ClientHandlerTest, ItDoesNotGoOverMaxIfGivenInitialIntervalIsLower)
 
 TEST_F(ClientHandlerTest, IfInitialIntervalIsHigherThanMaxItBecomesNewMax)
 {
-    auto rc_client =
-        std::make_unique<mock::client>(dds::service_identifier(sid));
+    auto rc_client = std::make_unique<remote_config::mock::client>(
+        dds::service_identifier(sid));
     EXPECT_CALL(*rc_client, is_remote_config_available)
         .Times(3)
         .WillRepeatedly(Return(false));
@@ -328,12 +306,26 @@ TEST_F(ClientHandlerTest, IfInitialIntervalIsHigherThanMaxItBecomesNewMax)
 
 TEST_F(ClientHandlerTest, ByDefaultMaxIntervalisFiveMinutes)
 {
-    auto rc_client =
-        std::make_unique<mock::client>(dds::service_identifier(sid));
+    auto rc_client = std::make_unique<remote_config::mock::client>(
+        dds::service_identifier(sid));
     auto client_handler =
         mock::client_handler(std::move(rc_client), service_config, 200ms);
 
     EXPECT_EQ(5min, client_handler.get_max_interval());
+}
+
+TEST_F(ClientHandlerTest, RegisterAndUnregisterRuntimeID)
+{
+    auto rc_client = std::make_unique<remote_config::mock::client>(
+        dds::service_identifier(sid));
+    EXPECT_CALL(*rc_client, register_runtime_id).Times(1);
+    EXPECT_CALL(*rc_client, unregister_runtime_id).Times(1);
+
+    auto client_handler = remote_config::client_handler(
+        std::move(rc_client), service_config, 200ms);
+
+    client_handler.register_runtime_id("something");
+    client_handler.unregister_runtime_id("something");
 }
 
 } // namespace dds

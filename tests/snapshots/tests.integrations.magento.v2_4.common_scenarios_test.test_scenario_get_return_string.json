@@ -1,0 +1,316 @@
+[[
+  {
+    "name": "magento.request",
+    "service": "magento",
+    "resource": "datadog/simple/index",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 14534241447673934000,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "component": "magento",
+      "http.method": "GET",
+      "http.status_code": "200",
+      "http.url": "http://localhost:9999/datadog/simple/index?key=value&<redacted>",
+      "magento.area": "frontend",
+      "magento.cached": "false",
+      "magento.frontname": "datadog",
+      "magento.pathinfo": "datadog/simple/index",
+      "magento.route": "datadog",
+      "runtime-id": "c15034b7-2c1a-418f-8202-6e0b16062d84",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "magento.bootstrap",
+       "service": "magento",
+       "resource": "magento.bootstrap",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "magento"
+       }
+     },
+     {
+       "name": "magento.create.application",
+       "service": "magento",
+       "resource": "Magento\\Framework\\App\\Http",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "magento"
+       }
+     },
+     {
+       "name": "magento.launch",
+       "service": "magento",
+       "resource": "Magento\\Framework\\App\\Http",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "magento"
+       }
+     },
+        {
+          "name": "magento.area.get",
+          "service": "magento",
+          "resource": "datadog:frontend",
+          "trace_id": 0,
+          "span_id": 6,
+          "parent_id": 4,
+          "type": "web",
+          "meta": {
+            "component": "magento",
+            "magento.area": "frontend",
+            "magento.frontname": "datadog"
+          }
+        },
+        {
+          "name": "magento.dispatch",
+          "service": "magento",
+          "resource": "Magento\\Framework\\App\\FrontController",
+          "trace_id": 0,
+          "span_id": 7,
+          "parent_id": 4,
+          "type": "web",
+          "meta": {
+            "component": "magento"
+          }
+        },
+           {
+             "name": "magento.urlrewrite.match",
+             "service": "magento",
+             "resource": "magento.urlrewrite.match",
+             "trace_id": 0,
+             "span_id": 10,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "magento",
+               "magento.urlrewrite.path": "/datadog/simple/index"
+             }
+           },
+           {
+             "name": "magento.router.match",
+             "service": "magento",
+             "resource": "datadog/simple/index",
+             "trace_id": 0,
+             "span_id": 11,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "magento",
+               "magento.router.action": "index",
+               "magento.router.controller": "simple",
+               "magento.router.controller_module": "CustomElement_Datadog",
+               "magento.router.frontname": "datadog",
+               "magento.router.module": "datadog",
+               "magento.router.route": "datadog"
+             }
+           },
+           {
+             "name": "magento.process.request",
+             "service": "magento",
+             "resource": "Magento\\Framework\\App\\FrontController",
+             "trace_id": 0,
+             "span_id": 12,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "magento",
+               "magento.action": "Magento\\Framework\\Controller\\Result\\Raw"
+             }
+           },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Customer\\Observer\\Visitor\\InitByRequestObserver",
+                "trace_id": 0,
+                "span_id": 13,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\NewRelicReporting\\Model\\Observer\\ReportConcurrentUsers",
+                "trace_id": 0,
+                "span_id": 14,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\NewRelicReporting\\Model\\Observer\\ReportConcurrentUsersToNewRelic",
+                "trace_id": 0,
+                "span_id": 15,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Persistent\\Observer\\SynchronizePersistentInfoObserver",
+                "trace_id": 0,
+                "span_id": 16,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Persistent\\Observer\\EmulateQuoteObserver",
+                "trace_id": 0,
+                "span_id": 17,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Persistent\\Observer\\RenewCookieObserver",
+                "trace_id": 0,
+                "span_id": 18,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Persistent\\Observer\\CheckExpirePersistentQuoteObserver",
+                "trace_id": 0,
+                "span_id": 19,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Persistent\\Observer\\EmulateCustomerObserver",
+                "trace_id": 0,
+                "span_id": 20,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_predispatch"
+                }
+              },
+              {
+                "name": "magento.action.dispatch",
+                "service": "magento",
+                "resource": "datadog/simple/index",
+                "trace_id": 0,
+                "span_id": 21,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.action": "index",
+                  "magento.controller": "simple",
+                  "magento.frontname": "datadog",
+                  "magento.module": "datadog",
+                  "magento.route": "datadog"
+                }
+              },
+                 {
+                   "name": "magento.controller.execute",
+                   "service": "magento",
+                   "resource": "CustomElement\\Datadog\\Controller\\Simple\\Index",
+                   "trace_id": 0,
+                   "span_id": 23,
+                   "parent_id": 21,
+                   "type": "web",
+                   "meta": {
+                     "component": "magento"
+                   }
+                 },
+              {
+                "name": "magento.event.execute",
+                "service": "magento",
+                "resource": "Magento\\Customer\\Observer\\Visitor\\SaveByRequestObserver",
+                "trace_id": 0,
+                "span_id": 22,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "magento",
+                  "magento.event.name": "controller_action_postdispatch"
+                }
+              },
+        {
+          "name": "magento.result.render",
+          "service": "magento",
+          "resource": "Magento\\Framework\\Controller\\Result\\Raw",
+          "trace_id": 0,
+          "span_id": 8,
+          "parent_id": 4,
+          "type": "web",
+          "meta": {
+            "component": "magento"
+          }
+        },
+        {
+          "name": "magento.event.execute",
+          "service": "magento",
+          "resource": "Magento\\Csp\\Observer\\Render",
+          "trace_id": 0,
+          "span_id": 9,
+          "parent_id": 4,
+          "type": "web",
+          "meta": {
+            "component": "magento",
+            "magento.event.name": "controller_front_send_response_before"
+          }
+        },
+     {
+       "name": "magento.response.send",
+       "service": "magento",
+       "resource": "magento.response.send",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "magento"
+       }
+     }]]

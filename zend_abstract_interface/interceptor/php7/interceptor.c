@@ -176,6 +176,14 @@ static inline int zai_interceptor_ext_nop_handler_no_prev(zend_execute_data *exe
                 frame_memory.execute_data = execute_data;
                 frame_memory.implicit = false;
                 zai_hook_memory_table_insert(execute_data, &frame_memory);
+
+                if (&execute_data->func->op_array != op_array) {
+                    // the code was changed, so instead of executing the original handler of
+                    // opline->opcode (gotten via zend_vm_get_opcode_handler_func),
+                    // we return ZEND_USER_OPCODE_CONTINUE so that user opcode handler
+                    // of the new execute_data->opline is executed
+                    return ZEND_USER_OPCODE_CONTINUE;
+                }
             }
         }
     }
@@ -184,8 +192,13 @@ static inline int zai_interceptor_ext_nop_handler_no_prev(zend_execute_data *exe
 }
 
 static int zai_interceptor_ext_nop_handler(zend_execute_data *execute_data) {
-    zai_interceptor_ext_nop_handler_no_prev(execute_data);
-    return prev_ext_nop_handler(execute_data);
+    int our_ret = zai_interceptor_ext_nop_handler_no_prev(execute_data);
+    int their_ret = prev_ext_nop_handler(execute_data);
+    zend_op_array *prev_op_array = &execute_data->func->op_array;
+    if (their_ret == ZEND_USER_OPCODE_DISPATCH && our_ret == ZEND_USER_OPCODE_CONTINUE && &execute_data->func->op_array == prev_op_array) {
+        return our_ret;
+    }
+    return their_ret;
 }
 
 static inline zval *zai_interceptor_get_zval_ptr(const zend_op *opline, int op_type, const znode_op *node, const zend_execute_data *execute_data) {

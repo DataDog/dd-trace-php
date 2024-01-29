@@ -46,4 +46,4 @@ bool(true)
 datadog-meta-lang: php
 
 Done.
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

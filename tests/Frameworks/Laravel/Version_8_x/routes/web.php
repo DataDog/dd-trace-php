@@ -33,6 +33,7 @@ Route::get('not-implemented', [InternalErrorController::class, 'notImplemented']
 Route::get('unauthorized', [InternalErrorController::class, 'unauthorized'])->name('unauthorized');
 Route::get('queue/batch', [QueueTestController::class, 'batch']);
 Route::get('queue/batchDefault', [QueueTestController::class, 'batchDefault']);
+Route::get('queue/broadcast', [QueueTestController::class, 'broadcast'])->name('broadcast');
 Route::get('queue/create', [QueueTestController::class, 'create']);
 Route::get('queue/jobFailure', [QueueTestController::class, 'jobFailure']);
 Route::get('queue/workOn', [QueueTestController::class, 'workOn']);

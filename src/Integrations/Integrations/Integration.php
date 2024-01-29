@@ -167,13 +167,19 @@ abstract class Integration
         if ($flatServiceNames) {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan) {
-                $span->service = $rootSpan->service;
+                $service = $rootSpan->service;
             } else {
-                $span->service = \ddtrace_config_app_name($fallbackName);
+                $service = \ddtrace_config_app_name($fallbackName);
             }
         } else {
-            $span->service = $fallbackName;
+            $service = $fallbackName;
         }
+
+        $mapping = \dd_trace_env_config('DD_SERVICE_MAPPING');
+        if (isset($mapping[$service])) {
+            $service = $mapping[$service];
+        }
+        $span->service = $service;
     }
 }
 

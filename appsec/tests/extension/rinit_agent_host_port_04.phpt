@@ -5,6 +5,7 @@ datadog.agent_host=1.2.3.4
 datadog.trace.agent_port=567
 --ENV--
 DD_TRACE_AGENT_PORT=
+DD_AGENT_HOST=
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};

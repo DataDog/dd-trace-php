@@ -55,6 +55,14 @@ namespace DDTrace {
          * @return mixed
          */
         public function jsonSerialize(): mixed {}
+
+        /**
+         * Consumes distributed tracing headers, from which a span link will be constructed.
+         *
+         * @param array|callable(string):mixed $headersOrCallback Either an array with a lowercase header to value mapping,
+         * or a callback, which given a header name for distributed tracing, returns the value it should be updated to.
+         */
+        public static function fromHeaders(array|callable $headersOrCallback): SpanLink {}
     }
 
     class SpanData {
@@ -128,7 +136,7 @@ namespace DDTrace {
         public function getDuration(): int {}
 
         /**
-         * @return int Get the start time of the span
+         * @return int Get the start time of the span, in nanoseconds
          */
         public function getStartTime(): int {}
 
@@ -136,6 +144,59 @@ namespace DDTrace {
          * @return SpanLink Get a pre-populated SpanLink object with the current span's trace and span IDs
          */
         public function getLink(): SpanLink {}
+
+        /**
+         * @return Returns the span id as zero-padded 16 character hexadecimal string.
+         */
+        public function hexId(): string {}
+    }
+
+    class RootSpanData extends SpanData {
+        /**
+         * @var string The origin site of the trace. Propagated through distributed tracing by default.
+         */
+        public string $origin;
+
+        /**
+         * @var array A hashset of keys which are propagated from meta, if present.
+         */
+        public array $propagatedTags = [];
+
+        /**
+         * @var int The currently active sampling priority.
+         */
+        public int $samplingPriority = \DD_TRACE_PRIORITY_SAMPLING_UNKNOWN;
+
+        /**
+         * @var int The unmodified sampling priority as inherited directly through distributed tracing.
+         */
+        public int $propagatedSamplingPriority;
+
+        /**
+         * @var string The original tracestate minus datadog specific tags, as it will be propagated to upstream
+         * distributed tracing targets.
+         */
+        public string $tracestate;
+
+        /**
+         * @var array A list of datadog specific tags, which will be propagated to upstream distributed tracing
+         * targets as part of the tracestate. Some known keys are not included here, but directly extracted, e.g. origin.
+         */
+        public array $tracestateTags = [];
+
+        /**
+         * @var string The unique identifier of the parent span as a decimal number.
+         * Assignment of an invalid id will unset the parent id.
+         * This variable cannot be accessed by reference.
+         */
+        public string $parentId;
+
+        /**
+         * @var string The unique identifier for the trace id, as a zero-padded 32 character hexadecimal string.
+         * Assignment of an invalid id will reset the trace id to the default trace id.
+         * This variable cannot be accessed by reference.
+         */
+        public string $traceId = "";
     }
 
     /**
@@ -327,7 +388,7 @@ namespace DDTrace {
      * @return SpanData|null 'null' if tracing isn't enabled or if the active stack doesn't have a root span,
      * else the root span of the active stack
      */
-    function root_span(): null|SpanData {}
+    function root_span(): null|RootSpanData {}
 
     /**
      * Start a new custom user-span on the top of the stack. If no active span exists, the new created span will be a
@@ -342,19 +403,28 @@ namespace DDTrace {
     /**
      * Close the currently active user-span on the top of the stack
      *
-     * @param float $finishTime Finish time in seconds.
+     * @param float $finishTime Finish time in seconds. Defaults to now if zero.
      * @return false|null 'false' if unexpected parameters were given, else 'null'
      */
     function close_span(float $finishTime = 0): false|null {}
+
+    /**
+     * Update the duration of an already closed span
+     *
+     * @param SpanData $span The span to update.
+     * @param float $finishTime Finish time in seconds. Defaults to now if zero.
+     */
+    function update_span_duration(SpanData $span, float $finishTime = 0): null {}
 
     /**
      * Start a new trace
      *
      * More precisely, a new root span stack will be created and switched on to, and a new span started.
      *
+     * @param float $startTime Start time of the span in seconds.
      * @return SpanData The newly created root span
      */
-    function start_trace_span(): SpanData {}
+    function start_trace_span(float $startTime = 0): SpanData {}
 
     /**
      * Get the active stack
@@ -405,9 +475,11 @@ namespace DDTrace {
      * Sanitize an exception
      *
      * @param \Exception|\Throwable $exception
+     * @param int $skipFrames The number of frames to be dropped from the start. E.g. to hide the fact that we're
+     * in a hook function.
      * @return string
      */
-    function get_sanitized_exception_trace(\Exception|\Throwable $exception): string {}
+    function get_sanitized_exception_trace(\Exception|\Throwable $exception, int $skipFrames = 0): string {}
 
     /**
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
@@ -507,6 +579,14 @@ namespace DDTrace {
      * Closes all spans and force-send finished traces to the agent
      */
     function flush(): void {}
+
+    /**
+     * Registers an array to be populated with spans for each request during the next curl_multi_exec() call.
+     *
+     * @internal
+     * @param list{\CurlHandle, SpanData}[] $array An array which will be populated with curl handles and spans.
+     */
+    function curl_multi_exec_get_request_spans(&$array): void {}
 }
 
 namespace DDTrace\System {
@@ -536,6 +616,41 @@ namespace DDTrace\Config {
      * @return float The sample rate of the app analytics of the integration
      */
     function integration_analytics_sample_rate(string $integrationName): float {}
+}
+
+namespace DDTrace\UserRequest {
+    /**
+     * If there are any listeners of user request events.
+     * @return bool true iif there are any listeners
+     */
+    function has_listeners(): bool {}
+
+    /**
+     * Notifies the user request listeners of the start of a user request.
+     *
+     * @param \DDTrace\Span $span the span associated with this user request.
+     * @param array $data an array with keys named '_GET', '_POST', '_SERVER', '_FILES', '_COOKIE'
+     * @return array|null an array with the keys 'status', 'headers' and 'body', or null
+     */
+    function notify_start(\DDTrace\RootSpanData $span, array $data): ?array {}
+
+    /**
+     * Notifies the user request listeners of the imminence of a commit, and allows for the replacement of the response.
+     * @param \DDTrace\Span $span the span associated with this user request.
+     * @param int $status the HTTP status code of the response
+     * @param array $headers the HTTP headers of the response in the form name => array(values)
+     * @return array|null an array with the keys 'status', 'headers' and 'body', or null
+     */
+    function notify_commit(\DDTrace\RootSpanData $span, int $status, array $headers): ?array {}
+
+    /**
+     * Sets a function to be called when blocking a request midway.
+     *
+     * @param \DDTrace\RootSpanData $span
+     * @param callable $blockingFunction a blocking function taking an array with the keys 'status', 'headers', 'body'
+     * @return void
+     */
+    function set_blocking_function(\DDTrace\RootSpanData $span, callable $blockingFunction): void {}
 }
 
 namespace DDTrace\Testing {

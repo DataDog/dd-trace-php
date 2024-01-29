@@ -17,6 +17,7 @@ class CommonScenariosTest extends CLITestCase
     {
         return array_merge(parent::getEnvs(), [
             'APP_NAME' => 'artisan_test_app',
+            'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
         ]);
     }
 

@@ -132,6 +132,19 @@ class CakePHPIntegration extends Integration
             $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
         });
 
+        \DDTrace\hook_method(
+            'CakeRoute',
+            'parse',
+            null,
+            function ($app, $appClass, $args, $retval) use ($integration) {
+                if (!$retval) {
+                    return;
+                }
+
+                $integration->rootSpan->meta[Tag::HTTP_ROUTE] = $app->template;
+            }
+        );
+
         return Integration::LOADED;
     }
 }

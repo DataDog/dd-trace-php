@@ -16,20 +16,28 @@
 #include <stdbool.h>
 
 typedef enum _enabled_configuration {
-    NOT_CONFIGURED = 0,
-    ENABLED,
-    DISABLED
+    APPSEC_ENABLED_VIA_REMCFG = 0,
+    APPSEC_FULLY_ENABLED,
+    APPSEC_FULLY_DISABLED
 } enabled_configuration;
 
 // define zend_ddappsec_globals type
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddappsec)
-    //Defines if extension has been enabled/disabled by ini/env
-    enabled_configuration enabled_by_configuration;
-    //Defines enablement status computed taking into account enabled_by_configuration and remote config
-    enabled_configuration enabled;
-    bool skip_rshutdown;
-    bool during_request_shutdown;
+    // the logic value of the appsec.enabled configuration directive, fixed with
+    // forced disabling in some cirumstances (e.g. no ddtrace)
+    enabled_configuration enabled : 2;
+
+    // if we're fully enabled or we've been enabled via remote config
+    bool active : 1;
+
+    // if we're supposed to be enabled via remote config, but we haven't been
+    // able to get an answer from the daemon yet
+    // For MINFO purposes
+    bool to_be_configured : 1;
+
+    bool skip_rshutdown : 1;
+    bool during_request_shutdown : 1;
 ZEND_END_MODULE_GLOBALS(ddappsec)
 // clang-format on
 

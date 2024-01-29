@@ -76,6 +76,34 @@ class HookData {
     public function overrideReturnValue(mixed $value): bool;
 
     /**
+     * Replaces the exception thrown by a function call. Must be called within a post-hook.
+     *
+     * @param \Throwable|null $exception An exception which will replace the original exception.
+     * @return bool 'true' on success, otherwise 'false'
+     */
+    public function overrideException(\Throwable|null $exception): bool;
+
+    /**
+     * Disables inlining of this method.
+     * @return bool true iif we have a user function
+     */
+    public function disableJitInlining(): bool;
+
+    /**
+     * Suppresses the call to the hooked function. Must be called within a pre-hook.
+     * The method disableJitInlining() should be called unconditionally in hooks using this method.
+     * @return bool always 'true'
+     */
+    public function suppressCall(): bool;
+
+    /**
+     * By default, hooks are not called if the hooked function is called from the hook.
+     * This method can be used to override this behavior. The next recursive call will trigger the hook.
+     * @return bool 'true' if called from the hook, which should always be the case
+     */
+    public function allowNestedHook(): bool;
+
+    /**
      * The name of the file where the function/method call was made from.
      *
      * @return string The file name, or an empty string if the file name is not available.
@@ -122,5 +150,9 @@ function install_hook(
  * Removes an installed hook by its id, as returned by install_hook or HookData->id.
  *
  * @param int $id The id to remove.
+ * @param string $location A class name (which inherits this hook through inheritance), which to specifically remove
+ * this hook from.
+ * @return void no return, not formally declared void because of a buggy debug assertion in PHP 7.1
+ *              ("return value must be of type void, null returned")
  */
-function remove_hook(int $id): void {}
+function remove_hook(int $id, string $location = "") {}

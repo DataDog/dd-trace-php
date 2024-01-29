@@ -1,6 +1,9 @@
 #ifndef ZAI_HOOK_H
 #define ZAI_HOOK_H
-#include <symbols/symbols.h>
+#include "../symbols/symbols.h"
+#if PHP_VERSION_ID >= 80000
+#include <zend_observer.h>
+#endif
 
 /* The Hook interface intends to abstract away the storage and resolution of hook targets */
 
@@ -62,6 +65,10 @@ zend_long zai_hook_install_resolved_generator(zend_function *function,
 bool zai_hook_remove(zai_str scope, zai_str function, zend_long index);
 bool zai_hook_remove_resolved(zai_install_address function_address, zend_long index); /* }}} */
 
+/* {{{ zai_hook_exclude_class prevents a hook from being installed on a specific class through inheritance. */
+void zai_hook_exclude_class(zai_str scope, zai_str function, zend_long index, zend_string *lc_classname);
+void zai_hook_exclude_class_resolved(zai_install_address function_address, zend_long index, zend_string *lc_classname); /* }}} */
+
 /* {{{ zai_hook_memory_t structure is passed between
         continue and finish and managed by the hook interface */
 typedef struct {
@@ -99,7 +106,7 @@ extern TSRM_TLS HashTable zai_hook_resolved;
 /* }}} */
 
 #if PHP_VERSION_ID >= 80000
-extern void (*zai_hook_on_update)(zend_function *func, bool remove);
+extern void (*zai_hook_on_update)(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler);
 extern void (*zai_hook_on_function_resolve)(zend_function *func);
 #endif
 

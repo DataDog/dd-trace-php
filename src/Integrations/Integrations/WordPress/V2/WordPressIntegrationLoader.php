@@ -268,7 +268,7 @@ class WordPressIntegrationLoader
             // Runs after wp-settings.php is loaded - i.e., after the entire core of WordPress functions is
             // loaded and the current user is populated
             $user = wp_get_current_user();
-            if ($user) {
+            if ($user && $user->ID !== 0) {
                 $meta = [];
                 if ($user->user_login) {
                     $meta['username'] = $user->user_login;

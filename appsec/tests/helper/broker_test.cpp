@@ -256,28 +256,68 @@ TEST(BrokerTest, RecvClientInit)
     std::stringstream ss;
     msgpack::packer<std::stringstream> packer(ss);
     packer.pack_array(2);
+    // Message name
     pack_str(packer, "client_init");
-    packer.pack_array(6);
-    packer.pack_unsigned_int(20);
-    pack_str(packer, "one");
-    pack_str(packer, "two");
-    packer.pack_nil();
-    packer.pack_map(2);
+
+    // Message contents
+    packer.pack_array(7);
+    packer.pack_unsigned_int(20); // 1. PID
+    pack_str(packer, "one");      // 2. client_version
+    pack_str(packer, "two");      // 3. runtime_version
+    packer.pack_nil();            // 4. enabled_configuration
+
+    packer.pack_map(6); // 5. service_identifier
     pack_str(packer, "service");
     pack_str(packer, "api");
+
+    pack_str(packer, "extra_services");
+    packer.pack_array(0);
+
     pack_str(packer, "env");
     pack_str(packer, "prod");
-    packer.pack_map(5);
+
+    pack_str(packer, "tracer_version");
+    pack_str(packer, "9.99.9");
+
+    pack_str(packer, "app_version");
+    pack_str(packer, "1.23.4");
+
+    pack_str(packer, "runtime_id");
+    pack_str(packer,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+
+    packer.pack_map(6); // 6. engine_settings
     pack_str(packer, "rules_file");
     pack_str(packer, "three");
+
     pack_str(packer, "waf_timeout_us");
     packer.pack_uint64(42ul);
+
     pack_str(packer, "trace_rate_limit");
     packer.pack_uint32(1729u);
+
     pack_str(packer, "obfuscator_key_regex");
     pack_str(packer, "key_regex");
+
     pack_str(packer, "obfuscator_value_regex");
     pack_str(packer, "value_regex");
+
+    pack_str(packer, "schema_extraction");
+    packer.pack_map(2);
+    pack_str(packer, "enabled");
+    packer.pack_true();
+    pack_str(packer, "sample_rate");
+    packer.pack_double(0.5);
+
+    packer.pack_map(4); // 7. rc_settings
+    pack_str(packer, "enabled");
+    packer.pack_true();
+    pack_str(packer, "host");
+    pack_str(packer, "datadog.host");
+    pack_str(packer, "port");
+    packer.pack_uint32(1025);
+    pack_str(packer, "poll_interval");
+    packer.pack_uint32(2222);
 
     const std::string &expected_data = ss.str();
 
@@ -295,8 +335,18 @@ TEST(BrokerTest, RecvClientInit)
     EXPECT_EQ(command.pid, 20);
     EXPECT_STREQ(command.client_version.c_str(), "one");
     EXPECT_STREQ(command.runtime_version.c_str(), "two");
+    EXPECT_FALSE(command.enabled_configuration.has_value());
+
+    // Service Identifier
     EXPECT_STREQ(command.service.service.c_str(), "api");
+    EXPECT_EQ(command.service.extra_services.size(), 0);
     EXPECT_STREQ(command.service.env.c_str(), "prod");
+    EXPECT_STREQ(command.service.tracer_version.c_str(), "9.99.9");
+    EXPECT_STREQ(command.service.app_version.c_str(), "1.23.4");
+    EXPECT_STREQ(command.service.runtime_id.c_str(),
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+
+    // Engine settings
     EXPECT_EQ(command.engine_settings.rules_file, std::string{"three"});
     EXPECT_EQ(command.engine_settings.waf_timeout_us, 42ul);
     EXPECT_EQ(command.engine_settings.trace_rate_limit, 1729u);
@@ -304,6 +354,14 @@ TEST(BrokerTest, RecvClientInit)
         command.engine_settings.obfuscator_key_regex.c_str(), "key_regex");
     EXPECT_STREQ(
         command.engine_settings.obfuscator_value_regex.c_str(), "value_regex");
+    EXPECT_EQ(command.engine_settings.schema_extraction.enabled, true);
+    EXPECT_EQ(command.engine_settings.schema_extraction.sample_rate, 0.5);
+
+    // RC settings
+    EXPECT_EQ(command.rc_settings.enabled, true);
+    EXPECT_STREQ(command.rc_settings.host.c_str(), "datadog.host");
+    EXPECT_EQ(command.rc_settings.port, 1025);
+    EXPECT_EQ(command.rc_settings.poll_interval, 2222);
 }
 
 TEST(BrokerTest, RecvRequestInit)
@@ -316,11 +374,25 @@ TEST(BrokerTest, RecvRequestInit)
     packer.pack_array(2);
     pack_str(packer, "request_init");
     packer.pack_array(1);
-    packer.pack_map(2);
+    packer.pack_map(3);
     pack_str(packer, "server.request.query");
     pack_str(packer, "Arachni");
     pack_str(packer, "server.request.uri");
     pack_str(packer, "arachni.com");
+    pack_str(packer, "server.request.headers.no_cookies");
+    packer.pack_map(6);
+    pack_str(packer, "float_key");
+    packer.pack_double(123.456);
+    pack_str(packer, "true_key");
+    packer.pack_true();
+    pack_str(packer, "false_key");
+    packer.pack_false();
+    pack_str(packer, "negative_integer_key");
+    packer.pack_int(-123);
+    pack_str(packer, "positive_integer_key");
+    packer.pack_int(456);
+    pack_str(packer, "nil_key");
+    packer.pack_nil();
     const std::string &expected_data = ss.str();
 
     network::header_t h{"dds", (uint32_t)expected_data.size()};
@@ -336,11 +408,18 @@ TEST(BrokerTest, RecvRequestInit)
     auto &command = request.as<network::request_init>();
     parameter_view pv(command.data);
     EXPECT_TRUE(pv.is_map());
-    EXPECT_EQ(pv.size(), 2);
+    EXPECT_EQ(pv.size(), 3);
     EXPECT_STREQ(pv[0].key().data(), "server.request.query");
     EXPECT_STREQ(std::string_view(pv[0]).data(), "Arachni");
     EXPECT_STREQ(pv[1].key().data(), "server.request.uri");
     EXPECT_STREQ(std::string_view(pv[1]).data(), "arachni.com");
+    EXPECT_STREQ(pv[2].key().data(), "server.request.headers.no_cookies");
+    EXPECT_FLOAT_EQ(ddwaf_object_get_float(pv[2][0]), 123.456);
+    EXPECT_TRUE(ddwaf_object_get_bool(pv[2][1]));
+    EXPECT_FALSE(ddwaf_object_get_bool(pv[2][2]));
+    EXPECT_FLOAT_EQ(ddwaf_object_get_signed(pv[2][3]), -123);
+    EXPECT_FLOAT_EQ(ddwaf_object_get_unsigned(pv[2][4]), 456);
+    EXPECT_EQ(ddwaf_object_type(pv[2][5]), DDWAF_OBJ_NULL);
 }
 
 TEST(BrokerTest, RecvRequestInitOverLimits)

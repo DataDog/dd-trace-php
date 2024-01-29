@@ -20,6 +20,7 @@ namespace dds {
 
 class client {
 public:
+    // Below this limit the encoding+compression might result on a longer string
     client(std::shared_ptr<service_manager> service_manager,
         network::base_broker::ptr &&broker)
         : service_manager_(std::move(service_manager)),
@@ -69,6 +70,7 @@ protected:
     std::optional<engine::context> context_;
     std::optional<bool> client_enabled_conf;
     bool request_enabled_ = {false};
+    std::string runtime_id_;
 };
 
 } // namespace dds

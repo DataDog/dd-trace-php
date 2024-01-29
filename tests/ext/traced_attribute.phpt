@@ -1,5 +1,5 @@
 --TEST--
-Set DDTrace\start_span() properties
+Test tracing via attributes
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80000) die('skip: No attributes pre-PHP 8'); ?>
 --ENV--
@@ -55,16 +55,20 @@ noRecursion();
 dd_dump_spans();
 
 ?>
---EXPECT--
+--EXPECTF--
 spans(\DDTrace\SpanData) (3) {
   bar (traced_attribute.php, bar, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
+    _dd.p.tid => %s
     simplename (test, rsrc, typeee)
       a => b
+      _dd.base_service => traced_attribute.php
   recursion (traced_attribute.php, recursion, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
+    _dd.p.tid => %s
     recursion (traced_attribute.php, recursion, cli)
       recursion (traced_attribute.php, recursion, cli)
   noRecursion (traced_attribute.php, noRecursion, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
+    _dd.p.tid => %s
 }

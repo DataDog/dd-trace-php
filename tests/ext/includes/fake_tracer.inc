@@ -36,7 +36,7 @@ class Tracer
         }, dd_trace_serialize_closed_spans());
 
         // Reporting
-        $output = 'Flushing tracer...' . PHP_EOL;
+        $output = '[ddtrace] [info] Flushing tracer...' . PHP_EOL;
         foreach ($valuesStrings as $value) {
             $output .= $value;
         }

@@ -9,7 +9,7 @@ ZEND_TLS datadog_php_stack_sample last_stack_sample;
 
 ZEND_API datadog_php_stack_sample tea_get_last_stack_sample(void) { return last_stack_sample; }
 
-ZEND_API void datadog_profiling_interrupt_function(zend_execute_data *execute_data) {
+ZEND_API void ddog_php_prof_interrupt_function(zend_execute_data *execute_data) {
     datadog_php_stack_sample_ctor(&last_stack_sample);
 
     /* Don't try to re-implement everything. Remember, the tracer is being

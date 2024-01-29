@@ -14,6 +14,8 @@
 #include "serializer.h"
 #include "ext/standard/php_string.h"
 #include <hook/hook.h>
+#include "user_request.h"
+#include "zend_types.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -32,6 +34,10 @@ void ddtrace_init_span_stacks(void) {
 }
 
 static void dd_drop_span_nodestroy(ddtrace_span_data *span, bool silent) {
+    if (span->notify_user_req_end) {
+        ddtrace_user_req_notify_finish(span);
+        span->notify_user_req_end = false;
+    }
     span->duration = silent ? DDTRACE_SILENTLY_DROPPED_SPAN : DDTRACE_DROPPED_SPAN;
 }
 
@@ -76,14 +82,14 @@ void ddtrace_free_span_stacks(bool silent) {
             // temporarily addref to avoid freeing the stack during it being processed
             GC_ADDREF(&stack->std);
 
-            if (stack->active && stack->active->stack == stack) {
-                ddtrace_span_data *active_span = stack->active;
+            if (stack->active && SPANDATA(stack->active)->stack == stack) {
+                ddtrace_span_data *active_span = SPANDATA(stack->active);
                 stack->root_span = NULL;
 
-                ddtrace_span_data *span = active_span->parent;
+                ddtrace_span_data *span = active_span->parent ? SPANDATA(active_span->parent) : NULL;
                 while (span && span->stack == stack) {
                     dd_drop_span_nodestroy(span, silent);
-                    span = span->parent;
+                    span = span->parent ? SPANDATA(span->parent) : NULL;
                 }
 
                 stack->active = NULL;
@@ -92,7 +98,7 @@ void ddtrace_free_span_stacks(bool silent) {
                 // drop the active span last, it holds the start of the span "chain" of parents which each hold a ref to the next
                 dd_drop_span(active_span, silent);
             } else if (stack->active) {
-                ddtrace_span_data *parent_span = stack->active;
+                ddtrace_span_data *parent_span = SPANDATA(stack->active);
                 stack->active = NULL;
                 stack->root_span = NULL;
                 ZVAL_NULL(&stack->property_active);
@@ -121,8 +127,17 @@ void ddtrace_free_span_stacks(bool silent) {
     DDTRACE_G(top_closed_stack) = NULL;
 }
 
-void ddtrace_open_span(ddtrace_span_data *span) {
+static ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type, zend_class_entry *ce) {
+    zval fci_zv;
+    object_init_ex(&fci_zv, ce);
+    ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ(fci_zv));
+    span->type = type;
+    return span;
+}
+
+ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     ddtrace_span_stack *stack = DDTRACE_G(active_stack);
+    // The primary stack is ancestor to all stacks, which signifies that any root spans created on top of it will inherit the distributed tracing context
     bool primary_stack = stack->parent_stack == NULL;
 
     if (primary_stack) {
@@ -135,6 +150,9 @@ void ddtrace_open_span(ddtrace_span_data *span) {
     // ensure dtor can be called again
     GC_DEL_FLAGS(&stack->std, IS_OBJ_DESTRUCTOR_CALLED);
 
+    bool root_span = DDTRACE_G(active_stack)->root_span == NULL;
+    ddtrace_span_data *span = ddtrace_init_span(type, root_span ? ddtrace_ce_root_span_data : ddtrace_ce_span_data);
+
     // All open spans hold a ref to their stack
     ZVAL_OBJ_COPY(&span->property_stack, &stack->std);
 
@@ -146,26 +164,8 @@ void ddtrace_open_span(ddtrace_span_data *span) {
     span->start = ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
 
     span->span_id = ddtrace_generate_span_id();
-    // if not a root span or the true root span (distributed tracing)
-    bool root_span = DDTRACE_G(active_stack)->root_span == NULL;
-    if (!root_span || primary_stack) {
-        // Inherit from our current parent
-        span->parent_id = ddtrace_peek_span_id();
-        span->trace_id = ddtrace_peek_trace_id();
-        if (span->trace_id.high == 0 && span->trace_id.low == 0) {
-            goto set_trace_id_from_span_id;
-        }
-    } else {
-        // custom new traces
-        span->parent_id = 0;
-set_trace_id_from_span_id:
-        span->trace_id = (ddtrace_trace_id){
-            .low = span->span_id,
-            .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / ZEND_NANO_IN_SEC : 0,
-        };
-    }
 
-    ddtrace_span_data *parent_span = DDTRACE_G(active_stack)->active;
+    ddtrace_span_data *parent_span = SPANDATA(DDTRACE_G(active_stack)->active);
     ZVAL_OBJ(&DDTRACE_G(active_stack)->property_active, &span->std);
     ++DDTRACE_G(open_spans_count);
 
@@ -173,23 +173,35 @@ set_trace_id_from_span_id:
     GC_ADDREF(&span->std);
 
     if (root_span) {
-        DDTRACE_G(active_stack)->root_span = span;
+        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
+        DDTRACE_G(active_stack)->root_span = root;
+
+        if (primary_stack && (DDTRACE_G(distributed_trace_id).low || DDTRACE_G(distributed_trace_id).high)) {
+            root->trace_id = DDTRACE_G(distributed_trace_id);
+            root->parent_id = DDTRACE_G(distributed_parent_trace_id);
+        } else {
+            root->trace_id = (ddtrace_trace_id) {
+                    .low = span->span_id,
+                    .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / ZEND_NANO_IN_SEC : 0,
+            };
+            root->parent_id = 0;
+        }
 
         ZVAL_NULL(&span->property_parent);
         span->parent = NULL;
 
-        ddtrace_set_root_span_properties(span);
+        ddtrace_set_root_span_properties(root);
     } else {
         // do not copy the parent, it was active span before, just transfer that reference
         ZVAL_OBJ(&span->property_parent, &parent_span->std);
-        zval *prop_service = ddtrace_spandata_property_service(span);
+        zval *prop_service = &span->property_service;
         zval_ptr_dtor(prop_service);
-        ZVAL_COPY(prop_service, ddtrace_spandata_property_service(parent_span));
-        zval *prop_type = ddtrace_spandata_property_type(span);
+        ZVAL_COPY(prop_service, &parent_span->property_service);
+        zval *prop_type = &span->property_type;
         zval_ptr_dtor(prop_type);
-        ZVAL_COPY(prop_type, ddtrace_spandata_property_type(parent_span));
+        ZVAL_COPY(prop_type, &parent_span->property_type);
 
-        zend_array *meta = ddtrace_spandata_property_meta(span), *parent_meta = ddtrace_spandata_property_meta(parent_span);
+        zend_array *meta = ddtrace_property_array(&span->property_meta), *parent_meta = ddtrace_property_array(&parent_span->property_meta);
         zval *version;
         if ((version = zend_hash_str_find(parent_meta, ZEND_STRL("version")))) {
             Z_TRY_ADDREF_P(version);
@@ -201,17 +213,13 @@ set_trace_id_from_span_id:
             Z_TRY_ADDREF_P(env);
             zend_hash_str_add_new(meta, ZEND_STRL("env"), env);
         }
-
-        zval *origin;
-        if ((origin = zend_hash_str_find(parent_meta, ZEND_STRL("_dd.origin")))) {
-            Z_TRY_ADDREF_P(origin);
-            zend_hash_str_add_new(meta, ZEND_STRL("_dd.origin"), origin);
-        }
     }
 
     span->root = DDTRACE_G(active_stack)->root_span;
 
     ddtrace_set_global_span_properties(span);
+
+    return span;
 }
 
 // += 2 increment to avoid zval type ever being 0
@@ -222,11 +230,10 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
         span = Z_PTR_P(span_zv);
         Z_TYPE_INFO_P(span_zv) += 2;
     } else {
-        span = ddtrace_init_span(DDTRACE_INTERNAL_SPAN);
-        ddtrace_open_span(span);
+        span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
 
         // SpanData::$name defaults to fully qualified called name
-        zval *prop_name = ddtrace_spandata_property_name(span);
+        zval *prop_name = &span->property_name;
 
         if (EX(func) && (EX(func)->common.fn_flags & (ZEND_ACC_CLOSURE | ZEND_ACC_FAKE_CLOSURE)) == ZEND_ACC_CLOSURE) {
             zend_function *containing_function = zai_hook_find_containing_function(EX(func));
@@ -252,7 +259,7 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
                 zend_string_release(basename);
             }
 
-            zend_array *meta = ddtrace_spandata_property_meta(span);
+            zend_array *meta = ddtrace_property_array(&span->property_meta);
             zval location;
             ZVAL_STR(&location, zend_strpprintf(0, "%s:%d", ZSTR_VAL(EX(func)->op_array.filename), EX(func)->op_array.opcodes->lineno));
             zend_hash_str_add_new(meta, ZEND_STRL("closure.declaration"), &location);
@@ -304,16 +311,8 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
     DDTRACE_G(active_stack) = target_stack;
 }
 
-ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type) {
-    zval fci_zv;
-    object_init_ex(&fci_zv, ddtrace_ce_span_data);
-    ddtrace_span_data *span = (ddtrace_span_data *)Z_OBJ(fci_zv);
-    span->type = type;
-    return span;
-}
-
 ddtrace_span_data *ddtrace_init_dummy_span(void) {
-    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_USER_SPAN);
+    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_USER_SPAN, ddtrace_ce_span_data);
     span->std.handlers->get_constructor(&span->std);
     span->duration = DDTRACE_SILENTLY_DROPPED_SPAN;
     return span;
@@ -350,38 +349,22 @@ ddtrace_span_stack *ddtrace_init_span_stack(void) {
 }
 
 void ddtrace_push_root_span(void) {
-    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_AUTOROOT_SPAN);
-    ddtrace_open_span(span);
+    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_AUTOROOT_SPAN);
     // We opened the span, but are not going to hold a reference to it directly - the stack will manage it.
     GC_DELREF(&span->std);
 }
 
-DDTRACE_PUBLIC zval *ddtrace_root_span_get_meta(void)
+DDTRACE_PUBLIC zend_object *ddtrace_get_root_span()
 {
     if (!DDTRACE_G(active_stack)) {
         return NULL;
     }
 
-    ddtrace_span_data *root_span = DDTRACE_G(active_stack)->root_span;
-    if (root_span == NULL) {
+    ddtrace_root_span_data *rsd = DDTRACE_G(active_stack)->root_span;
+    if (!rsd) {
         return NULL;
     }
-
-    return ddtrace_spandata_property_meta_zval(root_span);
-}
-
-DDTRACE_PUBLIC zval *ddtrace_root_span_get_metrics(void)
-{
-    if (!DDTRACE_G(active_stack)) {
-        return NULL;
-    }
-
-    ddtrace_span_data *root_span = DDTRACE_G(active_stack)->root_span;
-    if (root_span == NULL) {
-        return NULL;
-    }
-
-    return ddtrace_spandata_property_metrics_zval(root_span);
+    return &rsd->std;
 }
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
@@ -396,14 +379,14 @@ bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
         }
         return false;
     } else {
-        if (DDTRACE_G(active_stack)->root_span == NULL) {
+        ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+        if (root_span == NULL) {
             return true;  // might be the case after serialization
         }
-        if (DDTRACE_G(active_stack)->active == DDTRACE_G(active_stack)->root_span && DDTRACE_G(active_stack)->closed_ring == NULL) {
-            ddtrace_span_data *span = DDTRACE_G(active_stack)->root_span;
-            ddtrace_span_stack *root_stack = span->stack->parent_stack;
+        if (DDTRACE_G(active_stack)->active == &root_span->props && DDTRACE_G(active_stack)->closed_ring == NULL) {
+            ddtrace_span_stack *root_stack = root_span->stack->parent_stack;
             DDTRACE_G(active_stack)->root_span = NULL; // As a special case, always hard-drop a root span dropped due to a config change
-            ddtrace_drop_span(span);
+            ddtrace_drop_span(&root_span->span);
             ddtrace_switch_span_stack(root_stack);
             return true;
         } else {
@@ -417,27 +400,29 @@ void dd_trace_stop_span_time(ddtrace_span_data *span) {
 }
 
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end) {
-    ddtrace_span_data *span = end->stack->active;
-    while (span) {
-        if (span == end) {
+    ddtrace_span_properties *pspan = end->stack->active;
+    while (pspan) {
+        if (pspan == &end->props) {
             return true;
         }
-        if (span->type != DDTRACE_USER_SPAN) {
+        if (SPANDATA(pspan)->type != DDTRACE_USER_SPAN) {
             return false;
         }
-        span = span->parent;
+
+        pspan = pspan->parent;
     }
     return false;
 }
 
 void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until) {
-    ddtrace_span_data *span;
-    while ((span = until->stack->active) && span->stack == until->stack && span != until && span->type != DDTRACE_AUTOROOT_SPAN) {
+    ddtrace_span_properties *pspan;
+    while ((pspan = until->stack->active) && pspan->stack == until->stack && pspan != &until->props && SPANDATA(pspan)->type != DDTRACE_AUTOROOT_SPAN) {
+        ddtrace_span_data *span = SPANDATA(pspan);
         if (span->type == DDTRACE_INTERNAL_SPAN) {
             LOG(Error, "Found internal span data while closing userland spans");
         }
 
-        zend_string *name = ddtrace_convert_to_str(ddtrace_spandata_property_name(span));
+        zend_string *name = ddtrace_convert_to_str(&span->property_name);
         LOG(Warn, "Found unfinished span while automatically closing spans with name '%s'", ZSTR_VAL(name));
         zend_string_release(name);
 
@@ -455,7 +440,7 @@ int ddtrace_close_userland_spans_until(ddtrace_span_data *until) {
     if (until) {
         ddtrace_span_data *span = ddtrace_active_span();
         while (span && span != until && span->type != DDTRACE_INTERNAL_SPAN) {
-            span = span->parent;
+            span = SPANDATA(span->parent);
         }
         if (span != until) {
             return -1;
@@ -511,13 +496,13 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
 
     if (!stack->root_span || stack->root_span->stack == stack) {
         // Ensure the root span is cleared before allocations may happen in priority sampling deciding
-        ddtrace_span_data *root_span = stack->root_span;
+        ddtrace_root_span_data *root_span = stack->root_span;
         if (stack->root_span) {
             // Root span stacks are automatic and tied to the lifetime of that root
             stack->root_span = NULL;
 
             // Enforce a sampling decision here
-            ddtrace_fetch_prioritySampling_from_span(root_span);
+            ddtrace_fetch_priority_sampling_from_span(root_span);
         }
         if (stack == stack->root_stack && DDTRACE_G(active_stack) == stack) {
             // We are always active stack except if ddtrace_close_top_span_without_stack_swap is used
@@ -544,6 +529,23 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     ddtrace_close_stack_userland_spans_until(span);
 
     ddtrace_close_top_span_without_stack_swap(span);
+}
+
+void ddtrace_close_span_restore_stack(ddtrace_span_data *span) {
+    assert(span != NULL);
+    if (span->type == DDTRACE_SPAN_CLOSED) {
+        return;
+    }
+
+    // switches to the stack of the passed span, closes the span and switches back to the original stack
+    ddtrace_span_stack *active_stack_before = DDTRACE_G(active_stack);
+    assert(active_stack_before != NULL);
+    GC_ADDREF(&active_stack_before->std);
+
+    ddtrace_close_span(span);
+
+    ddtrace_switch_span_stack(active_stack_before);
+    GC_DELREF(&active_stack_before->std);
 }
 
 void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
@@ -576,10 +578,15 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
         stack->closed_ring = span;
     }
 
-    if (!stack->active || stack->active->stack != stack) {
-        dd_close_entry_span_of_stack(stack);
+    ddtrace_decide_on_closed_span_sampling(span);
+    if (span->notify_user_req_end) {
+        ddtrace_user_req_notify_finish(span);
+        span->notify_user_req_end = false;
     }
 
+    if (!stack->active || SPANDATA(stack->active)->stack != stack) {
+        dd_close_entry_span_of_stack(stack);
+    }
 }
 
 // i.e. what DDTrace\active_span() reports. DDTrace\active_stack()->active is the active span which will be used as parent for new spans on that stack
@@ -592,8 +599,8 @@ ddtrace_span_data *ddtrace_active_span(void) {
     ddtrace_span_stack *end = stack->root_stack->parent_stack;
 
     do {
-        if (stack->active && stack->active->stack == stack) {
-            return stack->active;
+        if (stack->active && SPANDATA(stack->active)->stack == stack) {
+            return SPANDATA(stack->active);
         }
         stack = stack->parent_stack;
     } while (stack != end);
@@ -616,7 +623,7 @@ void ddtrace_close_all_open_spans(bool force_close_root_span) {
             GC_ADDREF(&stack->std);
 
             ddtrace_span_data *span;
-            while ((span = stack->active) && span->stack == stack) {
+            while (stack->active && (span = SPANDATA(stack->active))->stack == stack) {
                 if (get_DD_AUTOFINISH_SPANS() || (force_close_root_span && span->type == DDTRACE_AUTOROOT_SPAN)) {
                     dd_trace_stop_span_time(span);
                     ddtrace_close_span(span);
@@ -654,8 +661,8 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 
     // As a special case dropping a root span rejects it to avoid traces without root span
     // It's safe to just drop RC=2 root spans, they're referenced nowhere else
-    if (stack->root_span == span && GC_REFCOUNT(&span->std) > 2) {
-        ddtrace_set_prioritySampling_on_root(PRIORITY_SAMPLING_USER_REJECT, DD_MECHANISM_MANUAL);
+    if (&stack->root_span->span == span && GC_REFCOUNT(&span->std) > 2) {
+        ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_USER_REJECT, DD_MECHANISM_MANUAL);
         dd_trace_stop_span_time(span);
         ddtrace_close_span(span);
         return;
@@ -672,10 +679,10 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     ++DDTRACE_G(dropped_spans_count);
     --DDTRACE_G(open_spans_count);
 
-    if (stack->root_span == span) {
+    if (&stack->root_span->span == span) {
         ddtrace_switch_span_stack(stack->parent_stack);
         stack->root_span = NULL;
-    } else if (!stack->active || stack->active->stack != stack) {
+    } else if (!stack->active || SPANDATA(stack->active)->stack != stack) {
         dd_close_entry_span_of_stack(stack);
     }
 

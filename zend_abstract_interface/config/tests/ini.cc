@@ -518,3 +518,59 @@ TEST_INI("change before request startup", {
     REQUIRE(Z_LVAL_P(value) == 3);
     REQUEST_END();
 })
+
+static ZEND_INI_MH(dummy) {
+    return SUCCESS;
+}
+TEST_INI("setting perdir INI setting for multiple ZAI config users", {
+    REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_STRING", "another"));
+}, {
+    zai_config_memoized_entry *entry = &zai_config_memoized_entries[EXT_CFG_INI_FOO_STRING];
+    entry->original_on_modify = dummy;
+
+    zai_config_first_time_rinit();
+    REQUEST_BEGIN();
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_STRING);
+    REQUIRE(zval_string_equals(value, "another"));
+
+    REQUEST_END();
+})
+
+
+TEST_INI("setting an env value after memoization for multiple ZAI config users", {}, {
+    REQUIRE_SETENV("INI_FOO_STRING", "value");
+
+    REQUEST_BEGIN()
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_STRING);
+    REQUIRE(zval_string_equals(value, "value"));
+
+    REQUEST_END()
+
+    REQUIRE_SETENV("INI_FOO_STRING", "value2");
+
+    // Something else inits zai config first
+    zai_config_rinit();
+    zai_config_rshutdown();
+
+    // now we init it
+    zai_config_memoized_entry *entry = &zai_config_memoized_entries[EXT_CFG_INI_FOO_STRING];
+    entry->original_on_modify = dummy;
+
+    REQUEST_BEGIN()
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_STRING);
+    REQUIRE(zval_string_equals(value, "value2"));
+
+    REQUEST_END()
+})

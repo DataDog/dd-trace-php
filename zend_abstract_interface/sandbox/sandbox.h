@@ -1,6 +1,7 @@
 #ifndef ZAI_SANDBOX_H
 #define ZAI_SANDBOX_H
 
+#include "../tsrmls_cache.h"
 #include <main/php.h>
 #include <stdbool.h>
 
@@ -146,7 +147,6 @@ inline void zai_sandbox_error_state_backup(zai_error_state *es) {
     PG(last_error_file) = NULL;
 
     es->error_reporting = EG(error_reporting);
-    EG(error_reporting) = 0;
     zend_replace_error_handling(EH_THROW, NULL, &es->error_handling);
 }
 
@@ -274,7 +274,6 @@ inline void zai_sandbox_error_state_backup(zai_error_state *es) {
     PG(last_error_file) = NULL;
 
     es->error_reporting = EG(error_reporting);
-    EG(error_reporting) = 0;
     zend_replace_error_handling(EH_THROW, NULL, &es->error_handling);
 }
 

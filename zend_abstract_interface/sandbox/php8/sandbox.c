@@ -1,3 +1,4 @@
+#include "../../tsrmls_cache.h"
 #include "../sandbox.h"
 
 long zai_sandbox_active = 0;

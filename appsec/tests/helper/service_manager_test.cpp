@@ -25,7 +25,7 @@ struct service_manager_exp : public service_manager {
 
 TEST(ServiceManagerTest, LoadRulesOK)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     service_manager_exp manager;
@@ -77,7 +77,7 @@ TEST(ServiceManagerTest, LoadRulesOK)
 
 TEST(ServiceManagerTest, LoadRulesFileNotFound)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     service_manager_exp manager;
@@ -94,7 +94,7 @@ TEST(ServiceManagerTest, LoadRulesFileNotFound)
 
 TEST(ServiceManagerTest, BadRulesFile)
 {
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     service_manager_exp manager;
@@ -107,5 +107,25 @@ TEST(ServiceManagerTest, BadRulesFile)
                 {"s", {}, "e"}, engine_settings, {}, meta, metrics, {});
         },
         dds::parsing_error);
+}
+
+TEST(ServiceManagerTest, UniqueServices)
+{
+    std::map<std::string, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    service_manager_exp manager;
+    auto fn = create_sample_rules_ok();
+    dds::engine_settings engine_settings;
+    engine_settings.rules_file = fn;
+
+    auto service1 = manager.create_service(
+        {"service", {}, "env", "1.0", "2.0", "runtime ID 0"}, engine_settings,
+        {}, meta, metrics, {});
+    auto service2 = manager.create_service(
+        {"service", {}, "env", "1.1", "3.0", "runtime ID 1"}, engine_settings,
+        {}, meta, metrics, {});
+
+    EXPECT_EQ(service1.get(), service2.get());
 }
 } // namespace dds

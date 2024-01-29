@@ -83,6 +83,16 @@
     },
     "extra": {
         "scenarios": {
+            "opentelemetry1": {
+                "require": {
+                    "open-telemetry/sdk": "@stable",
+                    "open-telemetry/extension-propagator-b3": "@stable",
+                    "open-telemetry/opentelemetry-logger-monolog": "@stable"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "opentracing_beta5": {
                 "require": {
                     "opentracing/opentracing": "1.0.0-beta5"

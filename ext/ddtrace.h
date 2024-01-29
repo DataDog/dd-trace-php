@@ -13,32 +13,18 @@
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
+extern zend_class_entry *ddtrace_ce_root_span_data;
 extern zend_class_entry *ddtrace_ce_span_stack;
 extern zend_class_entry *ddtrace_ce_fatal_error;
 extern zend_class_entry *ddtrace_ce_span_link;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_data ddtrace_span_data;
+typedef struct ddtrace_root_span_data ddtrace_root_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 typedef struct ddtrace_span_link ddtrace_span_link;
 
-#ifndef _WIN32
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"  // useful compiler does not like the struct hack
-#endif
-static inline zval *ddtrace_spandata_property_name(ddtrace_span_data *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 0);
-}
-static inline zval *ddtrace_spandata_property_resource(ddtrace_span_data *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 1);
-}
-static inline zval *ddtrace_spandata_property_service(ddtrace_span_data *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 2);
-}
-static inline zval *ddtrace_spandata_property_type(ddtrace_span_data *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 3);
-}
-static inline zend_array *ddtrace_spandata_property_force_array(zval *zv) {
+static inline zend_array *ddtrace_property_array(zval *zv) {
     ZVAL_DEREF(zv);
     if (Z_TYPE_P(zv) != IS_ARRAY) {
         zval garbage;
@@ -49,39 +35,6 @@ static inline zend_array *ddtrace_spandata_property_force_array(zval *zv) {
     SEPARATE_ARRAY(zv);
     return Z_ARR_P(zv);
 }
-static inline zval *ddtrace_spandata_property_meta_zval(ddtrace_span_data *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 4);
-}
-static inline zend_array *ddtrace_spandata_property_meta(ddtrace_span_data *span) {
-    return ddtrace_spandata_property_force_array(ddtrace_spandata_property_meta_zval(span));
-}
-static inline zval *ddtrace_spandata_property_metrics_zval(ddtrace_span_data *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 5);
-}
-static inline zend_array *ddtrace_spandata_property_metrics(ddtrace_span_data *span) {
-    return ddtrace_spandata_property_force_array(ddtrace_spandata_property_metrics_zval(span));
-}
-static inline zval *ddtrace_spandata_property_exception(ddtrace_span_data *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 6);
-}
-static inline zval *ddtrace_spandata_property_id(ddtrace_span_data *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 7);
-}
-static inline zval *ddtrace_spandata_property_links_zval(ddtrace_span_data *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 8);
-}
-static inline zend_array *ddtrace_spandata_property_links(ddtrace_span_data *span) {
-    return ddtrace_spandata_property_force_array(ddtrace_spandata_property_links_zval(span));
-}
-static inline zval *ddtrace_spandata_property_peerServiceSources_zval(ddtrace_span_data *span) {
-    return OBJ_PROP_NUM((zend_object *)span, 9);
-}
-static inline zend_array *ddtrace_spandata_property_peer_service_sources(ddtrace_span_data *span) {
-    return ddtrace_spandata_property_force_array(ddtrace_spandata_property_peerServiceSources_zval(span));
-}
-#ifndef _WIN32
-#pragma GCC diagnostic pop
-#endif
 
 bool ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace
@@ -144,12 +97,14 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddtrace_trace_id distributed_trace_id;
     uint64_t distributed_parent_trace_id;
     zend_string *dd_origin;
+    zend_reference *curl_multi_injecting_spans;
 
     char *cgroup_file;
     ddog_QueueId telemetry_queue_id;
     ddog_AgentRemoteConfigReader *remote_config_reader;
     HashTable *agent_rate_by_service;
     zend_string *last_flushed_root_service_name;
+    zend_string *last_flushed_root_env_name;
 
     HashTable uhook_active_hooks;
     HashTable uhook_closure_hooks;
@@ -157,9 +112,15 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 
 #ifdef ZTS
-#define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
+#  if defined(__has_attribute) && __has_attribute(tls_model)
+#    define ATTR_TLS_GLOBAL_DYNAMIC __attribute__((tls_model("global-dynamic")))
+#  else
+#    define ATTR_TLS_GLOBAL_DYNAMIC
+#  endif
+extern __thread void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
+#  define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
 #else
-#define DDTRACE_G(v) (ddtrace_globals.v)
+#  define DDTRACE_G(v) (ddtrace_globals.v)
 #endif
 
 #define PHP_DDTRACE_EXTNAME "ddtrace"

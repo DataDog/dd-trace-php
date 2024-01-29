@@ -12,11 +12,13 @@ $primary_trace = DDTrace\start_span();
 $primary_active = DDTrace\start_span();
 
 $new_root = DDTrace\start_trace_span();
+$new_root->name = "other root";
+
 echo 'New trace span is reflected in DDTrace\root_span(): '; var_dump($new_root == DDTrace\root_span());
 echo 'New trace span is reflected in DDTrace\active_stack(): '; var_dump($new_root->stack == DDTrace\active_stack());
 echo 'New trace span stack has a parent (a target to switch to on close): '; var_dump($new_root->stack->parent == $primary_active->stack);
 echo 'New trace span has no parent: '; var_dump($new_root->parent == null);
-echo 'New trace span has a trace id equal to itself: '; var_dump($new_root->id == DDTrace\trace_id());
+echo 'New trace span has a trace id equal to itself: '; var_dump($new_root->id == DDTrace\root_span()->id);
 
 # on new root
 $active_new_root_span = DDTrace\start_span();
@@ -57,10 +59,12 @@ After closing the trace root, we swap back to the previously active stack: bool(
 With the trace root also accordingly updated: bool(true)
 spans(\DDTrace\SpanData) (2) {
   start_span_new_trace.php (start_span_new_trace.php, start_span_new_trace.php, cli)
-    _dd.p.dm => -1
+    _dd.p.dm => -0
+    _dd.p.tid => %s
      (start_span_new_trace.php, cli)
        (start_span_new_trace.php, cli)
-  start_span_new_trace.php (start_span_new_trace.php, start_span_new_trace.php, cli)
-    _dd.p.dm => -1
+  other root (start_span_new_trace.php, other root, cli)
+    _dd.p.dm => -0
+    _dd.p.tid => %s
      (start_span_new_trace.php, cli)
 }

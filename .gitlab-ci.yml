@@ -2,6 +2,7 @@ stages:
   - build
   - deploy
   - benchmarks
+  - ci-build
 
 variables:
   LATEST_LIBRARY_x86_64_LINUX_GNU:
@@ -14,22 +15,26 @@ variables:
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
   - local: .gitlab/benchmarks.yml
+  - local: .gitlab/ci-images.yml
 
 build:
+  extends: .ci_authenticated_job
   stage: build
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/base:bionic
+  image: registry.ddbuild.io/images/ci_docker_base
   tags: [ "runner:main", "size:large" ]
   script:
     - |
       if [ -z "$LATEST_LIBRARY_x86_64_LINUX_GNU" ]; then
-        UPSTREAM_TRACER_VERSION=$(curl -L https://api.github.com/repos/DataDog/dd-trace-php/releases | grep -E '"tag_name"|"prerelease"' | paste -sd" \n" - | grep -v '"prerelease": true' | grep -Pom1 '"tag_name": "\K[^"]+')
-        LATEST_LIBRARY_x86_64_LINUX_GNU="https://github.com/DataDog/dd-trace-php/releases/download/${UPSTREAM_TRACER_VERSION}/dd-library-php-${UPSTREAM_TRACER_VERSION}-x86_64-linux-gnu.tar.gz"
+        source /download-binary-tracer.sh
+        get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-.*-x86_64-linux-gnu.tar.gz" "dd-library-php-x86_64-linux-gnu.tar.gz"
+        get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "datadog-setup.php" "datadog-setup.php"
+        echo "UPSTREAM_TRACER_VERSION=dev-master" >> upstream.env
       else
         UPSTREAM_TRACER_VERSION=$(echo "$LATEST_LIBRARY_x86_64_LINUX_GNU" | grep -Po '(?<=dd-library-php-).+(?=-x86_64-linux-gnu.tar.gz)')
+        echo "UPSTREAM_TRACER_VERSION=${UPSTREAM_TRACER_VERSION}" >> upstream.env
+        curl --fail --location --output 'dd-library-php-x86_64-linux-gnu.tar.gz' "$LATEST_LIBRARY_x86_64_LINUX_GNU"
+        curl --fail --location -O "$(dirname $LATEST_LIBRARY_x86_64_LINUX_GNU)/datadog-setup.php"
       fi
-    - echo "UPSTREAM_TRACER_VERSION=${UPSTREAM_TRACER_VERSION}" >> upstream.env
-    - curl --fail --location --output 'dd-library-php-x86_64-linux-gnu.tar.gz' "$LATEST_LIBRARY_x86_64_LINUX_GNU"
-    - curl --fail --location -O "$(dirname $LATEST_LIBRARY_x86_64_LINUX_GNU)/datadog-setup.php"
     - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
   artifacts:
     paths:
@@ -65,10 +70,15 @@ tracer-base-image:
   stage: deploy
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
-    - ./tooling/ci/download-binary-php.sh dev
-    - docker build -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-trace-php:latest_snapshot
+
+    #Dev X86
     - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh prod
-    - docker build -t ghcr.io/datadog/dd-trace-php/dd-trace-php:latest -f ./tooling/ci/Dockerfile .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-trace-php:latest
+    - ./tooling/ci/download-binary-php.sh dev   
+    - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot .
+    - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot
+ 
+    #Prod X86
+    - rm -rf ./tooling/ci/binaries
+    - ./tooling/ci/download-binary-php.sh prod   
+    - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
+    - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest

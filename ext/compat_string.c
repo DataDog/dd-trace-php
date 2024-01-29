@@ -1,3 +1,4 @@
+#include "ddtrace.h"
 #include "compat_string.h"
 
 #include <Zend/zend_API.h>
@@ -30,16 +31,16 @@ zend_string *ddtrace_convert_to_str(zval *op) {
 try_again:
     switch (Z_TYPE_P(op)) {
         case IS_UNDEF:
-            return zend_string_init("(undef)", sizeof("(undef)") - 1, 0);
+            return zend_string_init("undef", sizeof("undef") - 1, 0);
 
         case IS_NULL:
-            return zend_string_init("(null)", sizeof("(null)") - 1, 0);
+            return zend_string_init("null", sizeof("null") - 1, 0);
 
         case IS_FALSE:
-            return zend_string_init("(false)", sizeof("(false)") - 1, 0);
+            return zend_string_init("false", sizeof("false") - 1, 0);
 
         case IS_TRUE:
-            return zend_string_init("(true)", sizeof("(true)") - 1, 0);
+            return zend_string_init("true", sizeof("true") - 1, 0);
 
         case IS_RESOURCE:
             return strpprintf(0, "Resource id #" ZEND_LONG_FMT, (zend_long)Z_RES_HANDLE_P(op));

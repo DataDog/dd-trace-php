@@ -11,6 +11,6 @@ echo "Request start" . PHP_EOL;
 ?>
 --EXPECTF--
 Throwing an exception...
-Exception thrown in request init hook: Oops!
+[ddtrace] [warning] Exception thrown in request init hook: Oops!
 Request start
-Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] Flushing trace of size 1 to send-queue for %s

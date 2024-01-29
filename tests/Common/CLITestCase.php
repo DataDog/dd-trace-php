@@ -31,6 +31,7 @@ abstract class CLITestCase extends IntegrationTestCase
             // Uncomment to see debug-level messages
             'DD_TRACE_DEBUG' => 'true',
             'DD_TEST_INTEGRATION' => 'true',
+            'DD_TRACE_EXEC_ENABLED' => 'false',
         ];
         return $envs;
     }
@@ -74,7 +75,7 @@ abstract class CLITestCase extends IntegrationTestCase
         $inis = (string) new IniSerializer(static::getInis());
         $script = escapeshellarg($this->getScriptLocation());
         $arguments = escapeshellarg($arguments);
-        $commandToExecute = "$envs php $inis $script $arguments";
+        $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
         `$commandToExecute`;
         return $this->retrieveDumpedTraceData()[0] ?? [];
     }

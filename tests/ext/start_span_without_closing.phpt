@@ -24,7 +24,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-Found unfinished span while automatically closing spans with name 'my precious span'
+[ddtrace] [warning] Found unfinished span while automatically closing spans with name 'my precious span'
 array(1) {
   [0]=>
   array(10) {
@@ -45,17 +45,19 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
+    array(3) {
       ["runtime-id"]=>
       string(36) "%s"
       ["_dd.p.dm"]=>
-      string(2) "-1"
+      string(2) "-0"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
     }
     ["metrics"]=>
     array(4) {
       ["process_id"]=>
       float(%f)
-      ["_dd.rule_psr"]=>
+      ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
@@ -64,7 +66,7 @@ array(1) {
     }
   }
 }
-There is no user-span on the top of the stack. Cannot close.
+[ddtrace] [error] There is no user-span on the top of the stack. Cannot close.
 array(0) {
 }
-No finished traces to be sent to the agent
+[ddtrace] [info] No finished traces to be sent to the agent

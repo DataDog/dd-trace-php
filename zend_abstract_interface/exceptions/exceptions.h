@@ -53,5 +53,7 @@ static inline zval *zai_exception_read_property(zend_object *object, zend_string
 zend_string *zai_exception_message(zend_object *ex);  // fallback string if message invalid
 zend_string *zai_get_trace_without_args(zend_array *trace);
 zend_string *zai_get_trace_without_args_from_exception(zend_object *ex);
+zend_string *zai_get_trace_without_args_skip_frames(zend_array *trace, int skip);
+zend_string *zai_get_trace_without_args_from_exception_skip_frames(zend_object *ex, int skip);
 
 #endif  // ZAI_EXCEPTIONS_H

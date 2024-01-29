@@ -7,7 +7,111 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, zend_string *origin, zend_long sampling_priority, zend_string *propagated_tags, zend_array *tracestate_unknown_dd_keys) {
+    smart_str str = {0};
+
+    if (origin) {
+        smart_str_appends(&str, "o:");
+        signed char *cur = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s);
+        smart_str_append(&str, origin);
+        for (signed char *end = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s); cur < end; ++cur) {
+            if (*cur == '=') {
+                *cur = '~';
+            } else if (*cur < 0x20 || *cur == ',' || *cur == ';' || *cur == '~') {
+                *cur = '_';
+            }
+        }
+    }
+
+    if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN && sampling_priority != 0 && sampling_priority != 1) {
+        if (str.s) {
+            smart_str_appendc(&str, ';');
+        }
+        smart_str_append_printf(&str, "s:" ZEND_LONG_FMT, sampling_priority);
+    }
+
+    if (propagated_tags) {
+        if (str.s) {
+            smart_str_appendc(&str, ';');
+        }
+        int last_separator = true;
+        char next_equals;
+        for (char *cur = ZSTR_VAL(propagated_tags), *end = cur + ZSTR_LEN(propagated_tags); cur < end; ++cur) {
+            if (last_separator) {
+                next_equals = ':';
+                cur += strlen("_dd.p");
+                // drop the tid from otel tracestate
+                if (cur + strlen(".tid=") + 16 /* 16 byte tid */ <= end && memcmp(cur, ".tid=", strlen(".tid=")) == 0) {
+                    cur += strlen(".tid=") + 16;
+                    continue;
+                }
+                smart_str_appendc(&str, 't');
+            }
+            signed char chr = *cur;
+            if (chr < 0x20  || chr == ';' || chr == '~') {
+                chr = '_';
+            } else if (chr == ',') {
+                chr = ';';
+            } else if (chr == '=') {
+                chr = next_equals;
+                next_equals = '~';
+            }
+            smart_str_appendc(&str, chr);
+            last_separator = chr == ';';
+        }
+    }
+
+    zend_string *unknown_key;
+    zval *unknown_val;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(tracestate_unknown_dd_keys, unknown_key, unknown_val) {
+        if (str.s) {
+            smart_str_appendc(&str, ';');
+        }
+        smart_str_append(&str, unknown_key);
+        smart_str_appendc(&str, ':');
+        smart_str_append(&str, Z_STR_P(unknown_val));
+    } ZEND_HASH_FOREACH_END();
+
+    bool hasdd = str.s != NULL;
+    if (tracestate && ZSTR_LEN(tracestate) > 0) {
+        if (str.s) {
+            smart_str_appendc(&str, ',');
+        }
+        smart_str_append(&str, tracestate);
+    }
+
+    if (str.s && ZSTR_VAL(str.s)[ZSTR_LEN(str.s) - 1] == ',') {
+        ZSTR_VAL(str.s)[ZSTR_LEN(str.s) - 1] = '\0';
+        ZSTR_LEN(str.s)--;
+    }
+
+    if (str.s) {
+        zend_string *full_tracestate = zend_strpprintf(0, "%s%.*s", hasdd ? "dd=" : "", (int)ZSTR_LEN(str.s), ZSTR_VAL(str.s));
+        smart_str_free(&str);
+        return full_tracestate;
+    }
+    return NULL;
+}
+
 static inline void ddtrace_inject_distributed_headers_config(zend_array *array, bool key_value_pairs, zend_array *inject) {
+    ddtrace_root_span_data *root = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active ? SPANDATA(DDTRACE_G(active_stack)->active)->root : NULL;
+    zend_string *origin = DDTRACE_G(dd_origin);
+    zend_array *tracestate_unknown_dd_keys = &DDTRACE_G(tracestate_unknown_dd_keys);
+    zend_string *tracestate = DDTRACE_G(tracestate);
+    if (root) {
+        if (Z_TYPE(root->property_origin) == IS_STRING && Z_STRLEN(root->property_origin)) {
+            origin = Z_STR(root->property_origin);
+        } else {
+            origin = NULL;
+        }
+        if (Z_TYPE(root->property_tracestate) == IS_STRING && Z_STRLEN(root->property_tracestate)) {
+            tracestate = Z_STR(root->property_tracestate);
+        } else {
+            tracestate = NULL;
+        }
+        tracestate_unknown_dd_keys = ddtrace_property_array(&root->property_tracestate_tags);
+    }
+
     zval headers;
     ZVAL_ARR(&headers, array);
 
@@ -23,7 +127,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     bool send_b3 = zend_hash_str_exists(inject, ZEND_STRL("b3")) || zend_hash_str_exists(inject, ZEND_STRL("b3multi"));
     bool send_b3single = zend_hash_str_exists(inject, ZEND_STRL("b3 single header"));
 
-    zend_long sampling_priority = ddtrace_fetch_prioritySampling_from_root();
+    zend_long sampling_priority = ddtrace_fetch_priority_sampling_from_root();
     if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         if (send_datadog) {
             ADD_HEADER("x-datadog-sampling-priority", ZEND_LONG_FMT, sampling_priority);
@@ -38,13 +142,13 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             }
         }
     }
-    zend_string *propagated_tags = ddtrace_format_propagated_tags();
+    zend_string *propagated_tags = ddtrace_format_root_propagated_tags();
     if (send_datadog || send_b3 || send_b3single) {
         if (propagated_tags) {
             ADD_HEADER("x-datadog-tags", "%s", ZSTR_VAL(propagated_tags));
         }
-        if (DDTRACE_G(dd_origin)) {
-            ADD_HEADER("x-datadog-origin", "%s", ZSTR_VAL(DDTRACE_G(dd_origin)));
+        if (origin) {
+            ADD_HEADER("x-datadog-origin", "%s", ZSTR_VAL(origin));
         }
     }
     ddtrace_trace_id trace_id = ddtrace_peek_trace_id();
@@ -74,76 +178,10 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
                            span_id,
                            sampling_priority > 0);
 
-                smart_str str = {0};
-
-                if (DDTRACE_G(dd_origin)) {
-                    smart_str_appends(&str, "o:");
-                    signed char *cur = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s);
-                    smart_str_append(&str, DDTRACE_G(dd_origin));
-                    for (signed char *end = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s); cur < end; ++cur) {
-                        if (*cur == '=') {
-                            *cur = '~';
-                        } else if (*cur < 0x20 || *cur == ',' || *cur == ';' || *cur == '~') {
-                            *cur = '_';
-                        }
-                    }
-                }
-
-                if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN && sampling_priority != 0 && sampling_priority != 1) {
-                    if (str.s) {
-                        smart_str_appendc(&str, ';');
-                    }
-                    smart_str_append_printf(&str, "s:" ZEND_LONG_FMT, sampling_priority);
-                }
-
-                if (propagated_tags) {
-                    if (str.s) {
-                        smart_str_appendc(&str, ';');
-                    }
-                    int last_separator = true;
-                    char next_equals;
-                    for (char *cur = ZSTR_VAL(propagated_tags), *end = cur + ZSTR_LEN(propagated_tags); cur < end; ++cur) {
-                        if (last_separator) {
-                            next_equals = ':';
-                            cur += strlen("_dd.p");
-                            smart_str_appendc(&str, 't');
-                        }
-                        signed char chr = *cur;
-                        if (chr < 0x20  || chr == ';' || chr == '~') {
-                            chr = '_';
-                        } else if (chr == ',') {
-                            chr = ';';
-                        } else if (chr == '=') {
-                            chr = next_equals;
-                            next_equals = '~';
-                        }
-                        smart_str_appendc(&str, chr);
-                        last_separator = chr == ';';
-                    }
-                }
-
-                zend_string *unknown_key;
-                zval *unknown_val;
-                ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(tracestate_unknown_dd_keys), unknown_key, unknown_val) {
-                    if (str.s) {
-                        smart_str_appendc(&str, ';');
-                    }
-                    smart_str_append(&str, unknown_key);
-                    smart_str_appendc(&str, ':');
-                    smart_str_append(&str, Z_STR_P(unknown_val));
-                } ZEND_HASH_FOREACH_END();
-
-                bool hasdd = str.s != NULL;
-                if (DDTRACE_G(tracestate) && ZSTR_LEN(DDTRACE_G(tracestate)) > 0) {
-                    if (str.s) {
-                        smart_str_appendc(&str, ',');
-                    }
-                    smart_str_append(&str, DDTRACE_G(tracestate));
-                }
-
-                if (str.s) {
-                    ADD_HEADER("tracestate", "%s%.*s", hasdd ? "dd=" : "", (int)ZSTR_LEN(str.s), ZSTR_VAL(str.s));
-                    smart_str_free(&str);
+                zend_string *full_tracestate = ddtrace_format_tracestate(tracestate, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys);
+                if (full_tracestate) {
+                    ADD_HEADER("tracestate", "%.*s", (int)ZSTR_LEN(full_tracestate), ZSTR_VAL(full_tracestate));
+                    zend_string_release(full_tracestate);
                 }
             }
         }

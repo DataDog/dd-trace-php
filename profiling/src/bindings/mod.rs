@@ -318,9 +318,13 @@ extern "C" {
     pub fn ddog_test_php_prof_function_run_time_cache(
         func: &zend_function,
     ) -> Option<&mut [usize; 2]>;
+
+    /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
+    /// the extension was built against at compile-time.
+    pub fn ddog_php_prof_php_version_id() -> u32;
 }
 
-#[cfg(php_preload)]
+#[cfg(php_post_startup_cb)]
 extern "C" {
     /// Returns true after zend_post_startup_cb has been called for the current
     /// startup/shutdown cycle. This is useful to know. For example,

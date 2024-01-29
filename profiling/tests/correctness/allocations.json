@@ -8,13 +8,13 @@
           {
             "regular_expression":"<?php;main;a;standard\\|str_repeat$",
             "percent": 66,
-            "value": 121999579,
+            "value": 1248240336,
             "error_margin": 5
           },
           {
             "regular_expression":"<?php;main;b;standard\\|str_repeat$",
             "percent": 33,
-            "value": 64258130,
+            "value": 613620616,
             "error_margin": 5
           }
         ]

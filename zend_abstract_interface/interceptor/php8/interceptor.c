@@ -1,3 +1,4 @@
+#include "../../tsrmls_cache.h"
 #include <Zend/zend_observer.h>
 #include <hook/hook.h>
 #include <hook/table.h>
@@ -10,7 +11,7 @@
 # include <sanitizer/common_interface_defs.h>
 #endif
 
-#if PHP_VERSION_ID < 80300
+#if 1
 int zai_registered_observers = 0;
 #endif
 
@@ -59,9 +60,10 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     // Jump onto a temporary stack here... to avoid messing with stack allocated data
     JMP_BUF target;
     const size_t stack_size = 1 << 17;
+    const size_t stack_top_offset = 0x400;
     void *volatile stack = malloc(stack_size);
     if (SETJMP(target) == 0) {
-        void *stacktop = stack + stack_size, *stacktarget = stacktop - 0x400;
+        void *stacktop = stack + stack_size, *stacktarget = stacktop - stack_top_offset;
 
 #ifdef __SANITIZE_ADDRESS__
         void *volatile fake_stack;
@@ -103,7 +105,20 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
         __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);
 #endif
 
+#if PHP_VERSION_ID >= 80300
+        void *stack_base = EG(stack_base);
+        void *stack_limit = EG(stack_limit);
+
+        EG(stack_base) = stacktarget;
+        EG(stack_limit) = (void*)((uintptr_t)stacktarget - stack_top_offset - EG(reserved_stack_size) * 2);
+#endif
+
         zai_hook_finish(ex, rv, hook_data);
+
+#if PHP_VERSION_ID >= 80300
+        EG(stack_base) = stack_base;
+        EG(stack_limit) = stack_limit;
+#endif
 
 #ifdef __SANITIZE_ADDRESS__
         __sanitizer_start_switch_fiber(NULL, bottom, capacity);
@@ -303,9 +318,9 @@ static const zend_object_iterator_funcs zai_interceptor_iterator_wrapper_array_f
 // This function MUST NOT be called with remove = false if there is already an observer installed
 // It also MUST NOT be called with remove = true if there is no observer installed yet
 #if PHP_VERSION_ID < 80200
-void (*zai_interceptor_replace_observer)(zend_function *func, bool remove);
+void (*zai_interceptor_replace_observer)(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler);
 #else
-void zai_interceptor_replace_observer(zend_function *func, bool remove);
+void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler);
 #endif
 
 static void zai_interceptor_observer_generator_yield(zend_execute_data *ex, zval *retval, zend_generator *generator, zai_frame_memory *frame_memory) {
@@ -333,7 +348,7 @@ static void zai_interceptor_observer_generator_yield(zend_execute_data *ex, zval
             while (!zend_hash_index_exists(&zai_hook_resolved, genaddr)) {
                 zval *count = zend_hash_index_find(&zai_interceptor_implicit_generators, genaddr);
                 if (!count) {
-                    zai_interceptor_replace_observer(generator->execute_data->func, false);
+                    zai_interceptor_replace_observer(generator->execute_data->func, false, NULL);
 
                     zval one;
                     ZVAL_LONG(&one, 1);
@@ -381,7 +396,11 @@ static void zai_interceptor_handle_ended_generator(zend_generator *generator, ze
         if (count && !--Z_LVAL_P(count)) {
             zend_hash_index_del(&zai_interceptor_implicit_generators, genaddr);
             if (!zend_hash_index_exists(&zai_hook_resolved, genaddr)) {
-                zai_interceptor_replace_observer(generator->execute_data->func, true);
+                zend_observer_fcall_end_handler next_end_handler = NULL;
+                zai_interceptor_replace_observer(generator->execute_data->func, true, &next_end_handler);
+                if (UNEXPECTED(next_end_handler)) {
+                    next_end_handler(ex, retval);
+                }
             }
         }
     } else {
@@ -421,7 +440,7 @@ static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(ze
     ZEND_OP_ARRAY_EXTENSION((&(function)->common), zend_observer_fcall_op_array_extension)
 #endif
 
-#if PHP_VERSION_ID < 80300
+#if 1
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
 #if PHP_VERSION_ID < 80200
@@ -448,7 +467,9 @@ typedef struct {
     zend_observer_fcall_handlers handlers[1];
 } zend_observer_fcall_data;
 
-void zai_interceptor_replace_observer_legacy(zend_function *func, bool remove) {
+void zai_interceptor_replace_observer_legacy(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler) {
+    (void)next_end_handler;
+
     zend_op_array *op_array = &func->op_array;
     if (!RUN_TIME_CACHE(op_array)) {
         return;
@@ -507,11 +528,11 @@ static void zai_interceptor_observer_placeholder_handler(zend_execute_data *exec
 }
 #endif
 
-void zai_interceptor_replace_observer(zend_function *func, bool remove) {
+void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler) {
 #if PHP_VERSION_ID < 80200
-    if (!RUN_TIME_CACHE(&func->op_array) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
+    if (!ZEND_MAP_PTR(func->op_array.run_time_cache) || !RUN_TIME_CACHE(&func->op_array) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
 #else
-    if (!RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
+    if (!ZEND_MAP_PTR(func->common.run_time_cache) || !RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
 #endif
         return;
     }
@@ -547,6 +568,7 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove) {
                 } else {
                     if (curHandler != endEnd) {
                         memmove(curHandler, curHandler + 1, sizeof(curHandler) * (endEnd - curHandler));
+                        *next_end_handler = *curHandler; // the handler which is now at the place from where we removed ours
                     }
                     *endEnd = NULL;
                 }
@@ -575,8 +597,8 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove) {
     }
 }
 #else
-void zai_interceptor_replace_observer(zend_function *func, bool remove) {
-    if (!RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
+void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler) {
+    if (!ZEND_MAP_PTR(func->op_array.run_time_cache) || !RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
         return;
     }
 
@@ -590,6 +612,7 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove) {
     if (remove) {
         zend_observer_remove_begin_handler(func, handlers.begin);
         zend_observer_remove_end_handler(func, handlers.end);
+        // TODO get next end_handler for PHP 8.4
     } else {
         zend_observer_add_begin_handler(func, handlers.begin);
         zend_observer_add_end_handler(func, handlers.end);
@@ -772,7 +795,7 @@ zend_result zai_interceptor_post_startup(void) {
 
     zai_hook_post_startup();
     zai_interceptor_setup_resolving_post_startup();
-#if PHP_VERSION_ID < 80300
+#if 1
     zai_registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
 #endif
 

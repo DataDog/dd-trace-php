@@ -59,6 +59,7 @@ $config = [
                 'simple' => 'simple/index',
                 'simple_view' => 'simple/view',
                 'error' => 'simple/error',
+                'parameterized/<value>' => 'simple/parameterized',
                 'homes/<state>/<city>/<neighborhood>' => 'homes/view',
                 'forum/<state>/<city>/<neighborhood>' => 'forum/module/view',
             ],

@@ -10,9 +10,12 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array);
 
 void ddtrace_save_active_error_to_metadata(void);
 void ddtrace_set_global_span_properties(ddtrace_span_data *span);
-void ddtrace_set_root_span_properties(ddtrace_span_data *span);
+void ddtrace_set_root_span_properties(ddtrace_root_span_data *span);
+void ddtrace_update_root_id_properties(ddtrace_root_span_data *span);
 
 void ddtrace_initialize_span_sampling_limiter(void);
 void ddtrace_shutdown_span_sampling_limiter(void);
+
+void ddtrace_serializer_startup(void);
 
 #endif  // DD_SERIALIZER_H

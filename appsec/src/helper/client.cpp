@@ -3,16 +3,20 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include "client.hpp"
-#include "exception.hpp"
-#include "network/broker.hpp"
-#include "network/proto.hpp"
-#include "std_logging.hpp"
+
 #include <chrono>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <string>
 #include <thread>
+
+#include "base64.h"
+#include "client.hpp"
+#include "compression.hpp"
+#include "exception.hpp"
+#include "network/broker.hpp"
+#include "network/proto.hpp"
+#include "std_logging.hpp"
 
 using namespace std::chrono_literals;
 
@@ -28,7 +32,7 @@ bool maybe_exec_cmd_M(client &client, network::request &msg)
         if constexpr (sizeof...(Mrest) == 0) {
             SPDLOG_WARN(
                 "a message of type {} ({}) was not expected at this point",
-                msg.id, msg.method);
+                static_cast<unsigned>(msg.id), msg.method);
             throw unexpected_command(msg.method);
         } else {
             return maybe_exec_cmd_M<Mrest...>(client, msg);
@@ -149,18 +153,26 @@ bool client::handle_command(const network::client_init::request &command)
     auto &&eng_settings = command.engine_settings;
     DD_STDLOG(DD_STDLOG_STARTUP);
 
-    std::map<std::string_view, std::string> meta;
+    std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
     std::vector<std::string> errors;
     bool has_errors = false;
 
     client_enabled_conf = command.enabled_configuration;
+    if (service_id.runtime_id.empty()) {
+        service_id.runtime_id = generate_random_uuid();
+    }
+    runtime_id_ = service_id.runtime_id;
 
     try {
         service_ = service_manager_->create_service(std::move(service_id),
             eng_settings, command.rc_settings, meta, metrics,
             !client_enabled_conf.has_value());
+        if (service_) {
+            // This null check is only needed due to some tests
+            service_->register_runtime_id(runtime_id_);
+        }
     } catch (std::system_error &e) {
         // TODO: logging should happen at WAF impl
         DD_STDLOG(DD_STDLOG_RULES_FILE_NOT_FOUND,
@@ -424,7 +436,21 @@ bool client::handle_command(network::request_shutdown::request &command)
     auto free_ctx = defer([this]() { this->context_.reset(); });
 
     auto response = std::make_shared<network::request_shutdown::response>();
+
     try {
+        auto sampler = service_->get_schema_sampler();
+        std::optional<sampler::scope> scope;
+        if (sampler) {
+            scope = sampler->get();
+            if (scope.has_value()) {
+                parameter context_processor = parameter::map();
+                context_processor.add(
+                    "extract-schema", parameter::as_boolean(true));
+                command.data.add(
+                    "waf.context.processor", std::move(context_processor));
+            }
+        }
+
         auto res = context_->publish(std::move(command.data));
         if (res) {
             switch (res->type) {
@@ -499,6 +525,12 @@ bool client::run_request()
 
 void client::run(worker::queue_consumer &q)
 {
+    const defer on_exit{[this]() {
+        if (this->service_) {
+            this->service_->unregister_runtime_id(this->runtime_id_);
+        }
+    }};
+
     if (q.running()) {
         if (!run_client_init()) {
             SPDLOG_DEBUG("Finished handling client (client_init failed)");

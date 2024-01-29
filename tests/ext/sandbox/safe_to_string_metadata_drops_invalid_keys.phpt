@@ -27,5 +27,5 @@ array(2) {
   ["answer_to_universe"]=>
   string(2) "42"
   ["null_value"]=>
-  string(6) "(null)"
+  string(4) "null"
 }

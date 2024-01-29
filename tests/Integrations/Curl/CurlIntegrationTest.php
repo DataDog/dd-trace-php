@@ -49,6 +49,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             'DD_TRACE_MEMORY_LIMIT',
             'DD_TRACE_SPANS_LIMIT',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_TRACE_PROPAGATION_STYLE_INJECT',
         ];
     }
 
@@ -206,6 +207,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             [
                 'DD_SERVICE' => 'top_level_app',
                 'DD_TRACE_NO_AUTOLOADER' => true,
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             ]
         );
 
@@ -221,6 +223,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             'span.kind' => 'client',
                             'network.destination.name' => 'httpbin_integration',
                             Tag::COMPONENT => 'curl',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),
@@ -360,6 +363,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testOriginIsPropagatedAndSetsRootSpanTag()
     {
+        ini_set("datadog.trace.propagation_style_inject", "");
+
         $found = [];
         $traces = $this->inWebServer(
             function ($execute) use (&$found) {
@@ -373,7 +378,10 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     ]
                 )), 1);
             },
-            __DIR__ . '/curl_request_headers.php'
+            __DIR__ . '/curl_request_headers.php',
+            [
+                'DD_TRACE_GENERATE_ROOT_SPAN' => true,
+            ]
         );
 
         $this->assertSame('foo_origin', $found['headers']['X-Datadog-Origin']);
@@ -382,6 +390,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsPropagatedOnCopiedHandle()
     {
+        ini_set("datadog.trace.propagation_style_inject", "");
+
         $found = [];
         $traces = $this->inWebServer(
             function ($execute) use (&$found) {
@@ -409,6 +419,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
+        ini_set("datadog.trace.propagation_style_inject", "");
+
         $this->inWebServer(
             function ($execute) use (&$found) {
                 $found = json_decode($execute(GetSpec::create(
@@ -434,6 +446,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testTracerIsRunningAtLimitedCapacityWeStillPropagateTheSpan()
     {
+        ini_set("datadog.trace.propagation_style_inject", "");
+
         $traces = $this->inWebServer(
             function ($execute) use (&$found) {
                 $found = json_decode($execute(GetSpec::create(
@@ -547,12 +561,71 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
     }
 
+    public function testMulti()
+    {
+        $traces = $this->isolateTracer(function () {
+            $ch1 = curl_init(self::URL . '/status/200');
+            curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
+            $ch2 = curl_init(self::URL_NOT_EXISTS);
+            curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+
+            $mh = curl_multi_init();
+            curl_multi_add_handle($mh, $ch1);
+            curl_multi_add_handle($mh, $ch2);
+
+            do {
+                $status = curl_multi_exec($mh, $active);
+                if ($active) {
+                    curl_multi_select($mh);
+                }
+                while (false !== curl_multi_info_read($mh));
+            } while ($active && $status == CURLM_OK);
+
+            $response = curl_multi_getcontent($ch1);
+            $this->assertSame('', $response);
+            $response = curl_multi_getcontent($ch2);
+            $this->assertSame('', $response);
+            curl_multi_close($mh);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('curl_multi_exec', 'curl', 'http', 'curl_multi_exec')
+                ->withExactTags([
+                    Tag::COMPONENT => 'curl',
+                ])->withChildren([
+                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
+                        ->setTraceAnalyticsCandidate()
+                        ->withExactTags([
+                            'http.url' => self::URL . '/status/200',
+                            'http.status_code' => '200',
+                            'span.kind' => 'client',
+                            'network.destination.name' => 'httpbin_integration',
+                            Tag::COMPONENT => 'curl',
+                        ])
+                        ->withExistingTagsNames(self::commonCurlInfoTags())
+                        ->skipTagsLike('/^curl\..*/'),
+                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://__i_am_not_real__.invalid/')
+                        ->setTraceAnalyticsCandidate()
+                        ->withExactTags([
+                            'http.url' => 'http://__i_am_not_real__.invalid/',
+                            'http.status_code' => '0',
+                            'span.kind' => 'client',
+                            'network.destination.name' => '__i_am_not_real__.invalid',
+                            Tag::COMPONENT => 'curl',
+                        ])
+                        ->withExistingTagsNames(self::commonCurlInfoTags())
+                        ->skipTagsLike('/^curl\..*/')
+                        ->setError('curl error', "Couldn't resolve host name", true),
+                ]),
+        ]);
+    }
+
     /**
      * @dataProvider dataProviderTestTraceAnalytics
      */
     public function testTraceAnalytics($envsOverride, $expectedSampleRate)
     {
-        $env = array_merge(['DD_SERVICE' => 'top_level_app'], $envsOverride);
+        $env = array_merge(['DD_SERVICE' => 'top_level_app', 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true'], $envsOverride);
 
         $traces = $this->inWebServer(
             function ($execute) {
@@ -580,6 +653,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             'span.kind' => 'client',
                             'network.destination.name' => 'httpbin_integration',
                             Tag::COMPONENT => 'curl',
+                            '_dd.base_service' => 'top_level_app',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),
@@ -683,6 +757,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig([
             'DD_SERVICE=configured_service',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+            'DD_TRACE_GENERATE_ROOT_SPAN=true',
         ]);
 
         $traces = $this->isolateTracer(function () {
@@ -705,6 +780,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
-        ]);
+        ], false);
     }
 }

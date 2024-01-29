@@ -57,7 +57,11 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 
 # Specific tests
 
-## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`, `Zend/tests/gh11189(_1).phpt`
+## `sapi/cli/tests/bug80092.phpt`
+
+Temporarily disabled due to a too strict of a check for the precise php -v output.
+
+## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`, `Zend/tests/gh11189(_1).phpt`, `Zend/tests/gh12073.phpt`
 
 Tests memory limits, which we exceed due to tracer being loaded.
 
@@ -156,6 +160,10 @@ ddtrace request init hook consumes more than 2 MB of memory and fails too early 
 ## `Zend/tests/fibers/gh10496-001.phpt`
 
 ddtrace affects the order of destructor execution due to creating span stacks etc.
+
+## `Zend/tests/stack_limit/stack_limit_013.phpt`
+
+This particular test is very close to the stack limit, and thus sometimes fails to actually exceed the stack limit with ddtrace.
 
 ## `ext/zend_test/tests/`, `Zend/tests/gh10346.phpt`
 

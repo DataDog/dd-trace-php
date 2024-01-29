@@ -1,3 +1,4 @@
+#include "../../tsrmls_cache.h"
 #include <Zend/zend_compile.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_vm.h>
@@ -12,8 +13,10 @@ static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition 
     for (zend_class_entry *ce;
             (ce = zend_hash_get_current_data_ptr_ex(CG(class_table), &classpos));
             zend_hash_move_forward_ex(CG(class_table), &classpos)) {
-        zend_hash_get_current_key_ex(CG(class_table), &lcname, &index, &classpos);
-        zai_hook_resolve_class(ce, lcname);
+        if (ce->ce_flags & ZEND_ACC_LINKED) {
+            zend_hash_get_current_key_ex(CG(class_table), &lcname, &index, &classpos);
+            zai_hook_resolve_class(ce, lcname);
+        }
     }
 
     zend_hash_move_forward_ex(CG(function_table), &funcpos); // move past previous end
@@ -21,7 +24,14 @@ static void zai_interceptor_add_new_entries(HashPosition classpos, HashPosition 
             (func = zend_hash_get_current_data_ptr_ex(CG(function_table), &funcpos));
             zend_hash_move_forward_ex(CG(function_table), &funcpos)) {
         zend_hash_get_current_key_ex(CG(function_table), &lcname, &index, &funcpos);
-        zai_hook_resolve_function(func, lcname);
+#if PHP_VERSION_ID < 80100
+        // check for unlinked function: "rtd_key" (i.e. lcname) starts with NUL-byte
+        // On PHP 8.1+ these are attached to the op_array instead and not present in CG(function_table).
+        if (ZSTR_VAL(lcname)[0])
+#endif
+        {
+            zai_hook_resolve_function(func, lcname);
+        }
     }
 }
 

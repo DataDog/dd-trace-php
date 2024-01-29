@@ -136,12 +136,12 @@ class RouteCachingTest extends WebFrameworkTestCase
     private function routeCache()
     {
         $appRoot = \dirname(\dirname(self::getAppIndexScript()));
-        `cd $appRoot && php artisan route:cache`;
+        `cd $appRoot && DD_TRACE_CLI_ENABLED=0 php artisan route:cache`;
     }
 
     private function routeClear()
     {
         $appRoot = \dirname(\dirname(self::getAppIndexScript()));
-        `cd $appRoot && php artisan route:clear`;
+        `cd $appRoot && DD_TRACE_CLI_ENABLED=0 php artisan route:clear`;
     }
 }

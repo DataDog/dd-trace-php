@@ -10,9 +10,11 @@
 #include "../string_helpers.h"
 #include <SAPI.h>
 
-static dd_result _request_pack(
-    mpack_writer_t *nonnull w, void *nullable ATTR_UNUSED ctx);
-static void _pack_headers_no_cookies(mpack_writer_t *nonnull w);
+static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
+static void _pack_headers_no_cookies_llist(
+    mpack_writer_t *nonnull w, zend_llist *nonnull hl);
+static void _pack_headers_no_cookies_map(
+    mpack_writer_t *nonnull w, const zend_array *nonnull headers);
 
 static const dd_command_spec _spec = {
     .name = "request_shutdown",
@@ -23,15 +25,15 @@ static const dd_command_spec _spec = {
     .config_features_cb = dd_command_process_config_features_unexpected,
 };
 
-dd_result dd_request_shutdown(dd_conn *nonnull conn)
+dd_result dd_request_shutdown(
+    dd_conn *nonnull conn, struct req_shutdown_info *nonnull req_info)
 {
-    return dd_command_exec(conn, &_spec, NULL);
+    return dd_command_exec(conn, &_spec, req_info);
 }
 
-static dd_result _request_pack(
-    mpack_writer_t *nonnull w, void *nullable ATTR_UNUSED ctx)
+static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
 {
-    UNUSED(ctx);
+    struct req_shutdown_info *nonnull req_info = ctx;
 
 #define REQUEST_SHUTDOWN_MAP_NUM_ENTRIES 2
     mpack_start_map(w, REQUEST_SHUTDOWN_MAP_NUM_ENTRIES);
@@ -40,15 +42,18 @@ static dd_result _request_pack(
     {
         _Static_assert(sizeof(int) == 4, "expected 32-bit int");
         dd_mpack_write_lstr(w, "server.response.status");
-        int response_code = SG(sapi_headers).http_response_code;
         char buf[sizeof("-2147483648")];
-        int size = sprintf(buf, "%d", response_code);
+        int size = sprintf(buf, "%d", req_info->status_code);
         mpack_write_str(w, buf, (uint32_t)size);
     }
 
     // 2.
     dd_mpack_write_lstr(w, "server.response.headers.no_cookies");
-    _pack_headers_no_cookies(w);
+    if (req_info->resp_headers_fmt == RESP_HEADERS_LLIST) {
+        _pack_headers_no_cookies_llist(w, req_info->resp_headers_llist);
+    } else {
+        _pack_headers_no_cookies_map(w, req_info->resp_headers_arr);
+    }
 
     mpack_finish_map(w);
 
@@ -62,14 +67,13 @@ static void _dtor_headers_map(zval *zv)
     efree(l);
 }
 
-static void _pack_headers_no_cookies(mpack_writer_t *nonnull w)
+static void _pack_headers_no_cookies_llist(
+    mpack_writer_t *nonnull w, zend_llist *nonnull hl)
 {
     struct _header_val {
         const char *val;
         size_t len;
     };
-
-    zend_llist *hl = &SG(sapi_headers).headers;
 
     // first collect the headers in array of lists
     HashTable headers_map;
@@ -129,4 +133,59 @@ static void _pack_headers_no_cookies(mpack_writer_t *nonnull w)
     mpack_finish_map(w);
 
     zend_hash_destroy(&headers_map);
+}
+
+static void _pack_headers_no_cookies_map(
+    mpack_writer_t *nonnull w, const zend_array *nonnull headers)
+{
+    mpack_start_map(w, zend_array_count((zend_array *)headers));
+
+    zend_string *key;
+    zval *val;
+    zend_long idx;
+    ZEND_HASH_FOREACH_KEY_VAL((zend_array *)headers, idx, key, val)
+    {
+        if (!key) {
+            mlog(dd_log_warning, "unexpected header array key type: expected a "
+                                 "string, not numeric indices");
+            key = zend_long_to_str(idx);
+        } else {
+            zend_string_addref(key);
+        }
+
+        mpack_write_str(w, ZSTR_VAL(key), ZSTR_LEN(key));
+
+        if (Z_TYPE_P(val) == IS_ARRAY) {
+            mpack_start_array(w, zend_array_count(Z_ARRVAL_P(val)));
+            zval *zv;
+            ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(val), zv)
+            {
+                if (Z_TYPE_P(zv) == IS_STRING) {
+                    mpack_write_str(w, Z_STRVAL_P(zv), Z_STRLEN_P(zv));
+                } else {
+                    mpack_write_str(w, ZEND_STRL("(invalid value)"));
+                    mlog(dd_log_warning,
+                        "unexpected header value type: %d (value is an array, "
+                        "but found an element of it that's no string)",
+                        Z_TYPE_P(zv));
+                }
+            }
+            ZEND_HASH_FOREACH_END();
+        } else if (Z_TYPE_P(val) == IS_STRING) {
+            mpack_start_array(w, 1);
+            mpack_write_str(w, Z_STRVAL_P(val), Z_STRLEN_P(val));
+        } else {
+            mpack_start_array(w, 1);
+            mpack_write_str(w, ZEND_STRL("(invalid value)"));
+            mlog(dd_log_warning,
+                "unexpected header value type: %d (expected string or array of "
+                "strings)",
+                Z_TYPE_P(val));
+        }
+        mpack_finish_array(w);
+
+        zend_string_release(key);
+    }
+    ZEND_HASH_FOREACH_END();
+    mpack_finish_map(w);
 }

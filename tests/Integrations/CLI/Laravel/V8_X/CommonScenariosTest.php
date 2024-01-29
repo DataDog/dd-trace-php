@@ -8,6 +8,12 @@ use DDTrace\Tests\Common\CLITestCase;
 
 class CommonScenariosTest extends CLITestCase
 {
+    public function ddSetUp()
+    {
+        parent::ddSetUp();
+        $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=true");
+    }
+
     protected function getScriptLocation()
     {
         return __DIR__ . '/../../../../Frameworks/Laravel/Version_8_x/artisan';

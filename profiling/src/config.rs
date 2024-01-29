@@ -14,6 +14,34 @@ use std::path::Path;
 pub use std::path::PathBuf;
 use std::str::FromStr;
 
+pub struct SystemSettings {
+    pub profiling_enabled: bool,
+    pub profiling_experimental_features_enabled: bool,
+    pub profiling_endpoint_collection_enabled: bool,
+    pub profiling_experimental_cpu_time_enabled: bool,
+    pub profiling_allocation_enabled: bool,
+    pub profiling_timeline_enabled: bool,
+    pub profiling_exception_enabled: bool,
+
+    // todo: can't this be Option<String>? I don't think the string can ever be static.
+    pub output_pprof: Option<Cow<'static, str>>,
+    pub profiling_exception_sampling_distance: u32,
+    pub profiling_log_level: LevelFilter,
+    pub uri: AgentEndpoint,
+}
+
+impl SystemSettings {
+    pub fn disable_all(&mut self) {
+        self.profiling_enabled = false;
+        self.profiling_experimental_features_enabled = false;
+        self.profiling_endpoint_collection_enabled = false;
+        self.profiling_experimental_cpu_time_enabled = false;
+        self.profiling_allocation_enabled = false;
+        self.profiling_timeline_enabled = false;
+        self.profiling_exception_enabled = false;
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum AgentEndpoint {
     Uri(Uri),
@@ -137,12 +165,13 @@ pub(crate) unsafe fn get_value(id: ConfigId) -> &'static mut zval {
 #[derive(Clone, Copy)]
 pub(crate) enum ConfigId {
     ProfilingEnabled = 0,
+    ProfilingExperimentalFeaturesEnabled,
     ProfilingEndpointCollectionEnabled,
     ProfilingExperimentalCpuTimeEnabled,
     ProfilingAllocationEnabled,
-    ProfilingExperimentalTimelineEnabled,
-    ProfilingExperimentalExceptionEnabled,
-    ProfilingExperimentalExceptionSamplingDistance,
+    ProfilingTimelineEnabled,
+    ProfilingExceptionEnabled,
+    ProfilingExceptionSamplingDistance,
     ProfilingLogLevel,
     ProfilingOutputPprof,
 
@@ -162,16 +191,13 @@ impl ConfigId {
     const fn env_var_name(&self) -> ZaiStr {
         let bytes: &'static [u8] = match self {
             ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
+            ProfilingExperimentalFeaturesEnabled => b"DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED\0",
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
             ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
-            ProfilingExperimentalTimelineEnabled => b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
-            ProfilingExperimentalExceptionEnabled => {
-                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED\0"
-            }
-            ProfilingExperimentalExceptionSamplingDistance => {
-                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE\0"
-            }
+            ProfilingTimelineEnabled => b"DD_PROFILING_TIMELINE_ENABLED\0",
+            ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
+            ProfilingExceptionSamplingDistance => b"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             /* Note: this is meant only for debugging and testing. Please don't
@@ -203,43 +229,52 @@ pub(crate) unsafe fn profiling_enabled() -> bool {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn profiling_experimental_features_enabled() -> bool {
+    profiling_enabled() && get_bool(ProfilingExperimentalFeaturesEnabled, false)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_endpoint_collection_enabled() -> bool {
-    get_bool(ProfilingEndpointCollectionEnabled, true)
+    profiling_enabled() && get_bool(ProfilingEndpointCollectionEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
-    get_bool(ProfilingExperimentalCpuTimeEnabled, true)
+    profiling_enabled()
+        && (profiling_experimental_features_enabled()
+            || get_bool(ProfilingExperimentalCpuTimeEnabled, true))
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn profiling_allocation_enabled() -> bool {
-    get_bool(ProfilingAllocationEnabled, true)
+    profiling_enabled() && get_bool(ProfilingAllocationEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_timeline_enabled() -> bool {
-    get_bool(ProfilingExperimentalTimelineEnabled, false)
+pub(crate) unsafe fn profiling_timeline_enabled() -> bool {
+    profiling_enabled() && get_bool(ProfilingTimelineEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_exception_enabled() -> bool {
-    get_bool(ProfilingExperimentalExceptionEnabled, false)
+pub(crate) unsafe fn profiling_exception_enabled() -> bool {
+    profiling_enabled() && get_bool(ProfilingExceptionEnabled, true)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn profiling_experimental_exception_sampling_distance() -> u32 {
-    get_uint32(ProfilingExperimentalExceptionSamplingDistance, 100)
+pub(crate) unsafe fn profiling_exception_sampling_distance() -> u32 {
+    get_uint32(ProfilingExceptionSamplingDistance, 100)
 }
 
 /// # Safety
@@ -435,6 +470,24 @@ pub(crate) fn minit(module_number: libc::c_int) {
             )]
         };
 
+        const EXCEPTION_ALIASES: &[ZaiStr] = unsafe {
+            &[ZaiStr::literal(
+                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED\0",
+            )]
+        };
+
+        const EXCEPTION_SAMPLING_DISTANCE_ALIASES: &[ZaiStr] = unsafe {
+            &[ZaiStr::literal(
+                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE\0",
+            )]
+        };
+
+        const TIMELINE_ALIASES: &[ZaiStr] = unsafe {
+            &[ZaiStr::literal(
+                b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
+            )]
+        };
+
         // Note that function pointers cannot appear in const functions, so we
         // can't extract each entry into a helper function.
         static mut ENTRIES: &mut [zai_config_entry] = unsafe {
@@ -446,7 +499,17 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: None,
+                },
+                zai_config_entry {
+                    id: transmute(ProfilingExperimentalFeaturesEnabled),
+                    name: ProfilingExperimentalFeaturesEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: ZaiStr::literal(b"0\0"),
+                    aliases: std::ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
@@ -456,7 +519,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: std::ptr::null_mut(),
                     aliases_count: 0,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
@@ -466,7 +529,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: CPU_TIME_ALIASES.as_ptr(),
                     aliases_count: CPU_TIME_ALIASES.len() as u8,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
@@ -476,36 +539,36 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: ALLOCATION_ALIASES.as_ptr(),
                     aliases_count: ALLOCATION_ALIASES.len() as u8,
-                    ini_change: None,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalTimelineEnabled),
-                    name: ProfilingExperimentalTimelineEnabled.env_var_name(),
+                    id: transmute(ProfilingTimelineEnabled),
+                    name: ProfilingTimelineEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: std::ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: None,
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
+                    aliases: TIMELINE_ALIASES.as_ptr(),
+                    aliases_count: TIMELINE_ALIASES.len() as u8,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalExceptionEnabled),
-                    name: ProfilingExperimentalExceptionEnabled.env_var_name(),
+                    id: transmute(ProfilingExceptionEnabled),
+                    name: ProfilingExceptionEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: std::ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: None,
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
+                    aliases: EXCEPTION_ALIASES.as_ptr(),
+                    aliases_count: EXCEPTION_ALIASES.len() as u8,
+                    ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalExceptionSamplingDistance),
-                    name: ProfilingExperimentalExceptionSamplingDistance.env_var_name(),
+                    id: transmute(ProfilingExceptionSamplingDistance),
+                    name: ProfilingExceptionSamplingDistance.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM,
                     default_encoded_value: ZaiStr::literal(b"100\0"),
-                    aliases: std::ptr::null_mut(),
-                    aliases_count: 0,
+                    aliases: EXCEPTION_SAMPLING_DISTANCE_ALIASES.as_ptr(),
+                    aliases_count: EXCEPTION_SAMPLING_DISTANCE_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_exception_sampling_distance_filter),
                 },
@@ -629,6 +692,10 @@ mod tests {
             (b"DD_AGENT_HOST\0", "datadog.agent_host"),
             (b"DD_PROFILING_ENABLED\0", "datadog.profiling.enabled"),
             (
+                b"DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED\0",
+                "datadog.profiling.experimental_features_enabled",
+            ),
+            (
                 b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
                 "datadog.profiling.endpoint_collection_enabled",
             ),
@@ -648,6 +715,11 @@ mod tests {
             (
                 b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
                 "datadog.profiling.experimental_timeline_enabled",
+            ),
+            #[cfg(feature = "timeline")]
+            (
+                b"DD_PROFILING_TIMELINE_ENABLED\0",
+                "datadog.profiling.timeline_enabled",
             ),
             (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
             (

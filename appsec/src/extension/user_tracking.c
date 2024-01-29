@@ -7,20 +7,22 @@
 #include "user_tracking.h"
 #include "commands/request_exec.h"
 #include "ddappsec.h"
+#include "dddefs.h"
 #include "ddtrace.h"
 #include "helper_process.h"
 #include "logging.h"
 #include "php_compat.h"
 #include "request_abort.h"
-#include "tags.h"
+#include "request_lifecycle.h"
 #include "string_helpers.h"
+#include "tags.h"
+#include <Zend/zend_exceptions.h>
 
 static void (*_ddtrace_set_user)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 
 static PHP_FUNCTION(set_user_wrapper)
 {
-    if (DDAPPSEC_G(enabled) == ENABLED ||
-        UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
+    if (DDAPPSEC_G(active) || UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
         zend_string *user_id = NULL;
         HashTable *metadata = NULL;
         zend_bool propagate = false;
@@ -43,7 +45,7 @@ static PHP_FUNCTION(set_user_wrapper)
 
 void dd_user_tracking_startup(void)
 {
-    if (!dd_trace_enabled()) {
+    if (!dd_trace_loaded()) {
         return;
     }
     zend_function *set_user = zend_hash_str_find_ptr(
@@ -73,8 +75,7 @@ void dd_user_tracking_shutdown(void)
 
 void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id)
 {
-    if (DDAPPSEC_G(enabled) != ENABLED &&
-        UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
+    if (!DDAPPSEC_G(active) && UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
         return;
     }
 
@@ -102,9 +103,15 @@ void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id)
 
     dd_tags_set_event_user_id(user_id);
 
-    if (res == dd_should_block) {
-        dd_request_abort_static_page();
-    } else if (res == dd_should_redirect) {
-        dd_request_abort_redirect();
+    if (dd_req_is_user_req()) {
+        if (res == dd_should_block || res == dd_should_redirect) {
+            dd_req_call_blocking_function(res);
+        }
+    } else {
+        if (res == dd_should_block) {
+            dd_request_abort_static_page();
+        } else if (res == dd_should_redirect) {
+            dd_request_abort_redirect();
+        }
     }
 }

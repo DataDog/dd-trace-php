@@ -8,7 +8,7 @@
     "parent_id": 1625545689840073902,
     "type": "web",
     "meta": {
-      "_dd.p.dm": "-1",
+      "_dd.p.dm": "-0",
       "component": "laminas",
       "http.method": "GET",
       "http.status_code": "404",
@@ -155,7 +155,7 @@
               {
                 "name": "laminas.mvcEvent.setError",
                 "service": "test_laminas_20",
-                "resource": "laminas.mvcEvent.setError",
+                "resource": "error-router-no-match",
                 "trace_id": 0,
                 "span_id": 16,
                 "parent_id": 11,
