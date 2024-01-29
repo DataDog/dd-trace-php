@@ -70,6 +70,16 @@ class WordPressIntegration extends Integration
             return true;
         });
 
+        \DDTrace\hook_method('WP', 'main',  null, function ($This, $scope, $args) {
+            if (\property_exists($This, 'did_permalink') && $This->did_permalink === true &&
+                function_exists('is_404') && is_404() === false) {
+                $rootSpan = \DDTrace\root_span();
+                if (\property_exists($This, 'matched_rule')) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $This->matched_rule;
+                }
+            }
+        });
+
         \DDTrace\hook_function(
             'wp_authenticate',
             null,
