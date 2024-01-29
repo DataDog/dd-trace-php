@@ -58,6 +58,25 @@ target_linker_flag_conditional(extension "-Wl,--version-script=${CMAKE_CURRENT_S
 target_linker_flag_conditional(extension -flat_namespace "-undefined suppress")
 target_linker_flag_conditional(extension -Wl,-exported_symbol -Wl,_get_module)
 
+find_program(READELF_PROGRAM readelf)
+set(ENABLE_ASAN FALSE CACHE BOOL "Enable ASAN")
+if(READELF_PROGRAM)
+    execute_process(COMMAND ${READELF_PROGRAM} -d ${PhpConfig_PHP_BINARY}
+                    COMMAND grep NEEDED
+                    COMMAND grep libasan
+                    RESULT_VARIABLE result
+                    OUTPUT_QUIET
+                    ERROR_QUIET)
+    if(result EQUAL 0)
+        set(ENABLE_ASAN TRUE CACHE BOOL "Enable ASAN" FORCE)
+    endif()
+endif()
+if(ENABLE_ASAN)
+    message(STATUS "Enabling ASAN")
+    target_compile_options(extension PRIVATE -fsanitize=address)
+    target_link_options(extension PRIVATE -fsanitize=address)
+endif()
+
 patch_away_libc(extension)
 
 if(DD_APPSEC_TESTING)
