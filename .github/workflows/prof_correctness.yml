@@ -90,7 +90,6 @@ jobs:
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
-              lz4 -d --rm "$DD_PROFILING_OUTPUT_PPROF".1.lz4 "$DD_PROFILING_OUTPUT_PPROF"
           done
 
       - name: Check profiler correctness for allocations
