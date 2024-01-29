@@ -15,6 +15,7 @@
       "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_9/wp-includes/class-wp-hook.php(307): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_9/wp-includes/class-wp-hook.php(331): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_9/wp-includes/plugin.php(522): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_9/wp-includes/class-wp.php(396): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_9/wp-includes/class-wp.php(758): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_9/wp-includes/functions.php(1310): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_9/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_5_9/index.php(17): require()\n#8 {main}",
       "error.type": "Exception",
       "http.method": "GET",
+      "http.route": "([^/]+)(?:/([0-9]+))?/?$",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/error?key=value&<redacted>",
       "runtime-id": "37ac3b3a-349e-47b8-91b6-924b1abbbd25",
