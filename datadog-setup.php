@@ -18,6 +18,7 @@ const CMD_CONFIG_LIST = 'config list';
 // Options
 const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
+const OPT_EXTENSION_DIR = 'extension-dir';
 const OPT_PHP_BIN = 'php-bin';
 const OPT_PHP_INI = 'ini';
 const OPT_FILE = 'file';
@@ -566,7 +567,9 @@ function install($options)
                 . ' builds of PHP ' . $phpProperties[PHP_VER] . ' are currently not supported');
         }
 
-        $extensionDestination = $phpProperties[EXTENSION_DIR] . '/ddtrace.so';
+        $extensionDir = $options[OPT_EXTENSION_DIR] ?? $phpProperties[EXTENSION_DIR];
+
+        $extensionDestination = $extensionDir . '/ddtrace.so';
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
         // Profiling
@@ -576,7 +579,7 @@ function install($options)
         $shouldInstallProfiling = file_exists($profilingExtensionRealPath);
 
         if ($shouldInstallProfiling) {
-            $profilingExtensionDestination = $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so';
+            $profilingExtensionDestination = $extensionDir . '/datadog-profiling.so';
             safe_copy_extension($profilingExtensionRealPath, $profilingExtensionDestination);
         }
 
@@ -585,7 +588,7 @@ function install($options)
         $shouldInstallAppsec = file_exists($appsecExtensionRealPath);
 
         if ($shouldInstallAppsec) {
-            $appsecExtensionDestination = $phpProperties[EXTENSION_DIR] . '/ddappsec.so';
+            $appsecExtensionDestination = $extensionDir . '/ddappsec.so';
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
         }
         $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
@@ -889,10 +892,12 @@ function uninstall($options)
 
         $phpProperties = ini_values($fullPath);
 
+        $extensionDir = $options[OPT_EXTENSION_DIR] ?? $phpProperties[EXTENSION_DIR];
+
         $extensionDestinations = [
-            $phpProperties[EXTENSION_DIR] . '/ddtrace.so',
-            $phpProperties[EXTENSION_DIR] . '/datadog-profiling.so',
-            $phpProperties[EXTENSION_DIR] . '/ddappsec.so',
+            $extensionDir . '/ddtrace.so',
+            $extensionDir . '/datadog-profiling.so',
+            $extensionDir . '/ddappsec.so',
         ];
 
         if (isset($phpProperties[INI_SCANDIR])) {
@@ -1265,6 +1270,10 @@ function parse_validate_user_options()
         ? rtrim($options[OPT_INSTALL_DIR], '/')
         : '/opt/datadog';
     $normalizedOptions[OPT_INSTALL_DIR] = $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
+
+    $normalizedOptions[OPT_EXTENSION_DIR] = isset($options[OPT_EXTENSION_DIR])
+        ? rtrim($options[OPT_EXTENSION_DIR], '/')
+        : null;
 
     $normalizedOptions[OPT_ENABLE_APPSEC] = isset($options[OPT_ENABLE_APPSEC]);
     $normalizedOptions[OPT_ENABLE_PROFILING] = isset($options[OPT_ENABLE_PROFILING]);
