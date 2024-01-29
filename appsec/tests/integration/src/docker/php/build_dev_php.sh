@@ -97,6 +97,8 @@ function build_php {
   local readonly version_id=$(php_version_id $version)
   local readonly download_dir="$PHP_HOMEDIR/sources/$version" \
     build_dir="$PHP_HOMEDIR/build-$version-$variants_s"
+  local cflags="${CFLAGS:-} -ggdb" cxxflags="${CXXFLAGS:-} -ggdb" \
+    ldflags="${LDFLAGS:-}" cppflags="${CPPFLAGS:-}"
   local -a variants
   readarray -td- variants <<< "$variants_s-"
   unset 'variants[-1]'
@@ -223,6 +225,12 @@ function build_php {
       options+=(--enable-maintainer-zts)
     fi
   fi
+  if contains_element asan "${variants[@]}"; then
+    cppflags="$cppflags -DZEND_TRACK_ARENA_ALLOC"
+    cflags="$cflags -fsanitize=address"
+    cxxflags="$cxxflags -fsanitize=address"
+    ldflags="$ldflags -fsanitize=address"
+  fi
   if [[ $version_id -lt 70400 ]]; then
     options+=(--enable-hash --enable-libxml=shared)
   else
@@ -263,7 +271,9 @@ function build_php {
   mkdir -p "$build_dir"
   cd "$build_dir"
 
-  "$download_dir/configure" "${options[@]}"
+  CFLAGS="$cflags" CXXFLAGS="$cxxflags" CPPFLAGS="$cppflags" \
+    LDFLAGS="$ldflags" \
+    "$download_dir/configure" "${options[@]}"
   make -j $(nproc)
   make install-sapi || true
   make install-binaries install-headers install-modules install-programs install-build
@@ -466,7 +476,7 @@ download_php "$1"
 
 export PKG_CONFIG_PATH=$(openssl_pkg_config "$1"):$HOME/php/icu-60/lib/pkgconfig:$HOME/php/libxml2/lib/pkgconfig
 PATH=$HOME/php/icu-60/bin:$PATH
-CXXFLAGS='-g -ggdb' build_php "$1" "${2:-}" PREFIX
+build_php "$1" "${2:-}" PREFIX
 
 xdebug_version=$(get_xdebug_version "$1")
 download_and_extract_xdebug "$xdebug_version"
