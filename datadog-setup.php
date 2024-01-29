@@ -18,6 +18,7 @@ const CMD_CONFIG_LIST = 'config list';
 // Options
 const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
+const OPT_EXTENSION_DIR = 'extension-dir';
 const OPT_PHP_BIN = 'php-bin';
 const OPT_PHP_INI = 'ini';
 const OPT_FILE = 'file';
@@ -581,7 +582,7 @@ function install($options)
             $extensionSuffix .= '-zts';
         }
 
-        $extDir = $phpProperties[EXTENSION_DIR];
+        $extDir = $options[OPT_EXTENSION_DIR] ?? $phpProperties[EXTENSION_DIR];
 
         // Trace
         $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/"
@@ -875,11 +876,12 @@ function uninstall($options)
         echo "Uninstalling from binary: $binaryForLog\n";
 
         $phpProperties = ini_values($fullPath);
+        $extensionDir = $options[OPT_EXTENSION_DIR] ?? $phpProperties[EXTENSION_DIR];
 
         $extensionDestinations = [
-            $phpProperties[EXTENSION_DIR] . '/' . EXTENSION_PREFIX . 'ddtrace.' . EXTENSION_SUFFIX,
-            $phpProperties[EXTENSION_DIR] . '/' . EXTENSION_PREFIX . 'datadog-profiling.' . EXTENSION_SUFFIX,
-            $phpProperties[EXTENSION_DIR] . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX,
+            $extensionDir . '/' . EXTENSION_PREFIX . 'ddtrace.' . EXTENSION_SUFFIX,
+            $extensionDir . '/' . EXTENSION_PREFIX . 'datadog-profiling.' . EXTENSION_SUFFIX,
+            $extensionDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX,
         ];
 
         $iniFileName = '98-ddtrace.ini';
@@ -1269,6 +1271,10 @@ function parse_validate_user_options()
         ? rtrim($options[OPT_INSTALL_DIR], '/')
         : DEFAULT_INSTALL_DIR;
     $normalizedOptions[OPT_INSTALL_DIR] = $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
+
+    $normalizedOptions[OPT_EXTENSION_DIR] = isset($options[OPT_EXTENSION_DIR])
+        ? rtrim($options[OPT_EXTENSION_DIR], '/')
+        : null;
 
     $normalizedOptions[OPT_ENABLE_APPSEC] = isset($options[OPT_ENABLE_APPSEC]);
     $normalizedOptions[OPT_ENABLE_PROFILING] = isset($options[OPT_ENABLE_PROFILING]);
