@@ -19,6 +19,7 @@ const CMD_CONFIG_LIST = 'config list';
 const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
 const OPT_PHP_BIN = 'php-bin';
+const OPT_PHP_INI = 'ini';
 const OPT_FILE = 'file';
 const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_APPSEC = 'enable-appsec';
@@ -614,7 +615,11 @@ function install($options)
         }
         $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
 
-        $iniFilePaths = find_main_ini_files($phpProperties);
+        if (isset($options[OPT_PHP_INI])) {
+            $iniFilePaths = $options[OPT_PHP_INI];
+        } else {
+            $iniFilePaths = find_main_ini_files($phpProperties);
+        }
 
         foreach ($iniFilePaths as $iniFilePath) {
             $replacements = [];
@@ -1252,6 +1257,12 @@ function parse_validate_user_options()
         $normalizedOptions[OPT_PHP_BIN] = is_array($options[OPT_PHP_BIN])
             ? $options[OPT_PHP_BIN]
             : [$options[OPT_PHP_BIN]];
+    }
+
+    if (isset($options[OPT_PHP_INI])) {
+        $normalizedOptions[OPT_PHP_INI] = is_array($options[OPT_PHP_INI])
+            ? $options[OPT_PHP_INI]
+            : [$options[OPT_PHP_INI]];
     }
 
     $normalizedOptions[OPT_INSTALL_DIR] = isset($options[OPT_INSTALL_DIR])
