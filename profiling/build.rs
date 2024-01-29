@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
+    println!("cargo:rerun-if-changed=NULL");
     let php_config_includes_output = Command::new("php-config")
         .arg("--includes")
         .output()
