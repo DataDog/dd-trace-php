@@ -490,10 +490,22 @@ function install($options)
         $url = RELEASE_URL_PREFIX . "dd-library-php-" . RELEASE_VERSION . "-{$platform}.tar.gz";
         download($url, $tmpDirTarGz);
     }
-    execute_or_exit(
-        "Cannot extract the archive",
-        "tar -xf " . escapeshellarg($tmpDirTarGz) . " -C " . escapeshellarg($tmpDir)
-    );
+    if (!IS_WINDOWS || `where tar 2> nul` !== null) {
+        execute_or_exit(
+            "Cannot extract the archive",
+            "tar -xf " . escapeshellarg($tmpDirTarGz) . " -C " . escapeshellarg($tmpDir)
+        );
+    } elseif (($defaultPath = `where 7z 2> nul`) !== null || @is_dir($installDir7z = getenv("PROGRAMFILES") . "\\7-Zip")) {
+        if ($defaultPath === null) {
+            putenv("PATH=" . getenv("PATH") . ";$installDir7z");
+        }
+        execute_or_exit(
+            "Cannot extract the archive",
+            "7z x " . escapeshellarg($tmpDirTarGz) . " -so | 7z x -aoa -si -ttar -o" . escapeshellarg($tmpDir)
+        );
+    } else {
+        die("ERROR: neither tar nor 7z are installed and available in %PATH%. Please install either to continue the installation.\n");
+    }
 
     $releaseVersion = trim(file_get_contents("$tmpArchiveRoot/VERSION"));
 
@@ -504,13 +516,15 @@ function install($options)
     $installDirBridgeDir = $installDirSourcesDir . '/bridge';
     $installDirWrapperPath = $installDirBridgeDir . '/dd_wrap_autoloader.php';
     // copying sources to the final destination
-    execute_or_exit(
-        "Cannot create directory '$installDirSourcesDir'",
-        "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($installDirSourcesDir)
-    );
+    if (!file_exists($installDirSourcesDir)) {
+        execute_or_exit(
+            "Cannot create directory '$installDirSourcesDir'",
+            "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($installDirSourcesDir)
+        );
+    }
     execute_or_exit(
         "Cannot copy files from '$tmpBridgeDir' to '$installDirBridgeDir'",
-        (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpBridgeDir") . ' ' . escapeshellarg($installDirBridgeDir)
+        (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg($tmpBridgeDir) . ' ' . escapeshellarg($installDirBridgeDir)
     );
     if (file_exists($tmpSrcDir)) {
         execute_or_exit(
@@ -543,11 +557,15 @@ function install($options)
         $phpProperties = ini_values($fullPath);
         if (!isset($phpProperties[INI_SCANDIR])) {
             if (!isset($phpProperties[INI_MAIN])) {
-                print_error_and_exit(
-                    "It is not possible to perform installation on this "
-                    . "system because there is no scan directory and no "
-                    . "configuration file loaded."
-                );
+                if (IS_WINDOWS) {
+                    $phpProperties[INI_MAIN] = dirname($fullPath) . "/php.ini";
+                } else {
+                    print_error_and_exit(
+                        "It is not possible to perform installation on this "
+                        . "system because there is no scan directory and no "
+                        . "configuration file loaded."
+                    );
+                }
             }
 
             print_warning(
@@ -611,10 +629,12 @@ function install($options)
 
             if (!file_exists($iniFilePath)) {
                 $iniDir = dirname($iniFilePath);
-                execute_or_exit(
-                    "Cannot create directory '$iniDir'",
-                    "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($iniDir)
-                );
+                if (!file_exists($iniDir)) {
+                    execute_or_exit(
+                        "Cannot create directory '$iniDir'",
+                        "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($iniDir)
+                    );
+                }
 
                 if (false === file_put_contents($iniFilePath, '')) {
                     print_error_and_exit("Cannot create INI file $iniFilePath");
@@ -1372,7 +1392,8 @@ function download($url, $destination)
     // curl
     $statusCode = 0;
     $output = [];
-    if (false !== exec('curl --version', $output, $statusCode) && $statusCode === 0) {
+    // on Windows curl is an alias for Invoke-WebRequest on powershell
+    if (!IS_WINDOWS && false !== exec('curl --version', $output, $statusCode) && $statusCode === 0) {
         $curlInvocationStatusCode = 0;
         system(
             'curl -L --output ' . escapeshellarg($destination) . ' ' . escapeshellarg($url),
@@ -1396,11 +1417,27 @@ function download($url, $destination)
         return;
     }
 
+    if (IS_WINDOWS) {
+        $webRequestInvocationStatusCode = 0;
+        system(
+            'powershell ' . escapeshellarg('[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Out ' . escapeshellarg($destination) . ' ' . escapeshellarg($url)),
+            $webRequestInvocationStatusCode
+        );
+        if ($webRequestInvocationStatusCode === 0) {
+            echo $okMessage;
+            return;
+        }
+        // Otherwise we attempt other methods
+    }
+
+
     echo "Error: Cannot download the installable archive.\n";
     echo "  One of the following prerequisites must be satisfied:\n";
     echo "    - PHP ext-curl extension is installed\n";
     if (!IS_WINDOWS) {
         echo "    - curl CLI command is available\n";
+    } else {
+        echo "    - Invoke-WebRequest exists on the powershell\n";
     }
     echo "    - the INI setting 'allow_url_fopen=1' and the ext-openssl extension is installed\n";
 
@@ -1519,7 +1556,7 @@ function search_php_binaries($prefix = '')
             foreach ($allPossibleCommands as $command) {
                 $resolvedPath = $standardPath . '\\' . $command;
                 if (file_exists($resolvedPath)) {
-                    $pathsFound[$command] = $resolvedPath;
+                    $pathsFound[] = $resolvedPath;
                 }
             }
         }
@@ -1566,7 +1603,7 @@ function search_php_binaries($prefix = '')
 
     foreach ($pathsFound as $path) {
         $resolved = realpath($path);
-        if (in_array($resolved, array_values($resolvedPaths))) {
+        if (in_array($resolved, $resolvedPaths)) {
             continue;
         }
         $resolvedPaths[$path] = $resolved;
