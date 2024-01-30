@@ -377,9 +377,12 @@ static void _mlog_file(dd_log_level_t level, const char *format, va_list args,
             _dd_log_level_to_str(level), message_data, file, line, function);
 
     efree(message_data);
-    TSRM_MUTEX_LOCK(_mutex);
-    ssize_t written = write(_mlog_fd, data, data_len);
-    TSRM_MUTEX_UNLOCK(_mutex);
+    ssize_t written;
+    do {
+        TSRM_MUTEX_LOCK(_mutex);
+        written = write(_mlog_fd, data, data_len);
+        TSRM_MUTEX_UNLOCK(_mutex);
+    } while (written == -1 && errno == EINTR);
     efree(data);
 
     if (written == -1) {
@@ -451,13 +454,26 @@ void dd_log_shutdown()
 {
     mlog(dd_log_debug, "Shutting down the file logging");
 
-#ifdef ZTS
-    tsrm_mutex_free(_mutex);
-    _mutex = NULL;
-#endif
-    if (_log_strategy == log_use_file && _mlog_fd != -1 &&
-        _mlog_fd > fileno(stderr)) {
-        int ret = close(_mlog_fd);
+    if (_log_strategy == log_use_file &&
+        atomic_load_explicit(&_initialized, memory_order_acquire) &&
+        _mlog_fd != -1 && _mlog_fd > fileno(stderr)) {
+        // no need for the mutex at this point
+        // all the zts workers should have been done
+        // we're guaranteed visibility of the write to _mlog_fd by _initialized
+        int fsync_ret;
+        int errno_fsync;
+        int ret;
+        do {
+            fsync_ret = fsync(_mlog_fd);
+            errno_fsync = errno;
+            ret = close(_mlog_fd);
+        } while (ret == -1 && errno == EINTR);
+
+        if (fsync_ret == -1) {
+            _mlog_php_varargs(dd_log_warning,
+                "Error fsyncing the log file (errno %d: %s)", errno_fsync,
+                _strerror(errno_fsync));
+        }
         if (ret == -1) {
             _mlog_php_varargs(dd_log_warning,
                 "Error closing the log file (errno %d: %s)", errno,
@@ -466,6 +482,11 @@ void dd_log_shutdown()
     } else if (_log_strategy == log_use_syslog) {
         closelog();
     }
+
+#ifdef ZTS
+    tsrm_mutex_free(_mutex);
+    _mutex = NULL;
+#endif
 
     _mlog_fd = -1;
     _log_strategy = log_use_nothing;
