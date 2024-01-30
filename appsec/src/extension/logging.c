@@ -460,20 +460,17 @@ void dd_log_shutdown()
         // no need for the mutex at this point
         // all the zts workers should have been done
         // we're guaranteed visibility of the write to _mlog_fd by _initialized
-        int fsync_ret;
-        int errno_fsync;
         int ret;
+        ret = fsync(_mlog_fd);
+        if (ret == -1) {
+            _mlog_php_varargs(dd_log_warning,
+                "Error fsyncing the log file (errno %d: %s)", errno,
+                _strerror(errno));
+        }
         do {
-            fsync_ret = fsync(_mlog_fd);
-            errno_fsync = errno;
             ret = close(_mlog_fd);
         } while (ret == -1 && errno == EINTR);
 
-        if (fsync_ret == -1) {
-            _mlog_php_varargs(dd_log_warning,
-                "Error fsyncing the log file (errno %d: %s)", errno_fsync,
-                _strerror(errno_fsync));
-        }
         if (ret == -1) {
             _mlog_php_varargs(dd_log_warning,
                 "Error closing the log file (errno %d: %s)", errno,
