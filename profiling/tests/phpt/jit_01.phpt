@@ -38,7 +38,6 @@ opcache.jit_buffer_size=4M
 <?php
 echo "Done.", PHP_EOL;
 ?>
---EXPECTREGEX--
-.*Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https:\/\/github.com\/DataDog\/dd-trace-php\/pull\/2088
-.*Done.
-.*
+--EXPECTF--
+%aMemory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088
+%ADone.%a

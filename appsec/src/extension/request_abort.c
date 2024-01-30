@@ -409,8 +409,8 @@ static bool _abort_prelude()
         mlog_g(dd_log_warning, "Failed clearing current headers");
     }
 
-    mlog_g(dd_log_debug, "Discarding output buffers");
     php_output_discard_all();
+    mlog_g(dd_log_debug, "Output buffers have been discarded");
     return true;
 }
 
