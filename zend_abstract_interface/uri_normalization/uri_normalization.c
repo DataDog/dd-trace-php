@@ -24,6 +24,14 @@ static inline zend_string *zai_php_pcre_replace(zend_string *regex, zend_string 
     php_pcre_replace(regex, subj, subjstr, subjlen, replace, limit, (int *)replacements)
 #endif
 
+#if PHP_VERSION_ID < 80400
+#if PHP_VERSION_ID < 70400
+#define php_pcre_match_impl(pce, subject_str, return_value, subpats, global, flags, start_offset) php_pcre_match_impl(pce, ZSTR_VAL(subject_str), ZSTR_LEN(subject_str), return_value, subpats, global != 0, 0, flags, start_offset)
+#else
+#define php_pcre_match_impl(pce, subject_str, return_value, subpats, global, flags, start_offset) php_pcre_match_impl(pce, subject_str, return_value, subpats, global != 0, 0, flags, start_offset)
+#endif
+#endif
+
 static zend_bool zai_starts_with_protocol(zend_string *str) {
     // See: https://tools.ietf.org/html/rfc3986#page-17
     if (ZSTR_VAL(str)[0] < 'a' || ZSTR_VAL(str)[0] > 'z') {
@@ -229,11 +237,7 @@ bool zai_match_regex(zend_string *pattern, zend_string *subject) {
     }
 
     zval ret;
-#if PHP_VERSION_ID < 70400
-    php_pcre_match_impl(pce, ZSTR_VAL(subject), ZSTR_LEN(subject), &ret, NULL, 0, 0, 0, 0);
-#else
-    php_pcre_match_impl(pce, subject, &ret, NULL, 0, 0, 0, 0);
-#endif
+    php_pcre_match_impl(pce, subject, &ret, NULL, 0, 0, 0);
     zend_string_release(regex);
     return Z_TYPE(ret) == IS_LONG && Z_LVAL(ret) > 0;
 }
