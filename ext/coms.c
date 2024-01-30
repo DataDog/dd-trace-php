@@ -904,11 +904,11 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
                 }
             }
 
-            _dd_deinit_read_userdata(read_data);
-            _dd_curl_reset_headers(writer);
-
             break;
         }
+
+        _dd_deinit_read_userdata(read_data);
+        _dd_curl_reset_headers(writer);
     }
 }
 static void _dd_signal_writer_started(struct _writer_loop_data_t *writer) {
