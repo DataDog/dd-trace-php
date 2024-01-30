@@ -849,12 +849,13 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
     }
 
     if (writer->curl) {
+        void *read_data = _dd_init_read_userdata(stack);
+        struct _grouped_stack_t *kData = read_data;
+
         int retries = MAX(get_global_DD_TRACE_AGENT_RETRIES(), 0) + 1;
         for (int retry = 0; retry < retries; retry++) {
             CURLcode res;
 
-            void *read_data = _dd_init_read_userdata(stack);
-            struct _grouped_stack_t *kData = read_data;
             _dd_curl_set_headers(writer, kData->total_groups);
             curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
             ddtrace_curl_set_hostname(writer->curl);
