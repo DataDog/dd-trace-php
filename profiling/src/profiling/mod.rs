@@ -996,7 +996,7 @@ impl Profiler {
         frames: Vec<ZendFrame>,
         samples: SampleValues,
         #[cfg(any(php_has_fibers, php_zts))] mut labels: Vec<Label>,
-        #[cfg(not(php_has_fibers))] labels: Vec<Label>,
+        #[cfg(not(any(php_has_fibers, php_zts)))] labels: Vec<Label>,
         timestamp: i64,
     ) -> SampleMessage {
         let mut sample_types = Vec::new();
