@@ -3,8 +3,12 @@
 #include <php.h>
 #include <stdlib.h>
 
+#if PHP_VERSION_ID < 80400
 #include <ext/standard/php_rand.h>
 #include <ext/standard/php_random.h>
+#else
+#include <ext/random/php_random.h>
+#endif
 
 #include "configuration.h"
 #include "ddtrace.h"

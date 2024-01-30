@@ -6,7 +6,7 @@
 # include <string.h>
 #elif ZEND_HRTIME_PLATFORM_WINDOWS
 # define WIN32_LEAN_AND_MEAN
-ZEND_API double zend_hrtime_timer_scale = .0;
+double zend_hrtime_timer_scale = .0;
 #elif ZEND_HRTIME_PLATFORM_APPLE
 # include <mach/mach_time.h>
 # include <string.h>

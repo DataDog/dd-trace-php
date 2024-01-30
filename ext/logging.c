@@ -42,7 +42,7 @@ void ddtrace_log_minit(void) {
         }
     }
 
-    ddtrace_log_ginit();
+    // no need to call dd_log_set_level here, ddtrace_config_minit() inits the debug config
 }
 
 void ddtrace_log_rinit(char *error_log) {

@@ -31,7 +31,7 @@
 #endif
 
 #if ZEND_HRTIME_PLATFORM_WINDOWS
-ZEND_API extern double zend_hrtime_timer_scale;
+extern double zend_hrtime_timer_scale;
 #elif ZEND_HRTIME_PLATFORM_APPLE
 # include <mach/mach_time.h>
 # include <string.h>
