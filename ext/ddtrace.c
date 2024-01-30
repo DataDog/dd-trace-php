@@ -946,7 +946,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_setup_fiber_observers();
 #endif
 
-#if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 70300 || (defined(_WIN32) && PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400)
     ddtrace_startup_hrtime();
 #endif
 

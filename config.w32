@@ -15,7 +15,7 @@ if (PHP_DDTRACE != 'no') {
 	if (version >= 801) {
 		DDTRACE_EXT_SOURCES += " handlers_fiber.c";
 	}
-	if (version < 703) {
+	if (version < 703 || version == 803) {
 		DDTRACE_EXT_SOURCES += " zend_hrtime.c";
 	}
 
