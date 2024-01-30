@@ -19,6 +19,10 @@ static void ddtrace_set_sidecar_globals(void) {
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
 }
 
+#if _WIN32
+extern void *DDOG_PHP_FUNCTION;
+#endif
+
 static bool dd_sidecar_connection_init(void) {
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
         ddtrace_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
@@ -32,6 +36,10 @@ static bool dd_sidecar_connection_init(void) {
         ddtrace_sidecar = NULL;
         return false;
     }
+
+#if _WIN32
+    DDOG_PHP_FUNCTION = zend_hash_func;
+#endif
 
     char logpath[MAXPATHLEN];
     int error_fd = atomic_load(&ddtrace_error_log_fd);

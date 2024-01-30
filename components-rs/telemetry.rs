@@ -7,7 +7,7 @@ use ddtelemetry::data;
 use ddtelemetry::data::{Dependency, Integration};
 use ddtelemetry::worker::TelemetryActions;
 use ddtelemetry_ffi::{try_c, MaybeError};
-#[cfg(php_shared_build)]
+#[cfg(any(windows, php_shared_build))]
 use spawn_worker::LibDependency;
 use std::error::Error;
 use std::path::Path;
@@ -15,7 +15,10 @@ use std::fs;
 use std::ffi::{c_char, CStr, OsStr};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
+use std::ptr::null;
 use datadog_sidecar::config::LogMethod;
+#[cfg(windows)]
+use spawn_worker::get_trampoline_target_data;
 
 #[cfg(windows)]
 macro_rules! windowsify_path {
@@ -81,8 +84,19 @@ fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
-#[cfg(not(php_shared_build))]
+#[cfg(not(any(windows, php_shared_build)))]
 fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+    datadog_sidecar::start_or_connect_to_sidecar(cfg)
+}
+
+#[no_mangle]
+#[cfg(windows)]
+pub static mut DDOG_PHP_FUNCTION: *const u8 = null();
+
+#[cfg(windows)]
+fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+    let php_dll = get_trampoline_target_data(unsafe { DDOG_PHP_FUNCTION })?;
+    cfg.library_dependencies.push(LibDependency::Path(php_dll.into()));
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
