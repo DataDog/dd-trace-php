@@ -50,7 +50,7 @@ $sections = [
     ["Allocation Profiling Enabled", "false (profiling disabled)"],
     ["Exception Profiling Enabled", "false (profiling disabled)"],
     ["Endpoint Collection Enabled", "false (profiling disabled)"],
-    ["Profiling Log Level", "info"],
+    ["Profiling Log Level", "off (profiling disabled)"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],
     ["Application's Environment (DD_ENV)", "dev"],
     ["Application's Service (DD_SERVICE)", "datadog-profiling-phpt"],

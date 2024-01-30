@@ -41,7 +41,7 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
     use std::sync::atomic::Ordering;
     super::REQUEST_LOCALS.with(|cell| {
         if let Ok(locals) = cell.try_borrow() {
-            if locals.profiling_enabled {
+            if locals.system_settings().profiling_enabled {
                 // Safety: only vm interrupts are stored there, or possibly null (edges only).
                 if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
                     locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
