@@ -79,10 +79,16 @@ for architecture in "${architectures[@]}"; do
             cp -v \
                 $tmp_folder_profiling/datadog-profiling/$architecture-unknown-linux-gnu/lib/php/$version/datadog-profiling.so \
                 $tmp_folder_final/$architecture-linux-gnu/dd-library-php/profiling/ext/$version/datadog-profiling.so
+            cp -v \
+                $tmp_folder_profiling/datadog-profiling/$architecture-unknown-linux-gnu/lib/php/$version/datadog-profiling-zts.so \
+                $tmp_folder_final/$architecture-linux-gnu/dd-library-php/profiling/ext/$version/datadog-profiling-zts.so
 
             cp -v \
                 $tmp_folder_profiling/datadog-profiling/$architecture-alpine-linux-musl/lib/php/$version/datadog-profiling.so \
                 $tmp_folder_final/$architecture-linux-musl/dd-library-php/profiling/ext/$version/datadog-profiling.so
+            cp -v \
+                $tmp_folder_profiling/datadog-profiling/$architecture-alpine-linux-musl/lib/php/$version/datadog-profiling-zts.so \
+                $tmp_folder_final/$architecture-linux-musl/dd-library-php/profiling/ext/$version/datadog-profiling-zts.so
         done
 
         # Licenses
