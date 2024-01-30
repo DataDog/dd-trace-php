@@ -524,7 +524,7 @@ function install($options)
     }
     execute_or_exit(
         "Cannot copy files from '$tmpBridgeDir' to '$installDirBridgeDir'",
-        (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg($tmpBridgeDir) . ' ' . escapeshellarg($installDirBridgeDir)
+        (IS_WINDOWS ? "echo d | xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg($tmpBridgeDir) . ' ' . escapeshellarg($installDirBridgeDir)
     );
     if (file_exists($tmpSrcDir)) {
         execute_or_exit(
@@ -856,6 +856,10 @@ function safe_copy_extension($source, $destination)
     /* Move - rename() - instead of copy() since copying does a fopen() and copies to the stream itself, causing a
     * segfault in the PHP process that is running and had loaded the old shared object file.
     */
+    if (IS_WINDOWS && file_exists($destination)) {
+        // We have to blackhole it in tempdir because it is likely currently loaded and may not be replaced in place.
+        rename($destination, getenv("TEMP") . "\\" . time() . "-" . basename($destination));
+    }
     $tmpName = $destination . '.tmp';
     copy($source, $tmpName);
     rename($tmpName, $destination);
@@ -1638,7 +1642,7 @@ function resolve_command_full_path($command)
         } elseif (!file_exists($command)) {
             return false;
         } else {
-            $command = $path;
+            $path = $command;
         }
     } else {
         $path = exec("command -v " . escapeshellarg($command));

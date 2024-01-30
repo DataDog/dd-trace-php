@@ -146,7 +146,7 @@ bool zai_json_setup_bindings(void) {
         zai_json_decode_ex = (zai_json_decode_ex_signature((*))) DL_FETCH_SYMBOL(handle, "_php_json_decode_ex");
     }
 #else
-    zai_json_parse = (zai_json_parse_signature((*))) DL_FETCH_SYMBOL(json_me->handle, "php_json_parse");
+    zai_json_parse = (zai_json_parse_signature((*))) DL_FETCH_SYMBOL(handle, "php_json_parse");
     if (zai_json_parse == NULL) {
         zai_json_parse = (zai_json_parse_signature((*))) DL_FETCH_SYMBOL(handle, "_php_json_parse");
     }
