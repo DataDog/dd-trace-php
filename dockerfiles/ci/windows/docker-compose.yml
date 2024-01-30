@@ -47,6 +47,16 @@ services:
         vsVersion: "vs16"
         sdkVersion: "2.2.0"
 
+  php-8.3:
+    image: datadog/dd-trace-ci:php-8.3_windows
+    build:
+      context: .
+      args:
+        phpVersion: "8.3.0"
+        vsVersion: "vs16"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.3.0.tar.gz
+        phpSha256Hash: "557ae14650f1d1984d3213e3fcd8d93a5f11418b3f8026d3a2d5022251163951"
+
   php-8.2:
     image: datadog/dd-trace-ci:php-8.2_windows
     build:

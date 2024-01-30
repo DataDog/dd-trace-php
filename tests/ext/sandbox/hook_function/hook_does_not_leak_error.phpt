@@ -6,7 +6,7 @@ Check that sandboxed hooks do not invoke error handlers or set the error code
 --GET--
 this+must+run+via+cgi
 --INI--
-datadog.trace.debug=1
+datadog.trace.log_level=info,startup=off
 --FILE--
 <?php
 

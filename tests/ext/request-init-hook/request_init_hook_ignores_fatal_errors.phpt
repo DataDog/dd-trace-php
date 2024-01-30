@@ -1,7 +1,7 @@
 --TEST--
 Request init hook ignores fatal errors
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 --INI--
 ddtrace.request_init_hook="{PWD}/raises_fatal_error.php"
 --FILE--

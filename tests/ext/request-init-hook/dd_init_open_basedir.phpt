@@ -1,7 +1,7 @@
 --TEST--
 Calling dd_init.php is confined to open_basedir settings
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 --INI--
 open_basedir="{PWD}"
 ddtrace.request_init_hook="{PWD}/dd_init_open_basedir.inc"

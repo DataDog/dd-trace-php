@@ -2,7 +2,7 @@
 deferred loading only happens once, even if dispatch is not overwritten
 --ENV--
 _DD_LOAD_TEST_INTEGRATIONS=1
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 --INI--
 ddtrace.request_init_hook={PWD}/deferred_loading_helper.php
 --FILE--

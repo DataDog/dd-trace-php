@@ -107,6 +107,8 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     }
 
     if (def->begin) {
+        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
+
         dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, &EG(uninitialized_zval));
         if (def->tracing && dyn->dropped_span) {
             ddtrace_clear_execute_data_span(invocation, false);
@@ -139,6 +141,7 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
     }
 
     if (def->begin) {
+        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "generator resume", def->begin););
         dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, value);
         if (def->tracing && dyn->dropped_span) {
             ddtrace_clear_execute_data_span(invocation, false);
@@ -175,6 +178,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
     }
 
     if (def->end && (!def->tracing || !dyn->dropped_span)) {
+        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "generator yield", def->end););
         bool keep_span = dd_uhook_call(def->end, def->tracing, dyn, execute_data, value);
         if (def->tracing && !dyn->dropped_span) {
             ddtrace_clear_execute_data_span(invocation, keep_span);
@@ -222,6 +226,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
             profiling_interrupt_function(execute_data);
         }
 
+        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "end", def->end););
         keep_span = dd_uhook_call(def->end, def->tracing, dyn, execute_data, retval);
     }
 
@@ -386,6 +391,13 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
 
     if (!success) {
         dd_uhook_dtor(def);
+    } else {
+        LOG(Hook_Trace, "Installing a hook function at %s:%d on %s %s%s%s",
+            zend_get_executed_filename(), zend_get_executed_lineno(),
+            method ? "method" : "function",
+            method ? ZSTR_VAL(class_name) : "",
+            method ? "::" : "",
+            ZSTR_VAL(method_name));
     }
     RETURN_BOOL(success);
 }
@@ -426,6 +438,13 @@ PHP_FUNCTION(dd_untrace) {
         }
     }
     zai_hook_iterator_free(&it);
+
+    LOG(Hook_Trace, "Removing all hook functions installed by hook&trace_%s at %s:%d on %s %s%s%s",
+        class_name ? "method" : "function",
+        zend_get_executed_filename(), zend_get_executed_lineno(),
+        class_name ? ZSTR_VAL(class_name) : "",
+        class_name ? "::" : "",
+        ZSTR_VAL(method_name));
 
     RETURN_TRUE;
 }

@@ -12,6 +12,10 @@ use spawn_worker::LibDependency;
 use std::error::Error;
 use std::path::Path;
 use std::fs;
+use std::ffi::{c_char, CStr, OsStr};
+#[cfg(unix)]
+use std::os::unix::ffi::OsStrExt;
+use datadog_sidecar::config::LogMethod;
 
 #[cfg(windows)]
 macro_rules! windowsify_path {
@@ -85,10 +89,28 @@ fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_connect_php(
     connection: &mut *mut SidecarTransport,
+    error_path: *const c_char,
+    log_level: CharSlice,
     enable_telemetry: bool,
 ) -> MaybeError {
     let mut cfg = config::FromEnv::config();
     cfg.self_telemetry = enable_telemetry;
+    unsafe {
+        if *error_path != 0 {
+            let error_path = CStr::from_ptr(error_path).to_bytes();
+            #[cfg(windows)]
+            if let Ok(str) = std::str::from_utf8(error_path) {
+                cfg.log_method = LogMethod::File(str.into());
+            }
+            #[cfg(not(windows))]
+            { cfg.log_method = LogMethod::File(OsStr::from_bytes(error_path).into()); }
+        }
+        #[cfg(windows)]
+        let log_level = log_level.to_utf8_lossy().as_ref().into();
+        #[cfg(not(windows))]
+        let log_level = OsStr::from_bytes(log_level.as_bytes()).into();
+        cfg.child_env.insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), log_level);
+    }
     let stream = Box::new(try_c!(run_sidecar(cfg)));
     *connection = Box::into_raw(stream);
 

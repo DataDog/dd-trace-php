@@ -17,12 +17,21 @@ datadog-sidecar-ffi = { path = "../libdatadog/sidecar-ffi" }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }
 bitflags = "2.3.3"
+const-str = "0.5.6"
 json = "0.12.4"
 lazy_static = "1.4"
+log = "0.4.20"
+env_logger = "0.10.1"
 uuid = { version = "1.0", features = ["v4"] }
 paste = "1"
 tempfile = {version = "3.3"}
-const-str = "0.5.6"
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+tracing-core = "0.1.32"
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "std",
+    "fmt",
+    "env-filter",
+] }
 
 [build-dependencies]
 cbindgen = "0.24"

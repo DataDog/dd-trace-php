@@ -224,13 +224,26 @@ static void dd_patched_zend_call_known_function(
 
 // We need to hijack zend_call_known_function as that's what's being called by call_attribute_constructor, and call_attribute_constructor itself is not exported.
 static void dd_patch_zend_call_known_function(void) {
+#ifdef _WIN32
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    size_t page_size = (size_t)si.dwPageSize;
+#else
     size_t page_size = sysconf(_SC_PAGESIZE);
+#endif
     void *page = (void *)(~(page_size - 1) & (uintptr_t)zend_call_known_function);
     // 20 is the largest size of a trampoline we have to inject
     if ((((uintptr_t)zend_call_known_function + 20) & page_size) < 20) {
         page_size <<= 1; // if overlapping pages, use two
     }
-    if (mprotect(page, page_size, PROT_READ | PROT_WRITE) != 0) { // Some architectures enforce W^X (either write _or_ execute, but not both).
+
+#ifdef _WIN32
+    DWORD old_protection;
+    if (VirtualProtect(page, page_size, PAGE_READWRITE, &old_protection))
+#else
+    if (mprotect(page, page_size, PROT_READ | PROT_WRITE) != 0)
+#endif
+    { // Some architectures enforce W^X (either write _or_ execute, but not both).
         LOG(Error, "Could not alter the memory protection for zend_call_known_function. Tracer execution continues, but may crash when encountering attributes.");
         return; // Make absolutely sure we can write
     }
@@ -255,7 +268,11 @@ static void dd_patch_zend_call_known_function(void) {
     memcpy(zend_call_known_function, absolute_jump_instrs, sizeof(absolute_jump_instrs));
 #endif
 
+#ifdef _WIN32
+    VirtualProtect(page, page_size, old_protection, NULL);
+#else
     mprotect(page, page_size, PROT_READ | PROT_EXEC);
+#endif
 }
 #endif
 
@@ -984,7 +1001,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
 
-    ddtrace_bgs_log_minit();
+    ddtrace_log_minit();
 
 #ifndef _WIN32
     ddtrace_dogstatsd_client_minit();
@@ -1039,11 +1056,11 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_coms_mshutdown();
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
-
-            ddtrace_bgs_log_mshutdown();
         }
     }
 #endif
+
+    ddtrace_log_mshutdown();
 
     ddtrace_engine_hooks_mshutdown();
 
@@ -1116,9 +1133,7 @@ static void dd_initialize_request(void) {
 
     ddtrace_internal_handlers_rinit();
 
-    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        ddtrace_bgs_log_rinit(PG(error_log));
-    }
+    ddtrace_log_rinit(PG(error_log));
 
     ddtrace_seed_prng();
     ddtrace_init_span_stacks();
@@ -1934,6 +1949,13 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
             ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), path);
             RETVAL_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
+            if (!ddtrace_sidecar) {
+                RETURN_FALSE;
+            }
+            ddog_CharSlice slice = ddog_sidecar_dump(&ddtrace_sidecar);
+            RETVAL_STRINGL(slice.ptr, slice.len);
+            free((void *) slice.ptr);
 #ifndef _WIN32
         } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
             RETVAL_BOOL(ddtrace_coms_init_and_start_writer());
@@ -2501,7 +2523,7 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         DD_PARAM_PROLOGUE(0, 0);
-        if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error))) {
+        if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error, true))) {
             if (!_error) {
                 zend_argument_type_error(1, "must be a valid callback or of type array, %s given", zend_zval_value_name(_arg));
                 _error_code = ZPP_ERROR_FAILURE;

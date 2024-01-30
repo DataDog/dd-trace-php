@@ -7,7 +7,7 @@ if (dd_trace_env_config('DD_TRACE_SIDECAR_TRACE_SENDER')) die("skip: background-
 if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There is no background sender on Windows');
 ?>
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_BGS_ENABLED=1
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80

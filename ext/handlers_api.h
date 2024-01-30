@@ -14,7 +14,7 @@
 #    define ATTR_TLS_GLOBAL_DYNAMIC
 #  endif
 
-extern __thread void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
+extern TSRM_TLS void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
 #endif
 
 typedef struct datadog_php_zif_handler_s {

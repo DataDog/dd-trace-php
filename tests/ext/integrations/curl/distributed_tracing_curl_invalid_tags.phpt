@@ -7,7 +7,7 @@ Distributed tracing headers contain properly escaped values
 --INI--
 ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_PROPAGATION_STYLE_INJECT=B3 single header,tracecontext
 DD_TRACE_DEBUG_PRNG_SEED=1000
 --FILE--

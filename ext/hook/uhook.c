@@ -239,6 +239,17 @@ static void dd_zend_interrupt_function(zend_execute_data *ex)
 }
 #endif
 
+void dd_uhook_log_invocation(void (*log)(const char *, ...), zend_execute_data *execute_data, const char *type, zend_object *closure) {
+    const zend_function *func = zend_get_closure_method_def(closure);
+    log("Running a %s hook function from %s:%d on %s %s%s%s",
+        type,
+        ZSTR_VAL(func->op_array.filename), func->op_array.line_start,
+        ZEND_USER_CODE(EX(func)->type) && EX(func)->op_array.filename ? "file" : (EX(func)->common.scope ? "method" : "function"),
+        EX(func)->common.scope ? ZSTR_VAL(EX(func)->common.scope->name) : "",
+        EX(func)->common.scope ? "::" : "",
+        EX(func)->common.function_name ? ZSTR_VAL(EX(func)->op_array.function_name) : (EX(func)->op_array.filename ? "<unnamed>" : ZSTR_VAL(EX(func)->op_array.filename)));
+}
+
 static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
@@ -272,6 +283,8 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
 
     if (def->begin && !def->running) {
         dyn->hook_data->execute_data = execute_data;
+
+        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
 
         def->running = true;
         dd_uhook_call_hook(execute_data, def->begin, dyn->hook_data);
@@ -392,6 +405,8 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         }
         zval_ptr_dtor(&tmp);
 
+        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "end", def->end););
+
         def->running = true;
         dyn->hook_data->retval_ptr = retval;
         keep_span = dd_uhook_call_hook(execute_data, def->end, dyn->hook_data);
@@ -499,7 +514,7 @@ PHP_FUNCTION(DDTrace_install_hook) {
         } else if (Z_TYPE_P(_arg) == IS_ARRAY || Z_TYPE_P(_arg) == IS_OBJECT) {
 #define INSTALL_HOOK_TYPES "string|callable|Generator|Closure"
             char *func_error = NULL;
-            if (zend_parse_arg_func(_arg, &fci, &fcc, false, &func_error)) {
+            if (zend_parse_arg_func(_arg, &fci, &fcc, false, &func_error, true)) {
                 if (!fcc.function_handler) {
                     // This is a trampoline function, we cannot hook this, not without hooking other things too
                     // Technically for e.g. __call one *could* hook the __call handler, then distinguish on the passed method name.
@@ -583,6 +598,14 @@ type_error:
             dd_uhook_begin, dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
 
+        LOG(Hook_Trace, "Installing a hook function %d at %s:%d on runtime %s %s%s%s",
+            id,
+            zend_get_executed_filename(), zend_get_executed_lineno(),
+            resolved->common.scope ? "method" : "function",
+            resolved->common.scope ? ZSTR_VAL(resolved->common.scope->name) : "",
+            resolved->common.scope ? "::" : "",
+            resolved->common.function_name ? ZSTR_VAL(resolved->common.function_name) : "<unnamed>");
+
         if (id >= 0 && closure && (flags & HOOK_INSTANCE)) {
             def->closure = closure;
 
@@ -643,6 +666,16 @@ type_error:
                 dd_uhook_end,
                 ZAI_HOOK_AUX(def, dd_uhook_dtor),
                 sizeof(dd_uhook_dynamic));
+
+        if (id >= 0) {
+            LOG(Hook_Trace, "Installing a hook function %d at %s:%d on %s %s%s%s",
+                id,
+                zend_get_executed_filename(), zend_get_executed_lineno(),
+                def->file ? "file" : (def->scope ? "method" : "function"),
+                def->scope ? ZSTR_VAL(def->scope) : "",
+                def->scope ? "::" : "",
+                def->file ? ZSTR_VAL(def->file) : ZSTR_VAL(def->function));
+        }
     }
 
     if (id < 0) {
@@ -679,8 +712,25 @@ PHP_FUNCTION(DDTrace_remove_hook) {
                 zend_string *lower = zend_string_tolower(location);
                 zai_hook_exclude_class(scope, function, id, lower);
                 zend_string_release(lower);
+
+                LOG(Hook_Trace, "Excluding class %s from hook %d at %s:%d on %s %s%s%s",
+                    ZSTR_VAL(location),
+                    id,
+                    zend_get_executed_filename(), zend_get_executed_lineno(),
+                    def->file ? "file" : (def->scope ? "method" : "function"),
+                    def->scope ? ZSTR_VAL(def->scope) : "",
+                    def->scope ? "::" : "",
+                    def->file ? ZSTR_VAL(def->file) : ZSTR_VAL(def->function));
             } else {
                 zai_hook_remove(scope, function, id);
+
+                LOG(Hook_Trace, "Removing hook %d at %s:%d on %s %s%s%s",
+                    id,
+                    zend_get_executed_filename(), zend_get_executed_lineno(),
+                    def->file ? "file" : (def->scope ? "method" : "function"),
+                    def->scope ? ZSTR_VAL(def->scope) : "",
+                    def->scope ? "::" : "",
+                    def->file ? ZSTR_VAL(def->file) : ZSTR_VAL(def->function));
             }
         } else {
             if (location && ZSTR_LEN(location)) {
@@ -689,6 +739,14 @@ PHP_FUNCTION(DDTrace_remove_hook) {
                 zend_string_release(lower);
             } else {
                 zai_hook_remove_resolved(def->install_address, id);
+
+                LOG(Hook_Trace, "Removing hook %d at %s:%d on %s %s%s%s",
+                    id,
+                    zend_get_executed_filename(), zend_get_executed_lineno(),
+                    def->file ? "file" : (def->scope ? "method" : "function"),
+                    def->scope ? ZSTR_VAL(def->scope) : "",
+                    def->scope ? "::" : "",
+                    def->file ? ZSTR_VAL(def->file) : ZSTR_VAL(def->function));
             }
         }
     }

@@ -117,7 +117,7 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #  else
 #    define ATTR_TLS_GLOBAL_DYNAMIC
 #  endif
-extern __thread void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
+extern TSRM_TLS void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
 #  define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
 #else
 #  define DDTRACE_G(v) (ddtrace_globals.v)
