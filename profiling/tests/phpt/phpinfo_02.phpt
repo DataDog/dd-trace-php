@@ -14,6 +14,15 @@ if (!extension_loaded('datadog-profiling'))
 $arch = php_uname('m');
 if (PHP_VERSION_ID < 80100 && in_array($arch, ['aarch64', 'arm64']))
     echo "skip: JIT not available on aarch64 on PHP 8.0", PHP_EOL;
+
+// TODO: remove once ZTS support for allocation profiling is done
+ob_start();
+phpinfo(INFO_GENERAL);
+$phpinfo = ob_get_contents();
+ob_end_clean();
+if (strpos($phpinfo, 'Thread Safety => enabled') !== false) {
+    echo "skip: not support on ZTS builds at the moment";
+}
 ?>
 --ENV--
 DD_PROFILING_ENABLED=yes
