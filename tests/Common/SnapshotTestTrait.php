@@ -140,6 +140,9 @@ trait SnapshotTestTrait
         $numExpectedTraces = 1,
         $tracer = null
     ) {
+        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
+        self::putEnv('DD_TRACE_AGENT_RETRIES=3');
+
         if ($tracer === null) {
             $this->resetTracerState();
         }
@@ -148,6 +151,9 @@ trait SnapshotTestTrait
         $this->startSnapshotSession($token);
 
         $fn($tracer);
+
+        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
+        self::putEnv('DD_TRACE_AGENT_RETRIES');
 
         $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, $numExpectedTraces);
     }
@@ -159,6 +165,9 @@ trait SnapshotTestTrait
         $tracer = null,
         $config = []
     ) {
+        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
+        self::putEnv('DD_TRACE_AGENT_RETRIES=3');
+
         $token = $this->generateToken();
         $this->startSnapshotSession($token);
 
@@ -169,6 +178,9 @@ trait SnapshotTestTrait
             $tracer->startRootSpan("root span");
         }
         $fn($tracer);
+
+        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
+        self::putEnv('DD_TRACE_AGENT_RETRIES');
 
         $traces = $this->flushAndGetTraces($tracer);
         if (!empty($traces)) {

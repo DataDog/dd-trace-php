@@ -54,6 +54,9 @@ trait TracerTestTrait
      */
     public function isolateTracer($fn, $tracer = null, $config = [])
     {
+        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
+        self::putEnv('DD_TRACE_AGENT_RETRIES=3');
+
         $this->resetTracer($tracer, $config);
 
         $tracer = GlobalTracer::get();
@@ -66,6 +69,10 @@ trait TracerTestTrait
         if (!empty($traces)) {
             $this->sendTracesToTestAgent($traces);
         }
+
+        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
+        self::putEnv('DD_TRACE_AGENT_RETRIES');
+
         return $traces;
     }
 
@@ -200,6 +207,9 @@ trait TracerTestTrait
     {
         $retries = 1;
         do {
+            self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
+            self::putEnv('DD_TRACE_AGENT_RETRIES=3');
+
             $this->resetTracer();
             $webServer = new WebServer($rootPath, '0.0.0.0', 6666);
             $webServer->mergeEnvs($envs);
@@ -224,6 +234,9 @@ trait TracerTestTrait
                 $webServer->stop();
                 throw new Exception('Spec type not supported.');
             });
+
+            self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
+            self::putEnv('DD_TRACE_AGENT_RETRIES');
 
             $traces = $this->parseTracesFromDumpedData();
 
@@ -257,6 +270,8 @@ trait TracerTestTrait
                 'DD_TRACE_AGENT_PORT' => '9126',
                 // Uncomment to see debug-level messages
                 //'DD_TRACE_DEBUG' => 'true',
+                'DD_TRACE_SHUTDOWN_TIMEOUT' => '666666', // Arbitrarily high value to avoid flakiness
+                'DD_TRACE_AGENT_RETRIES' => '3'
             ],
             $customEnvs
         ));
@@ -297,6 +312,9 @@ trait TracerTestTrait
      */
     public function tracesFromWebRequest($fn, $tracer = null)
     {
+        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
+        self::putEnv('DD_TRACE_AGENT_RETRIES=3');
+
         if ($tracer === null) {
             // Avoid phpunits default spans from being acknowledged for distributed tracing
             $this->resetTracer();
@@ -307,6 +325,9 @@ trait TracerTestTrait
 
         // The we server has to be configured to send traces to the provided requests dumper.
         $fn($tracer);
+
+        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
+        self::putEnv('DD_TRACE_AGENT_RETRIES');
 
         return $this->parseTracesFromDumpedData();
     }
