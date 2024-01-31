@@ -149,6 +149,8 @@ void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
 
 bool ddog_shall_log(struct ddog_Log category);
 
+void ddog_set_error_log_level(bool once);
+
 void ddog_set_log_level(ddog_CharSlice level, bool once);
 
 void ddog_log(struct ddog_Log category, ddog_CharSlice msg);
