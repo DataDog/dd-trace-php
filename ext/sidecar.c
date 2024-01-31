@@ -20,7 +20,7 @@ static void ddtrace_set_sidecar_globals(void) {
 }
 
 static bool dd_sidecar_connection_init(void) {
-    char logpath[PATH_MAX];
+    char logpath[PATH_MAX + 1];
     int error_fd = atomic_load(&ddtrace_error_log_fd);
     if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
         *logpath = 0;

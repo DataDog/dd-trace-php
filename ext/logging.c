@@ -75,7 +75,11 @@ int ddtrace_get_fd_path(int fd, char *buf) {
 #else
     char pathbuf[PATH_MAX];
     snprintf(pathbuf, PATH_MAX, "/proc/self/fd/%d", fd);
-    return readlink(pathbuf, buf, PATH_MAX);
+    int len = readlink(pathbuf, buf, PATH_MAX);
+    if (len >= 0) {
+        buf[len] = 0;
+    }
+    return len;
 #endif
 }
 
@@ -109,7 +113,7 @@ int ddtrace_log_with_time(int fd, const char *msg, int msg_len) {
 
     uintmax_t last_check = atomic_exchange(&dd_error_log_fd_rotated, (uintmax_t) now);
     if (last_check < (uintmax_t)now - 60) { // 1x/min
-        char pathbuf[PATH_MAX];
+        char pathbuf[PATH_MAX + 1];
         if (ddtrace_get_fd_path(fd, pathbuf) >= 0) {
             int new_fd = VCWD_OPEN_MODE(pathbuf, O_CREAT | O_RDWR | O_APPEND, 0666);
             dup2(new_fd, fd); // atomic replace
