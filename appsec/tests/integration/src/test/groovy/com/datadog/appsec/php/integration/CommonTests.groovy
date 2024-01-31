@@ -329,6 +329,22 @@ trait CommonTests {
         assertThat appsecJson, matchesJson(expJson, false, true)
     }
 
+
+    @Test
+    void 'POST request sets content type and length'() {
+        def json = '{"message":["Hello world!"]}'
+        HttpRequest req = container.buildReq('/hello.php')
+                .header('Content-type', 'application/json')
+                .POST(HttpRequest.BodyPublishers.ofString(json)).build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.body() == 'Hello world!'
+        }
+
+        Span span = trace.first()
+        assert span.meta['http.request.headers.content-type'] == 'application/json'
+        assert span.meta['http.request.headers.content-length'] == '28'
+    }
+
     @Test
     void 'module does not have STATIC_TLS flag'() {
         Container.ExecResult res = container.execInContainer(

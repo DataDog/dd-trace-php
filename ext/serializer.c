@@ -1833,10 +1833,9 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
     ddtrace_prev_error_cb(DDTRACE_ERROR_CB_PARAM_PASSTHRU);
 }
 
-
-static zend_array *dd_ser_start_user_req(ddtrace_user_req_listeners *self, zend_object *span, zend_array *variables)
-{
+static zend_array *dd_ser_start_user_req(ddtrace_user_req_listeners *self, zend_object *span, zend_array *variables, zval *entity) {
     UNUSED(self);
+    UNUSED(entity);
 
     struct superglob_equiv data = {0};
     zval *_server_zv = zend_hash_str_find(variables, ZEND_STRL("_SERVER"));

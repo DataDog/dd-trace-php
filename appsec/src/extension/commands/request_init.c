@@ -19,7 +19,6 @@
 #include "../string_helpers.h"
 #include "request_init.h"
 #include <mpack.h>
-#include <zend_string.h>
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
 static void _init_autoglobals(void);
@@ -31,6 +30,8 @@ static void _pack_files_field_names(
     mpack_writer_t *nonnull w, const zend_array *nonnull files);
 static void _pack_path_params(
     mpack_writer_t *nonnull w, const zend_string *nullable uri_raw);
+static void _pack_request_body(mpack_writer_t *nonnull w,
+    struct req_info_init *nonnull ctx, const zend_array *nonnull server);
 
 static const dd_command_spec _spec = {
     .name = "request_init",
@@ -101,8 +102,7 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
 
     // 6.
     dd_mpack_write_lstr(w, "server.request.body");
-    dd_mpack_write_array(w, dd_get_superglob_or_equiv(ZEND_STRL("_POST"),
-                                TRACK_VARS_POST, ctx->superglob_equiv));
+    _pack_request_body(w, ctx, server);
 
     // 7.
     const zend_array *nonnull files = dd_get_superglob_or_equiv(
@@ -123,12 +123,9 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
     dd_mpack_write_nullable_zstr(w, ctx->req_info.client_ip);
 
     // 11.
-    if (send_raw_body && !ctx->superglob_equiv) {
+    if (send_raw_body && ctx->entity) {
         dd_mpack_write_lstr(w, "server.request.body.raw");
-        zend_string *nonnull req_body =
-            dd_request_body_buffered(get_DD_APPSEC_MAX_BODY_BUFF_SIZE());
-        dd_mpack_write_zstr(w, req_body);
-        zend_string_release(req_body);
+        dd_mpack_write_zstr(w, ctx->entity);
     }
 
     mpack_finish_map(w);
@@ -175,7 +172,13 @@ static void _pack_headers(
             continue;
         }
 
-        if (_is_relevant_header(key)) {
+        if (zend_string_equals_literal(key, "CONTENT_TYPE")) {
+            dd_mpack_write_lstr(w, "content-type");
+            dd_mpack_write_zval(w, val);
+        } else if (zend_string_equals_literal(key, "CONTENT_LENGTH")) {
+            dd_mpack_write_lstr(w, "content-length");
+            dd_mpack_write_zval(w, val);
+        } else if (_is_relevant_header(key)) {
             zend_string *transf_header_name = _transform_header_name(key);
             dd_mpack_write_zstr(w, transf_header_name);
             zend_string_efree(transf_header_name);
@@ -273,4 +276,32 @@ static void _pack_path_params(
 
     efree(uri_work_zstr);
     mpack_complete_array(w);
+}
+
+static void _pack_request_body(mpack_writer_t *nonnull w,
+    struct req_info_init *nonnull ctx, const zend_array *nonnull server)
+{
+    const zend_array *post = dd_get_superglob_or_equiv(
+        ZEND_STRL("_POST"), TRACK_VARS_POST, ctx->superglob_equiv);
+    if (zend_hash_num_elements(post) != 0) {
+        dd_mpack_write_array(w, post);
+    } else {
+        bool written = false;
+        if (ctx->entity) {
+            zend_string *ct =
+                dd_php_get_string_elem_cstr(server, ZEND_STRL("CONTENT_TYPE"));
+            if (ct) {
+                zval body_zv = dd_entity_body_convert(
+                    ZSTR_VAL(ct), ZSTR_LEN(ct), ctx->entity);
+                if (Z_TYPE(body_zv) != IS_NULL) {
+                    dd_mpack_write_zval(w, &body_zv);
+                    zval_ptr_dtor(&body_zv);
+                    written = true;
+                }
+            }
+        }
+        if (!written) {
+            dd_mpack_write_array(w, &zend_empty_array);
+        }
+    }
 }
