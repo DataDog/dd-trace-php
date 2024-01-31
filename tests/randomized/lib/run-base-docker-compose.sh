@@ -10,7 +10,7 @@ while true; do
     if [[ ${1:-} == shutdown ]]; then
       # check for running tests; in that case don't shutdown
       if ! docker network ls | grep -q randomized-; then
-        sleep 10
+        sleep 3
         # prevent race conditions
         if ! docker network ls | grep -q randomized-; then
           docker-compose down
