@@ -109,10 +109,25 @@ lazy_static! {
     static ref JIT_ENABLED: bool = unsafe { zend::ddog_php_jit_enabled() };
 }
 
+pub fn first_rinit_should_disable_due_to_jit() -> bool {
+    if NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
+        && allocation_profiling_needs_disabled_for_jit(unsafe { crate::PHP_VERSION_ID })
+        && *JIT_ENABLED
+    {
+        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
+        true
+    } else {
+        false
+    }
+}
+
 pub fn allocation_profiling_rinit() {
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
-            Ok(locals) => locals.profiling_allocation_enabled,
+            Ok(locals) => {
+                let system_settings = locals.system_settings();
+                system_settings.profiling_allocation_enabled
+            },
             Err(_err) => {
                 error!("Memory allocation was not initialized correctly due to a borrow error. Please report this to Datadog.");
                 false
@@ -121,18 +136,6 @@ pub fn allocation_profiling_rinit() {
     });
 
     if !allocation_profiling {
-        return;
-    }
-
-    if NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
-        && allocation_profiling_needs_disabled_for_jit(unsafe { crate::PHP_VERSION_ID })
-        && *JIT_ENABLED
-    {
-        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
-        REQUEST_LOCALS.with(|cell| {
-            let mut locals = cell.borrow_mut();
-            locals.profiling_allocation_enabled = false;
-        });
         return;
     }
 
@@ -180,11 +183,9 @@ pub fn allocation_profiling_rinit() {
 
     // `is_zend_mm()` should be `false` now, as we installed our custom handlers
     if is_zend_mm() {
-        error!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
-        REQUEST_LOCALS.with(|cell| {
-            let mut locals = cell.borrow_mut();
-            locals.profiling_allocation_enabled = false;
-        });
+        // Can't proceed with it being disabled, because that's a system-wide
+        // setting, not per-request.
+        panic!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
     } else {
         trace!("Memory allocation profiling enabled.")
     }
@@ -193,7 +194,7 @@ pub fn allocation_profiling_rinit() {
 pub fn allocation_profiling_rshutdown() {
     let allocation_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.profiling_allocation_enabled)
+            .map(|locals| locals.system_settings().profiling_allocation_enabled)
             .unwrap_or(false)
     });
 
@@ -310,7 +311,7 @@ unsafe extern "C" fn alloc_profiling_gc_mem_caches(
 ) {
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.profiling_allocation_enabled)
+            .map(|locals| locals.system_settings().profiling_allocation_enabled)
             // Not logging here to avoid potentially overwhelming logs.
             .unwrap_or(false)
     });
