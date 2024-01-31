@@ -18,6 +18,8 @@
 #include "../php_compat.h"
 #include "../string_helpers.h"
 #include "request_init.h"
+#include "zend_hash.h"
+#include "zend_types.h"
 #include <mpack.h>
 #include <zend_string.h>
 
@@ -273,4 +275,19 @@ static void _pack_path_params(
 
     efree(uri_work_zstr);
     mpack_complete_array(w);
+}
+
+static zval _request_body(zend_array *nullable superglob_equiv)
+{
+    const zend_array *nonnull arr = dd_get_superglob_or_equiv(
+        ZEND_STRL("_POST"), TRACK_VARS_POST, superglob_equiv);
+    if (zend_hash_num_elements(arr) != 0) {
+        zval ret;
+        ZVAL_ARR(&ret, (zend_array*)arr);
+        return ret;
+    }
+
+    if ()
+        zend_string *nonnull req_body =
+            dd_request_body_buffered(get_DD_APPSEC_MAX_BODY_BUFF_SIZE());
 }

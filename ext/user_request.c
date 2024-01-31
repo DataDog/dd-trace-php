@@ -52,10 +52,13 @@ PHP_FUNCTION(DDTrace_UserRequest_notify_start)
 {
     zend_object *span;
     zend_array *array;
+    zval *rbe_zv = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(2, 2)
+    ZEND_PARSE_PARAMETERS_START(2, 3)
         Z_PARAM_OBJ_OF_CLASS_EX(span, ddtrace_ce_root_span_data, 0, 1)
         Z_PARAM_ARRAY_HT(array)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL_OR_NULL(rbe_zv)
     ZEND_PARSE_PARAMETERS_END();
 
     ddtrace_span_data *span_data = OBJ_SPANDATA(span);
@@ -71,7 +74,7 @@ PHP_FUNCTION(DDTrace_UserRequest_notify_start)
     zend_array *replacement_resp = NULL;
     for (size_t i = 0; i < reg_listeners.size; i++) {
         ddtrace_user_req_listeners *listener = reg_listeners.listeners[i];
-        zend_array *repl = listener->start_user_req(listener, span, array);
+        zend_array *repl = listener->start_user_req(listener, span, array, rbe_zv);
         if (repl != NULL && replacement_resp == NULL) {
             replacement_resp = repl;
         } else if (repl != NULL) {

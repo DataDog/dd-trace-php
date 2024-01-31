@@ -14,3 +14,7 @@ void dd_entity_body_shutdown(void);
 void dd_entity_body_activate(void);
 zend_string *nonnull dd_request_body_buffered(size_t limit);
 zend_string *nonnull dd_response_body_buffered(void);
+
+zval dd_entity_body_convert_json(char *nonnull entity, size_t entity_len);
+zval dd_entity_body_convert_xml(const char *nonnull entity, size_t entity_len,
+    const char *content_type, size_t content_type_len);
