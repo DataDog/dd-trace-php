@@ -1,5 +1,4 @@
 DURATION := 30s
-RESULTS_DIR := .results
 
 test.scenario.%:
 	@make -C $(*) run DURATION=$(DURATION)

@@ -18,7 +18,6 @@ prepare_results_folders:
 	@mkdir -p $(RESULTS_DIR)/$(SCENARIO)/php-fpm
 	@mkdir -p $(RESULTS_DIR)/$(SCENARIO)/apache
 	@mkdir -p $(RESULTS_DIR)/$(SCENARIO)/corefiles
-	@mkdir -p $(RESULTS_DIR)/$(SCENARIO)/docker-logs
 	@chmod -R a+w $(RESULTS_DIR)/$(SCENARIO)
 
 # keep this line to avoid whitespace errors with generated files

@@ -12,7 +12,7 @@ function analyze_web($tmpScenariosFolder)
     $minimumRequestCount = [];
 
     foreach (scandir($resultsFolder) as $identifier) {
-        if (in_array($identifier, ['.', '..', 'docker-logs'])) {
+        if (in_array($identifier, ['.', '..'])) {
             continue;
         }
         $scenarioResultsRoot = $resultsFolder . DIRECTORY_SEPARATOR . $identifier;
