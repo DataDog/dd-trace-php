@@ -27,6 +27,7 @@ static void dd_log_set_level(bool debug) {
     }
 }
 
+// We need to ensure that logging is initialized (i.e. set) at least once per thread.
 void ddtrace_log_ginit(void) {
     dd_log_set_level(get_global_DD_TRACE_DEBUG());
 }

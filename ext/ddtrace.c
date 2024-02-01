@@ -898,7 +898,6 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
-    ddtrace_log_init();
 
     zai_hook_minit();
     zai_uhook_minit(module_number);
@@ -921,6 +920,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
 
     // config initialization needs to be at the top
+    // This also initialiyzed logging, so no logs may be emitted before this.
+    ddtrace_log_init();
     if (!ddtrace_config_minit(module_number)) {
         return FAILURE;
     }
