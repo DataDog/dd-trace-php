@@ -135,6 +135,7 @@ partial class Build
                 markdown.AppendLine("## Snapshots difference summary").AppendLine();
                 markdown.AppendLine("The following differences have been observed in committed snapshots. It is meant to help the reviewer.");
                 markdown.AppendLine("The diff is simplistic, so please check some files anyway while we improve it.").AppendLine();
+                markdown.AppendLine("If you need to update snapshots, please refer to CONTRIBUTING.md").AppendLine();
 
                 foreach (var diff in diffCounts)
                 {
