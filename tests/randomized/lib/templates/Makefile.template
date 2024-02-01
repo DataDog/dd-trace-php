@@ -1,4 +1,6 @@
+.SHELLFLAGS = -e
 DURATION := 30s
+RESULTS_DIR := .results
 
 test.scenario.%:
 	@make -C $(*) run DURATION=$(DURATION)
@@ -6,6 +8,19 @@ test.scenario.%:
 shell.scenario.%:
 	@make -C $(*) shell
 
-test: {{test_targets}}
+test: prepare_docker_logs_folder \
+	start_base_docker \
+	{{test_targets}} \
+	shutdown_base_docker
+
+prepare_docker_logs_folder:
+	@mkdir -p $(RESULTS_DIR)/docker-logs
+	@chmod -R a+w $(RESULTS_DIR)/docker-logs
+
+start_base_docker:
+	@bash ../lib/run-base-docker-compose.sh
+
+shutdown_base_docker:
+	@bash ../lib/run-base-docker-compose.sh shutdown
 
 # keep this line to avoid whitespace errors with generated files

@@ -3,7 +3,7 @@
 cd "$(dirname "$0")"
 
 LOCK=/tmp/randomized-tests-lock-dir
-DOCKER_LOGS_DIR=./../.tmp.scenarios/.results/$SCENARIO/docker-logs
+DOCKER_LOGS_DIR=./../.tmp.scenarios/.results/docker-logs
 while true; do
   if mkdir $LOCK 2>/dev/null; then
     trap "rmdir $LOCK" EXIT
