@@ -20,4 +20,4 @@ enable_extensions.sh
 php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini
 service apache2 start
 
-exec tail -F "${LOGS_PHP[@]}" "${LOGS_APACHE[@]}"
+exec tail -n +1 -F "${LOGS_PHP[@]}" "${LOGS_APACHE[@]}"
