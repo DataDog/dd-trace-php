@@ -45,5 +45,6 @@ extern __attribute__((weak)) zend_class_entry *php_json_serializable_ce;
 void zai_json_release_persistent_array(HashTable *ht);
 void zai_json_dtor_pzval(zval *pval);
 bool zai_json_setup_bindings(void);
+void zai_json_shutdown_bindings(void);
 
 #endif  // ZAI_JSON_H

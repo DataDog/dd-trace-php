@@ -41,6 +41,8 @@
 #include "tags.h"
 #include "user_tracking.h"
 
+#include <json/json.h>
+
 #if ZTS
 static atomic_int _thread_count;
 #endif
@@ -171,10 +173,12 @@ static PHP_GSHUTDOWN_FUNCTION(ddappsec)
     if (prev == 1) {
         dd_log_shutdown();
         zai_config_mshutdown();
+        zai_json_shutdown_bindings();
     }
 #else
     dd_log_shutdown();
     zai_config_mshutdown();
+    zai_json_shutdown_bindings();
 #endif
 
     memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT

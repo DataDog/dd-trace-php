@@ -17,6 +17,8 @@
 
 // Profiling needs ZAI config for INI support.
 #include <config/config.h>
+// And json to cleanup json state for graceful restart
+#include <json/json.h>
 
 // Used to communicate strings from C -> Rust.
 #include <zai_string/string.h>

@@ -995,6 +995,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     if (DDTRACE_G(disable) == 1) {
         zai_config_mshutdown();
+        zai_json_shutdown_bindings();
         return SUCCESS;
     }
 
@@ -1021,6 +1022,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_shutdown_span_sampling_limiter();
     ddtrace_limiter_destroy();
     zai_config_mshutdown();
+    zai_json_shutdown_bindings();
 
     ddtrace_user_req_shutdown();
 
