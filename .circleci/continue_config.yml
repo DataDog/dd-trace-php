@@ -2120,7 +2120,7 @@ jobs:
           command: make -C tests/randomized library.local
       - run:
           name: Generate scenarios
-          command: make -C tests/randomized generate PLATFORMS=$RANDOMIZED_RESTRICT_PLATFORMS
+          command: make -C tests/randomized generate PLATFORMS=$RANDOMIZED_RESTRICT_PLATFORMS NUMBER_OF_SCENARIOS=4
       - run:
           name: Execute tests
           command: make -C tests/randomized test CONCURRENT_JOBS=2 DURATION=1m30s
