@@ -1,4 +1,3 @@
-.SHELLFLAGS = -e
 DURATION := 30s
 RESULTS_DIR := .results
 
