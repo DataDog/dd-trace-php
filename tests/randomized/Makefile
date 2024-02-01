@@ -92,7 +92,7 @@ scenarios_clean:
 results_folder:
 	@mkdir -p $(TMP_RESULTS_FOLDER)
 
-test: clean_results
+test: clean_results results_folder
 	@echo "Starting tests with $(CONCURRENT_JOBS) concurrent runs."
 	@make -C $(TMP_SCENARIO_FOLDER) --jobs=$(CONCURRENT_JOBS) test DURATION=$(DURATION)
 

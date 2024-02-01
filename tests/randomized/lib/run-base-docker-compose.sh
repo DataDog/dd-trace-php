@@ -3,14 +3,13 @@
 cd "$(dirname "$0")"
 
 LOCK=/tmp/randomized-tests-lock-dir
-DOCKER_LOGS_DIR=./../.tmp.scenarios/.results/docker-logs
 while true; do
   if mkdir $LOCK 2>/dev/null; then
     trap "rmdir $LOCK" EXIT
     if [[ ${1:-} == shutdown ]]; then
       # check for running tests; in that case don't shutdown
       if ! docker network ls | grep -q randomized-; then
-        sleep 3
+        sleep 1
         # prevent race conditions
         if ! docker network ls | grep -q randomized-; then
           docker-compose down
@@ -22,12 +21,6 @@ while true; do
         docker-compose up -d
       done
     fi
-    # All services but the agent
-    docker-compose logs -f redis > $DOCKER_LOGS_DIR/redis.log &
-    docker-compose logs -f httpbin > $DOCKER_LOGS_DIR/httpbin.log &
-    docker-compose logs -f memcached > $DOCKER_LOGS_DIR/memcached.log &
-    docker-compose logs -f elasticsearch > $DOCKER_LOGS_DIR/elasticsearch.log &
-    docker-compose logs -f mysql > $DOCKER_LOGS_DIR/mysql.log &
     exit 0
   fi
   sleep 1
