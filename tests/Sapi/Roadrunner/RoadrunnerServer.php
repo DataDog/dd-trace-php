@@ -69,7 +69,7 @@ final class RoadrunnerServer implements Sapi
         $replacements = [
             '{{roadrunner_host}}' => $host,
             '{{roadrunner_port}}' => $port,
-            '{{roadrunner_php}}' => sprintf("php %s %s", new IniSerializer($inis), $this->workerFile),
+            '{{roadrunner_php}}' => sprintf("%s %s %s", PHP_BINARY, new IniSerializer($inis), $this->workerFile),
             '{{env}}' => json_encode($envs + ['DD_TRACE_CLI_ENABLED' => 1]),
             '{{error_log}}' => $logPath,
         ];

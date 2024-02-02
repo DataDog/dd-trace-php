@@ -16,7 +16,8 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
-use crate::{AgentEndpoint, CLOCKS, TAGS};
+use crate::{CLOCKS, TAGS};
+use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, ValueType as ApiValueType,
@@ -29,7 +30,6 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::num::NonZeroI64;
-use std::str;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
@@ -148,7 +148,6 @@ impl ValueType {
 pub struct ProfileIndex {
     pub sample_types: Vec<ValueType>,
     pub tags: Arc<Vec<Tag>>,
-    pub endpoint: AgentEndpoint,
 }
 
 #[derive(Debug)]
@@ -208,9 +207,17 @@ pub struct Profiler {
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
-    system_settings: SystemSettings,
     sample_types_filter: SampleTypeFilter,
+    system_settings: ptr::NonNull<SystemSettings>,
 }
+
+/// The [Profiler] is sync *except* for some edge cases system_settings, which
+/// may be mutated under fringe conditions like in the child of a fork.
+unsafe impl Sync for Profiler {}
+
+/// The [Profiler] is send *except* for some edge cases system_settings, which
+/// may be mutated under fringe conditions like in the child of a fork.
+unsafe impl Send for Profiler {}
 
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
@@ -502,7 +509,7 @@ pub enum UploadMessage {
 }
 
 impl Profiler {
-    pub fn new(system_settings: SystemSettings) -> Self {
+    pub fn new(system_settings: &SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
@@ -519,11 +526,12 @@ impl Profiler {
             fork_barrier.clone(),
             upload_receiver,
             system_settings.output_pprof.clone(),
+            system_settings.uri.clone(),
         );
 
         let ddprof_time = "ddprof_time";
         let ddprof_upload = "ddprof_upload";
-        let sample_types_filter = SampleTypeFilter::new(&system_settings);
+        let sample_types_filter = SampleTypeFilter::new(system_settings);
         Profiler {
             fork_barrier,
             interrupt_manager,
@@ -538,13 +546,9 @@ impl Profiler {
                 trace!("thread {ddprof_upload} complete, shutting down");
             }),
             should_join: AtomicBool::new(true),
-            system_settings,
             sample_types_filter,
+            system_settings: ptr::NonNull::from(system_settings),
         }
-    }
-
-    pub fn is_experimental_timeline_enabled(&self) -> bool {
-        self.system_settings.profiling_experimental_timeline_enabled
     }
 
     pub fn add_interrupt(&self, interrupt: VmInterrupt) {
@@ -673,8 +677,10 @@ impl Profiler {
 
                 let labels = Profiler::message_labels();
                 let mut timestamp = 0;
+                // SAFETY: collecting time is done during PHP requests only,
+                //         so the ptr is valid at this time.
                 #[cfg(feature = "timeline")]
-                if self.system_settings.profiling_experimental_timeline_enabled {
+                if unsafe { self.system_settings.as_ref() }.profiling_timeline_enabled {
                     if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
                         timestamp = now.as_nanos() as i64;
                     }
@@ -999,37 +1005,33 @@ impl Profiler {
         #[cfg(not(php_has_fibers))] labels: Vec<Label>,
         timestamp: i64,
     ) -> SampleMessage {
-        let mut sample_types = Vec::new();
-        let mut sample_values = Vec::new();
+        // If profiling is disabled, these will naturally return empty Vec.
+        // There's no short-cutting here because:
+        //  1. Nobody should be calling this when it's disabled anyway.
+        //  2. It would require tracking more state and/or spending CPU on
+        //     something that shouldn't be done anyway (see #1).
+        let sample_types = self.sample_types_filter.sample_types();
+        let sample_values = self.sample_types_filter.filter(samples);
 
-        if self.system_settings.profiling_enabled {
-            sample_types = self.sample_types_filter.sample_types();
-            sample_values = self.sample_types_filter.filter(samples);
-
-            #[cfg(php_has_fibers)]
-            if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
-                // Safety: the fcc is set by Fiber::__construct as part of zpp,
-                // which will always set the function_handler on success, and
-                // there's nothing changing that value in all of fibers
-                // afterwards, from start to destruction of the fiber itself.
-                let func = unsafe { &*fiber.fci_cache.function_handler };
-                if let Some(functionname) = extract_function_name(func) {
-                    labels.push(Label {
-                        key: "fiber",
-                        value: LabelValue::Str(functionname.into()),
-                    });
-                }
+        #[cfg(php_has_fibers)]
+        if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
+            // Safety: the fcc is set by Fiber::__construct as part of zpp,
+            // which will always set the function_handler on success, and
+            // there's nothing changing that value in all of fibers
+            // afterwards, from start to destruction of the fiber itself.
+            let func = unsafe { &*fiber.fci_cache.function_handler };
+            if let Some(functionname) = extract_function_name(func) {
+                labels.push(Label {
+                    key: "fiber",
+                    value: LabelValue::Str(functionname.into()),
+                });
             }
         }
 
         let tags = TAGS.with(|cell| Arc::clone(&cell.borrow()));
 
         SampleMessage {
-            key: ProfileIndex {
-                sample_types,
-                tags,
-                endpoint: self.system_settings.uri.clone(),
-            },
+            key: ProfileIndex { sample_types, tags },
             value: SampleData {
                 frames,
                 labels,
@@ -1043,6 +1045,7 @@ impl Profiler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::AgentEndpoint;
     use datadog_profiling::exporter::Uri;
     use log::LevelFilter;
 
@@ -1061,7 +1064,7 @@ mod tests {
             profiling_endpoint_collection_enabled: false,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
-            profiling_experimental_timeline_enabled: false,
+            profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             output_pprof: None,
             profiling_exception_sampling_distance: 100,
@@ -1091,9 +1094,9 @@ mod tests {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
-        settings.profiling_experimental_timeline_enabled = true;
+        settings.profiling_timeline_enabled = true;
 
-        let profiler = Profiler::new(settings);
+        let profiler = Profiler::new(&settings);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 

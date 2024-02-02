@@ -2842,10 +2842,10 @@ case "$1" in
     gdb --args {$cmd}
     ;;
 "valgrind")
-    USE_ZEND_ALLOC=0 valgrind $2 ${cmd}
+    USE_ZEND_ALLOC=0 valgrind $2 {$cmd}
     ;;
 "rr")
-    rr record $2 ${cmd}
+    rr record $2 {$cmd}
     ;;
 *)
     {$cmd}
@@ -3773,7 +3773,7 @@ class RuntestsValgrind
     public function wrapCommand($cmd, $memcheck_filename, $check_all)
     {
         $supp_file = INIT_DIR . "/valgrind.supp";
-        $vcmd = "valgrind -q --tool={$this->tool} --trace-children=no --child-silent-after-fork=yes --leak-check=full " .
+        $vcmd = "valgrind --gen-suppressions=all -q --tool={$this->tool} --trace-children=no --child-silent-after-fork=yes --leak-check=full " .
             "--num-callers=16 --run-libc-freeres=no";
         if (file_exists($supp_file)) {
             $vcmd .= " --suppressions='$supp_file'";

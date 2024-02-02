@@ -5,6 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "ddtrace.h"
+
 typedef enum {
     response_type_auto = 0,
     response_type_html = 1,
@@ -21,7 +23,9 @@ void dd_set_redirect_code_and_location(
     int code, zend_string *nullable location);
 
 void dd_request_abort_startup(void);
-void dd_request_abort_rinit_once(void);
 // noreturn unless called from rinit on fpm
 void dd_request_abort_static_page(void);
+zend_array *nonnull dd_request_abort_static_page_spec(
+    const zend_array *nonnull);
 void dd_request_abort_redirect(void);
+zend_array *nonnull dd_request_abort_redirect_spec(void);

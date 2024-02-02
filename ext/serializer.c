@@ -31,6 +31,7 @@
 #include "priority_sampling/priority_sampling.h"
 #include "span.h"
 #include "uri_normalization.h"
+#include "user_request.h"
 #include "ddshared.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -223,9 +224,9 @@ static zend_result dd_exception_to_error_msg(zend_object *exception, void *conte
 
     if (SG(sapi_headers).http_response_code >= 500) {
         if (SG(sapi_headers).http_status_line) {
-            asprintf(&status_line, " (%s)", SG(sapi_headers).http_status_line);
+            UNUSED(asprintf(&status_line, " (%s)", SG(sapi_headers).http_status_line));
         } else {
-            asprintf(&status_line, " (%d)", SG(sapi_headers).http_response_code);
+            UNUSED(asprintf(&status_line, " (%d)", SG(sapi_headers).http_response_code));
         }
     }
 
@@ -541,11 +542,10 @@ void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     ZVAL_STR(&span->property_id, ddtrace_span_id_as_string(span->span_id));
 }
 
-static const char *dd_get_req_uri() {
+static const char *dd_get_req_uri(zend_array *_server) {
     const char *uri = NULL;
-    zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
-    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
-        zval *req_uri = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("REQUEST_URI"));
+    if (_server) {
+        zval *req_uri = zend_hash_str_find(_server, ZEND_STRL("REQUEST_URI"));
         if (req_uri && Z_TYPE_P(req_uri) == IS_STRING) {
             uri = Z_STRVAL_P(req_uri);
         }
@@ -558,11 +558,10 @@ static const char *dd_get_req_uri() {
     return uri;
 }
 
-static const char *dd_get_query_string() {
+static const char *dd_get_query_string(zend_array *_server) {
     const char *query_string = NULL;
-    zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
-    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
-        zval *query_str = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("QUERY_STRING"));
+    if (_server) {
+        zval *query_str = zend_hash_str_find(_server, ZEND_STRL("QUERY_STRING"));
         if (query_str && Z_TYPE_P(query_str) == IS_STRING) {
             query_string = Z_STRVAL_P(query_str);
         }
@@ -575,18 +574,17 @@ static const char *dd_get_query_string() {
     return query_string;
 }
 
-static zend_string *dd_build_req_url() {
-    zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
-    const char *uri = dd_get_req_uri();
+static zend_string *dd_build_req_url(zend_array *_server) {
+    const char *uri = dd_get_req_uri(_server);
     if (!uri) {
         return ZSTR_EMPTY_ALLOC();
     }
 
-    zend_bool is_https = zend_hash_str_exists(Z_ARRVAL_P(_server), ZEND_STRL("HTTPS"));
+    zend_bool is_https = zend_hash_str_exists(_server, ZEND_STRL("HTTPS"));
 
     zval *host_zv;
-    if ((!(host_zv = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("HTTP_HOST"))) &&
-         !(host_zv = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("SERVER_NAME")))) ||
+    if ((!(host_zv = zend_hash_str_find(_server, ZEND_STRL("HTTP_HOST"))) &&
+         !(host_zv = zend_hash_str_find(_server, ZEND_STRL("SERVER_NAME")))) ||
         Z_TYPE_P(host_zv) != IS_STRING) {
         return ZSTR_EMPTY_ALLOC();
     }
@@ -612,10 +610,9 @@ static zend_string *dd_build_req_url() {
     return url;
 }
 
-static zend_string *dd_get_user_agent() {
-    zval *_server = &PG(http_globals)[TRACK_VARS_SERVER];
-    if (Z_TYPE_P(_server) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
-        zval *user_agent = zend_hash_str_find(Z_ARRVAL_P(_server), ZEND_STRL("HTTP_USER_AGENT"));
+static zend_string *dd_get_user_agent(zend_array *_server) {
+    if (_server) {
+        zval *user_agent = zend_hash_str_find(_server, ZEND_STRL("HTTP_USER_AGENT"));
         if (user_agent && Z_TYPE_P(user_agent) == IS_STRING) {
             return Z_STR_P(user_agent);
         }
@@ -652,6 +649,110 @@ void ddtrace_update_root_id_properties(ddtrace_root_span_data *span) {
     ddtrace_assign_variable(&span->property_parent_id, &zv);
 }
 
+struct superglob_equiv {
+    zend_array *server;
+    zend_array *post;
+};
+
+static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtrace_root_span_data *span) {
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
+
+    if (data->server){
+        zend_string *http_url = dd_build_req_url(data->server);
+        if (ZSTR_LEN(http_url) > 0) {
+            zval http_url_zv;
+            ZVAL_STR(&http_url_zv, http_url);
+            zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &http_url_zv);
+        }
+    }
+
+    const char *method = SG(request_info).request_method;
+    // run-tests.php sets the env var REQUEST_METHOD, which ends up in $_SERVER
+    // To avoid having dozens of tests failing, ignore REQUEST_METHOD if such an env var exists
+    static int has_env_req_method;
+    if (!has_env_req_method) {
+        has_env_req_method = getenv("REQUEST_METHOD") ? 1 : -1;
+    }
+    if (!method && data->server && has_env_req_method == -1) {
+        zval *method_zv = zend_hash_str_find(data->server, ZEND_STRL("REQUEST_METHOD"));
+        if (method_zv && Z_TYPE_P(method_zv) == IS_STRING) {
+            method = Z_STRVAL_P(method_zv);
+        }
+    }
+    if (method) {
+        zval http_method;
+        ZVAL_STR(&http_method, zend_string_init(method, strlen(method), 0));
+        zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &http_method);
+
+        if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED()) {
+            const char *uri = dd_get_req_uri(data->server);
+            zval *prop_resource = &span->property_resource;
+            zval_ptr_dtor(prop_resource);
+            if (uri) {
+                zend_string *path = zend_string_init(uri, strlen(uri), 0);
+                zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
+                zend_string *query_string = ZSTR_EMPTY_ALLOC();
+                const char *query_str = dd_get_query_string(data->server);
+                if (query_str) {
+                    query_string = zai_filter_query_string(ZAI_STR_FROM_CSTR(query_str), get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED(),
+                                                           get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
+                }
+
+                ZVAL_STR(prop_resource,
+                         zend_strpprintf(0, "%s %s%s%s", method, ZSTR_VAL(normalized), ZSTR_LEN(query_string) ? "?" : "", ZSTR_VAL(query_string)));
+                zend_string_release(query_string);
+                zend_string_release(normalized);
+                zend_string_release(path);
+            } else {
+                ZVAL_COPY(prop_resource, &http_method);
+            }
+        }
+    }
+
+    if (get_DD_TRACE_CLIENT_IP_ENABLED() && data->server) {
+        zval server_zv;
+        ZVAL_ARR(&server_zv, data->server);
+        ddtrace_extract_ip_from_headers(&server_zv, meta);
+    }
+
+    zend_string *user_agent = dd_get_user_agent(data->server);
+    if (user_agent && ZSTR_LEN(user_agent) > 0) {
+        zval http_useragent;
+        ZVAL_STR_COPY(&http_useragent, user_agent);
+        zend_hash_str_add_new(meta, ZEND_STRL("http.useragent"), &http_useragent);
+    }
+
+    if (data->server) {
+        zend_string *headername;
+        zval *headerval;
+        ZEND_HASH_FOREACH_STR_KEY_VAL_IND(data->server, headername, headerval) {
+            ZVAL_DEREF(headerval);
+            if (Z_TYPE_P(headerval) == IS_STRING && headername && ZSTR_LEN(headername) > 5 && memcmp(ZSTR_VAL(headername), "HTTP_", 5) == 0) {
+                zend_string *lowerheader = zend_string_init(ZSTR_VAL(headername) + 5, ZSTR_LEN(headername) - 5, 0);
+                for (char *ptr = ZSTR_VAL(lowerheader); *ptr; ++ptr) {
+                    if (*ptr >= 'A' && *ptr <= 'Z') {
+                        *ptr -= 'A' - 'a';
+                    } else if (*ptr == '_') {
+                        *ptr = '-';
+                    }
+                }
+
+                dd_add_header_to_meta(meta, "request", lowerheader, Z_STR_P(headerval));
+                zend_string_release(lowerheader);
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+
+    if (data->post && zend_hash_num_elements(get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED())) {
+        zval post_zv;
+        ZVAL_ARR(&post_zv, data->post);
+        zend_string *empty = ZSTR_EMPTY_ALLOC();
+        dd_add_post_fields_to_meta_recursive(meta, "request", empty, &post_zv, get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED(), false);
+        zend_string_release(empty);
+    }
+}
+
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 
@@ -674,87 +775,21 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     zend_hash_str_add_new(meta, ZEND_STRL("runtime-id"), &zv);
 
     if (ddtrace_span_is_entrypoint_root(&span->span)) {
-        zval http_url;
-        ZVAL_STR(&http_url, dd_build_req_url());
-        if (Z_STRLEN(http_url)) {
-            zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &http_url);
+        struct superglob_equiv data = {0};
+        {
+            zval *_server_zv = &PG(http_globals)[TRACK_VARS_SERVER];
+            if (Z_TYPE_P(_server_zv) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+                data.server = Z_ARRVAL_P(_server_zv);
+            }
         }
-
-        const char *method = SG(request_info).request_method;
-        if (method) {
-            zval http_method;
-            ZVAL_STR(&http_method, zend_string_init(method, strlen(method), 0));
-            zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &http_method);
-
-            if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED()) {
-                const char *uri = dd_get_req_uri();
-                zval *prop_resource = &span->property_resource;
-                zval_ptr_dtor(prop_resource);
-                if (uri) {
-                    zend_string *path = zend_string_init(uri, strlen(uri), 0);
-                    zend_string *normalized = ddtrace_uri_normalize_incoming_path(path);
-                    zend_string *query_string = ZSTR_EMPTY_ALLOC();
-                    const char *query_str = dd_get_query_string();
-                    if (query_str) {
-                        query_string =
-                                zai_filter_query_string(ZAI_STR_FROM_CSTR(query_str),
-                                                        get_DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED(),
-                                                        get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP());
-                    }
-
-                    ZVAL_STR(prop_resource, zend_strpprintf(0, "%s %s%s%s", method, ZSTR_VAL(normalized), ZSTR_LEN(query_string) ? "?" : "", ZSTR_VAL(query_string)));
-                    zend_string_release(query_string);
-                    zend_string_release(normalized);
-                    zend_string_release(path);
-                } else {
-                    ZVAL_COPY(prop_resource, &http_method);
-                }
+        {
+            zval *_post_zv = &PG(http_globals)[TRACK_VARS_POST];
+            if (Z_TYPE_P(_post_zv) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST"))) {
+                data.post = Z_ARRVAL_P(_post_zv);
             }
         }
 
-        if (get_DD_TRACE_CLIENT_IP_ENABLED()) {
-            if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
-                ddtrace_extract_ip_from_headers(&PG(http_globals)[TRACK_VARS_SERVER], meta);
-            }
-        }
-
-        zend_string *user_agent = dd_get_user_agent();
-        if (user_agent && ZSTR_LEN(user_agent) > 0) {
-            zval http_useragent;
-            ZVAL_STR_COPY(&http_useragent, user_agent);
-            zend_hash_str_add_new(meta, ZEND_STRL("http.useragent"), &http_useragent);
-        }
-
-        if (Z_TYPE(PG(http_globals)[TRACK_VARS_SERVER]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
-            zend_string *headername;
-            zval *headerval;
-            ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARR(PG(http_globals)[TRACK_VARS_SERVER]), headername, headerval) {
-                ZVAL_DEREF(headerval);
-                if (Z_TYPE_P(headerval) == IS_STRING && headername && ZSTR_LEN(headername) > 5 &&
-                    memcmp(ZSTR_VAL(headername), "HTTP_", 5) == 0) {
-                    zend_string *lowerheader = zend_string_init(ZSTR_VAL(headername) + 5, ZSTR_LEN(headername) - 5, 0);
-                    for (char *ptr = ZSTR_VAL(lowerheader); *ptr; ++ptr) {
-                        if (*ptr >= 'A' && *ptr <= 'Z') {
-                            *ptr -= 'A' - 'a';
-                        } else if (*ptr == '_') {
-                            *ptr = '-';
-                        }
-                    }
-
-                    dd_add_header_to_meta(meta, "request", lowerheader, Z_STR_P(headerval));
-                    zend_string_release(lowerheader);
-                }
-            } ZEND_HASH_FOREACH_END();
-        }
-
-        if (zend_hash_num_elements(get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED())
-            && (Z_TYPE(PG(http_globals)[TRACK_VARS_POST]) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST")))) {
-            zval *post = &PG(http_globals)[TRACK_VARS_POST];
-            zend_string *empty = ZSTR_EMPTY_ALLOC();
-            dd_add_post_fields_to_meta_recursive(meta, "request", empty, post,
-                                                 get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED(),false);
-            zend_string_release(empty);
-        }
+        dd_set_entrypoint_root_span_props(&data, span);
     }
 
     if (get_DD_TRACE_REPORT_HOSTNAME()) {
@@ -933,6 +968,162 @@ static void dd_serialize_array_metrics_recursively(zend_array *target, zend_stri
     dd_serialize_array_recursively(target, str, value, true);
 }
 
+struct iter {
+    // caller owns key/value
+    bool (*next)(struct iter *self, zend_string **key, zend_string **value);
+};
+struct iter_llist {
+    struct iter parent;
+    zend_llist *list;
+    zend_llist_position pos;
+    sapi_header_struct *cur;
+};
+static bool dd_iterate_sapi_headers_next(struct iter *self, zend_string **key, zend_string **value)
+{
+    struct iter_llist *iter = (struct iter_llist *)self;
+
+    if (false) {
+    next_header:
+        iter->cur = zend_llist_get_next_ex(iter->list, &iter->pos);
+    }
+    if (!iter->cur) {
+        return false;
+    }
+
+    sapi_header_struct *h = iter->cur;
+
+    if (!h->header_len) {
+        goto next_header;
+    }
+
+    zend_string *lowerheader = zend_string_alloc(h->header_len, 0);
+    char *lowerptr = ZSTR_VAL(lowerheader), *header = h->header, *end = header + h->header_len;
+    for (; *header != ':'; ++header, ++lowerptr) {
+        if (header >= end) {
+            zend_string_release(lowerheader);
+            goto next_header;
+        }
+        *lowerptr = (char)(*header >= 'A' && *header <= 'Z' ? *header - ('A' - 'a') : *header);
+    }
+    // not actually RFC 7230 compliant (not allowing whitespace there), but most clients accept it. Handle it.
+    while (lowerptr > ZSTR_VAL(lowerheader) && isspace(lowerptr[-1])) {
+        --lowerptr;
+    }
+    *lowerptr = 0;
+    lowerheader = zend_string_truncate(lowerheader, lowerptr - ZSTR_VAL(lowerheader), 0);
+    if (header + 1 < end) {
+        ++header;
+    }
+
+    while (header < end && isspace(*header)) {
+        ++header;
+    }
+    while (end > header && isspace(end[-1])) {
+        --end;
+    }
+
+    zend_string *headerval = zend_string_init(header, end - header, 0);
+    *key = lowerheader;
+    *value = headerval;
+
+    iter->cur = zend_llist_get_next_ex(iter->list, &iter->pos);
+    return true;
+}
+static struct iter *dd_iterate_sapi_headers() {
+    struct iter_llist *iter = ecalloc(1, sizeof(struct iter_llist));
+    iter->parent.next = dd_iterate_sapi_headers_next, iter->list = &SG(sapi_headers).headers,
+    iter->cur = zend_llist_get_first_ex(iter->list, &iter->pos);
+    return (struct iter *)iter;
+}
+
+struct iter_arr_arr {
+    struct iter parent;
+    zend_array *arr;
+    HashPosition pos;
+};
+static bool dd_iterate_arr_headers_next(struct iter *self, zend_string **key, zend_string **value)
+{
+    struct iter_arr_arr *iter = (struct iter_arr_arr *)self;
+    zval *v = zend_hash_get_current_data_ex(iter->arr, &iter->pos);
+    if (!v) {
+        return false;
+    }
+
+    zval k_upper_zv;
+    zend_string *k;
+    zend_hash_get_current_key_zval_ex(iter->arr, &k_upper_zv, &iter->pos);
+    if (Z_TYPE(k_upper_zv) == IS_STRING) {
+        k = zend_string_tolower(Z_STR(k_upper_zv));
+    } else {
+        // should not happen
+        convert_to_string(&k_upper_zv);
+        zend_string *k_upper = Z_STR(k_upper_zv);
+        k = zend_string_tolower(k_upper);
+        zend_string_release(k_upper);
+    }
+    *key = k;
+
+    ZVAL_DEREF(v);
+    if (Z_TYPE_P(v) != IS_ARRAY) {
+        *value = ZSTR_EMPTY_ALLOC(); // should not happen
+    } else {
+        if (zend_hash_num_elements(Z_ARRVAL_P(v)) == 1) {
+            HashPosition pos;
+            zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(v), &pos);
+            zval *first = zend_hash_get_current_data_ex(Z_ARRVAL_P(v), &pos);
+            if (first && Z_TYPE_P(first) == IS_STRING) {
+                *value = Z_STR_P(first);
+                zend_string_addref(*value);
+            } else {
+                *value = ZSTR_EMPTY_ALLOC();  // should not happen
+            }
+        } else {
+            zend_string *delim = zend_string_init(ZEND_STRL(", "), 0);
+            zval ret;
+#if PHP_VERSION_ID >= 80000
+            php_implode(delim, Z_ARRVAL_P(v), &ret);
+#else
+            php_implode(delim, v, &ret);
+#endif
+            zend_string_release(delim);
+            *value = zval_get_string(&ret);
+        }
+    }
+
+    zend_hash_move_forward_ex(iter->arr, &iter->pos);
+    return true;
+}
+
+static struct iter *dd_iterate_arr_arr_headers(zend_array *arr) {
+    struct iter_arr_arr *iter = ecalloc(1, sizeof(struct iter_arr_arr));
+    iter->parent.next = dd_iterate_arr_headers_next;
+    iter->arr = arr;
+    zend_hash_internal_pointer_reset_ex(arr, &iter->pos);
+    return (struct iter *)iter;
+}
+
+static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, struct iter *headers, bool ignore_error) {
+    if (status) {
+        zend_string *status_str = zend_long_to_str((long)status);
+        zval status_zv;
+        ZVAL_STR(&status_zv, status_str);
+        zend_hash_str_update(meta, ZEND_STRL("http.status_code"), &status_zv);
+
+        if (status >= 500 && !ignore_error) {
+            zval zv = {0}, *value;
+            if ((value = zend_hash_str_add(meta, ZEND_STRL("error.type"), &zv))) {
+                ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
+            }
+        }
+    }
+
+    for (zend_string *lowerheader, *headerval; headers->next(headers, &lowerheader, &headerval);) {
+        dd_add_header_to_meta(meta, "response", lowerheader, headerval);
+        zend_string_release(lowerheader);
+        zend_string_release(headerval);
+    }
+}
+
 static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
     zval meta_zv, *meta = &span->property_meta;
@@ -1022,56 +1213,10 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     }
 
     if (ddtrace_span_is_entrypoint_root(span)) {
-        if (SG(sapi_headers).http_response_code) {
-            add_assoc_str(meta, "http.status_code", zend_long_to_str(SG(sapi_headers).http_response_code));
-            if (SG(sapi_headers).http_response_code >= 500 && !ignore_error) {
-                zval zv = {0}, *value;
-                if ((value = zend_hash_str_add(Z_ARR_P(meta), ZEND_STRL("error.type"), &zv))) {
-                    ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
-                }
-            }
-        }
-
-        zend_llist_position pos;
-        zend_llist *sapi_headers = &SG(sapi_headers).headers;
-        for (sapi_header_struct *h = (sapi_header_struct *)zend_llist_get_first_ex(sapi_headers, &pos); h;
-             h = (sapi_header_struct *)zend_llist_get_next_ex(sapi_headers, &pos)) {
-            if (!h->header_len) {
-            next_header:
-                continue;
-            }
-            zend_string *lowerheader = zend_string_alloc(h->header_len, 0);
-            char *lowerptr = ZSTR_VAL(lowerheader), *header = h->header, *end = header + h->header_len;
-            for (; *header != ':'; ++header, ++lowerptr) {
-                if (header >= end) {
-                    zend_string_release(lowerheader);
-                    goto next_header;
-                }
-                *lowerptr = (char)(*header >= 'A' && *header <= 'Z' ? *header - ('A' - 'a') : *header);
-            }
-            // not actually RFC 7230 compliant (not allowing whitespace there), but most clients accept it. Handle it.
-            while (lowerptr > ZSTR_VAL(lowerheader) && isspace(lowerptr[-1])) {
-                --lowerptr;
-            }
-            *lowerptr = 0;
-            lowerheader = zend_string_truncate(lowerheader, lowerptr - ZSTR_VAL(lowerheader), 0);
-            if (header + 1 < end) {
-                ++header;
-            }
-
-            while (header < end && isspace(*header)) {
-                ++header;
-            }
-            while (end > header && isspace(end[-1])) {
-                --end;
-            }
-
-            zend_string *headerval = zend_string_init(header, end - header, 0);
-            dd_add_header_to_meta(Z_ARR_P(meta), "response", lowerheader, headerval);
-
-            zend_string_release(headerval);
-            zend_string_release(lowerheader);
-        }
+        int status = SG(sapi_headers).http_response_code;
+        struct iter *headers = dd_iterate_sapi_headers();
+        dd_set_entrypoint_root_span_props_end(Z_ARR_P(meta), status, headers, ignore_error);
+        efree(headers);
     }
 
     zval *origin = &span->root->property_origin;
@@ -1225,12 +1370,12 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     // SpanData::$name defaults to fully qualified called name (set at span close)
     zval *operation_name = zend_hash_str_find(meta, ZEND_STRL("operation.name"));
     zval *prop_name = &span->property_name;
-    zend_string *lcname;
     if (operation_name) {
-        lcname = zend_string_tolower(Z_STR_P(operation_name));
+        zend_string *lcname = zend_string_tolower(Z_STR_P(operation_name));
         zval prop_name_as_string;
         ZVAL_STR_COPY(&prop_name_as_string, lcname);
         prop_name = zend_hash_str_update(Z_ARR_P(el), ZEND_STRL("name"), &prop_name_as_string);
+        zend_string_release(lcname);
     } else {
         ZVAL_DEREF(prop_name);
         if (Z_TYPE_P(prop_name) > IS_NULL) {
@@ -1467,7 +1612,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     }
 
     if (operation_name) {
-        zend_string_release(lcname);
         zend_hash_str_del(meta, ZEND_STRL("operation.name"));
     }
 
@@ -1641,4 +1785,55 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
     }
 
     ddtrace_prev_error_cb(DDTRACE_ERROR_CB_PARAM_PASSTHRU);
+}
+
+
+static zend_array *dd_ser_start_user_req(ddtrace_user_req_listeners *self, zend_object *span, zend_array *variables)
+{
+    UNUSED(self);
+
+    struct superglob_equiv data = {0};
+    zval *_server_zv = zend_hash_str_find(variables, ZEND_STRL("_SERVER"));
+    if (_server_zv && Z_TYPE_P(_server_zv) == IS_ARRAY) {
+        data.server = Z_ARRVAL_P(_server_zv);
+    }
+
+    zval *_post_zv = zend_hash_str_find(variables, ZEND_STRL("_POST"));
+    if (_post_zv && Z_TYPE_P(_post_zv) == IS_ARRAY) {
+        data.post = Z_ARRVAL_P(_post_zv);
+    }
+
+    if (_server_zv || _post_zv) {
+        dd_set_entrypoint_root_span_props(&data, ROOTSPANDATA(span));
+    }
+
+    return NULL;
+}
+
+static zend_array *dd_ser_response_committed(ddtrace_user_req_listeners *self, zend_object *span, int status, zend_array *headers)
+{
+    UNUSED(self);
+
+    ddtrace_root_span_data *root_span_data = ROOTSPANDATA(span);
+    zend_array *meta = ddtrace_property_array(&root_span_data->property_meta);
+    struct iter *iter = dd_iterate_arr_arr_headers(headers);
+    dd_set_entrypoint_root_span_props_end(meta, status, iter, false);
+    efree(iter);
+    return NULL;
+}
+
+static void dd_ser_finish_user_req(ddtrace_user_req_listeners *self, zend_object *span) {
+    UNUSED(self, span);
+}
+
+static ddtrace_user_req_listeners ser_user_req_listeners = {
+    .priority = INT_MAX,
+    .start_user_req = dd_ser_start_user_req,
+    .response_committed = dd_ser_response_committed,
+    .finish_user_req = dd_ser_finish_user_req,
+};
+
+void ddtrace_serializer_startup()
+{
+    ddtrace_user_req_add_listeners(&ser_user_req_listeners);
 }

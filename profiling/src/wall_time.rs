@@ -39,7 +39,7 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
             return;
         };
 
-        if !locals.profiling_enabled {
+        if !locals.system_settings().profiling_enabled {
             return;
         }
 

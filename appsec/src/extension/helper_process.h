@@ -15,8 +15,8 @@ void dd_helper_shutdown(void);
 void dd_helper_gshutdown(void);
 void dd_helper_rshutdown(void);
 
-typedef dd_result (*client_init_func)(dd_conn *nonnull);
-dd_conn *nullable dd_helper_mgr_acquire_conn(client_init_func nonnull);
+typedef dd_result (*client_init_func)(dd_conn *nonnull, void *unspecnull ctx);
+dd_conn *nullable dd_helper_mgr_acquire_conn(client_init_func nonnull, void *unspecnull ctx);
 dd_conn *nullable dd_helper_mgr_cur_conn(void);
 void dd_helper_close_conn(void);
 

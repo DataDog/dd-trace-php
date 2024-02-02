@@ -15,8 +15,6 @@
 #include <php.h>
 
 void dd_ip_extraction_startup(void);
-void dd_ip_extraction_rinit(void);
-void dd_ip_extraction_rshutdown(void);
 
 // Since the headers looked at can in principle be forged, it's very much
 // recommended that a datadog.appsec.ipheader is set to a header that the server
@@ -24,4 +22,3 @@ void dd_ip_extraction_rshutdown(void);
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server);
 bool dd_parse_client_ip_header_config(
     zai_str value, zval *nonnull decoded_value, bool persistent);
-zend_string *nullable dd_ip_extraction_get_ip();

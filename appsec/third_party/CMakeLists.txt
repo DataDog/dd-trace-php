@@ -58,4 +58,3 @@ endif()
 
 target_compile_definitions(zlibstatic PUBLIC ZLIB_CONST=1)
 target_include_directories(zlibstatic INTERFACE ${zlib_SOURCE_DIR} ${zlib_BINARY_DIR})
-

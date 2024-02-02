@@ -29,11 +29,40 @@ static zend_always_inline zend_string *zend_string_init_interned(
     const char *str, size_t len, int persistent)
 {
     zend_string *ret = zend_string_init(str, len, persistent);
+#    ifdef ZTS
+    // believe it or not zend_new_interned_string() is an identity function
+    // set the interned flag manually so zend_string_release() is a no-op
+    GC_FLAGS(ret) |= IS_STR_INTERNED;
+    zend_string_hash_val(ret);
+    return ret;
+#    else
     return zend_new_interned_string(ret);
+#    endif
 }
 #endif
 
 #if PHP_VERSION_ID < 70300
+extern const HashTable zend_empty_array;
+
+#    define GC_ADDREF(x) (++GC_REFCOUNT(x))
+#    define GC_DELREF(x) (--GC_REFCOUNT(x))
+static zend_always_inline void _gc_try_addref(zend_refcounted_h *_rc)
+{
+    struct _zend_refcounted *rc = (struct _zend_refcounted *)_rc;
+    if (!(GC_FLAGS(rc) & IS_ARRAY_IMMUTABLE)) {
+        GC_ADDREF(rc);
+    }
+}
+#    define GC_TRY_ADDREF(p) _gc_try_addref(&(p)->gc)
+static zend_always_inline void _gc_try_delref(zend_refcounted_h *_rc)
+{
+    struct _zend_refcounted *rc = (struct _zend_refcounted *)_rc;
+    if (!(GC_FLAGS(rc) & IS_ARRAY_IMMUTABLE)) {
+        GC_DELREF(rc);
+    }
+}
+#    define GC_TRY_DELREF(p) _gc_try_delref(&(p)->gc)
+
 zend_bool zend_ini_parse_bool(zend_string *str);
 #   define zend_string_efree zend_string_free
 
@@ -45,6 +74,25 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #endif
 
 #if PHP_VERSION_ID < 70400
-#define tsrm_env_lock()
-#define tsrm_env_unlock()
+#    define tsrm_env_lock()
+#    define tsrm_env_unlock()
+#endif
+
+#if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 80000
+static zend_always_inline void _gc_try_addref(zend_refcounted_h *rc)
+{
+    if (!(rc->u.type_info & GC_IMMUTABLE)) {
+        rc->refcount++;
+    }
+}
+#define GC_TRY_ADDREF(p) _gc_try_addref(&(p)->gc)
+#endif
+#if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 80100
+static zend_always_inline void _gc_try_delref(zend_refcounted_h *rc)
+{
+    if (!(rc->u.type_info & GC_IMMUTABLE)) {
+        rc->refcount--;
+    }
+}
+#define GC_TRY_DELREF(p) _gc_try_delref(&(p)->gc)
 #endif

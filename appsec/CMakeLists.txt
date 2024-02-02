@@ -1,13 +1,14 @@
 cmake_minimum_required(VERSION 3.14)
 
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake/Modules")
 
 option(HUNTER_STATUS_DEBUG "Print Hunter debug info" OFF)
 
 include("cmake/HunterGate.cmake")
 HunterGate(
-    URL "https://github.com/cpp-pm/hunter/archive/v0.23.314.tar.gz"
-    SHA1 "95c47c92f68edb091b5d6d18924baabe02a6962a")
+    URL "https://github.com/cpp-pm/hunter/archive/v0.25.3.tar.gz"
+    SHA1 "0dfbc2cb5c4cf7e83533733bdfd2125ff96680cb")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id.in ${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id)
 
@@ -29,6 +30,8 @@ option(DD_APPSEC_ENABLE_COVERAGE "Whether to enable coverage calculation" OFF)
 option(DD_APPSEC_TESTING "Whether to enable testing" ON)
 
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
+
+include("cmake/patchelf.cmake")
 
 if (DD_APPSEC_BUILD_EXTENSION)
     include("cmake/extension.cmake")
