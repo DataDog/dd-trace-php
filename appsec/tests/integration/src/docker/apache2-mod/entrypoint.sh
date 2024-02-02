@@ -19,4 +19,4 @@ enable_extensions.sh
 
 service apache2 start
 
-exec tail -F "${LOGS_PHP[@]}" "${LOGS_APACHE[@]}"
+exec tail -n +1 -F "${LOGS_PHP[@]}" "${LOGS_APACHE[@]}"

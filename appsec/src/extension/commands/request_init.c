@@ -44,7 +44,7 @@ static const dd_command_spec _spec = {
 dd_result dd_request_init(
     dd_conn *nonnull conn, struct req_info_init *nonnull ctx)
 {
-    return dd_command_exec(conn, &_spec, ctx);
+    return dd_command_exec_req_info(conn, &_spec, &ctx->req_info);
 }
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)

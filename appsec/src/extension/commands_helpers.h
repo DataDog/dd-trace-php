@@ -25,6 +25,9 @@ typedef struct _dd_command_spec {
 dd_result ATTR_WARN_UNUSED dd_command_exec(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx);
 
+dd_result ATTR_WARN_UNUSED dd_command_exec_req_info(dd_conn *nonnull conn,
+    const dd_command_spec *nonnull spec, struct req_info *nonnull ctx);
+
 dd_result ATTR_WARN_UNUSED dd_command_exec_cred(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx);
 

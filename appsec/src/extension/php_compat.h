@@ -29,7 +29,15 @@ static zend_always_inline zend_string *zend_string_init_interned(
     const char *str, size_t len, int persistent)
 {
     zend_string *ret = zend_string_init(str, len, persistent);
+#    ifdef ZTS
+    // believe it or not zend_new_interned_string() is an identity function
+    // set the interned flag manually so zend_string_release() is a no-op
+    GC_FLAGS(ret) |= IS_STR_INTERNED;
+    zend_string_hash_val(ret);
+    return ret;
+#    else
     return zend_new_interned_string(ret);
+#    endif
 }
 #endif
 

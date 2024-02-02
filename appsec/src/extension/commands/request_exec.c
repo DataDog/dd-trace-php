@@ -38,7 +38,7 @@ dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data)
 
     struct ctx ctx = {.data = data};
 
-    return dd_command_exec(conn, &_spec, &ctx);
+    return dd_command_exec_req_info(conn, &_spec, &ctx.req_info);
 }
 
 static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)
