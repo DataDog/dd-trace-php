@@ -11,7 +11,10 @@ datadog.trace.generate_root_span=0
 --FILE--
 <?php
 
-readfile(__DIR__ . "/dd_trace_log_file.log");
+// Prevent side-effects from other tests (sidecar), hence filter it
+$log = file_get_contents(__DIR__ . "/dd_trace_log_file.log");
+preg_match("(.*\[span\].*)", $log, $m);
+echo $m[0];
 
 ?>
 --EXPECTF--
