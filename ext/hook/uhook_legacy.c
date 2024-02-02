@@ -107,7 +107,9 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     }
 
     if (def->begin) {
-        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
+        if (get_DD_TRACE_DEBUG()) {
+            LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
+        }
 
         dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, &EG(uninitialized_zval));
         if (def->tracing && dyn->dropped_span) {
@@ -141,7 +143,9 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
     }
 
     if (def->begin) {
-        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "generator resume", def->begin););
+        if (get_DD_TRACE_DEBUG()) {
+            LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "generator resume", def->begin););
+        }
         dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, value);
         if (def->tracing && dyn->dropped_span) {
             ddtrace_clear_execute_data_span(invocation, false);
@@ -178,7 +182,9 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
     }
 
     if (def->end && (!def->tracing || !dyn->dropped_span)) {
-        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "generator yield", def->end););
+        if (get_DD_TRACE_DEBUG()) {
+            LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "generator yield", def->end););
+        }
         bool keep_span = dd_uhook_call(def->end, def->tracing, dyn, execute_data, value);
         if (def->tracing && !dyn->dropped_span) {
             ddtrace_clear_execute_data_span(invocation, keep_span);
@@ -226,7 +232,9 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
             profiling_interrupt_function(execute_data);
         }
 
-        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "end", def->end););
+        if (get_DD_TRACE_DEBUG()) {
+            LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "end", def->end););
+        }
         keep_span = dd_uhook_call(def->end, def->tracing, dyn, execute_data, retval);
     }
 

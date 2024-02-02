@@ -283,7 +283,9 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     if (def->begin && !def->running) {
         dyn->hook_data->execute_data = execute_data;
 
-        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
+        if (get_DD_TRACE_DEBUG()) {
+            LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
+        }
 
         def->running = true;
         dd_uhook_call_hook(execute_data, def->begin, dyn->hook_data);
@@ -404,7 +406,9 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         }
         zval_ptr_dtor(&tmp);
 
-        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "end", def->end););
+        if (get_DD_TRACE_DEBUG()) {
+            LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "end", def->end););
+        }
 
         def->running = true;
         dyn->hook_data->retval_ptr = retval;
