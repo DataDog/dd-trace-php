@@ -283,7 +283,9 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     if (def->begin && !def->running) {
         dyn->hook_data->execute_data = execute_data;
 
-        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
+        if (get_DD_TRACE_DEBUG()) {
+            LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
+        }
 
         def->running = true;
         dd_uhook_call_hook(execute_data, def->begin, dyn->hook_data);
@@ -404,7 +406,9 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         }
         zval_ptr_dtor(&tmp);
 
-        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "end", def->end););
+        if (get_DD_TRACE_DEBUG()) {
+            LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "end", def->end););
+        }
 
         def->running = true;
         dyn->hook_data->retval_ptr = retval;
@@ -597,13 +601,15 @@ type_error:
             dd_uhook_begin, dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
 
-        LOG(Hook_Trace, "Installing a hook function %d at %s:%d on runtime %s %s%s%s",
-            id,
-            zend_get_executed_filename(), zend_get_executed_lineno(),
-            resolved->common.scope ? "method" : "function",
-            resolved->common.scope ? ZSTR_VAL(resolved->common.scope->name) : "",
-            resolved->common.scope ? "::" : "",
-            resolved->common.function_name ? ZSTR_VAL(resolved->common.function_name) : "<unnamed>");
+        if (get_DD_TRACE_DEBUG()) {
+            LOG(Hook_Trace, "Installing a hook function %d at %s:%d on runtime %s %s%s%s",
+                id,
+                zend_get_executed_filename(), zend_get_executed_lineno(),
+                resolved->common.scope ? "method" : "function",
+                resolved->common.scope ? ZSTR_VAL(resolved->common.scope->name) : "",
+                resolved->common.scope ? "::" : "",
+                resolved->common.function_name ? ZSTR_VAL(resolved->common.function_name) : "<unnamed>");
+        }
 
         if (id >= 0 && closure && (flags & HOOK_INSTANCE)) {
             def->closure = closure;
@@ -668,7 +674,7 @@ type_error:
                 ZAI_HOOK_AUX(def, dd_uhook_dtor),
                 sizeof(dd_uhook_dynamic));
 
-        if (id >= 0) {
+        if (id >= 0 && get_DD_TRACE_DEBUG()) {
             LOG(Hook_Trace, "Installing a hook function %d at %s:%d on %s %s%s%s",
                 id,
                 zend_get_executed_filename(), zend_get_executed_lineno(),

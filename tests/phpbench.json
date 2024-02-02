@@ -6,7 +6,8 @@
     "runner.php_env": {
         "DD_TRACE_OTEL_ENABLED": "true",
         "DD_TRACE_TEST_SAPI": "cgi-fcgi",
-        "DD_TRACE_SIDECAR_TRACE_SENDER": "true"
+        "DD_TRACE_SIDECAR_TRACE_SENDER": "true",
+        "DD_TRACE_SPANS_LIMIT": "3000"
     },
     "report.generators": {
         "all": {

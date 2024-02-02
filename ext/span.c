@@ -40,11 +40,15 @@ static void dd_drop_span_nodestroy(ddtrace_span_data *span, bool silent) {
     }
     span->duration = silent ? DDTRACE_SILENTLY_DROPPED_SPAN : DDTRACE_DROPPED_SPAN;
 
-    if (span->std.ce == ddtrace_ce_root_span_data) {
-        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        LOG(Span_Trace, "Dropping root span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(root->property_trace_id), span->span_id);
-    } else {
-        LOG(Span_Trace, "Dropping span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(span->root->property_trace_id), span->span_id);
+    if (get_DD_TRACE_DEBUG()) {
+        if (span->std.ce == ddtrace_ce_root_span_data) {
+            ddtrace_root_span_data * root = ROOTSPANDATA(&span->std);
+            LOG(Span_Trace, "Dropping root span: trace_id=%s, span_id=%"PRIu64,
+                Z_STRVAL(root->property_trace_id), span->span_id);
+        } else {
+            LOG(Span_Trace, "Dropping span: trace_id=%s, span_id=%"PRIu64,
+                Z_STRVAL(span->root->property_trace_id), span->span_id);
+        }
     }
 }
 
@@ -232,11 +236,15 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
 
     ddtrace_set_global_span_properties(span);
 
-    if (root_span) {
-        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        LOG(Span_Trace, "Starting new root span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d, parent_SpanStack=%d", Z_STRVAL(root->property_trace_id), span->span_id, root->parent_id, root->stack->std.handle, root->stack->parent_stack->std.handle);
-    } else {
-        LOG(Span_Trace, "Starting new span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d", Z_STRVAL(span->root->property_trace_id), span->span_id, SPANDATA(span->parent)->span_id, span->stack->std.handle);
+    if (get_DD_TRACE_DEBUG()) {
+        if (root_span) {
+            ddtrace_root_span_data * root = ROOTSPANDATA(&span->std);
+            LOG(Span_Trace, "Starting new root span: trace_id=%s, span_id=%"PRIu64", parent_id=%"PRIu64", SpanStack=%d, parent_SpanStack=%d",
+                Z_STRVAL(root->property_trace_id), span->span_id, root->parent_id, root->stack->std.handle, root->stack->parent_stack->std.handle);
+        } else {
+            LOG(Span_Trace, "Starting new span: trace_id=%s, span_id=%"PRIu64", parent_id=%"PRIu64", SpanStack=%d",
+                Z_STRVAL(span->root->property_trace_id), span->span_id, SPANDATA(span->parent)->span_id, span->stack->std.handle);
+        }
     }
 
     return span;
@@ -326,11 +334,14 @@ void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
 }
 
 void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
-    if (target_stack->active) {
-        ddtrace_span_data *span = SPANDATA(target_stack->active);
-        LOG(Span_Trace, "Switching to different SpanStack: %d, top of stack: trace_id=%s, span_id=%" PRIu64, target_stack->std.handle, Z_STRVAL(span->root->property_trace_id), span->span_id);
-    } else {
-        LOG(Span_Trace, "Switching to different SpanStack: %d", target_stack->std.handle);
+    if (get_DD_TRACE_DEBUG()) {
+        if (target_stack->active) {
+            ddtrace_span_data * span = SPANDATA(target_stack->active);
+            LOG(Span_Trace, "Switching to different SpanStack: %d, top of stack: trace_id=%s, span_id=%"PRIu64,
+                target_stack->std.handle, Z_STRVAL(span->root->property_trace_id), span->span_id);
+        } else {
+            LOG(Span_Trace, "Switching to different SpanStack: %d", target_stack->std.handle);
+        }
     }
 
     GC_ADDREF(&target_stack->std);
@@ -364,7 +375,10 @@ ddtrace_span_stack *ddtrace_init_root_span_stack(void) {
     span_stack->root_stack = span_stack;
     span_stack->root_span = NULL;
 
-    LOG(Span_Trace, "Creating new root SpanStack: %d, parent_stack: %d", span_stack->std.handle, span_stack->parent_stack ? span_stack->parent_stack->std.handle : 0);
+    if (get_DD_TRACE_DEBUG()) {
+        LOG(Span_Trace, "Creating new root SpanStack: %d, parent_stack: %d",
+            span_stack->std.handle, span_stack->parent_stack ? span_stack->parent_stack->std.handle : 0);
+    }
 
     return span_stack;
 }
@@ -376,7 +390,10 @@ ddtrace_span_stack *ddtrace_init_span_stack(void) {
     span_stack->root_stack = DDTRACE_G(active_stack)->root_stack;
     span_stack->root_span = DDTRACE_G(active_stack)->root_span;
 
-    LOG(Span_Trace, "Creating new SpanStack: %d, parent_stack: %d", span_stack->std.handle, span_stack->parent_stack ? span_stack->parent_stack->std.handle : 0);
+    if (get_DD_TRACE_DEBUG()) {
+        LOG(Span_Trace, "Creating new SpanStack: %d, parent_stack: %d",
+            span_stack->std.handle, span_stack->parent_stack ? span_stack->parent_stack->std.handle : 0);
+    }
 
     return span_stack;
 }
@@ -451,12 +468,14 @@ void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until) {
     ddtrace_span_properties *pspan;
     while ((pspan = until->stack->active) && pspan->stack == until->stack && pspan != &until->props && SPANDATA(pspan)->type != DDTRACE_AUTOROOT_SPAN) {
         ddtrace_span_data *span = SPANDATA(pspan);
-        if (span->type == DDTRACE_INTERNAL_SPAN) {
+        if (span->type == DDTRACE_INTERNAL_SPAN && get_DD_TRACE_DEBUG()) {
             LOG(Error, "Found internal span data while closing userland spans");
         }
 
         zend_string *name = ddtrace_convert_to_str(&span->property_name);
-        LOG(Warn, "Found unfinished span while automatically closing spans with name '%s'", ZSTR_VAL(name));
+        if (get_DD_TRACE_DEBUG()) {
+            LOG(Warn, "Found unfinished span while automatically closing spans with name '%s'", ZSTR_VAL(name));
+        }
         zend_string_release(name);
 
         if (get_DD_AUTOFINISH_SPANS()) {
@@ -542,7 +561,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
             ddtrace_switch_span_stack(stack->parent_stack);
         }
 
-        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE) {
+        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE && get_DD_TRACE_DEBUG()) {
             // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
             LOG(Warn, "Unable to auto flush the tracer");
         }
@@ -617,11 +636,15 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
         span->notify_user_req_end = false;
     }
 
-    if (span->std.ce == ddtrace_ce_root_span_data) {
-        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        LOG(Span_Trace, "Closing root span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(root->property_trace_id), span->span_id);
-    } else {
-        LOG(Span_Trace, "Closing span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(span->root->property_trace_id), span->span_id);
+    if (get_DD_TRACE_DEBUG()) {
+        if (span->std.ce == ddtrace_ce_root_span_data) {
+            ddtrace_root_span_data * root = ROOTSPANDATA(&span->std);
+            LOG(Span_Trace, "Closing root span: trace_id=%s, span_id=%"PRIu64,
+                Z_STRVAL(root->property_trace_id), span->span_id);
+        } else {
+            LOG(Span_Trace, "Closing span: trace_id=%s, span_id=%"PRIu64,
+                Z_STRVAL(span->root->property_trace_id), span->span_id);
+        }
     }
 
     if (!stack->active || SPANDATA(stack->active)->stack != stack) {
@@ -664,7 +687,9 @@ void ddtrace_close_all_open_spans(bool force_close_root_span) {
 
             ddtrace_span_data *span;
             while (stack->active && (span = SPANDATA(stack->active))->stack == stack) {
-                LOG(Span_Trace, "Automatically finishing the next span (in shutdown or force flush requested)");
+                if (get_DD_TRACE_DEBUG()) {
+                    LOG(Span_Trace, "Automatically finishing the next span (in shutdown or force flush requested)");
+                }
                 if (get_DD_AUTOFINISH_SPANS() || (force_close_root_span && span->type == DDTRACE_AUTOROOT_SPAN)) {
                     dd_trace_stop_span_time(span);
                     ddtrace_close_span(span);
