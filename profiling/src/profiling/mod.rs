@@ -758,7 +758,7 @@ impl Profiler {
         &self,
         execute_data: *mut zend_execute_data,
         exception: String,
-        message: String,
+        message: Option<String>,
     ) {
         let result = collect_stack_sample(execute_data);
         match result {
@@ -771,10 +771,12 @@ impl Profiler {
                     value: LabelValue::Str(exception.clone().into()),
                 });
 
-                labels.push(Label {
-                    key: "exception message",
-                    value: LabelValue::Str(message.into()),
-                });
+                if message.is_some() {
+                    labels.push(Label {
+                        key: "exception message",
+                        value: LabelValue::Str(message.unwrap().into()),
+                    });
+                }
 
                 let n_labels = labels.len();
 
@@ -1083,6 +1085,7 @@ mod tests {
             profiling_allocation_enabled: false,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
+            profiling_exception_message_enabled: false,
             output_pprof: None,
             profiling_exception_sampling_distance: 100,
             profiling_log_level: LevelFilter::Off,

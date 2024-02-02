@@ -25,6 +25,7 @@ pub struct SystemSettings {
     pub profiling_allocation_enabled: bool,
     pub profiling_timeline_enabled: bool,
     pub profiling_exception_enabled: bool,
+    pub profiling_exception_message_enabled: bool,
 
     // todo: can't this be Option<String>? I don't think the string can ever be static.
     pub output_pprof: Option<Cow<'static, str>>,
@@ -42,6 +43,7 @@ impl SystemSettings {
         self.profiling_allocation_enabled = false;
         self.profiling_timeline_enabled = false;
         self.profiling_exception_enabled = false;
+        self.profiling_exception_message_enabled = false;
     }
 
     /// # Safety
@@ -62,6 +64,7 @@ impl SystemSettings {
             profiling_allocation_enabled: profiling_allocation_enabled(),
             profiling_timeline_enabled: profiling_timeline_enabled(),
             profiling_exception_enabled: profiling_exception_enabled(),
+            profiling_exception_message_enabled: profiling_exception_message_enabled(),
             output_pprof: profiling_output_pprof(),
             profiling_exception_sampling_distance: profiling_exception_sampling_distance(),
             profiling_log_level: profiling_log_level(),
@@ -122,6 +125,7 @@ impl SystemSettings {
             profiling_allocation_enabled: false,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
+            profiling_exception_message_enabled: false,
             output_pprof: None,
             profiling_exception_sampling_distance: 0,
             profiling_log_level: LevelFilter::Off,
@@ -138,6 +142,7 @@ impl SystemSettings {
         system_settings.profiling_allocation_enabled = false;
         system_settings.profiling_timeline_enabled = false;
         system_settings.profiling_exception_enabled = false;
+        system_settings.profiling_exception_message_enabled = false;
     }
 }
 
@@ -332,6 +337,7 @@ pub(crate) enum ConfigId {
     ProfilingAllocationEnabled,
     ProfilingTimelineEnabled,
     ProfilingExceptionEnabled,
+    ProfilingExceptionMessageEnabled,
     ProfilingExceptionSamplingDistance,
     ProfilingLogLevel,
     ProfilingOutputPprof,
@@ -358,6 +364,7 @@ impl ConfigId {
             ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
             ProfilingTimelineEnabled => b"DD_PROFILING_TIMELINE_ENABLED\0",
             ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
+            ProfilingExceptionMessageEnabled => b"DD_PROFILING_EXCEPTION_MESSAGE_ENABLED\0",
             ProfilingExceptionSamplingDistance => b"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
@@ -400,6 +407,7 @@ lazy_static::lazy_static! {
         profiling_allocation_enabled: false,
         profiling_timeline_enabled: false,
         profiling_exception_enabled: false,
+        profiling_exception_message_enabled: false,
         output_pprof: None,
         profiling_exception_sampling_distance: u32::MAX,
         profiling_log_level: LevelFilter::Off,
@@ -415,6 +423,7 @@ lazy_static::lazy_static! {
         profiling_allocation_enabled: true,
         profiling_timeline_enabled: true,
         profiling_exception_enabled: true,
+        profiling_exception_message_enabled: false,
         output_pprof: None,
         profiling_exception_sampling_distance: 100,
         profiling_log_level: LevelFilter::Off,
@@ -494,6 +503,16 @@ unsafe fn profiling_exception_enabled() -> bool {
             ProfilingExceptionEnabled,
             DEFAULT_SYSTEM_SETTINGS.profiling_exception_enabled,
         )
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+unsafe fn profiling_exception_message_enabled() -> bool {
+    get_system_bool(
+        ProfilingExceptionMessageEnabled,
+        DEFAULT_SYSTEM_SETTINGS.profiling_exception_message_enabled,
+    )
 }
 
 /// # Safety
@@ -808,6 +827,16 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: EXCEPTION_ALIASES.as_ptr(),
                     aliases_count: EXCEPTION_ALIASES.len() as u8,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: None,
+                },
+                zai_config_entry {
+                    id: transmute(ProfilingExceptionMessageEnabled),
+                    name: ProfilingExceptionMessageEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: ZaiStr::literal(b"0\0"),
+                    aliases: ptr::null_mut(),
+                    aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
                 },
