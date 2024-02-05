@@ -12,6 +12,7 @@
 #include "ddshared.h"
 #include "ddtrace.h"
 #include "span.h"
+#include "components/log/log.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -154,6 +155,22 @@ void ddtrace_decide_on_closed_span_sampling(ddtrace_span_data *span) {
 
     ddtrace_rule_result result = dd_match_rules(span, &root->span == span && !root->parent_id, root->sampling_rule.rule);
     if (result.rule != INT32_MAX) {
+        LOGEV(Debug, {
+            smart_str buf = {0};
+            const char *rule_str = "<unknown>";
+            if (result.rule == -2) {
+                rule_str = "manual.keep";
+            } else if (result.rule == -1) {
+                rule_str = "manual.drop";
+            } else {
+                zval *rule = ZEND_HASH_ELEMENT(get_DD_TRACE_SAMPLING_RULES(), result.rule);
+                zai_json_encode(&buf, rule, 0);
+                smart_str_0(&buf);
+                rule_str = ZSTR_VAL(buf.s);
+            }
+            log("Evaluated sampling rules for span %" PRIu64 " on trace %s. Matched rule %s.", span->span_id, Z_STRVAL(span->root->property_trace_id), rule_str);
+            smart_str_free(&buf);
+        });
         root->sampling_rule = result;
     }
 }
@@ -182,8 +199,7 @@ static ddtrace_rule_result dd_decide_on_open_span_sampling(ddtrace_root_span_dat
 static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     int priority;
     bool is_trace_root = !span->parent_id;
-    // manual if it's not just inherited, otherwise this value is irrelevant (as sampling priority will be default)
-    enum dd_sampling_mechanism mechanism = DD_MECHANISM_MANUAL;
+    enum dd_sampling_mechanism mechanism;
 
     ddtrace_rule_result result = dd_decide_on_open_span_sampling(span);
     double sample_rate = 0;
@@ -213,6 +229,13 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
                 if (!sample_rate_zv) {
                     // Default rate if no service+env pair matches
                     sample_rate_zv = zend_hash_str_find(DDTRACE_G(agent_rate_by_service), ZEND_STRL("service:,env:"));
+                    if (sample_rate_zv) {
+                        LOG(Debug, "Evaluated agent sampling rules for root span for trace %s and applied a default sample_rate of %f",
+                            Z_STRVAL(span->property_trace_id), zval_get_double(sample_rate_zv));
+                    }
+                } else {
+                    LOG(Debug, "Evaluated agent sampling rules for root span for trace %s (service: %s, env: %s) and found a sample_rate of %f",
+                        Z_STRVAL(span->property_trace_id), Z_STR_P(service), Z_STR_P(env), zval_get_double(sample_rate_zv));
                 }
                 if (sample_rate_zv) {
                     sample_rate = zval_get_double(sample_rate_zv);
@@ -259,6 +282,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
         zend_hash_str_del(metrics, ZEND_STRL("_dd.agent_psr"));
     } else {
+        // manual if it's not just inherited, otherwise this value is irrelevant (as sampling priority will be default)
         mechanism = DDTRACE_G(agent_rate_by_service) ? DD_MECHANISM_AGENT_RATE : DD_MECHANISM_DEFAULT;
         priority = sampling && !limited ? PRIORITY_SAMPLING_AUTO_KEEP : PRIORITY_SAMPLING_AUTO_REJECT;
 

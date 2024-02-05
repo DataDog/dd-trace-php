@@ -9,6 +9,7 @@ use DDTrace\Tests\Sapi\PhpCgi\PhpCgi;
 use DDTrace\Tests\Sapi\PhpFpm\PhpFpm;
 use DDTrace\Tests\Sapi\Roadrunner\RoadrunnerServer;
 use DDTrace\Tests\Sapi\Sapi;
+use PHPUnit\Framework\Assert;
 
 /**
  * A controllable php server running in a separate process.
@@ -178,6 +179,15 @@ final class WebServer
 
         $this->sapi->start();
         usleep(500000);
+    }
+
+    public function reload()
+    {
+        if (\method_exists($this->sapi, "reload")) {
+            $this->sapi->reload();
+        } else {
+            Assert::markTestSkipped("Webserver reload not supported");
+        }
     }
 
     /**

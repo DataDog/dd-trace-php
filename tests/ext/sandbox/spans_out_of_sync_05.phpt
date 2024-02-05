@@ -1,7 +1,7 @@
 --TEST--
 Gracefully handle out-of-sync spans in closure itself [user]
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php
 

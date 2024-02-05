@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <php.h>
 #include <Zend/zend_closures.h>
+#include <Zend/zend_smart_str.h>
 
 #include "ext/standard/base64.h"
 
@@ -86,6 +87,13 @@ static inline zend_long zval_get_long(zval *op) {
     }
     return _zval_get_long(op);
 }
+
+#include <float.h>
+#if defined(DBL_MANT_DIG) && defined(DBL_MIN_EXP)
+#define PHP_DOUBLE_MAX_LENGTH (3 + DBL_MANT_DIG - DBL_MIN_EXP)
+#else
+#define PHP_DOUBLE_MAX_LENGTH 1080
+#endif
 #endif
 
 #if PHP_VERSION_ID < 70200
@@ -110,7 +118,6 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
 
 typedef void zend_type;
 
-#include <Zend/zend_smart_str.h>
 static inline void smart_str_append_printf(smart_str *dest, const char *format, ...) {
     va_list arg;
     va_start(arg, format);
@@ -324,6 +331,19 @@ static zend_always_inline zend_result add_next_index_object(zval *arg, zend_obje
     return zend_hash_next_index_insert(Z_ARRVAL_P(arg), &tmp) ? SUCCESS : FAILURE;
 }
 
+#include <main/snprintf.h>
+#define zend_gcvt php_gcvt
+#define ZEND_DOUBLE_MAX_LENGTH PHP_DOUBLE_MAX_LENGTH
+static inline void smart_str_append_double(smart_str *str, double num, int precision, bool zero_fraction) {
+    char buf[ZEND_DOUBLE_MAX_LENGTH];
+    /* Model snprintf precision behavior. */
+    zend_gcvt(num, precision ? precision : 1, '.', 'E', buf);
+    smart_str_appends(str, buf);
+    if (zero_fraction && zend_finite(num) && !strchr(buf, '.')) {
+        smart_str_appendl(str, ".0", 2);
+    }
+}
+
 #endif
 
 #if PHP_VERSION_ID < 80200
@@ -356,6 +376,8 @@ static inline zend_string *ddtrace_strpprintf(size_t max_len, const char *format
 
 #undef zend_strpprintf
 #define zend_strpprintf ddtrace_strpprintf
+
+#define ZEND_HASH_ELEMENT(ht, idx) (&ht->arData[idx].val)
 
 #if PHP_VERSION_ID >= 80000
 #define zend_weakrefs_hash_add zend_weakrefs_hash_add_fallback
@@ -390,6 +412,10 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
 }
 
 #define zend_zval_value_name zend_zval_type_name
+#endif
+
+#if PHP_VERSION_ID < 80400
+#define zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error, free_trampoline) zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error)
 #endif
 
 #endif  // DD_COMPATIBILITY_H

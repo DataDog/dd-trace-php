@@ -20,7 +20,13 @@ static void ddtrace_set_sidecar_globals(void) {
 }
 
 static bool dd_sidecar_connection_init(void) {
-    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&ddtrace_sidecar, get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()))) {
+    char logpath[PATH_MAX + 1];
+    int error_fd = atomic_load(&ddtrace_error_log_fd);
+    if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
+        *logpath = 0;
+    }
+
+    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&ddtrace_sidecar, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()))) {
         ddtrace_sidecar = NULL;
         return false;
     }
@@ -51,7 +57,9 @@ static bool dd_sidecar_connection_init(void) {
     ddog_sidecar_session_set_config(&ddtrace_sidecar, session_id, ddtrace_endpoint,
                                     get_global_DD_TRACE_AGENT_FLUSH_INTERVAL(),
                                     get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
-                                    get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE());
+                                    get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
+                                    get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
+                                    (ddog_CharSlice){ .ptr = logpath, .len = strlen(logpath) });
 
     return true;
 }
