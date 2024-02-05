@@ -483,8 +483,10 @@ static zend_string *nullable _get_entity_as_string(zval *rbe_zv)
 
     // TODO: support non-seekable streams. Needs replacing the stream
     if (stream->flags & PHP_STREAM_FLAG_NO_SEEK) {
-        mlog(dd_log_info, "Response body entity is a stream, but it is "
-                          "not seekable; ignoring");
+        __auto_type lvl =
+            get_global_DD_APPSEC_TESTING() ? dd_log_info : dd_log_debug;
+        mlog(lvl, "Response body entity is a stream, but it is "
+                  "not seekable; ignoring");
         return NULL;
     }
 
@@ -525,7 +527,9 @@ static zend_string *nullable _get_entity_as_string(zval *rbe_zv)
 
     size_t effective_size = stream_size - (size_t)start_pos;
     if (effective_size >= (size_t)get_DD_APPSEC_MAX_BODY_BUFF_SIZE()) {
-        mlog(dd_log_info,
+        __auto_type lvl =
+            get_global_DD_APPSEC_TESTING() ? dd_log_info : dd_log_debug;
+        mlog(lvl,
             "Response body entity is larger than %zu bytes (got %zu); ignoring",
             max_size, effective_size);
         return NULL;

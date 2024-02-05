@@ -21,80 +21,63 @@ XML;
 
 $content_type = "application/xml";
 
-//\datadog\appsec\testing\stop_for_debugger();
 $result = datadog\appsec\testing\convert_xml($entity, $content_type);
 if (!$result) {
 print_r(libxml_get_errors());
 }
 
 echo(json_encode($result, JSON_PRETTY_PRINT));
---EXPECT--
+--EXPECTF--
 {
-    "note": {
-        "content": [
-            {
-                "to": {
-                    "content": [
-                        "my recipient"
-                    ],
-                    "attributes": {
-                        "attr": "x"
-                    }
-                }
-            },
-            {
-                "from": {
-                    "content": [
-                        "Jani"
+    "note": [
+        {
+            "to": [
+                {
+                    "@attr": "x"
+                },
+                "my recipient"
+            ]
+        },
+        {
+            "from": [
+                "Jani"
+            ]
+        },
+        {
+            "tos": [
+                {
+                    "to": [
+                        "John"
+                    ]
+                },
+                {
+                    "to": [
+                        "Jane"
                     ]
                 }
-            },
-            {
-                "tos": {
-                    "content": [
-                        {
-                            "to": {
-                                "content": [
-                                    "John"
-                                ]
-                            }
-                        },
-                        {
-                            "to": {
-                                "content": [
-                                    "Jane"
-                                ]
-                            }
-                        }
-                    ]
+            ]
+        },
+        {
+            "heading": [
+                "Reminder"
+            ]
+        },
+        "\n  begin note\n  ",
+        {
+            "p": [
+                "Don't forget me this weekend!"
+            ]
+        },
+        "\n  end note\n  ",
+        {
+            "br": []
+        },
+        {
+            "br": [
+                {
+                    "@myattr": "attr value"
                 }
-            },
-            {
-                "heading": {
-                    "content": [
-                        "Reminder"
-                    ]
-                }
-            },
-            "\n  begin note\n  ",
-            {
-                "p": {
-                    "content": [
-                        "Don't forget me this weekend!"
-                    ]
-                }
-            },
-            "\n  end note\n  ",
-            {
-                "br": []
-            },
-            {
-                "br": {
-                    "attributes": {
-                        "myattr": "attr value"
-                    }
-                }
-            }
-        ]
-    }
+            ]
+        }
+    ]
 }

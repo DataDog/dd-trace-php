@@ -6754,8 +6754,7 @@
                         {
                             "address": "server.response.body",
                             "key_path": [
-                                "note",
-                                "content"
+                                "note"
                             ]
                         }
                     ],

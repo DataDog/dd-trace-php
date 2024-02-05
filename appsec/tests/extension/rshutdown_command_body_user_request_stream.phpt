@@ -91,26 +91,22 @@ Array
                         (
                             [foo] => Array
                                 (
-                                    [content] => Array
+                                    [0] => Array
                                         (
-                                            [0] => 
-test
-                                            [1] => Array
-                                                (
-                                                    [br] => Array
-                                                        (
-                                                        )
+                                            [@attr] => bar
+                                        )
 
+                                    [1] => 
+test
+                                    [2] => Array
+                                        (
+                                            [br] => Array
+                                                (
                                                 )
 
-                                            [2] => baz
-
                                         )
 
-                                    [attributes] => Array
-                                        (
-                                            [attr] => bar
-                                        )
+                                    [3] => baz
 
                                 )
 

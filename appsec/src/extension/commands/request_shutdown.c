@@ -14,7 +14,20 @@
 #include "request_shutdown_arginfo.h"
 #include "zend_exceptions.h"
 #include <SAPI.h>
+#include <dlfcn.h>
 #include <ext/json/php_json.h>
+
+#if PHP_VERSION_ID < 70200
+typedef void (*json_decode_ex_t)(zval *return_value, char *str, size_t str_len,
+    zend_long options, zend_long depth);
+#elif PHP_VERSION_ID < 80200
+typedef int (*json_decode_ex_t)(zval *return_value, const char *str,
+    size_t str_len, zend_long options, zend_long depth);
+#else
+typedef zend_result (*json_decode_ex_t)(zval *return_value, const char *str,
+    size_t str_len, zend_long options, zend_long depth);
+#endif
+static json_decode_ex_t _json_decode_ex;
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
 static void _pack_headers_no_cookies_llist(
@@ -306,7 +319,11 @@ static zval _convert_json(char *nonnull entity, size_t entity_len)
 {
     zval zv;
     ZVAL_NULL(&zv);
-#define MAX_DEPTH 12
+    if (!_json_decode_ex) {
+        return zv;
+    }
+
+#define MAX_DEPTH 30
     php_json_decode_ex(
         &zv, entity, entity_len, PHP_JSON_OBJECT_AS_ARRAY, MAX_DEPTH);
     if (Z_TYPE(zv) == IS_NULL) {
@@ -343,6 +360,33 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
         }
     }
     return true;
+}
+
+static zend_array *_transform_attr_keys(const zval *orig)
+{
+    // append @ to keys
+    zend_array *new_arr = zend_new_array(zend_array_count(Z_ARR_P(orig)));
+    zend_string *key;
+    zval *val;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(orig), key, val)
+    {
+        if (!key) {
+            // attribute names can't be only numbers anyway
+            continue;
+        }
+        if (Z_TYPE_P(val) != IS_STRING) {
+            continue;
+        }
+        char *new_key = safe_emalloc(ZSTR_LEN(key), 1, 2);
+        char *wp = new_key;
+        *wp++ = '@';
+        memcpy(wp, ZSTR_VAL(key), ZSTR_LEN(key) + 1);
+        zval_addref_p(val);
+        zend_hash_str_add_new(new_arr, new_key, ZSTR_LEN(key) + 1, val);
+        efree(new_key);
+    }
+    ZEND_HASH_FOREACH_END();
+    return new_arr;
 }
 
 static zval _convert_xml_impl(const char *nonnull entity, size_t entity_len,
@@ -434,7 +478,7 @@ static zval _convert_xml_impl(const char *nonnull entity, size_t entity_len,
 
     // now transform the the result
     // each tag is encoded as a singleton map:
-    // <tag name>: {content: [...], attributes: {...})
+    // <tag name>: [{@attr1: "...", ...}, "text...", {further tags...}])
     // text is encoded as string
     zend_array *root = zend_new_array(1);
     zend_array *cur = root; // non-owning
@@ -489,33 +533,25 @@ static zval _convert_xml_impl(const char *nonnull entity, size_t entity_len,
             ZVAL_ARR(&celem_zv, celem);
             zend_hash_next_index_insert(cur, &celem_zv);
 
-            // map with keys content and attributes
-            zend_array *celem_val = zend_new_array(attr_zv ? 2 : 1);
+            // array with content and attributes
+            zend_array *celem_val =
+                zend_new_array(attr_zv ? 2 : 1 /* estimate only */);
             {
                 zval celem_val_zv;
                 ZVAL_ARR(&celem_val_zv, celem_val);
                 zend_hash_add_new(celem, Z_STR_P(tag_zv), &celem_val_zv);
             }
 
-            zend_array *content = NULL;
-            if (type == open || value_zv) {
-                content = zend_new_array(1);
-                {
-                    zval content_zv;
-                    ZVAL_ARR(&content_zv, content);
-                    zend_hash_str_add_new(celem_val, "content",
-                        sizeof("content") - 1, &content_zv);
-                }
-                if (value_zv) {
-                    zval_addref_p(value_zv);
-                    zend_hash_next_index_insert(content, value_zv);
-                }
+            if (attr_zv) {
+                zend_array *new_attr = _transform_attr_keys(attr_zv);
+                zval new_attr_zv;
+                ZVAL_ARR(&new_attr_zv, new_attr);
+                zend_hash_next_index_insert(celem_val, &new_attr_zv);
             }
 
-            if (attr_zv) {
-                zval_addref_p(attr_zv);
-                zend_hash_str_add_new(
-                    celem_val, "attributes", sizeof("attributes") - 1, attr_zv);
+            if (value_zv) {
+                zval_addref_p(value_zv);
+                zend_hash_next_index_insert(celem_val, value_zv);
             }
 
             if (type == open) {
@@ -523,8 +559,7 @@ static zval _convert_xml_impl(const char *nonnull entity, size_t entity_len,
                 zval cur_zv;
                 ZVAL_ARR(&cur_zv, cur);
                 zend_hash_next_index_insert(stack, &cur_zv);
-                assert(content != NULL);
-                cur = content;
+                cur = celem_val;
             }
         } else if (type == cdata) {
             zval *value_zv = zend_hash_str_find(val, LSTRARG("value"));
@@ -609,6 +644,22 @@ PHP_FUNCTION(datadog_appsec_testing_convert_xml)
 
 void dd_request_shutdown_startup()
 {
+#if PHP_VERSION_ID < 80000
+    void *handle = dlopen(NULL, RTLD_NOW | RTLD_GLOBAL);
+    if (handle == NULL) {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        mlog(dd_log_error, "Failed load process symbols: %s", dlerror());
+    } else {
+        _json_decode_ex = (json_decode_ex_t)dlsym(handle, "php_json_decode_ex");
+        if (!_json_decode_ex) {
+            mlog(dd_log_warning, "Failed to load php_json_decode_ex: %s",
+                dlerror()); // NOLINT(concurrency-mt-unsafe)
+        }
+        dlclose(handle);
+    }
+#else
+    _json_decode_ex = php_json_decode_ex;
+#endif
     if (get_global_DD_APPSEC_TESTING()) {
         dd_phpobj_reg_funcs(ext_functions);
     }

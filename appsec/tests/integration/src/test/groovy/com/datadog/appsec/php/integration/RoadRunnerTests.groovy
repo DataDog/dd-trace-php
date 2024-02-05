@@ -296,8 +296,7 @@ class RoadRunnerTests {
                              ],
                              "key_path" : [
                                 "note",
-                                "content",
-                                "1"
+                                "2"
                              ],
                              "value" : "\\n  poison\\n"
                           }

@@ -166,6 +166,7 @@ static PHP_GINIT_FUNCTION(ddappsec)
 
 static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 {
+    dd_entity_body_gshutdown();
     dd_helper_gshutdown();
     // delay log shutdown until the last possible moment, so that TSRM
     // destructors can run with logging
@@ -231,7 +232,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     // no other thread is running now. reset config to global config only.
     runtime_config_first_init = false;
 
-    dd_entity_body_shutdown();
     dd_tags_shutdown();
     dd_user_tracking_shutdown();
     dd_trace_shutdown();
@@ -264,7 +264,7 @@ static PHP_RINIT_FUNCTION(ddappsec)
     }
     DDAPPSEC_G(skip_rshutdown) = false;
 
-    dd_entity_body_activate();
+    dd_entity_body_rinit();
 
     dd_req_lifecycle_rinit(false);
 
