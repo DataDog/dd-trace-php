@@ -49,10 +49,10 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
             ddog_MappedMem_ShmHandle *mapped_shm;
             if (ddtrace_ffi_try("Failed allocating shared memory", ddog_alloc_anon_shm_handle(limit, &shm))) {
                 void *ptr;
-                size_t _size;
-                if (ddtrace_ffi_try("Failed mapping shared memory", ddog_map_shm(shm, &mapped_shm, &ptr, &_size))) {
+                size_t size;
+                if (ddtrace_ffi_try("Failed mapping shared memory", ddog_map_shm(shm, &mapped_shm, &ptr, &size))) {
                     // we just overcommit and free it later anyway
-                    size_t written = ddtrace_serialize_simple_array_into_mapped_menory(&traces, ptr, _size);
+                    size_t written = ddtrace_serialize_simple_array_into_mapped_menory(&traces, ptr, size);
                     shm = ddog_unmap_shm(mapped_shm);
 
                     if (written) {
@@ -66,13 +66,26 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                 .client_computed_top_level = false,
                                 .client_computed_stats = false,
                         };
-                        if (ddtrace_ffi_try("Failed sending traces to the sidecar",
-                                            ddog_sidecar_send_trace_v04_shm(&ddtrace_sidecar, ddtrace_sidecar_instance_id, shm, &tags))) {
+                        ddog_MaybeError send_error = ddog_sidecar_send_trace_v04_shm(&ddtrace_sidecar, ddtrace_sidecar_instance_id, shm, &tags);
+                        do {
+                            if (send_error.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
+                                // retry sending it directly through the socket as last resort. May block though with large traces.
+                                ddog_map_shm(shm, &mapped_shm, &ptr, &size);
+                                ddog_MaybeError retry_error = ddog_sidecar_send_trace_v04_bytes(&ddtrace_sidecar, ddtrace_sidecar_instance_id, (ddog_CharSlice){ .ptr = ptr, .len = size }, &tags);
+                                shm = ddog_unmap_shm(mapped_shm);
+                                ddog_drop_anon_shm_handle(shm);
+                                if (ddtrace_ffi_try("Failed sending traces to the sidecar", retry_error)) {
+                                    LOG(Debug, "Failed sending traces via shm to sidecar: %.*s", (int) send_error.some.len, send_error.some.ptr);
+                                } else {
+                                    break;
+                                }
+                            }
+
                             char *url = ddtrace_agent_url();
                             LOG(Info, "Flushing trace of size %d to send-queue for %s",
-                                               zend_hash_num_elements(Z_ARR(trace)), url);
+                                zend_hash_num_elements(Z_ARR(trace)), url);
                             free(url);
-                        }
+                        } while (0);
                     } else {
                         ddog_drop_anon_shm_handle(shm);
                     }
