@@ -2,9 +2,7 @@
 Push params ara sent on request_exec
 --INI--
 extension=ddtrace.so
-datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.waf_timeout=42
-datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -21,7 +19,8 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
     response_list(response_request_init(['ok', []])),
-    response_list(response_request_exec(['ok', [], [], [], [], false]))
+    response_list(response_request_exec(['ok', [], [], [], [], false])),
+    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()]))
 ]);
 
 var_dump(rinit());

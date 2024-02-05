@@ -1178,46 +1178,6 @@ static PHP_FUNCTION(datadog_appsec_track_custom_event)
     dd_tags_set_sampling_priority();
 }
 
-static PHP_FUNCTION(datadog_appsec_push_params)
-{
-    UNUSED(return_value);
-    if (DDAPPSEC_G(enabled) != ENABLED) {
-        mlog(dd_log_debug, "Trying to access to push_params "
-                           "function while appsec is disabled");
-        return;
-    }
-
-    zval *parameters = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &parameters) == FAILURE ||
-        Z_TYPE_P(parameters) != IS_ARRAY) {
-        mlog(dd_log_warning, "Unexpected parameters type. Expected array");
-        return;
-    }
-
-    zval parameters_zv;
-    zend_array *parameters_arr = zend_new_array(1);
-    ZVAL_ARR(&parameters_zv, parameters_arr);
-    zval *res = zend_hash_add(
-        Z_ARRVAL(parameters_zv), _key_server_request_path_params, parameters);
-    if (res == NULL) {
-        zval_ptr_dtor(&parameters_zv);
-        mlog_g(dd_log_debug, "Parameters could not be added");
-        return;
-    }
-    Z_ADDREF_P(parameters);
-
-    dd_conn *conn = dd_helper_mgr_cur_conn();
-    if (conn == NULL) {
-        zval_ptr_dtor(&parameters_zv);
-        mlog_g(dd_log_debug, "No connection; skipping push_params");
-        return;
-    }
-
-    dd_request_exec(conn, &parameters_zv);
-
-    zval_ptr_dtor(&parameters_zv);
-}
-
 static bool _set_appsec_enabled(zval *metrics_zv)
 {
     zval zv;
@@ -1330,16 +1290,11 @@ ZEND_ARG_INFO(0, event_name)
 ZEND_ARG_INFO(0, metadata)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(push_params_arginfo, 0, 0, IS_VOID, 1)
-ZEND_ARG_INFO(0, parameters)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_signup_event", PHP_FN(datadog_appsec_track_user_signup_event), datadog_appsec_track_user_signup_event_arginfo, 0)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_success_event", PHP_FN(datadog_appsec_track_user_login_success_event), track_user_login_success_event_arginfo, 0)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_failure_event", PHP_FN(datadog_appsec_track_user_login_failure_event), track_user_login_failure_event_arginfo, 0)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_custom_event", PHP_FN(datadog_appsec_track_custom_event), track_custom_event_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_params", PHP_FN(datadog_appsec_push_params), push_params_arginfo, 0)
     PHP_FE_END
 };
 
