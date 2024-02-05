@@ -131,6 +131,7 @@ final class CurlIntegration extends Integration
                     // finished
                     foreach ($spans as $requestSpan) {
                         list($ch, $requestSpan) = $requestSpan;
+                        $requestSpan->metrics["_dd.measured"] = 1;
                         $info = curl_getinfo($ch);
                         if (isset($requestSpan->meta['network.destination.name']) && $requestSpan->meta['network.destination.name'] !== 'unparsable-host') {
                             continue;
