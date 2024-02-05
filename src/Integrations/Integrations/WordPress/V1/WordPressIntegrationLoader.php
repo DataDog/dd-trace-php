@@ -244,6 +244,13 @@ class WordPressIntegrationLoader
                 if (\property_exists($This, 'matched_rule')) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $This->matched_rule;
                 }
+                if (function_exists('\datadog\appsec\push_params') &&
+                    \property_exists($This, 'query_vars')) {
+                    $parameters = $This->query_vars;
+                    if (count($parameters) > 0) {
+                        \datadog\appsec\push_params($parameters);
+                    }
+                }
             }
         });
 

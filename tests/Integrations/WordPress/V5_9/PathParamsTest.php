@@ -2,22 +2,39 @@
 
 namespace DDTrace\Tests\Integrations\WordPress\V5_9;
 
-use DDTrace\Tests\Common\AppsecTestCase;
+use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
- /**
- * @group appsec
- */
-class PathParamsTest extends AppsecTestCase
+class PathParamsTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_5_9/index.php';
     }
 
-    protected function databaseDump() {
-        return file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_5_5/wp_2020-10-21.sql');
+    protected function connection()
+    {
+        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+    }
+
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        $this->connection()->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_5_5/wp_2020-10-21.sql'));
+        AppsecStatus::getInstance()->setDefaults();
+    }
+
+    public static function ddSetUpBeforeClass()
+    {
+        parent::ddSetUpBeforeClass();
+        AppsecStatus::getInstance()->init();
+    }
+
+    public static function ddTearDownAfterClass()
+    {
+        AppsecStatus::getInstance()->destroy();
+        parent::ddTearDownAfterClass();
     }
 
     public function testPost()
