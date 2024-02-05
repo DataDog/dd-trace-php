@@ -2,11 +2,11 @@
 
 namespace DDTrace\Tests\Integrations\WordPress\V5_9;
 
-use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
-class PathParamsTest extends WebFrameworkTestCase
+class PathParamsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()
     {
