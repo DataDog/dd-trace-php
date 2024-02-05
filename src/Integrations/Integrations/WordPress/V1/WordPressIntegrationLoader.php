@@ -238,6 +238,15 @@ class WordPressIntegrationLoader
             $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
         });
 
+        \DDTrace\hook_method('WP', 'main',  null, function ($This, $scope, $args) use ($rootSpan) {
+            if (\property_exists($This, 'did_permalink') && $This->did_permalink === true &&
+                function_exists('is_404') && is_404() === false) {
+                if (\property_exists($This, 'matched_rule')) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $This->matched_rule;
+                }
+            }
+        });
+
         return Integration::LOADED;
     }
 }
