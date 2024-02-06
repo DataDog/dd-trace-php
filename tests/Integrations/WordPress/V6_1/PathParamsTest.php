@@ -21,18 +21,6 @@ class PathParamsTest extends AppsecTestCase
         AppsecStatus::getInstance()->setDefaults();
     }
 
-    public static function ddSetUpBeforeClass()
-    {
-        parent::ddSetUpBeforeClass();
-        AppsecStatus::getInstance()->init();
-    }
-
-    public static function ddTearDownAfterClass()
-    {
-        AppsecStatus::getInstance()->destroy();
-        parent::ddTearDownAfterClass();
-    }
-
     public function testPost()
     {
         $this->call(
