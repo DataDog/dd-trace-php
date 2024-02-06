@@ -6,9 +6,6 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
-    // This makes sure `build.rs` will be run on every `cargo build` command and helps when
-    // switching PHP versions in local dev environment and when building in CI
-    println!("cargo:rerun-if-changed=NULL");
     let php_config_includes_output = Command::new("php-config")
         .arg("--includes")
         .output()
