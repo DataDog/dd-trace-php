@@ -194,6 +194,13 @@ dd_result ATTR_WARN_UNUSED dd_command_exec(dd_conn *nonnull conn,
     return _dd_command_exec(conn, false, spec, ctx);
 }
 
+dd_result ATTR_WARN_UNUSED dd_command_exec_req_info(dd_conn *nonnull conn,
+    const dd_command_spec *nonnull spec, struct req_info *nonnull ctx)
+{
+    ctx->command_name = spec->name;
+    return _dd_command_exec(conn, false, spec, ctx);
+}
+
 dd_result ATTR_WARN_UNUSED dd_command_exec_cred(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx)
 {
@@ -361,6 +368,8 @@ static void _command_process_block_parameters(mpack_node_t root)
         }
     }
 
+    mlog(dd_log_debug, "Blocking parameters: status_code=%d, type=%d",
+        status_code, type);
     dd_set_block_code_and_type(status_code, type);
 }
 
@@ -425,7 +434,8 @@ dd_result dd_command_proc_resp_verd_span_data(
         if (verd_len > INT_MAX) {
             verd_len = INT_MAX;
         }
-        mlog(dd_log_debug, "Verdict of request_init was '%.*s'", (int)verd_len,
+        mlog(dd_log_debug, "Verdict of %s was '%.*s'",
+            ctx->command_name ? ctx->command_name : "(unknown)", (int)verd_len,
             verd_str);
     }
 

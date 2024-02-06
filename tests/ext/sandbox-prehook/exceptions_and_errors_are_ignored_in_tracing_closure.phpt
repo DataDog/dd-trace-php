@@ -1,7 +1,7 @@
 --TEST--
 [Prehook Regression] Exceptions and errors are ignored when inside a tracing closure
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand,mt_srand
 --INI--
 error_reporting=E_ALL

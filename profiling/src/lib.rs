@@ -839,9 +839,10 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
     // data race condition.
     unsafe { config::shutdown() };
 
-    // SAFETY: zai_config_mshutdown should be safe to cal in shutdown instead
+    // SAFETY: zai_config_mshutdown should be safe to call in shutdown instead
     // of mshutdown.
     unsafe { bindings::zai_config_mshutdown() };
+    unsafe { bindings::zai_json_shutdown_bindings() };
 }
 
 /// Notifies the profiler a trace has finished so it can update information

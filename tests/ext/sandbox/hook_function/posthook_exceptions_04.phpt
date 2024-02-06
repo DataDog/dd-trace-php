@@ -1,7 +1,7 @@
 --TEST--
 DDTrace\hook_function posthook exception is sandboxed (debug internal)
 --ENV--
-DD_TRACE_DEBUG=1
+DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
 zend.assertions=1

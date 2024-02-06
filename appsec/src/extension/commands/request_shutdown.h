@@ -21,7 +21,9 @@ struct req_shutdown_info {
         zend_llist *nonnull resp_headers_llist;
         const zend_array *nonnull resp_headers_arr;
     };
+    zend_string *nullable entity;
 };
 
+void dd_request_shutdown_startup(void);
 dd_result dd_request_shutdown(
     dd_conn *nonnull conn, struct req_shutdown_info *nonnull req_info);

@@ -94,17 +94,38 @@ PHP_FUNCTION(DDTrace_UserRequest_notify_commit)
     zend_object *span;
     zend_long status;
     zend_array *headers;
+    zval *rbe_zv = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(3, 3)
+    ZEND_PARSE_PARAMETERS_START(3, 4)
         Z_PARAM_OBJ_OF_CLASS_EX(span, ddtrace_ce_root_span_data, 0, 1)
         Z_PARAM_LONG(status)
         Z_PARAM_ARRAY_HT(headers)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ZVAL_OR_NULL(rbe_zv)
     ZEND_PARSE_PARAMETERS_END();
+
+    if (rbe_zv != NULL) {
+        ZVAL_DEREF(rbe_zv);
+        if (Z_TYPE_P(rbe_zv) == IS_STRING) {
+            // ok
+        } else if (Z_TYPE_P(rbe_zv) == IS_RESOURCE) {
+            zend_resource *res = Z_RES_P(rbe_zv);
+            if (res->type != php_file_le_stream()) {
+                zend_type_error("Expected resource of type stream or a string; but the resource is not a stream");
+                return;
+            }
+        } else {
+            zend_type_error("Expected resource of type stream or a string");
+            return;
+        }
+    }
+
+    bool free_headers = false;
 
     zend_array *replacement_resp = NULL;
     for (size_t i = 0; i < reg_listeners.size; i++) {
         ddtrace_user_req_listeners *listener = reg_listeners.listeners[i];
-        zend_array *repl = listener->response_committed(listener, span, status, headers);
+        zend_array *repl = listener->response_committed(listener, span, status, headers, rbe_zv);
         if (repl) {
             {
                 zval *new_status_zv = zend_hash_str_find(repl, ZEND_STRL("status"));
@@ -115,22 +136,44 @@ PHP_FUNCTION(DDTrace_UserRequest_notify_commit)
                     if (new_status != 0) {
                         status = new_status;
                     }
+                } else {
+                    status = 200;
                 }
             }
 
             {
                 zval *new_headers_zv = zend_hash_str_find(repl, ZEND_STRL("headers"));
-                if (Z_TYPE_P(new_headers_zv) == IS_ARRAY) {
-                    headers = Z_ARR_P(new_headers_zv);
+                if (free_headers) {
+                    zend_array_release(headers);
                 }
-
-                if (replacement_resp) {
-                    zend_array_release(replacement_resp);
+                if (new_headers_zv && Z_TYPE_P(new_headers_zv) == IS_ARRAY) {
+                    headers = Z_ARR_P(new_headers_zv);
+                    free_headers = false;
+                } else {
+                    // in PHP 8 could use zend_empty_array here and avoid the free_headers flag
+                    headers = zend_new_array(0);
+                    free_headers = true;
                 }
             }
 
+            {
+                zval *new_body_zv = zend_hash_str_find(repl, ZEND_STRL("body"));
+                if (new_body_zv) {
+                    rbe_zv = new_body_zv;
+                } else {
+                    rbe_zv = NULL;
+                }
+            }
+
+            if (replacement_resp) {
+                zend_array_release(replacement_resp);
+            }
             replacement_resp = repl;
         }
+    }
+
+    if (free_headers) {
+        zend_array_release(headers);
     }
 
     if (replacement_resp != NULL) {

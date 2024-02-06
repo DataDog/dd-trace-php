@@ -1,8 +1,15 @@
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::ffi::c_char;
-use std::slice;
+use std::fmt::Debug;
 use bitflags::bitflags;
+use tracing::Level;
+use tracing_core::{Event, Field, LevelFilter, Subscriber};
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
+use tracing_subscriber::fmt::format::Writer;
+use tracing_subscriber::registry::LookupSpan;
+use tracing_subscriber::util::SubscriberInitExt;
 use ddcommon_ffi::CharSlice;
 use ddcommon_ffi::slice::AsBytes;
 
@@ -10,105 +17,173 @@ bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     #[repr(C)]
     pub struct Log: u32 {
-        const None = 0;
-        const Once = 1 << 0; // I.e. once per request
-        const Error = 1 << 1;
-        const Warn = 1 << 2;
-        const Info = 1 << 3;
-        const Deprecated = (1 << 4) | 1 /* Once */;
-        const Startup = 1 << 5;
-    }
-}
-
-#[macro_export]
-macro_rules! log {
-    ($source:ident, $msg:expr) => { if ($crate::ddog_shall_log($crate::Log::$source)) { $crate::log($crate::Log::$source, $msg) } }
-}
-
-#[allow_internal_unstable(thread_local)]
-macro_rules! thread_local {
-    ($($tokens:tt)*) => {
-        #[thread_local]
-        $($tokens)*
+        const Error = 1;
+        const Warn = 2;
+        const Info = 3;
+        const Debug = 4;
+        const Trace = 5;
+        const Once = 1 << 3; // I.e. once per request
+        const _Deprecated = 3 | (1 << 4);
+        const Deprecated = 3 | (1 << 4) | (1 << 3) /* Once */;
+        const Startup = 3 | (2 << 4);
+        const Startup_Warn = 1 | (2 << 4);
+        const Span = 4 | (3 << 4);
+        const Span_Trace = 5 | (3 << 4);
+        const Hook_Trace = 5 | (4 << 4);
     }
 }
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddog_log_callback: Option<extern "C" fn(Log, CharSlice)> = None;
+pub static mut ddog_log_callback: Option<extern "C" fn(CharSlice)> = None;
 
 // Avoid RefCell for performance
-thread_local! { static mut LOG_CATEGORY: Log = Log::Once.union(Log::Error); }
 std::thread_local! {
     static LOGGED_MSGS: RefCell<BTreeSet<String>> = RefCell::default();
+    static TRACING_GUARDS: RefCell<Option<tracing_core::dispatcher::DefaultGuard>> = RefCell::default();
 }
 
-#[no_mangle]
-pub extern "C" fn ddog_shall_log(level: Log) -> bool {
-    unsafe { LOG_CATEGORY }.contains(level & !Log::Once)
-}
-
-pub fn log<S>(level: Log, msg: S) where S: AsRef<str> {
-    ddog_log(level, CharSlice::from(msg.as_ref()))
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_set_log_category(level: Log) {
-    unsafe { LOG_CATEGORY = level; }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ddog_parse_log_category(category_names: *const CharSlice, num: usize, startup_logs_by_default: bool) {
-    let mut categories = Log::None;
-    let category_names = slice::from_raw_parts(category_names, num);
-
-    if category_names.len() == 1 {
-        let first_level = category_names[0].to_utf8_lossy();
-        if first_level == "1" || first_level == "true" || first_level == "On" {
-            categories = Log::Error | Log::Warn | Log::Info | Log::Deprecated;
-            if startup_logs_by_default {
-                categories |= Log::Startup;
-            }
+macro_rules! with_target {
+    ($cat:ident, tracing::$p:ident!($($t:tt)*)) => {
+        match $cat {
+            Log::Error => tracing::$p!(target: "ddtrace", Level::ERROR, $($t)*),
+            Log::Warn => tracing::$p!(target: "ddtrace", Level::WARN, $($t)*),
+            Log::Info => tracing::$p!(target: "ddtrace", Level::INFO, $($t)*),
+            Log::Debug => tracing::$p!(target: "ddtrace", Level::DEBUG, $($t)*),
+            Log::Trace => tracing::$p!(target: "ddtrace", Level::TRACE, $($t)*),
+            Log::_Deprecated => tracing::$p!(target: "deprecated", Level::INFO, $($t)*),
+            Log::Startup => tracing::$p!(target: "startup", Level::INFO, $($t)*),
+            Log::Span => tracing::$p!(target: "span", Level::DEBUG, $($t)*),
+            Log::Span_Trace => tracing::$p!(target: "span", Level::TRACE, $($t)*),
+            Log::Hook_Trace => tracing::$p!(target: "hook", Level::TRACE, $($t)*),
+            _ => unreachable!()
         }
     }
-
-    for category_name in category_names {
-        for (name, category) in Log::all().iter_names() {
-            if name.eq_ignore_ascii_case(&category_name.to_utf8_lossy()) {
-                categories |= category;
-            }
-        }
-    }
-
-    // Info always implies warn
-    if categories.contains(Log::Info) {
-        categories |= Log::Warn;
-    }
-    // Warn always implies error
-    if categories.contains(Log::Warn) {
-        categories |= Log::Error;
-    }
-
-    ddog_set_log_category(categories);
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_log(category: Log, msg: CharSlice) {
-    if let Some(cb) = unsafe { ddog_log_callback } {
-        if category.contains(Log::Once) && !unsafe { LOG_CATEGORY }.contains(Log::Once) {
-            LOGGED_MSGS.with(|logged| {
-                let mut logged = logged.borrow_mut();
-                let msgstr = unsafe { msg.to_utf8_lossy() };
-                if !logged.contains(msgstr.as_ref()) {
-                    let msg = msgstr.to_string();
-                    let once_msg = format!("{}; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.\0", msg);
-                    cb(category, unsafe { CharSlice::new(once_msg.as_ptr() as *const c_char, once_msg.len() - 1) });
-                    logged.insert(msg);
+pub extern "C" fn ddog_shall_log(category: Log) -> bool {
+    let category = category & !Log::Once;
+    with_target!(category, tracing::event_enabled!())
+}
+
+pub fn log<S>(category: Log, msg: S) where S: AsRef<str> + tracing::Value {
+    let once = !(category & Log::Once).is_empty();
+    let category = category & !Log::Once;
+    if once {
+        with_target!(category, tracing::event!(once = true, msg));
+    } else {
+        with_target!(category, tracing::event!(msg));
+    }
+}
+
+struct LogFormatter {
+    pub once: bool,
+}
+
+struct LogVisitor {
+    pub msg: Option<String>,
+    pub once: bool,
+}
+
+impl tracing_core::field::Visit for LogVisitor {
+    fn record_bool(&mut self, _field: &Field, value: bool) {
+        self.once = value;
+    }
+
+    fn record_str(&mut self, _field: &Field, msg: &str) {
+        self.msg = Some(msg.to_string());
+    }
+
+    fn record_debug(&mut self, _field: &Field, value: &dyn Debug) {
+        self.msg = Some(format!("{value:?}"));
+    }
+}
+
+impl<S, N> FormatEvent<S, N> for LogFormatter
+    where
+        S: Subscriber + for<'a> LookupSpan<'a>,
+        N: for<'a> FormatFields<'a> + 'static {
+    fn format_event(
+        &self,
+        _ctx: &FmtContext<'_, S, N>,
+        _writer: Writer<'_>,
+        event: &Event<'_>
+    ) -> core::fmt::Result {
+        let mut visitor = LogVisitor { msg: None, once: false };
+        event.record(&mut visitor);
+
+        fn fmt_msg(event: &Event<'_>, msg: &str, suffix: &str) -> String {
+            let data = event.metadata();
+            let target = if data.target() == "ddtrace" {
+                match *data.level() {
+                    Level::ERROR => "error",
+                    Level::WARN => "warning",
+                    Level::INFO => "info",
+                    Level::DEBUG => "debug",
+                    Level::TRACE => "trace",
                 }
-            });
-        } else {
-            cb(category, msg);
+            } else {
+                data.target()
+            };
+            format!("[ddtrace] [{}] {}{}\0", target, msg, suffix)
         }
+
+        if let Some(msg) = visitor.msg {
+            if let Some(cb) = unsafe { ddog_log_callback } {
+                let msg = if self.once && visitor.once {
+                    if let Some(formatted) = LOGGED_MSGS.with(|logged| {
+                        let mut logged = logged.borrow_mut();
+                        if logged.contains(msg.as_str()) {
+                            return None;
+                        }
+                        let formatted = Some(fmt_msg(event, &msg, "; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages."));
+                        logged.insert(msg);
+                        formatted
+                    }) {
+                        formatted
+                    } else {
+                        return Ok(());
+                    }
+                } else {
+                    fmt_msg(event, &msg, "")
+                };
+                cb(unsafe { CharSlice::new(msg.as_ptr() as *const c_char, msg.len() - 1) });
+            }
+        }
+        Ok(())
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_set_error_log_level(once: bool) {
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(LevelFilter::ERROR)
+        .event_format(LogFormatter { once });
+    set_log_subscriber(subscriber)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_set_log_level(level: CharSlice, once: bool) {
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::builder().parse_lossy(level.to_utf8_lossy()))
+        .event_format(LogFormatter { once });
+    set_log_subscriber(subscriber)
+}
+
+fn set_log_subscriber<S>(subscriber: S) where S: SubscriberInitExt {
+    TRACING_GUARDS.replace(None); // drop first to avoid a prior guard to reset the thread local subscriber it upon replace()
+    TRACING_GUARDS.replace(Some(subscriber.set_default()));
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_log(category: Log, msg: CharSlice) {
+    let once = !(category & Log::Once).is_empty();
+    let category = category & !Log::Once;
+    if once {
+        with_target!(category, tracing::event!(once = true, "{}", msg.to_utf8_lossy()));
+    } else {
+        with_target!(category, tracing::event!("{}", msg.to_utf8_lossy()));
     }
 }
 

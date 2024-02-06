@@ -11,6 +11,7 @@ use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 
 use function DDTrace\hook_function;
+use function DDTrace\hook_method;
 use function DDTrace\install_hook;
 use function DDTrace\remove_hook;
 use function DDTrace\set_user;
@@ -724,6 +725,16 @@ class WordPressIntegrationLoader
                 return false; // Don't trace 'add_action'; we're only interested in the origin
             }
         );
+
+        \DDTrace\hook_method('WP', 'main',  null, function ($This, $scope, $args) {
+            if (\property_exists($This, 'did_permalink') && $This->did_permalink === true &&
+                function_exists('is_404') && is_404() === false) {
+                $rootSpan = \DDTrace\root_span();
+                if (\property_exists($This, 'matched_rule')) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $This->matched_rule;
+                }
+            }
+        });
 
         return Integration::LOADED;
     }

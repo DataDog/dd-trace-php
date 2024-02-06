@@ -70,6 +70,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_TRACE_ENABLED', '1'
         withEnv 'DD_SERVICE', 'appsec_int_tests'
         withEnv 'DD_ENV', 'integration'
+        withEnv 'DD_TRACE_LOG_LEVEL', 'info,startup=off'
         withEnv 'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS', '0'
         withEnv 'DD_TRACE_AGENT_FLUSH_INTERVAL', '0'
         withEnv 'DD_TRACE_DEBUG', '1'

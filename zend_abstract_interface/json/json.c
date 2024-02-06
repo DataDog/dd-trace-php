@@ -89,6 +89,8 @@ __attribute__((weak)) int php_json_encode(smart_str *buf, zval *val, int options
 __attribute__((weak)) zend_class_entry *php_json_serializable_ce;
 #endif
 
+static bool zai_json_dynamic_bindings = false;
+
 bool zai_json_setup_bindings(void) {
     if (php_json_encode && php_json_serializable_ce) {
         zai_json_encode = php_json_encode;
@@ -104,6 +106,8 @@ bool zai_json_setup_bindings(void) {
     zend_module_entry *json_me = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("json"));
 
     if (!json_me) return false;
+
+    zai_json_dynamic_bindings = true;
 
     zai_json_encode = DL_FETCH_SYMBOL(json_me->handle, "php_json_encode");
     if (zai_json_encode == NULL) {
@@ -136,6 +140,13 @@ bool zai_json_setup_bindings(void) {
     }
 
     return zai_json_encode != NULL;
+}
+
+void zai_json_shutdown_bindings(void) {
+    if (zai_json_dynamic_bindings) {
+        zai_json_dynamic_bindings = false;
+        php_json_serializable_ce = NULL;
+    }
 }
 
 void zai_json_release_persistent_array(HashTable *ht) {

@@ -45,6 +45,6 @@ class SigSegVTest extends WebFrameworkTestCase
 
         self::assertFileExists($log);
         $contents = \file_get_contents($log);
-        self::assertRegExp("/.*Segmentation fault\n.*sigsegv health metric sent/", $contents);
+        self::assertRegExp("/.*Segmentation fault/", $contents);
     }
 }

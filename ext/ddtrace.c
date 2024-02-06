@@ -459,12 +459,89 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     zai_hook_ginit();
 }
 
+#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
+#define CXA_THREAD_ATEXIT_WRAPPER 1
+#endif
+#ifdef CXA_THREAD_ATEXIT_WRAPPER
+struct dd_rust_thread_destructor {
+    void (*dtor)(void *);
+    void *obj;
+    struct dd_rust_thread_destructor *next;
+};
+ZEND_TLS struct dd_rust_thread_destructor *dd_rust_thread_destructors = NULL;
+ZEND_TLS bool dd_is_main_thread = false;
+
+static void dd_run_rust_thread_destructors(void *unused) {
+    UNUSED(unused);
+    struct dd_rust_thread_destructor *entry = dd_rust_thread_destructors;
+    while (entry) {
+        struct dd_rust_thread_destructor *cur = entry;
+        cur->dtor(cur->obj);
+        entry = entry->next;
+        free(cur);
+    }
+}
+#endif
+
 static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     if (ddtrace_globals->remote_config_reader) {
         ddog_agent_remote_config_reader_drop(ddtrace_globals->remote_config_reader);
     }
     zai_hook_gshutdown();
+
+#ifdef CXA_THREAD_ATEXIT_WRAPPER
+    if (!dd_is_main_thread) {
+        dd_run_rust_thread_destructors(NULL);
+    }
+#endif
 }
+
+// Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
+// The problem is that calls to __cxa_thread_atexit_impl cause shared libraries to remain referenced until the calling thread terminates.
+// However in NTS builds the calling thread is the main thread and thus the shared object (i.e. ddtrace.so) WILL remain loaded.
+// This is problematic with e.g. apache which, upon reloading will unload all PHP modules including PHP itself, then reload.
+// This prevents us from a) having the weak symbols updated to the new locations and b) having ddtrace updates going live without hard restart.
+// Thus, we need to intercept it: define it ourselves so that the linker will force the rust code to call our code here.
+// Then we can collect the callbacks and invoke them ourselves right at thread shutdown, i.e. GSHUTDOWN.
+#ifdef CXA_THREAD_ATEXIT_WRAPPER
+#define CXA_THREAD_ATEXIT_PHP ((void *)0)
+#define CXA_THREAD_ATEXIT_UNINITIALIZED ((void *)1)
+#define CXA_THREAD_ATEXIT_UNAVAILABLE ((void *)2)
+
+static int (*glibc__cxa_thread_atexit_impl)(void (*func)(void *), void *obj, void *dso_symbol) = CXA_THREAD_ATEXIT_UNINITIALIZED;
+static pthread_key_t dd_cxa_thread_atexit_key; // fallback for sidecar
+
+// Note: this symbol is not public
+int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) {
+    if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNINITIALIZED) {
+        glibc__cxa_thread_atexit_impl = DL_FETCH_SYMBOL(NULL, "__cxa_thread_atexit_impl");
+        if (glibc__cxa_thread_atexit_impl == NULL) {
+            // no race condition here: logging is initialized in MINIT, at which point only a single thread lives
+            glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_UNAVAILABLE;
+            pthread_key_create(&dd_cxa_thread_atexit_key, dd_run_rust_thread_destructors);
+        }
+    }
+
+    if (glibc__cxa_thread_atexit_impl != CXA_THREAD_ATEXIT_PHP && glibc__cxa_thread_atexit_impl != CXA_THREAD_ATEXIT_UNAVAILABLE) {
+        return glibc__cxa_thread_atexit_impl(func, obj, dso_symbol);
+    }
+
+    if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNAVAILABLE) {
+        pthread_setspecific(dd_cxa_thread_atexit_key, (void *)0x1); // needs to be non-NULL
+    }
+
+    struct dd_rust_thread_destructor *entry = malloc(sizeof(struct dd_rust_thread_destructor));
+    entry->dtor = func;
+    entry->obj = obj;
+    entry->next = dd_rust_thread_destructors;
+    dd_rust_thread_destructors = entry;
+    return 0;
+}
+
+static void dd_clean_main_thread_locals() {
+    dd_run_rust_thread_destructors(NULL);
+}
+#endif
 
 /* DDTrace\SpanLink */
 zend_class_entry *ddtrace_ce_span_link;
@@ -898,7 +975,11 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
-    ddtrace_log_init();
+#ifdef CXA_THREAD_ATEXIT_WRAPPER
+    dd_is_main_thread = true;
+    glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
+    atexit(dd_clean_main_thread_locals);
+#endif
 
     zai_hook_minit();
     zai_uhook_minit(module_number);
@@ -921,6 +1002,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
 
     // config initialization needs to be at the top
+    // This also initialiyzed logging, so no logs may be emitted before this.
+    ddtrace_log_init();
     if (!ddtrace_config_minit(module_number)) {
         return FAILURE;
     }
@@ -961,7 +1044,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
 
-    ddtrace_bgs_log_minit();
+    ddtrace_log_minit();
 
     ddtrace_dogstatsd_client_minit();
     ddshared_minit();
@@ -995,6 +1078,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     if (DDTRACE_G(disable) == 1) {
         zai_config_mshutdown();
+        zai_json_shutdown_bindings();
         return SUCCESS;
     }
 
@@ -1011,16 +1095,17 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_coms_mshutdown();
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
-
-            ddtrace_bgs_log_mshutdown();
         }
     }
+
+    ddtrace_log_mshutdown();
 
     ddtrace_engine_hooks_mshutdown();
 
     ddtrace_shutdown_span_sampling_limiter();
     ddtrace_limiter_destroy();
     zai_config_mshutdown();
+    zai_json_shutdown_bindings();
 
     ddtrace_user_req_shutdown();
 
@@ -1081,9 +1166,7 @@ static void dd_initialize_request(void) {
 
     ddtrace_internal_handlers_rinit();
 
-    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        ddtrace_bgs_log_rinit(PG(error_log));
-    }
+    ddtrace_log_rinit(PG(error_log));
 
     ddtrace_dogstatsd_client_rinit();
 
@@ -1909,6 +1992,13 @@ PHP_FUNCTION(dd_trace_internal_fn) {
         } else if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
             dd_finalize_telemtry();
             RETVAL_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
+            if (!ddtrace_sidecar) {
+                RETURN_FALSE;
+            }
+            ddog_CharSlice slice = ddog_sidecar_dump(&ddtrace_sidecar);
+            RETVAL_STRINGL(slice.ptr, slice.len);
+            free((void *) slice.ptr);
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
             ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), path);
@@ -2444,7 +2534,7 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         DD_PARAM_PROLOGUE(0, 0);
-        if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error))) {
+        if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error, true))) {
             if (!_error) {
                 zend_argument_type_error(1, "must be a valid callback or of type array, %s given", zend_zval_value_name(_arg));
                 _error_code = ZPP_ERROR_FAILURE;

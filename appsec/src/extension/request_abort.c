@@ -128,6 +128,7 @@ static void _set_content_type(const char *nonnull content_type)
 static void _set_output(const char *nonnull output, size_t length)
 {
     size_t written = php_output_write(output, length);
+    mlog_g(dd_log_debug, "php_output_write() returned %zu", written);
     if (written != length) {
         mlog(dd_log_info, "could not write full response (written: %zu)",
             written);
@@ -146,8 +147,8 @@ static dd_response_type _get_response_type_from_accept_header(
         dd_php_get_string_elem_cstr(_server, LSTRARG("HTTP_ACCEPT"));
     if (!accept_zstr) {
         mlog(dd_log_info,
-            "Could not find Accept header, using default content-type");
-        goto exit;
+            "Could not find Accept header, using default content-type (json)");
+        return response_type_json;
     }
 
     const char *accept_end = ZSTR_VAL(accept_zstr) + ZSTR_LEN(accept_zstr);
@@ -172,7 +173,7 @@ static dd_response_type _get_response_type_from_accept_header(
         return response_type_html;
     }
 
-exit:
+    mlog_g(dd_log_debug, "No recognized accept header, defaulting to json");
     return response_type_json;
 }
 
@@ -214,12 +215,16 @@ void dd_request_abort_redirect()
     }
 
     if (!_abort_prelude()) {
+        mlog(dd_log_debug, "_abort_prelude has failed");
         return;
     }
 
     char *line;
     uint line_len = (uint)spprintf(
         &line, 0, "Location: %s", ZSTR_VAL(_redirection_location));
+
+    mlog_g(dd_log_debug, "Will forward to %s with status %d",
+        ZSTR_VAL(_redirection_location), _redirection_response_code);
 
     SG(sapi_headers).http_response_code = _redirection_response_code;
     int res = sapi_header_op(SAPI_HEADER_REPLACE,
@@ -232,7 +237,7 @@ void dd_request_abort_redirect()
     efree(line);
 
     if (sapi_flush() == SUCCESS) {
-        mlog(dd_log_debug, "Successful call to sapi_flush()");
+        mlog_g(dd_log_debug, "Successful call to sapi_flush()");
     } else {
         mlog(dd_log_warning, "Call to sapi_flush() failed");
     }
@@ -299,6 +304,7 @@ void _request_abort_static_page(int response_code, int type)
     }
 
     if (!_abort_prelude()) {
+        mlog(dd_log_debug, "_abort_prelude has failed");
         zend_string_release(body);
         return;
     }
@@ -434,8 +440,10 @@ static void _suppress_error_reporting(void);
 ATTR_FORMAT(1, 2)
 static void _emit_error(const char *format, ...)
 {
-    va_list args;
+    mlog_g(dd_log_debug, "_emit_error() called: during_request_startup: %d",
+        PG(during_request_startup));
 
+    va_list args;
     va_start(args, format);
     if (PG(during_request_startup)) {
         /* if emitting error during startup, RSHUTDOWN will not run (except fpm)
@@ -615,6 +623,7 @@ static zend_string *nonnull _get_json_blocking_template()
             return _empty_zstr;
         }
         if (ZSTR_LEN(body_error_json) == 0) {
+            zend_string_release(body_error_json);
             return _body_error_json_def;
         }
 
@@ -635,6 +644,7 @@ static zend_string *nonnull _get_html_blocking_template()
             return _empty_zstr;
         }
         if (ZSTR_LEN(body_error_html) == 0) {
+            zend_string_release(body_error_html);
             return _body_error_html_def;
         }
 

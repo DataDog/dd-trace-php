@@ -23,7 +23,7 @@ export TEST_PHP_EXECUTABLE TEST_PHP_CGI_EXECUTABLE TEST_PHPDBG_EXECUTABLE \
 shift 3
 
 function link_extensions {
-  local extensions=(opcache posix pcntl sockets json)
+  local extensions=(opcache posix pcntl sockets json xml)
   local -r link_ext_dir="${CMAKE_BINARY_DIR}/extensions"
   local -r extension_dir=$("$TEST_PHP_EXECUTABLE" -d display_errors=0 -r "echo ini_get('extension_dir');")
   mkdir -p "$link_ext_dir"
@@ -53,7 +53,7 @@ function link_extensions {
 EXTRA_FLAGS=()
 function set_extra_flags {
   local -r link_ext_dir="${CMAKE_BINARY_DIR}/extensions"
-  local -r always_loaded_extensions=(json)
+  local -r always_loaded_extensions=(json xml)
   for ext in "${always_loaded_extensions[@]}"; do
     if [[ -L "$link_ext_dir/$ext.so" ]]; then
       EXTRA_FLAGS+=('-d' "extension=$ext.so")

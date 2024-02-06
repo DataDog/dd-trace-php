@@ -12,6 +12,9 @@ use spawn_worker::LibDependency;
 use std::error::Error;
 use std::path::Path;
 use std::{fs, io};
+use std::ffi::{c_char, CStr, OsStr};
+use std::os::unix::ffi::OsStrExt;
+use datadog_sidecar::config::LogMethod;
 
 #[must_use]
 #[no_mangle]
@@ -76,10 +79,18 @@ fn run_sidecar(cfg: config::Config) -> io::Result<SidecarTransport> {
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_connect_php(
     connection: &mut *mut SidecarTransport,
+    error_path: *const c_char,
+    log_level: CharSlice,
     enable_telemetry: bool,
 ) -> MaybeError {
     let mut cfg = config::FromEnv::config();
     cfg.self_telemetry = enable_telemetry;
+    unsafe {
+        if *error_path != 0 {
+            cfg.log_method = LogMethod::File(OsStr::from_bytes(CStr::from_ptr(error_path).to_bytes()).into())
+        }
+        cfg.child_env.insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), OsStr::from_bytes(log_level.as_bytes()).into());
+    }
     let stream = Box::new(try_c!(run_sidecar(cfg)));
     *connection = Box::into_raw(stream);
 

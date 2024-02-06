@@ -119,7 +119,9 @@ ddog_MaybeError ddog_sidecar_session_set_config(ddog_SidecarTransport **transpor
                                                 const struct ddog_Endpoint *endpoint,
                                                 uint64_t flush_interval_milliseconds,
                                                 uintptr_t force_flush_size,
-                                                uintptr_t force_drop_size);
+                                                uintptr_t force_drop_size,
+                                                ddog_CharSlice log_level,
+                                                ddog_CharSlice log_path);
 
 ddog_MaybeError ddog_sidecar_send_trace_v04_shm(ddog_SidecarTransport **transport,
                                                 const struct ddog_InstanceId *instance_id,
@@ -130,5 +132,7 @@ ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(ddog_SidecarTransport **transp
                                                   const struct ddog_InstanceId *instance_id,
                                                   ddog_CharSlice data,
                                                   const struct ddog_TracerHeaderTags *tracer_header_tags);
+
+ddog_CharSlice ddog_sidecar_dump(ddog_SidecarTransport **transport);
 
 #endif /* DDOG_SIDECAR_H */
