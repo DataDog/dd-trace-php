@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\WordPress\V5_9;
+namespace DDTrace\Tests\Integrations\WordPress\V5_5;
 
 use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;

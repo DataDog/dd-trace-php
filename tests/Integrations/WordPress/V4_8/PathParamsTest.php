@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\WordPress\V5_9;
+namespace DDTrace\Tests\Integrations\WordPress\V4_8;
 
 use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -14,7 +14,7 @@ class PathParamsTest extends AppsecTestCase
     }
 
     protected function databaseDump() {
-        return file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_5_5/wp_2020-10-21.sql');
+        return file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_4_8/wp_2019-10-01.sql');
     }
 
     public function testPost()
@@ -52,13 +52,13 @@ class PathParamsTest extends AppsecTestCase
         $this->call(
             GetSpec::create(
                 'Author',
-                '/author/test'
+                '/author/SammyK'
             )
         );
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
-        $this->assertEquals('test', $events[0]['author_name']);
+        $this->assertEquals('SammyK', $events[0]['author_name']);
         $this->assertEquals('push_params', $events[0]['eventName']);
     }
 
