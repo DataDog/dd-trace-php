@@ -8,6 +8,7 @@
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "ddtrace.h"
+#include "entity_body.h"
 #include "helper_process.h"
 #include "ip_extraction.h"
 #include "logging.h"
@@ -17,18 +18,22 @@
 #include "request_abort.h"
 #include "string_helpers.h"
 #include "tags.h"
+#include "zend_string.h"
+#include "zend_types.h"
 
 #include <SAPI.h>
 #include <Zend/zend_exceptions.h>
+#include <stdio.h>
 
 static void _do_request_finish_php(bool ignore_verdict);
 static zend_array *nullable _do_request_begin(bool user_req);
 static void _do_request_begin_php(void);
 static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     zend_array *nonnull superglob_equiv, int status_code,
-    zend_array *nullable resp_headers);
+    zend_array *nullable resp_headers, zend_string *nullable entity);
 static zend_array *nullable _do_request_begin_user_req(void);
 static zend_string *nullable _extract_ip_from_autoglobal(void);
+static zend_string *nullable _get_entity_as_string(zval *rbe_zv);
 static void _set_cur_span(zend_object *nullable span);
 static void _reset_globals(void);
 const zend_array *nonnull _get_server_equiv(
@@ -188,7 +193,7 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
             mlog_g(dd_log_info,
                 "Finishing user request whose corresponding "
                 "span is presumably still unclosed on rshutdown");
-            _do_request_finish_user_req(true, _superglob_equiv, 0, NULL);
+            _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
             _reset_globals();
         }
     } else {
@@ -209,6 +214,7 @@ static void _do_request_finish_php(bool ignore_verdict)
             .status_code = SG(sapi_headers).http_response_code,
             .resp_headers_fmt = RESP_HEADERS_LLIST,
             .resp_headers_llist = &SG(sapi_headers).headers,
+            .entity = dd_response_body_buffered(),
         };
 
         int res = dd_request_shutdown(conn, &ctx);
@@ -246,7 +252,7 @@ static void _do_request_finish_php(bool ignore_verdict)
 
 static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     zend_array *nonnull superglob_equiv, int status_code,
-    zend_array *nullable resp_headers)
+    zend_array *nullable resp_headers, zend_string *nullable entity)
 {
     int verdict = dd_success;
     dd_conn *conn = dd_helper_mgr_cur_conn();
@@ -258,6 +264,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
             .status_code = status_code,
             .resp_headers_fmt = RESP_HEADERS_MAP_STRING_LIST,
             .resp_headers_arr = resp_headers ? resp_headers : &zend_empty_array,
+            .entity = entity,
         };
 
         int res = dd_request_shutdown(conn, &ctx);
@@ -381,7 +388,7 @@ static zend_array *nullable _start_user_req(
                              "request can be active at a time. Finishing the "
                              "previous request before starting the new one");
         zend_array *spec =
-            _do_request_finish_user_req(true, _superglob_equiv, 0, NULL);
+            _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
         _reset_globals();
         UNUSED(spec);
         assert(spec == NULL);
@@ -397,7 +404,7 @@ static zend_array *nullable _start_user_req(
 
 static zend_array *nullable _response_commit(
     ddtrace_user_req_listeners *listener, zend_object *span, int status,
-    zend_array *resp_headers)
+    zend_array *resp_headers, zval *rbe_zv)
 {
     UNUSED(listener);
 
@@ -426,12 +433,148 @@ static zend_array *nullable _response_commit(
 
     mlog(dd_log_debug, "Committing user request for span %p", span);
 
+    zend_string *rbe = _get_entity_as_string(rbe_zv);
+
     zend_array *res = _do_request_finish_user_req(
-        false, _superglob_equiv, status, resp_headers);
+        false, _superglob_equiv, status, resp_headers, rbe);
+
+    if (rbe) {
+        zend_string_release(rbe);
+    }
 
     _shutdown_done_on_commit = true;
 
     return res;
+}
+
+static zend_string *nullable _get_entity_as_string(zval *rbe_zv)
+{
+    if (!rbe_zv) {
+        return NULL;
+    }
+
+    const size_t max_size = (size_t)get_DD_APPSEC_MAX_BODY_BUFF_SIZE();
+
+    if (Z_TYPE_P(rbe_zv) == IS_STRING) {
+        if (Z_STRLEN_P(rbe_zv) <= max_size) {
+            zend_string *res = Z_STR_P(rbe_zv);
+            zend_string_addref(res);
+            return res;
+        }
+        mlog(dd_log_debug,
+            "Response body entity is larger than %zu bytes (got %zu); ignoring",
+            max_size, Z_STRLEN_P(rbe_zv));
+        return NULL;
+    }
+
+    if (Z_TYPE_P(rbe_zv) != IS_RESOURCE) {
+        mlog(dd_log_debug,
+            "Response body entity is not a string or a stream; ignoring");
+        return NULL;
+    }
+
+    php_stream *stream = NULL;
+    php_stream_from_zval_no_verify(stream, rbe_zv);
+    if (!stream) {
+        mlog(dd_log_debug,
+            "Response body entity is not a string or a stream; ignoring");
+        return NULL;
+    }
+
+    // TODO: support non-seekable streams. Needs replacing the stream
+    if (stream->flags & PHP_STREAM_FLAG_NO_SEEK) {
+        __auto_type lvl =
+            get_global_DD_APPSEC_TESTING() ? dd_log_info : dd_log_debug;
+        mlog(lvl, "Response body entity is a stream, but it is "
+                  "not seekable; ignoring");
+        return NULL;
+    }
+
+    zend_off_t start_pos = php_stream_tell(stream);
+    if (start_pos < 0) {
+        mlog(dd_log_info, "Failed to get current position of response body "
+                          "entity stream; ignoring");
+        return NULL;
+    }
+
+    if (php_stream_seek(stream, 0, SEEK_END) < 0) {
+        mlog(dd_log_info,
+            "Failed to seek to end of response body entity stream; ignoring");
+        return NULL;
+    }
+
+    size_t stream_size = (size_t)php_stream_tell(stream);
+    if (stream_size == (size_t)-1) {
+        mlog(dd_log_error,
+            "Failed to get current position of response body "
+            "entity stream after seek; response stream is likely corrupted");
+        return NULL;
+    }
+
+    if (stream_size < (size_t)start_pos) {
+        mlog(dd_log_error,
+            "Response body entity stream shrank after seek (%zu to %zu); "
+            "response stream is likely corrupted",
+            (size_t)start_pos, stream_size);
+        return NULL;
+    }
+
+    if (php_stream_seek(stream, start_pos, SEEK_SET) < 0) {
+        mlog(dd_log_error, "Failed to rewind response body entity stream; "
+                           "response stream is likely corrupted");
+        return NULL;
+    }
+
+    size_t effective_size = stream_size - (size_t)start_pos;
+    if (effective_size >= (size_t)get_DD_APPSEC_MAX_BODY_BUFF_SIZE()) {
+        __auto_type lvl =
+            get_global_DD_APPSEC_TESTING() ? dd_log_info : dd_log_debug;
+        mlog(lvl,
+            "Response body entity is larger than %zu bytes (got %zu); ignoring",
+            max_size, effective_size);
+        return NULL;
+    }
+
+    if (effective_size == 0) {
+        return NULL;
+    }
+
+    zend_string *buf = zend_string_alloc(effective_size, 0);
+    char *p = ZSTR_VAL(buf);
+    const char *end = p + effective_size;
+    while (!php_stream_eof(stream) && p < end) {
+        size_t read = php_stream_read(stream, p, end - p);
+        if (read == (size_t)-1 || (read == 0 && !php_stream_eof(stream))) {
+            mlog(dd_log_error, "Failed to read response body entity stream; "
+                               "response stream is likely corrupted");
+            zend_string_release(buf);
+            return NULL;
+        }
+        if (read == 0) {
+            break;
+        }
+        p += read;
+    }
+    size_t total_read = (size_t)(p - ZSTR_VAL(buf));
+    if (total_read != effective_size) {
+        mlog(dd_log_info,
+            "Read fewer data than expected (expected %zu, got %zu)",
+            effective_size, total_read);
+        if (total_read == 0) {
+            zend_string_release(buf);
+            return NULL;
+        }
+        ZSTR_LEN(buf) = total_read;
+    }
+
+    if (php_stream_seek(stream, start_pos, SEEK_SET) < 0) {
+        mlog(dd_log_error, "Failed to rewind response body entity stream; "
+                           "response stream is likely corrupted");
+        zend_string_release(buf);
+        return NULL;
+    }
+
+    return buf;
 }
 
 static void _finish_user_req(
@@ -470,7 +613,7 @@ static void _finish_user_req(
     mlog(dd_log_debug, "Finishing user request for span %p", span);
 
     zend_array *arr =
-        _do_request_finish_user_req(true, _superglob_equiv, 0, NULL);
+        _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
     UNUSED(arr);
     assert(arr == NULL);
     _reset_globals();

@@ -412,6 +412,9 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
 }
 
 #define zend_zval_value_name zend_zval_type_name
+
+#define Z_PARAM_ZVAL_OR_NULL(dest) Z_PARAM_ZVAL_EX(dest, 1, 0)
+
 #endif
 
 #if PHP_VERSION_ID < 80400

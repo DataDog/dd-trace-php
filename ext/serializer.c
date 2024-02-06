@@ -978,8 +978,7 @@ struct iter_llist {
     zend_llist_position pos;
     sapi_header_struct *cur;
 };
-static bool dd_iterate_sapi_headers_next(struct iter *self, zend_string **key, zend_string **value)
-{
+static bool dd_iterate_sapi_headers_next(struct iter *self, zend_string **key, zend_string **value) {
     struct iter_llist *iter = (struct iter_llist *)self;
 
     if (false) {
@@ -1059,8 +1058,9 @@ static bool dd_iterate_arr_headers_next(struct iter *self, zend_string **key, ze
         convert_to_string(&k_upper_zv);
         zend_string *k_upper = Z_STR(k_upper_zv);
         k = zend_string_tolower(k_upper);
-        zend_string_release(k_upper);
     }
+    zval_ptr_dtor(&k_upper_zv); // zh_get_current_key_zval_ex copies the str
+
     *key = k;
 
     ZVAL_DEREF(v);
@@ -1080,13 +1080,16 @@ static bool dd_iterate_arr_headers_next(struct iter *self, zend_string **key, ze
         } else {
             zend_string *delim = zend_string_init(ZEND_STRL(", "), 0);
             zval ret;
+            ZVAL_NULL(&ret);
 #if PHP_VERSION_ID >= 80000
             php_implode(delim, Z_ARRVAL_P(v), &ret);
 #else
             php_implode(delim, v, &ret);
 #endif
             zend_string_release(delim);
-            *value = zval_get_string(&ret);
+            if (Z_TYPE(ret) == IS_STRING) {
+                *value = Z_STR_P(&ret);
+            }
         }
     }
 
@@ -1853,9 +1856,8 @@ static zend_array *dd_ser_start_user_req(ddtrace_user_req_listeners *self, zend_
     return NULL;
 }
 
-static zend_array *dd_ser_response_committed(ddtrace_user_req_listeners *self, zend_object *span, int status, zend_array *headers)
-{
-    UNUSED(self);
+static zend_array *dd_ser_response_committed(ddtrace_user_req_listeners *self, zend_object *span, int status, zend_array *headers, zval *entity) {
+    UNUSED(self, entity);
 
     ddtrace_root_span_data *root_span_data = ROOTSPANDATA(span);
     zend_array *meta = ddtrace_property_array(&root_span_data->property_meta);

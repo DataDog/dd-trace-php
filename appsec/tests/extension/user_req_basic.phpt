@@ -56,7 +56,7 @@ echo "Result of notify_start:\n";
 print_r($res);
 
 $res = notify_commit($span, 200, array(
-    'Content-type' => 'text/html',
+    'Content-type' => ['text/html'],
     'Set-Cookie' => ['a=x', 'b=y'],
 ));
 echo "Result of notify_commit:\n";

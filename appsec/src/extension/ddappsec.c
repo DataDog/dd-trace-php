@@ -28,6 +28,7 @@
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "ddtrace.h"
+#include "entity_body.h"
 #include "helper_process.h"
 #include "ip_extraction.h"
 #include "logging.h"
@@ -165,6 +166,7 @@ static PHP_GINIT_FUNCTION(ddappsec)
 
 static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 {
+    dd_entity_body_gshutdown();
     dd_helper_gshutdown();
     // delay log shutdown until the last possible moment, so that TSRM
     // destructors can run with logging
@@ -215,6 +217,8 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_request_abort_startup();
     dd_tags_startup();
     dd_ip_extraction_startup();
+    dd_entity_body_startup();
+    dd_request_shutdown_startup();
 
     return SUCCESS;
 }
@@ -259,6 +263,8 @@ static PHP_RINIT_FUNCTION(ddappsec)
         return SUCCESS;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
+
+    dd_entity_body_rinit();
 
     dd_req_lifecycle_rinit(false);
 
