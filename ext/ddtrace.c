@@ -1274,10 +1274,19 @@ static void dd_shutdown_hooks_and_observer(void) {
 void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = true;
 
-    ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
-    if (ddtrace_flush_tracer(false, true) == FAILURE) {
-        LOG(Warn, "Unable to flush the tracer");
-    }
+    zend_try {
+        ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
+    } zend_catch {
+        LOG(Warn, "Failed to close remaining spans due to bailout");
+    } zend_end_try();
+
+    zend_try {
+        if (ddtrace_flush_tracer(false, true) == FAILURE) {
+            LOG(Warn, "Unable to flush the tracer");
+        }
+    } zend_catch {
+        LOG(Warn, "Unable to flush the tracer due to bailout");
+    } zend_end_try();
 
     // we here need to disable the tracer, so that further hooks do not trigger
     ddtrace_disable_tracing_in_current_request();  // implicitly calling dd_clean_globals
@@ -1288,7 +1297,7 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = false;
 }
 
-static void dd_finalize_telemtry(void) {
+static void dd_finalize_telemetry(void) {
     if (DDTRACE_G(telemetry_queue_id)) {
         ddtrace_telemetry_finalize();
         DDTRACE_G(telemetry_queue_id) = 0;
@@ -1315,7 +1324,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         DDTRACE_G(active_stack) = NULL;
     }
 
-    dd_finalize_telemtry();
+    dd_finalize_telemetry();
     if (DDTRACE_G(last_flushed_root_service_name)) {
         zend_string_release(DDTRACE_G(last_flushed_root_service_name));
         DDTRACE_G(last_flushed_root_service_name) = NULL;
@@ -1990,7 +1999,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddtrace_coms_test_msgpack_consumer();
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
-            dd_finalize_telemtry();
+            dd_finalize_telemetry();
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!ddtrace_sidecar) {
