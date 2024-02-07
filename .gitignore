@@ -52,3 +52,4 @@ docker-compose.override.yml
 tests/Sapi/Roadrunner/rr-*
 github-actions-helpers/_build.csproj.DotSettings
 .nuke
+cookies.txt

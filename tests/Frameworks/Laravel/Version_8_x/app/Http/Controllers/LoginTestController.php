@@ -50,4 +50,9 @@ class LoginTestController extends Controller
 
         return redirect(RouteServiceProvider::HOME);
     }
+
+    public function behind_auth()
+    {
+        return "page behind auth";
+    }
 }
