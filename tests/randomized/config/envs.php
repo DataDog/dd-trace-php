@@ -16,7 +16,6 @@ const ENVS = [
     'DD_SERVICE' => [null],
     'DD_TRACE_ENABLED' => ['false'],
     'DD_TRACE_CLI_ENABLED' => ['false'],
-    'DD_TRACE_DEBUG' => ['true'],
     'DD_AGENT_HOST' => [null, 'wrong_host'],
     'DD_TRACE_AGENT_PORT' => ['9999'],
     'DD_DISTRIBUTED_TRACING' => ['false'],
