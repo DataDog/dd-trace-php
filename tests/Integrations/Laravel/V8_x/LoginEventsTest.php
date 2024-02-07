@@ -8,6 +8,8 @@ use datadog\appsec\AppsecStatus;
 
 class LoginEventsTest extends WebFrameworkTestCase
 {
+    protected $maintainSession = true;
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
