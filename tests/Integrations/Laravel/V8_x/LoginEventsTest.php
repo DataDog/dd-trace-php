@@ -11,6 +11,8 @@ use datadog\appsec\AppsecStatus;
  */
 class AutomatedLoginEventsTest extends AppsecTestCase
 {
+    protected $maintainSession = true;
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
