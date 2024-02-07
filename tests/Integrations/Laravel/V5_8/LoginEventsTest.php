@@ -1,16 +1,18 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laravel\V4;
+namespace DDTrace\Tests\Integrations\Laravel\V5_8;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
-class AutomatedLoginEventsTest extends WebFrameworkTestCase
+class LoginEventsTest extends WebFrameworkTestCase
 {
+    protected $maintainSession = true;
+
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_5_8/public/index.php';
     }
 
     protected function connection()
@@ -39,9 +41,16 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
 
     protected function login($email)
     {
-        $this->call(
-            GetSpec::create('Login success event', '/login/auth?email='.$email)
-        );
+        return $this->tracesFromWebRequest(function () use ($email) {
+            $this->call(
+                GetSpec::create('Login success event', '/login/auth?email='.$email)
+            );
+        });
+    }
+
+    protected function createUser($id, $name, $email) {
+        //Password is password
+        $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
     }
 
     public function testUserLoginSuccessEvent()
@@ -49,8 +58,24 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         $id = 1234;
         $name = 'someName';
         $email = 'test-user@email.com';
-        //Password is password
-        $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
+        $this->createUser($id, $name, $email);
+
+        $this->login($email);
+
+        $events = AppsecStatus::getInstance()->getEvents();
+        $this->assertEquals(1, count($events));
+        $this->assertEquals($id, $events[0]['userId']);
+        $this->assertEquals($name, $events[0]['metadata']['name']);
+        $this->assertEquals($email, $events[0]['metadata']['email']);
+        $this->assertTrue($events[0]['automated']);
+        $this->assertEquals('track_user_login_success_event', $events[0]['eventName']);
+    }
+    public function testUserLoginSuccessEvent()
+    {
+        $id = 1234;
+        $name = 'someName';
+        $email = 'test-user@email.com';
+        $this->createUser($id, $name, $email);
 
         $this->login($email);
 
