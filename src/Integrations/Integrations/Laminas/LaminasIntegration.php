@@ -14,8 +14,9 @@ use Laminas\ApiTools\ApiProblem\ApiProblemResponse;
 use Laminas\EventManager\EventInterface;
 use Laminas\Mvc\MvcEvent;
 use Laminas\Router\RouteMatch;
-use Laminas\Stdlib\RequestInterface;
+use Laminas\Router\SimpleRouteStack;
 use Laminas\View\Model\ModelInterface;
+use Laminas\Router\RouteStackInterface;
 
 use function DDTrace\active_span;
 use function DDTrace\hook_method;
@@ -242,27 +243,28 @@ class LaminasIntegration extends Integration
 
         // MvcEvent::EVENT_ROUTE
         trace_method(
-            'Laminas\Router\RouteInterface',
-            'match',
-            function (SpanData $span, $args, $retval) {
+            'Laminas\Mvc\RouteListener',
+            'onRoute',
+            function (SpanData $span, $args, $retval) use ($integration) {
                 $span->name = 'laminas.route.match';
                 $span->resource = \get_class($this) . '@match';
                 $span->meta[Tag::COMPONENT] = 'laminas';
 
-                /** @var RequestInterface $request */
-                $request = $args[0];
+                /** @var MvcEvent $mvcEvent */
+                $mvcEvent = $args[0];
+
+                $request = $mvcEvent->getRequest();
 
                 $rootSpan = root_span();
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                 $rootSpan->meta[Tag::HTTP_VERSION] = $request->getVersion();
                 $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
 
+                /** @var RouteMatch $routeMatch */
                 $routeMatch = $retval;
                 if (is_null($routeMatch)) {
                     return;
                 }
-
-                /** @var RouteMatch $routeMatch */
 
                 $routeName = $routeMatch->getMatchedRouteName();
                 $action = $routeMatch->getParam('action');
@@ -285,6 +287,7 @@ class LaminasIntegration extends Integration
                 }
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
+                $integration->setHttpRoute($mvcEvent->getRouter(), $routeName, $rootSpan);
             }
         );
 
@@ -615,5 +618,30 @@ class LaminasIntegration extends Integration
             $result .= $frame['function'] . "()\n"; // Args aren't shown
         }
         return $result;
+    }
+
+    public function setHttpRoute(RouteStackInterface $router, $routeName, \DDTrace\RootSpanData $rootSpan)
+    {
+        if (!$router instanceof SimpleRouteStack) {
+            return;
+        }
+
+        $routes = $router->getRoutes();
+        $route = '';
+
+        foreach (explode('/', $routeName) as &$segment) {
+            $r = $routes->get($segment);
+            if (isset($r->regex)){
+                $route.= $r->regex;
+            }
+            else if (isset($r->route)){
+                $route.= $r->route;
+            }
+            else {
+                // ...
+            }
+        }
+
+        $rootSpan->meta[Tag::HTTP_ROUTE] = $route;
     }
 }

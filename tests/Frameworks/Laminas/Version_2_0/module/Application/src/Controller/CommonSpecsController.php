@@ -32,4 +32,12 @@ class CommonSpecsController extends AbstractActionController
     {
         throw new \Exception('Controller error');
     }
+
+    public function parameterizedAction()
+    {
+        $paramValue = $this->params()->fromRoute('paramValue', '');
+        $response = new Response();
+        $response->setContent('parameterized ' . $paramValue);
+        return $response;
+    }
 }

@@ -66,4 +66,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
             );
         });
     }
+
+    public function testScenarioParameterized()
+    {
+        $this->tracesFromWebRequestSnapshot(function () {
+            $this->call(
+                GetSpec::create(
+                    'A GET request to a route with a parameter',
+                    '/parameterized/value'
+                )->expectStatusCode(200)
+            );
+        });
+    }
 }

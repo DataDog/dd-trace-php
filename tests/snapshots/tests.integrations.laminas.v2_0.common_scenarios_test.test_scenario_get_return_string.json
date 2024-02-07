@@ -5,17 +5,19 @@
     "resource": "Application\\Controller\\CommonSpecsController@simple simple",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 2883696377808074518,
+    "parent_id": 15784643431827456268,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
+      "_dd.p.tid": "65645caa00000000",
       "component": "laminas",
       "http.method": "GET",
-      "laminas.route.name": "simple",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple?key=value&<redacted>",
       "http.version": "1.1",
       "laminas.route.action": "Application\\Controller\\CommonSpecsController@simple",
+      "laminas.route.name": "simple",
+      "runtime-id": "05e49e0a-5ce8-4a67-9151-78ffaf427ea6",
       "span.kind": "server"
     },
     "metrics": {
@@ -131,9 +133,9 @@
              }
            },
            {
-             "name": "laminas.mvcEventListener",
+             "name": "laminas.route.match",
              "service": "test_laminas_20",
-             "resource": "Laminas\\Mvc\\RouteListener@onRoute",
+             "resource": "Laminas\\Mvc\\RouteListener@match",
              "trace_id": 0,
              "span_id": 12,
              "parent_id": 7,
@@ -142,18 +144,6 @@
                "component": "laminas"
              }
            },
-              {
-                "name": "laminas.route.match",
-                "service": "test_laminas_20",
-                "resource": "Laminas\\Router\\Http\\TreeRouteStack@match",
-                "trace_id": 0,
-                "span_id": 17,
-                "parent_id": 12,
-                "type": "web",
-                "meta": {
-                  "component": "laminas"
-                }
-              },
         {
           "name": "laminas.event.dispatch",
           "service": "test_laminas_20",
@@ -195,7 +185,7 @@
                 "service": "test_laminas_20",
                 "resource": "Application\\Controller\\CommonSpecsController",
                 "trace_id": 0,
-                "span_id": 18,
+                "span_id": 17,
                 "parent_id": 14,
                 "type": "web",
                 "meta": {
@@ -207,8 +197,8 @@
                    "service": "test_laminas_20",
                    "resource": "Application\\Controller\\CommonSpecsController@onDispatch",
                    "trace_id": 0,
-                   "span_id": 19,
-                   "parent_id": 18,
+                   "span_id": 18,
+                   "parent_id": 17,
                    "type": "web",
                    "meta": {
                      "component": "laminas"
@@ -219,8 +209,8 @@
                       "service": "test_laminas_20",
                       "resource": "Application\\Controller\\CommonSpecsController@simpleAction",
                       "trace_id": 0,
-                      "span_id": 20,
-                      "parent_id": 19,
+                      "span_id": 19,
+                      "parent_id": 18,
                       "type": "web",
                       "meta": {
                         "component": "laminas"
