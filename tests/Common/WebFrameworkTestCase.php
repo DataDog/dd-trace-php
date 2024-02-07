@@ -33,7 +33,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        $this->cookiesFile = realpath(dirname(static::getAppIndexScript()) . '/' . static::COOKIE_JAR);
+        $this->cookiesFile = realpath(dirname(static::getAppIndexScript())) . '/' . static::COOKIE_JAR;
         $f = @fopen($this->cookiesFile, "r+");
         if ($f !== false) {
             ftruncate($f, 0);
