@@ -98,8 +98,9 @@ class LoginEventsTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('Behind auth', '/behind_auth'));
         });
 
-        $meta = $traces[0][0]['meta'];
+        $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(0, count($events)); //Auth does not generate appsec events
+        $meta = $traces[0][0]['meta'];
         $this->assertEquals($id, $meta['usr.id']);
         $this->assertEquals($name, $meta['usr.name']);
         $this->assertEquals($email, $meta['usr.email']);
