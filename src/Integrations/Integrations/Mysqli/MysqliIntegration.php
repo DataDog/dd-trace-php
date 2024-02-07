@@ -424,6 +424,12 @@ class MysqliIntegration extends Integration
         foreach ($hostInfo as $tagName => $value) {
             $span->meta[$tagName] = $value;
         }
+        if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.db_client_split_by_instance")) {
+            if (isset($hostInfo[Tag::TARGET_HOST])) {
+                $span->service .=
+                    '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($hostInfo[Tag::TARGET_HOST]);
+            }
+        }
         $dbName = ObjectKVStore::get($mysqli, MysqliIntegration::KEY_DATABASE_NAME);
         if ($dbName) {
             $span->meta[Tag::DB_NAME] = $dbName;
