@@ -50,6 +50,7 @@ final class PDOTest extends IntegrationTestCase
             'DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE',
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE_MAPPING',
             'DD_SERVICE',
         ];
     }
@@ -162,6 +163,20 @@ final class PDOTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'pdo-mysql_integration', 'sql', 'PDO.__construct')
+                ->withExactTags($this->baseTags()),
+        ]);
+    }
+
+    public function testPDOServiceMappedSplitByDomain()
+    {
+        self::putEnv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true');
+        self::putEnv('DD_SERVICE_MAPPING=pdo:my-pdo');
+        $traces = $this->isolateTracer(function () {
+            $this->pdoInstance();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('PDO.__construct', 'my-pdo-mysql_integration', 'sql', 'PDO.__construct')
                 ->withExactTags($this->baseTags()),
         ]);
     }
