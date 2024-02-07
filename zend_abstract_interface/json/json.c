@@ -110,6 +110,8 @@ extern zend_class_entry *_php_json_serializable_ce = NULL;
 __attribute__((weak)) zend_class_entry *php_json_serializable_ce;
 #endif
 
+static bool zai_json_dynamic_bindings = false;
+
 bool zai_json_setup_bindings(void) {
     if (php_json_encode && php_json_serializable_ce) {
         zai_json_encode = php_json_encode;
@@ -134,6 +136,8 @@ bool zai_json_setup_bindings(void) {
         GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCTSTR)php_write, (HMODULE *)&handle);
 #endif
     }
+
+    zai_json_dynamic_bindings = true;
 
     zai_json_encode = (zai_json_encode_signature((*))) DL_FETCH_SYMBOL(handle, "php_json_encode");
     if (zai_json_encode == NULL) {
@@ -166,6 +170,13 @@ bool zai_json_setup_bindings(void) {
     }
 
     return zai_json_encode != NULL;
+}
+
+void zai_json_shutdown_bindings(void) {
+    if (zai_json_dynamic_bindings) {
+        zai_json_dynamic_bindings = false;
+        php_json_serializable_ce = NULL;
+    }
 }
 
 void zai_json_release_persistent_array(HashTable *ht) {

@@ -18,11 +18,16 @@ static void dd_log_set_level(bool debug) {
         } else {
             ddog_set_log_level((ddog_CharSlice)DDOG_CHARSLICE_C("debug,startup=error"), once);
         }
+    } else if (runtime_config_first_init) {
+        ddog_set_log_level(dd_zend_string_to_CharSlice(get_DD_TRACE_LOG_LEVEL()), once);
+    } else if (zend_string_equals_literal_ci(Z_STR(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_LOG_LEVEL].decoded_value), "error")) {
+        ddog_set_error_log_level(once); // optimized handling without parsing
     } else {
-        ddog_set_log_level(dd_zend_string_to_CharSlice(runtime_config_first_init ? get_DD_TRACE_LOG_LEVEL() : get_global_DD_TRACE_LOG_LEVEL()), once);
+        ddog_set_log_level(dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), once);
     }
 }
 
+// We need to ensure that logging is initialized (i.e. set) at least once per thread.
 void ddtrace_log_ginit(void) {
     dd_log_set_level(get_global_DD_TRACE_DEBUG());
 }
@@ -77,7 +82,11 @@ int ddtrace_get_fd_path(int fd, char *buf) {
 #else
     char pathbuf[MAXPATHLEN];
     snprintf(pathbuf, MAXPATHLEN, "/proc/self/fd/%d", fd);
-    return readlink(pathbuf, buf, MAXPATHLEN);
+    int len = readlink(pathbuf, buf, PATH_MAX);
+    if (len >= 0) {
+        buf[len] = 0;
+    }
+    return len;
 #endif
 }
 

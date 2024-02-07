@@ -140,6 +140,15 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         }
     }
 
+    protected function reloadAppServer()
+    {
+        if (\method_exists(self::$appServer, "reload")) {
+            self::$appServer->reload();
+        } else {
+            $this->markTestSkipped("Webserver reload not supported");
+        }
+    }
+
     /**
      * Executed a call to the test web server.
      *

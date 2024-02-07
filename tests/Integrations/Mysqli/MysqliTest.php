@@ -34,6 +34,7 @@ class MysqliTest extends IntegrationTestCase
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_SERVICE_MAPPING',
         ];
     }
 
@@ -604,6 +605,19 @@ class MysqliTest extends IntegrationTestCase
                     Tag::DB_ROW_COUNT => 1,
                 ]),
         ], true, false);
+    }
+
+    public function testServiceMappedSplitByDomain()
+    {
+        self::putEnv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true');
+        self::putEnv('DD_SERVICE_MAPPING=mysqli:my-mysqli');
+        $traces = $this->isolateTracer(function () {
+            new \mysqli(self::$host, self::$user, self::$password, self::$db);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('mysqli.__construct', 'my-mysqli-mysql_integration', 'sql', 'mysqli.__construct', SpanAssertion::NOT_TESTED)
+        ]);
     }
 
     private function baseTags($expectDbName = true, $expectPeerService = false)

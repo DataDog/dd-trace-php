@@ -5,10 +5,12 @@
 // Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "attributes.h"
 #include <php.h>
 #include <stdbool.h>
-#include "attributes.h"
 
-#define DD_MAX_REQ_BODY_TO_BUFFER (1L * 1024L * 1024L) // 1 MB
-
+void dd_entity_body_startup(void);
+void dd_entity_body_gshutdown(void);
+void dd_entity_body_rinit(void);
 zend_string *nonnull dd_request_body_buffered(size_t limit);
+zend_string *nonnull dd_response_body_buffered(void);

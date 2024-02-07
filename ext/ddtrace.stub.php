@@ -639,9 +639,10 @@ namespace DDTrace\UserRequest {
      * @param \DDTrace\Span $span the span associated with this user request.
      * @param int $status the HTTP status code of the response
      * @param array $headers the HTTP headers of the response in the form name => array(values)
+     * @param string|resource|null $body the body of the response (a string or a seekable resource)
      * @return array|null an array with the keys 'status', 'headers' and 'body', or null
      */
-    function notify_commit(\DDTrace\RootSpanData $span, int $status, array $headers): ?array {}
+    function notify_commit(\DDTrace\RootSpanData $span, int $status, array $headers, ?mixed $body = null): ?array {}
 
     /**
      * Sets a function to be called when blocking a request midway.

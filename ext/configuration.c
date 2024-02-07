@@ -158,6 +158,7 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
 bool ddtrace_config_minit(int module_number) {
     if (!zai_config_minit(config_entries, (sizeof config_entries / sizeof *config_entries), dd_ini_env_to_ini_name,
                           module_number)) {
+        ddtrace_log_ginit();
         LOG(Error, "Unable to load configuration; likely due to json symbols failing to resolve.");
         return false;
     }
@@ -167,7 +168,7 @@ bool ddtrace_config_minit(int module_number) {
     // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
     zai_config_first_time_rinit();
 
-    ddtrace_alter_dd_trace_debug(NULL, &zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_DEBUG].decoded_value);
+    ddtrace_log_ginit();
     return true;
 }
 

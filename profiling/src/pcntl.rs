@@ -3,7 +3,7 @@ use crate::bindings::{
     datadog_php_install_handler, datadog_php_zif_handler, zend_execute_data, zend_long, zval,
     InternalFunctionHandler,
 };
-use crate::{Profiler, PROFILER, REQUEST_LOCALS};
+use crate::{config, Profiler, PROFILER};
 use log::{error, warn};
 use std::ffi::CStr;
 use std::mem::{forget, swap};
@@ -96,13 +96,11 @@ fn stop_and_forget_profiling(maybe_profiler: &mut Option<Profiler>) {
 
     allocation_profiling_rshutdown();
 
-    /* Reset some global state to prevent further profiling and to not handle
-     * any pending interrupts.
-     */
-    REQUEST_LOCALS.with(|cell| {
-        let mut locals = cell.borrow_mut();
-        locals.disable();
-    });
+    // Reset some global state to prevent further profiling and to not handle
+    // any pending interrupts.
+    // SAFETY: done after config is used to shut down other things, and in a
+    //         thread-safe context.
+    unsafe { config::on_fork_in_child() };
 }
 
 unsafe extern "C" fn pcntl_fork(execute_data: *mut zend_execute_data, return_value: *mut zval) {

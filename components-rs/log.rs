@@ -4,7 +4,8 @@ use std::ffi::c_char;
 use std::fmt::Debug;
 use bitflags::bitflags;
 use tracing::Level;
-use tracing_core::{Event, Field, Subscriber};
+use tracing_core::{Event, Field, LevelFilter, Subscriber};
+use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::registry::LookupSpan;
@@ -147,7 +148,7 @@ impl<S, N> FormatEvent<S, N> for LogFormatter
                 } else {
                     fmt_msg(event, &msg, "")
                 };
-                cb(unsafe { CharSlice::new(msg.as_ptr() as *const c_char, msg.len() - 1) });
+                cb(unsafe { CharSlice::from_raw_parts(msg.as_ptr() as *const c_char, msg.len() - 1) });
             }
         }
         Ok(())
@@ -155,10 +156,22 @@ impl<S, N> FormatEvent<S, N> for LogFormatter
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn ddog_set_error_log_level(once: bool) {
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(LevelFilter::ERROR)
+        .event_format(LogFormatter { once });
+    set_log_subscriber(subscriber)
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn ddog_set_log_level(level: CharSlice, once: bool) {
     let subscriber = tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::filter::EnvFilter::builder().parse_lossy(level.to_utf8_lossy()))
+        .with_env_filter(EnvFilter::builder().parse_lossy(level.to_utf8_lossy()))
         .event_format(LogFormatter { once });
+    set_log_subscriber(subscriber)
+}
+
+fn set_log_subscriber<S>(subscriber: S) where S: SubscriberInitExt {
     TRACING_GUARDS.replace(None); // drop first to avoid a prior guard to reset the thread local subscriber it upon replace()
     TRACING_GUARDS.replace(Some(subscriber.set_default()));
 }

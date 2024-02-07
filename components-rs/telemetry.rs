@@ -15,7 +15,6 @@ use std::fs;
 use std::ffi::{c_char, CStr, OsStr};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
-use std::ptr::null;
 use datadog_sidecar::config::LogMethod;
 #[cfg(windows)]
 use spawn_worker::get_trampoline_target_data;
@@ -37,7 +36,7 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
     queue_id: &QueueId,
     path: CharSlice,
 ) -> bool {
-    let pathstr = unsafe { path.to_utf8_lossy() };
+    let pathstr = path.to_utf8_lossy();
     if let Some(index) = pathstr.rfind(windowsify_path!("/vendor/autoload.php")) {
         let path = format!("{}{}", &pathstr[..index], windowsify_path!("/vendor/composer/installed.json"));
         if parse_composer_installed_json(transport, instance_id, queue_id, path).is_ok() {
@@ -91,7 +90,7 @@ fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
 
 #[no_mangle]
 #[cfg(windows)]
-pub static mut DDOG_PHP_FUNCTION: *const u8 = null();
+pub static mut DDOG_PHP_FUNCTION: *const u8 = std::ptr::null();
 
 #[cfg(windows)]
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {

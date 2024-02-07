@@ -14,6 +14,10 @@
 #    define IS_VOID IS_UNDEF
 #    define HT_IS_PACKED(ht) 0
 #    define HT_IS_WITHOUT_HOLES(ht) 0
+
+#define MAY_BE_NULL 0
+#define MAY_BE_STRING 0
+#define MAY_BE_ARRAY 0
 #endif
 
 #if PHP_VERSION_ID < 70200
@@ -29,7 +33,15 @@ static zend_always_inline zend_string *zend_string_init_interned(
     const char *str, size_t len, int persistent)
 {
     zend_string *ret = zend_string_init(str, len, persistent);
+#    ifdef ZTS
+    // believe it or not zend_new_interned_string() is an identity function
+    // set the interned flag manually so zend_string_release() is a no-op
+    GC_FLAGS(ret) |= IS_STR_INTERNED;
+    zend_string_hash_val(ret);
+    return ret;
+#    else
     return zend_new_interned_string(ret);
+#    endif
 }
 #endif
 
@@ -68,6 +80,12 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #if PHP_VERSION_ID < 70400
 #    define tsrm_env_lock()
 #    define tsrm_env_unlock()
+#endif
+
+#if PHP_VERSION_ID < 80000
+#define ZEND_ARG_TYPE_MASK(pass_by_ref, name, type_mask, default_value) ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value)
+#define ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value) ZEND_ARG_INFO(pass_by_ref, name)
+#define IS_MIXED 0
 #endif
 
 #if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 80000

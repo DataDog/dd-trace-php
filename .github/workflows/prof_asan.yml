@@ -60,5 +60,5 @@ jobs:
           switch-php nts-asan
           cd profiling/tests
           cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
-          php run-tests.php --asan -d extension=datadog-profiling.so phpt
+          php run-tests.php --show-diff --asan -d extension=datadog-profiling.so phpt
 

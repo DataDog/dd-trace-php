@@ -66,7 +66,7 @@ struct _ddtrace_user_req_listeners {
         zend_array *nonnull variables);
     zend_array *nullable(*nonnull response_committed)(
         ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span,
-        int status, zend_array *nonnull headers);
+        int status, zend_array *nonnull headers, zval *nullable entity);
     void (*nonnull finish_user_req)(
         ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span);
     void (*nonnull set_blocking_function)(

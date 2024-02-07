@@ -559,3 +559,7 @@ static const zend_function_entry functions[] = {
     ZEND_FE_END
 };
 const zend_function_entry* ddog_php_prof_functions = functions;
+
+zval *ddog_php_prof_get_memoized_config(uint16_t config_id) {
+    return &zai_config_memoized_entries[config_id].decoded_value;
+}

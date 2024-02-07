@@ -218,6 +218,13 @@ class SQLSRVIntegration extends Integration
         foreach ($storedConnectionInfo as $tag => $value) {
             $span->meta[$tag] = $value;
         }
+
+        $targetName = $storedConnectionInfo[Tag::DB_INSTANCE] ?? $storedConnectionInfo[Tag::TARGET_HOST] ?? "<default>";
+        if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.db_client_split_by_instance")) {
+            if ($targetName !== "<default>") {
+                $span->service .= '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($targetName);
+            }
+        }
     }
 
     public static function detectError($SQLSRVRetval, SpanData $span)

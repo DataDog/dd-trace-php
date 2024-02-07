@@ -149,6 +149,12 @@ final class PhpApache implements Sapi
         $this->configChanged = false;
     }
 
+    public function reload()
+    {
+        $this->process->signal(SIGUSR1);
+        usleep(10000);
+    }
+
     public function stop()
     {
         // I do not understand why we get a SIGTERM when we try to send a SIGTERM to apache.

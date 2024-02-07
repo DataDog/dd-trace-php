@@ -21,8 +21,10 @@ import java.time.Duration
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
 import static com.datadog.appsec.php.integration.TestParams.phpVersionAtLeast
+import static com.datadog.appsec.php.test.JsonMatcher.matchesJson
 import static java.net.http.HttpResponse.BodyHandlers.ofString
 import static java.time.temporal.ChronoUnit.SECONDS
+import static org.hamcrest.MatcherAssert.assertThat
 
 @Testcontainers
 @EnabledIf('isExpectedVersion')
@@ -162,5 +164,148 @@ class RoadRunnerTests {
             assert it.headers().firstValue('Content-type').get().contains('text/html')
         }
         assert trace.first().meta."appsec.blocked" == "true"
+    }
+
+    @Test
+    void 'match against json response body'() {
+        HttpRequest req = CONTAINER.buildReq('/json').GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.body() == '{"message":["Hello world!",42,true,"poison"]}'
+        }
+
+        Span span = trace.first()
+
+        def appsecJson = span.meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : {
+                    "id" : "poison-in-json",
+                    "name" : "poison-in-json",
+                    "tags" : {
+                       "category" : "attack_attempt",
+                       "type" : "security_scanner"
+                    }
+                 },
+                 "rule_matches" : [
+                    {
+                       "operator" : "match_regex",
+                       "operator_value" : "(?i)poison",
+                       "parameters" : [
+                          {
+                             "address" : "server.response.body",
+                             "highlight" : [
+                                "poison"
+                             ],
+                             "key_path" : [
+                                "message",
+                                "3"
+                             ],
+                             "value" : "poison"
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+    }
+
+
+    @Test
+    void 'blocking against a json body'() {
+        HttpRequest req = CONTAINER.buildReq('/json?block=1').GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.body().containsIgnoreCase("You've been blocked")
+            assert resp.headers().firstValue('content-type').get() == 'application/json'
+        }
+
+        Span span = trace.first()
+
+        def appsecJson = span.meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : {
+                    "id" : "poison-in-json-block",
+                    "name" : "poison-in-json-block",
+                    "on_match" : [
+                       "block"
+                    ],
+                    "tags" : {
+                       "category" : "attack_attempt",
+                       "type" : "security_scanner"
+                    }
+                 },
+                 "rule_matches" : [
+                    {
+                       "operator" : "match_regex",
+                       "operator_value" : "(?i)block_this",
+                       "parameters" : [
+                          {
+                             "address" : "server.response.body",
+                             "highlight" : [
+                                "block_this"
+                             ],
+                             "key_path" : [
+                                "message",
+                                "3"
+                             ],
+                             "value" : "block_this"
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+    }
+
+    @Test
+    void 'match against xml response body'() {
+        HttpRequest req = CONTAINER.buildReq('/xml').GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.body().contains('poison')
+        }
+
+        Span span = trace.first()
+
+        def appsecJson = span.meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : {
+                    "id" : "poison-in-xml",
+                    "name" : "poison-in-xml",
+                    "tags" : {
+                       "category" : "attack_attempt",
+                       "type" : "security_scanner"
+                    }
+                 },
+                 "rule_matches" : [
+                    {
+                       "operator" : "match_regex",
+                       "operator_value" : "(?i).*poison.*",
+                       "parameters" : [
+                          {
+                             "address" : "server.response.body",
+                             "highlight" : [
+                                "  poison"
+                             ],
+                             "key_path" : [
+                                "note",
+                                "2"
+                             ],
+                             "value" : "\\n  poison\\n"
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
     }
 }

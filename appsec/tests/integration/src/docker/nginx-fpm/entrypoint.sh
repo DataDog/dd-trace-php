@@ -16,4 +16,4 @@ enable_extensions.sh
 php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini
 service nginx start
 
-exec tail -F "${LOGS_PHP[@]}" "${LOGS_NGINX[@]}"
+exec tail -n +1 -F "${LOGS_PHP[@]}" "${LOGS_NGINX[@]}"

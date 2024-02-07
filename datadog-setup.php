@@ -656,7 +656,7 @@ function install($options)
                      * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
                      * `;`, hence not automatically re-activating the extension if the user had commented it out.
                      */
-                    '(^\s*;\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace." . EXTENSION_SUFFIX,
+                    '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace." . EXTENSION_SUFFIX,
                     // Support upgrading from the C based zend_extension.
                     '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling." . EXTENSION_SUFFIX,
                 ];
@@ -1704,11 +1704,11 @@ function add_missing_ini_settings($iniFilePath, $settings, $replacements)
         foreach ($settings as $setting) {
             // The extension setting is not unique, so make sure we check that the
             // right extension setting is available.
-            $settingRegex = '/' . str_replace('.', '\.', $setting['name']) . '\s?=\s?';
+            $settingRegex = '(' . preg_quote($setting['name']) . '\s?=\s?';
             if ($setting['name'] === 'extension' || $setting['name'] == 'zend_extension') {
-                $settingRegex .= str_replace('.', '\.', $setting['default']);
+                $settingRegex .= preg_quote($setting['default']);
             }
-            $settingRegex .= '/';
+            $settingRegex .= ')';
 
             $settingMightExist = 1 === preg_match($settingRegex, $iniFileContent);
 

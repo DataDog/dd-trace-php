@@ -258,6 +258,9 @@
             "network.destination.name": "google.wrong",
             "network.destination.port": "0",
             "span.kind": "client"
+          },
+          "metrics": {
+            "_dd.measured": 1
           }
         },
         {
@@ -309,6 +312,9 @@
             "network.destination.name": "google.com",
             "network.destination.port": "443",
             "span.kind": "client"
+          },
+          "metrics": {
+            "_dd.measured": 1
           }
         },
         {
@@ -360,6 +366,9 @@
             "network.destination.name": "httpbin_integration",
             "network.destination.port": "80",
             "span.kind": "client"
+          },
+          "metrics": {
+            "_dd.measured": 1
           }
         },
         {
@@ -410,6 +419,9 @@
             "network.destination.name": "httpbin_integration",
             "network.destination.port": "80",
             "span.kind": "client"
+          },
+          "metrics": {
+            "_dd.measured": 1
           }
         },
         {
@@ -460,6 +472,9 @@
             "network.destination.name": "httpbin_integration",
             "network.destination.port": "80",
             "span.kind": "client"
+          },
+          "metrics": {
+            "_dd.measured": 1
           }
         },
         {
@@ -510,6 +525,9 @@
             "network.destination.name": "httpbin_integration",
             "network.destination.port": "80",
             "span.kind": "client"
+          },
+          "metrics": {
+            "_dd.measured": 1
           }
         },
         {
@@ -562,6 +580,9 @@
             "network.destination.name": "google.still.wrong",
             "network.destination.port": "0",
             "span.kind": "client"
+          },
+          "metrics": {
+            "_dd.measured": 1
           }
         },
         {
@@ -612,6 +633,9 @@
             "network.destination.name": "www.google.com",
             "network.destination.port": "443",
             "span.kind": "client"
+          },
+          "metrics": {
+            "_dd.measured": 1
           }
         },
         {
@@ -662,6 +686,9 @@
             "network.destination.name": "www.google.com",
             "network.destination.port": "443",
             "span.kind": "client"
+          },
+          "metrics": {
+            "_dd.measured": 1
           }
         },
         {
@@ -712,5 +739,8 @@
             "network.destination.name": "www.google.com",
             "network.destination.port": "443",
             "span.kind": "client"
+          },
+          "metrics": {
+            "_dd.measured": 1
           }
         }]]
