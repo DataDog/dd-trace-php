@@ -21,12 +21,25 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     const PORT = 9999;
 
     const ERROR_LOG_NAME = 'phpunit_error.log';
+    const COOKIE_JAR = 'cookies.txt';
 
     /**
      * @var WebServer|null
      */
     private static $appServer;
     protected $checkWebserverErrors = true;
+    protected $cookiesFile;
+
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+        $this->cookiesFile = realpath(dirname(static::getAppIndexScript()) . '/' . static::COOKIE_JAR);
+        $f = @fopen($this->cookiesFile, "r+");
+        if ($f !== false) {
+            ftruncate($f, 0);
+            fclose($f);
+        }
+    }
 
     public static function ddSetUpBeforeClass()
     {
@@ -215,6 +228,10 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, $options[CURLOPT_RETURNTRANSFER]);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $options[CURLOPT_FOLLOWLOCATION]);
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookiesFile);
+            curl_setopt ($ch, CURLOPT_COOKIEFILE, $this->cookiesFile);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_HEADER, 1);
             if ($method === 'POST') {
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, is_array($body) ? json_encode($body) : $body);

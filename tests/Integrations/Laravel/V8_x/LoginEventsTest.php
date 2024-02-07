@@ -25,9 +25,16 @@ class AutomatedLoginEventsTest extends AppsecTestCase
 
     protected function login($email)
     {
-        $this->call(
-            GetSpec::create('Login success event', '/login/auth?email='.$email)
-        );
+        return $this->tracesFromWebRequest(function () use ($email) {
+            $this->call(
+                GetSpec::create('Login success event', '/login/auth?email='.$email)
+            );
+        });
+    }
+
+    protected function createUser($id, $name, $email) {
+        //Password is password
+        $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
     }
 
     public function testUserLoginSuccessEvent()
@@ -35,8 +42,7 @@ class AutomatedLoginEventsTest extends AppsecTestCase
         $id = 1234;
         $name = 'someName';
         $email = 'test-user@email.com';
-        //Password is password
-        $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
+        $this->createUser($id, $name, $email);
 
         $this->login($email);
 
@@ -47,6 +53,42 @@ class AutomatedLoginEventsTest extends AppsecTestCase
         $this->assertEquals($email, $events[0]['metadata']['email']);
         $this->assertTrue($events[0]['automated']);
         $this->assertEquals('track_user_login_success_event', $events[0]['eventName']);
+    }
+
+    public function testLoggedInCalls()
+    {
+        $id = 1234;
+        $name = 'someName';
+        $email = 'test-user@email.com';
+        $this->createUser($id, $name, $email);
+
+        //First log in
+        $traces = $this->login($email);
+
+        $meta = $traces[0][0]['meta'];
+        $this->assertEquals($id, $meta['usr.id']);
+        $this->assertEquals($name, $meta['usr.name']);
+        $this->assertEquals($email, $meta['usr.email']);
+
+        $events = AppsecStatus::getInstance()->getEvents();
+        $this->assertEquals(1, count($events));
+        $this->assertEquals($id, $events[0]['userId']);
+        $this->assertEquals($name, $events[0]['metadata']['name']);
+        $this->assertEquals($email, $events[0]['metadata']['email']);
+        $this->assertTrue($events[0]['automated']);
+        $this->assertEquals('track_user_login_success_event', $events[0]['eventName']);
+
+        //Now we are logged in lets do another call
+        AppsecStatus::getInstance()->setDefaults(); //Remove all events
+        $traces = $this->tracesFromWebRequest(function () {
+            $this->call(GetSpec::create('Behind auth', '/behind_auth'));
+        });
+
+        $meta = $traces[0][0]['meta'];
+        $this->assertEquals(0, count($events)); //Auth does not generate appsec events
+        $this->assertEquals($id, $meta['usr.id']);
+        $this->assertEquals($name, $meta['usr.name']);
+        $this->assertEquals($email, $meta['usr.email']);
     }
 
     public function testUserLoginFailureEvent()

@@ -443,6 +443,33 @@ class LaravelIntegration extends Integration
             }
         );
 
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Events\Authenticated',
+            '__construct',
+            null,
+            function ($This, $scope, $args) use ($integration) {
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
+                if (
+                    !isset($args[1]) ||
+                    !$args[1] ||
+                    !($args[1] instanceof $authClass)
+                ) {
+                    return;
+                }
+
+                $meta = [];
+                $user = $args[1];
+                if (isset($user->name)) {
+                    $meta['name'] = $user->name;
+                }
+                if (isset($user->email)) {
+                    $meta['email'] = $user->email;
+                }
+
+                \DDTrace\set_user($user->getAuthIdentifier(), $meta);
+            }
+        );
+
         return Integration::LOADED;
     }
 
