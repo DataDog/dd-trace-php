@@ -944,7 +944,7 @@ FILTER := .
 MAX_RETRIES := 3
 
 define run_composer_with_retry
-	@for i in $$(seq 1 $(MAX_RETRIES)); do \
+	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
 		$(COMPOSER) --working-dir=$1 update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
 	done
