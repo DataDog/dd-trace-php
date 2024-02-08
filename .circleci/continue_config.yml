@@ -2816,21 +2816,21 @@ jobs:
           command: |
             set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
             switch-php << parameters.php_version >>
-            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all RUST_DEBUG_SYMBOLS=1 ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>.so
       - run:
           name: Build debug, nts configuration
           command: |
             set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
             switch-php << parameters.php_version >>-debug
-            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all RUST_DEBUG_SYMBOLS=1 ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-debug.so
       - run:
           name: Build zts configuration
           command: |
             set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
             switch-php << parameters.php_version >>-zts
-            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean && make -j all RUST_DEBUG_SYMBOLS=1 ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-zts.so
       - persist_to_workspace:
           root: '.'
