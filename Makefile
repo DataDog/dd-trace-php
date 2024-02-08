@@ -941,6 +941,14 @@ TEST_WEB_83 := \
 	test_web_zend_1_21
 
 FILTER := .
+MAX_RETRIES := 3
+
+define run_composer_with_retry
+	@for i in $$(seq 1 $(MAX_RETRIES)); do \
+		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
+		$(COMPOSER) --working-dir=$1 update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
+	done
+endef
 
 define run_tests_without_coverage
 	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
@@ -1041,9 +1049,9 @@ test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
 
 benchmarks_run_dependencies: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_2 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_5_2,)
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_8_x update
+	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_8_x,)
 	rm -f tests/.scenarios.lock/benchmarks/composer.lock
 	$(MAKE) test_scenario_benchmarks
 
@@ -1154,96 +1162,96 @@ test_integrations_predis1: global_test_run_dependencies
 	$(MAKE) test_scenario_predis1
 	$(call run_tests_debug,tests/Integrations/Predis)
 test_integrations_roadrunner: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Roadrunner/Version_2 update
+	$(call run_composer_with_retry,tests/Frameworks/Roadrunner/Version_2,)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
 test_web_cakephp_28: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/CakePHP/Version_2_8 update
+	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_2_8,)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
 test_web_drupal_89: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_8_9/core update --ignore-platform-reqs
-	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_8_9 update --ignore-platform-reqs
+	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_8_9/core,--ignore-platform-reqs)
+	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_8_9,--ignore-platform-reqs)
 	$(call run_tests_debug,tests/Integrations/Drupal/V8_9)
 test_web_drupal_95: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_9_5/core update --ignore-platform-reqs
-	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_9_5 update --ignore-platform-reqs
+	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_9_5/core,--ignore-platform-reqs)
+	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_9_5,--ignore-platform-reqs)
 	$(call run_tests_debug,tests/Integrations/Drupal/V9_5)
 test_web_drupal_101: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_10_1/core update --ignore-platform-reqs
-	$(COMPOSER) --working-dir=tests/Frameworks/Drupal/Version_10_1 update --ignore-platform-reqs
+	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_10_1/core,--ignore-platform-reqs)
+	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_10_1,--ignore-platform-reqs)
 	$(call run_tests_debug,tests/Integrations/Drupal/V10_1)
 test_web_laminas_rest_19: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/ApiTools/Version_1_9 update
+	$(call run_composer_with_retry,tests/Frameworks/Laminas/ApiTools/Version_1_9,)
 	$(call run_tests_debug,tests/Integrations/Laminas/ApiTools/V1_9)
 test_web_laminas_14: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_1_4 update
+	$(call run_composer_with_retry, tests/Frameworks/Laminas/Version_1_4,)
 	$(call run_tests_debug,tests/Integrations/Laminas/V1_4)
 test_web_laminas_20: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laminas/Version_2_0 update
+	$(call run_composer_with_retry, tests/Frameworks/Laminas/Version_2_0,)
 	$(call run_tests_debug,tests/Integrations/Laminas/V2_0)
 test_web_laravel_42: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_4_2 update
+	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_4_2,)
 	php tests/Frameworks/Laravel/Version_4_2/artisan optimize
 	$(call run_tests_debug,tests/Integrations/Laravel/V4)
 test_web_laravel_57: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_7 update
+	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_5_7,)
 	$(call run_tests_debug,tests/Integrations/Laravel/V5_7)
 test_web_laravel_58: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_8 update
+	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_5_8,)
 	$(call run_tests_debug,--testsuite=laravel-58-test)
 test_web_laravel_8x: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_8_x update
+	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_8_x,)
 	$(call run_tests_debug,--testsuite=laravel-8x-test)
 test_web_laravel_9x: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_9_x update
+	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_9_x,)
 	$(call run_tests_debug,--testsuite=laravel-9x-test)
 test_web_laravel_10x: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_10_x update
+	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_10_x,)
 	$(call run_tests_debug,--testsuite=laravel-10x-test)
 test_web_lumen_52: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 update
+	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_5_2,)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_2)
 test_web_lumen_56: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_6 update
+	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_5_6,)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_6)
 test_web_lumen_58: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_8 update
+	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_5_8,)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_8)
 test_web_lumen_81: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_8_1 update
+	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_8_1,)
 	$(call run_tests_debug,tests/Integrations/Lumen/V8_1)
 test_web_lumen_90: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_9_0 update
+	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_9_0,)
 	$(call run_tests_debug,tests/Integrations/Lumen/V9_0)
 test_web_lumen_100: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_10_0 update
+	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_10_0,)
 	$(call run_tests_debug,tests/Integrations/Lumen/V10_0)
 test_web_slim_312: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_3_12 update
+	$(call run_composer_with_retry,tests/Frameworks/Slim/Version_3_12,)
 	$(call run_tests_debug,--testsuite=slim-312-test)
 test_web_slim_4: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_4 update
+	$(call run_composer_with_retry,tests/Frameworks/Slim/Version_4,)
 	$(call run_tests_debug,--testsuite=slim-4-test)
 test_web_symfony_23: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_3 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_2_3,)
 	$(call run_tests_debug,tests/Integrations/Symfony/V2_3)
 test_web_symfony_28: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_8 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_2_8,)
 	$(call run_tests_debug,tests/Integrations/Symfony/V2_8)
 test_web_symfony_30: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_0 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_3_0,)
 	php tests/Frameworks/Symfony/Version_3_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V3_0)
 test_web_symfony_33: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_3 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_3_3,)
 	php tests/Frameworks/Symfony/Version_3_3/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V3_3)
 test_web_symfony_34: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_4 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_3_4,)
 	php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V3_4)
 test_web_symfony_40: global_test_run_dependencies
@@ -1253,11 +1261,11 @@ test_web_symfony_40: global_test_run_dependencies
 	php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V4_0)
 test_web_symfony_42: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_2 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_4_2,)
 	php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V4_2)
 test_web_symfony_44: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_4 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_4_4,)
 	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-44-test)
 test_web_symfony_50: global_test_run_dependencies
@@ -1265,22 +1273,21 @@ test_web_symfony_50: global_test_run_dependencies
 	php tests/Frameworks/Symfony/Version_5_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V5_0)
 test_web_symfony_51: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_1 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_5_1,)
 	php tests/Frameworks/Symfony/Version_5_1/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V5_1)
 test_web_symfony_52: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_2 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_5_2,)
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-52-test)
 test_web_symfony_62: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_6_2 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_6_2,)
 	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-62-test)
 test_web_symfony_70: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_7_0 update
+	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_7_0,)
 	php tests/Frameworks/Symfony/Version_7_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-70-test)
-
 test_web_wordpress_48: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/WordPress/V4_8)
 test_web_wordpress_55: global_test_run_dependencies
@@ -1290,26 +1297,26 @@ test_web_wordpress_59: global_test_run_dependencies
 test_web_wordpress_61: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/WordPress/V6_1)
 test_web_yii_2: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0 update
+	$(call run_composer_with_retry,tests/Frameworks/Yii/Version_2_0,)
 	$(call run_tests_debug,tests/Integrations/Yii/V2_0)
 test_web_magento_23: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Magento/Version_2_3 update
+	$(call run_composer_with_retry,tests/Frameworks/Magento/Version_2_3,)
 	$(call run_tests_debug,tests/Integrations/Magento/V2_3)
 test_web_magento_24: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Magento/Version_2_4 update
+	$(call run_composer_with_retry,tests/Frameworks/Magento/Version_2_4,)
 	$(call run_tests_debug,tests/Integrations/Magento/V2_4)
 test_web_nette_24: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Nette/Version_2_4 update
+	$(call run_composer_with_retry,tests/Frameworks/Nette/Version_2_4,)
 	$(call run_tests_debug,tests/Integrations/Nette/V2_4)
 test_web_nette_30: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Nette/Version_3_0 update
+	$(call run_composer_with_retry,tests/Frameworks/Nette/Version_3_0,)
 	$(call run_tests_debug,tests/Integrations/Nette/V3_0)
 test_web_zend_1: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/ZendFramework/V1)
 test_web_zend_1_21: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/ZendFramework/V1_21)
 test_web_custom: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Custom/Version_Autoloaded update
+	$(call run_composer_with_retry,tests/Frameworks/Custom/Version_Autoloaded,)
 	$(call run_tests_debug,--testsuite=custom-framework-autoloading-test)
 
 test_scenario_%:
