@@ -10,7 +10,7 @@ DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_GENERATE_ROOT_SPAN=0
 HTTP_TRACEPARENT=00-00000012345678907890123456789012-1234567890123456-00
 HTTP_TRACESTATE=foo=1,dd=s:1;t.dm:-0;t.usr.id:baz64~~;t.url:http://localhost
-DD_PROPAGATION_STYLE=tracecontext,Datadog
+DD_PROPAGATION_STYLE=datadog,tracecontext
 --FILE--
 <?php
 include 'curl_helper.inc';
