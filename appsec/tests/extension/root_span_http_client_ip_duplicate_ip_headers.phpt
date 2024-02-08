@@ -12,6 +12,8 @@ HTTP_FORWARDED=for="foo"
 HTTP_VIA=HTTP/1.1 GWA
 HTTP_TRUE_CLIENT_IP=7.7.7.11
 REMOTE_ADDR=7.7.7.12
+--INI--
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\add_all_ancillary_tags;

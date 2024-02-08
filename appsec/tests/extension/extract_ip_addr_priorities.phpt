@@ -2,6 +2,7 @@
 Extract client IP address (priorites)
 --INI--
 datadog.appsec.log_level=info
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\extract_ip_addr;

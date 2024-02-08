@@ -1,5 +1,7 @@
 --TEST--
 http.client_ip is generated when not already done so
+--INI--
+extension=ddtrace.so
 --ENV--
 HTTP_X_FORWARDED_FOR=7.7.7.7
 --FILE--

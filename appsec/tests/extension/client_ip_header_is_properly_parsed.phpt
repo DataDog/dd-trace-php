@@ -1,5 +1,7 @@
 --TEST--
 Client ip header is properly parsed
+--INI--
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\extract_ip_addr;

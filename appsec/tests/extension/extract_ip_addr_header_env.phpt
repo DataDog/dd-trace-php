@@ -4,6 +4,7 @@ Extract client IP address (ip env set)
 DD_TRACE_CLIENT_IP_HEADER=foo-Bar
 --INI--
 datadog.appsec.log_level=info
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\extract_ip_addr;

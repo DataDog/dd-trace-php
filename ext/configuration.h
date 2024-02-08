@@ -176,7 +176,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_VERSION, "", .ini_change = ddtrace_alter_dd_version)                                     \
     CONFIG(STRING, DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP, DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP_DEFAULT) \
     CONFIG(BOOL, DD_TRACE_CLIENT_IP_ENABLED, "false")                                                          \
-    CONFIG(STRING, DD_TRACE_CLIENT_IP_HEADER, "")                                                              \
+    CONFIG(CUSTOM(STRING), DD_TRACE_CLIENT_IP_HEADER, "", .parser = ddtrace_parse_client_ip_header_config)                                 \
     CONFIG(BOOL, DD_TRACE_FORKED_PROCESS, "true")                                                              \
     CONFIG(INT, DD_TRACE_HOOK_LIMIT, "100")                                                                    \
     CONFIG(INT, DD_TRACE_AGENT_MAX_PAYLOAD_SIZE, "52428800", .ini_change = zai_config_system_ini_change)       \

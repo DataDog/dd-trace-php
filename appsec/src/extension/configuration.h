@@ -53,7 +53,6 @@ extern bool runtime_config_first_init;
     CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                                       \
     CONFIG(STRING, DD_ENV, "")                                                                                                        \
     CONFIG(STRING, DD_VERSION, "")                                                                                                    \
-    CONFIG(CUSTOM(STRING), DD_TRACE_CLIENT_IP_HEADER, "", .parser = dd_parse_client_ip_header_config)                                 \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true")                                                                                    \
     CONFIG(CUSTOM(uint32_t), DD_REMOTE_CONFIG_POLL_INTERVAL, "1000", .parser = _parse_uint32)                                         \
     CONFIG(STRING, DD_AGENT_HOST, "")                                                                                                 \

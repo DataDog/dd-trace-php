@@ -3,6 +3,7 @@ Extract client IP address (ip ini set)
 --INI--
 datadog.trace.client_ip_header=foo-Bar
 datadog.appsec.log_level=info
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\extract_ip_addr;

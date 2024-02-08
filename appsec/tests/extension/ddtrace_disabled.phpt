@@ -11,4 +11,5 @@ DD_APPSEC_ENABLED=1
 var_dump(\datadog\appsec\is_enabled());
 ?>
 --EXPECTF--
+Warning: PHP Startup: [ddappsec] Failed to load ddtrace_ip_extraction_find: %s undefined symbol: ddtrace_ip_extraction_find in Unknown on line %d
 bool(false)

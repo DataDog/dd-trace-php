@@ -10,6 +10,8 @@ HTTP_FORWARDED_FOR=7.7.7.10,10.0.0.1
 REMOTE_ADDR=7.7.7.12
 HTTP_FOO_BAR=1.2.3.4
 DD_TRACE_CLIENT_IP_HEADER=foo-Bar
+--INI--
+extension=ddtrace.so
 --FILE--
 <?php
 

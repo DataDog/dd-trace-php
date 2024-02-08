@@ -2,6 +2,7 @@
 Extract client IP address (no ip header set)
 --INI--
 datadog.appsec.log_level=info
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\extract_ip_addr;
@@ -129,8 +130,6 @@ x_forwarded_for: [2001::1]:1111
 string(7) "2001::1"
 
 x_forwarded_for: bad_value, 1.1.1.1
-
-Notice: datadog\appsec\testing\extract_ip_addr(): [ddappsec] Not recognized as IP address: "bad_value" in %s on line %d
 string(7) "1.1.1.1"
 
 x_real_ip: 2.2.2.2
@@ -194,16 +193,12 @@ x_forwarded: for="2001:abcf::1"
 string(12) "2001:abcf::1"
 
 x_forwarded: for=some_host
-
-Notice: datadog\appsec\testing\extract_ip_addr(): [ddappsec] Not recognized as IP address: "some_host" in %s on line %d
 NULL
 
 x_forwarded: for=127.0.0.1, FOR=1.1.1.1
 string(7) "1.1.1.1"
 
 x_forwarded: for="\"foobar";proto=http,FOR="1.1.1.1"
-
-Notice: datadog\appsec\testing\extract_ip_addr(): [ddappsec] Not recognized as IP address: "\"foobar" in %s on line %d
 string(7) "1.1.1.1"
 
 x_forwarded: for="8.8.8.8:2222",
