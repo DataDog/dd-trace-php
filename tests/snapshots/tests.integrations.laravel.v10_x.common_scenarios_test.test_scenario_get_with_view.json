@@ -5,10 +5,11 @@
     "resource": "App\\Http\\Controllers\\CommonSpecsController@simple_view unnamed_route",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 317046915637618955,
+    "parent_id": 6813548852942110211,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
+      "_dd.p.tid": "65c4f3a600000000",
       "component": "laravel",
       "http.method": "GET",
       "http.route": "simple_view",
@@ -16,7 +17,7 @@
       "http.url": "http://localhost:9999/simple_view?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple_view",
       "laravel.route.name": "unnamed_route",
-      "runtime-id": "eea35813-af37-4c9a-9e17-f960bf660b54",
+      "runtime-id": "9aa7572a-b652-4cc5-8a09-d4ae1150d865",
       "span.kind": "server"
     },
     "metrics": {
@@ -170,7 +171,7 @@
      {
        "name": "laravel.event.handle",
        "service": "my_service",
-       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\BootProviders",
+       "resource": "Illuminate\\Database\\Events\\ConnectionEstablished",
        "trace_id": 0,
        "span_id": 14,
        "parent_id": 1,
@@ -182,7 +183,7 @@
      {
        "name": "laravel.event.handle",
        "service": "my_service",
-       "resource": "Illuminate\\Routing\\Events\\Routing",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\BootProviders",
        "trace_id": 0,
        "span_id": 15,
        "parent_id": 1,
@@ -194,9 +195,21 @@
      {
        "name": "laravel.event.handle",
        "service": "my_service",
-       "resource": "Illuminate\\Routing\\Events\\RouteMatched",
+       "resource": "Illuminate\\Routing\\Events\\Routing",
        "trace_id": 0,
        "span_id": 16,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Routing\\Events\\RouteMatched",
+       "trace_id": 0,
+       "span_id": 17,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -208,7 +221,7 @@
        "service": "my_service",
        "resource": "simple_view",
        "trace_id": 0,
-       "span_id": 17,
+       "span_id": 18,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -220,8 +233,8 @@
           "service": "my_service",
           "resource": "creating: simple_view",
           "trace_id": 0,
-          "span_id": 24,
-          "parent_id": 17,
+          "span_id": 25,
+          "parent_id": 18,
           "type": "web",
           "meta": {
             "component": "laravel"
@@ -232,7 +245,7 @@
        "service": "my_service",
        "resource": "Illuminate\\Routing\\Events\\PreparingResponse",
        "trace_id": 0,
-       "span_id": 18,
+       "span_id": 19,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -244,7 +257,7 @@
        "service": "my_service",
        "resource": "simple_view",
        "trace_id": 0,
-       "span_id": 19,
+       "span_id": 20,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -256,8 +269,8 @@
           "service": "my_service",
           "resource": "composing: simple_view",
           "trace_id": 0,
-          "span_id": 25,
-          "parent_id": 19,
+          "span_id": 26,
+          "parent_id": 20,
           "type": "web",
           "meta": {
             "component": "laravel"
@@ -268,8 +281,8 @@
           "service": "my_service",
           "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_10_x/resources/views/simple_view.blade.php",
           "trace_id": 0,
-          "span_id": 26,
-          "parent_id": 19,
+          "span_id": 27,
+          "parent_id": 20,
           "type": "web",
           "meta": {
             "component": "laravel"
@@ -279,18 +292,6 @@
        "name": "laravel.event.handle",
        "service": "my_service",
        "resource": "Illuminate\\Routing\\Events\\ResponsePrepared",
-       "trace_id": 0,
-       "span_id": 20,
-       "parent_id": 1,
-       "type": "web",
-       "meta": {
-         "component": "laravel"
-       }
-     },
-     {
-       "name": "laravel.event.handle",
-       "service": "my_service",
-       "resource": "Illuminate\\Routing\\Events\\PreparingResponse",
        "trace_id": 0,
        "span_id": 21,
        "parent_id": 1,
@@ -302,7 +303,7 @@
      {
        "name": "laravel.event.handle",
        "service": "my_service",
-       "resource": "Illuminate\\Routing\\Events\\ResponsePrepared",
+       "resource": "Illuminate\\Routing\\Events\\PreparingResponse",
        "trace_id": 0,
        "span_id": 22,
        "parent_id": 1,
@@ -314,9 +315,21 @@
      {
        "name": "laravel.event.handle",
        "service": "my_service",
-       "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
+       "resource": "Illuminate\\Routing\\Events\\ResponsePrepared",
        "trace_id": 0,
        "span_id": 23,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
+       "trace_id": 0,
+       "span_id": 24,
        "parent_id": 1,
        "type": "web",
        "meta": {
