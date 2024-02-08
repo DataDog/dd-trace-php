@@ -6,7 +6,7 @@ use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\CLITestCase;
 
-class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V8_X\CommonScenariosTest
+class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V9_X\CommonScenariosTest
 {
     protected function getScriptLocation()
     {
@@ -35,6 +35,7 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V8_X\C
                     'laravel.provider.load',
                     'Illuminate\Foundation\ProviderRepository::load'
                 ),
+                SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::exists('laravel.event.handle'),
