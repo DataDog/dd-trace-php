@@ -1188,10 +1188,10 @@ test_web_laminas_rest_19: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Laminas/ApiTools/Version_1_9,)
 	$(call run_tests_debug,tests/Integrations/Laminas/ApiTools/V1_9)
 test_web_laminas_14: global_test_run_dependencies
-	$(call run_composer_with_retry, tests/Frameworks/Laminas/Version_1_4,)
+	$(call run_composer_with_retry,tests/Frameworks/Laminas/Version_1_4,)
 	$(call run_tests_debug,tests/Integrations/Laminas/V1_4)
 test_web_laminas_20: global_test_run_dependencies
-	$(call run_composer_with_retry, tests/Frameworks/Laminas/Version_2_0,)
+	$(call run_composer_with_retry,tests/Frameworks/Laminas/Version_2_0,)
 	$(call run_tests_debug,tests/Integrations/Laminas/V2_0)
 test_web_laravel_42: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_4_2,)
