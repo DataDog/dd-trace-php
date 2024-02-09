@@ -159,7 +159,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/startup_logging.c \
     ext/telemetry.c \
     ext/tracer_tag_propagation/tracer_tag_propagation.c \
-	ext/user_request.c \
+    ext/user_request.c \
     ext/hook/uhook.c \
     ext/hook/uhook_legacy.c \
   "
@@ -222,6 +222,8 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE([$ext_srcdir])
   PHP_ADD_INCLUDE([$ext_srcdir/ext])
 
+  PHP_ADD_BUILD_DIR([$ext_builddir/components-rs])
+
   PHP_ADD_BUILD_DIR([$ext_builddir/components])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/container_id])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/log])
@@ -277,20 +279,23 @@ if test "$PHP_DDTRACE" != "no"; then
   dnl consider it debug if -g is specified (but not -g0)
   ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)
 
+  cat <<EOT >> Makefile.fragments
+\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | xargs )
+	(cd "$ext_srcdir/components-rs"; CARGO_TARGET_DIR=\$(builddir)/target/ RUSTFLAGS="${RUSTFLAGS:-} --cfg tokio_unstable $(test -z "${host_os##linux*}" && echo "--cfg tokio_taskdump") $(test "$ext_shared" = "yes" && echo "--cfg php_shared_build")" RUSTC_BOOTSTRAP=1 \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") && test "$PHP_DDTRACE_RUST_SYMBOLS" == yes || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
+EOT
+
   if test "$ext_shared" = "yes"; then
     all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
-    all_object_files_newlines=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf '\\n$(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
+    all_object_files_absolute=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' $(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
     php_binary=$("$PHP_CONFIG" --php-binary)
-    ddtrace_mock_sources='DD_SIDECAR_MOCK_SOURCES="$$(printf "'"$php_binary$all_object_files_newlines"'")"'
-  else
-    all_object_files=
-    ddtrace_mock_sources=
-  fi
+    cat <<EOT >> Makefile.fragments
 
-  cat <<EOT >> Makefile.fragments
-\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a: $( (find "$ext_srcdir/components-rs" -name "*.c" -o -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*"; echo "$all_object_files" ) 2>/dev/null | xargs )
-	(cd "$ext_srcdir/components-rs"; $ddtrace_mock_sources CARGO_TARGET_DIR=\$(builddir)/target/ RUSTFLAGS="${RUSTFLAGS:-} --cfg tokio_unstable $([[ $host_os == linux* ]] && echo "--cfg tokio_taskdump")" RUSTC_BOOTSTRAP=1 \$(DDTRACE_CARGO) build $(test "$ddtrace_cargo_profile" == debug || echo --profile tracer-release) \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") && test "$PHP_DDTRACE_RUST_SYMBOLS" == yes || strip -d \$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a)
+/\$(builddir)/components-rs/mock_php.c: $all_object_files
+	(cd "$ext_srcdir/components-rs"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) run --manifest-path=$ext_srcdir/components-rs/php_sidecar_mockgen/Cargo.toml -p php_sidecar_mockgen \$(builddir)/components-rs/mock_php.c $php_binary $all_object_files_absolute)
 EOT
+
+    PHP_ADD_SOURCES_X("/$ext_dir", "\$(builddir)/components-rs/mock_php.c", $ac_extra, shared_objects_ddtrace, yes)
+  fi
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then
     shared_objects_ddtrace="\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a $shared_objects_ddtrace"
