@@ -39,7 +39,7 @@ class AutomatedLoginEventsTest extends AppsecTestCase
         $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
     }
 
-    public function testUserLoginSuccessEvent()
+    public function testLoggedInCalls()
     {
         $id = 1234;
         $name = 'someName';

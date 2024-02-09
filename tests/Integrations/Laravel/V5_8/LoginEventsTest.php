@@ -56,7 +56,7 @@ class AutomatedLoginEventsTest extends AppsecTestCase
         $this->assertTrue($events[0]['automated']);
         $this->assertEquals('track_user_login_success_event', $events[0]['eventName']);
     }
-    public function testUserLoginSuccessEvent()
+    public function testLoggedInCalls()
     {
         $id = 1234;
         $name = 'someName';
