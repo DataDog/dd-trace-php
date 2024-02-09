@@ -474,6 +474,7 @@ ZEND_TLS bool dd_is_main_thread = false;
 static void dd_run_rust_thread_destructors(void *unused) {
     UNUSED(unused);
     struct dd_rust_thread_destructor *entry = dd_rust_thread_destructors;
+    dd_rust_thread_destructors = NULL; // destructors _may_ be invoked multiple times. We need to reset thus.
     while (entry) {
         struct dd_rust_thread_destructor *cur = entry;
         cur->dtor(cur->obj);
@@ -514,7 +515,7 @@ static pthread_key_t dd_cxa_thread_atexit_key; // fallback for sidecar
 // Note: this symbol is not public
 int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) {
     if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNINITIALIZED) {
-        glibc__cxa_thread_atexit_impl = DL_FETCH_SYMBOL(NULL, "__cxa_thread_atexit_impl");
+        glibc__cxa_thread_atexit_impl = DL_FETCH_SYMBOL(RTLD_DEFAULT, "__cxa_thread_atexit_impl");
         if (glibc__cxa_thread_atexit_impl == NULL) {
             // no race condition here: logging is initialized in MINIT, at which point only a single thread lives
             glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_UNAVAILABLE;
