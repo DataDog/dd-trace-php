@@ -226,7 +226,7 @@ bool dd_config_minit(int module_number)
     // places wishing to use values pre-RINIT do have to explicitly opt in by
     // using the arduous way of accessing the decoded_value directly from
     // zai_config_memoized_entries.
-    zai_config_first_time_rinit();
+    zai_config_first_time_rinit(false);
 #ifdef TESTING
     _register_testing_objects();
 #endif
@@ -236,7 +236,7 @@ bool dd_config_minit(int module_number)
 
 void dd_config_first_rinit()
 {
-    zai_config_first_time_rinit();
+    zai_config_first_time_rinit(true);
     zai_config_rinit();
 
     runtime_config_first_init = true;

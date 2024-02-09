@@ -164,6 +164,10 @@ void zai_json_release_persistent_array(HashTable *ht) {
 void zai_json_dtor_pzval(zval *pval) {
     if (Z_TYPE_P(pval) == IS_ARRAY) {
         zai_json_release_persistent_array(Z_ARR_P(pval));
+#if PHP_VERSION_ID >= 70200
+    } else if (Z_TYPE_P(pval) == IS_STRING && ZSTR_IS_INTERNED(Z_STR_P(pval))) {
+        // nothing
+#endif
     } else {
         zval_internal_ptr_dtor(pval);
     }

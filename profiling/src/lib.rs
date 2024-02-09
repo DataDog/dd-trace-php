@@ -399,7 +399,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
     // SAFETY: not being mutated during rinit.
     unsafe { &ZAI_CONFIG_ONCE }.call_once(|| unsafe {
-        bindings::zai_config_first_time_rinit();
+        bindings::zai_config_first_time_rinit(true);
         config::first_rinit();
     });
 
