@@ -981,6 +981,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     atexit(dd_clean_main_thread_locals);
 #endif
 
+    // Reset on every minit for `apachectl graceful`.
+    dd_activate_once_control = PTHREAD_ONCE_INIT;
+
     zai_hook_minit();
     zai_uhook_minit(module_number);
 #if PHP_VERSION_ID >= 80000
@@ -1149,7 +1152,7 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
 
-    // Things that should only run on the first RINIT
+    // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
     if (!DDTRACE_G(remote_config_reader)) {

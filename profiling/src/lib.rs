@@ -290,6 +290,17 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_minit();
 
+    // There are a few things which need to do something on the first rinit of
+    // each minit/mshutdown cycle. In Apache, when doing `apachectl graceful`,
+    // there can be more than one of these cycles per process.
+    // Re-initializing these on each minit allows us to do it once per cycle.
+    // This is unsafe generally, but all SAPIs are supposed to only have one
+    // thread alive during minit, so it should be safe here specifically.
+    unsafe {
+        ZAI_CONFIG_ONCE = Once::new();
+        RINIT_ONCE = Once::new();
+    }
+
     ZendResult::Success
 }
 
@@ -374,6 +385,11 @@ extern "C" fn activate() {
     unsafe { profiling::activate_run_time_cache() };
 }
 
+/// The mut here is *only* for resetting this back to uninitialized each minit.
+static mut ZAI_CONFIG_ONCE: Once = Once::new();
+/// The mut here is *only* for resetting this back to uninitialized each minit.
+static mut RINIT_ONCE: Once = Once::new();
+
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
  * using it for catastrophic errors only.
  */
@@ -381,8 +397,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RINIT({_type}, {_module_number})");
 
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| unsafe {
+    // SAFETY: not being mutated during rinit.
+    unsafe { &ZAI_CONFIG_ONCE }.call_once(|| unsafe {
         bindings::zai_config_first_time_rinit();
         config::first_rinit();
     });
@@ -420,8 +436,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // SAFETY: still safe to access in rinit after first_rinit.
     let system_settings = unsafe { system_settings.as_ref() };
 
-    static ONCE2: Once = Once::new();
-    ONCE2.call_once(|| {
+    unsafe { &RINIT_ONCE }.call_once(|| {
         if system_settings.profiling_enabled {
             /* Safety: sapi_module is initialized by rinit and shouldn't be
              * modified at this point (safe to read values).
