@@ -3035,6 +3035,7 @@ jobs:
                   tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
       - run:
           name: Build packages
+          no_output_timeout: 45m
           command: |
             <<# parameters.asan_build >>export DDTRACE_MAKE_PACKAGES_ASAN=1<</ parameters.asan_build >>
             make packages
