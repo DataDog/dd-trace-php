@@ -257,10 +257,15 @@ aliases:
           git remote set-url origin "$CIRCLE_REPOSITORY_URL" || true
 
           echo 'Fetching from remote repository'
+          retry_count=3
           if [ -n "$CIRCLE_TAG" ]; then
-            git fetch --force --no-recurse-submodules --tags origin
+            for ((i=0; i<$retry_count; i++)); do
+              git fetch --force --no-recurse-submodules --tags origin && break || sleep 1
+            done
           elif [ -z "$CIRCLE_PR_NUMBER" ]; then
-            git fetch --force --no-recurse-submodules origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH"
+            for ((i=0; i<$retry_count; i++)); do
+              git fetch --force --no-recurse-submodules origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH" && break || sleep 1
+            done
           fi
         else
           echo 'Cloning git repository'
