@@ -400,11 +400,41 @@ class LaravelIntegration extends Integration
                     $metadata['email'] = $args[0]['email'];
                 }
 
+                \DDTrace\set_user($args[0]->getAuthIdentifier(), $metadata);
                 \datadog\appsec\track_user_login_success_event(
                     \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
                     $metadata,
                     true
                 );
+            }
+        );
+
+        // Used by Laravel < 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Guard',
+            'user',
+            null,
+            function ($This, $scope, $args, $user) use ($integration) {
+                $authClass = 'Illuminate\Auth\UserInterface';
+                if (
+                    !function_exists('\datadog\appsec\track_user_login_success_event') ||
+                    !isset($user) ||
+                    !$user ||
+                    !($user instanceof $authClass) ||
+                    !\method_exists($user, 'getAuthIdentifier')
+                ) {
+                    return;
+                }
+
+                $metadata = [];
+                if (isset($user['name'])) {
+                    $metadata['name'] = $user['name'];
+                }
+                if (isset($user['email'])) {
+                    $metadata['email'] = $user['email'];
+                }
+
+                \DDTrace\set_user($user->getAuthIdentifier(), $metadata);
             }
         );
 
@@ -443,6 +473,7 @@ class LaravelIntegration extends Integration
             }
         );
 
+        // Used by Laravel >= 5.0
         \DDTrace\hook_method(
             'Illuminate\Auth\Events\Authenticated',
             '__construct',

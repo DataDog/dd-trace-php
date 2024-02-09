@@ -30,4 +30,9 @@ class LoginTestController extends BaseController
 
         return "registered";
     }
+
+    public function behind_auth()
+    {
+        return "page behind auth";
+    }
 }
