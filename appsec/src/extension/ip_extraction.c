@@ -6,42 +6,13 @@
 
 #include "ip_extraction.h"
 #include "configuration.h"
+#include "ddtrace.h"
 #include "logging.h"
 #include "php_objects.h"
 
-static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
 static void _register_testing_objects(void);
 
-void dd_ip_extraction_startup()
-{
-    _register_testing_objects();
-
-    bool testing = get_global_DD_APPSEC_TESTING();
-    void *handle = dlopen(NULL, RTLD_NOW | RTLD_GLOBAL);
-    if (handle == NULL) {
-        if (!testing) {
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            mlog(dd_log_error, "Failed load process symbols: %s", dlerror());
-        }
-        return;
-    }
-
-    _ddtrace_ip_extraction_find = dlsym(handle, "ddtrace_ip_extraction_find");
-    if (_ddtrace_ip_extraction_find == NULL && !testing) {
-        mlog(dd_log_error, "Failed to load ddtrace_ip_extraction_find: %s",
-            dlerror()); // NOLINT(concurrency-mt-unsafe)
-    }
-
-    dlclose(handle);
-}
-
-zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
-{
-    if (!_ddtrace_ip_extraction_find) {
-        return NULL;
-    }
-    return _ddtrace_ip_extraction_find(server);
-}
+void dd_ip_extraction_startup() { _register_testing_objects(); }
 
 static PHP_FUNCTION(datadog_appsec_testing_extract_ip_addr)
 {

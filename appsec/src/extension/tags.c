@@ -42,7 +42,6 @@
 #define DD_TAG_HTTP_RH_CONTENT_LANGUAGE "http.response.headers.content-language"
 #define DD_TAG_HTTP_CLIENT_IP "http.client_ip"
 #define DD_TAG_USER_ID "usr.id"
-#define DD_MULTIPLE_BASIC_HEADERS "_dd.multiple-ip-headers"
 #define DD_METRIC_ENABLED "_dd.appsec.enabled"
 #define DD_APPSEC_EVENTS_PREFIX "appsec.events."
 #define DD_SIGNUP_EVENT DD_APPSEC_EVENTS_PREFIX "users.signup"
@@ -87,7 +86,6 @@ static zend_string *_dd_tag_rh_content_type;     // response
 static zend_string *_dd_tag_rh_content_encoding; // response
 static zend_string *_dd_tag_rh_content_language; // response
 static zend_string *_dd_tag_user_id;
-static zend_string *_dd_multiple_ip_headers;
 static zend_string *_dd_metric_enabled;
 static zend_string *_dd_signup_event;
 static zend_string *_dd_login_success_event;
@@ -171,8 +169,6 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LANGUAGE), 1);
     _dd_tag_user_id = zend_string_init_interned(LSTRARG(DD_TAG_USER_ID), 1);
 
-    _dd_multiple_ip_headers =
-        zend_string_init_interned(LSTRARG(DD_MULTIPLE_BASIC_HEADERS), 1);
     _dd_metric_enabled =
         zend_string_init_interned(LSTRARG(DD_METRIC_ENABLED), 1);
 
@@ -246,20 +242,20 @@ static void _init_relevant_headers()
         &_relevant_basic_headers, str "", sizeof(str) - 1, &nullzv);           \
     ADD_RELEVANT_HEADER(str)
 
-    ADD_RELEVANT_BASIC_HEADER("x-forwarded-for");
-    ADD_RELEVANT_BASIC_HEADER("x-client-ip");
-    ADD_RELEVANT_BASIC_HEADER("x-real-ip");
-    ADD_RELEVANT_BASIC_HEADER("x-forwarded");
-    ADD_RELEVANT_BASIC_HEADER("x-cluster-client-ip");
-    ADD_RELEVANT_BASIC_HEADER("forwarded-for");
-    ADD_RELEVANT_BASIC_HEADER("forwarded");
-    ADD_RELEVANT_BASIC_HEADER("via");
-    ADD_RELEVANT_BASIC_HEADER("true-client-ip");
-    ADD_RELEVANT_BASIC_HEADER("fastly-client-ip");
-    ADD_RELEVANT_BASIC_HEADER("cf-connecting-ip");
-    ADD_RELEVANT_BASIC_HEADER("cf-connecting-ipv6");
     ADD_RELEVANT_BASIC_HEADER("x-amzn-trace-id");
 
+    ADD_RELEVANT_HEADER("x-forwarded-for");
+    ADD_RELEVANT_HEADER("x-client-ip");
+    ADD_RELEVANT_HEADER("x-real-ip");
+    ADD_RELEVANT_HEADER("x-forwarded");
+    ADD_RELEVANT_HEADER("x-cluster-client-ip");
+    ADD_RELEVANT_HEADER("forwarded-for");
+    ADD_RELEVANT_HEADER("forwarded");
+    ADD_RELEVANT_HEADER("via");
+    ADD_RELEVANT_HEADER("true-client-ip");
+    ADD_RELEVANT_HEADER("fastly-client-ip");
+    ADD_RELEVANT_HEADER("cf-connecting-ip");
+    ADD_RELEVANT_HEADER("cf-connecting-ipv6");
     ADD_RELEVANT_HEADER("content-length");
     ADD_RELEVANT_HEADER("content-type");
     ADD_RELEVANT_HEADER("content-encoding");
@@ -649,8 +645,7 @@ static void _dd_http_network_client_ip(
 
 static void _dd_http_client_ip(zend_array *meta_ht)
 {
-    if (zend_hash_exists(meta_ht, _dd_tag_http_client_ip_zstr) ||
-        zend_hash_exists(meta_ht, _dd_multiple_ip_headers)) {
+    if (zend_hash_exists(meta_ht, _dd_tag_http_client_ip_zstr)) {
         return;
     }
     zend_string *client_ip = dd_req_lifecycle_get_client_ip();

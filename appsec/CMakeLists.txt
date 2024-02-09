@@ -28,6 +28,7 @@ option(DD_APPSEC_BUILD_HELPER "Whether to builder the helper" ON)
 option(DD_APPSEC_BUILD_EXTENSION "Whether to builder the extension" ON)
 option(DD_APPSEC_ENABLE_COVERAGE "Whether to enable coverage calculation" OFF)
 option(DD_APPSEC_TESTING "Whether to enable testing" ON)
+option(DD_APPSEC_DDTRACE_ALT "Whether to build appsec with cmake" OFF)
 
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
 

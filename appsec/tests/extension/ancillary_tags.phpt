@@ -101,14 +101,5 @@ Array
 Array
 (
     [http.client_ip] => 7.7.7.6
-    [http.request.headers.forwarded] => for="foo"
-    [http.request.headers.forwarded-for] => 7.7.7.10,10.0.0.1
-    [http.request.headers.true-client-ip] => 7.7.7.11
-    [http.request.headers.via] => HTTP/1.1 GWA
     [http.request.headers.x-amzn-trace-id] => amazontraceid
-    [http.request.headers.x-client-ip] => 7.7.7.7
-    [http.request.headers.x-cluster-client-ip] => 7.7.7.9
-    [http.request.headers.x-forwarded] => for="foo"
-    [http.request.headers.x-forwarded-for] => 7.7.7.6,10.0.0.1
-    [http.request.headers.x-real-ip] => 7.7.7.8
 )
