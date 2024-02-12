@@ -435,7 +435,6 @@ class LaravelIntegration extends Integration
             function ($This, $scope, $args, $user) use ($integration) {
                 $authClass = 'Illuminate\Auth\UserInterface';
                 if (
-                    !function_exists('\datadog\appsec\track_user_login_success_event') ||
                     !isset($user) ||
                     !$user ||
                     !($user instanceof $authClass) ||
