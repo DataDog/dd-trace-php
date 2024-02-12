@@ -142,11 +142,12 @@ void zai_config_runtime_config_dtor(void);
 
 #if PHP_VERSION_ID < 70300
 #define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
+#define GC_ADDREF(p) ++GC_REFCOUNT(p)
 #endif
 
 static void zai_config_intern_zval(zval *pzval) {
     if (Z_TYPE_P(pzval) == IS_STRING) {
-#if PHP_VERSION_ID >= 70200
+#if PHP_VERSION_ID >= 70400
         ZVAL_INTERNED_STR(pzval, zend_new_interned_string(Z_STR_P(pzval)));
 #else
         GC_ADD_FLAGS(Z_STR_P(pzval), IS_STR_INTERNED);
@@ -154,7 +155,7 @@ static void zai_config_intern_zval(zval *pzval) {
 #endif
     }
     if (Z_TYPE_P(pzval) == IS_ARRAY) {
-        Z_ADDREF_P(pzval);
+        GC_ADDREF(Z_ARR_P(pzval));
         GC_ADD_FLAGS(Z_ARR_P(pzval), IS_ARRAY_IMMUTABLE);
 #if PHP_VERSION_ID < 70200
         Z_TYPE_FLAGS_P(pzval) = IS_TYPE_IMMUTABLE;
@@ -176,7 +177,7 @@ static void zai_config_intern_zval(zval *pzval) {
         Bucket *bucket;
             ZEND_HASH_FOREACH_BUCKET(Z_ARR_P(pzval), bucket) {
                 if (bucket->key) {
-#if PHP_VERSION_ID >= 70200
+#if PHP_VERSION_ID >= 70400
                     bucket->key = zend_new_interned_string(bucket->key);
 #else
                     GC_ADD_FLAGS(bucket->key, IS_STR_INTERNED);
@@ -189,7 +190,7 @@ static void zai_config_intern_zval(zval *pzval) {
 }
 
 void zai_config_first_time_rinit(bool in_request) {
-#if PHP_VERSION_ID >= 70200
+#if PHP_VERSION_ID >= 70400
     if (in_request) {
         zend_interned_strings_switch_storage(0);
     }
@@ -203,7 +204,7 @@ void zai_config_first_time_rinit(bool in_request) {
         }
     }
 
-#if PHP_VERSION_ID >= 70200
+#if PHP_VERSION_ID >= 70400
     if (in_request) {
         zend_interned_strings_switch_storage(1);
     }
