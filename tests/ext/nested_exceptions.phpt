@@ -45,7 +45,7 @@ array(1) {
       ["error.type"]=>
       string(16) "RuntimeException"
       ["error.stack"]=>
-      string(299) "#0 {main}
+      string(%d) "#0 {main}
 
 Next LogicException: An error message in %s:%d
 Stack trace:
