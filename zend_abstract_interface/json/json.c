@@ -150,10 +150,11 @@ void zai_json_shutdown_bindings(void) {
 }
 
 void zai_json_release_persistent_array(HashTable *ht) {
+    uint32_t immutable = (GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) != 0;
 #if PHP_VERSION_ID < 70300
-    if (--GC_REFCOUNT(ht) == 0)
+    if (--GC_REFCOUNT(ht) == immutable)
 #else
-    if (GC_DELREF(ht) == 0)
+    if (GC_DELREF(ht) == immutable)
 #endif
     {
         zend_hash_destroy(ht);

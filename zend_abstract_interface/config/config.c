@@ -154,8 +154,15 @@ static void zai_config_intern_zval(zval *pzval) {
 #endif
     }
     if (Z_TYPE_P(pzval) == IS_ARRAY) {
+        Z_ADDREF_P(pzval);
         GC_ADD_FLAGS(Z_ARR_P(pzval), IS_ARRAY_IMMUTABLE);
-        Z_TYPE_FLAGS_P(pzval) = IS_ARRAY_IMMUTABLE;
+#if PHP_VERSION_ID < 70200
+        Z_TYPE_FLAGS_P(pzval) = IS_TYPE_IMMUTABLE;
+#elif PHP_VERSION_ID < 70300
+        Z_TYPE_FLAGS_P(pzval) = IS_TYPE_COPYABLE;
+#else
+        Z_TYPE_FLAGS_P(pzval) = 0;
+#endif
 
 #if PHP_VERSION_ID >= 80200
         if (HT_IS_PACKED(Z_ARR_P(pzval))) {
