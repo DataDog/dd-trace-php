@@ -550,6 +550,7 @@ commands:
             cargo build --release
             cd -
             cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${prefix}/datadog-profiling.so"
+            objcopy --compress-debug-sections "${prefix}/datadog-profiling.so"
       - run:
           name: Build Profiler ZTS
           command: |
@@ -568,6 +569,7 @@ commands:
             cargo build --release
             cd -
             cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${prefix}/datadog-profiling-zts.so"
+            objcopy --compress-debug-sections "${prefix}/datadog-profiling-zts.so"
 
 executors:
   with_agent:
@@ -756,7 +758,7 @@ jobs:
           name: Run unit tests with xdebug
           command: |
             if [[ "<<parameters.xdebug_version_one>>" != "2.7.2" ]]; then
-              TEST_EXTRA_INI='-d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so' make test_unit RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
+              TEST_EXTRA_INI='-d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
             fi
       - <<: *STEP_STORE_TEST_RESULTS
 
@@ -801,7 +803,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            make << parameters.make_target >> RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
             rm -rf tmp/build_extension/tests/opcache/file_cache/* || true
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
@@ -851,7 +853,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            DD_TRACE_SIDECAR_TRACE_SENDER=1 make test_c RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            DD_TRACE_SIDECAR_TRACE_SENDER=1 make test_c RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -897,7 +899,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            make test_c_observer RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            make test_c_observer RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -954,7 +956,7 @@ jobs:
               -e PHP_VARIANT=<< parameters.switch_php_version >> \
               -e PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" \
               << parameters.php_major_minor >>-buster-arm64 \
-                ./tooling/bin/run-in-docker-with-ext.sh make fix_socket_permissions << parameters.make_target >> RUST_DEBUG_SYMBOLS=1
+                ./tooling/bin/run-in-docker-with-ext.sh make fix_socket_permissions << parameters.make_target >> RUST_DEBUG_BUILD=1
       # - <<: *STEP_COMPOSER_TESTS_UPDATE
       # - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       # - <<: *STEP_EXPORT_CI_ENV
@@ -1009,7 +1011,7 @@ jobs:
           command: |
             set -euo pipefail
             if [[ << parameters.switch_php_version >> == *asan* ]]; then export TEST_PHP_JUNIT=$(pwd)/asan-extension-test.xml; fi
-            make << parameters.make_target >> RUST_DEBUG_SYMBOLS=1 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            make << parameters.make_target >> RUST_DEBUG_BUILD=1 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - when:
           # codecov uploader only on amd64
           condition:
@@ -1565,7 +1567,7 @@ jobs:
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run tests
-          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - when:
           # codecov uploader only on amd64
           condition:
@@ -1737,7 +1739,7 @@ jobs:
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run << parameters.integration_testsuite >> integration test
-          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.integration_testsuite >> RUST_DEBUG_SYMBOLS=1
+          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.integration_testsuite >> RUST_DEBUG_BUILD=1
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -1790,7 +1792,7 @@ jobs:
           name: Run << parameters.ext_name >> integration tests with ext/<< parameters.ext_name >> as shared lib + leak detection
           command: |
             make test_extension_ci \
-              RUST_DEBUG_SYMBOLS=1 \
+              RUST_DEBUG_BUILD=1 \
               BUILD_DIR=$(pwd)/tmp/build_extension \
               JUNIT_RESULTS_DIR=$(pwd)/test-results \
               RUN_TESTS_EXTRA_ARGS="-d extension=mbstring.so -d extension=<< parameters.ext_name >>.so" \
@@ -1800,7 +1802,7 @@ jobs:
               for curlVersion in 7.72.0 7.77.0
               do
                 make test_c \
-                  RUST_DEBUG_SYMBOLS=1 \
+                  RUST_DEBUG_BUILD=1 \
                   BUILD_DIR=$(pwd)/tmp/build_extension \
                   JUNIT_RESULTS_DIR=$(pwd)/test-results \
                   RUN_TESTS_EXTRA_ARGS="-d extension=mbstring.so -d extension=<< parameters.ext_name >>-${curlVersion}.so" \
@@ -2646,6 +2648,13 @@ jobs:
             fi
             build-dd-trace-php
             mv extensions extensions_$(uname -m)
+      - run:
+          name: Compress debug info
+          command: |
+            cd extensions_$(uname -m)
+            for FILE in $(find . -name "*.so"); do
+                objcopy --compress-debug-sections $FILE
+            done
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions_*']
@@ -2676,8 +2685,15 @@ jobs:
           command: |
             set -eo pipefail
             switch-php debug-zts-asan
-            make RUST_DEBUG_SYMBOLS=1
+            make RUST_DEBUG_BUILD=1
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-debug-zts.so
+      - run:
+          name: Compress debug info
+          command: |
+            cd extensions_$(uname -m)
+            for FILE in $(find . -name "*.so"); do
+                objcopy --compress-debug-sections $FILE
+            done
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions_*']
@@ -2871,6 +2887,13 @@ jobs:
             switch-php << parameters.php_version >>-zts
             make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-zts.so
+      - run:
+          name: Compress debug info
+          command: |
+            cd extensions_$(uname -m)
+            for FILE in $(find . -name "*.so"); do
+                objcopy --compress-debug-sections $FILE
+            done
       - persist_to_workspace:
           root: '.'
           paths: [ './extensions_*' ]
@@ -2918,6 +2941,13 @@ jobs:
             mkdir -p appsec/build-release-zts ; cd appsec/build-release-zts
             cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
             cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API-zts.so
+      - run:
+          name: Compress debug info
+          command: |
+            cd appsec_$(uname -m)
+            for FILE in $(find . -name "*.so"); do
+                objcopy --compress-debug-sections $FILE
+            done
       - persist_to_workspace:
           root: '.'
           paths: [ './appsec_*' ]
@@ -2949,6 +2979,13 @@ jobs:
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
             cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API-alpine.so
+      - run:
+          name: Compress debug info
+          command: |
+            cd appsec_$(uname -m)
+            for FILE in $(find . -name "*.so"); do
+                objcopy --compress-debug-sections $FILE
+            done
       - persist_to_workspace:
           root: '.'
           paths: [ './appsec_*' ]
@@ -2979,6 +3016,7 @@ jobs:
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_TOOLCHAIN_FILE=$(pwd)/../cmake/Toolchain.$(uname -m).cmake
             make -j $(nproc)
+            objcopy --compress-debug-sections ddappsec-helper
             cp -v ddappsec-helper ../../appsec_$(uname -m)/ddappsec-helper
       - run:
           name: Test

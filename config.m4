@@ -16,9 +16,6 @@ PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
 PHP_ARG_ENABLE(ddtrace-rust-debug, whether to compile rust in debug mode,
   [  --enable-ddtrace-rust-debug Build rust code in debug mode (significantly slower)], [[$($GREP -q "ZEND_DEBUG 1" $("$PHP_CONFIG" --include-dir)/main/php_config.h && echo yes || echo no)]], [no])
 
-PHP_ARG_ENABLE(ddtrace-rust-symbols, whether to keep rust debug symbols,
-  [  --disable-ddtrace-rust-symbols Strip debug symbols from the rust archive (significantly reduces artifact size)], [yes], [no])
-
 if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_SIZEOF([long])
   AC_MSG_CHECKING([for 64-bit platform])
@@ -295,7 +292,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
     cat <<EOT >> Makefile.fragments
 $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | xargs )
-	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO=\$(DDTRACE_CARGO) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") && test "$PHP_DDTRACE_RUST_SYMBOLS" == yes || strip -d $ddtrace_rust_lib)
+	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO=\$(DDTRACE_CARGO) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
 
