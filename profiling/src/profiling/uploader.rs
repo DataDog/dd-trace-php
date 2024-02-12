@@ -83,6 +83,7 @@ impl Uploader {
             None,
             endpoint_counts,
             Self::create_internal_metadata(),
+            None,
             timeout,
         )?;
         debug!("Sending profile to: {agent_endpoint}");
