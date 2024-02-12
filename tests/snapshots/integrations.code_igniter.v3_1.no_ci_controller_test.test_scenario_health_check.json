@@ -1,0 +1,36 @@
+[[
+  {
+    "name": "codeigniter.request",
+    "service": "codeigniter_test_app",
+    "resource": "GET /health_check/ping",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 2339013376397583461,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "65c9efac00000000",
+      "component": "codeigniter",
+      "http.method": "GET",
+      "http.route": "health_check/ping",
+      "http.status_code": "200",
+      "http.url": "http://localhost:9999/health_check/ping",
+      "runtime-id": "7bfd0d33-935d-44b5-adb3-8a3d665d7fc1",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "Health_check.ping",
+       "service": "codeigniter_test_app",
+       "resource": "Health_check.ping",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "codeigniter"
+       }
+     }]]

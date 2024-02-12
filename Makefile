@@ -528,6 +528,7 @@ TEST_WEB_70 := \
 	test_metrics \
 	test_web_cakephp_28 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_laravel_42 \
 	test_web_lumen_52 \
 	test_web_nette_24 \
@@ -572,6 +573,7 @@ TEST_WEB_71 := \
 	test_metrics \
 	test_web_cakephp_28 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_laravel_42 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
@@ -624,6 +626,7 @@ TEST_INTEGRATIONS_72 := \
 TEST_WEB_72 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_laravel_42 \
 	test_web_laravel_57 \
@@ -682,6 +685,7 @@ TEST_INTEGRATIONS_73 :=\
 TEST_WEB_73 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_laminas_14 \
 	test_web_laravel_57 \
@@ -742,6 +746,7 @@ TEST_INTEGRATIONS_74 := \
 TEST_WEB_74 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_drupal_95 \
 	test_web_laminas_14 \
@@ -803,6 +808,7 @@ TEST_INTEGRATIONS_80 := \
 TEST_WEB_80 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_laminas_rest_19 \
 	test_web_laminas_14 \
@@ -850,6 +856,7 @@ TEST_INTEGRATIONS_81 := \
 TEST_WEB_81 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
 	test_web_laminas_rest_19 \
@@ -900,6 +907,7 @@ TEST_INTEGRATIONS_82 := \
 TEST_WEB_82 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
 	test_web_laminas_rest_19 \
@@ -953,6 +961,7 @@ TEST_INTEGRATIONS_83 := \
 TEST_WEB_83 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
@@ -1236,6 +1245,9 @@ test_web_cakephp_28: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
+test_web_codeigniter_31: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/CodeIgniter/Version_3_1 update
+	$(call run_tests_debug,--testsuite=codeigniter-31-test)
 test_web_drupal_89: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_8_9/core,--ignore-platform-reqs)
 	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_8_9,--ignore-platform-reqs)

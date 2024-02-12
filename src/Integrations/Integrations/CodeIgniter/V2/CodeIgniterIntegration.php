@@ -36,7 +36,7 @@ class CodeIgniterIntegration extends Integration
             return Integration::NOT_LOADED;
         }
         $majorVersion = \substr(\CI_VERSION, 0, 2);
-        if ('2.' === $majorVersion) {
+        if ('2.' === $majorVersion || '3.' === $majorVersion) {
             /* After _set_routing has been called the class and method
              * are known, so now we can set up tracing on CodeIgniter.
              */
