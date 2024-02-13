@@ -496,7 +496,9 @@ class LaravelIntegration extends Integration
                     $meta['email'] = $user->email;
                 }
 
-                \DDTrace\set_user($user->getAuthIdentifier(), $meta);
+                if (\method_exists($user, 'getAuthIdentifier')) {
+                    \DDTrace\set_user($user->getAuthIdentifier(), $meta);
+                }
             }
         );
 
