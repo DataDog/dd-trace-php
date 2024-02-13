@@ -1,15 +1,15 @@
 [[
   {
     "name": "laravel.request",
-    "service": "Laravel",
+    "service": "my_service",
     "resource": "App\\Http\\Controllers\\LoginTestController@behind_auth behind_auth",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 15688794040873571021,
+    "parent_id": 17256463194319269184,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "65cb4ba400000000",
+      "_dd.p.tid": "65cb8bb000000000",
       "component": "laravel",
       "http.method": "GET",
       "http.route": "behind_auth",
@@ -17,7 +17,7 @@
       "http.url": "http://localhost:9999/behind_auth",
       "laravel.route.action": "App\\Http\\Controllers\\LoginTestController@behind_auth",
       "laravel.route.name": "behind_auth",
-      "runtime-id": "19c8eda7-6354-40ea-976b-e22ee81ebaba",
+      "runtime-id": "ad339c85-6c83-47c6-a92b-a34d675121ca",
       "span.kind": "server",
       "usr.email": "test-user@email.com",
       "usr.id": "1234",
@@ -29,7 +29,7 @@
   },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
        "trace_id": 0,
        "span_id": 2,
@@ -41,7 +41,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
        "trace_id": 0,
        "span_id": 3,
@@ -53,7 +53,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
        "trace_id": 0,
        "span_id": 4,
@@ -65,7 +65,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
        "trace_id": 0,
        "span_id": 5,
@@ -77,7 +77,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
        "trace_id": 0,
        "span_id": 6,
@@ -89,7 +89,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
        "trace_id": 0,
        "span_id": 7,
@@ -101,7 +101,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
        "trace_id": 0,
        "span_id": 8,
@@ -113,7 +113,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
        "trace_id": 0,
        "span_id": 9,
@@ -125,7 +125,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
        "trace_id": 0,
        "span_id": 10,
@@ -137,7 +137,7 @@
      },
      {
        "name": "laravel.provider.load",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "Illuminate\\Foundation\\ProviderRepository::load",
        "trace_id": 0,
        "span_id": 11,
@@ -149,7 +149,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
        "trace_id": 0,
        "span_id": 12,
@@ -161,7 +161,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\BootProviders",
        "trace_id": 0,
        "span_id": 13,
@@ -173,7 +173,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "Illuminate\\Database\\Events\\ConnectionEstablished",
        "trace_id": 0,
        "span_id": 14,
@@ -185,7 +185,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\BootProviders",
        "trace_id": 0,
        "span_id": 15,
@@ -197,7 +197,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "Illuminate\\Routing\\Events\\Routing",
        "trace_id": 0,
        "span_id": 16,
@@ -209,7 +209,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "Illuminate\\Routing\\Events\\RouteMatched",
        "trace_id": 0,
        "span_id": 17,
@@ -221,7 +221,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "eloquent.booting: App\\Models\\User",
        "trace_id": 0,
        "span_id": 18,
@@ -233,7 +233,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "eloquent.booted: App\\Models\\User",
        "trace_id": 0,
        "span_id": 19,
@@ -245,7 +245,7 @@
      },
      {
        "name": "eloquent.get",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "select * from `users` where `id` = ? limit 1",
        "trace_id": 0,
        "span_id": 20,
@@ -267,7 +267,7 @@
           "parent_id": 20,
           "type": "sql",
           "meta": {
-            "_dd.base_service": "Laravel",
+            "_dd.base_service": "my_service",
             "component": "pdo",
             "db.engine": "mysql",
             "db.name": "test",
@@ -287,7 +287,7 @@
           "parent_id": 20,
           "type": "sql",
           "meta": {
-            "_dd.base_service": "Laravel",
+            "_dd.base_service": "my_service",
             "component": "pdo",
             "db.engine": "mysql",
             "db.name": "test",
@@ -310,7 +310,7 @@
           "parent_id": 20,
           "type": "sql",
           "meta": {
-            "_dd.base_service": "Laravel",
+            "_dd.base_service": "my_service",
             "component": "pdo",
             "db.engine": "mysql",
             "db.name": "test",
@@ -330,7 +330,7 @@
           "parent_id": 20,
           "type": "sql",
           "meta": {
-            "_dd.base_service": "Laravel",
+            "_dd.base_service": "my_service",
             "component": "pdo",
             "db.engine": "mysql",
             "db.name": "test",
@@ -353,7 +353,7 @@
           "parent_id": 20,
           "type": "sql",
           "meta": {
-            "_dd.base_service": "Laravel",
+            "_dd.base_service": "my_service",
             "component": "pdo",
             "db.engine": "mysql",
             "db.name": "test",
@@ -373,7 +373,7 @@
           "parent_id": 20,
           "type": "sql",
           "meta": {
-            "_dd.base_service": "Laravel",
+            "_dd.base_service": "my_service",
             "component": "pdo",
             "db.engine": "mysql",
             "db.name": "test",
@@ -396,7 +396,7 @@
           "parent_id": 20,
           "type": "sql",
           "meta": {
-            "_dd.base_service": "Laravel",
+            "_dd.base_service": "my_service",
             "component": "pdo",
             "db.engine": "mysql",
             "db.name": "test",
@@ -409,7 +409,7 @@
         },
         {
           "name": "laravel.event.handle",
-          "service": "Laravel",
+          "service": "my_service",
           "resource": "Illuminate\\Database\\Events\\StatementPrepared",
           "trace_id": 0,
           "span_id": 31,
@@ -428,7 +428,7 @@
           "parent_id": 20,
           "type": "sql",
           "meta": {
-            "_dd.base_service": "Laravel",
+            "_dd.base_service": "my_service",
             "component": "pdo",
             "db.engine": "mysql",
             "db.name": "test",
@@ -444,7 +444,7 @@
         },
         {
           "name": "laravel.event.handle",
-          "service": "Laravel",
+          "service": "my_service",
           "resource": "Illuminate\\Database\\Events\\QueryExecuted",
           "trace_id": 0,
           "span_id": 33,
@@ -456,7 +456,7 @@
         },
         {
           "name": "laravel.event.handle",
-          "service": "Laravel",
+          "service": "my_service",
           "resource": "eloquent.retrieved: App\\Models\\User",
           "trace_id": 0,
           "span_id": 34,
@@ -468,7 +468,7 @@
         },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "Illuminate\\Auth\\Events\\Authenticated",
        "trace_id": 0,
        "span_id": 21,
@@ -480,7 +480,7 @@
      },
      {
        "name": "laravel.action",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "behind_auth",
        "trace_id": 0,
        "span_id": 22,
@@ -492,7 +492,7 @@
      },
      {
        "name": "laravel.event.handle",
-       "service": "Laravel",
+       "service": "my_service",
        "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
        "trace_id": 0,
        "span_id": 23,
