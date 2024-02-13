@@ -18,6 +18,7 @@ class PHPRedisBench
      * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
+     * @Warmup(2)
      */
     public function benchRedisBaseline()
     {
@@ -31,6 +32,7 @@ class PHPRedisBench
      * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
+     * @Warmup(2)
      */
     public function benchRedisOverhead()
     {
@@ -44,11 +46,8 @@ class PHPRedisBench
             ['auth', 'user'],
             ['ping', null],
             ['echo', 'hey'],
-            ['save', null],
-            ['bgRewriteAOF', null],
-            ['bgSave', null],
-            ['flushAll', null],
-            ['flushDb', null],
+            ['rawCommand', 'PING'],
+            ['isConnected', null]
         ];
 
         foreach ($commands as $command) {
