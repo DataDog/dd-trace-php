@@ -5,16 +5,16 @@
     "resource": "GET /does_not_exist",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 2155811990161977855,
+    "parent_id": 15891769912793541788,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "65cca07200000000",
+      "_dd.p.tid": "65cca19b00000000",
       "component": "laravel",
       "http.method": "GET",
       "http.status_code": "404",
       "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
-      "runtime-id": "82eea6c6-2b40-4641-b1ad-efb032c484eb"
+      "runtime-id": "a7137b36-f8af-49f3-9fe9-06dab9055235"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0

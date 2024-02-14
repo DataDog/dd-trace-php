@@ -8,8 +8,6 @@ use datadog\appsec\AppsecStatus;
 
 class LoginEventsTest extends WebFrameworkTestCase
 {
-    protected $maintainSession = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_9_x/public/index.php';
@@ -82,6 +80,7 @@ class LoginEventsTest extends WebFrameworkTestCase
 
     public function testLoggedInCalls()
     {
+        $this->enableSession();
         $id = 1234;
         $name = 'someName';
         $email = 'test-user@email.com';
@@ -100,6 +99,7 @@ class LoginEventsTest extends WebFrameworkTestCase
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(0, count($events)); //Auth does not generate appsec events
+        $this->disableSession();
     }
 
     public function testUserLoginFailureEvent()
