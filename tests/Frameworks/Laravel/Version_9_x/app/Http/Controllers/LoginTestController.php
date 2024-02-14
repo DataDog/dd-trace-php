@@ -48,7 +48,7 @@ class LoginTestController extends Controller
 
         Auth::login($user);
 
-        return "user created";
+        return redirect('/simple');
     }
 
     public function behind_auth()
