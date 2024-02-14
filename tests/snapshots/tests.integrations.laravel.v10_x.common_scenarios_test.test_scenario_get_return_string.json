@@ -5,11 +5,11 @@
     "resource": "App\\Http\\Controllers\\CommonSpecsController@simple simple_route",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 7827933312769294179,
+    "parent_id": 2613046361148069237,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "65c4f3a100000000",
+      "_dd.p.tid": "65cca05100000000",
       "component": "laravel",
       "http.method": "GET",
       "http.route": "simple",
@@ -17,7 +17,7 @@
       "http.url": "http://localhost:9999/simple?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple",
       "laravel.route.name": "simple_route",
-      "runtime-id": "9aa7572a-b652-4cc5-8a09-d4ae1150d865",
+      "runtime-id": "82eea6c6-2b40-4641-b1ad-efb032c484eb",
       "span.kind": "server"
     },
     "metrics": {
