@@ -64,7 +64,12 @@ class LoginEventsTest extends WebFrameworkTestCase
         $email = 'test-user@email.com';
         $this->createUser($id, $name, $email);
 
-        $this->tracesFromWebRequestSnapshot(function () use ($email) { $this->login($email); });
+        $traces = $this->tracesFromWebRequest(function () use ($email) { $this->login($email); });
+
+        $meta = $traces[0][0]['meta'];
+        $this->assertEquals($id, $meta['usr.id']);
+        $this->assertEquals($name, $meta['usr.name']);
+        $this->assertEquals($email, $meta['usr.email']);
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
@@ -87,9 +92,11 @@ class LoginEventsTest extends WebFrameworkTestCase
 
         //Now we are logged in lets do another call
         AppsecStatus::getInstance()->setDefaults(); //Remove all events
-        $this->tracesFromWebRequestSnapshot(function () {
-            $this->call(GetSpec::create('Behind auth', '/behind_auth'));
-        });
+        $traces = $this->tracesFromWebRequest(function () { $this->call(GetSpec::create('Behind auth', '/behind_auth')); });
+        $meta = $traces[0][0]['meta'];
+        $this->assertEquals($id, $meta['usr.id']);
+        $this->assertEquals($name, $meta['usr.name']);
+        $this->assertEquals($email, $meta['usr.email']);
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(0, count($events)); //Auth does not generate appsec events
