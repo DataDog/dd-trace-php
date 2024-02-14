@@ -30,7 +30,7 @@ class LoginTestController extends Controller
         return response('Invalid credentials', 403);
     }
 
-    public function register(Request $request): RedirectResponse
+    public function register(Request $request)
     {
         $request->validate([
             'name' => ['required'],
