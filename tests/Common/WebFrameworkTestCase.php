@@ -40,8 +40,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             if ($f !== false) {
                 ftruncate($f, 0);
                 fclose($f);
+            } else {
+                $f = fopen($this->cookiesFile, "w");
+                fclose($f);
             }
-            }
+        }
     }
 
     public static function ddSetUpBeforeClass()
