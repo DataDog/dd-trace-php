@@ -82,14 +82,11 @@ class LoginEventsTest extends WebFrameworkTestCase
         $email = 'test-user@email.com';
         $this->createUser($id, $name, $email);
 
-        //First log in
-        $this->login($email);
-
-        //Now we are logged in lets do another call
-        AppsecStatus::getInstance()->setDefaults(); //Remove all events
-        $this->tracesFromWebRequestSnapshot(function () {
+        $this->tracesFromWebRequestSnapshot(function () use ($email) {
+            $this->login($email);
+            AppsecStatus::getInstance()->setDefaults(); //Remove all events
             $this->call(GetSpec::create('Behind auth', '/behind_auth'));
-        });
+        }, ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'], 2);
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(0, count($events)); //Auth does not generate appsec events
