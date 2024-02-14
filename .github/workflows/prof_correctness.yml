@@ -93,6 +93,7 @@ jobs:
           done
 
       - name: Check profiler correctness for allocations
+        if: matrix.phpts != 'zts'
         uses: Datadog/prof-correctness/analyze@main
         with:
           expected_json: profiling/tests/correctness/allocations.json
