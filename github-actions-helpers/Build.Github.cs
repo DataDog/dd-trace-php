@@ -192,8 +192,8 @@ partial class Build
             await client.Issue.Comment.Update(
                 owner: GitHubRepositoryOwner,
                 name: GitHubRepositoryName,
-                commentId: existingComment.Id,
-                markdown);
+                id: existingComment.Id,
+                commentUpdate: markdown);
         }
         else
         {
@@ -201,8 +201,8 @@ partial class Build
             await client.Issue.Comment.Create(
                 owner: GitHubRepositoryOwner,
                 name: GitHubRepositoryName,
-                prNumber,
-                markdown);
+                number: prNumber,
+                newComment: markdown);
         }
     }
 
