@@ -145,8 +145,7 @@ partial class Build
                     markdown.Append("```").AppendLine();
                 }
 
-                await HideCommentsInPullRequest(PullRequestNumber.Value, "## Snapshots difference");
-                await PostCommentToPullRequest(PullRequestNumber.Value, markdown.ToString());
+                await PostOrModifyPullRequestCommand(PullRequestNumber.Value, markdown.ToString());
 
                 void RecordChange(StringBuilder diffsInFile, Dictionary<string, int> diffCounts)
                 {
@@ -177,6 +176,35 @@ partial class Build
                     return cleaned;
                 }
             });
+
+    async Task PostOrModifyPullRequestCommand(int prNumber, string markdown)
+    {
+        var client = GetGitHubClient();
+        var comments = await client.Issue.Comment.GetAllForIssue(
+            owner: GitHubRepositoryOwner,
+            name: GitHubRepositoryName,
+            number: prNumber);
+
+        var existingComment = comments.LastOrDefault(c => c.Body.StartsWith("## Snapshots difference"));
+        if (existingComment is not null)
+        {
+            Console.WriteLine("Found existing comment, updating");
+            await client.Issue.Comment.Update(
+                owner: GitHubRepositoryOwner,
+                name: GitHubRepositoryName,
+                commentId: existingComment.Id,
+                markdown);
+        }
+        else
+        {
+            Console.WriteLine("Posting new comment");
+            await client.Issue.Comment.Create(
+                owner: GitHubRepositoryOwner,
+                name: GitHubRepositoryName,
+                prNumber,
+                markdown);
+        }
+    }
 
     async Task PostCommentToPullRequest(int prNumber, string markdown)
     {
