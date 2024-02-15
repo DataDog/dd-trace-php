@@ -7,6 +7,8 @@ const DEFAULT_ENVS = [
     'DD_ENV' => 'some_env',
     'DD_SERVICE' => 'my_custom_service',
     'DD_TRACE_CLI_ENABLED' => 'true',
+    'DD_TRACE_LOG_FILE' => '/results/dd_php_error.log',
+    'RUST_BACKTRACE' => '1',
 ];
 
 // Values from this array might be selected and set. When an environment variable from this list is selected,

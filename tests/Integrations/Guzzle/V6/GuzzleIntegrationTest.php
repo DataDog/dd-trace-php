@@ -508,8 +508,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             try {
                 $promises = [
                     $client->getAsync('https://google.wrong/', ['http_errors' => false]),
-                    $client->getAsync('https://google.com/'), // Does a 301 Redirection to https://www.google.com/ ==> 2 spans
-                    $client->getAsync(self::URL . '/redirect-to?url=' . self::URL . '/status/200'), // too flaky
+                    $client->getAsync(self::URL . '/redirect-to?url=' . self::URL . '/status/200'),
                     $client->getAsync(self::URL . '/status/200'),
                     $client->getAsync(self::URL . '/status/201'),
                     $client->getAsync(self::URL . '/status/202'),

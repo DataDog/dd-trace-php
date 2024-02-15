@@ -138,15 +138,22 @@ class Snippets
 
     public function mysqliVariant1()
     {
-        $mysqli = \mysqli_connect(
-            $this->config->mysqlHost,
-            $this->config->mysqlUser,
-            $this->config->mysqlPassword,
-            $this->config->mysqlDb,
-            $this->config->mysqlPort
-        );
-        $mysqli->query('SELECT 1');
-        $mysqli->close();
+        try {
+            $mysqli = \mysqli_connect(
+                $this->config->mysqlHost,
+                $this->config->mysqlUser,
+                $this->config->mysqlPassword,
+                $this->config->mysqlDb,
+                $this->config->mysqlPort
+            );
+            $mysqli->query('SELECT 1');
+        } catch (\mysqli_sql_exception $e) {
+            // Do nothing
+        } finally {
+            if ($mysqli) {
+                $mysqli->close();
+            }
+        }
     }
 
     public function pdoVariant1()

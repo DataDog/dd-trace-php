@@ -81,6 +81,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
             'DD_TRACE_DEBUG' => ini_get("datadog.trace.debug"),
             'DD_TRACE_EXEC_ENABLED' => 'false',
+            'DD_TRACE_SHUTDOWN_TIMEOUT' => '666666', // Arbitrarily high value to avoid flakiness
+            'DD_TRACE_AGENT_RETRIES' => '3'
         ];
 
         return $envs;

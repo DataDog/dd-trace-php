@@ -849,42 +849,62 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
     }
 
     if (writer->curl) {
-        CURLcode res;
-
         void *read_data = _dd_init_read_userdata(stack);
         struct _grouped_stack_t *kData = read_data;
-        _dd_curl_set_headers(writer, kData->total_groups);
-        curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
-        ddtrace_curl_set_hostname(writer->curl);
-        ddtrace_curl_set_timeout(writer->curl);
-        ddtrace_curl_set_connect_timeout(writer->curl);
 
-        smart_str response = {0};
+        int retries = MAX(get_global_DD_TRACE_AGENT_RETRIES(), 0) + 1;
+        for (int retry = 0; retry < retries; retry++) {
+            CURLcode res;
 
-        curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
-        curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long)get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
-        curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_curl_writefunc);
-        curl_easy_setopt(writer->curl, CURLOPT_WRITEDATA, &response);
-        res = curl_easy_perform(writer->curl);
+            _dd_curl_set_headers(writer, kData->total_groups);
+            curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
+            ddtrace_curl_set_hostname(writer->curl);
+            ddtrace_curl_set_timeout(writer->curl);
+            ddtrace_curl_set_connect_timeout(writer->curl);
 
-        if (res != CURLE_OK) {
-            ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-        } else {
-            if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
-                double uploaded;
+            smart_str response = {0};
+
+            curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
+            curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long) get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
+            curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_curl_writefunc);
+            curl_easy_setopt(writer->curl, CURLOPT_WRITEDATA, &response);
+            res = curl_easy_perform(writer->curl);
+
+            if (res != CURLE_OK) {
+                ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+
+                CURL *curl = writer->curl;
+                writer->curl = NULL;
+                curl_easy_cleanup(curl);
+
+                writer->curl = curl_easy_init();
+                curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, _dd_coms_read_callback);
+                curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_dummy_write_callback);
+                // as per https://curl.se/libcurl/c/threadsafe.html
+                // Also note that the docs mention potential SIGPIPEs, which may occur with OpenSSL:
+                // We can ignore that for now as we don't do TLS traffic to the agent currently
+                curl_easy_setopt(writer->curl, CURLOPT_NOSIGNAL, 1);
+
+                continue;
+            } else {
+                if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
+                    double uploaded;
 // only deprecated on relatively new libcurl versions
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-                curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
+                    curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
 #pragma GCC diagnostic pop
-                ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
+                    ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
+                }
+
+                // No response happens with test agents for example
+                if (response.s) {
+                    ddog_agent_remote_config_write(dd_agent_config_writer, dd_zend_string_to_CharSlice(response.s));
+                    smart_str_free_ex(&response, true);
+                }
             }
 
-            // No response happens with test agents for example
-            if (response.s) {
-                ddog_agent_remote_config_write(dd_agent_config_writer, dd_zend_string_to_CharSlice(response.s));
-                smart_str_free_ex(&response, true);
-            }
+            break;
         }
 
         _dd_deinit_read_userdata(read_data);

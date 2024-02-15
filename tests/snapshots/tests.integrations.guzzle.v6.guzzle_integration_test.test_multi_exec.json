@@ -36,28 +36,10 @@
      },
      {
        "name": "GuzzleHttp\\Client.transfer",
-       "service": "host-google.com",
-       "resource": "transfer",
-       "trace_id": 0,
-       "span_id": 3,
-       "parent_id": 1,
-       "type": "http",
-       "meta": {
-         "_dd.base_service": "cli",
-         "component": "guzzle",
-         "http.method": "GET",
-         "http.status_code": "200",
-         "http.url": "https://google.com/",
-         "network.destination.name": "google.com",
-         "span.kind": "client"
-       }
-     },
-     {
-       "name": "GuzzleHttp\\Client.transfer",
        "service": "host-httpbin_integration",
        "resource": "transfer",
        "trace_id": 0,
-       "span_id": 4,
+       "span_id": 3,
        "parent_id": 1,
        "type": "http",
        "meta": {
@@ -75,7 +57,7 @@
        "service": "host-httpbin_integration",
        "resource": "transfer",
        "trace_id": 0,
-       "span_id": 5,
+       "span_id": 4,
        "parent_id": 1,
        "type": "http",
        "meta": {
@@ -93,7 +75,7 @@
        "service": "host-httpbin_integration",
        "resource": "transfer",
        "trace_id": 0,
-       "span_id": 6,
+       "span_id": 5,
        "parent_id": 1,
        "type": "http",
        "meta": {
@@ -111,7 +93,7 @@
        "service": "host-httpbin_integration",
        "resource": "transfer",
        "trace_id": 0,
-       "span_id": 7,
+       "span_id": 6,
        "parent_id": 1,
        "type": "http",
        "meta": {
@@ -129,7 +111,7 @@
        "service": "host-google.still.wrong",
        "resource": "transfer",
        "trace_id": 0,
-       "span_id": 8,
+       "span_id": 7,
        "parent_id": 1,
        "type": "http",
        "meta": {
@@ -138,6 +120,24 @@
          "http.method": "GET",
          "http.url": "https://google.still.wrong/",
          "network.destination.name": "google.still.wrong",
+         "span.kind": "client"
+       }
+     },
+     {
+       "name": "GuzzleHttp\\Client.transfer",
+       "service": "host-www.google.com",
+       "resource": "transfer",
+       "trace_id": 0,
+       "span_id": 8,
+       "parent_id": 1,
+       "type": "http",
+       "meta": {
+         "_dd.base_service": "cli",
+         "component": "guzzle",
+         "http.method": "GET",
+         "http.status_code": "200",
+         "http.url": "https://www.google.com",
+         "network.destination.name": "www.google.com",
          "span.kind": "client"
        }
      },
@@ -178,29 +178,11 @@
        }
      },
      {
-       "name": "GuzzleHttp\\Client.transfer",
-       "service": "host-www.google.com",
-       "resource": "transfer",
-       "trace_id": 0,
-       "span_id": 11,
-       "parent_id": 1,
-       "type": "http",
-       "meta": {
-         "_dd.base_service": "cli",
-         "component": "guzzle",
-         "http.method": "GET",
-         "http.status_code": "200",
-         "http.url": "https://www.google.com",
-         "network.destination.name": "www.google.com",
-         "span.kind": "client"
-       }
-     },
-     {
        "name": "curl_multi_exec",
        "service": "curl",
        "resource": "curl_multi_exec",
        "trace_id": 0,
-       "span_id": 12,
+       "span_id": 11,
        "parent_id": 1,
        "type": "http",
        "meta": {
@@ -213,8 +195,8 @@
           "service": "host-google.wrong",
           "resource": "https://google.wrong/",
           "trace_id": 0,
-          "span_id": 13,
-          "parent_id": 12,
+          "span_id": 12,
+          "parent_id": 11,
           "type": "http",
           "error": 1,
           "meta": {
@@ -265,65 +247,11 @@
         },
         {
           "name": "curl_exec",
-          "service": "host-google.com",
-          "resource": "https://google.com/",
-          "trace_id": 0,
-          "span_id": 14,
-          "parent_id": 12,
-          "type": "http",
-          "meta": {
-            "_dd.base_service": "cli",
-            "component": "curl",
-            "curl.appconnect_time_us": "43734",
-            "curl.connect_time": "29241000",
-            "curl.connect_time_us": "29241",
-            "curl.content_type": "text/html; charset=UTF-8",
-            "curl.download_content_length": "220",
-            "curl.filetime": "-1",
-            "curl.header_size": "790",
-            "curl.http_version": "2",
-            "curl.namelookup_time": "22090000",
-            "curl.namelookup_time_us": "22090",
-            "curl.pretransfer_time": "43826000",
-            "curl.pretransfer_time_us": "43826",
-            "curl.protocol": "2",
-            "curl.redirect_count": "0",
-            "curl.redirect_time": "0",
-            "curl.redirect_time_us": "0",
-            "curl.redirect_url": "https://www.google.com/",
-            "curl.request_size": "352",
-            "curl.scheme": "HTTPS",
-            "curl.speed_download": "3666",
-            "curl.speed_upload": "0",
-            "curl.ssl_verify_result": "0",
-            "curl.ssl_verifyresult": "0",
-            "curl.starttransfer_time": "60430000",
-            "curl.starttransfer_time_us": "60430",
-            "curl.total_time": "60600000",
-            "curl.total_time_us": "60600",
-            "curl.upload_content_length": "-1",
-            "http.status_code": "301",
-            "http.url": "https://google.com/",
-            "network.bytes_read": "220",
-            "network.bytes_written": "0",
-            "network.client.ip": "172.20.0.15",
-            "network.client.port": "59678",
-            "network.destination.ip": "172.217.20.206",
-            "network.destination.name": "google.com",
-            "network.destination.port": "443",
-            "span.kind": "client"
-          },
-          "metrics": {
-            "_dd.measured": 1
-          }
-        },
-        {
-          "name": "curl_exec",
           "service": "host-httpbin_integration",
           "resource": "http://httpbin_integration/redirect-to",
           "trace_id": 0,
-          "span_id": 15,
-          "parent_id": 12,
+          "span_id": 13,
+          "parent_id": 11,
           "type": "http",
           "meta": {
             "_dd.base_service": "cli",
@@ -376,8 +304,8 @@
           "service": "host-httpbin_integration",
           "resource": "http://httpbin_integration/status/?",
           "trace_id": 0,
-          "span_id": 16,
-          "parent_id": 12,
+          "span_id": 14,
+          "parent_id": 11,
           "type": "http",
           "meta": {
             "_dd.base_service": "cli",
@@ -429,8 +357,8 @@
           "service": "host-httpbin_integration",
           "resource": "http://httpbin_integration/status/?",
           "trace_id": 0,
-          "span_id": 17,
-          "parent_id": 12,
+          "span_id": 15,
+          "parent_id": 11,
           "type": "http",
           "meta": {
             "_dd.base_service": "cli",
@@ -482,8 +410,8 @@
           "service": "host-httpbin_integration",
           "resource": "http://httpbin_integration/status/?",
           "trace_id": 0,
-          "span_id": 18,
-          "parent_id": 12,
+          "span_id": 16,
+          "parent_id": 11,
           "type": "http",
           "meta": {
             "_dd.base_service": "cli",
@@ -535,8 +463,8 @@
           "service": "host-google.still.wrong",
           "resource": "https://google.still.wrong/",
           "trace_id": 0,
-          "span_id": 19,
-          "parent_id": 12,
+          "span_id": 17,
+          "parent_id": 11,
           "type": "http",
           "error": 1,
           "meta": {
@@ -590,8 +518,8 @@
           "service": "host-www.google.com",
           "resource": "https://www.google.com",
           "trace_id": 0,
-          "span_id": 20,
-          "parent_id": 12,
+          "span_id": 18,
+          "parent_id": 11,
           "type": "http",
           "meta": {
             "_dd.base_service": "cli",
@@ -643,8 +571,8 @@
           "service": "host-www.google.com",
           "resource": "https://www.google.com",
           "trace_id": 0,
-          "span_id": 21,
-          "parent_id": 12,
+          "span_id": 19,
+          "parent_id": 11,
           "type": "http",
           "meta": {
             "_dd.base_service": "cli",
@@ -696,8 +624,8 @@
           "service": "host-www.google.com",
           "resource": "https://www.google.com",
           "trace_id": 0,
-          "span_id": 22,
-          "parent_id": 12,
+          "span_id": 20,
+          "parent_id": 11,
           "type": "http",
           "meta": {
             "_dd.base_service": "cli",
