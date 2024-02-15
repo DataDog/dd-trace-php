@@ -140,7 +140,7 @@ bool ddtrace_config_minit(int module_number) {
     // Note that we are not calling zai_config_rinit(), i.e. the get_...() functions will not work.
     // This is intentional, so that places wishing to use values pre-RINIT do have to explicitly opt in by using the
     // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
-    zai_config_first_time_rinit();
+    zai_config_first_time_rinit(false);
 
     ddtrace_log_ginit();
     return true;
@@ -152,7 +152,7 @@ void ddtrace_config_first_rinit() {
     zend_string *internal_functions_old = zend_string_copy(
         internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value);
 
-    zai_config_first_time_rinit();
+    zai_config_first_time_rinit(true);
     zai_config_rinit();
 
     zend_string *internal_functions_new =

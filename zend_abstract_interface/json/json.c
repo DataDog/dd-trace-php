@@ -150,10 +150,11 @@ void zai_json_shutdown_bindings(void) {
 }
 
 void zai_json_release_persistent_array(HashTable *ht) {
+    uint32_t immutable = (GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) != 0;
 #if PHP_VERSION_ID < 70300
-    if (--GC_REFCOUNT(ht) == 0)
+    if (--GC_REFCOUNT(ht) == immutable)
 #else
-    if (GC_DELREF(ht) == 0)
+    if (GC_DELREF(ht) == immutable)
 #endif
     {
         zend_hash_destroy(ht);
@@ -164,7 +165,20 @@ void zai_json_release_persistent_array(HashTable *ht) {
 void zai_json_dtor_pzval(zval *pval) {
     if (Z_TYPE_P(pval) == IS_ARRAY) {
         zai_json_release_persistent_array(Z_ARR_P(pval));
+#if PHP_VERSION_ID >= 70400
+    } else if (Z_TYPE_P(pval) == IS_STRING && ZSTR_IS_INTERNED(Z_STR_P(pval))) {
+        // nothing
+#endif
     } else {
+#if PHP_VERSION_ID >= 70200 && PHP_VERSION_ID < 70400
+        if (Z_TYPE_P(pval) == IS_STRING && ZSTR_IS_INTERNED(Z_STR_P(pval)) && !zend_interned_string_find_permanent(Z_STR_P(pval))) {
+#if PHP_VERSION_ID >= 70300
+            GC_DEL_FLAGS(Z_STR_P(pval), IS_STR_INTERNED);
+#else
+            GC_FLAGS(Z_STR_P(pval)) &= ~IS_STR_INTERNED;
+#endif
+        }
+#endif
         zval_internal_ptr_dtor(pval);
     }
     // Prevent an accidental use after free
