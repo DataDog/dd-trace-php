@@ -1,16 +1,16 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laravel\V8_x;
+namespace DDTrace\Tests\Integrations\Laravel\V5_7;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
-class LoginEventsTest extends WebFrameworkTestCase
+class AuthLoginEventsTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
     }
 
     protected function connection()
