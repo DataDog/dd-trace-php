@@ -10,7 +10,7 @@ if (!extension_loaded('datadog-profiling'))
 ob_start();
 phpinfo(INFO_MODULES);
 $info = ob_get_clean();
-if (strpos($info, 'Experimental Exception Profiling Enabled') === false)
+if (strpos($info, 'Exception Profiling Enabled') === false)
     echo "skip: datadog profiler is compiled without exception profiling support\n";
 ?>
 --ENV--
