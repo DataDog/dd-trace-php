@@ -1,16 +1,24 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laravel\V4;
+namespace DDTrace\Tests\Integrations\Laravel\V10_x;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
-class LoginEventsTest extends WebFrameworkTestCase
+class AuthLoginEventsTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_10_x/public/index.php';
+    }
+
+    protected static function getEnvs()
+    {
+        return array_merge(parent::getEnvs(), [
+            'APP_NAME' => 'laravel_test_app',
+            'DD_SERVICE' => 'my_service'
+        ]);
     }
 
     protected function connection()
