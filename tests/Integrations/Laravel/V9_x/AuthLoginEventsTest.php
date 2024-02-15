@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
-class LoginEventsTest extends WebFrameworkTestCase
+class AuthLoginEventsTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
