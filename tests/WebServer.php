@@ -206,16 +206,6 @@ final class WebServer
             $this->server->start();
         }
 
-        for ($i = 0; $i < 50; $i++) {
-            $fp = @fsockopen($this->host, $this->port, $errno, $errstr, 1);
-            if ($fp) {
-                fclose($fp);
-                break;
-            }
-            usleep(100000);
-        }
-
-
         $this->sapi->start();
         usleep(500000);
     }
