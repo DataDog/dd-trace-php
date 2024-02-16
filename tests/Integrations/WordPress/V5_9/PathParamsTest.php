@@ -29,7 +29,7 @@ class PathParamsTest extends AppsecTestCase
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
         $this->assertEquals('hello-world', $events[0]['name']);
-        $this->assertEquals('push_params', $events[0]['eventName']);
+        $this->assertEquals('push_address', $events[0]['eventName']);
     }
 
     public function testCategory()
@@ -44,7 +44,7 @@ class PathParamsTest extends AppsecTestCase
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
         $this->assertEquals('uncategorized', $events[0]['category_name']);
-        $this->assertEquals('push_params', $events[0]['eventName']);
+        $this->assertEquals('push_address', $events[0]['eventName']);
     }
 
     public function testAuthor()
@@ -59,7 +59,7 @@ class PathParamsTest extends AppsecTestCase
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
         $this->assertEquals('test', $events[0]['author_name']);
-        $this->assertEquals('push_params', $events[0]['eventName']);
+        $this->assertEquals('push_address', $events[0]['eventName']);
     }
 
     public function testNonExistingPost()
