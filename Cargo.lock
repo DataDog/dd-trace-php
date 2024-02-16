@@ -696,7 +696,7 @@ dependencies = [
  "datadog-profiling",
  "ddcommon 5.0.0",
  "env_logger",
- "indexmap 2.0.2",
+ "indexmap 2.2.2",
  "lazy_static",
  "libc 0.2.149",
  "log",
@@ -953,7 +953,6 @@ version = "0.0.1"
 dependencies = [
  "bitflags 2.4.0",
  "cbindgen",
- "cc_utils",
  "datadog-sidecar",
  "datadog-sidecar-ffi",
  "ddcommon 0.0.1",
@@ -965,7 +964,6 @@ dependencies = [
  "lazy_static",
  "log",
  "paste",
- "sidecar_mockgen",
  "spawn_worker",
  "tempfile",
  "tracing",
@@ -1460,9 +1458,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.0.2"
+version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8adf3ddd720272c6ea8bf59463c04e0f93d0bbf7c5439b691bca2987e0270897"
+checksum = "824b2ae422412366ba479e8111fd301f7b5faece8149317bb81925979a53f520"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.1",
@@ -2033,7 +2031,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1d3afd2628e69da2be385eb6f2fd57c8ac7977ceeff6dc166ff1657b0e386a9"
 dependencies = [
  "fixedbitset",
- "indexmap 2.0.2",
+ "indexmap 2.2.2",
 ]
 
 [[package]]
@@ -2072,6 +2070,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a68318426de33640f02be62b4ae8eb1261be2efbc337b60c54d845bf4484e0d9"
 dependencies = [
  "siphasher",
+]
+
+[[package]]
+name = "php_sidecar_mockgen"
+version = "0.1.0"
+dependencies = [
+ "cc_utils",
+ "sidecar_mockgen",
 ]
 
 [[package]]
@@ -2146,7 +2152,7 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "059a34f111a9dee2ce1ac2826a68b24601c4298cfeb1a587c3cb493d5ab46f52"
 dependencies = [
- "libc 0.2.149",
+ "libc 0.1.12",
  "nix 0.27.1",
 ]
 
@@ -2578,9 +2584,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustix"
-version = "0.38.18"
+version = "0.38.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a74ee2d7c2581cd139b42447d7d9389b889bdaad3a73f1ebb16f2a3237bb19c"
+checksum = "2b426b0506e5d50a7d8dafcf2e81471400deb602392c7dd110815afb4eaf02a3"
 dependencies = [
  "bitflags 2.4.0",
  "errno",

@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name = "php_sidecar_mockgen"
+version = "0.1.0"
+
+[dependencies]
+cc_utils = { path = "../../libdatadog/tools/cc_utils" }
+sidecar_mockgen = { path = "../../libdatadog/tools/sidecar_mockgen" }
+
+[[bin]]
+name = "php_sidecar_mockgen"

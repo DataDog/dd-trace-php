@@ -33,5 +33,3 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 
 [build-dependencies]
 cbindgen = "0.24"
-cc_utils = { path = "../libdatadog/tools/cc_utils" }
-sidecar_mockgen = { path = "../libdatadog/tools/sidecar_mockgen" }
