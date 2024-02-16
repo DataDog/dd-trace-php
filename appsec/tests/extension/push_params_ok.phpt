@@ -1,15 +1,8 @@
 --TEST--
-Push params ara sent on request_exec
+Push params are sent on request_exec
 --INI--
 extension=ddtrace.so
-datadog.appsec.waf_timeout=42
 datadog.appsec.enabled=1
---ENV--
-DD_TRACE_GENERATE_ROOT_SPAN=0
-REQUEST_URI=/static01/dynamic01/static02/dynamic02
-URL_SCHEME=http
-HTTP_CONTENT_TYPE=text/plain
-HTTP_CONTENT_LENGTH=0
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};

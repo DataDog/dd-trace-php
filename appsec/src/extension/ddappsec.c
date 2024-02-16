@@ -497,9 +497,14 @@ static PHP_FUNCTION(datadog_appsec_push_params)
         return;
     }
 
-    dd_request_exec(conn, &parameters_zv);
-
+    dd_result result = dd_request_exec(conn, &parameters_zv);
     zval_ptr_dtor(&parameters_zv);
+
+    if (result == dd_should_block) {
+        dd_request_abort_static_page();
+    } else if (result == dd_should_redirect) {
+        dd_request_abort_redirect();
+    }
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
