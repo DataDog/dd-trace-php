@@ -116,7 +116,7 @@ static zend_extension ddappsec_extension_entry = {
 
 ZEND_GET_MODULE(ddappsec)
 
-#define DD_TAG_SERVER_REQUEST_PATH_PARAMS "server.request.path_params"
+#define DD_ADDRESS_SERVER_REQUEST_PATH_PARAMS "server.request.path_params"
 static zend_string *_key_server_request_path_params;
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -223,7 +223,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_entity_body_startup();
 
     _key_server_request_path_params = zend_string_init_interned(
-        LSTRARG(DD_TAG_SERVER_REQUEST_PATH_PARAMS), 1);
+        LSTRARG(DD_ADDRESS_SERVER_REQUEST_PATH_PARAMS), 1);
 
     return SUCCESS;
 }

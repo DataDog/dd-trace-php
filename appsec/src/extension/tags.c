@@ -4,11 +4,9 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "tags.h"
-#include "commands/request_exec.h"
 #include "ddappsec.h"
 #include "ddtrace.h"
 #include "ext/pcre/php_pcre.h"
-#include "helper_process.h"
 #include "ip_extraction.h"
 #include "logging.h"
 #include "php_compat.h"
@@ -105,7 +103,6 @@ static zend_string *_key_server_name_zstr;
 static zend_string *_key_http_user_agent_zstr;
 static zend_string *_key_https_zstr;
 static zend_string *_key_remote_addr_zstr;
-static zend_string *_key_server_request_path_params;
 static zend_string *_true_zstr;
 static zend_string *_false_zstr;
 static zend_string *_track_zstr;
@@ -185,8 +182,6 @@ void dd_tags_startup()
     _key_https_zstr = zend_string_init_interned(LSTRARG("HTTPS"), 1);
     _key_remote_addr_zstr =
         zend_string_init_interned(LSTRARG("REMOTE_ADDR"), 1);
-    _key_server_request_path_params = zend_string_init_interned(
-        LSTRARG(DD_TAG_SERVER_REQUEST_PATH_PARAMS), 1);
 
     // Event related strings
     _track_zstr =
