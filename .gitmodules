@@ -11,3 +11,6 @@
 [submodule "appsec/third_party/libddwaf"]
 	path = appsec/third_party/libddwaf
 	url = https://github.com/DataDog/libddwaf.git
+[submodule "tea/benchmarks/google-benchmark"]
+	path = tea/benchmarks/google-benchmark
+	url = https://github.com/google/benchmark.git

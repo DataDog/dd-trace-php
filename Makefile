@@ -8,7 +8,12 @@ BUILD_DIR = $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
 ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
 TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
 TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
-TEA_BUILD_TESTS = ON
+TEA_BUILD_TESTS ?= OFF
+TEA_BUILD_BENCHMARKS ?= OFF
+TEA_BENCHMARK_REPETITIONS ?= 10
+# Note: If the tea benchmark format or output is changed, make changes to ./benchmark/runall.sh
+TEA_BENCHMARK_FORMAT ?= json
+TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tea-bench-results.$(TEA_BENCHMARK_FORMAT)
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS = -Wall -Wextra
@@ -153,16 +158,25 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
-build_tea:
+build_tea: TEA_BUILD_TESTS=ON
+build_tea: TEA_PREFIX_PATH=/opt/catch2
+build_tea: build_tea_common
+
+build_tea_benchmarks: TEA_BUILD_BENCHMARKS=ON
+build_tea_benchmarks: TEA_PREFIX_PATH=/opt/gbench
+build_tea_benchmarks: build_tea_common
+
+build_tea_common:
 	$(Q) test -f $(TEA_BUILD_DIR)/.built || \
 	( \
 		mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
 		cd $(TEA_BUILD_DIR); \
-		CMAKE_PREFIX_PATH=/opt/catch2 \
+		CMAKE_PREFIX_PATH=$(TEA_PREFIX_PATH) \
 		cmake \
 			-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
 			-DCMAKE_BUILD_TYPE=Debug \
 			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
+			-DBUILD_TEA_BENCHMARKING=$(TEA_BUILD_BENCHMARKS) \
 			-DPhpConfig_ROOT=$(shell php-config --prefix) \
 			$(if $(ASAN), -DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake) \
 		$(PROJECT_ROOT)/tea; \
@@ -175,6 +189,13 @@ test_tea: clean_tea build_tea
 		! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
 	)
 
+benchmarks_tea: clean_tea build_tea_benchmarks
+	$(TEA_BUILD_DIR)/benchmarks/tea_benchmarks \
+		--benchmark_repetitions=$(TEA_BENCHMARK_REPETITIONS) \
+		--benchmark_out=$(TEA_BENCHMARK_OUTPUT) \
+		--benchmark_format=$(TEA_BENCHMARK_FORMAT) \
+		--benchmark_time_unit=ms
+
 install_tea: build_tea
 	$(Q) test -f $(TEA_BUILD_DIR)/.installed || \
 	( \
@@ -182,6 +203,7 @@ install_tea: build_tea
 		touch $(TEA_BUILD_DIR)/.installed; \
 	)
 
+build_tea_coverage: TEA_BUILD_TESTS=ON
 build_tea_coverage:
 	$(Q) test -f $(TEA_BUILD_DIR)/.built.coverage || \
 	( \
