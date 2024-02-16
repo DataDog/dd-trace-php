@@ -1,12 +1,12 @@
 --TEST--
-Push params are sent on request_exec
+Push address are sent on request_exec - array
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};
-use function datadog\appsec\push_params;
+use function datadog\appsec\push_address;
 
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -17,7 +17,7 @@ $helper = Helper::createInitedRun([
 ]);
 
 var_dump(rinit());
-push_params(["some" => "params", "more" => "parameters"]);
+push_address("server.request.path_params", ["some" => "params", "more" => "parameters"]);
 var_dump(rshutdown());
 
 var_dump($helper->get_command("request_exec"));

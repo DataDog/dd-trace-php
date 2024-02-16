@@ -116,9 +116,6 @@ static zend_extension ddappsec_extension_entry = {
 
 ZEND_GET_MODULE(ddappsec)
 
-#define DD_ADDRESS_SERVER_REQUEST_PATH_PARAMS "server.request.path_params"
-static zend_string *_key_server_request_path_params;
-
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
     compare_func_t compare, swap_func_t swp)
@@ -221,9 +218,6 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_tags_startup();
     dd_ip_extraction_startup();
     dd_entity_body_startup();
-
-    _key_server_request_path_params = zend_string_init_interned(
-        LSTRARG(DD_ADDRESS_SERVER_REQUEST_PATH_PARAMS), 1);
 
     return SUCCESS;
 }
@@ -462,38 +456,39 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
     RETURN_TRUE;
 }
 
-static PHP_FUNCTION(datadog_appsec_push_params)
+static PHP_FUNCTION(datadog_appsec_push_address)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to push_params "
+        mlog(dd_log_debug, "Trying to access to push_address "
                            "function while appsec is disabled");
         return;
     }
 
-    zval *parameters = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &parameters) == FAILURE ||
-        Z_TYPE_P(parameters) != IS_ARRAY) {
-        mlog(dd_log_warning, "Unexpected parameters type. Expected array");
-        return;
+    zend_string *key = NULL;
+    zval *value = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sz", &key, &value) == FAILURE) {
+        RETURN_FALSE;
     }
 
     zval parameters_zv;
     zend_array *parameters_arr = zend_new_array(1);
     ZVAL_ARR(&parameters_zv, parameters_arr);
     zval *res = zend_hash_add(
-        Z_ARRVAL(parameters_zv), _key_server_request_path_params, parameters);
+        Z_ARRVAL(parameters_zv), key, value);
     if (res == NULL) {
         zval_ptr_dtor(&parameters_zv);
         mlog_g(dd_log_debug, "Parameters could not be added");
         return;
     }
-    Z_ADDREF_P(parameters);
+    if (Z_TYPE_P(value) == IS_ARRAY) {
+        Z_ADDREF_P(value);
+    }
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
         zval_ptr_dtor(&parameters_zv);
-        mlog_g(dd_log_debug, "No connection; skipping push_params");
+        mlog_g(dd_log_debug, "No connection; skipping push_address");
         return;
     }
 
@@ -515,14 +510,15 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(request_exec_arginfo, 0, 1, _IS_BOOL, 0)
 ZEND_ARG_INFO(0, "data")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(push_params_arginfo, 0, 0, IS_VOID, 1)
-ZEND_ARG_INFO(0, parameters)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(push_address_arginfo, 0, 0, IS_VOID, 1)
+ZEND_ARG_INFO(0, key)
+ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_params", PHP_FN(datadog_appsec_push_params), push_params_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_address", PHP_FN(datadog_appsec_push_address), push_address_arginfo, 0)
     PHP_FE_END
 };
 static const zend_function_entry testing_functions[] = {

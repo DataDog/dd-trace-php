@@ -1,12 +1,12 @@
 --TEST--
-Push params gets blocked
+Push address gets blocked
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};
-use function datadog\appsec\push_params;
+use function datadog\appsec\push_address;
 
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -16,7 +16,7 @@ $helper = Helper::createInitedRun([
 ]);
 
 rinit();
-push_params(["some" => "params", "more" => "parameters"]);
+push_address("server.request.path_params", ["some" => "params", "more" => "parameters"]);
 
 var_dump("THIS SHOULD NOT GET IN THE OUTPUT");
 
@@ -26,4 +26,4 @@ Status: 404 Not Found
 Content-type: application/json
 --EXPECTF--
 {"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}
-Warning: datadog\appsec\push_params(): Datadog blocked the request and presented a static error page in %s on line %d
+Warning: datadog\appsec\push_address(): Datadog blocked the request and presented a static error page in %s on line %d
