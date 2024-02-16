@@ -17,8 +17,10 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void ddtrace_try_read_agent_rate(void) {
+    LOG(Debug, "Trying to read agent rate");
     ddog_CharSlice data;
     if (DDTRACE_G(remote_config_reader) && ddog_agent_remote_config_read(DDTRACE_G(remote_config_reader), &data)) {
+        LOG(Debug, "Read agent rate");
         zval json;
         if ((int)data.len > 0 && zai_json_decode_assoc_safe(&json, data.ptr, (int)data.len, 3, true) == SUCCESS) {
             if (Z_TYPE(json) == IS_ARRAY) {
@@ -27,7 +29,7 @@ void ddtrace_try_read_agent_rate(void) {
                     if (DDTRACE_G(agent_rate_by_service)) {
                         zai_json_release_persistent_array(DDTRACE_G(agent_rate_by_service));
                     }
-
+                    LOG(Debug, "Agent rate by service found");
                     Z_TRY_ADDREF_P(rules);
                     DDTRACE_G(agent_rate_by_service) = Z_ARR_P(rules);
                 }
@@ -240,6 +242,8 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
                 if (sample_rate_zv) {
                     sample_rate = zval_get_double(sample_rate_zv);
                 }
+            } else {
+                LOG(Debug, "No agent sampling rules found for root span for trace %s", Z_STRVAL(span->property_trace_id));
             }
         }
     } else if (result.rule == INT32_MAX) {
@@ -331,6 +335,7 @@ zend_long ddtrace_fetch_priority_sampling_from_span(ddtrace_root_span_data *root
     }
 
     if (decide) {
+        LOG(Debug, "Deciding on sampling for trace %s", Z_STRVAL(root_span->property_trace_id));
         dd_decide_on_sampling(root_span);
     }
 
