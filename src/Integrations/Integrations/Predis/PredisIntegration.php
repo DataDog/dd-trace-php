@@ -3,10 +3,11 @@
 namespace DDTrace\Integrations\Predis;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\RootSpanData;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\Common;
 use DDTrace\Util\ObjectKVStore;
 use DDTrace\Util\Versions;
 use Predis\Configuration\OptionsInterface;
@@ -32,18 +33,6 @@ class PredisIntegration extends Integration
         return self::NAME;
     }
 
-    public static function handleOrphan(SpanData $span)
-    {
-        if (dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-            && (
-                \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
-                || \DDTrace\get_priority_sampling() == DD_TRACE_PRIORITY_SAMPLING_USER_KEEP
-            ) && $span instanceof RootSpanData && empty($span->parentId)
-        ) {
-            \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
-        }
-    }
-
     /**
      * Add instrumentation to PDO requests
      */
@@ -52,7 +41,7 @@ class PredisIntegration extends Integration
         $integration = $this;
 
         \DDTrace\trace_method('Predis\Client', '__construct', function (SpanData $span, $args) {
-            PredisIntegration::handleOrphan($span);
+            Common::handleOrphan($span);
 
             $span->name = 'Predis.Client.__construct';
             $span->type = Type::REDIS;
@@ -62,7 +51,7 @@ class PredisIntegration extends Integration
         });
 
         \DDTrace\trace_method('Predis\Client', 'connect', function (SpanData $span, $args) {
-            PredisIntegration::handleOrphan($span);
+            Common::handleOrphan($span);
 
             $span->name = 'Predis.Client.connect';
             $span->type = Type::REDIS;
@@ -71,7 +60,8 @@ class PredisIntegration extends Integration
         });
 
         \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) use ($integration) {
-            PredisIntegration::handleOrphan($span);
+            Logger::get()->debug('executeCommand');
+            Common::handleOrphan($span);
 
             $span->name = 'Predis.Client.executeCommand';
             $span->type = Type::REDIS;
@@ -96,7 +86,7 @@ class PredisIntegration extends Integration
         });
 
         \DDTrace\trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) use ($integration) {
-            PredisIntegration::handleOrphan($span);
+            Common::handleOrphan($span);
 
             $span->name = 'Predis.Client.executeRaw';
             $span->type = Type::REDIS;
@@ -121,7 +111,7 @@ class PredisIntegration extends Integration
         // tasks are dequeued.
         if (Versions::phpVersionMatches('5')) {
             \DDTrace\trace_method('Predis\Pipeline\Pipeline', 'executePipeline', function (SpanData $span, $args) {
-                PredisIntegration::handleOrphan($span);
+                Common::handleOrphan($span);
 
                 $span->name = 'Predis.Pipeline.executePipeline';
                 $span->resource = $span->name;
@@ -134,7 +124,7 @@ class PredisIntegration extends Integration
                 'executePipeline',
                 [
                     'prehook' => function (SpanData $span, $args) {
-                        PredisIntegration::handleOrphan($span);
+                        Common::handleOrphan($span);
 
                         $span->name = 'Predis.Pipeline.executePipeline';
                         $span->resource = $span->name;
