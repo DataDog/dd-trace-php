@@ -80,7 +80,7 @@ void zai_config_mshutdown(void);
 // Not thread-safe; must block (Use pthread_once)
 // Must be called before zai_config_rinit()
 // Update decoded_value with env/ini value if exists
-void zai_config_first_time_rinit(void);
+void zai_config_first_time_rinit(bool in_request);
 
 // Runtime config ctor (++rc)
 void zai_config_rinit(void);

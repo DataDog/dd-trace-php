@@ -189,7 +189,7 @@ static HashTable *ddtrace_curl_multi_get_gc(zend_object *object, zval **table, i
 }
 
 static pthread_once_t dd_replace_curl_get_gc_once = PTHREAD_ONCE_INIT;
-static zend_object_handlers *dd_curl_object_handlers;
+ZEND_TLS zend_object_handlers *dd_curl_object_handlers = NULL;
 static void dd_replace_curl_get_gc(void) {
     dd_curl_multi_get_gc = dd_curl_object_handlers->get_gc;
     dd_curl_object_handlers->get_gc = ddtrace_curl_multi_get_gc;
@@ -419,6 +419,10 @@ void ddtrace_curl_handlers_startup(void) {
     for (size_t i = 0; i < handlers_len; ++i) {
         datadog_php_install_handler(handlers[i]);
     }
+
+    // Reset object state each MINIT/startup cycle for `apachectl graceful`.
+    dd_curl_object_handlers = NULL;
+    dd_replace_curl_get_gc_once = (pthread_once_t)PTHREAD_ONCE_INIT;
 }
 
 void ddtrace_curl_handlers_rinit(void) {

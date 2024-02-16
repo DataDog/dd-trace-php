@@ -1,5 +1,6 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
+#include <Zend/zend_types.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <components-rs/ddtrace.h>

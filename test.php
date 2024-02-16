@@ -1,1 +1,0 @@
-<?php var_dump(\DDtrace\active_span() == true);

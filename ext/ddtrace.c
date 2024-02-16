@@ -493,43 +493,6 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     zai_hook_ginit();
 }
 
-#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
-#define CXA_THREAD_ATEXIT_WRAPPER 1
-#endif
-#ifdef CXA_THREAD_ATEXIT_WRAPPER
-struct dd_rust_thread_destructor {
-    void (*dtor)(void *);
-    void *obj;
-    struct dd_rust_thread_destructor *next;
-};
-ZEND_TLS struct dd_rust_thread_destructor *dd_rust_thread_destructors = NULL;
-ZEND_TLS bool dd_is_main_thread = false;
-
-static void dd_run_rust_thread_destructors(void *unused) {
-    UNUSED(unused);
-    struct dd_rust_thread_destructor *entry = dd_rust_thread_destructors;
-    while (entry) {
-        struct dd_rust_thread_destructor *cur = entry;
-        cur->dtor(cur->obj);
-        entry = entry->next;
-        free(cur);
-    }
-}
-#endif
-
-static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
-    if (ddtrace_globals->remote_config_reader) {
-        ddog_agent_remote_config_reader_drop(ddtrace_globals->remote_config_reader);
-    }
-    zai_hook_gshutdown();
-
-#ifdef CXA_THREAD_ATEXIT_WRAPPER
-    if (!dd_is_main_thread) {
-        dd_run_rust_thread_destructors(NULL);
-    }
-#endif
-}
-
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
 // The problem is that calls to __cxa_thread_atexit_impl cause shared libraries to remain referenced until the calling thread terminates.
 // However in NTS builds the calling thread is the main thread and thus the shared object (i.e. ddtrace.so) WILL remain loaded.
@@ -537,6 +500,9 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
 // This prevents us from a) having the weak symbols updated to the new locations and b) having ddtrace updates going live without hard restart.
 // Thus, we need to intercept it: define it ourselves so that the linker will force the rust code to call our code here.
 // Then we can collect the callbacks and invoke them ourselves right at thread shutdown, i.e. GSHUTDOWN.
+#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
+#define CXA_THREAD_ATEXIT_WRAPPER 1
+#endif
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
 #define CXA_THREAD_ATEXIT_PHP ((void *)0)
 #define CXA_THREAD_ATEXIT_UNINITIALIZED ((void *)1)
@@ -545,10 +511,31 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
 static int (*glibc__cxa_thread_atexit_impl)(void (*func)(void *), void *obj, void *dso_symbol) = CXA_THREAD_ATEXIT_UNINITIALIZED;
 static pthread_key_t dd_cxa_thread_atexit_key; // fallback for sidecar
 
+struct dd_rust_thread_destructor {
+    void (*dtor)(void *);
+    void *obj;
+    struct dd_rust_thread_destructor *next;
+};
+// Use __thread explicitly: ZEND_TLS is empty on NTS builds.
+static __thread struct dd_rust_thread_destructor *dd_rust_thread_destructors = NULL;
+ZEND_TLS bool dd_is_main_thread = false;
+
+static void dd_run_rust_thread_destructors(void *unused) {
+    UNUSED(unused);
+    struct dd_rust_thread_destructor *entry = dd_rust_thread_destructors;
+    dd_rust_thread_destructors = NULL; // destructors _may_ be invoked multiple times. We need to reset thus.
+    while (entry) {
+        struct dd_rust_thread_destructor *cur = entry;
+        cur->dtor(cur->obj);
+        entry = entry->next;
+        free(cur);
+    }
+}
+
 // Note: this symbol is not public
 int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) {
     if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNINITIALIZED) {
-        glibc__cxa_thread_atexit_impl = DL_FETCH_SYMBOL(NULL, "__cxa_thread_atexit_impl");
+        glibc__cxa_thread_atexit_impl = NULL; // DL_FETCH_SYMBOL(RTLD_DEFAULT, "__cxa_thread_atexit_impl");
         if (glibc__cxa_thread_atexit_impl == NULL) {
             // no race condition here: logging is initialized in MINIT, at which point only a single thread lives
             glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_UNAVAILABLE;
@@ -576,6 +563,19 @@ static void dd_clean_main_thread_locals() {
     dd_run_rust_thread_destructors(NULL);
 }
 #endif
+
+static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
+    if (ddtrace_globals->remote_config_reader) {
+        ddog_agent_remote_config_reader_drop(ddtrace_globals->remote_config_reader);
+    }
+    zai_hook_gshutdown();
+
+#ifdef CXA_THREAD_ATEXIT_WRAPPER
+    if (!dd_is_main_thread) {
+        dd_run_rust_thread_destructors(NULL);
+    }
+#endif
+}
 
 /* DDTrace\SpanLink */
 zend_class_entry *ddtrace_ce_span_link;
@@ -1015,6 +1015,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     atexit(dd_clean_main_thread_locals);
 #endif
 
+    // Reset on every minit for `apachectl graceful`.
+    dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
+
     zai_hook_minit();
     zai_uhook_minit(module_number);
 #if PHP_VERSION_ID >= 80000
@@ -1197,7 +1200,7 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
 
-    // Things that should only run on the first RINIT
+    // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
     if (!DDTRACE_G(remote_config_reader)) {

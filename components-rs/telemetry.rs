@@ -74,12 +74,16 @@ fn parse_composer_installed_json(
 }
 
 #[cfg(php_shared_build)]
-const MOCK_PHP: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/mock_php.shared_lib"));
+extern "C" {
+    static DDTRACE_MOCK_PHP: u8;
+    static DDTRACE_MOCK_PHP_SIZE: usize;
+}
 
 #[cfg(php_shared_build)]
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+    let mock = unsafe { std::slice::from_raw_parts(&DDTRACE_MOCK_PHP, DDTRACE_MOCK_PHP_SIZE) };
     cfg.library_dependencies
-        .push(LibDependency::Binary(MOCK_PHP));
+        .push(LibDependency::Binary(mock));
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 

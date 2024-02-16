@@ -48,8 +48,11 @@ try {
 }
 
 $rr->waitForFlush();
-
-$root = json_decode($rr->replayRequest()["body"], true);
+if (!$replay = $rr->replayRequest()) {
+    $rr->waitForFlush();
+    $replay = $rr->replayRequest();
+}
+$root = json_decode($replay["body"], true);
 $spans = $root["chunks"][0]["spans"] ?? $root[0];
 $span = $spans[0];
 var_dump($span['meta']['error.message']);

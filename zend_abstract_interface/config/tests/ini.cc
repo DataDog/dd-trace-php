@@ -528,7 +528,7 @@ TEST_INI("setting perdir INI setting for multiple ZAI config users", {
     zai_config_memoized_entry *entry = &zai_config_memoized_entries[EXT_CFG_INI_FOO_STRING];
     entry->original_on_modify = dummy;
 
-    zai_config_first_time_rinit();
+    zai_config_first_time_rinit(true);
     REQUEST_BEGIN();
 
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);

@@ -257,10 +257,15 @@ aliases:
           git remote set-url origin "$CIRCLE_REPOSITORY_URL" || true
 
           echo 'Fetching from remote repository'
+          retry_count=3
           if [ -n "$CIRCLE_TAG" ]; then
-            git fetch --force --no-recurse-submodules --tags origin
+            for i in $(seq 1 $retry_count); do
+              git fetch --force --no-recurse-submodules --tags origin && break || sleep 1
+            done
           elif [ -z "$CIRCLE_PR_NUMBER" ]; then
-            git fetch --force --no-recurse-submodules origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH"
+            for i in $(seq 1 $retry_count); do
+              git fetch --force --no-recurse-submodules origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH" && break || sleep 1
+            done
           fi
         else
           echo 'Cloning git repository'
@@ -529,7 +534,7 @@ commands:
         type: string
     steps:
       - run:
-          name: Build Profiler
+          name: Build Profiler NTS
           command: |
             if [ -d '/opt/rh/devtoolset-7' ] ; then
                 set +eo pipefail
@@ -545,6 +550,26 @@ commands:
             cargo build --release
             cd -
             cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${prefix}/datadog-profiling.so"
+            objcopy --compress-debug-sections "${prefix}/datadog-profiling.so"
+      - run:
+          name: Build Profiler ZTS
+          command: |
+            if [ -d '/opt/rh/devtoolset-7' ] ; then
+                set +eo pipefail
+                source scl_source enable devtoolset-7
+                set -eo pipefail
+            fi
+            set -u
+            prefix="<< parameters.prefix >>"
+            mkdir -vp "${prefix}"
+            command -v switch-php && switch-php "${PHP_VERSION}-zts"
+            cd profiling
+            echo "${CARGO_TARGET_DIR}"
+            touch build.rs #make sure `build.rs` gets executed after `switch-php` call
+            cargo build --release
+            cd -
+            cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${prefix}/datadog-profiling-zts.so"
+            objcopy --compress-debug-sections "${prefix}/datadog-profiling-zts.so"
 
 executors:
   with_agent:
@@ -587,6 +612,20 @@ executors:
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
       - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_SQLSRV
+  with_redis:
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+      COMPOSER_MEMORY_LIMIT: -1 # disable composer memory limit completely
+    parameters:
+      docker_image:
+        type: string
+    docker:
+        - image: << parameters.docker_image >>
+        - <<: *IMAGE_DOCKER_HTTPBIN
+        - <<: *IMAGE_DOCKER_REDIS
+        - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+        - <<: *IMAGE_DOCKER_DD_TEST_AGENT
+
 
 jobs:
   "Lint PHP 5":
@@ -719,7 +758,7 @@ jobs:
           name: Run unit tests with xdebug
           command: |
             if [[ "<<parameters.xdebug_version_one>>" != "2.7.2" ]]; then
-              TEST_EXTRA_INI='-d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so' make test_unit RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
+              TEST_EXTRA_INI='-d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
             fi
       - <<: *STEP_STORE_TEST_RESULTS
 
@@ -764,7 +803,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            make << parameters.make_target >> RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
             rm -rf tmp/build_extension/tests/opcache/file_cache/* || true
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
@@ -814,7 +853,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            DD_TRACE_SIDECAR_TRACE_SENDER=1 make test_c RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            DD_TRACE_SIDECAR_TRACE_SENDER=1 make test_c RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -860,7 +899,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            make test_c_observer RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            make test_c_observer RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -917,7 +956,7 @@ jobs:
               -e PHP_VARIANT=<< parameters.switch_php_version >> \
               -e PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" \
               << parameters.php_major_minor >>-buster-arm64 \
-                ./tooling/bin/run-in-docker-with-ext.sh make fix_socket_permissions << parameters.make_target >> RUST_DEBUG_SYMBOLS=1
+                ./tooling/bin/run-in-docker-with-ext.sh make fix_socket_permissions << parameters.make_target >> RUST_DEBUG_BUILD=1
       # - <<: *STEP_COMPOSER_TESTS_UPDATE
       # - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       # - <<: *STEP_EXPORT_CI_ENV
@@ -1035,7 +1074,7 @@ jobs:
           command: |
             set -euo pipefail
             if [[ << parameters.switch_php_version >> == *asan* ]]; then export TEST_PHP_JUNIT=$(pwd)/asan-extension-test.xml; fi
-            make << parameters.make_target >> RUST_DEBUG_SYMBOLS=1 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            make << parameters.make_target >> RUST_DEBUG_BUILD=1 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - when:
           # codecov uploader only on amd64
           condition:
@@ -1546,9 +1585,12 @@ jobs:
       coverage:
         type: boolean
         default: false
+      with_executor:
+        type: string
+        default: 'with_integrations'
     resource_class: << parameters.resource_class >>
     executor:
-      name: with_integrations
+      name: << parameters.with_executor >>
       docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
@@ -1579,12 +1621,16 @@ jobs:
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
-      - <<: *STEP_WAIT_MYSQL
+      - when:
+            condition:
+                equal: [ "with_integrations", << parameters.with_executor >> ]
+            steps:
+              - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run tests
-          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_SYMBOLS=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - when:
           # codecov uploader only on amd64
           condition:
@@ -1756,7 +1802,7 @@ jobs:
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run << parameters.integration_testsuite >> integration test
-          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.integration_testsuite >> RUST_DEBUG_SYMBOLS=1
+          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.integration_testsuite >> RUST_DEBUG_BUILD=1
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -1809,7 +1855,7 @@ jobs:
           name: Run << parameters.ext_name >> integration tests with ext/<< parameters.ext_name >> as shared lib + leak detection
           command: |
             make test_extension_ci \
-              RUST_DEBUG_SYMBOLS=1 \
+              RUST_DEBUG_BUILD=1 \
               BUILD_DIR=$(pwd)/tmp/build_extension \
               JUNIT_RESULTS_DIR=$(pwd)/test-results \
               RUN_TESTS_EXTRA_ARGS="-d extension=mbstring.so -d extension=<< parameters.ext_name >>.so" \
@@ -1819,7 +1865,7 @@ jobs:
               for curlVersion in 7.72.0 7.77.0
               do
                 make test_c \
-                  RUST_DEBUG_SYMBOLS=1 \
+                  RUST_DEBUG_BUILD=1 \
                   BUILD_DIR=$(pwd)/tmp/build_extension \
                   JUNIT_RESULTS_DIR=$(pwd)/test-results \
                   RUN_TESTS_EXTRA_ARGS="-d extension=mbstring.so -d extension=<< parameters.ext_name >>-${curlVersion}.so" \
@@ -2129,7 +2175,7 @@ jobs:
     working_directory: ~/datadog
     machine:
       image: ubuntu-2004:2023.04.2
-    resource_class: large
+    resource_class: xlarge
     environment:
       - RANDOMIZED_RESTRICT_PLATFORMS: centos7
     parameters:
@@ -2162,10 +2208,10 @@ jobs:
           command: make -C tests/randomized library.local
       - run:
           name: Generate scenarios
-          command: make -C tests/randomized generate PLATFORMS=$RANDOMIZED_RESTRICT_PLATFORMS
+          command: make -C tests/randomized generate PLATFORMS=$RANDOMIZED_RESTRICT_PLATFORMS NUMBER_OF_SCENARIOS=4
       - run:
           name: Execute tests
-          command: make -C tests/randomized test CONCURRENT_JOBS=5 DURATION=1m30s
+          command: make -C tests/randomized test CONCURRENT_JOBS=2 DURATION=1m30s
       - run:
           name: Fix PHP-FPM logs permissions before storing artifacts
           command: sudo chown -R circleci:circleci tests/randomized/.tmp.scenarios/.results
@@ -2665,6 +2711,13 @@ jobs:
             fi
             build-dd-trace-php
             mv extensions extensions_$(uname -m)
+      - run:
+          name: Compress debug info
+          command: |
+            cd extensions_$(uname -m)
+            for FILE in $(find . -name "*.so"); do
+                objcopy --compress-debug-sections $FILE
+            done
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions_*']
@@ -2695,8 +2748,15 @@ jobs:
           command: |
             set -eo pipefail
             switch-php debug-zts-asan
-            make RUST_DEBUG_SYMBOLS=1
+            make RUST_DEBUG_BUILD=1
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-debug-zts.so
+      - run:
+          name: Compress debug info
+          command: |
+            cd extensions_$(uname -m)
+            for FILE in $(find . -name "*.so"); do
+                objcopy --compress-debug-sections $FILE
+            done
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions_*']
@@ -2812,13 +2872,29 @@ jobs:
             cd profiling
             cargo test --release --all-features
       - run:
-          name: phpt tests
+          name: phpt tests NTS
           command: |
             set -u
             command -v switch-php && switch-php "${PHP_VERSION}"
             set -e
             libdir="/tmp/datadog-profiling"
             cd profiling
+            cargo build --release --all-features
+            cd tests
+            # don't anticipate there being more than one
+            run_tests_php=$(find $(php-config --prefix) -name run-tests.php)
+            cp -v "${run_tests_php}" .
+            export TEST_PHP_EXECUTABLE=$(which php)
+            php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt"
+      - run:
+          name: phpt tests ZTS
+          command: |
+            set -u
+            command -v switch-php && switch-php "${PHP_VERSION}-zts"
+            set -e
+            libdir="/tmp/datadog-profiling"
+            cd profiling
+            touch build.rs #make sure `build.rs` gets executed after `switch-php` call
             cargo build --release --all-features
             cd tests
             # don't anticipate there being more than one
@@ -2874,6 +2950,13 @@ jobs:
             switch-php << parameters.php_version >>-zts
             make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp -v tmp/build_extension/.libs/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-zts.so
+      - run:
+          name: Compress debug info
+          command: |
+            cd extensions_$(uname -m)
+            for FILE in $(find . -name "*.so"); do
+                objcopy --compress-debug-sections $FILE
+            done
       - persist_to_workspace:
           root: '.'
           paths: [ './extensions_*' ]
@@ -2964,6 +3047,13 @@ jobs:
             mkdir -p appsec/build-release-zts ; cd appsec/build-release-zts
             cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
             cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API-zts.so
+      - run:
+          name: Compress debug info
+          command: |
+            cd appsec_$(uname -m)
+            for FILE in $(find . -name "*.so"); do
+                objcopy --compress-debug-sections $FILE
+            done
       - persist_to_workspace:
           root: '.'
           paths: [ './appsec_*' ]
@@ -2995,6 +3085,13 @@ jobs:
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
             cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API-alpine.so
+      - run:
+          name: Compress debug info
+          command: |
+            cd appsec_$(uname -m)
+            for FILE in $(find . -name "*.so"); do
+                objcopy --compress-debug-sections $FILE
+            done
       - persist_to_workspace:
           root: '.'
           paths: [ './appsec_*' ]
@@ -3025,6 +3122,7 @@ jobs:
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_TOOLCHAIN_FILE=$(pwd)/../cmake/Toolchain.$(uname -m).cmake
             make -j $(nproc)
+            objcopy --compress-debug-sections ddappsec-helper
             cp -v ddappsec-helper ../../appsec_$(uname -m)/ddappsec-helper
       - run:
           name: Test
@@ -4313,13 +4411,39 @@ workflows:
                 - "8.3"
               make_target:
                 - test_coverage
-                - test_extension_ci
                 - test_unit
                 - test_api_unit
                 - test_c2php
                 - test_c_disabled
                 - test_internal_api_randomized
                 - test_opcache
+
+      - test:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+              make_target:
+                - test_extension_ci
+
+      - test:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              resource_class:
+                - medium+
+              php_major_minor:
+                - "7.4"
+                - "8.0"
+                - "8.1"
+                - "8.2"
+                - "8.3"
+              make_target:
+                - test_extension_ci
 
       - test_windows:
           requires: [ 'Prepare Code' ]
@@ -4467,6 +4591,7 @@ workflows:
           resource_class: medium+
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
+          with_executor: 'with_httpbin_and_request_replayer'
           matrix:
             parameters:
               php_major_minor:
@@ -4485,6 +4610,7 @@ workflows:
           # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove this additional
           # runner and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
           requires: [ 'Prepare Code' ]
+          with_executor: 'with_redis'
           matrix:
             parameters:
               php_major_minor:
@@ -4503,6 +4629,7 @@ workflows:
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
           coverage: true
+          with_executor: 'with_httpbin_and_request_replayer'
           matrix:
             parameters:
               php_major_minor:
@@ -4577,6 +4704,7 @@ workflows:
           name: "PHP 83 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.3.list
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
+          parallel_workers: true
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 82 language tests"

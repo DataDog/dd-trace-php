@@ -166,6 +166,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                                \
     CONFIG(BOOL, DD_TRACE_ONCE_LOGS, "true")                                                                   \
+    CONFIG(INT, DD_TRACE_AGENT_RETRIES, "0", .ini_change = zai_config_system_ini_change)                       \
     CONFIG(BOOL, DD_TRACE_AGENT_DEBUG_VERBOSE_CURL, "false", .ini_change = zai_config_system_ini_change)       \
     CONFIG(BOOL, DD_TRACE_DEBUG_CURL_OUTPUT, "false", .ini_change = zai_config_system_ini_change)              \
     CONFIG(INT, DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT, "80", .ini_change = zai_config_system_ini_change)  \

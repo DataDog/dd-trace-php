@@ -126,6 +126,11 @@ function generateOne($scenarioSeed, array $restrictedPHPVersions, array $restric
     for ($iniModification = 0; $iniModification < $numberOfIniModifications; $iniModification++) {
         $currentIni = array_rand(INIS);
         $availableValues = INIS[$currentIni];
+
+        if ($selectedPhpVersion === '7.0' && $currentIni === 'extension') {
+            continue; // The PHP Profiler is a Zend Extension for PHP 7.1+
+        }
+
         if ($currentIni == "extension" || rand(0, 1)) {
             $primaryIni[$currentIni] = $availableValues[array_rand($availableValues)];
         } else {

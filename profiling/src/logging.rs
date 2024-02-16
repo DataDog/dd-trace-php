@@ -17,11 +17,18 @@ pub fn log_init(level_filter: LevelFilter) {
     if fd != -1 {
         // Safety: the fd is a valid and open file descriptor, and the File has sole ownership.
         let target = Box::new(unsafe { File::from_raw_fd(fd) });
-        env_logger::builder()
+        let result = env_logger::builder()
             .filter_level(LevelFilter::Off)
             .filter_module("datadog_php_profiling", level_filter)
             .target(Target::Pipe(target))
             .format_timestamp_micros()
-            .init();
+            .try_init();
+
+        // Due to `apachectl graceful` doing multiple minit/mshutdowns in one
+        // process, this may get called more than once. That's okay, set the
+        // new log level.
+        if result.is_err() {
+            log::set_max_level(level_filter);
+        }
     }
 }

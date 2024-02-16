@@ -107,6 +107,7 @@
             <!-- code and test files -->${codefiles}
             <file name="config.m4" role="src" />
             <file name="ddtrace.sym" role="src" />
+            <file name="compile_rust.sh" role="src" />
 
             <!-- Docs -->
             <file name="CHANGELOG.md" role="doc" />

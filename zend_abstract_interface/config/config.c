@@ -142,11 +142,75 @@ void zai_config_mshutdown(void) {
 void zai_config_runtime_config_ctor(void);
 void zai_config_runtime_config_dtor(void);
 
-void zai_config_first_time_rinit(void) {
+#if PHP_VERSION_ID < 70300
+#define GC_ADD_FLAGS(c, flag) GC_FLAGS(c) |= flag
+#define GC_ADDREF(p) ++GC_REFCOUNT(p)
+#endif
+
+static void zai_config_intern_zval(zval *pzval) {
+    if (Z_TYPE_P(pzval) == IS_STRING) {
+#if PHP_VERSION_ID >= 70400
+        ZVAL_INTERNED_STR(pzval, zend_new_interned_string(Z_STR_P(pzval)));
+#else
+        GC_ADD_FLAGS(Z_STR_P(pzval), IS_STR_INTERNED);
+        Z_TYPE_INFO_P(pzval) = IS_INTERNED_STRING_EX;
+#endif
+    }
+    if (Z_TYPE_P(pzval) == IS_ARRAY) {
+        GC_ADDREF(Z_ARR_P(pzval));
+        GC_ADD_FLAGS(Z_ARR_P(pzval), IS_ARRAY_IMMUTABLE);
+#if PHP_VERSION_ID < 70200
+        Z_TYPE_FLAGS_P(pzval) = IS_TYPE_IMMUTABLE;
+#elif PHP_VERSION_ID < 70300
+        Z_TYPE_FLAGS_P(pzval) = IS_TYPE_COPYABLE;
+#else
+        Z_TYPE_FLAGS_P(pzval) = 0;
+#endif
+
+#if PHP_VERSION_ID >= 80200
+        if (HT_IS_PACKED(Z_ARR_P(pzval))) {
+            zval *zv;
+            ZEND_HASH_FOREACH_VAL(Z_ARR_P(pzval), zv) {
+                zai_config_intern_zval(zv);
+            } ZEND_HASH_FOREACH_END();
+        } else
+#endif
+        {
+        Bucket *bucket;
+            ZEND_HASH_FOREACH_BUCKET(Z_ARR_P(pzval), bucket) {
+                if (bucket->key) {
+#if PHP_VERSION_ID >= 70400
+                    bucket->key = zend_new_interned_string(bucket->key);
+#else
+                    GC_ADD_FLAGS(bucket->key, IS_STR_INTERNED);
+#endif
+                }
+                zai_config_intern_zval(&bucket->val);
+            } ZEND_HASH_FOREACH_END();
+        }
+    }
+}
+
+void zai_config_first_time_rinit(bool in_request) {
+#if PHP_VERSION_ID >= 70400
+    if (in_request) {
+        zend_interned_strings_switch_storage(0);
+    }
+#endif
+
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         zai_config_find_and_set_value(memoized, i);
+        if (in_request) {
+            zai_config_intern_zval(&memoized->decoded_value);
+        }
     }
+
+#if PHP_VERSION_ID >= 70400
+    if (in_request) {
+        zend_interned_strings_switch_storage(1);
+    }
+#endif
 }
 
 void zai_config_rinit(void) {

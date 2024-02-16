@@ -106,10 +106,9 @@ if (PHP_DDTRACE != 'no') {
 	frag_out.WriteLine("!endif");
 	frag_out.WriteLine("!if [set RUSTC_BOOTSTRAP=1]");
 	frag_out.WriteLine("!endif");
-	/* Not supported yet on Windows
-	frag_out.WriteLine("!if [set RUSTFLAGS=--cfg tokio_unstable --cfg tokio_taskdump]");
+	frag_out.WriteLine("!if [set RUSTFLAGS=--cfg windows_seh_wrapper]");
+	// Not supported yet on Windows: --cfg tokio_unstable --cfg tokio_taskdump
 	frag_out.WriteLine("!endif");
-	*/
 	frag_out.WriteLine(cargo_lib + ": " + rust_files.join(" "));
 	var build_cargo = "\t$(CARGO) build --package ddtrace-php " + (ddtrace_cargo_profile == "release" ? "--profile tracer-release" : "");
 	if (configure_module_dirname.match(/^[A-Z]:/)) {
