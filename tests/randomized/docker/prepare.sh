@@ -25,7 +25,7 @@ php -v
 echo "Starting PHP-FPM"
 mkdir -p /var/log/php-fpm/
 chmod a+w /var/log/php-fpm/
-php-fpm -D -d datadog.trace.log_file=/results/dd_php_error.log
+php-fpm -D -d datadog.trace.log_file=/results/dd_php_error.log -d fastcgi.logging=Off
 sleep 1
 
 # Start nginx
