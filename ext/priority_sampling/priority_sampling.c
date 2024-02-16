@@ -313,6 +313,7 @@ zend_long ddtrace_fetch_priority_sampling_from_root(void) {
 
 zend_long ddtrace_fetch_priority_sampling_from_span(ddtrace_root_span_data *root_span) {
     if (Z_TYPE(root_span->property_sampling_priority) == IS_UNDEF || Z_LVAL(root_span->property_sampling_priority) == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+        LOG(Debug, "Sampling priority is unknown for trace %s", Z_STRVAL(root_span->property_trace_id));
         root_span->explicit_sampling_priority = false;
     }
 
@@ -321,6 +322,8 @@ zend_long ddtrace_fetch_priority_sampling_from_span(ddtrace_root_span_data *root
     if (decide) {
         // If a decision of keep was inherited the sampling decision stays unchanged, regardless of the rules
         int sampling_priority = zval_get_long(&root_span->property_sampling_priority);
+        LOG(Debug, "Propagated sampling priority is %d for trace %s", zval_get_long(&root_span->property_propagated_sampling_priority), Z_STRVAL(root_span->property_trace_id));
+        LOG(Debug, "Sampling priority is %d for trace %s", sampling_priority, Z_STRVAL(root_span->property_trace_id));
         if (zval_get_long(&root_span->property_propagated_sampling_priority) > 0 &&
             (sampling_priority == PRIORITY_SAMPLING_USER_KEEP || sampling_priority == PRIORITY_SAMPLING_AUTO_KEEP)) {
             decide = false;
@@ -348,10 +351,12 @@ void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, ze
     zval zv;
     ZVAL_LONG(&zv, priority);
     ddtrace_assign_variable(&root_span->property_sampling_priority, &zv);
+    LOG(Debug, "Assigned priority sampling %d to trace %s", priority, Z_STRVAL(root_span->property_trace_id));
 
     if (priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         dd_update_decision_maker_tag(root_span, mechanism);
         root_span->explicit_sampling_priority = true;
+        LOG(Debug, "Explicit priority sampling %d set on trace %s", priority, Z_STRVAL(root_span->property_trace_id));
     }
 }
 
