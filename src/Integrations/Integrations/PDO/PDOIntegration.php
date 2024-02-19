@@ -311,14 +311,17 @@ class PDOIntegration extends Integration
         }
 
         $span->type = Type::SQL;
-        Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PDOIntegration::NAME;
-        if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.db_client_split_by_instance")) {
-            if (isset($storedConnectionInfo[Tag::TARGET_HOST])) {
-                $span->service .=
-                    '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($storedConnectionInfo[Tag::TARGET_HOST]);
-            }
+        if (
+            \DDTrace\Util\Runtime::getBoolIni("datadog.trace.db_client_split_by_instance") &&
+                isset($storedConnectionInfo[Tag::TARGET_HOST])
+        ) {
+            Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME, true);
+            $span->service = $span->service
+                . '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($storedConnectionInfo[Tag::TARGET_HOST]);
+        } else {
+            Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
         }
 
         foreach ($storedConnectionInfo as $tag => $value) {

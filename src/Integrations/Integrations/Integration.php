@@ -156,10 +156,10 @@ abstract class Integration
      * @param SpanData $span
      * @param string $fallbackName
      */
-    public static function handleInternalSpanServiceName(SpanData $span, $fallbackName)
+    public static function handleInternalSpanServiceName(SpanData $span, $fallbackName, $skipFlattening = false)
     {
         $flatServiceNames =
-            \PHP_MAJOR_VERSION > 5
+            !$skipFlattening && \PHP_MAJOR_VERSION > 5
                 && \dd_trace_env_config('DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED');
 
         if ($flatServiceNames) {
