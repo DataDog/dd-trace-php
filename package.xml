@@ -138,6 +138,7 @@ This release introduces support for the Roadrunner application server and extend
         <dir name="/">
             <!-- code and test files -->${codefiles}
             <file name="config.m4" role="src" />
+            <file name="config.w32" role="src" />
             <file name="ddtrace.sym" role="src" />
             <file name="compile_rust.sh" role="src" />
 
