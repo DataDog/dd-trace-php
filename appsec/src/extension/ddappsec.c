@@ -474,8 +474,7 @@ static PHP_FUNCTION(datadog_appsec_push_address)
     zval parameters_zv;
     zend_array *parameters_arr = zend_new_array(1);
     ZVAL_ARR(&parameters_zv, parameters_arr);
-    zval *res = zend_hash_add(
-        Z_ARRVAL(parameters_zv), key, value);
+    zval *res = zend_hash_add(Z_ARRVAL(parameters_zv), key, value);
     if (res == NULL) {
         zval_ptr_dtor(&parameters_zv);
         mlog_g(dd_log_debug, "Parameters could not be added");
