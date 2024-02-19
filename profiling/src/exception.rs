@@ -45,18 +45,46 @@ impl ExceptionProfilingStats {
         self.next_sample = self.poisson.sample(&mut self.rng) as u32;
     }
 
-    fn track_exception(&mut self, name: String) {
+    fn track_exception(
+        &mut self,
+        #[cfg(php7)] exception: *mut zend::zval,
+        #[cfg(php8)] exception: *mut zend::zend_object,
+    ) {
         if let Some(next_sample) = self.next_sample.checked_sub(1) {
             self.next_sample = next_sample;
             return;
         }
+
+        #[cfg(php7)]
+        let exception = unsafe { (*exception).value.obj };
+
+        let exception_name = unsafe { (*exception).class_name() };
+
+        let collect_message = REQUEST_LOCALS.with(|cell| {
+            cell.try_borrow()
+                .map(|locals| locals.system_settings().profiling_exception_message_enabled)
+                .unwrap_or(false)
+        });
+
+        let message = if collect_message {
+            Some(unsafe {
+                zend::zai_str_from_zstr(zend::zai_exception_message(exception).as_mut())
+                    .into_string()
+            })
+        } else {
+            None
+        };
 
         self.next_sampling_interval();
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
             unsafe {
-                profiler.collect_exception(zend::ddog_php_prof_get_current_execute_data(), name)
+                profiler.collect_exception(
+                    zend::ddog_php_prof_get_current_execute_data(),
+                    exception_name,
+                    message,
+                )
             };
         }
     }
@@ -116,14 +144,9 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     // traversed. Fortunately, this behavior can be easily identified by checking for a NULL
     // pointer.
     if exception_profiling && !exception.is_null() {
-        #[cfg(php7)]
-        let exception_name = (*(*exception).value.obj).class_name();
-        #[cfg(php8)]
-        let exception_name = (*exception).class_name();
-
         EXCEPTION_PROFILING_STATS.with(|cell| {
             let mut exceptions = cell.borrow_mut();
-            exceptions.track_exception(exception_name)
+            exceptions.track_exception(exception)
         });
     }
 
