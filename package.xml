@@ -89,6 +89,7 @@ Windows support is in beta. We recommend carefully deploying the tracer to stagi
 - Include generated curl_exec spans of curl_multi_exec() in metrics #2505
 - Remove Symfony Command Hook After Execution #2492
 - Add zend_try around closing and flushing spans #2507
+- Make PDO split-by coherent with other DB split-by with service name flattening #2524
 
 ### Internal
 - No longer compile the mockgen as part of the rust build #2512
