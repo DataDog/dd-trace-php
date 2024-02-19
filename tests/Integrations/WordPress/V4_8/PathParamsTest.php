@@ -28,7 +28,7 @@ class PathParamsTest extends AppsecTestCase
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
-        $this->assertEquals('hello-world', $events[0]['name']);
+        $this->assertEquals('hello-world', $events[0]["server.request.path_params"]['name']);
         $this->assertEquals('push_address', $events[0]['eventName']);
     }
 
@@ -43,7 +43,7 @@ class PathParamsTest extends AppsecTestCase
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
-        $this->assertEquals('uncategorized', $events[0]['category_name']);
+        $this->assertEquals('uncategorized', $events[0]["server.request.path_params"]['category_name']);
         $this->assertEquals('push_address', $events[0]['eventName']);
     }
 
@@ -58,7 +58,7 @@ class PathParamsTest extends AppsecTestCase
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
-        $this->assertEquals('SammyK', $events[0]['author_name']);
+        $this->assertEquals('SammyK', $events[0]["server.request.path_params"]['author_name']);
         $this->assertEquals('push_address', $events[0]['eventName']);
     }
 
