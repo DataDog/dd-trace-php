@@ -14,3 +14,6 @@ void dd_entity_body_gshutdown(void);
 void dd_entity_body_rinit(void);
 zend_string *nonnull dd_request_body_buffered(size_t limit);
 zend_string *nonnull dd_response_body_buffered(void);
+
+zval dd_entity_body_convert(
+    const char *nonnull ct, size_t ct_len, zend_string *nonnull entity);

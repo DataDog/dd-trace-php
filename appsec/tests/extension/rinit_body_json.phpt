@@ -1,12 +1,12 @@
 --TEST--
-request_init data on XML data
+request_init data on JSON data
 --INI--
 datadog.appsec.testing_raw_body=1
 datadog.appsec.enabled=1
 --POST_RAW--
-<foo/>
+{"foo":"bar"}
 --ENV--
-CONTENT_TYPE=text/xml
+CONTENT_TYPE=application/json
 --FILE--
 <?php
 use function datadog\appsec\testing\rinit;
@@ -29,7 +29,6 @@ var_dump($c[1][1][0]['server.request.body.raw']);
 bool(true)
 array(1) {
   ["foo"]=>
-  array(0) {
-  }
+  string(3) "bar"
 }
-string(6) "<foo/>"
+string(13) "{"foo":"bar"}"

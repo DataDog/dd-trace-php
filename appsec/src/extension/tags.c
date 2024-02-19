@@ -34,6 +34,8 @@
 #define DD_TAG_HTTP_URL "http.url"
 #define DD_TAG_NETWORK_CLIENT_IP "network.client.ip"
 #define DD_PREFIX_TAG_REQUEST_HEADER "http.request.headers."
+#define DD_TAG_HTTP_REQH_CONTENT_TYPE "http.request.headers.content-type"
+#define DD_TAG_HTTP_REQH_CONTENT_LENGTH "http.request.headers.content-length"
 #define DD_TAG_HTTP_RH_CONTENT_LENGTH "http.response.headers.content-length"
 #define DD_TAG_HTTP_RH_CONTENT_TYPE "http.response.headers.content-type"
 #define DD_TAG_HTTP_RH_CONTENT_ENCODING "http.response.headers.content-encoding"
@@ -78,6 +80,8 @@ static zend_string *_dd_tag_http_status_code_zstr;
 static zend_string *_dd_tag_http_url_zstr;
 static zend_string *_dd_tag_network_client_ip_zstr;
 static zend_string *_dd_tag_http_client_ip_zstr;
+static zend_string *_dd_tag_content_type;
+static zend_string *_dd_tag_content_length;
 static zend_string *_dd_tag_rh_content_length;   // response
 static zend_string *_dd_tag_rh_content_type;     // response
 static zend_string *_dd_tag_rh_content_encoding; // response
@@ -152,6 +156,10 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_NETWORK_CLIENT_IP), 1);
     _dd_tag_http_client_ip_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_CLIENT_IP), 1);
+    _dd_tag_content_type =
+        zend_string_init_interned(LSTRARG(DD_TAG_HTTP_REQH_CONTENT_TYPE), 1);
+    _dd_tag_content_length =
+        zend_string_init_interned(LSTRARG(DD_TAG_HTTP_REQH_CONTENT_LENGTH), 1);
 
     _dd_tag_rh_content_length =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LENGTH), 1);
@@ -657,6 +665,19 @@ static void _dd_http_client_ip(zend_array *meta_ht)
     }
 }
 
+static void _try_add_tag(zend_array *meta_ht, zend_string *tag_name, zval *val)
+{
+
+    Z_TRY_ADDREF_P(val);
+    bool added = zend_hash_add(meta_ht, tag_name, val) != NULL;
+    if (added) {
+        mlog(dd_log_debug, "Adding request header tag '%s' -> '%s",
+            ZSTR_VAL(tag_name), ZSTR_VAL(Z_STR_P(val)));
+    } else {
+        zval_delref_p(val);
+    }
+}
+
 static void _dd_request_headers(
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     zend_array *meta_ht, const zend_array *nonnull _server,
@@ -673,6 +694,12 @@ static void _dd_request_headers(
 
         if (Z_TYPE_P(val) != IS_STRING) {
             continue;
+        }
+
+        if (zend_string_equals_literal(key, "CONTENT_TYPE")) {
+            _try_add_tag(meta_ht, _dd_tag_content_type, val);
+        } else if (zend_string_equals_literal(key, "CONTENT_LENGTH")) {
+            _try_add_tag(meta_ht, _dd_tag_content_length, val);
         }
 
         if (ZSTR_LEN(key) <= LSTRLEN("HTTP_") ||
@@ -698,14 +725,7 @@ static void _dd_request_headers(
             continue;
         }
 
-        Z_TRY_ADDREF_P(val);
-        bool added = zend_hash_add(meta_ht, tag_name, val) != NULL;
-        if (added) {
-            mlog(dd_log_debug, "Adding request header tag '%s' -> '%s",
-                ZSTR_VAL(tag_name), ZSTR_VAL(Z_STR_P(val)));
-        } else {
-            zval_delref_p(val);
-        }
+        _try_add_tag(meta_ht, tag_name, val);
         zend_string_release(tag_name);
     }
     ZEND_HASH_FOREACH_END();

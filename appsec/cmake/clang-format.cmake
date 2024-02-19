@@ -33,5 +33,6 @@ add_custom_target(headers_fix
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_custom_target(format_fix_chg
-    COMMAND bash -c "git status --porcelain=1 :/ | grep -E '\.(c|h|cpp|hpp)$' | awk '{ print \"${CMAKE_SOURCE_DIR}/\" $NF }' | xargs echo '${CLANG_FORMAT}' -i"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    COMMAND bash -c "git status --porcelain=1 :/appsec/ | grep -E '\.(c|h|cpp|hpp)$$' | awk '{ print \"${CMAKE_SOURCE_DIR}/../\" $NF }' | xargs '${CLANG_FORMAT}' --dry-run"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    VERBATIM)

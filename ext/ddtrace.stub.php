@@ -630,9 +630,10 @@ namespace DDTrace\UserRequest {
      *
      * @param \DDTrace\Span $span the span associated with this user request.
      * @param array $data an array with keys named '_GET', '_POST', '_SERVER', '_FILES', '_COOKIE'
+     * @param string|resource|null $body the body of the request (a string or a seekable resource)
      * @return array|null an array with the keys 'status', 'headers' and 'body', or null
      */
-    function notify_start(\DDTrace\RootSpanData $span, array $data): ?array {}
+    function notify_start(\DDTrace\RootSpanData $span, array $data, ?mixed $body = null): ?array {}
 
     /**
      * Notifies the user request listeners of the imminence of a commit, and allows for the replacement of the response.

@@ -11,16 +11,11 @@ DD_AGENT_HOST=
 include __DIR__ . '/../includes/request_replayer.inc';
 include_once __DIR__ . '/../startup_logging.inc';
 
-if (!file_exists("/var/run/datadog/apm.socket")) {
-    RequestReplayer::launchUnixProxy("/var/run/datadog/apm.socket");
-} else {
-    $socket = stream_socket_client("unix:///var/run/datadog/apm.socket");
-    if (!$socket) {
-        RequestReplayer::launchUnixProxy("/var/run/datadog/apm.socket");
-    } else {
-        fclose($socket);
-    }
+if (file_exists("/var/run/datadog/apm.socket")) {
+    unlink("/var/run/datadog/apm.socket");
 }
+
+RequestReplayer::launchUnixProxy("/var/run/datadog/apm.socket");
 
 $logs = dd_get_startup_logs([], ['DD_TRACE_LOG_LEVEL' => 'error,startup=info']);
 
