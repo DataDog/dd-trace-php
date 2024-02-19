@@ -56,8 +56,8 @@ impl ExceptionProfilingStats {
         }
 
         #[cfg(php7)]
-        let exception_name = unsafe { (*(*exception).value.obj).class_name() };
-        #[cfg(php8)]
+        let exception = unsafe { (*exception).value.obj };
+
         let exception_name = unsafe { (*exception).class_name() };
 
         let collect_message = REQUEST_LOCALS.with(|cell| {
@@ -67,12 +67,8 @@ impl ExceptionProfilingStats {
         });
 
         let message = if collect_message {
-            #[cfg(php7)]
-            let exception_obj = unsafe { (*exception).value.obj };
-            #[cfg(php8)]
-            let exception_obj = exception;
             Some(unsafe {
-                zend::zai_str_from_zstr(zend::zai_exception_message(exception_obj).as_mut())
+                zend::zai_str_from_zstr(zend::zai_exception_message(exception).as_mut())
                     .into_string()
             })
         } else {
