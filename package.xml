@@ -116,6 +116,8 @@ This release requires System INIs to be used to configure the profiler settings 
 - Fix accidentally skipped tests #2517
 
 ## Application Security Management
+This release introduces support for the Roadrunner application server and extends threat detection and blocking on XML and JSON request payloads. Request and response payloads are now also used to expand the already existing API security features.
+
 ### Added
 - Roadrunner appsec support #2443
 - Provide server.response.body #2489
