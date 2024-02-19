@@ -317,8 +317,9 @@ class PDOIntegration extends Integration
             \DDTrace\Util\Runtime::getBoolIni("datadog.trace.db_client_split_by_instance") &&
                 isset($storedConnectionInfo[Tag::TARGET_HOST])
         ) {
-            $span->service = PDOIntegration::NAME . '-' .
-                    \DDTrace\Util\Normalizer::normalizeHostUdsAsService($storedConnectionInfo[Tag::TARGET_HOST]);
+            Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME, true);
+            $span->service = $span->service
+                . '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($storedConnectionInfo[Tag::TARGET_HOST]);
         } else {
             Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
         }
