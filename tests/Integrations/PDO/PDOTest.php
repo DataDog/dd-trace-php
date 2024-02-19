@@ -516,6 +516,46 @@ final class PDOTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPDOStatementSplitByDomainAndServiceFlattening()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = $this->pdoInstance();
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([1]);
+            $stmt->fetchAll();
+            $stmt->closeCursor();
+            $stmt = null;
+            $pdo = null;
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build(
+                'PDO.prepare',
+                'pdo-mysql_integration',
+                'sql',
+                "SELECT * FROM tests WHERE id = ?"
+            )->withExactTags($this->baseTags()),
+            SpanAssertion::build(
+                'PDOStatement.execute',
+                'pdo-mysql_integration',
+                'sql',
+                "SELECT * FROM tests WHERE id = ?"
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.agent_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
+        ]);
+    }
+
     public function testPDOStatementIsCorrectlyClosedOnUnset()
     {
         $query = "SELECT * FROM tests WHERE id > ?";
