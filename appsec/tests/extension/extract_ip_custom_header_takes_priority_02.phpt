@@ -1,5 +1,7 @@
 --TEST--
 Client ip header takes priority over any other ip header
+--INI--
+extension=ddtrace.so
 --ENV--
 HTTP_X_FORWARDED_FOR=7.7.7.7
 HTTP_FOO_BAR=1.2.3.4

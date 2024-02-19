@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "circuit_breaker.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include <components/log/log.h>
 #include <zai_string/string.h>

@@ -123,12 +123,17 @@ PHP_FUNCTION(DDTrace_UserRequest_notify_commit)
         }
     }
 
+    if (status < 100 || status > 599) {
+        zend_value_error("Status code must be between 100 and 599");
+        return;
+    }
+
     bool free_headers = false;
 
     zend_array *replacement_resp = NULL;
     for (size_t i = 0; i < reg_listeners.size; i++) {
         ddtrace_user_req_listeners *listener = reg_listeners.listeners[i];
-        zend_array *repl = listener->response_committed(listener, span, status, headers, rbe_zv);
+        zend_array *repl = listener->response_committed(listener, span, (int)status, headers, rbe_zv);
         if (repl) {
             {
                 zval *new_status_zv = zend_hash_str_find(repl, ZEND_STRL("status"));

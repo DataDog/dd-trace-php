@@ -1,6 +1,7 @@
 --TEST--
 Test full set of ancillary tags
 --INI--
+extension=ddtrace.so
 datadog.appsec.extra_headers=,mY-header,,my-other-header
 --ENV--
 REQUEST_URI=/my/ur%69/
@@ -28,6 +29,7 @@ HTTP_ACCEPT_ENCODING=gzip
 HTTP_ACCEPT_LANGUAGE=pt-PT
 HTTP_MY_HEADER=my header value
 HTTP_MY_OTHER_HEADER=my other header value
+HTTP_X_AMZN_TRACE_ID=amazontraceid
 HTTP_IGNORED_HEADER=ignored header
 REMOTE_ADDR=7.7.7.12
 HTTPS=on
@@ -81,6 +83,7 @@ Array
     [http.request.headers.true-client-ip] => 7.7.7.11
     [http.request.headers.user-agent] => my user agent
     [http.request.headers.via] => HTTP/1.1 GWA
+    [http.request.headers.x-amzn-trace-id] => amazontraceid
     [http.request.headers.x-client-ip] => 7.7.7.7
     [http.request.headers.x-cluster-client-ip] => 7.7.7.9
     [http.request.headers.x-forwarded] => for="foo"
@@ -98,12 +101,5 @@ Array
 Array
 (
     [http.client_ip] => 7.7.7.6
-    [http.request.headers.forwarded] => for="foo"
-    [http.request.headers.forwarded-for] => 7.7.7.10,10.0.0.1
-    [http.request.headers.true-client-ip] => 7.7.7.11
-    [http.request.headers.via] => HTTP/1.1 GWA
-    [http.request.headers.x-cluster-client-ip] => 7.7.7.9
-    [http.request.headers.x-forwarded] => for="foo"
-    [http.request.headers.x-forwarded-for] => 7.7.7.6,10.0.0.1
-    [http.request.headers.x-real-ip] => 7.7.7.8
+    [http.request.headers.x-amzn-trace-id] => amazontraceid
 )
