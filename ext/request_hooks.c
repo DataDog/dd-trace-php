@@ -27,7 +27,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #endif
 
 int dd_execute_php_file(const char *filename) {
-    int filename_len = strlen(filename);
+    size_t filename_len = strlen(filename);
     if (filename_len == 0) {
         return FAILURE;
     }

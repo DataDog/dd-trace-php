@@ -137,7 +137,7 @@ DDTRACE_PUBLIC zend_string *ddtrace_ip_extraction_find(zval *server) {
         }
 
         ipaddr out;
-        __auto_type res = dd_parse_forwarded(value, &out);
+        struct extract_res res = dd_parse_forwarded(value, &out);
         if (res.success) {
             return dd_ipaddr_to_zstr(&out);
         }
@@ -160,7 +160,7 @@ DDTRACE_PUBLIC zend_string *ddtrace_ip_extraction_find(zval *server) {
         zval *val = zend_hash_find(Z_ARR_P(server), priority_header_map[i].key);
         if (val && Z_TYPE_P(val) == IS_STRING && Z_STRLEN_P(val) > 0) {
             ipaddr out;
-            __auto_type res = (priority_header_map[i].parse_fn)(Z_STR_P(val), &out);
+            struct extract_res res = (priority_header_map[i].parse_fn)(Z_STR_P(val), &out);
             if (res.success) {
                 if (!res.is_private) {
                     return dd_ipaddr_to_zstr(&out);
@@ -176,7 +176,7 @@ DDTRACE_PUBLIC zend_string *ddtrace_ip_extraction_find(zval *server) {
     zend_string *value = dd_fetch_arr_str(server, _remote_addr_key);
     if (value) {
         ipaddr out;
-        __auto_type res = dd_parse_plain(value, &out);
+        struct extract_res res = dd_parse_plain(value, &out);
         if (res.success) {
             if (!res.is_private) {
                 return dd_ipaddr_to_zstr(&out);
@@ -223,7 +223,6 @@ static zend_string *dd_ipaddr_to_zstr(const ipaddr *ipaddr) {
     char buf[INET6_ADDRSTRLEN];
     const char *res = inet_ntop(ipaddr->af, (char *)&ipaddr->v4, buf, sizeof(buf));
     if (!res) {
-        LOG(Warn, "inet_ntop failed");
         return NULL;
     }
     return zend_string_init(res, strlen(res), 0);
@@ -459,11 +458,11 @@ static bool dd_is_private_v6(const struct in6_addr *addr) {
     static const struct {
         union {
             struct in6_addr base;
-            unsigned __int128 base_i;
+            uint64_t base_i[2];
         };
         union {
             struct in6_addr mask;
-            unsigned __int128 mask_i;
+            uint64_t mask_i[2];
         };
     } priv_ranges[] = {
         {
@@ -489,12 +488,12 @@ static bool dd_is_private_v6(const struct in6_addr *addr) {
     };
     // clang-format on
 
-    unsigned __int128 addr_i;
-    memcpy(&addr_i, addr->s6_addr, sizeof(addr_i));
+    uint64_t addr_i[2];
+    memcpy(&addr_i[0], addr->s6_addr, sizeof(addr_i));
 
     for (unsigned i = 0; i < ARRAY_SIZE(priv_ranges); i++) {
-        __auto_type range = &priv_ranges[i];
-        if ((addr_i & range->mask_i) == range->base_i) {
+        if ((addr_i[0] & priv_ranges[i].mask_i[0]) == priv_ranges[i].base_i[0] &&
+            (addr_i[1] & priv_ranges[i].mask_i[1]) == priv_ranges[i].base_i[1]) {
             return true;
         }
     }
