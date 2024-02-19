@@ -82,11 +82,12 @@ static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
     if ((rule_pattern = zend_hash_str_find(rule, ZEND_STRL("tags"))) && Z_TYPE_P(rule_pattern) == IS_ARRAY) {
         zend_array *tag_rules = Z_ARR_P(rule_pattern);
         zend_array *meta = ddtrace_property_array(&span->property_meta);
+        zend_array *metrics = ddtrace_property_array(&span->property_metrics);
         zend_string *tag_name;
         ZEND_HASH_FOREACH_STR_KEY_VAL(tag_rules, tag_name, rule_pattern) {
             if (tag_name) {
                 zval *value;
-                if (!(value = zend_hash_find(meta, tag_name))) {
+                if (!(value = zend_hash_find(meta, tag_name)) && !(value = zend_hash_find(metrics, tag_name))) {
                     return false;
                 }
                 if (!dd_rule_matches(rule_pattern, value, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
