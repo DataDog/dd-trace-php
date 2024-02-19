@@ -124,7 +124,7 @@ PHP_FUNCTION(DDTrace_UserRequest_notify_commit)
     }
 
     if (status < 100 || status > 599) {
-        zend_type_error("Status code must be between 100 and 599");
+        zend_value_error("Status code must be between 100 and 599");
         return;
     }
 
