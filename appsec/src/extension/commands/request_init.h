@@ -11,6 +11,7 @@
 struct req_info_init {
     struct req_info req_info;
     zend_array *nullable superglob_equiv;
+    zend_string *nullable entity;
 };
 dd_result dd_request_init(
     dd_conn *nonnull conn, struct req_info_init *nonnull ctx);

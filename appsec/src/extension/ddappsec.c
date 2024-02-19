@@ -218,7 +218,6 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_tags_startup();
     dd_ip_extraction_startup();
     dd_entity_body_startup();
-    dd_request_shutdown_startup();
 
     return SUCCESS;
 }
