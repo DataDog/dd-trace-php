@@ -137,11 +137,11 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "false")                                              \
     CONFIG(BOOL, DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, "false")                                   \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_SERVICE, "false")                                                          \
-    CALIAS(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_EXTRACT, "tracecontext,Datadog,B3,B3 single header",      \
+    CALIAS(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_EXTRACT, "datadog,tracecontext,B3,B3 single header",      \
            CALIASES("DD_PROPAGATION_STYLE_EXTRACT"))                                                           \
-    CALIAS(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_INJECT, "tracecontext,Datadog",                           \
+    CALIAS(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_INJECT, "datadog,tracecontext",                           \
            CALIASES("DD_PROPAGATION_STYLE_INJECT"))                                                            \
-    CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE, "tracecontext,Datadog")                                  \
+    CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE, "datadog,tracecontext")                                  \
     CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                        \
     CONFIG(INT, DD_TRACE_AGENT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_TIMEOUT_VAL),                             \
            .ini_change = zai_config_system_ini_change)                                                         \
