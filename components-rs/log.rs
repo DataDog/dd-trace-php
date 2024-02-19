@@ -148,7 +148,7 @@ impl<S, N> FormatEvent<S, N> for LogFormatter
                 } else {
                     fmt_msg(event, &msg, "")
                 };
-                cb(unsafe { CharSlice::new(msg.as_ptr() as *const c_char, msg.len() - 1) });
+                cb(unsafe { CharSlice::from_raw_parts(msg.as_ptr() as *const c_char, msg.len() - 1) });
             }
         }
         Ok(())

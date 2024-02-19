@@ -15,11 +15,15 @@ architectures=(x86_64 aarch64)
 for architecture in "${architectures[@]}"; do
     tmp_folder_final_gnu=$tmp_folder_final/$architecture-linux-gnu
     tmp_folder_final_musl=$tmp_folder_final/$architecture-linux-musl
+    tmp_folder_final_windows=$tmp_folder_final/$architecture-windows
 
     # Starting from a clean folder
     rm -rf $tmp_folder
     mkdir -p $tmp_folder_final_gnu
     mkdir -p $tmp_folder_final_musl
+    if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} && $architecture == "x86_64" ]]; then
+      mkdir -p $tmp_folder_final_windows
+    fi
 
     ########################
     # Trace
@@ -28,6 +32,7 @@ for architecture in "${architectures[@]}"; do
     mkdir -p $tmp_folder_trace
     tmp_folder_final_gnu_trace=$tmp_folder_final_gnu/dd-library-php/trace
     tmp_folder_final_musl_trace=$tmp_folder_final_musl/dd-library-php/trace
+    tmp_folder_final_windows_trace=$tmp_folder_final_windows/dd-library-php/trace
 
     php_apis=(20190902 20200930 20210902 20220829 20230831)
     if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
@@ -43,6 +48,11 @@ for architecture in "${architectures[@]}"; do
             cp ./extensions_${architecture}/ddtrace-$php_api-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-zts.so;
             cp ./extensions_${architecture}/ddtrace-$php_api-debug.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug.so;
             cp ./extensions_${architecture}/ddtrace-$php_api-alpine.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace.so;
+            if [[ ${php_api} -ge 20170718 && $architecture == "x86_64" ]]; then # Windows support starts on 7.2
+                mkdir -p ${tmp_folder_final_windows_trace}/ext/$php_api;
+                cp ./extensions_windows_${architecture}/php_ddtrace-$php_api.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace.dll;
+                cp ./extensions_windows_${architecture}/php_ddtrace-$php_api-zts.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace-zts.dll;
+            fi
         else
             cp ./extensions_${architecture}/ddtrace-$php_api-debug-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug-zts.so;
         fi
@@ -51,6 +61,9 @@ for architecture in "${architectures[@]}"; do
     cp -r ./bridge ${tmp_folder_final_gnu_trace};
     cp -r ./src ${tmp_folder_final_musl_trace};
     cp -r ./bridge ${tmp_folder_final_musl_trace};
+    if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} && $architecture == "x86_64" ]]; then
+      cp -r ./bridge ${tmp_folder_final_windows_trace};
+    fi
 
     ########################
     # Profiling
@@ -163,5 +176,12 @@ for architecture in "${architectures[@]}"; do
         tar -czv \
             -f ${packages_build_dir}/dd-library-php-${release_version}-$architecture-linux-musl.tar.gz \
             -C ${tmp_folder_final_musl} . --owner=0 --group=0
+
+        if [[ $architecture == "x86_64" ]]; then
+            echo "$release_version" > ${tmp_folder_final_windows}/dd-library-php/VERSION
+            tar -czv \
+                -f ${packages_build_dir}/dd-library-php-${release_version}-$architecture-windows.tar.gz \
+                -C ${tmp_folder_final_windows} . --owner=0 --group=0
+        fi
     fi
 done

@@ -4,8 +4,10 @@
 #include <Zend/zend_types.h>
 #include <Zend/zend_ini.h>
 
+#ifndef _WIN32
 #include <sys/mman.h>
 #include <unistd.h>
+#endif
 
 #if PHP_VERSION_ID >= 80100
 #include <Zend/Optimizer/zend_call_graph.h>
@@ -106,14 +108,14 @@ static void zai_jit_fetch_symbols(void) {
     if (!zai_jit_protect) {
         ZEND_ASSERT(opcache_handle); // assert the handle is there is zend_func_info_rid != -1
 
-        zai_jit_protect = DL_FETCH_SYMBOL(opcache_handle, "zend_jit_protect");
+        zai_jit_protect = (void (*)(void))DL_FETCH_SYMBOL(opcache_handle, "zend_jit_protect");
         if (zai_jit_protect == NULL) {
-            zai_jit_protect = DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_protect");
+            zai_jit_protect = (void (*)(void))DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_protect");
         }
 
-        zai_jit_unprotect = DL_FETCH_SYMBOL(opcache_handle, "zend_jit_unprotect");
+        zai_jit_unprotect = (void (*)(void))DL_FETCH_SYMBOL(opcache_handle, "zend_jit_unprotect");
         if (zai_jit_unprotect == NULL) {
-            zai_jit_unprotect = DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_unprotect");
+            zai_jit_unprotect = (void (*)(void))DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_unprotect");
         }
     }
 }
@@ -192,12 +194,22 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
         uint8_t *trace_flags = &ZEND_OP_TRACE_INFO(opline, offset)->trace_flags;
         const void **handler = &((zend_op*)opline)->handler;
 
+#ifndef _WIN32
         size_t page_size = sysconf(_SC_PAGESIZE);
+#else
+        size_t page_size = 4096;
+#endif
         void *trace_flags_page = (void *) ((uintptr_t) trace_flags & ~page_size);
         void *handler_page = (void *) ((uintptr_t) handler & ~page_size);
         if (is_protected_memory) {
+#ifndef _WIN32
             mprotect(trace_flags_page, page_size, PROT_READ | PROT_WRITE);
             mprotect(handler_page, page_size, PROT_READ | PROT_WRITE);
+#else
+            DWORD oldProtect;
+            VirtualProtect(handler_page, page_size, PAGE_READWRITE, &oldProtect);
+            VirtualProtect(trace_flags_page, page_size, PAGE_READWRITE, &oldProtect);
+#endif
         }
 
         zai_jit_unprotect();
@@ -208,8 +220,14 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
         zai_jit_protect();
 
         if (is_protected_memory) {
+#ifndef _WIN32
             mprotect(handler_page, page_size, PROT_READ);
             mprotect(trace_flags_page, page_size, PROT_READ);
+#else
+            DWORD oldProtect;
+            VirtualProtect(handler_page, page_size, PAGE_READONLY, &oldProtect);
+            VirtualProtect(trace_flags_page, page_size, PAGE_READONLY, &oldProtect);
+#endif
         }
     }
 }

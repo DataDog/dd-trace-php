@@ -3,7 +3,7 @@
 #include <SAPI.h>
 #include "priority_sampling/priority_sampling.h"
 #include <time.h>
-#include <unistd.h>
+#include "zend_hrtime.h"
 
 #include "auto_flush.h"
 #include "compat_string.h"
@@ -134,14 +134,6 @@ void ddtrace_free_span_stacks(bool silent) {
     DDTRACE_G(top_closed_stack) = NULL;
 }
 
-static uint64_t _get_nanoseconds(bool monotonic_clock) {
-    struct timespec time;
-    if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
-        return time.tv_sec * UINT64_C(1000000000) + time.tv_nsec;
-    }
-    return 0;
-}
-
 static ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type, zend_class_entry *ce) {
     zval fci_zv;
     object_init_ex(&fci_zv, ce);
@@ -171,10 +163,12 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     // All open spans hold a ref to their stack
     ZVAL_OBJ_COPY(&span->property_stack, &stack->std);
 
-    span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
+    span->duration_start = zend_hrtime();
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    span->start = ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
 
     span->span_id = ddtrace_generate_span_id();
 
@@ -195,7 +189,7 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
         } else {
             root->trace_id = (ddtrace_trace_id) {
                     .low = span->span_id,
-                    .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / UINT64_C(1000000000) : 0,
+                    .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / ZEND_NANO_IN_SEC : 0,
             };
             root->parent_id = 0;
         }
@@ -429,7 +423,7 @@ bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
 }
 
 void dd_trace_stop_span_time(ddtrace_span_data *span) {
-    span->duration = _get_nanoseconds(USE_MONOTONIC_CLOCK) - span->duration_start;
+    span->duration = zend_hrtime() - span->duration_start;
 }
 
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end) {

@@ -3,7 +3,11 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#ifndef _WIN32
 __thread ddog_Log _ddog_log_source_value;
+#else
+__declspec(thread) ddog_Log _ddog_log_source_value;
+#endif
 
 static void ddog_logf_va(ddog_Log source, const char *format, va_list va) {
     char buf[0x100];

@@ -37,4 +37,4 @@ else
 fi
 
 # extension=... in the INI file should be commented out
-assert_file_contains "${ini_dir}/98-ddtrace.ini" ";extension = ddtrace.so"
+assert_file_contains "${ini_dir}/98-ddtrace.ini" "; extension = ddtrace.so"

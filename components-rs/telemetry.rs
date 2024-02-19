@@ -7,14 +7,26 @@ use ddtelemetry::data;
 use ddtelemetry::data::{Dependency, Integration};
 use ddtelemetry::worker::TelemetryActions;
 use ddtelemetry_ffi::{try_c, MaybeError};
-#[cfg(php_shared_build)]
+#[cfg(any(windows, php_shared_build))]
 use spawn_worker::LibDependency;
 use std::error::Error;
 use std::path::Path;
-use std::{fs, io};
+use std::fs;
 use std::ffi::{c_char, CStr, OsStr};
+#[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 use datadog_sidecar::config::LogMethod;
+#[cfg(windows)]
+use spawn_worker::get_trampoline_target_data;
+
+#[cfg(windows)]
+macro_rules! windowsify_path {
+    ($lit:literal) => (const_str::replace!($lit, "/", "\\"))
+}
+#[cfg(unix)]
+macro_rules! windowsify_path {
+    ($lit:literal) => ($lit)
+}
 
 #[must_use]
 #[no_mangle]
@@ -24,9 +36,9 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
     queue_id: &QueueId,
     path: CharSlice,
 ) -> bool {
-    let pathstr = unsafe { path.to_utf8_lossy() };
-    if let Some(index) = pathstr.rfind("/vendor/autoload.php") {
-        let path = format!("{}{}", &pathstr[..index], "/vendor/composer/installed.json");
+    let pathstr = path.to_utf8_lossy();
+    if let Some(index) = pathstr.rfind(windowsify_path!("/vendor/autoload.php")) {
+        let path = format!("{}{}", &pathstr[..index], windowsify_path!("/vendor/composer/installed.json"));
         if parse_composer_installed_json(transport, instance_id, queue_id, path).is_ok() {
             return true;
         }
@@ -68,15 +80,26 @@ extern "C" {
 }
 
 #[cfg(php_shared_build)]
-fn run_sidecar(mut cfg: config::Config) -> io::Result<SidecarTransport> {
+fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     let mock = unsafe { std::slice::from_raw_parts(&DDTRACE_MOCK_PHP, DDTRACE_MOCK_PHP_SIZE) };
     cfg.library_dependencies
         .push(LibDependency::Binary(mock));
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
-#[cfg(not(php_shared_build))]
-fn run_sidecar(cfg: config::Config) -> io::Result<SidecarTransport> {
+#[cfg(not(any(windows, php_shared_build)))]
+fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+    datadog_sidecar::start_or_connect_to_sidecar(cfg)
+}
+
+#[no_mangle]
+#[cfg(windows)]
+pub static mut DDOG_PHP_FUNCTION: *const u8 = std::ptr::null();
+
+#[cfg(windows)]
+fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+    let php_dll = get_trampoline_target_data(unsafe { DDOG_PHP_FUNCTION })?;
+    cfg.library_dependencies.push(LibDependency::Path(php_dll.into()));
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
@@ -91,9 +114,19 @@ pub extern "C" fn ddog_sidecar_connect_php(
     cfg.self_telemetry = enable_telemetry;
     unsafe {
         if *error_path != 0 {
-            cfg.log_method = LogMethod::File(OsStr::from_bytes(CStr::from_ptr(error_path).to_bytes()).into())
+            let error_path = CStr::from_ptr(error_path).to_bytes();
+            #[cfg(windows)]
+            if let Ok(str) = std::str::from_utf8(error_path) {
+                cfg.log_method = LogMethod::File(str.into());
+            }
+            #[cfg(not(windows))]
+            { cfg.log_method = LogMethod::File(OsStr::from_bytes(error_path).into()); }
         }
-        cfg.child_env.insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), OsStr::from_bytes(log_level.as_bytes()).into());
+        #[cfg(windows)]
+        let log_level = log_level.to_utf8_lossy().as_ref().into();
+        #[cfg(not(windows))]
+        let log_level = OsStr::from_bytes(log_level.as_bytes()).into();
+        cfg.child_env.insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), log_level);
     }
     let stream = Box::new(try_c!(run_sidecar(cfg)));
     *connection = Box::into_raw(stream);

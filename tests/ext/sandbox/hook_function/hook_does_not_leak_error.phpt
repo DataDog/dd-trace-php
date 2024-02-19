@@ -2,6 +2,7 @@
 Check that sandboxed hooks do not invoke error handlers or set the error code
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80000 && getenv("SKIP_ASAN")) die("skip: Issue with passing ini to ASAN CGI on PHP 7.4"); ?>
+<?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: On Windows cgi skips stderr output'); ?>
 --GET--
 this+must+run+via+cgi
 --INI--

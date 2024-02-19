@@ -4,6 +4,7 @@ HTTP Agent headers are ignored from userland
 <?php
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 if (dd_trace_env_config('DD_TRACE_SIDECAR_TRACE_SENDER')) die("skip: background-sender only test");
+if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There is no background sender on Windows');
 ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off

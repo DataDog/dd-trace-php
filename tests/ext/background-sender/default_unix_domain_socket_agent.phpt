@@ -17,7 +17,7 @@ if (file_exists("/var/run/datadog/apm.socket")) {
 
 RequestReplayer::launchUnixProxy("/var/run/datadog/apm.socket");
 
-$logs = dd_get_startup_logs([], ['DD_TRACE_LOG_LEVEL=error,startup=info']);
+$logs = dd_get_startup_logs([], ['DD_TRACE_LOG_LEVEL' => 'error,startup=info']);
 
 dd_dump_startup_logs($logs, [
     'agent_error', // should be absent

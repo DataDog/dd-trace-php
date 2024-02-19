@@ -1,5 +1,5 @@
-#include "ddtrace.h"
 #include "compat_string.h"
+#include "ddtrace.h"
 
 #include <Zend/zend_API.h>
 #include <php.h>

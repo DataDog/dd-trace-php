@@ -1,8 +1,8 @@
 --TEST--
 Gracefully handle exceptions in auto_prepend_file
 --INI--
-auto_prepend_file={PWD}/auto_prepend_file_exception.inc
-ddtrace.request_init_hook={PWD}/../includes/request_init_hook.inc
+auto_prepend_file="{PWD}/auto_prepend_file_exception.inc"
+ddtrace.request_init_hook="{PWD}/../includes/request_init_hook.inc"
 --FILE--
 <?php
 
@@ -18,4 +18,4 @@ Called dd_init.php
 Fatal error: Uncaught Exception in %s:3
 Stack trace:
 #0 {main}
-  thrown in %s/auto_prepend_file_exception.inc on line 3
+  thrown in %sauto_prepend_file_exception.inc on line 3

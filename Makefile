@@ -408,38 +408,38 @@ components-rs/ddtrace.h:
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
-FPM_INFO_OPTS=-a $(ARCHITECTURE) -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
-	--provides $(PACKAGE_NAME) --vendor DataDog  --url "https://docs.datadoghq.com/tracing/setup/php/" --no-depends
 FPM_DIR_OPTS=--directories $(EXT_DIR)/etc --config-files $(EXT_DIR)/etc -s dir
-FPM_FILES=extensions_$(shell test $(ARCHITECTURE) = arm64 && echo aarch64 || echo $(ARCHITECTURE))/=$(EXT_DIR)/extensions \
-	package/post-install.sh=$(EXT_DIR)/bin/post-install.sh package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
-	docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md UPGRADE-0.10.md=$(EXT_DIR)/docs/UPGRADE-0.10.md\
-	src=$(EXT_DIR)/dd-trace-sources \
-	bridge=$(EXT_DIR)/dd-trace-sources
-FPM_OPTS=$(FPM_INFO_OPTS) $(FPM_DIR_OPTS) --after-install=package/post-install.sh
+define FPM_FILES
+	extensions_$(shell test $(1) = arm64 && echo aarch64 || echo $(1))/=$(EXT_DIR)/extensions \
+		$(shell test $(1) = windows || echo package/post-install.sh=$(EXT_DIR)/bin/post-install.sh) package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
+		docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md \
+		src=$(EXT_DIR)/dd-trace-sources \
+		bridge=$(EXT_DIR)/dd-trace-sources
+endef
+define FPM_OPTS
+	-a $(1) -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
+		--provides $(PACKAGE_NAME) --vendor DataDog  --url "https://docs.datadoghq.com/tracing/setup/php/" --no-depends \
+		$(FPM_INFO_OPTS) $(FPM_DIR_OPTS) $(shell test $(1) = windows || echo --after-install=package/post-install.sh)
+endef
 
 PACKAGES_BUILD_DIR:=build/packages
 
 $(PACKAGES_BUILD_DIR):
 	mkdir -p "$@"
 
-.deb.%: ARCHITECTURE=$(*)
 .deb.%: $(PACKAGES_BUILD_DIR)
-	fpm -p $(PACKAGES_BUILD_DIR) -t deb $(FPM_OPTS) $(FPM_FILES)
-.rpm.%: ARCHITECTURE=$(*)
+	fpm -p $(PACKAGES_BUILD_DIR) -t deb $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
 .rpm.%: $(PACKAGES_BUILD_DIR)
-	fpm -p $(PACKAGES_BUILD_DIR) -t rpm $(FPM_OPTS) $(FPM_FILES)
-.apk.%: ARCHITECTURE=$(*)
+	fpm -p $(PACKAGES_BUILD_DIR) -t rpm $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
 .apk.%: $(PACKAGES_BUILD_DIR)
-	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(FPM_OPTS) --depends=bash --depends=curl --depends=libgcc $(FPM_FILES)
+	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(call FPM_OPTS, $(*)) --depends=bash --depends=curl --depends=libgcc $(call FPM_FILES, $(*))
 
 # Example .tar.gz.aarch64, .tar.gz.x86_64
-.tar.gz.%: ARCHITECTURE=$(*)
 .tar.gz.%: $(PACKAGES_BUILD_DIR)
 	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)
 	rm -rf /tmp/$(PACKAGES_BUILD_DIR)/*
-	fpm -p /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) -t dir $(FPM_OPTS) $(FPM_FILES)
-	tar zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(ARCHITECTURE).tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
+	fpm -p /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) -t dir $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
+	tar zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(*).tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
 
 bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
@@ -455,7 +455,10 @@ build_pecl_package:
 	FILES="$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
-packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz
+dbgsym.tar.gz:
+	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_windows_x86_64_debugsymbols --owner=0 --group=0)
+
+packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
 verify_version:

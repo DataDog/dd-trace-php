@@ -1,5 +1,7 @@
+#ifndef _WIN32
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#endif
 #include <php.h>
 #include <string.h>
 #include <zend_API.h>
@@ -335,7 +337,7 @@ static bool dd_parse_ip_address(const char *_addr, size_t addr_len, bool ip_or_e
         }
 
         uint8_t *s6addr = out->v6.s6_addr;
-        static const uint8_t ip4_mapped_prefix[12] = {[10 ... 11] = 0xFF};
+        static const uint8_t ip4_mapped_prefix[12] = {[10] = 0xFF, [11] = 0xFF};
         if (memcmp(s6addr, ip4_mapped_prefix, sizeof(ip4_mapped_prefix)) == 0) {
             // IPv4 mapped
             LOG(Warn, "Parsed as IPv4 mapped address: %s", addr);
@@ -405,8 +407,7 @@ static bool dd_is_private_v4(const struct in_addr *addr) {
     };
 
     for (unsigned i = 0; i < ARRAY_SIZE(priv_ranges); i++) {
-        __auto_type range = priv_ranges[i];
-        if ((addr->s_addr & range.mask.s_addr) == range.base.s_addr) {
+        if ((addr->s_addr & priv_ranges[i].mask.s_addr) == priv_ranges[i].base.s_addr) {
             return true;
         }
     }
@@ -427,7 +428,7 @@ static bool dd_is_private_v6(const struct in6_addr *addr) {
     } priv_ranges[] = {
         {
             .base.s6_addr = {[15] = 1}, // loopback
-            .mask.s6_addr = {[0 ... 15] = 0xFF}, // /128
+            .mask.s6_addr = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, // /128
         },
         {
             .base.s6_addr = {0xFE, 0x80}, // link-local

@@ -1,10 +1,13 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
 #include <Zend/zend_types.h>
-#include <dogstatsd_client/client.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <components-rs/ddtrace.h>
+
+#ifndef _WIN32
+#include <dogstatsd_client/client.h>
+#endif
 
 #include "ext/version.h"
 #include "compatibility.h"
@@ -78,7 +81,9 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_array tracestate_unknown_dd_keys;
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
+#ifndef _WIN32
     dogstatsd_client dogstatsd_client;
+#endif
     zend_bool in_shutdown;
 
     zend_long default_priority_sampling;
@@ -113,7 +118,7 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #  else
 #    define ATTR_TLS_GLOBAL_DYNAMIC
 #  endif
-extern __thread void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
+extern TSRM_TLS void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
 #  define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
 #else
 #  define DDTRACE_G(v) (ddtrace_globals.v)

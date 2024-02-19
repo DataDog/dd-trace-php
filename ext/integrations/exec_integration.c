@@ -2,7 +2,9 @@
 
 #include <stdio.h>
 #include <symbols/symbols.h>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 
 #include <ext/standard/file.h>
 #include <ext/standard/proc_open.h>
@@ -18,10 +20,21 @@
 typedef struct php_process_handle php_process_handle;
 #endif
 
+/* proc_open / proc_close handling */
+typedef struct _dd_proc_span {
+    zend_object *span;
+    php_process_id_t child;
+#ifdef _WIN32
+    HANDLE childHandle;
+#endif
+} dd_proc_span;
+static int le_proc;
+static int le_proc_span;
+
 /* popen stream handler close interception */
 
 static int dd_php_stdiop_close_wrapper(php_stream *stream, int close_handle);
-static void dd_waitpid(ddtrace_span_data *, php_process_id_t);
+static void dd_waitpid(ddtrace_span_data *, dd_proc_span *);
 
 ZEND_TLS HashTable *tracked_streams;  // php_stream => span
 static zend_string *cmd_exit_code_zstr;
@@ -101,14 +114,6 @@ static int dd_php_stdiop_close_wrapper(php_stream *stream, int close_handle) {
     return ret;
 }
 
-/* proc_open / proc_close handling */
-typedef struct _dd_proc_span {
-    zend_object *span;
-    php_process_id_t child;
-} dd_proc_span;
-static int le_proc;
-static int le_proc_span;
-
 static void dd_proc_wrapper_rsrc_dtor(zend_resource *rsrc) {
     // this is called from the beginning of proc_open_rsrc_dtor,
     // before the process is possibly reaped
@@ -118,7 +123,7 @@ static void dd_proc_wrapper_rsrc_dtor(zend_resource *rsrc) {
     ddtrace_span_data *span_data = OBJ_SPANDATA(proc_span->span);
 
     if (span_data->duration == 0) {
-        dd_waitpid(span_data, proc_span->child);
+        dd_waitpid(span_data, proc_span);
 
         dd_trace_stop_span_time(span_data);
         ddtrace_close_span_restore_stack(span_data);
@@ -128,20 +133,31 @@ static void dd_proc_wrapper_rsrc_dtor(zend_resource *rsrc) {
     efree(proc_span);
 }
 
-static void dd_waitpid(ddtrace_span_data *span_data, php_process_id_t pid) {
+static void dd_waitpid(ddtrace_span_data *span_data, dd_proc_span *proc) {
     if (span_data->duration) {
         // already closed
         return;
     }
     zend_array *meta = ddtrace_property_array(&span_data->property_meta);
 
+    int wstatus;
+    bool exited = false;
+
     // if FG(pclose_wait) is true, we're called from proc_close,
     // which will wait for the process to exit. We reproduce that behavior
-
+#ifdef _WIN32
+    if (FG(pclose_wait)) {
+        WaitForSingleObject(proc->childHandle, INFINITE);
+    }
+    GetExitCodeProcess(proc->childHandle, &wstatus);
+    if (wstatus != STILL_ACTIVE) {
+        exited = true;
+    }
+#else
     int opts = FG(pclose_wait) ? 0 : WNOHANG | WUNTRACED;
 
-    int wstatus;
     int pid_res = -1;
+    int pid = proc->child;
     while ((pid_res = waitpid(pid, &wstatus, opts)) == -1 && errno == EINTR) {
     }
 
@@ -150,7 +166,6 @@ static void dd_waitpid(ddtrace_span_data *span_data, php_process_id_t pid) {
                  // Probably the process is no more/not a child
     }
 
-    bool exited = false;
     if (WIFEXITED(wstatus)) {
         exited = true;
         wstatus = WEXITSTATUS(wstatus);
@@ -165,6 +180,7 @@ static void dd_waitpid(ddtrace_span_data *span_data, php_process_id_t pid) {
         zend_hash_update(meta, error_message_zstr, &has_signalled_zv);
         exited = true;
     }  // else !FG(pclose_wait) and it hasn't finished
+#endif
 
     if (exited) {
         zval zexit;
@@ -194,6 +210,9 @@ static PHP_FUNCTION(DDTrace_integrations_exec_proc_assoc_span) {
     proc_span->span = span;
     GC_ADDREF(span);
     proc_span->child = proc_h->child;
+#ifdef _WIN32
+    proc_span->childHandle = proc_h->childHandle;
+#endif
 
     proc_h->npipes += 1;
     proc_h->pipes = safe_erealloc(proc_h->pipes, proc_h->npipes, sizeof *proc_h->pipes, 0);

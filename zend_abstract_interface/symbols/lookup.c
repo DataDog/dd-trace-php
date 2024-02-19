@@ -75,12 +75,15 @@ static inline zai_str zai_symbol_lookup_clean(zai_str view) {
     if (!view.len || *view.ptr != '\\') {
         return view;
     }
-    return ZAI_STR_NEW(view.ptr + 1, view.len - 1);
+    return (zai_str)ZAI_STR_NEW(view.ptr + 1, view.len - 1);
 }
 
 static zai_string zai_symbol_lookup_key(zai_str *namespace, zai_str *name, bool lower) {
     zai_str vns         = zai_symbol_lookup_clean(*namespace);
-    zai_str separator   = vns.len ? ZAI_STRL("\\") : ZAI_STR_EMPTY;
+    zai_str separator   = ZAI_STR_EMPTY;
+    if (vns.len) {
+        separator = (zai_str)ZAI_STRL("\\");
+    }
     zai_str vn          = zai_symbol_lookup_clean(*name);
     zai_string rv       = zai_string_concat3(vns, separator, vn);
 

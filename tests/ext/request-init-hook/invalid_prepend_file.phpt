@@ -1,8 +1,8 @@
 --TEST--
 Gracefully handle exceptions in auto_prepend_file
 --INI--
-auto_prepend_file={PWD}/does_not_exist.inc
-ddtrace.request_init_hook={PWD}/../includes/request_init_hook.inc
+auto_prepend_file="{PWD}/does_not_exist.inc"
+ddtrace.request_init_hook="{PWD}/../includes/request_init_hook.inc"
 --FILE--
 <?php
 

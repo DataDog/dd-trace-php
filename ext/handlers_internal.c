@@ -41,7 +41,7 @@ static inline zend_ulong dd_identify_internal_func(zend_function *func) {
     return ((zend_ulong)(uintptr_t)func->common.scope) ^ zend_string_hash_val(func->common.function_name);
 }
 
-static void dd_wrap_internal_func(INTERNAL_FUNCTION_PARAMETERS) {
+ZEND_NAMED_FUNCTION(dd_wrap_internal_func) {
     zif_handler handler;
     if ((handler = zend_hash_index_find_ptr(&dd_orig_internal_funcs, dd_identify_internal_func(EX(func))))) {
         zai_interceptor_execute_internal_with_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU, handler);

@@ -15,6 +15,17 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+#if PHP_VERSION_ID < 80000
+#define LAST_ERROR_STRING PG(last_error_message)
+#else
+#define LAST_ERROR_STRING ZSTR_VAL(PG(last_error_message))
+#endif
+#if PHP_VERSION_ID < 80100
+#define LAST_ERROR_FILE PG(last_error_file)
+#else
+#define LAST_ERROR_FILE ZSTR_VAL(PG(last_error_file))
+#endif
+
 int dd_execute_php_file(const char *filename) {
     int filename_len = strlen(filename);
     if (filename_len == 0) {
@@ -43,18 +54,7 @@ int dd_execute_php_file(const char *filename) {
 
     LOGEV(Warn, {
         if (PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
-#if PHP_VERSION_ID < 80000
-            char *error = PG(last_error_message);
-#else
-            char *error = ZSTR_VAL(PG(last_error_message));
-#endif
-#if PHP_VERSION_ID < 80100
-            char *error_filename = PG(last_error_file);
-#else
-            char *error_filename = ZSTR_VAL(PG(last_error_file));
-#endif
-            log("Error raised while opening request-init-hook stream: %s in %s on line %d", error,
-                error_filename, PG(last_error_lineno));
+            log("Error raised while opening request-init-hook stream: %s in %s on line %d", LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
         }
     })
 
@@ -91,18 +91,7 @@ int dd_execute_php_file(const char *filename) {
 
             LOGEV(Warn, {
                 if (PG(last_error_message) && eh.message != PG(last_error_message)) {
-#if PHP_VERSION_ID < 80000
-                    char *error = PG(last_error_message);
-#else
-                    char *error = ZSTR_VAL(PG(last_error_message));
-#endif
-#if PHP_VERSION_ID < 80100
-                    char *error_filename = PG(last_error_file);
-#else
-                    char *error_filename = ZSTR_VAL(PG(last_error_file));
-#endif
-                    log("Error raised in request init hook: %s in %s on line %d", error, error_filename,
-                        PG(last_error_lineno));
+                    log("Error raised in request init hook: %s in %s on line %d", LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
                 }
             })
 

@@ -38,6 +38,8 @@ extern int (*zai_json_encode)(smart_str *buf, zval *val, int options);
 
 #ifdef __APPLE__
 extern __attribute__((weak, weak_import)) zend_class_entry *php_json_serializable_ce;
+#elif defined(_WIN32)
+extern zend_class_entry *php_json_serializable_ce;
 #else
 extern __attribute__((weak)) zend_class_entry *php_json_serializable_ce;
 #endif

@@ -976,6 +976,69 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
+  test_windows:
+    resource_class: 'windows.medium'
+    machine:
+      image: 'windows-server-2019-vs2019:2022.08.1'
+      shell: 'powershell.exe -ExecutionPolicy Bypass'
+    parameters:
+      docker_image:
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: Pull submodules
+          shell: powershell.exe
+          command: |
+            git submodule update --init --recursive
+      - run:
+          name: Setup docker container
+          shell: powershell.exe
+          command: |
+            mkdir dumps
+            docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
+            docker run --network net -d --name httpbin_integration datadog/dd-trace-ci:httpbin-windows
+            docker run --network net -d --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0-windows
+            docker run -v ${pwd}:C:\Users\ContainerAdministrator\app --network net -d --name php << parameters.docker_image >> ping -t localhost
+      - run:
+          name: Build nts
+          shell: powershell.exe
+          command: |
+            docker exec php powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
+      - run:
+          name: Set test environment variables
+          shell: powershell.exe
+          command: |
+            docker exec php powershell.exe 'setx DD_AUTOLOAD_NO_COMPILE true; setx DD_TRACE_CLI_ENABLED 1; setx DATADOG_HAVE_DEV_ENV 1'
+      - run:
+          name: Run extension tests
+          shell: powershell.exe
+          command: |
+            docker exec php powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
+#      - run:
+#          name: Install the extension and setup composer
+#          shell: powershell.exe
+#          command: |
+#            docker exec php powershell.exe 'cd app; composer --working-dir=.\tests update; $PSDefaultParameterValues["""Out-File:Encoding"""] = """utf8"""; echo """extension=${pwd}\x64\Release\php_ddtrace.dll""" >> /php/php.ini'
+#      - run:
+#          name: Run some integration tests
+#          shell: powershell.exe
+#          command: |
+#            docker exec php powershell.exe 'cd app; php -d ddtrace.request_init_hook=$pwd\bridge\dd_wrap_autoloader.php'
+      - run:
+          when: always
+          command: |
+            docker exec php cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
+            exit 0
+      - store_artifacts:
+          path: sidecar.log
+      - store_artifacts:
+          path: x64/Release/php_ddtrace.dll
+      - store_artifacts:
+          path: x64/Release/php_ddtrace.pdb
+      - store_artifacts:
+          path: dumps
+
   coverage: &TEST_BASE
     parameters:
       php_major_minor:
@@ -2898,6 +2961,49 @@ jobs:
           root: '.'
           paths: [ './extensions_*' ]
 
+  compile_extension_windows:
+    resource_class: 'windows.medium'
+    machine:
+      image: 'windows-server-2019-vs2019:2022.08.1'
+      shell: 'powershell.exe -ExecutionPolicy Bypass'
+    parameters:
+      docker_image:
+        type: string
+      so_suffix:
+        type: string
+        default: unknown
+      php_version:
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: Pull submodules
+          shell: powershell.exe
+          command: |
+            git submodule update --init --recursive
+      - run:
+          name: Setup docker container
+          shell: powershell.exe
+          command: |
+            mkdir extensions_windows_x86_64
+            mkdir extensions_windows_x86_64_debugsymbols
+            # No DNS for you by default in circleci docker containers
+            docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
+            docker run -v ${pwd}:C:\Users\ContainerAdministrator\app -d --network net --name php << parameters.docker_image >> ping -t localhost
+      - run:
+          name: Build nts
+          shell: powershell.exe
+          command: |
+            docker exec php powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release\php_ddtrace.dll extensions_windows_x86_64\php_ddtrace-<< parameters.so_suffix >>.dll; move x64\Release\php_ddtrace.pdb extensions_windows_x86_64_debugsymbols\php_ddtrace-<< parameters.so_suffix >>.pdb"
+      - run:
+          name: Build zts
+          shell: powershell.exe
+          command: |
+            docker exec php powershell.exe "cd app; switch-php zts; nmake clean; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release_TS\php_ddtrace.dll extensions_windows_x86_64\php_ddtrace-<< parameters.so_suffix >>-zts.dll; move x64\Release_TS\php_ddtrace.pdb extensions_windows_x86_64_debugsymbols\php_ddtrace-<< parameters.so_suffix >>-zts.pdb"
+      - persist_to_workspace:
+          root: '.'
+          paths: [ './extensions_windows_x86_64', './extensions_windows_x86_64_debugsymbols' ]
+
   compile_appsec_extension_centos:
     working_directory: ~/datadog
     parameters:
@@ -3617,6 +3723,12 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-7.2_centos-7"
           so_suffix: "20170718"
           resource_class: "arm.medium"
+      - compile_extension_windows:
+          requires: [ 'Prepare Code' ]
+          name: "Compile Windows PHP 72 nts + zts"
+          docker_image: "datadog/dd-trace-ci:php-7.2_windows"
+          php_version: "7.2"
+          so_suffix: "20170718"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 73 nts + zts + debug"
@@ -3632,6 +3744,12 @@ workflows:
           so_suffix: "20180731"
           catch_warnings: false # On debug builds: unused parameter '__zend_filename'
           resource_class: "arm.medium"
+      - compile_extension_windows:
+          requires: [ 'Prepare Code' ]
+          name: "Compile Windows PHP 73 nts + zts"
+          docker_image: "datadog/dd-trace-ci:php-7.3_windows"
+          php_version: "7.3"
+          so_suffix: "20180731"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 74 nts + zts + debug"
@@ -3645,6 +3763,12 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-7.4_centos-7"
           so_suffix: "20190902"
           resource_class: "arm.medium"
+      - compile_extension_windows:
+          requires: [ 'Prepare Code' ]
+          name: "Compile Windows PHP 74 nts + zts"
+          docker_image: "datadog/dd-trace-ci:php-7.4_windows"
+          php_version: "7.4"
+          so_suffix: "20190902"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 80 nts + zts + debug"
@@ -3658,6 +3782,12 @@ workflows:
           php_version: "8.0"
           so_suffix: "20200930"
           resource_class: "arm.medium"
+      - compile_extension_windows:
+          requires: [ 'Prepare Code' ]
+          name: "Compile Windows PHP 80 nts + zts"
+          docker_image: "datadog/dd-trace-ci:php-8.0_windows"
+          php_version: "8.0"
+          so_suffix: "20200930"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 81 nts + zts + debug"
@@ -3671,6 +3801,12 @@ workflows:
           php_version: "8.1"
           so_suffix: "20210902"
           resource_class: "arm.medium"
+      - compile_extension_windows:
+          requires: [ 'Prepare Code' ]
+          name: "Compile Windows PHP 81 nts + zts"
+          docker_image: "datadog/dd-trace-ci:php-8.1_windows"
+          php_version: "8.1"
+          so_suffix: "20210902"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 82 nts + zts + debug"
@@ -3684,6 +3820,12 @@ workflows:
           php_version: "8.2"
           so_suffix: "20220829"
           resource_class: "arm.medium"
+      - compile_extension_windows:
+          requires: [ 'Prepare Code' ]
+          name: "Compile Windows PHP 82 nts + zts"
+          docker_image: "datadog/dd-trace-ci:php-8.2_windows"
+          php_version: "8.2"
+          so_suffix: "20220829"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 83 nts + zts + debug"
@@ -3697,6 +3839,12 @@ workflows:
           php_version: "8.3"
           so_suffix: "20230831"
           resource_class: "arm.medium"
+      - compile_extension_windows:
+          requires: [ 'Prepare Code' ]
+          name: "Compile Windows PHP 83 nts + zts"
+          docker_image: "datadog/dd-trace-ci:php-8.3_windows"
+          php_version: "8.3"
+          so_suffix: "20230831"
       - pecl_build:
           requires: [ 'Prepare Code' ]
           name: "Build PECL"
@@ -3722,6 +3870,13 @@ workflows:
             - "Compile aarch64 PHP 82 nts + zts + debug"
             - "Compile x86_64 PHP 83 nts + zts + debug"
             - "Compile aarch64 PHP 83 nts + zts + debug"
+            - "Compile Windows PHP 72 nts + zts"
+            - "Compile Windows PHP 73 nts + zts"
+            - "Compile Windows PHP 74 nts + zts"
+            - "Compile Windows PHP 80 nts + zts"
+            - "Compile Windows PHP 81 nts + zts"
+            - "Compile Windows PHP 82 nts + zts"
+            - "Compile Windows PHP 83 nts + zts"
             - "Build PECL"
 
             - "Profiler PHP v7.1 - x86_64-alpine-linux-musl"
@@ -4289,6 +4444,19 @@ workflows:
                 - "8.3"
               make_target:
                 - test_extension_ci
+
+      - test_windows:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              docker_image:
+                - "datadog/dd-trace-ci:php-7.2_windows"
+                - "datadog/dd-trace-ci:php-7.3_windows"
+                - "datadog/dd-trace-ci:php-7.4_windows"
+                - "datadog/dd-trace-ci:php-8.0_windows"
+                - "datadog/dd-trace-ci:php-8.1_windows"
+                - "datadog/dd-trace-ci:php-8.2_windows"
+                - "datadog/dd-trace-ci:php-8.3_windows"
 
       # sidecar is version independent
       - test_sidecar_sender:

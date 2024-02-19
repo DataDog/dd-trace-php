@@ -10,13 +10,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#if defined(_MSC_VER)
 #define DDOG_CHARSLICE_C(string) \
 /* NOTE: Compilation fails if you pass in a char* instead of a literal */ {.ptr = "" string, .len = sizeof(string) - 1}
-#else
-#define DDOG_CHARSLICE_C(string) \
-/* NOTE: Compilation fails if you pass in a char* instead of a literal */ ((ddog_CharSlice){ .ptr = "" string, .len = sizeof(string) - 1 })
-#endif
 
 #if defined __GNUC__
 #  define DDOG_GNUC_VERSION(major) __GNUC__ >= major
@@ -67,21 +62,21 @@ typedef struct ddog_Error {
   struct ddog_Vec_U8 message;
 } ddog_Error;
 
-/**
- * Remember, the data inside of each member is potentially coming from FFI,
- * so every operation on it is unsafe!
- */
 typedef struct ddog_Slice_CChar {
   /**
    * Must be non-null and suitably aligned for the underlying type.
    */
   const char *ptr;
   /**
-   * The number of elements (not bytes) that `.ptr` points to.
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
    */
   uintptr_t len;
 } ddog_Slice_CChar;
 
+/**
+ * Use to represent strings -- should be valid UTF-8.
+ */
 typedef struct ddog_Slice_CChar ddog_CharSlice;
 
 /**

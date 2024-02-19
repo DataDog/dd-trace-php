@@ -95,6 +95,11 @@ if test "$PHP_DDTRACE" != "no"; then
 
     EXTRA_PHP_SOURCES="ext/handlers_curl_php7.c"
 
+    if test $PHP_VERSION_ID -lt 70300; then
+      EXTRA_PHP_SOURCES="$EXTRA_PHP_SOURCES \
+        ext/zend_hrtime.c"
+    fi
+
     EXTRA_ZAI_SOURCES="\
       zend_abstract_interface/interceptor/php7/interceptor.c \
       zend_abstract_interface/interceptor/php7/resolver.c \

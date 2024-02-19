@@ -58,8 +58,6 @@ void ddog_agent_remote_config_writer_drop(struct ddog_AgentRemoteConfigWriter_Sh
 
 void ddog_sidecar_transport_drop(ddog_SidecarTransport*);
 
-ddog_SidecarTransport *ddog_sidecar_transport_clone(const ddog_SidecarTransport *transport);
-
 /**
  * # Safety
  * Caller must ensure the process is safe to fork, at the time when this method is called

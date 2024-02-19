@@ -30,17 +30,17 @@ ZEND_TLS zend_long dd_multi_handles_cache_id = 0;
 static zend_class_entry dd_curl_wrap_handler_ce;
 static zend_object_handlers dd_curl_wrap_handler_handlers;
 
-static void (*dd_curl_close_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_exec_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_copy_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_init_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_multi_add_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_multi_close_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_multi_exec_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_multi_init_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_multi_remove_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_setopt_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_setopt_array_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+static zif_handler dd_curl_close_handler = NULL;
+static zif_handler dd_curl_exec_handler = NULL;
+static zif_handler dd_curl_copy_handle_handler = NULL;
+static zif_handler dd_curl_init_handler = NULL;
+static zif_handler dd_curl_multi_add_handle_handler = NULL;
+static zif_handler dd_curl_multi_close_handler = NULL;
+static zif_handler dd_curl_multi_exec_handler = NULL;
+static zif_handler dd_curl_multi_init_handler = NULL;
+static zif_handler dd_curl_multi_remove_handle_handler = NULL;
+static zif_handler dd_curl_setopt_handler = NULL;
+static zif_handler dd_curl_setopt_array_handler = NULL;
 
 static bool dd_load_curl_integration(void) {
     if (!dd_ext_curl_loaded || !get_DD_TRACE_ENABLED()) {
@@ -414,7 +414,7 @@ ZEND_FUNCTION(ddtrace_curl_multi_remove_handle) {
         dd_curl_multi_remove_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
-static void dd_wrap_setopt(zval *ch, void (*orig_setopt)(INTERNAL_FUNCTION_PARAMETERS), INTERNAL_FUNCTION_PARAMETERS) {
+static void dd_wrap_setopt(zval *ch, zif_handler orig_setopt, INTERNAL_FUNCTION_PARAMETERS) {
     zend_object *read_wrapper = NULL;
     uint32_t orig_refcount;
 

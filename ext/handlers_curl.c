@@ -1,12 +1,25 @@
 #include <php.h>
+#ifndef _WIN32
 #include <pthread.h>
+#else
+#include <components/pthread_polyfill.h>
+#endif
 #include <stdbool.h>
 
 /* Comment to prevent reordering by code style fixer */
 #include <Zend/zend_weakrefs.h>
 
+#ifndef _WIN32
 __attribute__((weak)) zend_class_entry *curl_ce = NULL;
 __attribute__((weak)) zend_class_entry *curl_multi_ce = NULL;
+#else
+extern zend_class_entry *_curl_ce = NULL;
+extern zend_class_entry *curl_ce;
+#pragma comment(linker, "/alternatename:curl_ce=_curl_ce")
+extern zend_class_entry *_curl_multi_ce = NULL;
+extern zend_class_entry *curl_multi_ce;
+#pragma comment(linker, "/alternatename:curl_multi_ce=_curl_multi_ce")
+#endif
 
 #include "configuration.h"
 #include "engine_hooks.h"  // for ddtrace_backup_error_handling
@@ -23,16 +36,16 @@ ZEND_TLS HashTable dd_headers;
 // Multi-handle API: curl_multi_*()
 ZEND_TLS HashTable dd_multi_handles;
 
-static void (*dd_curl_close_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_exec_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_copy_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_multi_add_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_multi_close_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_multi_exec_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_multi_init_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_multi_remove_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_setopt_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_curl_setopt_array_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+static zif_handler dd_curl_close_handler = NULL;
+static zif_handler dd_curl_exec_handler = NULL;
+static zif_handler dd_curl_copy_handle_handler = NULL;
+static zif_handler dd_curl_multi_add_handle_handler = NULL;
+static zif_handler dd_curl_multi_close_handler = NULL;
+static zif_handler dd_curl_multi_exec_handler = NULL;
+static zif_handler dd_curl_multi_init_handler = NULL;
+static zif_handler dd_curl_multi_remove_handle_handler = NULL;
+static zif_handler dd_curl_setopt_handler = NULL;
+static zif_handler dd_curl_setopt_array_handler = NULL;
 static HashTable *(*dd_curl_multi_get_gc)(zend_object *object, zval **table, int *n) = NULL;
 
 static bool dd_load_curl_integration(void) {
@@ -409,7 +422,7 @@ void ddtrace_curl_handlers_startup(void) {
 
     // Reset object state each MINIT/startup cycle for `apachectl graceful`.
     dd_curl_object_handlers = NULL;
-    dd_replace_curl_get_gc_once = PTHREAD_ONCE_INIT;
+    dd_replace_curl_get_gc_once = (pthread_once_t)PTHREAD_ONCE_INIT;
 }
 
 void ddtrace_curl_handlers_rinit(void) {

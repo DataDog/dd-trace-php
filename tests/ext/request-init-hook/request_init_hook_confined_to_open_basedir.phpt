@@ -4,7 +4,7 @@ Request init hook is confined to open_basedir
 DD_TRACE_LOG_LEVEL=info,startup=off
 --INI--
 open_basedir=tests/ext/request-init-hook
-ddtrace.request_init_hook={PWD}/../includes/sanity_check.php
+ddtrace.request_init_hook="{PWD}/../includes/sanity_check.php"
 --FILE--
 <?php
 echo "Request start" . PHP_EOL;

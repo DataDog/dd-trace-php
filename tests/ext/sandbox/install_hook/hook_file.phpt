@@ -5,7 +5,7 @@ Test file inclusion hooking
 
 function test_hook($path) {
     DDTrace\install_hook($path, null, function($hook) use ($path) {
-        echo "$path: {$hook->args[0]}, ret: {$hook->returned}\n";
+        echo "$path: " . str_replace("\\", "/", $hook->args[0]) . ", ret: {$hook->returned}\n";
     });
 }
 
@@ -23,7 +23,7 @@ echo include "testinclude.inc", "\n";
 ?>
 --EXPECTF--
 [ddtrace] [error] Could not add hook to file path ../testinclude.inc, could not resolve path in %s on line %d; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
-%s/install_hook/testinclude.inc: %s/install_hook/testinclude.inc, ret: test
+%sinstall_hook/testinclude.inc: %s/install_hook/testinclude.inc, ret: test
 ./testinclude.inc: %s/install_hook/testinclude.inc, ret: test
 testinclude.inc: %s/install_hook/testinclude.inc, ret: test
 : %s/install_hook/testinclude.inc, ret: test

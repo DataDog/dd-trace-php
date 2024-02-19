@@ -31,5 +31,5 @@ spans(\DDTrace\SpanData) (1) {
   A.include (hook_scoped_file.php, A.include, cli)
     _dd.p.dm => -0
     _dd.p.tid => %s
-    %s/testinclude.inc (hook_scoped_file.php, %s/testinclude.inc, cli)
+    %stestinclude.inc (hook_scoped_file.php, %stestinclude.inc, cli)
 }
