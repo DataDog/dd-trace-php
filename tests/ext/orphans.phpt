@@ -85,3 +85,4 @@ if ($emptyReplays > $threshold * $totalRequests) {
 
 ?>
 --EXPECT--
+OK
