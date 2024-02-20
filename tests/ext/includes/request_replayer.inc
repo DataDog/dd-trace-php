@@ -58,7 +58,8 @@ class RequestReplayer
         return $headers;
     }
 
-    public function setResponse($array) {
+    public function setResponse($array)
+    {
         file_get_contents($this->endpoint . '/next-response', false, stream_context_create([
             "http" => [
                 "method" => "POST",
@@ -68,9 +69,15 @@ class RequestReplayer
         ]));
     }
 
-    public static function launchUnixProxy($socketPath) {
-        @unlink($socketPath);
-        $code = str_replace("\n", "", '
+    public static function launchUnixProxy($socketPath, $maxRetries = 3, $retryDelay = 1)
+    {
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            if ($attempt > 1) {
+                sleep($retryDelay);
+            }
+
+            @unlink($socketPath);
+            $code = str_replace("\n", "", '
 ignore_user_abort(true); /* prevent bailout... */
 $server = stream_socket_server("unix://' . $socketPath . '");
 print "1\n"; /* ready marker */
@@ -90,8 +97,13 @@ while (stream_select($read, $w, $e, null)) {
 }
 ');
 
-        static $unix_proxy_process_reference;
-        $unix_proxy_process_reference = popen(PHP_BINARY . " -r '$code'", 'r');
-        fread($unix_proxy_process_reference, 1); // ready
+            static $unix_proxy_process_reference;
+            $unix_proxy_process_reference = popen(PHP_BINARY . " -r '$code'", 'r');
+            $readyMarker = fread($unix_proxy_process_reference, 1); // ready
+
+            if ($readyMarker === "1") {
+                break;
+            }
+        }
     }
 }
