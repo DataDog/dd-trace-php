@@ -226,6 +226,10 @@ final class AMQPTest extends IntegrationTestCase
             ])->withExistingTagsNames([
                 Tag::MQ_CONSUMER_ID,
                 '_dd.span_links'
+            ])->withExactMetrics([
+                '_dd.agent_psr'                 => 1,
+                '_dd.measured'                  => 0,
+                '_sampling_priority_v1'         => 1,
             ])
         ]);
 
@@ -483,6 +487,10 @@ final class AMQPTest extends IntegrationTestCase
             ])->withExistingTagsNames([
                 Tag::MQ_CONSUMER_ID,
                 '_dd.span_links'
+            ])->withExactMetrics([
+                '_dd.agent_psr'                 => 1,
+                '_dd.measured'                  => 0,
+                '_sampling_priority_v1'         => 1,
             ])
         ]);
 

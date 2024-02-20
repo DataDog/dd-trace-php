@@ -84,6 +84,8 @@ class AMQPIntegration extends Integration
                     /** @var AMQPMessage $message */
                     $message = $args[1];
                     if ($integration->hasDistributedHeaders($message)) {
+                        $span->metrics['_dd.measured'] = 0;
+
                         $newTrace = start_trace_span();
                         $integration->extractContext($message);
                         $span->links[] = $newTrace->getLink();

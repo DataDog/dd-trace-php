@@ -148,7 +148,7 @@ class QueueTest extends WebFrameworkTestCase
                 ->withChildren([
                     SpanAssertion::exists('laravel.action')
                         ->withChildren([
-                            $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                            $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true)
                         ])
                 ])
         ], false);
@@ -174,13 +174,6 @@ class QueueTest extends WebFrameworkTestCase
         $tid = $processSpanFromProcessTrace["meta"]['_dd.p.tid'];
         $hexProcessTraceId = str_pad(self::largeBaseConvert($processTraceId, 10, 16), 16, '0', STR_PAD_LEFT);
         $hexProcessSpanId = str_pad(self::largeBaseConvert($processSpanId, 10, 16), 16, '0', STR_PAD_LEFT);
-
-        print("spanLinksTraceId: " . $spanLinksTraceId . "\n");
-        print("tid: " . $tid . "\n");
-        print("hexProcessTraceId: " . $hexProcessTraceId . "\n");
-        print("hexProcessSpanId: " . $hexProcessSpanId . "\n");
-        print("processTraceId: " . $processTraceId . "\n");
-        print("processSpanId: " . $processSpanId . "\n");
 
         $this->assertSame($spanLinksTraceId, $tid . $hexProcessTraceId);
         $this->assertSame($spanLinksSpanId, $hexProcessSpanId);
@@ -259,7 +252,7 @@ class QueueTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')
                             ->withChildren([
-                                $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                                $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true)
                                     ->setError('Exception', 'Triggered Exception', true)
                             ])
                     ])
@@ -304,9 +297,9 @@ class QueueTest extends WebFrameworkTestCase
         $this->assertFlameGraph($artisanTrace, [
             SpanAssertion::exists('laravel.artisan')->withChildren([
                 SpanAssertion::exists('laravel.action')->withChildren([
-                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails'),
-                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails'),
-                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails')
+                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true),
+                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true),
+                    $this->spanQueueProcess('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true)
                 ])
             ])
         ], false);
@@ -489,7 +482,8 @@ class QueueTest extends WebFrameworkTestCase
     protected function spanQueueProcess(
         $connection = 'database',
         $queue = 'emails',
-        $resourceDetails = 'App\Jobs\SendVerificationEmail'
+        $resourceDetails = 'App\Jobs\SendVerificationEmail',
+        $measured = false
     ) {
         $span = SpanAssertion::build(
             'laravel.queue.process',
@@ -499,6 +493,10 @@ class QueueTest extends WebFrameworkTestCase
         )->withExactTags(
             $this->getCommonTags('receive', $queue, $connection)
         );
+
+        if ($measured) {
+            $span = $span->withExactMetrics(['_dd.measured' => 0]);
+        }
 
         if ($queue === 'sync') {
             return $span;

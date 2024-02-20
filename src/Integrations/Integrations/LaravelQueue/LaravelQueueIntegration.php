@@ -78,6 +78,8 @@ class LaravelQueueIntegration extends Integration
                     $payload = $job->payload();
                     if (isset($payload['dd_headers'])) {
                         if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')) {
+                            $span->metrics['_dd.measured'] = 0;
+
                             $newTrace = start_trace_span();
                             $integration->setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
                             $integration->extractContext($payload);
