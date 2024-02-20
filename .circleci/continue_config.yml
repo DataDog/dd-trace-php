@@ -2177,7 +2177,7 @@ jobs:
       image: ubuntu-2004:2023.04.2
     resource_class: xlarge
     environment:
-      - RANDOMIZED_RESTRICT_PLATFORMS: centos7
+      - RANDOMIZED_RESTRICT_PLATFORMS: buster
     parameters:
       batch:
         # Batch is only used to run a number of these jobs in parallel via a testing matrix.
@@ -2227,7 +2227,7 @@ jobs:
       image: ubuntu-2004:2023.04.2
     resource_class: arm.xlarge
     environment:
-      - RANDOMIZED_RESTRICT_PLATFORMS: centos7
+      - RANDOMIZED_RESTRICT_PLATFORMS: buster
     parameters:
       batch:
         # Batch is only used to run a number of these jobs in parallel via a testing matrix.
@@ -2240,8 +2240,8 @@ jobs:
       image: ubuntu-2004:2023.04.2
     resource_class: xlarge
     environment:
-      - RANDOMIZED_RESTRICT_PLATFORMS: buster
     parameters:
+      - RANDOMIZED_RESTRICT_PLATFORMS: buster
       batch:
         # Batch is only used to run a number of these jobs in parallel via a testing matrix.
         type: integer
