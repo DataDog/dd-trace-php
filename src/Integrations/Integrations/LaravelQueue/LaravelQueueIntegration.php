@@ -42,7 +42,7 @@ class LaravelQueueIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function init()
+    public function init(): int
     {
         $integration = $this;
 

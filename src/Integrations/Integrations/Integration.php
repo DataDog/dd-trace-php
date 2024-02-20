@@ -6,27 +6,13 @@ use DDTrace\Contracts\Span;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 
-abstract class Integration
+abstract class Integration implements \DDTrace\Integration
 {
-    // Possible statuses for the concrete:
-    //   - NOT_LOADED   : It has not been loaded, but it may be loaded at a future time if the preconditions match
-    //   - LOADED       : It has been loaded, no more work required.
-    //   - NOT_AVAILABLE: Prerequisites are not matched and won't be matched in the future.
-    const NOT_LOADED = 0;
-    const LOADED = 1;
-    const NOT_AVAILABLE = 2;
-
     /**
      * @var DefaultIntegrationConfiguration|mixed
      */
     protected $configuration;
 
-    /**
-     * Load the integration
-     *
-     * @return int
-     */
-    abstract public function init();
 
     /**
      * @return string The integration name.
@@ -178,19 +164,5 @@ abstract class Integration
             $service = $mapping[$service];
         }
         $span->service = $service;
-    }
-}
-
-function load_deferred_integration($integrationName, $hookedObject = null)
-{
-    // it should have already been autoloaded (in current architecture)
-    if (
-        \class_exists($integrationName, $autoload = false)
-        && \is_subclass_of($integrationName, 'DDTrace\\Integrations\\Integration')
-    ) {
-        /** @var Integration $integration */
-        $integration = new $integrationName();
-        $result = $integration->init($hookedObject);
-        IntegrationsLoader::logResult($integrationName, $result);
     }
 }

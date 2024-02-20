@@ -50,7 +50,7 @@ class MemcachedIntegration extends Integration
         return self::NAME;
     }
 
-    public function init()
+    public function init(): int
     {
         if (!extension_loaded('memcached')) {
             return Integration::NOT_AVAILABLE;

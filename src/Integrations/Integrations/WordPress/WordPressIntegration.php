@@ -45,12 +45,8 @@ class WordPressIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function init()
+    public function init(): int
     {
-        if (!self::shouldLoad(self::NAME)) {
-            return self::NOT_AVAILABLE;
-        }
-
         $integration = $this;
 
         // This call happens right in central config initialization

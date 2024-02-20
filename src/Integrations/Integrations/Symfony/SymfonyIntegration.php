@@ -42,7 +42,7 @@ class SymfonyIntegration extends Integration
      *
      * @return int
      */
-    public function init()
+    public function init(): int
     {
         $integration = $this;
 

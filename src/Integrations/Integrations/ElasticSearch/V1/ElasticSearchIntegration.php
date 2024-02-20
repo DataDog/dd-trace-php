@@ -22,7 +22,7 @@ class ElasticSearchIntegration extends Integration
     /**
      * Add instrumentation to Elasticsearch requests
      */
-    public function init()
+    public function init(): int
     {
         // Dynamically generate namespace traces to ensure forward compatibility with future ES versions
         $integration = $this;

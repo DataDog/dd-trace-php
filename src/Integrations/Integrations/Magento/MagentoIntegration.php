@@ -50,7 +50,7 @@ class MagentoIntegration extends Integration
         return $class instanceof InterceptorInterface ? get_parent_class($class) : get_class($class);
     }
 
-    public function init()
+    public function init(): int
     {
         ini_set('datadog.trace.spans_limit', max(1500, ini_get('datadog.trace.spans_limit')));
 

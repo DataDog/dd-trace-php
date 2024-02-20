@@ -219,7 +219,7 @@ class LogsIntegration extends Integration
         };
     }
 
-    public function init()
+    public function init(): int
     {
         $levelNames = [
             'debug',

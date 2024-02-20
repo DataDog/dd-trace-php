@@ -184,6 +184,7 @@ static bool dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
     bool has_this = getThis() != NULL;
     zval rv;
     zai_sandbox sandbox;
+    zai_sandbox_open(&sandbox);
     bool success = zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL,
                                    ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
                                    &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &hook_data_zv);

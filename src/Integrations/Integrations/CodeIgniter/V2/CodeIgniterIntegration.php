@@ -23,7 +23,7 @@ class CodeIgniterIntegration extends Integration
     /**
      * Add instrumentation to CodeIgniter requests
      */
-    public function init(\CI_Router $router = null)
+    public function init(\CI_Router $router = null): int
     {
         $integration = $this;
         $rootSpan = \DDTrace\root_span();

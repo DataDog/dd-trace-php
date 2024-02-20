@@ -56,12 +56,8 @@ class LaminasIntegration extends Integration
         return self::NAME;
     }
 
-    public function init()
+    public function init(): int
     {
-        if (!self::shouldLoad(self::NAME)) {
-            return Integration::NOT_LOADED;
-        }
-
         if (self::shouldLoad(LogsIntegration::NAME)) {
             // Logs Correlation
             install_hook(

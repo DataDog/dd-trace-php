@@ -1,8 +1,6 @@
 <?php
 
 return [
-    // config does not really belong here, but given it declares functions, we must always hard-load these
-    __DIR__ . '/configuration.php',
     __DIR__ . '/../src/Integrations/Integrations/AbstractIntegrationConfiguration.php',
     __DIR__ . '/../src/Integrations/Integrations/DatabaseIntegrationHelper.php',
     __DIR__ . '/../src/Integrations/Integrations/HttpClientIntegrationHelper.php',
@@ -13,8 +11,6 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/CodeIgniter/V2/CodeIgniterIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Exec/ExecIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Drupal/DrupalIntegration.php',
-    __DIR__ . '/../src/Integrations/Integrations/Web/WebIntegration.php',
-    __DIR__ . '/../src/Integrations/Integrations/IntegrationsLoader.php',
     __DIR__ . '/../src/Integrations/Integrations/Pcntl/PcntlIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/PDO/PDOIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/PHPRedis/PHPRedisIntegration.php',
@@ -52,7 +48,6 @@ return [
     __DIR__ . '/../src/Integrations/Util/Runtime.php',
     __DIR__ . '/../src/Integrations/Util/Versions.php',
     __DIR__ . '/../src/Integrations/Util/ObjectKVStore.php',
-    __DIR__ . '/../src/Integrations/Util/ArrayKVStore.php',
     __DIR__ . '/../src/Integrations/Util/Normalizer.php',
     __DIR__ . '/../src/Integrations/Obfuscation.php',
 ];

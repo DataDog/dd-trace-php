@@ -54,7 +54,7 @@ class PHPRedisIntegration extends Integration
         }
     }
 
-    public function init()
+    public function init(): int
     {
         $traceConnectOpen = function (SpanData $span, $args) {
             PHPRedisIntegration::handleOrphan($span);
@@ -342,7 +342,7 @@ class PHPRedisIntegration extends Integration
 
     public static function enrichSpan(SpanData $span, $instance, $class, $method = null)
     {
-        if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
+        if (\dd_trace_env_config("DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST")) {
             // For PHP 5 compatibility, keep the results of ObjectKVStore::get() extracted as variables
             $clusterName = ObjectKVStore::get($instance, PHPRedisIntegration::KEY_CLUSTER_NAME);
             $firstHostOrUDS = ObjectKVStore::get($instance, PHPRedisIntegration::KEY_FIRST_HOST_OR_UDS);

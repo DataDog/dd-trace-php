@@ -155,7 +155,6 @@ static void _dd_get_startup_config(HashTable *ht) {
     // "vm" N/A for PHP
     // "partial_flushing_enabled" N/A for PHP
     _dd_add_assoc_bool(ht, ZEND_STRL("distributed_tracing_enabled"), get_DD_DISTRIBUTED_TRACING());
-    _dd_add_assoc_bool(ht, ZEND_STRL("priority_sampling_enabled"), get_DD_PRIORITY_SAMPLING());
     // "logs_correlation_enabled" N/A for PHP
     // "profiling_enabled" N/A for PHP
     _dd_add_assoc_zstring(ht, ZEND_STRL("dd_version"), zend_string_copy(get_DD_VERSION()));

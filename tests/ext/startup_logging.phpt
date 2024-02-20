@@ -32,7 +32,6 @@ sampling_rules: []
 tags: []
 service_mapping: []
 distributed_tracing_enabled: true
-priority_sampling_enabled: true
 dd_version: null
 architecture: "%s"
 sapi: "cgi-fcgi"

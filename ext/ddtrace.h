@@ -18,6 +18,7 @@ extern zend_class_entry *ddtrace_ce_root_span_data;
 extern zend_class_entry *ddtrace_ce_span_stack;
 extern zend_class_entry *ddtrace_ce_fatal_error;
 extern zend_class_entry *ddtrace_ce_span_link;
+extern zend_class_entry *ddtrace_ce_integration;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_data ddtrace_span_data;

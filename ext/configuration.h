@@ -95,7 +95,6 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED, "true")                                               \
     CONFIG(BOOL, DD_HTTP_SERVER_ROUTE_BASED_NAMING, "true")                                                    \
     CONFIG(SET, DD_INTEGRATIONS_DISABLED, "default")                                                           \
-    CONFIG(BOOL, DD_PRIORITY_SAMPLING, "true")                                                                 \
     CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                \
     CONFIG(MAP, DD_SERVICE_MAPPING, "")                                                                        \
     CALIAS(MAP, DD_TAGS, "", CALIASES("DD_TRACE_GLOBAL_TAGS"))                                                 \

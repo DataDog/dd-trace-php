@@ -43,8 +43,6 @@ class MongoDBIntegration extends Integration
     const NAME = 'mongodb';
     const SYSTEM = 'mongodb';
 
-    private static $loaded = false;
-
     /**
      * @return string The integration name.
      */
@@ -53,15 +51,8 @@ class MongoDBIntegration extends Integration
         return self::NAME;
     }
 
-    public function init()
+    public function init(): int
     {
-        // We have multiple methods that cause this integration to be loaded.
-        // Integration loading should be cached, for now we keep track of the initialization execution.
-        if (self::$loaded) {
-            return;
-        }
-        self::$loaded = true;
-
         if (!extension_loaded('mongodb')) {
             return Integration::NOT_AVAILABLE;
         }

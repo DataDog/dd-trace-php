@@ -17,7 +17,7 @@ class DefaultIntegrationConfiguration extends AbstractIntegrationConfiguration
             return true;
         }
 
-        return \DDTrace\Util\Runtime::getBoolIni("datadog.trace.analytics_enabled")
+        return \dd_trace_env_config("DD_TRACE_ANALYTICS_ENABLED")
             && !$this->requiresExplicitTraceAnalyticsEnabling();
     }
 

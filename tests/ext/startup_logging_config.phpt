@@ -18,7 +18,6 @@ $env = [
     'DD_TAGS' => 'key1:value1,key2:value2',
     'DD_SERVICE_MAPPING' => 'pdo:payments-db,mysqli:orders-db',
     'DD_DISTRIBUTED_TRACING' => '0',
-    'DD_PRIORITY_SAMPLING' => '0',
     'DD_VERSION' => '4.2',
     'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX' => '^[a-f0-9]{7}$',
     'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING' => 'cities/*,articles/*',
@@ -71,7 +70,6 @@ sampling_rules: [{"service":"a.*","name":"b","sample_rate":0.1},{"sample_rate":0
 tags: {"key1":"value1","key2":"value2"}
 service_mapping: {"pdo":"payments-db","mysqli":"orders-db"}
 distributed_tracing_enabled: false
-priority_sampling_enabled: false
 dd_version: "4.2"
 uri_fragment_regex: "^[a-f0-9]{7}$"
 uri_mapping_incoming: "cities/*,articles/*"

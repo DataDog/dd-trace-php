@@ -19,12 +19,8 @@ class GuzzleIntegration extends Integration
         return self::NAME;
     }
 
-    public function init()
+    public function init(): int
     {
-        if (!self::shouldLoad(self::NAME)) {
-            return Integration::NOT_LOADED;
-        }
-
         $integration = $this;
 
         /* Until we support both pre- and post- hooks on the same function, do
@@ -109,13 +105,12 @@ class GuzzleIntegration extends Integration
 
     public function addRequestInfo(SpanData $span, $request)
     {
-        if (\is_a($request, 'Psr\Http\Message\RequestInterface')) {
-            /** @var \Psr\Http\Message\RequestInterface $request */
+        if ($request instanceof \Psr\Http\Message\RequestInterface) {
             $url = $request->getUri();
             $host = Urls::hostname($url);
             $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
 
-            if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.http_client_split_by_domain")) {
+            if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
                 $span->service = Urls::hostnameForTag($url);
             }
             $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
@@ -123,14 +118,13 @@ class GuzzleIntegration extends Integration
             if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
                 $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
             }
-        } elseif (\is_a($request, 'GuzzleHttp\Message\RequestInterface')) {
-            /** @var \GuzzleHttp\Message\RequestInterface $request */
+        } elseif ($request instanceof \GuzzleHttp\Message\RequestInterface) {
             $url = $request->getUrl();
             $host = Urls::hostname($url);
             if ($host) {
                 $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
             }
-            if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.http_client_split_by_domain")) {
+            if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
                 $span->service = Urls::hostnameForTag($url);
             }
             $span->meta[Tag::HTTP_METHOD] = $request->getMethod();

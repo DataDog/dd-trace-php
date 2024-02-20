@@ -163,9 +163,11 @@ bool zai_symbol_call_impl(
     // clang-format on
 
     // Always open the sandbox, because the caller will always try to close it
-    zai_sandbox sandbox, *sandbox_ptr = NULL;
-    zai_sandbox_open(&sandbox);
-    if (argc & ZAI_SYMBOL_SANDBOX) {
+    zai_sandbox sandbox, *sandbox_ptr = &sandbox;
+    volatile bool needs_sandbox = (argc & ZAI_SYMBOL_SANDBOX) == 0;
+    if (needs_sandbox) {
+        zai_sandbox_open(&sandbox);
+    } else {
         sandbox_ptr = va_arg(*args, zai_sandbox *);
     }
     argc &= ~ZAI_SYMBOL_SANDBOX;
@@ -277,7 +279,7 @@ bool zai_symbol_call_impl(
     }
 
     if (zai_symbol_call_bailed) {
-        zai_sandbox_bailout(&sandbox);
+        zai_sandbox_bailout(sandbox_ptr);
 #if PHP_VERSION_ID >= 80000
         if (EG(current_execute_data)) {
             zend_execute_data *cur_ex = EG(current_execute_data);
@@ -320,9 +322,7 @@ bool zai_symbol_call_impl(
     success = zai_symbol_call_result == SUCCESS && EG(exception) == NULL;
 
 leave:
-    if (sandbox_ptr) {
-        *sandbox_ptr = sandbox;
-    } else {
+    if (needs_sandbox) {
         zai_sandbox_close(&sandbox);
     }
 

@@ -27,7 +27,7 @@ class EloquentIntegration extends Integration
     /**
      * {@inheritDoc}
      */
-    public function init()
+    public function init(): int
     {
         $integration = $this;
 

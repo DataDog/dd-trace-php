@@ -18,12 +18,8 @@ class Psr18Integration extends Integration
         return self::NAME;
     }
 
-    public function init()
+    public function init(): int
     {
-        if (!self::shouldLoad(self::NAME)) {
-            return Integration::NOT_LOADED;
-        }
-
         $integration = $this;
 
         /* Until we support both pre- and post- hooks on the same function, do
@@ -65,7 +61,7 @@ class Psr18Integration extends Integration
             $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
         }
 
-        if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.http_client_split_by_domain")) {
+        if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
             $span->service = Urls::hostnameForTag($url);
         }
         $span->meta[Tag::HTTP_METHOD] = $request->getMethod();

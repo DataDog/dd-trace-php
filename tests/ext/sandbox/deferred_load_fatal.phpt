@@ -1,8 +1,10 @@
 --TEST--
-deferred loading only happens once, even if dispatch is not overwritten
+deferred loading doesn't crash if integration loading fails
 --ENV--
 _DD_LOAD_TEST_INTEGRATIONS=1
-DD_TRACE_LOG_LEVEL=info,startup=off
+--INI--
+ddtrace.request_init_hook=
+datadog.trace.log_level=warn
 --FILE--
 <?php
 
@@ -12,8 +14,7 @@ namespace DDTrace\Test
     {
         function init(): int
         {
-            echo "autoload_attempted" . PHP_EOL;
-            return self::LOADED;
+            \trigger_error("Fatal!", E_USER_ERROR);
         }
     }
 }
@@ -32,8 +33,7 @@ namespace
     Test::public_static_method();
 }
 ?>
---EXPECTF--
-autoload_attempted
+--EXPECT--
+[ddtrace] [warning] Error raised in ddtrace's integration autoloader for ddtrace\test\testsandboxedintegration: Fatal! in %s deferred_load_fatal.php on line %d
 PUBLIC STATIC METHOD
 PUBLIC STATIC METHOD
-[ddtrace] [info] Flushing trace of size 1 to send-queue for %s

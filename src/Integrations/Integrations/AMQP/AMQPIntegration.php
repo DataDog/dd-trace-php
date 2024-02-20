@@ -63,7 +63,7 @@ class AMQPIntegration extends Integration
     /**
      * Add instrumentation to AMQP requests
      */
-    public function init()
+    public function init(): int
     {
         $integration = $this;
         $this->protocolVersion = "";

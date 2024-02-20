@@ -24,13 +24,8 @@ class SlimIntegration extends Integration
     /**
      * Add instrumentation to Slim requests
      */
-    public function init()
+    public function init(): int
     {
-        // http://www.slimframework.com/docs/v3/start/installation.html
-        if (\PHP_VERSION_ID < 50500) {
-            return Integration::NOT_AVAILABLE;
-        }
-
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
 
