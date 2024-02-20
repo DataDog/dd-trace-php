@@ -266,7 +266,7 @@
         {
           "name": "laravel.view",
           "service": "my_service",
-          "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_10_x/resources/views/simple_view.blade.php",
+          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_10_x/resources/views/simple_view.blade.php",
           "trace_id": 0,
           "span_id": 26,
           "parent_id": 19,

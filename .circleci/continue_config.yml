@@ -504,7 +504,7 @@ commands:
                   -e CIRCLECI \
                   -e CIRCLE_PROJECT_USERNAME \
                   -e CIRCLE_PROJECT_REPONAME \
-                  -v $(pwd):/home/circleci/datadog \
+                  -v $(pwd):/home/circleci/app \
                   -v /tmp/bashenv:/home/circleci/bashenv \
                   -v /rust:/rust \
                   $(if [ -n "${CARGO_TARGET_DIR:-}" ]; then echo -v ${CARGO_TARGET_DIR}:${CARGO_TARGET_DIR} -e CARGO_TARGET_DIR=${CARGO_TARGET_DIR}; fi) \
@@ -524,7 +524,7 @@ commands:
               fi
               sleep 1
             done
-            echo 'if [ -f /usr/bin/docker ]; then pid=$$; IFS= readarray -d "" args < <(cat /proc/$pid/cmdline); exec docker exec -w /home/circleci/datadog -i '"${container_name}"' "${args[@]}"; fi' | tee -a $BASH_ENV
+            echo 'if [ -f /usr/bin/docker ]; then pid=$$; IFS= readarray -d "" args < <(cat /proc/$pid/cmdline); exec docker exec -w /home/circleci/app -i '"${container_name}"' "${args[@]}"; fi' | tee -a $BASH_ENV
             cp $BASH_ENV /tmp/bashenv/bash.sh
             chmod 777 /tmp/bashenv/bash.sh
 
@@ -1227,13 +1227,13 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update
             apt install -y wget git g++ gcc cmake make curl libcurl4-gnutls-dev git php-dev php-cgi
-      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run: git config --global --add safe.directory /home/circleci/app/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
-            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
-            find /home/circleci/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/home/circleci/app/hunter-cache
+            find /home/circleci/app/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
       - save_cache:
           name: "Save Cache"
           key: hunter-cache-ubuntu-<< parameters.resource_class >>-{{ checksum "appsec/hunter-cache.id" }}
@@ -1262,13 +1262,13 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update
             apt install -y wget sudo git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php8.2-xml php-cgi cargo
-      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run: git config --global --add safe.directory /home/circleci/app/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
-              -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+              -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/home/circleci/app/hunter-cache
       - run:
           name: Test
           command: |
@@ -1329,13 +1329,13 @@ jobs:
             apt update
             # clang-tidy 16 crashes so we use 17 instead
             apt install -y wget git g++ gcc cmake make curl libcurl4-gnutls-dev clang clang-tidy-17 clang-format-17 git php-dev php-cgi
-      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run: git config --global --add safe.directory /home/circleci/app/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
-              -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache \
+              -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/home/circleci/app/hunter-cache \
               -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
       - run:
           name: Build
@@ -1366,7 +1366,7 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update
             apt install -y wget git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git
-      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run: git config --global --add safe.directory /home/circleci/app/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
@@ -1377,7 +1377,7 @@ jobs:
               -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
               -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
               -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
-              -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+              -DHUNTER_ROOT=/home/circleci/app/hunter-cache
       - run:
           name: Test
           command: |
@@ -1408,7 +1408,7 @@ jobs:
             apt install -y wget llvm-17 clang-17 cmake make curl libcurl4-gnutls-dev git
             ln -s /usr/bin/clang-17 /usr/bin/clang
             ln -s /usr/bin/clang++-17 /usr/bin/clang++
-      - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run: git config --global --add safe.directory /home/circleci/app/appsec/third_party/libddwaf
       - run:
           name: CMake
           command: |
@@ -1416,7 +1416,7 @@ jobs:
             export CXX=/usr/bin/clang++-17
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF \
-              -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+              -DHUNTER_ROOT=/home/circleci/app/hunter-cache
       - run:
           name: Build
           command: make -C appsec/build -j $(nproc) ddappsec_helper_fuzzer corpus_generator
@@ -1726,7 +1726,7 @@ jobs:
               -p /usr/local/bin/php \
               --show-diff \
               -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php \
+              -d ddtrace.request_init_hook=/home/circleci/app/bridge/dd_wrap_autoloader.php \
               $(if [[ "<<parameters.parallel_workers>>" == "true" ]]; then echo -j5; fi)
       - run:
           command: |

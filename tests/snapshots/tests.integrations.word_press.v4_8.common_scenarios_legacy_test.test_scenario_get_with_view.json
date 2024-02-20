@@ -557,7 +557,7 @@
         {
           "name": "load_template",
           "service": "wordpress_test_app",
-          "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/header.php",
+          "resource": "/home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/header.php",
           "trace_id": 0,
           "span_id": 34,
           "parent_id": 16,
@@ -753,7 +753,7 @@
      {
        "name": "load_template",
        "service": "wordpress_test_app",
-       "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/template-parts/page/content-page.php",
+       "resource": "/home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/template-parts/page/content-page.php",
        "trace_id": 0,
        "span_id": 19,
        "parent_id": 1,
@@ -777,7 +777,7 @@
         {
           "name": "load_template",
           "service": "wordpress_test_app",
-          "resource": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/footer.php",
+          "resource": "/home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/footer.php",
           "trace_id": 0,
           "span_id": 37,
           "parent_id": 20,
