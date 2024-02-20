@@ -327,7 +327,7 @@ EOD;
         $this->putEnvAndReloadConfig([
             'DD_TRACE_HEADER_TAGS=A-Header',
         ]);
-        $this->assertSame(['a-header'], \dd_trace_env_config("DD_TRACE_HEADER_TAGS"));
+        $this->assertSame(['a-header'], array_keys(\dd_trace_env_config("DD_TRACE_HEADER_TAGS")));
     }
 
     public function testHttpHeadersCanSetMultiple()
@@ -337,6 +337,6 @@ EOD;
         ]);
         // Same behavior as python tracer:
         // https://github.com/DataDog/dd-trace-py/blob/f1298cb8100f146059f978b58c88641bd7424af8/ddtrace/http/headers.py
-        $this->assertSame(['a-header', 'any-name', 'con7aining-!spe_cial?:ch/ars'], \dd_trace_env_config("DD_TRACE_HEADER_TAGS"));
+        $this->assertSame(['a-header', 'any-name', 'con7aining-!spe_cial?:ch/ars'], array_keys(\dd_trace_env_config("DD_TRACE_HEADER_TAGS")));
     }
 }

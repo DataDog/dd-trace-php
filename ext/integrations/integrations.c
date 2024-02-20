@@ -74,7 +74,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
     (void) dynamic, (void) retval, (void) invocation;
 
     dd_integration_aux *aux = auxiliary;
-    bool unload_hooks = true;
+    volatile bool unload_hooks = true;
 
     if (aux->name == -1u || ddtrace_config_integration_enabled(aux->name)) {
         if (aux->name != -1u) {

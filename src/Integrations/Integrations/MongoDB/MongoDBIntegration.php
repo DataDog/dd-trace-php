@@ -17,6 +17,7 @@ function register_subscriber()
 {
     class DatadogSubscriber implements \MongoDB\Driver\Monitoring\CommandSubscriber
     {
+        #[\ReturnTypeWillChange]
         public function commandStarted(\MongoDB\Driver\Monitoring\CommandStartedEvent $event)
         {
             $span = \DDTrace\active_span();
@@ -26,10 +27,12 @@ function register_subscriber()
             }
         }
 
+        #[\ReturnTypeWillChange]
         public function commandSucceeded(\MongoDB\Driver\Monitoring\CommandSucceededEvent $event)
         {
         }
 
+        #[\ReturnTypeWillChange]
         public function commandFailed(\MongoDB\Driver\Monitoring\CommandFailedEvent $event)
         {
         }

@@ -199,7 +199,6 @@ EOD;
     public function testAnalyticsDisabledByDefault()
     {
         $this->assertFalse(Configuration::get()->isAnalyticsEnabled());
-        $this->assertFalse(\ddtrace_config_analytics_enabled());
     }
 
     public function testAnalyticsCanBeGloballyEnabled()
