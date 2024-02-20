@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Logs;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\Util\ObjectKVStore;
 use Psr\Log\NullLogger;
 
