@@ -1,17 +1,14 @@
 <?php
 
-namespace DDTrace\Integrations\WordPress\V2;
+namespace DDTrace\Integrations\WordPress;
 
 use DDTrace\HookData;
-use DDTrace\Integrations\WordPress\WordPressIntegration;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
-
 use function DDTrace\hook_function;
-use function DDTrace\hook_method;
 use function DDTrace\install_hook;
 use function DDTrace\remove_hook;
 use function DDTrace\set_user;

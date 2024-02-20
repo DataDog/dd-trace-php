@@ -3,8 +3,6 @@
 namespace DDTrace\Integrations\WordPress;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\WordPress\V1\WordPressIntegrationLoader as WordPressIntegrationLoaderV1;
-use DDTrace\Integrations\WordPress\V2\WordPressIntegrationLoader as WordPressIntegrationLoaderV2;
 
 class WordPressIntegration extends Integration
 {
@@ -55,11 +53,8 @@ class WordPressIntegration extends Integration
                 return false;
             }
             $majorVersion = substr($GLOBALS['wp_version'], 0, 1);
-            $enhancedIntegration = dd_trace_env_config('DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION');
             if ($majorVersion >= 4) {
-                $loader = $enhancedIntegration
-                    ? new WordPressIntegrationLoaderV2()
-                    : new WordPressIntegrationLoaderV1();
+                $loader = new WordPressIntegrationLoader();
                 $loader->load($integration);
             }
 
