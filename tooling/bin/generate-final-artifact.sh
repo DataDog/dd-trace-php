@@ -37,9 +37,6 @@ for architecture in "${architectures[@]}"; do
     php_apis=(20190902 20200930 20210902 20220829 20230831)
     if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
         php_apis+=(20151012 20160303 20170718 20180731)
-        if [[ $architecture == "x86_64" ]]; then
-            php_apis+=(20100412 20121113 20131106)
-        fi
     fi
     for php_api in "${php_apis[@]}"; do
         mkdir -p ${tmp_folder_final_gnu_trace}/ext/$php_api ${tmp_folder_final_musl_trace}/ext/$php_api;
