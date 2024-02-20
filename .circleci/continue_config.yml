@@ -2240,11 +2240,11 @@ jobs:
       image: ubuntu-2004:2023.04.2
     resource_class: xlarge
     environment:
-    parameters:
       - RANDOMIZED_RESTRICT_PLATFORMS: buster
+    parameters:
       batch:
-        # Batch is only used to run a number of these jobs in parallel via a testing matrix.
         type: integer
+        # Batch is only used to run a number of these jobs in parallel via a testing matrix.
     steps: *randomized_tests_steps
 
   randomized_tests_arm_asan:
