@@ -64,18 +64,18 @@ static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
             if (!mapped_service) {
                 mapped_service = service;
             }
-            if (!dd_rule_matches(rule_pattern, mapped_service, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
+            if (!dd_rule_matches(rule_pattern, mapped_service)) {
                 return false;
             }
         }
     }
     if ((rule_pattern = zend_hash_str_find(rule, ZEND_STRL("name")))) {
-        if (!dd_rule_matches(rule_pattern, &span->property_name, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
+        if (!dd_rule_matches(rule_pattern, &span->property_name)) {
             return false;
         }
     }
     if ((rule_pattern = zend_hash_str_find(rule, ZEND_STRL("resource")))) {
-        if (!dd_rule_matches(rule_pattern, &span->property_resource, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
+        if (!dd_rule_matches(rule_pattern, &span->property_resource)) {
             return false;
         }
     }
@@ -90,7 +90,7 @@ static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
                 if (!(value = zend_hash_find(meta, tag_name)) && !(value = zend_hash_find(metrics, tag_name))) {
                     return false;
                 }
-                if (!dd_rule_matches(rule_pattern, value, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
+                if (!dd_rule_matches(rule_pattern, value)) {
                     return false;
                 }
             }

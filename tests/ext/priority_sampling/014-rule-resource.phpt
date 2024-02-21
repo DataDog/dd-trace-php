@@ -1,7 +1,7 @@
 --TEST--
 priority_sampling rule with resource match
 --ENV--
-DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.7, "resource": "bar"},{"sample_rate": 0.3, "resource": "foo"}]
+DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.7, "resource": "*bar*"},{"sample_rate": 0.3, "resource": "*foo*"}]
 DD_TRACE_GENERATE_ROOT_SPAN=1
 --SKIPIF--
 <?php

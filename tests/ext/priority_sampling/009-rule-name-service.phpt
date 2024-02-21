@@ -1,7 +1,7 @@
 --TEST--
 priority_sampling rule with name and service match
 --ENV--
-DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.3, "name": "fo.*ame", "service": "bar"}, {"sample_rate": 0.7}]
+DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.3, "name": "fo*ame", "service": "barservic?"}, {"sample_rate": 0.7}]
 DD_TRACE_GENERATE_ROOT_SPAN=1
 --FILE--
 <?php

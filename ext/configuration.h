@@ -23,12 +23,6 @@ enum ddtrace_dbm_propagation_mode {
     DD_TRACE_DBM_PROPAGATION_FULL,
 };
 
-// To remove in 1.0
-enum ddtrace_sampling_rules_format {
-    DD_TRACE_SAMPLING_RULES_FORMAT_REGEX,
-    DD_TRACE_SAMPLING_RULES_FORMAT_GLOB
-};
-
 /* From the curl docs on CONNECT_TIMEOUT_MS:
  *     If libcurl is built to use the standard system name resolver, that
  *     portion of the transfer will still use full-second resolution for
@@ -128,7 +122,6 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_RATE_LIMIT, "0", .ini_change = zai_config_system_ini_change)                          \
     CALIAS(DOUBLE, DD_TRACE_SAMPLE_RATE, "-1", CALIASES("DD_SAMPLING_RATE"))                                   \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                                \
-    CONFIG(CUSTOM(INT), DD_TRACE_SAMPLING_RULES_FORMAT, "regex", .parser = dd_parse_sampling_rules_format)     \
     CONFIG(JSON, DD_SPAN_SAMPLING_RULES, "[]")                                                                 \
     CONFIG(STRING, DD_SPAN_SAMPLING_RULES_FILE, "", .ini_change = ddtrace_alter_sampling_rules_file_config)    \
     CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "")                                                            \

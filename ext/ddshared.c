@@ -28,7 +28,7 @@ bool dd_glob_rule_is_wildcards_only(zval *pattern) {
     return *p == 0;
 }
 
-bool dd_rule_matches(zval *pattern, zval *prop, int rulesFormat) {
+bool dd_rule_matches(zval *pattern, zval *prop) {
     if (Z_TYPE_P(pattern) != IS_STRING) {
         return false;
     }
@@ -62,12 +62,7 @@ bool dd_rule_matches(zval *pattern, zval *prop, int rulesFormat) {
         }
     }
 
-    bool result;
-    if (rulesFormat == DD_TRACE_SAMPLING_RULES_FORMAT_GLOB) {
-        result = dd_glob_rule_matches(pattern, str);
-    } else {
-        result = zai_match_regex(Z_STR_P(pattern), str);
-    }
+    bool result = dd_glob_rule_matches(pattern, str);;
     zend_string_release(str);
     return result;
 }

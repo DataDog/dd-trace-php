@@ -76,19 +76,6 @@ static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persisten
     return true;
 }
 
-static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, bool persistent) {
-    UNUSED(persistent);
-    if (zai_str_eq_ci_cstr(value, "regex")) {
-        ZVAL_LONG(decoded_value, DD_TRACE_SAMPLING_RULES_FORMAT_REGEX);
-    } else if (zai_str_eq_ci_cstr(value, "glob")) {
-        ZVAL_LONG(decoded_value, DD_TRACE_SAMPLING_RULES_FORMAT_GLOB);
-    } else {
-        return false;
-    }
-
-    return true;
-}
-
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
 
 #ifndef _WIN32
