@@ -480,9 +480,7 @@ static PHP_FUNCTION(datadog_appsec_push_address)
         mlog_g(dd_log_debug, "Parameters could not be added");
         return;
     }
-    if (Z_TYPE_P(value) == IS_ARRAY) {
-        Z_ADDREF_P(value);
-    }
+    Z_TRY_ADDREF_P(value);
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
