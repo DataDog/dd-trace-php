@@ -91,7 +91,6 @@ class Symfony62Tests {
 
     @Test
     void 'test path params'() {
-        // Set ip which is blocked
         HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 403
