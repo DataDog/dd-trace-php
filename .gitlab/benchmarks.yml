@@ -52,7 +52,6 @@ benchmarks-tracer:
     - if: $CI_PIPELINE_SOURCE != "schedule"
       changes:
         paths:
-          - bridge/*
           - ext/**/*
           - src/**/*
           - zend_abstract_interface/**/*

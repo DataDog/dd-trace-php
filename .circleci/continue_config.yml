@@ -996,7 +996,7 @@ jobs:
 #          name: Run some integration tests
 #          shell: powershell.exe
 #          command: |
-#            docker exec php powershell.exe 'cd app; php -d ddtrace.request_init_hook=$pwd\bridge\dd_wrap_autoloader.php'
+#            docker exec php powershell.exe 'cd app; php -d $sourcesDir=$pwd\src\bridge\dd_wrap_autoloader.php'
       - run:
           when: always
           command: |
@@ -1698,7 +1698,7 @@ jobs:
               -p /usr/local/bin/php \
               --show-diff \
               -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php \
+              -d datadog.trace.sources_path=/home/circleci/datadog/src \
               $(if [[ "<<parameters.parallel_workers>>" == "true" ]]; then echo -j5; fi)
       - run:
           command: |
@@ -2286,7 +2286,7 @@ jobs:
             HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME} \
             DATADOG_HAVE_DEV_ENV=1 \
             DD_TRACE_CLI_ENABLED=1 \
-            pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
+            pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d datadog.trace.sources_path=" -p datadog_trace
       - run:
           name: Gather .diff files for artifacts
           command: |
@@ -3130,11 +3130,11 @@ jobs:
       - <<: *STEP_COMPOSER_GENERATE
       - run:
           name: Showing folder containing generated files
-          command: ls -al ~/datadog/bridge
+          command: ls -al ~/datadog/src/bridge
       - persist_to_workspace:
           root: '.'
           paths:
-            - './bridge/_generated*.php'
+            - './src/bridge/_generated*.php'
             - './VERSION' # we generate a new version number
 
   "package extension":

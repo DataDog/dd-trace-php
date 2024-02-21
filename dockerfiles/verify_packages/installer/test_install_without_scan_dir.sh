@@ -28,19 +28,19 @@ assert_ddtrace_version "${version}" php-without-scan-dir
 
 ini_file=$(get_php_main_conf php-without-scan-dir)
 
-assert_file_contains "${ini_file}" 'datadog.trace.request_init_hook'
+assert_file_contains "${ini_file}" 'datadog.trace.sources_path'
 assert_file_contains "${ini_file}" 'datadog.version'
 
 # Removing an enabled property and a commented out property
-sed -i 's/datadog\.trace\.request_init_hook.*//g' "${ini_file}"
+sed -i 's/datadog\.trace\.sources_path.*//g' "${ini_file}"
 sed -i 's/datadog\.version.*//g' "${ini_file}"
 
-assert_file_not_contains "${ini_file}" 'datadog.trace.request_init_hook'
+assert_file_not_contains "${ini_file}" 'datadog.trace.sources_path'
 assert_file_not_contains "${ini_file}" 'datadog.version'
 
 php ./build/packages/datadog-setup.php --php-bin php-without-scan-dir
 
-assert_file_contains "${ini_file}" 'datadog.trace.request_init_hook'
+assert_file_contains "${ini_file}" 'datadog.trace.sources_path'
 assert_file_contains "${ini_file}" 'datadog.version'
 
-assert_request_init_hook_exists php-without-scan-dir
+assert_sources_path_exists php-without-scan-dir

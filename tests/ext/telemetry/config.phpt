@@ -32,7 +32,7 @@ for ($i = 0; $i < 100; ++$i) {
                 if ($json["request_type"] == "app-started") {
                     $cfg = $json["payload"]["configuration"];
                     print_r(array_values(array_filter($cfg, function($c) {
-                        return $c["origin"] == "EnvVar" && $c["name"] != "trace.request_init_hook";
+                        return $c["origin"] == "EnvVar" && $c["name"] != "trace.sources_path";
                     })));
                     var_dump(count(array_filter($cfg, function($c) {
                         return $c["origin"] == "Default";

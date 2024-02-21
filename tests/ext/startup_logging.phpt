@@ -5,7 +5,7 @@ Startup logging is enabled by default
 --FILE--
 <?php
 include_once 'startup_logging.inc';
-$logs = dd_get_startup_logs(['-ddatadog.trace.request_init_hook='], ['DD_TRACE_DEBUG' => 1]);
+$logs = dd_get_startup_logs(['-ddatadog.trace.sources_path='], ['DD_TRACE_DEBUG' => 1]);
 
 // Ignore any Agent connection errors for now
 unset($logs['agent_error']);
@@ -13,7 +13,7 @@ unset($logs['agent_error']);
 dd_dump_startup_logs($logs);
 ?>
 --EXPECTF--
-datadog.trace.request_init_hook_reachable: false
+datadog.trace.sources_path_reachable: false
 date: "%s"
 os_name: "%s"
 os_version: "%s"
@@ -35,7 +35,7 @@ distributed_tracing_enabled: true
 dd_version: null
 architecture: "%s"
 sapi: "cgi-fcgi"
-datadog.trace.request_init_hook: null
+datadog.trace.sources_path: null
 open_basedir_configured: false
 uri_fragment_regex: null
 uri_mapping_incoming: null

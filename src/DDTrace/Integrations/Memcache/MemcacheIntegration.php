@@ -4,10 +4,10 @@ namespace DDTrace\Integrations\Memcache;
 
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
-use DDTrace\Obfuscation;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\Obfuscation;
 use DDTrace\Util\ObjectKVStore;
 
 /**

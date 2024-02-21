@@ -163,8 +163,8 @@ static void _dd_get_startup_config(HashTable *ht) {
 
     // PHP-specific values
     _dd_add_assoc_string(ht, ZEND_STRL("sapi"), sapi_module.name);
-    _dd_add_assoc_zstring(ht, ZEND_STRL("datadog.trace.request_init_hook"),
-                          zend_string_copy(get_DD_TRACE_REQUEST_INIT_HOOK()));
+    _dd_add_assoc_zstring(ht, ZEND_STRL("datadog.trace.sources_path"),
+                          zend_string_copy(get_DD_TRACE_SOURCES_PATH()));
     _dd_add_assoc_bool(ht, ZEND_STRL("open_basedir_configured"), _dd_ini_is_set(ZEND_STRL("open_basedir")));
     _dd_add_assoc_zstring(ht, ZEND_STRL("uri_fragment_regex"),
                           _dd_implode_keys(get_DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX()));
@@ -265,14 +265,14 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
     //_dd_add_assoc_string(ht, ZEND_STRL("service_mapping_error"), ""); // TODO Parse at C level
 
     // PHP-specific values
-    const char *rih = ZSTR_VAL(get_DD_TRACE_REQUEST_INIT_HOOK());
-    bool rih_exists = _dd_file_exists(rih);
-    if (!rih_exists) {
-        _dd_add_assoc_bool(ht, ZEND_STRL("datadog.trace.request_init_hook_reachable"), rih_exists);
+    const char *sources = ZSTR_VAL(get_DD_TRACE_SOURCES_PATH());
+    bool sources_exist = _dd_file_exists(sources);
+    if (!sources_exist) {
+        _dd_add_assoc_bool(ht, ZEND_STRL("datadog.trace.sources_path_reachable"), sources_exist);
     } else {
-        bool rih_allowed = _dd_open_basedir_allowed(rih);
-        if (!rih_allowed) {
-            _dd_add_assoc_bool(ht, ZEND_STRL("open_basedir_init_hook_allowed"), rih_allowed);
+        bool sources_allowed = _dd_open_basedir_allowed(sources);
+        if (!sources_allowed) {
+            _dd_add_assoc_bool(ht, ZEND_STRL("open_basedir_sources_allowed"), sources_allowed);
         }
     }
 

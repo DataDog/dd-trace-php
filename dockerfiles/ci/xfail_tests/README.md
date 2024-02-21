@@ -8,7 +8,7 @@ This file explains why we decided to disable specific PHP language tests. Invest
 
 ## Object/resource ID skips
 
-The following tests are marked as skipped due to the test relying on a hard-coded resource ID. All of these IDs change when the PHP tracer is enabled due to the resources created in the `ddtrace.request_init_hook`.
+The following tests are marked as skipped due to the test relying on a hard-coded resource ID. All of these IDs change when the PHP tracer is enabled due to the resources created in the `datadog.trace.sources_path`.
 
 - `ext/sockets/tests/socket_create_pair.phpt`
 - `ext/standard/tests/filters/bug54350.phpt`

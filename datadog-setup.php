@@ -467,7 +467,6 @@ function install($options)
     $tmpArchiveAppsecBin = "{$tmpArchiveAppsecRoot}/bin";
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
-    $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     $tmpSrcDir = $tmpArchiveTraceRoot . '/src';
     if (!file_exists($tmpDir)) {
         execute_or_exit("Cannot create directory '$tmpDir'", "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($tmpDir));
@@ -513,8 +512,7 @@ function install($options)
 
     // Tracer sources
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
-    $installDirBridgeDir = $installDirSourcesDir . '/bridge';
-    $installDirWrapperPath = $installDirBridgeDir . '/dd_wrap_autoloader.php';
+    $installDirSrcDir = $installDirSourcesDir . '/src';
     // copying sources to the final destination
     if (!file_exists($installDirSourcesDir)) {
         execute_or_exit(
@@ -523,15 +521,9 @@ function install($options)
         );
     }
     execute_or_exit(
-        "Cannot copy files from '$tmpBridgeDir' to '$installDirBridgeDir'",
-        (IS_WINDOWS ? "echo d | xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg($tmpBridgeDir) . ' ' . escapeshellarg($installDirBridgeDir)
+        "Cannot copy files from '$tmpSrcDir' to '$installDirSourcesDir'",
+        "cp -r " . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSourcesDir)
     );
-    if (file_exists($tmpSrcDir)) {
-        execute_or_exit(
-            "Cannot copy files from '$tmpSrcDir' to '$installDirSourcesDir'",
-            "cp -r " . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSourcesDir)
-        );
-    }
     echo "Installed required source files to '$installDir'\n";
 
     // Appsec helper and rules
@@ -650,8 +642,9 @@ function install($options)
 
                 $replacements += [
                     // Old name is deprecated
-                    '(ddtrace\.request_init_hook)' => 'datadog.trace.request_init_hook',
-                    '((datadog\.trace\.request_init_hook)\s*=\s*.*)' => "$1 = $installDirWrapperPath",
+                    '(ddtrace\.request_init_hook)' => 'datadog.trace.sources_dir',
+                    '(datadog\.trace\.request_init_hook)' => 'datadog.trace.sources_dir',
+                    '((datadog\.trace\.sources_dir)\s*=\s*.*)' => "$1 = $installDirSrcDir",
                     /* In order to support upgrading from legacy installation method to new installation method, we
                      * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
                      * `;`, hence not automatically re-activating the extension if the user had commented it out.
@@ -703,7 +696,7 @@ function install($options)
 
             add_missing_ini_settings(
                 $iniFilePath,
-                get_ini_settings($installDirWrapperPath, $appSecHelperPath, $appSecRulesPath),
+                get_ini_settings($installDirSrcDir, $appSecHelperPath, $appSecRulesPath),
                 $replacements
             );
 
@@ -1818,12 +1811,12 @@ function map_env_to_ini($env)
  *   - description (string|string[]): A string (or an array of strings, each representing a line) that describes
  *                                    the setting.
  *
- * @param string $requestInitHookPath
+ * @param string $sourcesDir
  * @param string $appsecHelperPath
  * @param string $appsecRulesPath
  * @return array
  */
-function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesPath)
+function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
 {
     // phpcs:disable Generic.Files.LineLength.TooLong
     return [
@@ -1921,8 +1914,8 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         ],
 
         [
-            'name' => 'datadog.trace.request_init_hook',
-            'default' => $requestInitHookPath,
+            'name' => 'datadog.trace.sources_dir',
+            'default' => $sourcesDir,
             'commented' => false,
             'description' => 'Path to the request init hook (set by the installer, do not change it)',
         ],

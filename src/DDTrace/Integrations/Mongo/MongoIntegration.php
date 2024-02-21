@@ -8,11 +8,10 @@ namespace DDTrace\Integrations\Mongo;
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Obfuscation;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Versions;
+use DDTrace\Util\Obfuscation;
 
 class MongoIntegration extends Integration
 {

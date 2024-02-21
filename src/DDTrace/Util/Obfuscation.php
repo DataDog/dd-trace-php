@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace;
+namespace DDTrace\Util;
 
 final class Obfuscation
 {

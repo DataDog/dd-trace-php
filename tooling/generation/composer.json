@@ -4,15 +4,15 @@
     },
     "scripts": {
         "generate": [
-            "classpreloader.php compile --config=../../bridge/_files_api.php --output=../../bridge/_generated_api.php",
-            "classpreloader.php compile --config=../../bridge/_files_integrations.php --output=../../bridge/_generated_integrations.php",
-            "classpreloader.php compile --config=../../bridge/_files_tracer.php --output=../../bridge/_generated_tracer.php",
-            "classpreloader.php compile --config=../../bridge/_files_tracer_api.php --output=../../bridge/_generated_tracer_api.php",
-            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../bridge/_generated_api.php",
-            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../bridge/_generated_integrations.php",
-            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../bridge/_generated_tracer.php",
-            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../bridge/_generated_tracer_api.php"
+            "classpreloader.php compile --config=../../src/bridge/_files_api.php --output=../../src/bridge/_generated_api.php",
+            "classpreloader.php compile --config=../../src/bridge/_files_integrations.php --output=../../src/bridge/_generated_integrations.php",
+            "classpreloader.php compile --config=../../src/bridge/_files_tracer.php --output=../../src/bridge/_generated_tracer.php",
+            "classpreloader.php compile --config=../../src/bridge/_files_tracer_api.php --output=../../src/bridge/_generated_opentelemetry.php",
+            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../src/bridge/_generated_api.php",
+            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../src/bridge/_generated_integrations.php",
+            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../src/bridge/_generated_tracer.php",
+            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../src/bridge/_generated_opentelemetry.php"
         ],
-        "verify": "php -r 'namespace DDTrace; interface Integration {} require \"../../bridge/autoload.php\";'"
+        "verify": "php -r 'namespace DDTrace; interface Integration {} require \"../../src/bridge/autoload.php\";'"
     }
 }

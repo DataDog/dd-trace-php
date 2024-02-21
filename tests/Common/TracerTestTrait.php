@@ -230,7 +230,7 @@ trait TracerTestTrait
         ));
         $inis = (string) new IniSerializer(array_merge(
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
             ],
             $customInis
         ));
