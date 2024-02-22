@@ -2,18 +2,12 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Encoders\MessagePack;
-use DDTrace\Encoders\SpanEncoder;
 use DDTrace\GlobalTracer;
-use DDTrace\Span;
-use DDTrace\SpanContext;
-use DDTrace\SpanData;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use DDTrace\Tests\WebServer;
 use DDTrace\Tracer;
-use DDTrace\Transport\Http;
 use Exception;
 use PHPUnit\Framework\TestCase;
 

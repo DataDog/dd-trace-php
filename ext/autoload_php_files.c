@@ -15,7 +15,14 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+#if PHP_VERSION_ID < 80000
+zif_handler dd_spl_autoload_fn_handler;
+zif_handler dd_spl_autoload_call_fn_handler;
+zif_handler dd_spl_autoload_unregister_fn_handler;
+zend_function *dd_spl_autoload_fn;
+#else
 static zend_class_entry *(*dd_prev_autoloader)(zend_string *name, zend_string *lc_name);
+#endif
 static zend_bool dd_api_is_preloaded = false;
 static zend_bool dd_otel_is_preloaded = false;
 
@@ -222,16 +229,69 @@ static zend_class_entry *dd_perform_autoload(zend_string *class_name, zend_strin
             }
         }
     }
-
+#if PHP_VERSION_ID >= 80000
     if (EXPECTED(dd_prev_autoloader != NULL)) {
         return dd_prev_autoloader(class_name, lc_name);
     }
+#endif
     return NULL;
 }
 
+#if PHP_VERSION_ID < 80000
+static inline bool dd_legacy_autoload_wrapper(INTERNAL_FUNCTION_PARAMETERS) {
+    UNUSED(return_value);
+    zend_string *class_name;
+
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1, 1)
+        Z_PARAM_STR(class_name)
+    ZEND_PARSE_PARAMETERS_END_EX(return false;);
+
+    zend_string *lower = zend_string_tolower(class_name);
+    bool found = dd_perform_autoload(class_name, lower) != NULL;
+    zend_string_release(lower);
+
+    return found;
+}
+
+static ZEND_NAMED_FUNCTION(dd_wrap_autoload_unregister_fn) {
+    dd_spl_autoload_unregister_fn_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    ddtrace_autoload_rinit();
+}
+
+static ZEND_NAMED_FUNCTION(dd_perform_autoload_fn) {
+    if (!dd_legacy_autoload_wrapper(INTERNAL_FUNCTION_PARAM_PASSTHRU)) {
+        dd_spl_autoload_fn_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    }
+}
+
+static ZEND_NAMED_FUNCTION(dd_perform_autoload_call_fn) {
+    if (!dd_legacy_autoload_wrapper(INTERNAL_FUNCTION_PARAM_PASSTHRU)) {
+        dd_spl_autoload_call_fn_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    }
+}
+
+void ddtrace_autoload_rinit(void) {
+    if (!EG(autoload_func)) {
+        EG(autoload_func) = dd_spl_autoload_fn;
+    }
+}
+#endif
+
 void ddtrace_autoload_minit(void) {
+#if PHP_VERSION_ID >= 80000
     dd_prev_autoloader = zend_autoload;
     zend_autoload = dd_perform_autoload;
+#else
+    dd_spl_autoload_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload", sizeof("spl_autoload") - 1);
+    dd_spl_autoload_fn_handler = dd_spl_autoload_fn->internal_function.handler;
+    dd_spl_autoload_fn->internal_function.handler = dd_perform_autoload_fn;
+    zend_function *spl_autoload_call_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload_call", sizeof("spl_autoload_call") - 1);
+    dd_spl_autoload_call_fn_handler = spl_autoload_call_fn->internal_function.handler;
+    spl_autoload_call_fn->internal_function.handler = dd_perform_autoload_call_fn;
+    zend_function *spl_autoload_unregister_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload_unregister", sizeof("spl_autoload_unregister") - 1);
+    dd_spl_autoload_unregister_fn_handler = spl_autoload_unregister_fn->internal_function.handler;
+    spl_autoload_unregister_fn->internal_function.handler = dd_wrap_autoload_unregister_fn;
+#endif
 }
 
 void ddtrace_autoload_rshutdown(void) {
