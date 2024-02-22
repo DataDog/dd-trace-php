@@ -458,12 +458,7 @@ dbgsym.tar.gz:
 packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
-# Generates the src/bridge/_generated_api and _generate_internal.php files. Note it only works on PHP < 8.0 because:
-#  - we need classpreloader: 1.4.* because otherwise the generated file is not compatible with 5.4
-#  - classpreloader: 1.4.* does not work on PHP 8 (even from a dedicated composer.json file), showing an incompatibility
-#    with nikic/php-parser lexer's.
-#  - even if we leave classpreloader: 1.4.* and not use it for PHP 8, this is not enough because it would force
-#    phpunit version down to 5 (nikic common dependency) which is not compatible with PHP 8.
+# Generates the src/bridge/_generated_*.php files.
 generate:
 	@composer -dtooling/generation update
 	@composer -dtooling/generation generate

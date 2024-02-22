@@ -23,8 +23,10 @@ zend_function *dd_spl_autoload_fn;
 #else
 static zend_class_entry *(*dd_prev_autoloader)(zend_string *name, zend_string *lc_name);
 #endif
+#if PHP_VERSION_ID >= 70400
 static zend_bool dd_api_is_preloaded = false;
 static zend_bool dd_otel_is_preloaded = false;
+#endif
 
 #if PHP_VERSION_ID < 80000
 #define LAST_ERROR_STRING PG(last_error_message)
@@ -295,6 +297,7 @@ void ddtrace_autoload_minit(void) {
 }
 
 void ddtrace_autoload_rshutdown(void) {
+#if PHP_VERSION_ID >= 70400
     if (CG(compiler_options) & ZEND_COMPILE_PRELOAD) {
         dd_api_is_preloaded = DDTRACE_G(api_is_loaded);
         dd_otel_is_preloaded = DDTRACE_G(otel_is_loaded);
@@ -302,4 +305,8 @@ void ddtrace_autoload_rshutdown(void) {
         DDTRACE_G(api_is_loaded) = dd_api_is_preloaded;
         DDTRACE_G(otel_is_loaded) = dd_otel_is_preloaded;
     }
+#else
+    DDTRACE_G(api_is_loaded) = 0;
+    DDTRACE_G(otel_is_loaded) = 0;
+#endif
 }
