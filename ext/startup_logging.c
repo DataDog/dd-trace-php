@@ -179,7 +179,6 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_bool(ht, ZEND_STRL("report_hostname_on_root_span"), get_DD_TRACE_REPORT_HOSTNAME());
     _dd_add_assoc_zstring(ht, ZEND_STRL("traced_internal_functions"),
                           _dd_implode_keys(get_DD_TRACE_TRACED_INTERNAL_FUNCTIONS()));
-    _dd_add_assoc_bool(ht, ZEND_STRL("auto_prepend_file_configured"), _dd_ini_is_set(ZEND_STRL("auto_prepend_file")));
     _dd_add_assoc_zstring(ht, ZEND_STRL("integrations_disabled"), _dd_implode_keys(get_DD_INTEGRATIONS_DISABLED()));
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled_from_env"), get_DD_TRACE_ENABLED());
     _dd_add_assoc_string(ht, ZEND_STRL("opcache.file_cache"), _dd_get_ini(ZEND_STRL("opcache.file_cache")));

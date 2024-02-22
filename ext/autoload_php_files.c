@@ -12,6 +12,8 @@
 #include "ddtrace.h"
 #include "engine_hooks.h"
 #include <components/log/log.h>
+#include <sandbox/sandbox.h>
+#include <symbols/symbols.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -19,7 +21,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 zif_handler dd_spl_autoload_fn_handler;
 zif_handler dd_spl_autoload_call_fn_handler;
 zif_handler dd_spl_autoload_unregister_fn_handler;
-zend_function *dd_spl_autoload_fn;
+zend_function *dd_spl_autoload_call_fn;
 #else
 static zend_class_entry *(*dd_prev_autoloader)(zend_string *name, zend_string *lc_name);
 #endif
@@ -48,7 +50,7 @@ int dd_execute_php_file(const char *filename, zval *result, bool try) {
     zend_file_handle file_handle;
     zend_op_array *new_op_array;
     ZVAL_UNDEF(result);
-    int ret, rv = false;
+    int ret, success = false;
 
     ddtrace_error_handling eh_stream;
     // Using an EH_THROW here causes a non-recoverable zend_bailout()
@@ -95,33 +97,43 @@ int dd_execute_php_file(const char *filename, zval *result, bool try) {
 
         zend_string_release(opened_path);
         if (new_op_array) {
+            zai_sandbox sandbox;
+            zai_sandbox_open(&sandbox);
 
-            ddtrace_error_handling eh;
-            ddtrace_backup_error_handling(&eh, EH_THROW);
+#if PHP_VERSION_ID >= 80200
+            zend_execute_data *prev_observed = zai_set_observed_frame(NULL);
+#endif
 
-            zend_execute(new_op_array, result);
+            zend_try {
+                zend_execute(new_op_array, result);
+            } zend_catch {
+                zai_sandbox_bailout(&sandbox);
+#if PHP_VERSION_ID >= 80000
+                zai_reset_observed_frame_post_bailout();
+#endif
+            } zend_end_try();
+
+#if PHP_VERSION_ID >= 80200
+            zai_set_observed_frame(prev_observed);
+#endif
 
             LOGEV(Warn, {
-                if (PG(last_error_message) && eh.message != PG(last_error_message)) {
+                if (PG(last_error_message)) {
                     log("Error raised in autoloaded file %s: %s in %s on line %d", filename, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
+                }
+                zend_object *ex = EG(exception);
+                if (ex) {
+                    const char *type = ex->ce->name->val;
+                    const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)): "<exit>";
+                    log("%s thrown in autoloaded file %s: %s", type, filename, msg);
                 }
             })
 
-            ddtrace_restore_error_handling(&eh);
+            zai_sandbox_close(&sandbox);
 
             destroy_op_array(new_op_array);
             efree(new_op_array);
-            if (EG(exception)) {
-                LOGEV(Warn, {
-                    zend_object *ex = EG(exception);
-
-                    const char *type = ex->ce->name->val;
-                    const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)): "<exit>";
-                    log("%s thrown in autoloaded file %s: %s", filename, type, msg);
-                })
-            }
-            ddtrace_maybe_clear_exception();
-            rv = true;
+            success = true;
         }
     } else {
         ddtrace_maybe_clear_exception();
@@ -134,9 +146,10 @@ int dd_execute_php_file(const char *filename, zval *result, bool try) {
         zend_destroy_file_handle(&file_handle);
 #endif
     }
+
     CG(multibyte) = _original_cg_multibyte;
 
-    return rv;
+    return success;
 }
 
 static void dd_load_file(const char *file) {
@@ -240,9 +253,15 @@ static zend_class_entry *dd_perform_autoload(zend_string *class_name, zend_strin
 }
 
 #if PHP_VERSION_ID < 80000
+ZEND_TLS bool dd_in_autoload = false;
+
 static inline bool dd_legacy_autoload_wrapper(INTERNAL_FUNCTION_PARAMETERS) {
     UNUSED(return_value);
     zend_string *class_name;
+
+    if (dd_in_autoload) {
+        return false;
+    }
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1, 1)
         Z_PARAM_STR(class_name)
@@ -268,14 +287,17 @@ static ZEND_NAMED_FUNCTION(dd_perform_autoload_fn) {
 
 static ZEND_NAMED_FUNCTION(dd_perform_autoload_call_fn) {
     if (!dd_legacy_autoload_wrapper(INTERNAL_FUNCTION_PARAM_PASSTHRU)) {
+        dd_in_autoload = true; // spl_autoload_call may call spl_autoload
         dd_spl_autoload_call_fn_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        dd_in_autoload = false;
     }
 }
 
 void ddtrace_autoload_rinit(void) {
     if (!EG(autoload_func)) {
-        EG(autoload_func) = dd_spl_autoload_fn;
+        EG(autoload_func) = dd_spl_autoload_call_fn;
     }
+    dd_in_autoload = false;
 }
 #endif
 
@@ -284,12 +306,12 @@ void ddtrace_autoload_minit(void) {
     dd_prev_autoloader = zend_autoload;
     zend_autoload = dd_perform_autoload;
 #else
-    dd_spl_autoload_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload", sizeof("spl_autoload") - 1);
-    dd_spl_autoload_fn_handler = dd_spl_autoload_fn->internal_function.handler;
-    dd_spl_autoload_fn->internal_function.handler = dd_perform_autoload_fn;
-    zend_function *spl_autoload_call_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload_call", sizeof("spl_autoload_call") - 1);
-    dd_spl_autoload_call_fn_handler = spl_autoload_call_fn->internal_function.handler;
-    spl_autoload_call_fn->internal_function.handler = dd_perform_autoload_call_fn;
+    zend_function *spl_autoload_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload", sizeof("spl_autoload") - 1);
+    dd_spl_autoload_fn_handler = spl_autoload_fn->internal_function.handler;
+    spl_autoload_fn->internal_function.handler = dd_perform_autoload_fn;
+    dd_spl_autoload_call_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload_call", sizeof("spl_autoload_call") - 1);
+    dd_spl_autoload_call_fn_handler = dd_spl_autoload_call_fn->internal_function.handler;
+    dd_spl_autoload_call_fn->internal_function.handler = dd_perform_autoload_call_fn;
     zend_function *spl_autoload_unregister_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload_unregister", sizeof("spl_autoload_unregister") - 1);
     dd_spl_autoload_unregister_fn_handler = spl_autoload_unregister_fn->internal_function.handler;
     spl_autoload_unregister_fn->internal_function.handler = dd_wrap_autoload_unregister_fn;

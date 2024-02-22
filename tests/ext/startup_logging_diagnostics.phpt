@@ -30,7 +30,7 @@ dd_dump_startup_logs($logs, [
 var_dump(strncasecmp(PHP_OS, "WIN", 3) == 0 || isset($logs["agent_error"]));
 ?>
 --EXPECTF--
-open_basedir_init_hook_allowed: false
+open_basedir_sources_allowed: false
 open_basedir_container_tagging_allowed: false
 DD_SERVICE_NAME: "'DD_SERVICE_NAME=foo_service' is deprecated, use DD_SERVICE instead."
 DD_TRACE_GLOBAL_TAGS: "'DD_TRACE_GLOBAL_TAGS=foo:tag' is deprecated, use DD_TAGS instead."

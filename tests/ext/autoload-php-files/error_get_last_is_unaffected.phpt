@@ -1,15 +1,17 @@
 --TEST--
-Errors in request init hook do not affect error_get_last()
+Errors in ddtrace autoloader do not affect error_get_last()
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
+DD_AUTOLOAD_NO_COMPILE=1
 --INI--
 error_reporting=E_ALL
-ddtrace.request_init_hook="{PWD}/raises_e_notice.php"
+datadog.trace.sources_path="{PWD}/.."
 --FILE--
 <?php
+class_exists('DDTrace\RaisesNotice');
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-%s in request init hook: Undefined variable%sthis_does_not_%s
+[ddtrace] [warning] Error raised in autoloaded file %sRaisesNotice.php: Notice? in %s on line %d
 NULL
 [ddtrace] [info] Flushing trace of size 1 to send-queue for %s

@@ -2,9 +2,12 @@
 Request init hook loads files without using multibyte flag
 --INI--
 zend.multibyte=1
-ddtrace.request_init_hook="{PWD}/contains_binary_character.php"
+datadog.trace.sources_path="{PWD}/.."
 --FILE--
 <?php
+
+class_exists('DDTrace\ContainsBinaryCharacter');
+
 echo "Request start" . PHP_EOL;
 
 ?>

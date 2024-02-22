@@ -2,15 +2,19 @@
 Request init hook ignores fatal errors
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
+DD_AUTOLOAD_NO_COMPILE=1
 --INI--
-ddtrace.request_init_hook="{PWD}/raises_fatal_error.php"
+datadog.trace.sources_path="{PWD}/.."
 --FILE--
 <?php
+
+class_exists('DDTrace\RaisesFatalError');
+
 echo "Request start" . PHP_EOL;
 
 ?>
 --EXPECTF--
 Calling a function that does not exist...
-[ddtrace] [warning] Error %s in request init hook: Call to undefined function this_function_does_not_%s
+[ddtrace] [warning] Error raised in autoloaded file %s: Allowed memory size of 20971520 bytes exhausted %s on line %d
 Request start
 [ddtrace] [info] Flushing trace of size 1 to send-queue for %s

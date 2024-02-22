@@ -2,14 +2,18 @@
 Do not fail when PHP code couldn't be loaded
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
+DD_AUTOLOAD_NO_COMPILE=1
 --INI--
-ddtrace.request_init_hook="{PWD}/this_file_doesnt_exist.php"
+datadog.trace.sources_path="{PWD}/does-not-exist"
 --FILE--
 <?php
+
+class_exists('DDTrace\Invalid');
+
 echo "Request start" . PHP_EOL;
 
 ?>
 --EXPECTF--
-[ddtrace] [warning] Cannot open request init hook; file does not exist: '%s/this_file_doesnt_exist.php'
+[ddtrace] [warning] Error opening autoloaded file %sdoes-not-exist/bridge/_files_tracer.php
 Request start
 [ddtrace] [info] Flushing trace of size 1 to send-queue for %s
