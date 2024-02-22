@@ -34,14 +34,10 @@ final class CurlIntegration extends Integration
         return self::NAME;
     }
 
-    public function init()
+    public function init(): int
     {
         if (!extension_loaded('curl')) {
             return Integration::NOT_AVAILABLE;
-        }
-
-        if (!Integration::shouldLoad(self::NAME)) {
-            return Integration::NOT_LOADED;
         }
 
         $integration = $this;
@@ -269,7 +265,7 @@ final class CurlIntegration extends Integration
         $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
         unset($info['url']);
 
-        if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.http_client_split_by_domain")) {
+        if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
             $span->service = Urls::hostnameForTag($sanitizedUrl);
         }
 

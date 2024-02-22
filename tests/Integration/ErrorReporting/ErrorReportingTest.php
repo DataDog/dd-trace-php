@@ -292,7 +292,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/internal-exception-not-resulting-in-error'));
         });
-        $this->assertSame(0, $traces[0][0]['error']);
+        $this->assertArrayNotHasKey("error", $traces[0][0]);
     }
 
     public function testInternalExceptionUsedForRedirect()
@@ -301,7 +301,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('', '/internal-exception-used-for-redirect'));
         });
         $this->assertSame('303', $traces[0][0]['meta']['http.status_code']);
-        $this->assertSame(0, $traces[0][0]['error']);
+        $this->assertArrayNotHasKey("error", $traces[0][0]);
     }
 
 
@@ -310,6 +310,6 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/internal-user-error-not-resulting-in-error'));
         });
-        $this->assertSame(0, $traces[0][0]['error']);
+        $this->assertArrayNotHasKey("error", $traces[0][0]);
     }
 }

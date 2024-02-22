@@ -32,9 +32,9 @@ class YiiIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function init()
+    public function init(): int
     {
-        if (!self::shouldLoad(self::NAME) || !Versions::versionMatches('2.0', \Yii::getVersion())) {
+        if (!Versions::versionMatches('2.0', \Yii::getVersion())) {
             return self::NOT_AVAILABLE;
         }
 

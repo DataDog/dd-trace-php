@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 899dcc72fc2a852d8f1e8aad895c4b628cd17eb8 */
+ * Stub hash: 9356ea34a0a1611519c3a3d1b1731b3e3e1c9c7d */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -286,6 +286,8 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_DDTrace_SpanData_hexId arginfo_DDTrace_startup_logs
 
+#define arginfo_class_DDTrace_Integration_init arginfo_dd_trace_dd_get_memory_limit
+
 
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(DDTrace_trace_function);
@@ -471,6 +473,12 @@ static const zend_function_entry class_DDTrace_RootSpanData_methods[] = {
 
 
 static const zend_function_entry class_DDTrace_SpanStack_methods[] = {
+	ZEND_FE_END
+};
+
+
+static const zend_function_entry class_DDTrace_Integration_methods[] = {
+	ZEND_ABSTRACT_ME_WITH_FLAGS(DDTrace_Integration, init, arginfo_class_DDTrace_Integration_init, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT)
 	ZEND_FE_END
 };
 
@@ -692,6 +700,34 @@ static zend_class_entry *register_class_DDTrace_SpanStack(void)
 	zend_string *property_active_class_DDTrace_SpanData = zend_string_init("DDTrace\\SpanData", sizeof("DDTrace\\SpanData")-1, 1);
 	zend_declare_typed_property(class_entry, property_active_name, &property_active_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_active_class_DDTrace_SpanData, 0, MAY_BE_NULL));
 	zend_string_release(property_active_name);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_DDTrace_Integration(void)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "Integration", class_DDTrace_Integration_methods);
+	class_entry = zend_register_internal_interface(&ce);
+
+	zval const_NOT_LOADED_value;
+	ZVAL_LONG(&const_NOT_LOADED_value, DD_TRACE_INTEGRATION_NOT_LOADED);
+	zend_string *const_NOT_LOADED_name = zend_string_init_interned("NOT_LOADED", sizeof("NOT_LOADED") - 1, 1);
+	zend_declare_class_constant_ex(class_entry, const_NOT_LOADED_name, &const_NOT_LOADED_value, ZEND_ACC_PUBLIC, NULL);
+	zend_string_release(const_NOT_LOADED_name);
+
+	zval const_LOADED_value;
+	ZVAL_LONG(&const_LOADED_value, DD_TRACE_INTEGRATION_LOADED);
+	zend_string *const_LOADED_name = zend_string_init_interned("LOADED", sizeof("LOADED") - 1, 1);
+	zend_declare_class_constant_ex(class_entry, const_LOADED_name, &const_LOADED_value, ZEND_ACC_PUBLIC, NULL);
+	zend_string_release(const_LOADED_name);
+
+	zval const_NOT_AVAILABLE_value;
+	ZVAL_LONG(&const_NOT_AVAILABLE_value, DD_TRACE_INTEGRATION_NOT_AVAILABLE);
+	zend_string *const_NOT_AVAILABLE_name = zend_string_init_interned("NOT_AVAILABLE", sizeof("NOT_AVAILABLE") - 1, 1);
+	zend_declare_class_constant_ex(class_entry, const_NOT_AVAILABLE_name, &const_NOT_AVAILABLE_value, ZEND_ACC_PUBLIC, NULL);
+	zend_string_release(const_NOT_AVAILABLE_name);
 
 	return class_entry;
 }

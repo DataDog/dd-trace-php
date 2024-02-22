@@ -132,15 +132,8 @@ class RoadrunnerIntegration extends Integration
         }
     }
 
-    /**
-     * @return int
-     */
-    public function init()
+    public function init(): int
     {
-        if (!self::shouldLoad(self::NAME)) {
-            return Integration::NOT_LOADED;
-        }
-
         $integration = $this;
 
         ini_set("datadog.trace.auto_flush_enabled", 1);

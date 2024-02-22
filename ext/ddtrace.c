@@ -983,6 +983,8 @@ static void dd_register_fatal_error_ce(void) {
     ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_ce_exception);
 }
 
+zend_class_entry *ddtrace_ce_integration;
+
 static bool dd_is_compatible_sapi(datadog_php_string_view module_name) {
     switch (datadog_php_sapi_from_name(module_name)) {
         case DATADOG_PHP_SAPI_APACHE2HANDLER:
@@ -1096,6 +1098,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
+    ddtrace_ce_integration = register_class_DDTrace_Integration();
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
 
     ddtrace_engine_hooks_minit();

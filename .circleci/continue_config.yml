@@ -628,32 +628,6 @@ executors:
 
 
 jobs:
-  "Lint PHP 5":
-    parameters:
-      resource_class:
-        type: string
-        default: small
-    <<: *BARE_DOCKER_MACHINE
-    steps:
-      - restore_cache:
-          keys:
-            - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          command: |
-            docker run --rm -v "$HOME/datadog:/src" -i php:5.4-cli bash \<<'CMD'
-              set -eu
-              cd /src
-              php -l datadog-setup.php
-              cd /src/bridge
-              for file in *.php; do
-                if [ "$file" != "_generated_integrations.php" ]; then
-                  php -l "$file"
-                fi
-              done
-            CMD
-
   static_analysis:
     parameters:
       docker_image:
@@ -3188,16 +3162,6 @@ jobs:
           condition: << parameters.asan_build >>
           steps:
             - run:
-                name: Fetch PHP 5 packages
-                command: |
-                  set -eu
-                  PIPELINE_ID=$(curl 'https://circleci.com/api/v2/project/gh/DataDog/dd-trace-php/pipeline?branch=PHP-5' | jq -r '.items[0].id')
-                  WORKFLOW_ID=$(curl "https://circleci.com/api/v2/pipeline/$PIPELINE_ID/workflow" | jq -r '.items[]|select(.name == "build_packages").id' | head -1)
-                  JOB_ID=$(curl "https://circleci.com/api/v2/workflow/$WORKFLOW_ID/job" | jq -r '.items[]|select(.name == "package extension").id')
-                  curl -Lo php5.tar.gz "https://output.circle-artifacts.com/output/job/$JOB_ID/artifacts/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz"
-                  tar xzf php5.tar.gz
-                  mv opt/datadog-php/extensions/* extensions_x86_64/
-            - run:
                 name: Package Profiler
                 command: |
                   # The layout matches what the dd-prof-php releases had to minimize
@@ -4754,8 +4718,6 @@ workflows:
           name: "PHP 80 curl integration tests a shared lib"
           ext_name: "curl"
           docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
-      - "Lint PHP 5":
-          requires: [ 'Prepare Code' ]
       - static_analysis:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 71"

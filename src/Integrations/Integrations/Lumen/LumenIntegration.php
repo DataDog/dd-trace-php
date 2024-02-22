@@ -32,12 +32,8 @@ class LumenIntegration extends Integration
     /**
      * @return int
      */
-    public function init()
+    public function init(): int
     {
-        if (!self::shouldLoad(self::NAME)) {
-            return Integration::NOT_LOADED;
-        }
-
         \DDTrace\hook_method(
             'Laravel\Lumen\Application',
             '__construct',
@@ -104,8 +100,8 @@ class LumenIntegration extends Integration
                     }
                     if (
                         null !== $resourceName
-                        && !\DDTrace\Util\Runtime::getBoolIni("datadog.trace.url_as_resource_names_enabled")
-                        && (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING"))
+                        && !\dd_trace_env_config("DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED")
+                        && \dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")
                     ) {
                         $rootSpan->resource = $rootSpan->meta[Tag::HTTP_METHOD] . ' ' . $resourceName;
                     }

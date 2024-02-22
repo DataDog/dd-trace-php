@@ -29,12 +29,8 @@ class ExecIntegration extends Integration
         return self::NAME;
     }
 
-    public function init()
+    public function init(): int
     {
-        if (!self::shouldLoad(self::NAME)) {
-            return Integration::NOT_LOADED;
-        }
-
         \DDTrace\install_hook(
             'exec',
             self::preHookShell('exec'),

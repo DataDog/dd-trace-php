@@ -30,17 +30,11 @@ final class Logger
     public static function get()
     {
         if (self::$logger === null) {
-            self::$logger = self::getBoolIni("datadog.trace.debug")
+            self::$logger = \function_exists("dd_trace_env_config") && \dd_trace_env_config("DD_TRACE_DEBUG")
                 ? new ErrorLogLogger(LogLevel::DEBUG)
                 : new NullLogger(LogLevel::EMERGENCY);
         }
         return self::$logger;
-    }
-
-    private static function getBoolIni($iniName)
-    {
-        $ini = ini_get($iniName);
-        return $ini === "on" || $ini === "yes" || $ini === "true" || (int) $ini;
     }
 
     /**

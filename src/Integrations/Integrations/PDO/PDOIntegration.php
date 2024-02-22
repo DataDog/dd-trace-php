@@ -42,7 +42,7 @@ class PDOIntegration extends Integration
     /**
      * Add instrumentation to PDO requests
      */
-    public function init()
+    public function init(): int
     {
         if (!extension_loaded('PDO')) {
             // PDO is provided through an extension and not through a class loader.
@@ -314,7 +314,7 @@ class PDOIntegration extends Integration
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PDOIntegration::NAME;
         if (
-            \DDTrace\Util\Runtime::getBoolIni("datadog.trace.db_client_split_by_instance") &&
+            \dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE") &&
                 isset($storedConnectionInfo[Tag::TARGET_HOST])
         ) {
             Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME, true);

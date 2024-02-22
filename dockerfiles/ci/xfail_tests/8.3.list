@@ -34,6 +34,7 @@ Zend/tests/stack_limit/stack_limit_013.phpt
 Zend/tests/strict_001.phpt
 Zend/tests/type_declarations/scalar_return_basic_64bit.phpt
 Zend/tests/type_declarations/scalar_strict_64bit.phpt
+Zend/tests/weakrefs/gh10043-007.phpt
 Zend/tests/weakrefs/weakmap_basic_map_behavior.phpt
 Zend/tests/weakrefs/weakmap_error_conditions.phpt
 ext/curl/tests/bug45161.phpt

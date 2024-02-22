@@ -1,25 +1,20 @@
 --TEST--
-deferred loading doesn't trigger nor crash if DDTrace\Integrations\load_deferred_integration is missing
---DESCRIPTION--
-This issue was reported in a GitHub issue:
-https://github.com/DataDog/dd-trace-php/issues/1021
+deferred loading doesn't crash if integration loading fails
 --ENV--
 _DD_LOAD_TEST_INTEGRATIONS=1
 --INI--
 ddtrace.request_init_hook=
+datadog.trace.log_level=warn
 --FILE--
 <?php
 
 namespace DDTrace\Test
 {
-    class TestSandboxedIntegration
+    class TestSandboxedIntegration implements \DDTrace\Integration
     {
-        const LOADED = 1;
-
-        function init()
+        function init(): int
         {
-            echo "autoload_attempted" . PHP_EOL;
-            return self::LOADED;
+            \trigger_error("Fatal!", E_USER_ERROR);
         }
     }
 }
@@ -38,6 +33,7 @@ namespace
     Test::public_static_method();
 }
 ?>
---EXPECT--
+--EXPECTF--
+[ddtrace] [warning] Error raised in ddtrace's integration autoloader for ddtrace\test\testsandboxedintegration: Fatal! in %sdeferred_load_fatal.php on line %d
 PUBLIC STATIC METHOD
 PUBLIC STATIC METHOD

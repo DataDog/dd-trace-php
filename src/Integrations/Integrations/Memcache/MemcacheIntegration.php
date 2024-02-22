@@ -41,7 +41,7 @@ class MemcacheIntegration extends Integration
         return self::NAME;
     }
 
-    public function init()
+    public function init(): int
     {
         if (!extension_loaded('memcache')) {
             return Integration::NOT_AVAILABLE;

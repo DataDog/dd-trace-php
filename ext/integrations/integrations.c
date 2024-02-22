@@ -3,7 +3,9 @@
 #include "../configuration.h"
 #include "../telemetry.h"
 #include <components/log/log.h>
+#include <exceptions/exceptions.h>
 #include <hook/hook.h>
+#include <sandbox/sandbox.h>
 #undef INTEGRATION
 
 #define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
@@ -57,12 +59,22 @@ void dd_integration_aux_free(void *auxiliary) {
     free(aux);
 }
 
+#if PHP_VERSION_ID < 80000
+#define LAST_ERROR_STRING PG(last_error_message)
+#else
+#define LAST_ERROR_STRING ZSTR_VAL(PG(last_error_message))
+#endif
+#if PHP_VERSION_ID < 80100
+#define LAST_ERROR_FILE PG(last_error_file)
+#else
+#define LAST_ERROR_FILE ZSTR_VAL(PG(last_error_file))
+#endif
+
 static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     (void) dynamic, (void) retval, (void) invocation;
 
     dd_integration_aux *aux = auxiliary;
-    zval integration;
-    ZVAL_STR(&integration, aux->classname);
+    volatile bool unload_hooks = true;
 
     if (aux->name == -1u || ddtrace_config_integration_enabled(aux->name)) {
         if (aux->name != -1u) {
@@ -71,28 +83,84 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
             ddtrace_telemetry_notify_integration(ZSTR_VAL(aux->classname), ZSTR_LEN(aux->classname));
         }
 
-        zval rv;
-        bool success;
-        zval *thisp = getThis();
-        if (thisp) {
-            success = zai_symbol_call_global((zai_str)ZAI_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 2, &integration, thisp);
-        } else {
-            success = zai_symbol_call_global((zai_str)ZAI_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
-        }
+        zai_sandbox sandbox;
+        zai_sandbox_open(&sandbox);
+        bool success = false;
+        zend_try {
+            do {
+                zend_class_entry *ce = zend_lookup_class(aux->classname);
+                if (!ce) {
+                    LOG(Warn, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
+                    success = true;
+                    break;
+                }
 
-        if (UNEXPECTED(!success)) {
-            LOG(Warn,
-                    "Error loading deferred integration '%s' from DDTrace\\Integrations\\load_deferred_integration",
-                    Z_STRVAL(integration));
+                if (!instanceof_function(ce, ddtrace_ce_integration)) {
+                    LOG(Warn, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
+                    success = true;
+                    break;
+                }
+
+                zval obj;
+                if (!zai_symbol_new(&obj, ce, 0)) {
+                    break;
+                }
+
+                zval rv;
+                zval *thisp = getThis();
+                if (thisp) {
+                    success = zai_symbol_call_named(ZAI_SYMBOL_SCOPE_OBJECT, &obj, &(zai_str) ZAI_STRL("init"), &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, thisp);
+                } else {
+                    success = zai_symbol_call_named(ZAI_SYMBOL_SCOPE_OBJECT, &obj, &(zai_str) ZAI_STRL("init"), &rv, 0 | ZAI_SYMBOL_SANDBOX, &sandbox);
+                }
+
+                zval_ptr_dtor(&obj);
+
+                if (success) {
+                    switch (Z_LVAL(rv)) {
+                        case DD_TRACE_INTEGRATION_LOADED:
+                            LOG(Debug, "Loaded integration %s", ZSTR_VAL(aux->classname));
+                            break;
+                        case DD_TRACE_INTEGRATION_NOT_LOADED:
+                            LOG(Debug, "Integration %s not available. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
+                            break;
+                        case DD_TRACE_INTEGRATION_NOT_AVAILABLE:
+                            LOG(Debug, "Integration {name} not loaded. New attempts might be performed.", ZSTR_VAL(aux->classname));
+                            unload_hooks = false;
+                            break;
+                        default:
+                            LOG(Warn, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
+                            break;
+                    }
+                }
+            } while (0);
+        } zend_catch {
+        } zend_end_try();
+        if (!success || PG(last_error_message)) {
+            LOGEV(Warn, {
+                zend_object *ex = EG(exception);
+                if (ex) {
+                    const char *type = ZSTR_VAL(ex->ce->name);
+                    const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)) : "<exit>";
+                    log("%s thrown in ddtrace's integration autoloader for %s: %s",
+                        type, ZSTR_VAL(aux->classname), msg);
+                } else if (PG(last_error_message)) {
+                    log("Error raised in ddtrace's integration autoloader for %s: %s in %s on line %d",
+                        ZSTR_VAL(aux->classname), LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
+                }
+            })
         }
+        zai_sandbox_close(&sandbox);
     }
 
-    if (aux->name != -1u) {
-        for (dd_integration_aux **auxArray = (dd_integration_aux **) ddtrace_integrations[aux->name].aux; *auxArray; ++auxArray) {
-            zai_hook_remove((*auxArray)->scope, (*auxArray)->function, (*auxArray)->id);
+    if (unload_hooks) {
+        if (aux->name != -1u) {
+            for (dd_integration_aux **auxArray = (dd_integration_aux **) ddtrace_integrations[aux->name].aux; *auxArray; ++auxArray) {
+                zai_hook_remove((*auxArray)->scope, (*auxArray)->function, (*auxArray)->id);
+            }
+        } else {
+            zai_hook_remove_resolved(zai_hook_install_address(EX(func)), aux->id);
         }
-    } else {
-        zai_hook_remove_resolved(zai_hook_install_address(EX(func)), aux->id);
     }
 }
 

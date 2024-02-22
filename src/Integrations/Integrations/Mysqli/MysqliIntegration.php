@@ -34,7 +34,7 @@ class MysqliIntegration extends Integration
      *
      * @return int
      */
-    public function init()
+    public function init(): int
     {
         if (!extension_loaded('mysqli')) {
             return Integration::NOT_AVAILABLE;
@@ -424,7 +424,7 @@ class MysqliIntegration extends Integration
         foreach ($hostInfo as $tagName => $value) {
             $span->meta[$tagName] = $value;
         }
-        if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.db_client_split_by_instance")) {
+        if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE")) {
             if (isset($hostInfo[Tag::TARGET_HOST])) {
                 $span->service .=
                     '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($hostInfo[Tag::TARGET_HOST]);

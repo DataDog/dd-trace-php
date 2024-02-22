@@ -36,8 +36,11 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
     } else {
         ZVAL_NULL(&exception_zv);
     }
-    zai_sandbox sandbox;
+
     bool success;
+    zai_sandbox sandbox;
+    zai_sandbox_open(&sandbox);
+
     if (tracing) {
         zval span_zv;
         ZVAL_OBJ(&span_zv, &dyn->span->std);

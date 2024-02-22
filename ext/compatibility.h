@@ -94,6 +94,8 @@ static inline zend_long zval_get_long(zval *op) {
 #else
 #define PHP_DOUBLE_MAX_LENGTH 1080
 #endif
+
+#define zend_declare_class_constant_ex(ce, name, value, access_type, doc_comment) zend_declare_class_constant(ce, ZSTR_VAL(name), ZSTR_LEN(name), value)
 #endif
 
 #if PHP_VERSION_ID < 70200
@@ -228,6 +230,8 @@ static inline const zend_function *dd_zend_get_closure_method_def(zend_object *o
 #define ZEND_ARG_TYPE_MASK(pass_by_ref, name, type_mask, default_value) ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value)
 #define ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, type_hint, allow_null, default_value) ZEND_ARG_TYPE_INFO(pass_by_ref, name, type_hint, allow_null)
 #define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(name, return_reference, required_num_args, class_name, type) ZEND_BEGIN_ARG_INFO_EX(name, 0, return_reference, required_num_args)
+
+#define ZEND_ABSTRACT_ME_WITH_FLAGS(classname, name, arg_info, flags) ZEND_ABSTRACT_ME(classname, name, arg_info)
 
 #define IS_MIXED 0
 

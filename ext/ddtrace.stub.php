@@ -223,6 +223,34 @@ namespace DDTrace {
         public SpanData|null $active = null;
     }
 
+    interface Integration {
+        // Possible statuses for the concrete:
+        /**
+         * It has not been loaded yet
+         *
+         * @cvalue DD_TRACE_INTEGRATION_NOT_LOADED
+         * @var int
+         */
+        const NOT_LOADED = UNKNOWN;
+        /**
+         * It has been loaded, no more work required
+         *
+         * @cvalue DD_TRACE_INTEGRATION_LOADED
+         * @var int
+         */
+        const LOADED = UNKNOWN;
+        /**
+         * Prerequisites are not matched and won't be matched in the future.
+         *
+         * @cvalue DD_TRACE_INTEGRATION_NOT_AVAILABLE
+         * @var int
+         */
+        const NOT_AVAILABLE = UNKNOWN;
+
+        /** Load the integration */
+        public function init(): int;
+    }
+
     // phpcs:disable Generic.Files.LineLength.TooLong
 
     /**

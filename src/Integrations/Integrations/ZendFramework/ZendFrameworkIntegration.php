@@ -36,12 +36,8 @@ class ZendFrameworkIntegration extends Integration
      *
      * @return int
      */
-    public function init()
+    public function init(): int
     {
-        if (!self::shouldLoad(self::NAME)) {
-            return self::NOT_AVAILABLE;
-        }
-
         // Some frameworks, e.g. Yii registers autoloaders that fails with non-psr4 classes. For this reason the
         // Zend framework integration is not compatible with some of them
         if (Runtime::isAutoloaderRegistered('YiiBase', 'autoload')) {

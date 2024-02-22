@@ -47,7 +47,7 @@ class PredisIntegration extends Integration
     /**
      * Add instrumentation to PDO requests
      */
-    public function init()
+    public function init(): int
     {
         $integration = $this;
 
@@ -173,7 +173,7 @@ class PredisIntegration extends Integration
             $tags[Tag::TARGET_HOST] = $connectionParameters->host;
             $tags[Tag::TARGET_PORT] = $connectionParameters->port;
 
-            if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.redis_client_split_by_host")) {
+            if (\dd_trace_env_config("DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST")) {
                 $service = \DDTrace\Util\Normalizer::normalizeHostUdsAsService(
                     'redis-' . (isset($connectionParameters->path)
                         ? $connectionParameters->path

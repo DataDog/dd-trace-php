@@ -29,10 +29,8 @@ class SQLSRVIntegration extends Integration
 
     /**
      * Load the integration
-     *
-     * @return int
      */
-    public function init()
+    public function init(): int
     {
         if (!extension_loaded('sqlsrv')) {
             return Integration::NOT_AVAILABLE;
@@ -220,7 +218,7 @@ class SQLSRVIntegration extends Integration
         }
 
         $targetName = $storedConnectionInfo[Tag::DB_INSTANCE] ?? $storedConnectionInfo[Tag::TARGET_HOST] ?? "<default>";
-        if (\DDTrace\Util\Runtime::getBoolIni("datadog.trace.db_client_split_by_instance")) {
+        if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE")) {
             if ($targetName !== "<default>") {
                 $span->service .= '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($targetName);
             }

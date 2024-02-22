@@ -27,9 +27,9 @@ class MongoIntegration extends Integration
         return self::NAME;
     }
 
-    public function init()
+    public function init(): int
     {
-        if (!extension_loaded('mongo') || Versions::phpVersionMatches('5.4')) {
+        if (!extension_loaded('mongo')) {
             return Integration::NOT_AVAILABLE;
         }
 

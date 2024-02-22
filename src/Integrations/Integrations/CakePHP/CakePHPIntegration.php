@@ -26,12 +26,8 @@ class CakePHPIntegration extends Integration
     }
 
     // CakePHP v2.x - we don't need to check for v3 since it does not have \Dispatcher or \ShellDispatcher
-    public function init()
+    public function init(): int
     {
-        if (!self::shouldLoad(self::NAME)) {
-            return self::NOT_AVAILABLE;
-        }
-
         $integration = $this;
 
         // Since "Dispatcher" and "App" are common names, check for a CakePHP signature before loading

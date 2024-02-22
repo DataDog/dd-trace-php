@@ -30,29 +30,12 @@ class NetteIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function init()
-    {
-        if (!self::shouldLoad(self::NAME)) {
-            return self::NOT_AVAILABLE;
-        }
-
-        if (\PHP_MAJOR_VERSION < 7) {
-            $integration = $this;
-            \DDTrace\hook_method('Nette\Configurator', '__construct', function () use ($integration) {
-                $integration->load();
-            });
-        } else {
-            $this->load();
-        }
-
-        return self::LOADED;
-    }
-
-    public function load()
+    public function init(): int
     {
         $service = \ddtrace_config_app_name(NetteIntegration::NAME);
 
-        $setRootSpanFn = function () use ($service) {
+        $integration = $this;
+        $setRootSpanFn = function () use ($service, $integration) {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan === null) {
                 return;
@@ -60,7 +43,7 @@ class NetteIntegration extends Integration
 
             $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
-            $this->addTraceAnalyticsIfEnabled($rootSpan);
+            $integration->addTraceAnalyticsIfEnabled($rootSpan);
             $rootSpan->service = $service;
             $rootSpan->meta[Tag::COMPONENT] = NetteIntegration::NAME;
         };
@@ -163,5 +146,7 @@ class NetteIntegration extends Integration
                 }
             }
         );
+
+        return self::LOADED;
     }
 }

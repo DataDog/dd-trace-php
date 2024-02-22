@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Exec;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use PHPUnit\Util\Exception;
@@ -16,7 +15,6 @@ class ExecIntegrationTest extends IntegrationTestCase
     public function ddSetUp()
     {
         parent::ddSetUp();
-        IntegrationsLoader::load();
         if (strtoupper(substr(PHP_OS, 0, 3)) !== 'LIN') {
             $this->markTestSkipped('This test is skipped on non-Linux systems.');
         }

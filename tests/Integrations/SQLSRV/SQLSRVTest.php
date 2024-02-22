@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\SQLSRV;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\SQLSRV\SQLSRVIntegration;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -32,7 +31,6 @@ class SQLSRVTest extends IntegrationTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        IntegrationsLoader::load();
         self::putenv('DD_SQLSRV_ANALYTICS_ENABLED=true');
     }
 
