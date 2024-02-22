@@ -8,15 +8,6 @@ namespace DDTrace\Util;
 final class Versions
 {
     /**
-     * @param string $version
-     * @return bool
-     */
-    public static function phpVersionMatches($version)
-    {
-        return self::versionMatches($version, PHP_VERSION);
-    }
-
-    /**
      * @param string $expected
      * @param string $specimen
      * @return bool

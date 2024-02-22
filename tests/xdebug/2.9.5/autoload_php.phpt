@@ -1,16 +1,18 @@
 --TEST--
-The request init hook can run with Xdebug installed and xdebug.remote_enable=1
+The sources autoloader can run with Xdebug installed and xdebug.remote_enable=1
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70100) die('skip: PHP 7.1+ required'); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
-xdebug.mode=debug
-datadog.trace.sources_path={PWD}/../fake_request_init_hook.inc
+xdebug.remote_enable=1
+datadog.trace.sources_path={PWD}/../
 ddtrace.traced_internal_functions=array_sum
 --FILE--
 <?php
-if (!extension_loaded('xdebug') || version_compare(phpversion('xdebug'), '3.0.0') < 0) die('Xdebug 3.0.0+ required');
+if (!extension_loaded('Xdebug') || version_compare(phpversion('Xdebug'), '2.9.5') < 0) die('Xdebug 2.9.5+ required');
+
+new DDTrace\Autoloaded;
 
 var_dump(array_sum([1, 2, 3]));
 
@@ -21,7 +23,7 @@ array_map(function($span) {
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECT--
-Request init hook loaded.
+Autoloader invoked
 int(6)
 array_sum
 Done.

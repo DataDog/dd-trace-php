@@ -128,7 +128,7 @@ int dd_execute_php_file(const char *filename, zval *result, bool try) {
         if (!try) {
             LOG(Warn, "Error opening autoloaded file %s", filename);
         } else {
-            LOG(Trace, "Tried opening autloaded file path %s, but not readable or not found", filename);
+            LOG(Trace, "Tried opening autoloaded file path %s, but not readable or not found", filename);
         }
 #if PHP_VERSION_ID >= 80100
         zend_destroy_file_handle(&file_handle);

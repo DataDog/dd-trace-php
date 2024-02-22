@@ -4,8 +4,8 @@ namespace DDTrace\Tests\Unit\Util;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
-use DDTrace\Util\Convention;
 use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\SDK\Trace\Convention;
 use function DDTrace\close_span;
 use function DDTrace\start_span;
 

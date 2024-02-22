@@ -117,38 +117,25 @@ class PredisIntegration extends Integration
             $span->meta['redis.raw_command'] = $query;
         });
 
-        // PHP 5 does not support prehook, which is required to get the pipeline count before
-        // tasks are dequeued.
-        if (Versions::phpVersionMatches('5')) {
-            \DDTrace\trace_method('Predis\Pipeline\Pipeline', 'executePipeline', function (SpanData $span, $args) {
-                PredisIntegration::handleOrphan($span);
+        \DDTrace\trace_method(
+            'Predis\Pipeline\Pipeline',
+            'executePipeline',
+            [
+                'prehook' => function (SpanData $span, $args) {
+                    PredisIntegration::handleOrphan($span);
 
-                $span->name = 'Predis.Pipeline.executePipeline';
-                $span->resource = $span->name;
-                $span->type = Type::REDIS;
-                PredisIntegration::setMetaAndServiceFromConnection($this, $span);
-            });
-        } else {
-            \DDTrace\trace_method(
-                'Predis\Pipeline\Pipeline',
-                'executePipeline',
-                [
-                    'prehook' => function (SpanData $span, $args) {
-                        PredisIntegration::handleOrphan($span);
-
-                        $span->name = 'Predis.Pipeline.executePipeline';
-                        $span->resource = $span->name;
-                        $span->type = Type::REDIS;
-                        PredisIntegration::setMetaAndServiceFromConnection($this, $span);
-                        if (\count($args) < 2) {
-                            return;
-                        }
-                        $commands = $args[1];
-                        $span->meta['redis.pipeline_length'] = count($commands);
-                    },
-                ]
-            );
-        }
+                    $span->name = 'Predis.Pipeline.executePipeline';
+                    $span->resource = $span->name;
+                    $span->type = Type::REDIS;
+                    PredisIntegration::setMetaAndServiceFromConnection($this, $span);
+                    if (\count($args) < 2) {
+                        return;
+                    }
+                    $commands = $args[1];
+                    $span->meta['redis.pipeline_length'] = count($commands);
+                },
+            ]
+        );
 
         return Integration::LOADED;
     }

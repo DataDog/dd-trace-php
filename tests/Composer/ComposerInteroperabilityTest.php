@@ -47,7 +47,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
         $this->assertEmpty($traces);
     }
 
-    public function testComposerInteroperabilityWhenInitHookWorks()
+    public function testComposerInteroperabilityWhenSourcesValid()
     {
         $traces = $this->inWebServer(
             function ($execute) {

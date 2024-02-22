@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Util;
+namespace DDTrace\OpenTelemetry;
 
 use DDTrace\SpanData;
 use DDTrace\Tag;
