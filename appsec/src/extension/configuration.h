@@ -63,7 +63,7 @@ extern bool runtime_config_first_init;
     CONFIG(CUSTOM(STRING), DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING, "safe", .parser = dd_parse_automated_user_events_tracking)       \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                                          \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")                                                                          \
-    CONFIG(DOUBLE, DD_API_SECURITY_REQUEST_SAMPLE_RATE, "0.1")
+    CONFIG(BOOL, DD_API_SECURITY_ENABLED, "true")
 // clang-format on
 
 #define CALIAS CONFIG

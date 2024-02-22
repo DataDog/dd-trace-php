@@ -16,12 +16,12 @@ namespace dds {
 
 struct schema_extraction_settings {
     static constexpr double default_sample_rate = 0.1; // 10% of requests
-    static constexpr bool default_enabled = false;
+    static constexpr bool default_enabled = true;
 
     bool enabled = default_enabled;
     double sample_rate = default_sample_rate;
 
-    MSGPACK_DEFINE_MAP(enabled, sample_rate);
+    MSGPACK_DEFINE_MAP(enabled);
 };
 
 /* engine_settings are currently the same for the whole client session.
