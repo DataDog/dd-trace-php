@@ -1,9 +1,9 @@
 <?php
 
 return [
-    __DIR__ . '/../OpenTelemetry/Context.php',
-    __DIR__ . '/../OpenTelemetry/Convention.php',
-    __DIR__ . '/../OpenTelemetry/SpanContext.php',
-    __DIR__ . '/../OpenTelemetry/Span.php',
-    __DIR__ . '/../OpenTelemetry/SpanBuilder.php',
+    __DIR__ . '/../DDTrace/OpenTelemetry/Context.php',
+    __DIR__ . '/../DDTrace/OpenTelemetry/Convention.php',
+    __DIR__ . '/../DDTrace/OpenTelemetry/SpanContext.php',
+    __DIR__ . '/../DDTrace/OpenTelemetry/Span.php',
+    __DIR__ . '/../DDTrace/OpenTelemetry/SpanBuilder.php',
 ];
