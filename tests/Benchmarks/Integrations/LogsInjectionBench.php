@@ -81,9 +81,6 @@ class LogsInjectionBench
             'DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED=1',
             'DD_LOGS_INJECTION=1',
         ]);
-        $tracer = new Tracer();
-        $this->tracer = $tracer;
-
         \dd_trace_serialize_closed_spans();
         \DDTrace\start_span();
         $logger = new Logger('test');
