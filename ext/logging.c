@@ -39,6 +39,9 @@ void ddtrace_log_minit(void) {
     if (ZSTR_LEN(get_global_DD_TRACE_LOG_FILE())) {
         int fd = VCWD_OPEN_MODE(ZSTR_VAL(get_global_DD_TRACE_LOG_FILE()), O_CREAT | O_RDWR | O_APPEND, 0666);
         if (fd >= 0) {
+#ifndef _WIN32
+            fchmod(fd, 0666); // ignore umask
+#endif
             atomic_store(&ddtrace_error_log_fd, fd);
 
             time_t now;
@@ -60,6 +63,10 @@ void ddtrace_log_rinit(char *error_log) {
     }
 
     int desired = VCWD_OPEN_MODE(error_log, O_CREAT | O_RDWR | O_APPEND, 0666);
+#ifndef _WIN32
+    fchmod(desired, 0666); // ignore umask
+#endif
+
     time_t now;
     time(&now);
     atomic_store(&dd_error_log_fd_rotated, (uintmax_t) now);
@@ -123,6 +130,9 @@ int ddtrace_log_with_time(int fd, const char *msg, int msg_len) {
         char pathbuf[MAXPATHLEN];
         if (ddtrace_get_fd_path(fd, pathbuf) >= 0) {
             int new_fd = VCWD_OPEN_MODE(pathbuf, O_CREAT | O_RDWR | O_APPEND, 0666);
+#ifndef _WIN32
+            fchmod(new_fd, 0666); // ignore umask
+#endif
             dup2(new_fd, fd); // atomic replace
             close(new_fd);
         }
