@@ -11,6 +11,7 @@ class TraceAnnotationsBench
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
+     * @Warmup(1)
      */
     public function benchTraceAnnotationOverhead()
     {
