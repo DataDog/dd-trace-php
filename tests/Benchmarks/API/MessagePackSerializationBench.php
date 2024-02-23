@@ -12,6 +12,7 @@ class MessagePackSerializationBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @ParamProviders({"provideTraceArrays"})
+     * @Warmup(1)
      */
     public function benchMessagePackSerialization($traceArray)
     {
