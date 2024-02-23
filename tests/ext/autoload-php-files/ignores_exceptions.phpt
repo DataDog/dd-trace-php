@@ -14,6 +14,7 @@ echo "Request start" . PHP_EOL;
 
 ?>
 --EXPECTF--
+[ddtrace] [warning] Error raised in autoloaded file %s_files_api.php: %s(): Failed opening '%s_files_api.php' for inclusion %s on line %d
 Throwing an exception...
 [ddtrace] [warning] Exception thrown in autoloaded file %sRaisesException.php: Oops!
 Request start

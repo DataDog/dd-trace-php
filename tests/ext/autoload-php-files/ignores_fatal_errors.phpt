@@ -14,6 +14,7 @@ echo "Request start" . PHP_EOL;
 
 ?>
 --EXPECTF--
+[ddtrace] [warning] Error raised in autoloaded file %s_files_api.php: %s(): Failed opening '%s_files_api.php' for inclusion %s on line %d
 Calling a function that does not exist...
 [ddtrace] [warning] Error raised in autoloaded file %s: Allowed memory size of 20971520 bytes exhausted %s on line %d
 Request start

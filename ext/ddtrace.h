@@ -73,6 +73,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint8_t disable; // 0 = enabled, 1 = disabled via INI, 2 = disabled, but MINIT was fully executed
     zend_bool api_is_loaded;
     zend_bool otel_is_loaded;
+    zend_bool legacy_tracer_is_loaded;
 
     uint32_t traces_group_id;
     zend_array *additional_global_tags;

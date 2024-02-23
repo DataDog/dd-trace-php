@@ -28,6 +28,7 @@ static zend_class_entry *(*dd_prev_autoloader)(zend_string *name, zend_string *l
 #if PHP_VERSION_ID >= 70400
 static zend_bool dd_api_is_preloaded = false;
 static zend_bool dd_otel_is_preloaded = false;
+static zend_bool dd_legacy_tracer_is_preloaded = false;
 #endif
 
 #if PHP_VERSION_ID < 80000
@@ -42,111 +43,74 @@ static zend_bool dd_otel_is_preloaded = false;
 #endif
 
 int dd_execute_php_file(const char *filename, zval *result, bool try) {
+    ZVAL_UNDEF(result);
+
     size_t filename_len = strlen(filename);
     if (filename_len == 0) {
         return FAILURE;
     }
-    zval dummy;
-    zend_file_handle file_handle;
-    zend_op_array *new_op_array;
-    ZVAL_UNDEF(result);
-    int ret, success = false;
 
-    ddtrace_error_handling eh_stream;
-    // Using an EH_THROW here causes a non-recoverable zend_bailout()
-    ddtrace_backup_error_handling(&eh_stream, EH_NORMAL);
+    volatile int success = FAILURE;
+
+    zend_string *file_str = zend_string_init(filename, filename_len, 0);
+
+#if PHP_VERSION_ID < 80000
+    zval file_zv, *file_value = &file_zv;
+    ZVAL_STR(file_value, file_str);
+#else
+    zend_string *file_value = file_str;
+#endif
+
     zend_bool _original_cg_multibyte = CG(multibyte);
     CG(multibyte) = false;
 
-#if PHP_VERSION_ID < 80100
-    ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
-#else
-    zend_string *fn = zend_string_init(filename, filename_len, 0);
-    zend_stream_init_filename_ex(&file_handle, fn);
-    ret = php_stream_open_for_zend_ex(&file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
-    zend_string_release(fn);
+    zai_sandbox sandbox;
+    zai_sandbox_open(&sandbox);
+
+#if PHP_VERSION_ID >= 80200
+    zend_execute_data *prev_observed = zai_set_observed_frame(NULL);
 #endif
 
-    LOGEV(Warn, {
-        if (PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
-            log("Error raised while opening autoloaded file stream for %s: %s in %s on line %d", filename, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
-        }
-    })
+    zend_try {
+        zend_op_array *new_op_array = compile_filename(ZEND_INCLUDE, file_value);
 
-    ddtrace_restore_error_handling(&eh_stream);
-
-    if (!EG(exception) && ret == SUCCESS) {
-        zend_string *opened_path;
-        if (!file_handle.opened_path) {
-            file_handle.opened_path = zend_string_init(filename, filename_len, 0);
-        }
-        opened_path = zend_string_copy(file_handle.opened_path);
-        ZVAL_NULL(&dummy);
-
-        if (zend_hash_add(&EG(included_files), opened_path, &dummy)) {
-            new_op_array = zend_compile_file(&file_handle, ZEND_REQUIRE);
-            zend_destroy_file_handle(&file_handle);
-        } else {
-            new_op_array = NULL;
-#if PHP_VERSION_ID < 80100
-            zend_file_handle_dtor(&file_handle);
-#else
-            zend_destroy_file_handle(&file_handle);
-#endif
-        }
-
-        zend_string_release(opened_path);
         if (new_op_array) {
-            zai_sandbox sandbox;
-            zai_sandbox_open(&sandbox);
-
-#if PHP_VERSION_ID >= 80200
-            zend_execute_data *prev_observed = zai_set_observed_frame(NULL);
-#endif
-
-            zend_try {
-                zend_execute(new_op_array, result);
-            } zend_catch {
-                zai_sandbox_bailout(&sandbox);
-#if PHP_VERSION_ID >= 80000
-                zai_reset_observed_frame_post_bailout();
-#endif
-            } zend_end_try();
-
-#if PHP_VERSION_ID >= 80200
-            zai_set_observed_frame(prev_observed);
-#endif
-
-            LOGEV(Warn, {
-                if (PG(last_error_message)) {
-                    log("Error raised in autoloaded file %s: %s in %s on line %d", filename, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
-                }
-                zend_object *ex = EG(exception);
-                if (ex) {
-                    const char *type = ex->ce->name->val;
-                    const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)): "<exit>";
-                    log("%s thrown in autoloaded file %s: %s", type, filename, msg);
-                }
-            })
-
-            zai_sandbox_close(&sandbox);
+            zend_execute(new_op_array, result);
 
             destroy_op_array(new_op_array);
             efree(new_op_array);
-            success = true;
+            success = SUCCESS;
         }
-    } else {
-        ddtrace_maybe_clear_exception();
-        if (!try) {
-            LOG(Warn, "Error opening autoloaded file %s", filename);
-        } else {
-            LOG(Trace, "Tried opening autoloaded file path %s, but not readable or not found", filename);
-        }
-#if PHP_VERSION_ID >= 80100
-        zend_destroy_file_handle(&file_handle);
+    } zend_catch {
+        zai_sandbox_bailout(&sandbox);
+#if PHP_VERSION_ID >= 80000
+        zai_reset_observed_frame_post_bailout();
 #endif
+    } zend_end_try();
+
+#if PHP_VERSION_ID >= 80200
+    zai_set_observed_frame(prev_observed);
+#endif
+
+    if (success == FAILURE && try && VCWD_ACCESS(filename, R_OK) != 0) {
+        success = 2;
+    } else {
+        LOGEV(Warn, {
+            if (PG(last_error_message)) {
+                log("Error raised in autoloaded file %s: %s in %s on line %d", filename, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
+            }
+            zend_object *ex = EG(exception);
+            if (ex) {
+                const char *type = ex->ce->name->val;
+                const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)) : "<exit>";
+                log("%s thrown in autoloaded file %s: %s", type, filename, msg);
+            }
+        })
     }
 
+    zai_sandbox_close(&sandbox);
+
+    zend_string_release(file_str);
     CG(multibyte) = _original_cg_multibyte;
 
     return success;
@@ -164,7 +128,7 @@ static void dd_load_file(const char *file) {
     }
 
     zval result;
-    if (!dd_execute_php_file(path, &result, true) && path_len > class_start + 7) {
+    if (dd_execute_php_file(path, &result, true) == 2 && path_len > class_start + 7) {
         // replace DDTrace/ by api/
         char *dir = path + class_start;
         *(dir++) = 'a';
@@ -190,7 +154,7 @@ static void dd_load_files(const char *files_file) {
     }
 
     zval result;
-    if (dd_execute_php_file(path, &result, false) && Z_TYPE(result) == IS_ARRAY) {
+    if (dd_execute_php_file(path, &result, false) == SUCCESS && Z_TYPE(result) == IS_ARRAY) {
         zval *filezv;
         ZEND_HASH_FOREACH_VAL(Z_ARR(result), filezv) {
             if (Z_TYPE_P(filezv) == IS_STRING) {
@@ -216,14 +180,15 @@ static zend_class_entry *dd_perform_autoload(zend_string *class_name, zend_strin
     if (ZSTR_LEN(get_global_DD_TRACE_SOURCES_PATH())) {
         zend_class_entry * ce;
         if (zend_string_starts_with_literal(lc_name, "ddtrace\\")) {
-            if (DDTRACE_G(api_is_loaded)) {
+            if (!DDTRACE_G(api_is_loaded)) {
                 DDTRACE_G(api_is_loaded) = 1;
                 dd_load_files("api");
                 if ((ce = zend_hash_find_ptr(EG(class_table), lc_name))) {
                     return ce;
                 }
             }
-            if (!zend_string_starts_with_literal(lc_name, "ddtrace\\integration\\")) {
+            if (!DDTRACE_G(legacy_tracer_is_loaded) && !zend_string_starts_with_literal(lc_name, "ddtrace\\integration\\")) {
+                DDTRACE_G(legacy_tracer_is_loaded) = 1;
                 dd_load_files("tracer");
                 if ((ce = zend_hash_find_ptr(EG(class_table), lc_name))) {
                     return ce;
@@ -323,9 +288,11 @@ void ddtrace_autoload_rshutdown(void) {
     if (CG(compiler_options) & ZEND_COMPILE_PRELOAD) {
         dd_api_is_preloaded = DDTRACE_G(api_is_loaded);
         dd_otel_is_preloaded = DDTRACE_G(otel_is_loaded);
+        dd_legacy_tracer_is_preloaded = DDTRACE_G(legacy_tracer_is_loaded);
     } else {
         DDTRACE_G(api_is_loaded) = dd_api_is_preloaded;
         DDTRACE_G(otel_is_loaded) = dd_otel_is_preloaded;
+        DDTRACE_G(legacy_tracer_is_loaded) = dd_legacy_tracer_is_preloaded;
     }
 #else
     DDTRACE_G(api_is_loaded) = 0;
