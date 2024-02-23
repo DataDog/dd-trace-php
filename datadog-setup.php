@@ -1413,12 +1413,30 @@ function download($url, $destination)
 
     // file_get_contents
     if (is_truthy(ini_get('allow_url_fopen')) && extension_loaded('openssl')) {
-        if (false === file_put_contents($destination, file_get_contents($url))) {
+        ini_set("memory_limit", "1G");
+        $data = @file_get_contents($url);
+        // PHP doesn't like too long location headers, and on PHP 7.3 and older they weren't read at all.
+        // But this only really matters for CircleCI artifacts, so not too bad.
+        if ($data == "") {
+            foreach ($http_response_header as $header) {
+                if (stripos($header, "location: ") === 0) {
+                    $data = file_get_contents(substr($header, 10));
+                    goto got_data;
+                }
+            }
+            if (PHP_VERSION_ID < 70400) {
+                goto next_method; // location redirects are may not be read on 7.3 and older
+            }
+        }
+        got_data: ;
+        if ($data == "" || false === file_put_contents($destination, $data)) {
             print_error_and_exit("Error while downloading the installable archive from $url\n");
         }
 
         echo $okMessage;
         return;
+
+        next_method:
     }
 
     if (IS_WINDOWS) {

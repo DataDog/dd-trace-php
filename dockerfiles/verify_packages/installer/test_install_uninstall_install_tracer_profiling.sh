@@ -6,7 +6,8 @@ set -e
 
 # 0.75.0 doesn't exist on arm
 uname=$(uname -a)
-if [ -z "${uname##*arm*}" ] || [ -z "${uname##*aarch*}" ]; then
+arch=$(if [ -z "${uname##*arm*}" ] || [ -z "${uname##*aarch*}" ]; then echo aarch64; else echo x86_64; fi)
+if [ "${arch}" = "aarch64" ]; then
   exit 0
 fi
 
@@ -26,9 +27,7 @@ ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 # this time doesn't have the switch from zend_extension to extension for the
 # profiling module.
 released_version="0.75.0"
-released_version_sha="76506c5ec222b2975333e1bae85f8b91d7c02eb9ccd4dcc807cdf2f23c667785"
-
-fetch_setup_for_version "$released_version" "$released_version_sha" "/tmp"
+fetch_setup_for_version "$released_version" "/tmp"
 php /tmp/datadog-setup.php --php-bin php
 rm -v /tmp/datadog-setup.php
 

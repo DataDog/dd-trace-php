@@ -127,7 +127,7 @@ test_alpine_install_no_ext_curl_no_curl_cli.sh \
 test_alpine_install_no_ext_curl_yes_curl_cli.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app alpine:3.13 sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_libexecinfo.sh: global_test_dependencies
 	@echo "################### $(@) ###################"

@@ -40,7 +40,7 @@ assert_no_profiler() {
     echo "Ok: profiler is not installed"
 }
 
-assert_ddtrace_version() {
+assert_ddtrace_version() (
     expected_version=${1}
     php_bin=${2:-php}
     output="$($php_bin -v)"
@@ -50,7 +50,7 @@ assert_ddtrace_version() {
         echo "---\nError: Wrong ddtrace version. Expected: ${expected_version}\n---\n${output}\n---\n"
         exit 1
     fi
-}
+)
 
 assert_appsec_version() {
     output="$(php --ri ddappsec)"
@@ -83,7 +83,7 @@ assert_profiler_version() {
 
 assert_appsec_enabled() {
     output="$(php --ri ddappsec)"
-    if [ -z "${output##*datadog.appsec.enabled => 1*}" ]; then
+    if [ -z "${output##*datadog.appsec.enabled => On*}" ]; then
         echo "---\nOk: ddappsec is enabled\n---\n${output}\n---\n"
     else
         echo "---\nError: Wrong ddappsec should be enabled\n---\n${output}\n---\n"
@@ -93,7 +93,7 @@ assert_appsec_enabled() {
 
 assert_appsec_disabled() {
     output="$(php --ri ddappsec)"
-    if [ -n "${output##*datadog.appsec.enabled => 1*}" ]; then
+    if [ -n "${output##*datadog.appsec.enabled => On*}" ]; then
         echo "---\nOk: ddappsec is not enabled\n---\n${output}\n---\n"
     else
         echo "---\nError: Wrong ddappsec should not be enabled\n---\n${output}\n---\n"
@@ -126,13 +126,13 @@ assert_file_not_exists() {
     fi
 }
 
-install_legacy_ddtrace() {
+install_legacy_ddtrace() (
     version=$1
     curl -L --output "/tmp/legacy-${version}.tar.gz" \
         "https://github.com/DataDog/dd-trace-php/releases/download/${version}/datadog-php-tracer-${version}.x86_64.tar.gz"
     tar -xf  "/tmp/legacy-${version}.tar.gz" -C /
     /opt/datadog-php/bin/post-install.sh
-}
+)
 
 get_php_conf_dir() {
     php_bin=${1:-php}
@@ -149,26 +149,20 @@ get_php_extension_dir() {
     $php_bin -i | grep -i '^extension_dir' | awk '{print $NF}'
 }
 
-generate_installers() {
+generate_installers() (
     version="${1}"
-    if [ $version = "1.0.0" ]; then
-      export CIRCLE_WORKFLOW_JOB_ID=5e5dc519-3581-41d3-a0dc-dd7c543ec747
-      version="1.0.0+c461afbc8aad5acd89a00b6929e960559441588b"
-    fi
     sh "$(pwd)/tooling/bin/generate-installers.sh" "${version}" "/tmp/"
-}
+)
 
-fetch_setup_for_version() {
+fetch_setup_for_version() (
     version="${1?}"
-    sha256sum="${2?}"
-    destdir="${3?}"
+    destdir="${2?}"
 
     mkdir -vp "${destdir?}"
     cd "${destdir}"
     curl -OL https://github.com/DataDog/dd-trace-php/releases/download/${version}/datadog-setup.php
-    echo "${sha256sum}  datadog-setup.php" | sha256sum -c
     cd -
-}
+)
 
 dashed_print() {
     echo "---"
