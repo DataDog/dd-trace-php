@@ -39,7 +39,7 @@ class OptionalDepsAutoloader
     private static $otelAutoloaderMapping = [
         "OpenTelemetry\\SDK\\Trace\\Span" => 'DDTrace/OpenTelemetry/Span.php',
         "OpenTelemetry\\SDK\\Trace\\SpanBuilder" => 'DDTrace/OpenTelemetry/SpanBuilder.php',
-        "OpenTelemetry\\Context\\Context" => 'DDTrace/OpenTelemetry/Context.php',
+        //"OpenTelemetry\\Context\\Context" => 'DDTrace/OpenTelemetry/Context.php',
     ];
 
     /**
