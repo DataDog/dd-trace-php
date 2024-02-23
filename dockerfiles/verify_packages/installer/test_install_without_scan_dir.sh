@@ -22,10 +22,9 @@ SCANDIR
 chmod +x $(dirname "$(which php)")/php-without-scan-dir
 
 # Install using the php installer
-new_version="0.78.0"
-generate_installers "${new_version}"
+version=$(cat VERSION)
 php ./build/packages/datadog-setup.php --php-bin php-without-scan-dir
-assert_ddtrace_version "${new_version}" php-without-scan-dir
+assert_ddtrace_version "${version}" php-without-scan-dir
 
 ini_file=$(get_php_main_conf php-without-scan-dir)
 

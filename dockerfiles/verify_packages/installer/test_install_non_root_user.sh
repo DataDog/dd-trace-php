@@ -10,9 +10,6 @@ assert_no_ddtrace
 useradd -m datadog -p datadog
 usermod -a -G datadog datadog
 
-new_version="0.78.0"
-generate_installers "${new_version}"
-
 set +e
 output=$(su datadog -c "php /app/build/packages/datadog-setup.php --php-bin php")
 exit_status=$?

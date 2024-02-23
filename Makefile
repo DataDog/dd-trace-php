@@ -25,8 +25,7 @@ ARCHITECTURE = $(shell uname -m)
 QUIET_TESTS := ${CIRCLE_SHA1}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 
-VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
-PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.2/datadog-profiling.tar.gz
+VERSION := $(shell cat VERSION)
 
 INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
@@ -86,7 +85,7 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
-$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym
+$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSION
 	$(Q) (cd $(BUILD_DIR); phpize && sed -i 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
@@ -444,8 +443,7 @@ $(PACKAGES_BUILD_DIR):
 bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
-		$(PACKAGES_BUILD_DIR) \
-		$(PROFILING_RELEASE_URL)
+		$(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-installers.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)
@@ -460,13 +458,6 @@ dbgsym.tar.gz:
 
 packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
-
-verify_version:
-	@grep -q "#define PHP_DDTRACE_VERSION \"$(VERSION)" ext/version.h || (echo ext/version.h Version missmatch && exit 1)
-	@grep -q "const VERSION = '$(VERSION)" src/DDTrace/Tracer.php || (echo src/DDTrace/Tracer.php Version missmatch && exit 1)
-	@echo "All version files match"
-
-verify_all: verify_version
 
 # Generates the bridge/_generated_api and _generate_internal.php files. Note it only works on PHP < 8.0 because:
 #  - we need classpreloader: 1.4.* because otherwise the generated file is not compatible with 5.4
@@ -1364,4 +1355,4 @@ composer.lock: composer.json
 	$(Q) $(COMPOSER) update
 
 .PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
-	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all cbindgen
+	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen

@@ -11,8 +11,7 @@ extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
 ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 
 # Install using the php installer
-new_version="0.79.0"
-generate_installers "${new_version}"
+version=$(cat VERSION)
 php ./build/packages/datadog-setup.php --php-bin php
 
 # Uninstall
@@ -22,7 +21,7 @@ assert_no_appsec
 assert_no_profiler
 
 php ./build/packages/datadog-setup.php --php-bin php
-assert_ddtrace_version "${new_version}"
+assert_ddtrace_version "${version}"
 
 extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
 if [ -f "${extension_dir}/ddtrace.so" ]; then

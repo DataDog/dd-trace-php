@@ -151,7 +151,11 @@ get_php_extension_dir() {
 
 generate_installers() {
     version="${1}"
-    sh "$(pwd)/tooling/bin/generate-installers.sh" "${version}" "$(pwd)/build/packages"
+    if [ $version = "1.0.0" ]; then
+      export CIRCLE_WORKFLOW_JOB_ID=5e5dc519-3581-41d3-a0dc-dd7c543ec747
+      version="1.0.0+c461afbc8aad5acd89a00b6929e960559441588b"
+    fi
+    sh "$(pwd)/tooling/bin/generate-installers.sh" "${version}" "/tmp/"
 }
 
 fetch_setup_for_version() {
@@ -164,14 +168,6 @@ fetch_setup_for_version() {
     curl -OL https://github.com/DataDog/dd-trace-php/releases/download/${version}/datadog-setup.php
     echo "${sha256sum}  datadog-setup.php" | sha256sum -c
     cd -
-}
-
-parse_trace_version() {
-    awk -F\' '/const VERSION/ {print $2}' < src/DDTrace/Tracer.php
-}
-
-parse_profiling_version() {
-    awk -F\" '/^version[ \t]*=/ {print $2}' < profiling/Cargo.toml
 }
 
 dashed_print() {

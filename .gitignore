@@ -24,6 +24,7 @@ coverage/
 !config.m4
 !config.w32
 ddtrace.def
+ext/version.h
 *.la
 *.lo
 *.o

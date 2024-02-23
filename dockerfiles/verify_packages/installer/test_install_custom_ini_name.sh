@@ -8,10 +8,9 @@ set -e
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.78.0"
-generate_installers "${new_version}"
+version=$(cat VERSION)
 php ./build/packages/datadog-setup.php --php-bin php
-assert_ddtrace_version "${new_version}"
+assert_ddtrace_version "${version}"
 
 ini_file="$(get_php_conf_dir)/98-ddtrace.ini"
 custom_ini_file="$(get_php_conf_dir)/40-ddtrace.ini"

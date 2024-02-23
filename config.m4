@@ -229,6 +229,12 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_SUBST(EXTRA_LDFLAGS)
   fi
 
+  cat <<EOT >ext/version.h
+#ifndef PHP_DDTRACE_VERSION
+#define PHP_DDTRACE_VERSION "$(cat "$ext_srcdir/VERSION")"
+#endif
+EOT
+
   PHP_ADD_INCLUDE([$ext_srcdir])
   PHP_ADD_INCLUDE([$ext_srcdir/ext])
 
