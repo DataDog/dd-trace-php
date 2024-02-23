@@ -1,11 +1,10 @@
 --TEST--
 If an agent unix domain socket exists it will try to connect to it
 --SKIPIF--
+<?php if (false !== getenv('CI') || false !== getenv('CIRCLECI')) die('skip: This test is flaky in CI environments.'); ?>
 <?php include __DIR__ . '/../startup_logging_skipif.inc'; ?>
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php @mkdir("/var/run/datadog"); if (!is_dir("/var/run/datadog")) { `sudo mkdir /var/run/datadog <&-; sudo chown $(id -u) /var/run/datadog`; } if (!is_file("/var/run/datadog/apm.socket") && !is_writable("/var/run/datadog")) die("skip: no permissions to create a /var/run/datadog/apm.socket"); ?>
---XFAIL--
-This test is flaky because of the possibility of a connection failure with the request replayer.
 --ENV--
 DD_AGENT_HOST=
 --FILE--
