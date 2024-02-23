@@ -1,5 +1,7 @@
 --TEST--
 Request init hook ignores fatal errors
+--SKIPIF--
+<?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend MM must be enabled'); ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_AUTOLOAD_NO_COMPILE=1

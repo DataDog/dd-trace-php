@@ -50,7 +50,7 @@ class Normalizer
     }
 
     /**
-     * @param string $uriPath
+     * @param string $inputUriPath
      * @param boolean $incoming
      * @return string
      */

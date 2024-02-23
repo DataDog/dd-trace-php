@@ -20,7 +20,10 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #if PHP_VERSION_ID < 80000
 zif_handler dd_spl_autoload_fn_handler;
 zif_handler dd_spl_autoload_call_fn_handler;
+zif_handler dd_spl_autoload_register_fn_handler;
 zif_handler dd_spl_autoload_unregister_fn_handler;
+zif_handler dd_spl_autoload_functions_fn_handler;
+zend_function *dd_spl_autoload_fn;
 zend_function *dd_spl_autoload_call_fn;
 #else
 static zend_class_entry *(*dd_prev_autoloader)(zend_string *name, zend_string *lc_name);
@@ -54,7 +57,7 @@ int dd_execute_php_file(const char *filename, zval *result, bool try) {
 
     zend_string *file_str = zend_string_init(filename, filename_len, 0);
 
-#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID < 80100
     zval file_zv, *file_value = &file_zv;
     ZVAL_STR(file_value, file_str);
 #else
@@ -219,6 +222,7 @@ static zend_class_entry *dd_perform_autoload(zend_string *class_name, zend_strin
 
 #if PHP_VERSION_ID < 80000
 ZEND_TLS bool dd_in_autoload = false;
+ZEND_TLS bool dd_has_registered_spl_autoloader = false;
 
 static inline bool dd_legacy_autoload_wrapper(INTERNAL_FUNCTION_PARAMETERS) {
     UNUSED(return_value);
@@ -237,6 +241,13 @@ static inline bool dd_legacy_autoload_wrapper(INTERNAL_FUNCTION_PARAMETERS) {
     zend_string_release(lower);
 
     return found;
+}
+
+static ZEND_NAMED_FUNCTION(dd_wrap_autoload_register_fn) {
+    dd_spl_autoload_register_fn_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    if (!EG(exception)) {
+        dd_has_registered_spl_autoloader = true;
+    }
 }
 
 static ZEND_NAMED_FUNCTION(dd_wrap_autoload_unregister_fn) {
@@ -258,8 +269,19 @@ static ZEND_NAMED_FUNCTION(dd_perform_autoload_call_fn) {
     }
 }
 
+static ZEND_NAMED_FUNCTION(dd_wrap_autoload_functions_fn) {
+    if (!dd_has_registered_spl_autoloader) {
+        EG(autoload_func) = dd_spl_autoload_fn;
+    }
+
+    dd_spl_autoload_functions_fn_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
+    EG(autoload_func) = dd_spl_autoload_call_fn;
+}
+
 void ddtrace_autoload_rinit(void) {
     if (!EG(autoload_func)) {
+        dd_has_registered_spl_autoloader = false;
         EG(autoload_func) = dd_spl_autoload_call_fn;
     }
     dd_in_autoload = false;
@@ -271,15 +293,21 @@ void ddtrace_autoload_minit(void) {
     dd_prev_autoloader = zend_autoload;
     zend_autoload = dd_perform_autoload;
 #else
-    zend_function *spl_autoload_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload", sizeof("spl_autoload") - 1);
-    dd_spl_autoload_fn_handler = spl_autoload_fn->internal_function.handler;
-    spl_autoload_fn->internal_function.handler = dd_perform_autoload_fn;
+    dd_spl_autoload_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload", sizeof("spl_autoload") - 1);
+    dd_spl_autoload_fn_handler = dd_spl_autoload_fn->internal_function.handler;
+    dd_spl_autoload_fn->internal_function.handler = dd_perform_autoload_fn;
     dd_spl_autoload_call_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload_call", sizeof("spl_autoload_call") - 1);
     dd_spl_autoload_call_fn_handler = dd_spl_autoload_call_fn->internal_function.handler;
     dd_spl_autoload_call_fn->internal_function.handler = dd_perform_autoload_call_fn;
     zend_function *spl_autoload_unregister_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload_unregister", sizeof("spl_autoload_unregister") - 1);
     dd_spl_autoload_unregister_fn_handler = spl_autoload_unregister_fn->internal_function.handler;
     spl_autoload_unregister_fn->internal_function.handler = dd_wrap_autoload_unregister_fn;
+    zend_function *spl_autoload_register_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload_register", sizeof("spl_autoload_register") - 1);
+    dd_spl_autoload_register_fn_handler = spl_autoload_register_fn->internal_function.handler;
+    spl_autoload_register_fn->internal_function.handler = dd_wrap_autoload_register_fn;
+    zend_function *spl_autoload_functions_fn = zend_hash_str_find_ptr(CG(function_table), "spl_autoload_functions", sizeof("spl_autoload_functions") - 1);
+    dd_spl_autoload_functions_fn_handler = spl_autoload_functions_fn->internal_function.handler;
+    spl_autoload_functions_fn->internal_function.handler = dd_wrap_autoload_functions_fn;
 #endif
 }
 

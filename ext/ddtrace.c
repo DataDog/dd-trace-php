@@ -1375,10 +1375,11 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         dd_force_shutdown_tracing();
     } else if (!DDTRACE_G(disable)) {
         dd_shutdown_hooks_and_observer();
-        ddtrace_autoload_rshutdown();
     }
 
     if (!DDTRACE_G(disable)) {
+        ddtrace_autoload_rshutdown();
+
         OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
         DDTRACE_G(active_stack) = NULL;
     }
