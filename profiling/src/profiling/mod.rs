@@ -263,7 +263,10 @@ impl TimeCollector {
     /// makes sense to use an older time than now because if the profiler was
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
-    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> InternalProfile {
+    fn create_profile(
+        message: &SampleMessage,
+        started_at: SystemTime,
+    ) -> anyhow::Result<InternalProfile> {
         let sample_types: Vec<ApiValueType> = message
             .key
             .sample_types
@@ -299,7 +302,8 @@ impl TimeCollector {
                 },
                 value: period.min(i64::MAX as u128) as i64,
             }),
-        );
+            512 * 1024 * 1024,
+        )?;
 
         #[cfg(feature = "allocation_profiling")]
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
@@ -333,7 +337,7 @@ impl TimeCollector {
             }
         }
 
-        profile
+        Ok(profile)
     }
 
     fn handle_resource_message(
@@ -348,8 +352,14 @@ impl TimeCollector {
         let local_root_span_id = message.local_root_span_id;
         for (_, profile) in profiles.iter_mut() {
             let endpoint = Cow::Borrowed(message.resource.as_str());
-            profile.add_endpoint(local_root_span_id, endpoint.clone());
-            profile.add_endpoint_count(endpoint, 1);
+            match profile.add_endpoint(local_root_span_id, endpoint.clone()) {
+                // todo: the count being broadcast to all profiles is probably
+                //       incorrect because it will be over-counted.
+                Ok(_) => profile.add_endpoint_count(endpoint, 1),
+                Err(err) => {
+                    debug!("failed to add endpoint for local root span id {local_root_span_id}: {err}")
+                }
+            }
         }
     }
 
@@ -367,10 +377,11 @@ impl TimeCollector {
         let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key) {
             value
         } else {
-            profiles.insert(
-                message.key.clone(),
-                Self::create_profile(&message, started_at.systemtime),
-            );
+            let Ok(profile) = Self::create_profile(&message, started_at.systemtime) else {
+                error!("Failed to create a new profile. Please report this to Datadog.");
+                return;
+            };
+            profiles.insert(message.key.clone(), profile);
             profiles
                 .get_mut(&message.key)
                 .expect("entry to exist; just inserted it")
@@ -407,7 +418,9 @@ impl TimeCollector {
         match profile.add_sample(sample, timestamp) {
             Ok(_id) => {}
             Err(err) => {
-                warn!("Failed to add sample to the profile: {err}")
+                // If the string table becomes full, this could flood customer
+                // logs, which is why I've chosen this level.
+                debug!("Failed to add sample to the profile: {err}")
             }
         }
     }

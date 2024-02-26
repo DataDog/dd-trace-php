@@ -20,8 +20,8 @@ bumpalo = { version = "3.12", features = ["collections"] }
 cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v6.0.0" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v6.0.0" }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", rev = "a21056a5fa3c0f54d555a978bd1f3ea9726ef0f8" }
+ddcommon = { git = "https://github.com/DataDog/libdatadog", rev = "a21056a5fa3c0f54d555a978bd1f3ea9726ef0f8" }
 env_logger = { version = "0.10" }
 indexmap = { version = "2.2.0" }
 lazy_static = { version = "1.4" }

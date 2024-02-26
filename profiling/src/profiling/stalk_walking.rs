@@ -8,7 +8,7 @@ use std::str::Utf8Error;
 /// the fact that there are two cache slots used, and they don't have to be in
 /// sync. However, they usually are, so we simplify.
 #[cfg(php_run_time_cache)]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct FunctionRunTimeCacheStats {
     hit: usize,
     missed: usize,
@@ -17,6 +17,14 @@ pub struct FunctionRunTimeCacheStats {
 
 #[cfg(php_run_time_cache)]
 impl FunctionRunTimeCacheStats {
+    pub const fn new() -> Self {
+        Self {
+            hit: 0,
+            missed: 0,
+            not_applicable: 0,
+        }
+    }
+
     pub fn hit_rate(&self) -> f64 {
         let denominator = (self.hit + self.missed + self.not_applicable) as f64;
         self.hit as f64 / denominator
@@ -24,9 +32,16 @@ impl FunctionRunTimeCacheStats {
 }
 
 #[cfg(php_run_time_cache)]
+impl Default for FunctionRunTimeCacheStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(php_run_time_cache)]
 thread_local! {
     static CACHED_STRINGS: RefCell<StringTable> = RefCell::new(StringTable::new());
-    pub static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> = RefCell::new(Default::default())
+    pub static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> = const { RefCell::new(FunctionRunTimeCacheStats::new()) };
 }
 
 /// # Safety

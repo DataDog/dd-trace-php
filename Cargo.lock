@@ -718,7 +718,7 @@ dependencies = [
 [[package]]
 name = "datadog-profiling"
 version = "6.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v6.0.0#724a83c3a1875ac1eb1685b92d42a135b7bf2366"
+source = "git+https://github.com/DataDog/libdatadog?rev=a21056a5fa3c0f54d555a978bd1f3ea9726ef0f8#a21056a5fa3c0f54d555a978bd1f3ea9726ef0f8"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -743,7 +743,6 @@ dependencies = [
  "mime_guess",
  "nix 0.27.1",
  "os_info",
- "page_size",
  "percent-encoding",
  "prost 0.12.3",
  "rustc-hash",
@@ -752,6 +751,7 @@ dependencies = [
  "tokio",
  "tokio-util 0.7.10",
  "uuid",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -900,7 +900,7 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "6.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v6.0.0#724a83c3a1875ac1eb1685b92d42a135b7bf2366"
+source = "git+https://github.com/DataDog/libdatadog?rev=a21056a5fa3c0f54d555a978bd1f3ea9726ef0f8#a21056a5fa3c0f54d555a978bd1f3ea9726ef0f8"
 dependencies = [
  "anyhow",
  "futures",
