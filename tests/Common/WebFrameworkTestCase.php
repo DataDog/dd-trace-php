@@ -94,6 +94,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected static function getInis()
     {
+        $enableOpcache = \getenv('DD_TRACE_OPCACHE_BENCHMARKS_MODE');
+
         return [
             'ddtrace.request_init_hook' => realpath(__DIR__ . '/../../bridge/dd_wrap_autoloader.php'),
             // The following values should be made configurable from the outside. I could not get env XDEBUG_CONFIG
@@ -102,7 +104,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'xdebug.remote_enable' => 1,
             'xdebug.remote_host' => 'host.docker.internal',
             'xdebug.remote_autostart' => 1,
-        ];
+        ] + ($enableOpcache ? ["opcache.enabled" => "1"] : []);
     }
 
     /**

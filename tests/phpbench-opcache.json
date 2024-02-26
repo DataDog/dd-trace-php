@@ -6,7 +6,8 @@
     "runner.php_env": {
         "DD_TRACE_OTEL_ENABLED": "true",
         "DD_TRACE_TEST_SAPI": "cgi-fcgi",
-        "DD_TRACE_SIDECAR_TRACE_SENDER": "true"
+        "DD_TRACE_SIDECAR_TRACE_SENDER": "true",
+        "DD_TRACE_OPCACHE_BENCHMARKS_MODE": "true"
     },
     "runner.php_config": {
         "zend_extension": "opcache.so",
