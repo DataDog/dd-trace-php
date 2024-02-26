@@ -27,5 +27,5 @@ rename_variants = "ScreamingSnakeCase"
 parse_deps = true
 include = ["ddcommon", "ddtelemetry", "ddcommon-ffi", "ddtelemetry-ffi", "datadog-sidecar", "datadog-ipc", "uuid"]
 
-[macro_expansion]
-bitflags = true
+[parse.expand]
+crates = ["ddtrace-php"]

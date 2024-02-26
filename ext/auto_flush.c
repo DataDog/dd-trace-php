@@ -34,7 +34,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
 
     if (zend_hash_num_elements(Z_ARR(trace)) == 0) {
         zend_array_destroy(Z_ARR(trace));
-        LOG(Info, "No finished traces to be sent to the agent");
+        LOG(INFO, "No finished traces to be sent to the agent");
         return SUCCESS;
     }
 
@@ -75,14 +75,14 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                 shm = ddog_unmap_shm(mapped_shm);
                                 ddog_drop_anon_shm_handle(shm);
                                 if (ddtrace_ffi_try("Failed sending traces to the sidecar", retry_error)) {
-                                    LOG(Debug, "Failed sending traces via shm to sidecar: %.*s", (int) send_error.some.len, send_error.some.ptr);
+                                    LOG(DEBUG, "Failed sending traces via shm to sidecar: %.*s", (int) send_error.some.len, send_error.some.ptr);
                                 } else {
                                     break;
                                 }
                             }
 
                             char *url = ddtrace_agent_url();
-                            LOG(Info, "Flushing trace of size %d to send-queue for %s",
+                            LOG(INFO, "Flushing trace of size %d to send-queue for %s",
                                 zend_hash_num_elements(Z_ARR(trace)), url);
                             free(url);
                         } while (0);
@@ -92,7 +92,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 }
             }
         } else {
-            LOG(Info, "Skipping flushing trace of size %d as connection to sidecar failed",
+            LOG(INFO, "Skipping flushing trace of size %d as connection to sidecar failed",
                                zend_hash_num_elements(Z_ARR(trace)));
         }
     } else {
@@ -101,13 +101,13 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         size_t size;
         if (ddtrace_serialize_simple_array_into_c_string(&traces, &payload, &size)) {
             if (size > limit) {
-                LOG(Error, "Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", size, limit);
+                LOG(ERROR, "Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", size, limit);
                 success = false;
             } else {
                 success = ddtrace_send_traces_via_thread(1, payload, size);
                 if (success) {
                     char *url = ddtrace_agent_url();
-                    LOG(Info, "Flushing trace of size %d to send-queue for %s",
+                    LOG(INFO, "Flushing trace of size %d to send-queue for %s",
                                        zend_hash_num_elements(Z_ARR(trace)), url);
                     free(url);
                 }

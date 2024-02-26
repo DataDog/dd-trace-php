@@ -53,7 +53,7 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *roo
             tagstart = ++header;
         } else if (*header == ',') {
             // we skip invalid tags without = within
-            LOG(Warn, "Found x-datadog-tags header without key-separating equals character; raw input: %s", ZSTR_VAL(headerstr));
+            LOG(WARN, "Found x-datadog-tags header without key-separating equals character; raw input: %s", ZSTR_VAL(headerstr));
             tagstart = ++header;
 
             zval error_zv;
@@ -133,7 +133,7 @@ zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *
 
             for (char *cur = ZSTR_VAL(tagname), *end = cur + ZSTR_LEN(tagname); cur < end; ++cur) {
                 if (*cur < 0x20 || *cur > 0x7E || *cur == '=' || *cur == ',') {
-                    LOG(Error, "The to be propagated tag name '%s' is invalid and is thus dropped.",
+                    LOG(ERROR, "The to be propagated tag name '%s' is invalid and is thus dropped.",
                                      ZSTR_VAL(tagname));
                     ZVAL_STRING(&error_zv, "encoding_error");
                     goto error;
@@ -142,7 +142,7 @@ zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *
 
             for (char *cur = ZSTR_VAL(str), *end = cur + ZSTR_LEN(str); cur < end; ++cur) {
                 if (*cur < 0x20 || *cur > 0x7E || *cur == ',') {
-                    LOG(Error, "The to be propagated tag '%s=%s' value is invalid and is thus dropped.",
+                    LOG(ERROR, "The to be propagated tag '%s=%s' value is invalid and is thus dropped.",
                                      ZSTR_VAL(tagname), ZSTR_VAL(str));
                     ZVAL_STRING(&error_zv, "encoding_error");
                     goto error;
@@ -158,7 +158,7 @@ zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *
                 smart_str_appendc(&taglist, '=');
                 smart_str_append(&taglist, str);
             } else if (get_DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH()) {
-                LOG(Error,
+                LOG(ERROR,
                     "The to be propagated tag '%s=%s' is too long and exceeds the maximum limit of " ZEND_LONG_FMT
                     " characters and is thus dropped.",
                     ZSTR_VAL(tagname), ZSTR_VAL(str), get_DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH());

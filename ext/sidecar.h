@@ -16,7 +16,7 @@ static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
 
 static inline bool ddtrace_ffi_try(const char *msg, ddog_Option_VecU8 maybe_error) {
     if (maybe_error.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
-        LOG(Error, "%s: %.*s", msg, (int) maybe_error.some.len, maybe_error.some.ptr);
+        LOG(ERROR, "%s: %.*s", msg, (int) maybe_error.some.len, maybe_error.some.ptr);
         ddog_MaybeError_drop(maybe_error);
         return false;
     }

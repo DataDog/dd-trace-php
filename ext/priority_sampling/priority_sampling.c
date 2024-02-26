@@ -156,7 +156,7 @@ void ddtrace_decide_on_closed_span_sampling(ddtrace_span_data *span) {
 
     ddtrace_rule_result result = dd_match_rules(span, &root->span == span && !root->parent_id, root->sampling_rule.rule);
     if (result.rule != INT32_MAX) {
-        LOGEV(Debug, {
+        LOGEV(DEBUG, {
             smart_str buf = {0};
             const char *rule_str = "<unknown>";
             if (result.rule == -2) {
@@ -231,11 +231,11 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
                     // Default rate if no service+env pair matches
                     sample_rate_zv = zend_hash_str_find(DDTRACE_G(agent_rate_by_service), ZEND_STRL("service:,env:"));
                     if (sample_rate_zv) {
-                        LOG(Debug, "Evaluated agent sampling rules for root span for trace %s and applied a default sample_rate of %f",
+                        LOG(DEBUG, "Evaluated agent sampling rules for root span for trace %s and applied a default sample_rate of %f",
                             Z_STRVAL(span->property_trace_id), zval_get_double(sample_rate_zv));
                     }
                 } else {
-                    LOG(Debug, "Evaluated agent sampling rules for root span for trace %s (service: %s, env: %s) and found a sample_rate of %f",
+                    LOG(DEBUG, "Evaluated agent sampling rules for root span for trace %s (service: %s, env: %s) and found a sample_rate of %f",
                         Z_STRVAL(span->property_trace_id), Z_STR_P(service), Z_STR_P(env), zval_get_double(sample_rate_zv));
                 }
                 if (sample_rate_zv) {

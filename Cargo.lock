@@ -267,6 +267,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d084b0137aaa901caf9f1e8b21daa6aa24d41cd806e111335541eff9683bd6"
 
 [[package]]
+name = "build_common"
+version = "0.0.1"
+dependencies = [
+ "cbindgen 0.26.0",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -298,6 +307,25 @@ name = "cbindgen"
 version = "0.24.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b922faaf31122819ec80c4047cc684c6979a087366c069611e33649bf98e18d"
+dependencies = [
+ "clap 3.2.25",
+ "heck",
+ "indexmap 1.9.3",
+ "log",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 1.0.109",
+ "tempfile",
+ "toml",
+]
+
+[[package]]
+name = "cbindgen"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da6bc11b07529f16944307272d5bd9b22530bc7d05751717c9d416586cedab49"
 dependencies = [
  "clap 3.2.25",
  "heck",
@@ -926,6 +954,7 @@ name = "ddcommon-ffi"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "build_common",
  "ddcommon 0.0.1",
  "hyper",
 ]
@@ -958,6 +987,7 @@ dependencies = [
 name = "ddtelemetry-ffi"
 version = "0.0.1"
 dependencies = [
+ "build_common",
  "ddcommon 0.0.1",
  "ddcommon-ffi",
  "ddtelemetry",
@@ -971,8 +1001,7 @@ name = "ddtrace-php"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "bitflags 2.4.2",
- "cbindgen",
+ "cbindgen 0.24.5",
  "const-str",
  "datadog-sidecar",
  "datadog-sidecar-ffi",
