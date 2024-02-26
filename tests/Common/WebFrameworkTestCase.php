@@ -94,7 +94,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected static function getInis()
     {
-        $enableOpcache = \getenv('DD_TRACE_OPCACHE_BENCHMARKS_MODE');
+        $enableOpcache = \extension_loaded("Zend OpCache");
 
         return [
             'ddtrace.request_init_hook' => realpath(__DIR__ . '/../../bridge/dd_wrap_autoloader.php'),
