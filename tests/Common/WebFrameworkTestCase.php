@@ -104,7 +104,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'xdebug.remote_enable' => 1,
             'xdebug.remote_host' => 'host.docker.internal',
             'xdebug.remote_autostart' => 1,
-        ] + ($enableOpcache ? ["opcache.enabled" => "1"] : []);
+        ] + ($enableOpcache ? ["zend_extension" => "opcache.so"] : []);
     }
 
     /**
