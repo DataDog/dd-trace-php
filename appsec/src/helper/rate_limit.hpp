@@ -7,6 +7,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <mutex>
 
 #include "timer.hpp"
