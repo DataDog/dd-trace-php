@@ -313,6 +313,11 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
         }
         Z_PARAM_STR(method_name)
         Z_PARAM_OPTIONAL
+
+        if (_i == ZEND_NUM_ARGS()) {
+            break;
+        }
+
         zval *_current_arg = _arg + _i - method;
         if (Z_TYPE_P(_current_arg) == IS_ARRAY) {
             Z_PARAM_ARRAY(config_array)
