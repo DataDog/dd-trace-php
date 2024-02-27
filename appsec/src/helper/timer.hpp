@@ -16,6 +16,7 @@ public:
     {
         return system_clock::now().time_since_epoch();
     }
+    virtual ~timer() = default;
 };
 
 } // namespace dds

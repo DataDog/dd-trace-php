@@ -29,6 +29,7 @@ public:
 
         return result;
     }
+    ~timer() = default;
     std::queue<system_clock::duration> responses;
 };
 
@@ -46,7 +47,7 @@ public:
 
 TEST(RateLimitTest, OnlyAllowedMaxPerSecond)
 {
-    auto timer = std::make_unique<mock::timer>();
+    std::unique_ptr<mock::timer> timer = std::make_unique<mock::timer>();
     // Four calls within the same second
     timer->responses.push(system_clock::duration(1708963615));
 
