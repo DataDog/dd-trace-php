@@ -121,6 +121,8 @@ extern ddog_Uuid ddtrace_runtime_id;
 
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
+extern const uint8_t *DDOG_PHP_FUNCTION;
+
 /**
  * # Safety
  * Must be called from a single-threaded context, such as MINIT.

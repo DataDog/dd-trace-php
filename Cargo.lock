@@ -270,7 +270,7 @@ checksum = "a1d084b0137aaa901caf9f1e8b21daa6aa24d41cd806e111335541eff9683bd6"
 name = "build_common"
 version = "0.0.1"
 dependencies = [
- "cbindgen 0.26.0",
+ "cbindgen",
  "serde",
  "serde_json",
 ]
@@ -301,25 +301,6 @@ name = "cast"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
-
-[[package]]
-name = "cbindgen"
-version = "0.24.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b922faaf31122819ec80c4047cc684c6979a087366c069611e33649bf98e18d"
-dependencies = [
- "clap 3.2.25",
- "heck",
- "indexmap 1.9.3",
- "log",
- "proc-macro2",
- "quote",
- "serde",
- "serde_json",
- "syn 1.0.109",
- "tempfile",
- "toml",
-]
 
 [[package]]
 name = "cbindgen"
@@ -1001,7 +982,7 @@ name = "ddtrace-php"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "cbindgen 0.24.5",
+ "cbindgen",
  "const-str",
  "datadog-sidecar",
  "datadog-sidecar-ffi",

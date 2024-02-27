@@ -19,11 +19,6 @@ static void ddtrace_set_sidecar_globals(void) {
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
 }
 
-// Windows only defines do not appear in cbindgen
-#ifdef WIN32
-extern const uint8_t *DDOG_PHP_FUNCTION;
-#endif
-
 static bool dd_sidecar_connection_init(void) {
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
         ddtrace_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
