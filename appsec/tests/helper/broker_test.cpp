@@ -303,9 +303,11 @@ TEST(BrokerTest, RecvClientInit)
     pack_str(packer, "value_regex");
 
     pack_str(packer, "schema_extraction");
-    packer.pack_map(1);
+    packer.pack_map(2);
     pack_str(packer, "enabled");
     packer.pack_true();
+    pack_str(packer, "sample_rate");
+    packer.pack_double(0.5);
 
     packer.pack_map(4); // 7. rc_settings
     pack_str(packer, "enabled");
@@ -353,7 +355,7 @@ TEST(BrokerTest, RecvClientInit)
     EXPECT_STREQ(
         command.engine_settings.obfuscator_value_regex.c_str(), "value_regex");
     EXPECT_EQ(command.engine_settings.schema_extraction.enabled, true);
-    EXPECT_EQ(command.engine_settings.schema_extraction.sample_rate, 0.1);
+    EXPECT_EQ(command.engine_settings.schema_extraction.sample_rate, 0.5);
 
     // RC settings
     EXPECT_EQ(command.rc_settings.enabled, true);
