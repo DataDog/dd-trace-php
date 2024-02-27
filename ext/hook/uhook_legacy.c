@@ -313,21 +313,15 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
         }
         Z_PARAM_STR(method_name)
         Z_PARAM_OPTIONAL
-        if (!tracing) {
+        zval *_current_arg = _arg + _i - method;
+        if (Z_TYPE_P(_current_arg) == IS_ARRAY) {
+            Z_PARAM_ARRAY(config_array)
+        } else if (!tracing) {
             Z_PARAM_OBJECT_OF_CLASS_EX(prehook, zend_ce_closure, 1, 0)
         }
-        Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0)
+        Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0) // Will get overwritten if config_array is set
         // clang-format on
-    ZEND_PARSE_PARAMETERS_END_EX({
-        ZEND_PARSE_PARAMETERS_START(2 + method, 2 + method)
-            // clang-format off
-            if (method) {
-                Z_PARAM_STR(class_name)
-            }
-            Z_PARAM_STR(method_name)
-            Z_PARAM_ARRAY(config_array)
-        ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
-    });
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
     if (config_array) {
         if (_parse_config_array(config_array, &prehook, &posthook, &run_when_limited, &allow_recursion) == false) {
