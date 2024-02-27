@@ -46,6 +46,47 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
     false
 }
 
+#[must_use]
+#[no_mangle]
+pub extern "C" fn ddtrace_detect_pear_installed(
+    transport: &mut Box<SidecarTransport>,
+    instance_id: &InstanceId,
+    queue_id: &QueueId,
+) -> bool {
+
+    let output = std::process::Command::new("pear")
+        .arg("list")
+        .env("DD_TRACE_ENABLED", "0")
+        .env("DD_TRACE_CLI_ENABLED", "0")
+        .env("DD_PROFILING_ENABLED", "0")
+        .env("DD_INSTRUMENTATION_TELEMETRY_ENABLED", "0")
+        .output()
+        .expect("pear command failed");
+
+    let output_str = String::from_utf8(output.stdout).unwrap();
+
+    let lines: Vec<&str> = output_str.lines().skip(3).collect();
+
+    let mut deps = Vec::new();
+
+    for line in lines {
+        let words: Vec<&str> = line.split_whitespace().collect();
+
+        if words.len() >= 2 {
+            deps.push(TelemetryActions::AddDependecy(Dependency {
+                name: String::from(words[0]),
+                version: String::from(words[1]).into(),
+            }));
+        }
+    }
+
+    if !deps.is_empty() {
+        return blocking::enqueue_actions(transport, instance_id, queue_id, deps).is_ok();
+    }
+
+    return true;
+}
+
 fn parse_composer_installed_json(
     transport: &mut Box<SidecarTransport>,
     instance_id: &InstanceId,

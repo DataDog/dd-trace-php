@@ -164,6 +164,10 @@ bool ddtrace_detect_composer_installed_json(ddog_SidecarTransport **transport,
                                             const ddog_QueueId *queue_id,
                                             ddog_CharSlice path);
 
+bool ddtrace_detect_pear_installed( ddog_SidecarTransport **transport,
+                                    const struct ddog_InstanceId *instance_id,
+                                    const ddog_QueueId *queue_id);
+
 ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,

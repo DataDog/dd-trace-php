@@ -9,6 +9,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 zend_long dd_composer_hook_id;
+zend_long dd_pear_hook_id;
 
 static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     UNUSED(invocation, auxiliary, dynamic);
@@ -21,7 +22,18 @@ static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute
     return true;
 }
 
+static bool dd_check_for_pear(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
+    UNUSED(invocation, auxiliary, dynamic);
+
+    if (!ddtrace_sidecar // if sidecar connection was broken, let's skip immediately
+        || ddtrace_detect_pear_installed(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id))) {
+        zai_hook_remove((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_pear_hook_id);
+    }
+    return true;
+}
+
 void ddtrace_telemetry_first_init(void) {
+    dd_pear_hook_id = zai_hook_install((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_check_for_pear, NULL, ZAI_HOOK_AUX_UNUSED, 0);
     dd_composer_hook_id = zai_hook_install((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
 }
 
