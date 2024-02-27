@@ -9,6 +9,8 @@
 #include <atomic>
 #include <mutex>
 
+#include "timer.hpp"
+
 namespace dds {
 
 class rate_limiter {
@@ -22,6 +24,7 @@ protected:
     uint32_t counter_{0};
     uint32_t precounter_{0};
     const uint32_t max_per_second_;
+    std::unique_ptr<dds::timer> timer_;
 };
 
 } // namespace dds

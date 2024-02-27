@@ -7,29 +7,18 @@
 #include "rate_limit.hpp"
 
 #include <chrono>
-#include <limits>
-#include <tuple>
 
 using std::chrono::duration_cast;
 using std::chrono::microseconds;
 using std::chrono::milliseconds;
 using std::chrono::seconds;
-using std::chrono::system_clock;
 
 namespace dds {
-
-namespace {
-auto get_time()
-{
-    auto now = system_clock::now().time_since_epoch();
-    return std::make_tuple(duration_cast<milliseconds>(now).count(),
-        duration_cast<seconds>(now).count());
-}
-} // namespace
-
 rate_limiter::rate_limiter(unsigned max_per_second)
     : max_per_second_(max_per_second)
-{}
+{
+    timer_ = std::make_unique<dds::timer>();
+}
 
 bool rate_limiter::allow()
 {
@@ -37,7 +26,9 @@ bool rate_limiter::allow()
         return true;
     }
 
-    auto [now_ms, now_s] = get_time();
+    auto time_since_epoch = timer_->time_since_epoch();
+    auto now_ms = duration_cast<milliseconds>(time_since_epoch).count();
+    auto now_s = duration_cast<seconds>(time_since_epoch).count();
 
     std::lock_guard<std::mutex> const lock(mtx_);
 
