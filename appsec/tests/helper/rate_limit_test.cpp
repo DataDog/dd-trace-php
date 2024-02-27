@@ -47,29 +47,31 @@ public:
 TEST(RateLimitTest, OnlyAllowedMaxPerSecond)
 {
     auto timer = std::make_unique<mock::timer>();
-    ;
     // Four calls within the same second
     timer->responses.push(system_clock::duration(1708963615));
-    timer->responses.push(system_clock::duration(1708963615));
-    timer->responses.push(system_clock::duration(1708963615));
-    timer->responses.push(system_clock::duration(1708963615));
-    // Four extra calls on next second
-    timer->responses.push(system_clock::duration(1709963630));
-    timer->responses.push(system_clock::duration(1709963630));
-    timer->responses.push(system_clock::duration(1709963630));
-    timer->responses.push(system_clock::duration(1709963630));
 
     mock::rate_limiter rate_limiter(2);
     rate_limiter.set_timer(std::move(timer));
 
-    EXPECT_TRUE(rate_limiter.allow());
-    EXPECT_TRUE(rate_limiter.allow());
-    EXPECT_FALSE(rate_limiter.allow());
-    EXPECT_FALSE(rate_limiter.allow());
-    EXPECT_TRUE(rate_limiter.allow());
-    EXPECT_TRUE(rate_limiter.allow());
-    EXPECT_FALSE(rate_limiter.allow());
-    EXPECT_FALSE(rate_limiter.allow());
+    int allowed = 0;
+    for (int i = 0; i < 100; i++) {
+        if (rate_limiter.allow()) {
+            allowed++;
+        }
+    }
+    EXPECT_EQ(2, allowed);
+
+    timer = std::make_unique<mock::timer>();
+    timer->responses.push(system_clock::duration(1709963630));
+    rate_limiter.set_timer(std::move(timer));
+
+    allowed = 0;
+    for (int i = 0; i < 100; i++) {
+        if (rate_limiter.allow()) {
+            allowed++;
+        }
+    }
+    EXPECT_EQ(2, allowed);
 }
 
 TEST(RateLimitTest, WhenNotMaxPerSecondItAlwaysAllow)
