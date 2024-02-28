@@ -702,6 +702,7 @@ dependencies = [
  "datadog-profiling",
  "ddcommon 6.0.0",
  "env_logger",
+ "hashbrown 0.14.3",
  "indexmap 2.2.3",
  "lazy_static",
  "libc 0.2.153",
@@ -711,6 +712,7 @@ dependencies = [
  "perfcnt",
  "rand 0.8.5",
  "rand_distr",
+ "rustc-hash",
  "serde_json",
  "uuid",
 ]
@@ -718,7 +720,7 @@ dependencies = [
 [[package]]
 name = "datadog-profiling"
 version = "6.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=a21056a5fa3c0f54d555a978bd1f3ea9726ef0f8#a21056a5fa3c0f54d555a978bd1f3ea9726ef0f8"
+source = "git+https://github.com/DataDog/libdatadog?rev=f281789#f281789c388f3b8d4c1930257019306b5f9ea884"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -731,6 +733,7 @@ dependencies = [
  "futures",
  "futures-core",
  "futures-util",
+ "hashbrown 0.14.3",
  "hex",
  "http",
  "http-body",
@@ -900,7 +903,7 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "6.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=a21056a5fa3c0f54d555a978bd1f3ea9726ef0f8#a21056a5fa3c0f54d555a978bd1f3ea9726ef0f8"
+source = "git+https://github.com/DataDog/libdatadog?rev=f281789#f281789c388f3b8d4c1930257019306b5f9ea884"
 dependencies = [
  "anyhow",
  "futures",

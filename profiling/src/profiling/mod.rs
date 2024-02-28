@@ -357,7 +357,9 @@ impl TimeCollector {
                 //       incorrect because it will be over-counted.
                 Ok(_) => profile.add_endpoint_count(endpoint, 1),
                 Err(err) => {
-                    debug!("failed to add endpoint for local root span id {local_root_span_id}: {err}")
+                    debug!(
+                        "failed to add endpoint for local root span id {local_root_span_id}: {err}"
+                    )
                 }
             }
         }

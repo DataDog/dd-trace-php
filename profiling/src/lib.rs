@@ -17,6 +17,7 @@ mod exception;
 #[cfg(feature = "timeline")]
 mod timeline;
 
+mod string_set;
 mod wall_time;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
@@ -369,7 +370,7 @@ thread_local! {
     /// The tags for this thread/request. These get sent to other threads,
     /// which is why they are Arc. However, they are wrapped in a RefCell
     /// because the values _can_ change from request to request depending on
-    /// the on the values sent in the SAPI for env, service, version, etc.
+    /// the values sent in the SAPI for env, service, version, etc.
     /// They get reset at the end of the request.
     static TAGS: RefCell<Arc<Vec<Tag>>> = RefCell::new(Arc::new(Vec::new()));
 }
