@@ -314,7 +314,7 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
         Z_PARAM_STR(method_name)
         Z_PARAM_OPTIONAL
 
-        if (_i == ZEND_NUM_ARGS()) {
+        if (_i >= 0 && (uint32_t)_i == ZEND_NUM_ARGS()) {
             break;
         }
 
