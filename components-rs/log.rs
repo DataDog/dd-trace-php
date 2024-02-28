@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::ffi::c_char;
 use std::fmt::Debug;
-use bitflags::bitflags;
 use tracing::Level;
 use tracing_core::{Event, Field, LevelFilter, Subscriber};
 use tracing_subscriber::EnvFilter;
@@ -13,24 +12,23 @@ use tracing_subscriber::util::SubscriberInitExt;
 use ddcommon_ffi::CharSlice;
 use ddcommon_ffi::slice::AsBytes;
 
-bitflags! {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-    #[repr(C)]
-    pub struct Log: u32 {
-        const Error = 1;
-        const Warn = 2;
-        const Info = 3;
-        const Debug = 4;
-        const Trace = 5;
-        const Once = 1 << 3; // I.e. once per request
-        const _Deprecated = 3 | (1 << 4);
-        const Deprecated = 3 | (1 << 4) | (1 << 3) /* Once */;
-        const Startup = 3 | (2 << 4);
-        const Startup_Warn = 1 | (2 << 4);
-        const Span = 4 | (3 << 4);
-        const Span_Trace = 5 | (3 << 4);
-        const Hook_Trace = 5 | (4 << 4);
-    }
+pub const LOG_ONCE: isize = 1 << 3;
+
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub enum Log {
+    Error = 1,
+    Warn = 2,
+    Info = 3,
+    Debug = 4,
+    Trace = 5,
+    Deprecated = 3 | LOG_ONCE,
+    Startup = 3 | (2 << 4),
+    Startup_Warn = 1 | (2 << 4),
+    Span = 4 | (3 << 4),
+    Span_Trace = 5 | (3 << 4),
+    Hook_Trace = 5 | (4 << 4),
 }
 
 #[no_mangle]
@@ -51,7 +49,7 @@ macro_rules! with_target {
             Log::Info => tracing::$p!(target: "ddtrace", Level::INFO, $($t)*),
             Log::Debug => tracing::$p!(target: "ddtrace", Level::DEBUG, $($t)*),
             Log::Trace => tracing::$p!(target: "ddtrace", Level::TRACE, $($t)*),
-            Log::_Deprecated => tracing::$p!(target: "deprecated", Level::INFO, $($t)*),
+            Log::Deprecated => tracing::$p!(target: "deprecated", Level::INFO, $($t)*),
             Log::Startup => tracing::$p!(target: "startup", Level::INFO, $($t)*),
             Log::Span => tracing::$p!(target: "span", Level::DEBUG, $($t)*),
             Log::Span_Trace => tracing::$p!(target: "span", Level::TRACE, $($t)*),
@@ -63,13 +61,11 @@ macro_rules! with_target {
 
 #[no_mangle]
 pub extern "C" fn ddog_shall_log(category: Log) -> bool {
-    let category = category & !Log::Once;
     with_target!(category, tracing::event_enabled!())
 }
 
 pub fn log<S>(category: Log, msg: S) where S: AsRef<str> + tracing::Value {
-    let once = !(category & Log::Once).is_empty();
-    let category = category & !Log::Once;
+    let once = (category as isize & LOG_ONCE) != 0;
     if once {
         with_target!(category, tracing::event!(once = true, msg));
     } else {
@@ -177,9 +173,7 @@ fn set_log_subscriber<S>(subscriber: S) where S: SubscriberInitExt {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_log(category: Log, msg: CharSlice) {
-    let once = !(category & Log::Once).is_empty();
-    let category = category & !Log::Once;
+pub unsafe extern "C" fn ddog_log(category: Log, once: bool, msg: CharSlice) {
     if once {
         with_target!(category, tracing::event!(once = true, "{}", msg.to_utf8_lossy()));
     } else {

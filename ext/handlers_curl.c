@@ -380,7 +380,7 @@ void ddtrace_curl_handlers_startup(void) {
             curl_ce = *curl_ce_ptr;
             curl_multi_ce = *curl_multi_ce_ptr;
         } else {
-            LOG(Warn, "Unable to load ext/curl symbols");
+            LOG(WARN, "Unable to load ext/curl symbols");
             dd_ext_curl_loaded = false;
             return;
         }
