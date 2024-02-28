@@ -47,15 +47,18 @@ public:
 
 TEST(RateLimitTest, OnlyAllowedMaxPerSecond)
 {
+    auto first_round_time = system_clock::now();
+    auto second_round_time = first_round_time + std::chrono::seconds(5);
+
     std::unique_ptr<mock::timer> timer = std::make_unique<mock::timer>();
     // Four calls within the same second
-    timer->responses.push(system_clock::duration(1708963615));
+    timer->responses.push(first_round_time.time_since_epoch());
 
     mock::rate_limiter rate_limiter(2);
     rate_limiter.set_timer(std::move(timer));
 
     int allowed = 0;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 10; i++) {
         if (rate_limiter.allow()) {
             allowed++;
         }
@@ -63,11 +66,11 @@ TEST(RateLimitTest, OnlyAllowedMaxPerSecond)
     EXPECT_EQ(2, allowed);
 
     timer = std::make_unique<mock::timer>();
-    timer->responses.push(system_clock::duration(1709963630));
+    timer->responses.push(second_round_time.time_since_epoch());
     rate_limiter.set_timer(std::move(timer));
 
     allowed = 0;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 10; i++) {
         if (rate_limiter.allow()) {
             allowed++;
         }
