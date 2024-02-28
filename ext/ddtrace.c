@@ -2496,14 +2496,17 @@ PHP_FUNCTION(DDTrace_current_context) {
     add_assoc_zval_ex(return_value, ZEND_STRL("distributed_tracing_propagated_tags"), &tags);
 }
 
-/* {{{ proto bool set_distributed_tracing_context() */
+/* {{{ proto bool set_distributed_tracing_context(string $trace_id, string $parent_id, ?string $origin, array|string|null $tags) */
 PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
     zend_string *trace_id_str, *parent_id_str, *origin = NULL;
     zval *tags = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|S!z!", &trace_id_str, &parent_id_str, &origin, &tags) != SUCCESS ||
-        (tags && Z_TYPE_P(tags) > IS_FALSE && Z_TYPE_P(tags) != IS_ARRAY && Z_TYPE_P(tags) != IS_STRING)) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|S!z!", &trace_id_str, &parent_id_str, &origin, &tags) != SUCCESS) {
         RETURN_THROWS();
+    }
+
+    if (tags && Z_TYPE_P(tags) > IS_FALSE && Z_TYPE_P(tags) != IS_ARRAY && Z_TYPE_P(tags) != IS_STRING) {
+        zend_type_error("DDTrace\\set_distributed_tracing_context expects parameter 4 to be of type array, string or null, %s given", zend_zval_value_name(tags));
     }
 
     if (!get_DD_TRACE_ENABLED()) {
