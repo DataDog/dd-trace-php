@@ -35,7 +35,7 @@ final class StartupLoggingDisabledTest extends WebFrameworkTestCase
         \touch($log);
     }
 
-    protected static function getInis()
+    protected static function getInis($enableTracing = true)
     {
         return array_merge(parent::getInis(), [
             'error_log' => self::getAppErrorLog(),
