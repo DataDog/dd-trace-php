@@ -19,14 +19,6 @@ final class Tracer implements TracerInterface
     use LoggingTrait;
 
     /**
-     * @deprecated Use Tracer::version() instead
-     *
-     * Must begin with a number for Debian packaging requirements
-     * Must use single-quotes for packaging script to work
-     */
-    const VERSION = '0.98.0';
-
-    /**
      * @var Span[][]
      */
     private $traces = [];
@@ -414,7 +406,7 @@ final class Tracer implements TracerInterface
      */
     public static function version()
     {
-        return self::VERSION;
+        return \phpversion("ddtrace");
     }
 
     /**

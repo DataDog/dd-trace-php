@@ -112,9 +112,7 @@ aliases:
         if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
           echo "Release branch detected; not adding git sha1 to version number."
         else
-          sed -E -i "s/const\s+VERSION\s*=\s*'(.*)'/const VERSION = '\1+$githash'/g" "src/DDTrace/Tracer.php"
-          sed -E -i "s/define\s+PHP_DDTRACE_VERSION\s*\"(.*)\"/define PHP_DDTRACE_VERSION \"\1+$githash\"/g" "ext/version.h"
-          sed -E -i "s/^version\s*=\s*\"(.*)\"/version = \"\1+$githash\"/g" "profiling/Cargo.toml"
+          echo -n "+$githash" >>VERSION
           echo "Appended +$githash to version number."
         fi
 
@@ -2135,8 +2133,6 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
-          # In order to hard-code the proper version required in tests, we need to regenerate the 'released' installer
-          # scripts which are saved to build/packages
           name: Let testing images to write to build/packages dir
           command: chmod a+w build/packages
       - run:
@@ -3139,10 +3135,7 @@ jobs:
           root: '.'
           paths:
             - './bridge/_generated*.php'
-            # Persist files below because we generate a new version number.
-            - './src/DDTrace/Tracer.php'
-            - './ext/version.h'
-            - './profiling/Cargo.toml'
+            - './VERSION' # we generate a new version number
 
   "package extension":
     working_directory: ~/datadog
@@ -3186,7 +3179,7 @@ jobs:
       - run:
           name: Spot-check shape of library name
           command: |
-            version=$(awk -F\' '/const VERSION/ { print $2 }' < src/DDTrace/Tracer.php)
+            version=$(cat VERSION)
             filename="dd-library-php-${version}-x86_64-linux-gnu.tar.gz"
             if ! [[ -f "build/packages/$filename" ]] ; then
               echo "Expected file 'build/packages/$filename' to exist!"

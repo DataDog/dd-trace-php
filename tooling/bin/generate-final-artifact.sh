@@ -5,7 +5,6 @@ IFS=$'\n\t'
 
 release_version=$1
 packages_build_dir=$2
-profiling_url=$3
 
 tmp_folder=/tmp/bundle
 tmp_folder_final=$tmp_folder/final
@@ -71,10 +70,6 @@ for architecture in "${architectures[@]}"; do
         tmp_folder_profiling_archive=$tmp_folder_profiling/datadog-profiling.tar.gz
         mkdir -p $tmp_folder_profiling
 
-        # Profiling: C version
-        #curl -L -o $tmp_folder_profiling_archive $profiling_url
-
-        # Profiling: Rust version
         cp -v datadog-profiling.tar.gz "$tmp_folder_profiling_archive"
 
         tar -xf $tmp_folder_profiling_archive -C $tmp_folder_profiling

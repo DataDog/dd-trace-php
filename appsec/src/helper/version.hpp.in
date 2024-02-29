@@ -9,5 +9,7 @@
 #include <string_view>
 
 namespace dds {
-constexpr inline std::string_view php_ddappsec_version{"${CMAKE_PROJECT_VERSION}"};
+constexpr inline std::string_view php_ddappsec_version{
+    "${CMAKE_APPSEC_VERSION}",
+};
 } // namespace dds
