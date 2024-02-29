@@ -1425,7 +1425,7 @@ function download($url, $destination)
                 }
             }
             if (PHP_VERSION_ID < 70400) {
-                goto next_method; // location redirects are may not be read on 7.3 and older
+                goto next_method; // location redirects may not be read on 7.3 and older
             }
         }
         got_data: ;
