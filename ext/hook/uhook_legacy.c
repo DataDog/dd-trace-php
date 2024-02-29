@@ -326,7 +326,7 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
         }
         Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0) // Will get overwritten if config_array is set
         // clang-format on
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
+    ZEND_PARSE_PARAMETERS_END();
 
     if (config_array) {
         if (_parse_config_array(config_array, &prehook, &posthook, &run_when_limited, &allow_recursion) == false) {
@@ -405,7 +405,7 @@ PHP_FUNCTION(dd_untrace) {
         Z_PARAM_STR(method_name)
         Z_PARAM_OPTIONAL
         Z_PARAM_STR(class_name)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
+    ZEND_PARSE_PARAMETERS_END();
 
     zai_str class_str = ZAI_STR_EMPTY;
     if (class_name) {
