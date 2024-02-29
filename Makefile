@@ -1006,7 +1006,7 @@ define run_benchmarks_overhead
 endef
 
 define run_benchmarks_baseline
-	php -d ddtrace.disable=true $(TEST_EXTRA_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console --group=baseline
+	php $(TEST_EXTRA_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console --group=baseline
 endef
 
 

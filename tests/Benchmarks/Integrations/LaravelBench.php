@@ -52,9 +52,7 @@ class LaravelBench extends WebFrameworkTestCase
 
     public function disableLaravelTracing()
     {
-        $this->setUpWebServer([
-                'DD_TRACE_ENABLED' => 0,
-        ]);
+        $this->setUpWebServer([], ['ddtrace.disable' => 'true']);
     }
 
     public function afterMethod()

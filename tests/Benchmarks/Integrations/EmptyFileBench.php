@@ -52,9 +52,7 @@ class EmptyFileBench extends WebFrameworkTestCase
 
     public function disabledTracing()
     {
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 0,
-        ]);
+        $this->setUpWebServer([], ['ddtrace.disable' => 'true']);
     }
 
     public function afterMethod()
