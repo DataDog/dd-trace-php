@@ -129,13 +129,21 @@ TSRM_TLS void *TSRMLS_CACHE = NULL;
 #endif
 #endif
 
-PHP_INI_BEGIN()
-STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals,
-                    ddtrace_globals)
+int ddtrace_disable = 0; // 0 = enabled, 1 = disabled via INI, 2 = disabled, but MINIT was fully executed
+static ZEND_INI_MH(dd_OnUpdateDisabled) {
+    UNUSED(entry, mh_arg1, mh_arg2, mh_arg3, stage);
+    if (!ddtrace_disable) {
+        ddtrace_disable = zend_ini_parse_bool(new_value);
+    }
+    return SUCCESS;
+}
 
-// Exposed for testing only
-STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, OnUpdateString, cgroup_file,
-                  zend_ddtrace_globals, ddtrace_globals)
+PHP_INI_BEGIN()
+    ZEND_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, dd_OnUpdateDisabled)
+
+    // Exposed for testing only
+    STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, OnUpdateString, cgroup_file,
+                      zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 
 #if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
@@ -389,7 +397,7 @@ static void dd_activate_once(void) {
     ddtrace_generate_runtime_id();
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
-    if (!DDTRACE_G(disable)) {
+    if (!ddtrace_disable) {
 #ifndef _WIN32
         if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())
 #endif
@@ -413,15 +421,15 @@ static void ddtrace_activate(void) {
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
 
-    if (!DDTRACE_G(disable) && ddtrace_has_excluded_module == true) {
-        DDTRACE_G(disable) = 2;
+    if (!ddtrace_disable && ddtrace_has_excluded_module == true) {
+        ddtrace_disable = 2;
     }
 
     // ZAI config is always set up
     pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
 
-    if (!DDTRACE_G(disable) && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
+    if (!ddtrace_disable && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
         ddtrace_sidecar_ensure_active();
     }
 
@@ -430,11 +438,11 @@ static void ddtrace_activate(void) {
         dd_save_sampling_rules_file_config(sampling_rules_file, PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
     }
 
-    if (!DDTRACE_G(disable) && strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
-        DDTRACE_G(disable) = 2;
+    if (!ddtrace_disable && strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
+        ddtrace_disable = 2;
     }
 
-    if (DDTRACE_G(disable)) {
+    if (ddtrace_disable) {
         ddtrace_disable_tracing_in_current_request();
     }
 
@@ -1002,7 +1010,7 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     datadog_php_string_view module_name = datadog_php_string_view_from_cstr(sapi_module.name);
     if (UNEXPECTED(!dd_is_compatible_sapi(module_name))) {
         LOG(Warn, "Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
-        DDTRACE_G(disable) = 1;
+        ddtrace_disable = 1;
     }
 }
 
@@ -1076,7 +1084,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     mod_ptr->handle = NULL;
     /* }}} */
 
-    if (DDTRACE_G(disable)) {
+    if (ddtrace_disable) {
         return SUCCESS;
     }
 
@@ -1123,7 +1131,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     UNREGISTER_INI_ENTRIES();
 
-    if (DDTRACE_G(disable) == 1) {
+    if (ddtrace_disable == 1) {
         zai_config_mshutdown();
         zai_json_shutdown_bindings();
         return SUCCESS;
@@ -1257,7 +1265,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     zai_interceptor_rinit();
 #endif
 
-    if (!DDTRACE_G(disable)) {
+    if (!ddtrace_disable) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
         zai_hook_activate();
         DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
@@ -1376,11 +1384,11 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     if (get_DD_TRACE_ENABLED()) {
         dd_force_shutdown_tracing();
-    } else if (!DDTRACE_G(disable)) {
+    } else if (!ddtrace_disable) {
         dd_shutdown_hooks_and_observer();
     }
 
-    if (!DDTRACE_G(disable)) {
+    if (!ddtrace_disable) {
         OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
         DDTRACE_G(active_stack) = NULL;
     }
@@ -1427,7 +1435,7 @@ bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
         return true;
     }
 
-    if (DDTRACE_G(disable)) {
+    if (ddtrace_disable) {
         return Z_TYPE_P(new_value) == IS_FALSE;  // no changing to enabled allowed if globally disabled
     }
 
@@ -1437,7 +1445,7 @@ bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
 
     if (Z_TYPE_P(old_value) == IS_FALSE) {
         dd_initialize_request();
-    } else if (!DDTRACE_G(disable)) {  // if this is true, the request has not been initialized at all
+    } else if (!ddtrace_disable) {  // if this is true, the request has not been initialized at all
         ddtrace_close_all_open_spans(false);  // All remaining userland spans (and root span)
         dd_clean_globals();
     }
@@ -1525,12 +1533,12 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     php_info_print_box_end();
 
     php_info_print_table_start();
-    php_info_print_table_row(2, "Datadog tracing support", DDTRACE_G(disable) ? "disabled" : "enabled");
+    php_info_print_table_row(2, "Datadog tracing support", ddtrace_disable ? "disabled" : "enabled");
     php_info_print_table_row(2, "Version", PHP_DDTRACE_VERSION);
     _dd_info_tracer_config();
     php_info_print_table_end();
 
-    if (!DDTRACE_G(disable)) {
+    if (!ddtrace_disable) {
         _dd_info_diagnostics_table();
     }
 
@@ -1723,7 +1731,7 @@ PHP_FUNCTION(dd_trace_reset) {
         LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_reset");
     }
 
-    if (DDTRACE_G(disable)) {
+    if (ddtrace_disable) {
         RETURN_BOOL(0);
     }
 
