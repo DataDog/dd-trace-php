@@ -3,6 +3,7 @@ Invalid regex: default sampling rate applies
 --ENV--
 DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.3, "service": "*"}]
 DD_TRACE_GENERATE_ROOT_SPAN=1
+DD_TRACE_SAMPLING_RULES_FORMAT=regex
 --SKIPIF--
 <?php
 if (getenv("USE_ZEND_ALLOC") === "0" && !getenv("SKIP_ASAN")) {
