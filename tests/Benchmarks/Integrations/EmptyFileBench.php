@@ -17,6 +17,7 @@ class EmptyFileBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"baseline"})
      */
     public function benchEmptyFileBaseline()
     {
@@ -34,6 +35,7 @@ class EmptyFileBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchEmptyFileOverhead()
     {

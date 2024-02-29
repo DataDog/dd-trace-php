@@ -26,6 +26,7 @@ class PDOBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"baseline"})
      */
     public function benchPDOBaseline()
     {
@@ -39,6 +40,7 @@ class PDOBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchPDOOverhead()
     {
@@ -52,6 +54,7 @@ class PDOBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchPDOOverheadWithDBM()
     {
@@ -78,7 +81,6 @@ class PDOBench
 
     public function disablePDOIntegration()
     {
-        \dd_trace_serialize_closed_spans();
         Utils::putEnvAndReloadConfig([
             'DD_TRACE_ENABLED=0'
         ]);

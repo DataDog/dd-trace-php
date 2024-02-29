@@ -11,6 +11,7 @@ class ComposerTelemetryBench
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
+     * @Groups({"overhead"})
      */
     public function benchTelemetryParsing()
     {

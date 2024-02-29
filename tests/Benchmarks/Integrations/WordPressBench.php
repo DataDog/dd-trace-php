@@ -17,6 +17,7 @@ class WordPressBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchWordPressOverhead()
     {
@@ -34,6 +35,7 @@ class WordPressBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchEnhancedWordPressOverhead()
     {
@@ -85,6 +87,7 @@ class WordPressBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"baseline"})
      */
     public function benchWordPressBaseline()
     {

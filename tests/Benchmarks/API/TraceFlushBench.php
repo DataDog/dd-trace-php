@@ -14,6 +14,7 @@ class TraceFlushBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUp")
+     * @Groups({"overhead"})
      */
     public function benchFlushTrace()
     {

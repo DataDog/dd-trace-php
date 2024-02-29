@@ -500,7 +500,9 @@ PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT
 PHPUNIT_COVERAGE ?=
 PHPBENCH_OPTS ?=
 PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
+PHPBENCH_BASELINE_CONFIG ?= $(TESTS_ROOT)/phpbench-baseline.json
 PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
+PHPBENCH_BAELINE_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-baseline-opcache.json
 PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run
 PHPCOV = $(TESTS_ROOT)/vendor/bin/phpcov
 
@@ -999,8 +1001,12 @@ define run_tests_debug
 endef
 
 
-define run_benchmarks
-	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+define run_benchmarks_overhead
+	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console --group=overhead
+endef
+
+define run_benchmarks_baseline
+	php $(TEST_EXTRA_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console --groups=baseline
 endef
 
 
@@ -1081,10 +1087,14 @@ benchmarks_run_dependencies: global_test_run_dependencies
 	$(MAKE) test_scenario_benchmarks
 
 benchmarks: benchmarks_run_dependencies
-	$(call run_benchmarks,$(PHPBENCH_CONFIG))
+	$(call run_benchmarks_overhead,$(PHPBENCH_CONFIG))
+	$(call run_benchmarks_baseline,$(PHPBENCH_BASELINE_CONFIG))
+	sed -n '1!p' ./tests/Benchmarks/reports/tracer-bench-baseline-results.csv >> ./tests/Benchmarks/reports/tracer-bench-results.csv
 
 benchmarks_opcache: benchmarks_run_dependencies
-	$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG))
+	$(call run_benchmarks_overhead,$(PHPBENCH_OPCACHE_CONFIG))
+	$(call run_benchmarks_baseline,$(PHPBENCH_BASELINE_OPCACHE_CONFIG))
+	sed -n '1!p' ./tests/Benchmarks/reports/tracer-bench-baseline-results-opcache.csv >> ./tests/Benchmarks/reports/tracer-bench-results-opcache.csv
 
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock

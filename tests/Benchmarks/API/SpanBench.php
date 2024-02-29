@@ -17,6 +17,7 @@ class SpanBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchDatadogAPI()
     {
@@ -46,6 +47,7 @@ class SpanBench
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUpOpenTelemetry")
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchOpenTelemetryAPI()
     {
@@ -75,6 +77,7 @@ class SpanBench
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUpOpenTelemetry")
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchOpenTelemetryInteroperability()
     {

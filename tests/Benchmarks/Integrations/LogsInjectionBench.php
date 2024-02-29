@@ -21,6 +21,7 @@ class LogsInjectionBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"baseline"})
      */
     public function benchLogsInfoBaseline()
     {
@@ -34,6 +35,7 @@ class LogsInjectionBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchLogsInfoInjection()
     {
@@ -47,6 +49,7 @@ class LogsInjectionBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"baseline"})
      */
     public function benchLogsNullBaseline()
     {
@@ -62,6 +65,7 @@ class LogsInjectionBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchLogsNullInjection()
     {
@@ -106,7 +110,6 @@ class LogsInjectionBench
 
     public function disableLogsInjection()
     {
-        \dd_trace_serialize_closed_spans();
         Utils::putEnvAndReloadConfig([
             'DD_TRACE_APPEND_TRACE_IDS_TO_LOGS=0',
             'DD_ENV=my-env',

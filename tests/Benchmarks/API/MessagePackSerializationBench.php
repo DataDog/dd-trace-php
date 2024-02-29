@@ -13,6 +13,7 @@ class MessagePackSerializationBench
      * @RetryThreshold(10.0)
      * @ParamProviders({"provideTraceArrays"})
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchMessagePackSerialization($traceArray)
     {

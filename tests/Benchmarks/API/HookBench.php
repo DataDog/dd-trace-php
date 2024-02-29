@@ -12,6 +12,7 @@ class HookBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchWithoutHook()
     {
@@ -27,6 +28,7 @@ class HookBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchHookOverheadTraceMethod()
     {
@@ -42,6 +44,7 @@ class HookBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchHookOverheadTraceFunction()
     {
@@ -57,6 +60,7 @@ class HookBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchHookOverheadInstallHookOnMethod()
     {
@@ -72,6 +76,7 @@ class HookBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchHookOverheadInstallHookOnFunction()
     {

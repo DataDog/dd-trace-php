@@ -12,6 +12,7 @@ class TraceSerializationBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUp")
+     * @Groups({"overhead"})
      */
     public function benchSerializeTrace()
     {

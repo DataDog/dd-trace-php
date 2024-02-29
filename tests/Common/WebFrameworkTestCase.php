@@ -92,19 +92,19 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      * Get additional inis to be set in the web server.
      * @return array
      */
-    protected static function getInis()
+    protected static function getInis($enableTracing = true)
     {
         $enableOpcache = \extension_loaded("Zend OpCache");
 
         return [
-            'ddtrace.request_init_hook' => realpath(__DIR__ . '/../../bridge/dd_wrap_autoloader.php'),
             // The following values should be made configurable from the outside. I could not get env XDEBUG_CONFIG
             // to work setting it both in docker-compose.yml and in `getEnvs()` above, but that should be the best
             // option.
             'xdebug.remote_enable' => 1,
             'xdebug.remote_host' => 'host.docker.internal',
             'xdebug.remote_autostart' => 1,
-        ] + ($enableOpcache ? ["zend_extension" => "opcache.so"] : []);
+        ] + ($enableOpcache ? ["zend_extension" => "opcache.so"] : [])
+          + ($enableTracing ? ['ddtrace.request_init_hook' => realpath(__DIR__ . '/../../bridge/dd_wrap_autoloader.php')] : []);
     }
 
     /**
@@ -122,7 +122,12 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             }
             self::$appServer->mergeEnvs($envs);
 
-            $inis = static::getInis();
+            if ((array_key_exists('DD_TRACE_ENABLED', $envs) && \filter_var($envs['DD_TRACE_ENABLED'], FILTER_VALIDATE_BOOLEAN) === false)
+                || (array_key_exists('datadog.trace.enabled', $additionalInis) && \filter_var($additionalInis['datadog.trace.enabled'], FILTER_VALIDATE_BOOLEAN) === false)) {
+                $inis = static::getInis(false);
+            } else {
+                $inis = static::getInis(true);
+            }
             if (!empty($additionalInis)) {
                 $inis = array_merge($inis, $additionalInis);
             }
