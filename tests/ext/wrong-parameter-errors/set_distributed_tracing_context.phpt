@@ -3,6 +3,8 @@ DDTrace_set_distributed_tracing_context is passed wrong parameters
 --FILE--
 <?php
 
+declare(strict_types = 1);
+
 try {
     \DDTrace\set_distributed_tracing_context("0");
 } catch (ArgumentCountError $e) {

@@ -3,6 +3,8 @@ dd_trace_send_traces_via_thread is passed wrong parameters
 --FILE--
 <?php
 
+declare(strict_types = 1);
+
 try {
     \dd_trace_send_traces_via_thread(0);
 } catch (ArgumentCountError $e) {

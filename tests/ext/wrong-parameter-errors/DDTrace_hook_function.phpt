@@ -3,6 +3,8 @@ DDTrace_hook_function is passed wrong parameters
 --FILE--
 <?php
 
+declare(strict_types = 1);
+
 try {
     \DDTrace\hook_function();
 } catch (ArgumentCountError $e) {
