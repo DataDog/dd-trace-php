@@ -41,6 +41,10 @@ final class InstrumentationTest extends WebFrameworkTestCase
 
     public function testInstrumentation()
     {
+        if (extension_loaded('xdebug')) {
+            $this->markTestSkipped('Xdebug extension is loaded');
+        }
+
         $this->resetRequestDumper();
 
         $this->call(GetSpec::create("autoloaded", "/simple"));

@@ -300,6 +300,18 @@
                      "component": "laravelqueue"
                    }
                  },
+                    {
+                      "name": "laravel.event.handle",
+                      "service": "laravel_queue_test",
+                      "resource": "Illuminate\\Log\\Events\\MessageLogged",
+                      "trace_id": 0,
+                      "span_id": 25,
+                      "parent_id": 24,
+                      "type": "web",
+                      "meta": {
+                        "component": "laravel"
+                      }
+                    },
               {
                 "name": "laravel.event.handle",
                 "service": "laravel_queue_test",

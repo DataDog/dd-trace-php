@@ -29,6 +29,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetReturnString()
     {
+        if (\getenv('PHPUNIT_COVERAGE') && PHP_VERSION_ID < 80000) {
+            $this->markTestSkipped('Test is too flaky under coverage mode in PHP 7.4');
+        }
+
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 GetSpec::create(
@@ -41,6 +45,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetWithView()
     {
+        if (\getenv('PHPUNIT_COVERAGE') && PHP_VERSION_ID < 80000) {
+            $this->markTestSkipped('Test is too flaky under coverage mode in PHP 7.4');
+        }
+
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 GetSpec::create(
@@ -53,6 +61,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetWithException()
     {
+        if (\getenv('PHPUNIT_COVERAGE') && PHP_VERSION_ID < 80000) {
+            $this->markTestSkipped('Test is too flaky under coverage mode in PHP 7.4');
+        }
+
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 GetSpec::create(

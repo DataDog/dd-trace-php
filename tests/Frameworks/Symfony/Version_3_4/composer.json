@@ -26,8 +26,7 @@
         "twig/twig": "^1.0||^2.0"
     },
     "require-dev": {
-        "sensio/generator-bundle": "^3.0",
-        "symfony/phpunit-bridge": "^3.0"
+        "sensio/generator-bundle": "^3.0"
     },
     "scripts": {
         "symfony-scripts": [
@@ -42,9 +41,7 @@
         ],
         "post-update-cmd": [
             "@symfony-scripts"
-        ],
-        "simple-phpunit": "php vendor/bin/simple-phpunit",
-        "test": "@simple-phpunit"
+        ]
     },
     "config": {
         "platform": {
