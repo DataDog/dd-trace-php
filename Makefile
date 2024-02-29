@@ -502,7 +502,7 @@ PHPBENCH_OPTS ?=
 PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
 PHPBENCH_BASELINE_CONFIG ?= $(TESTS_ROOT)/phpbench-baseline.json
 PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
-PHPBENCH_BAELINE_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-baseline-opcache.json
+PHPBENCH_BASELINE_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-baseline-opcache.json
 PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run
 PHPCOV = $(TESTS_ROOT)/vendor/bin/phpcov
 
