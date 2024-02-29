@@ -122,12 +122,10 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             }
             self::$appServer->mergeEnvs($envs);
 
-            if ((array_key_exists('DD_TRACE_ENABLED', $envs) && \filter_var($envs['DD_TRACE_ENABLED'], FILTER_VALIDATE_BOOLEAN) === false)
-                || (array_key_exists('datadog.trace.enabled', $additionalInis) && \filter_var($additionalInis['datadog.trace.enabled'], FILTER_VALIDATE_BOOLEAN) === false)) {
-                $inis = static::getInis(false);
-            } else {
-                $inis = static::getInis(true);
-            }
+            $disableTracing = (array_key_exists('DD_TRACE_ENABLED', $envs) && \filter_var($envs['DD_TRACE_ENABLED'], FILTER_VALIDATE_BOOLEAN) === false)
+                || (array_key_exists('datadog.trace.enabled', $additionalInis) && \filter_var($additionalInis['datadog.trace.enabled'], FILTER_VALIDATE_BOOLEAN) === false)
+                || (array_key_exists('ddtrace.disable', $additionalInis) && \filter_var($additionalInis['ddtrace.disable'], FILTER_VALIDATE_BOOLEAN) === false);
+            $inis = static::getInis(!$disableTracing);
             if (!empty($additionalInis)) {
                 $inis = array_merge($inis, $additionalInis);
             }
