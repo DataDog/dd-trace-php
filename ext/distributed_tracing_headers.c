@@ -227,7 +227,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
         result.parent_id = parent_id;
         result.priority_sampling = (tracedata->trace_flags[1] & 1) == (tracedata->trace_flags[1] <= '9'); // ('a' & 1) == 1
 
-        // header format: "[*,]dd=s:1;o:rum;t.dm:-4;t.usr.id:12345[,*]"
+        // header format: "[*,]dd=p:'0000000000000111;s:1;o:rum;t.dm:-4;t.usr.id:12345[,*]"
         if (read_header(ZAI_STRL("TRACESTATE"), "tracestate", &tracestate, data)) {
             bool last_comma = true;
             result.tracestate = zend_string_alloc(ZSTR_LEN(tracestate), 0);
@@ -260,7 +260,13 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
                         }
                         size_t valuelen = valueend - valuestart;
 
-                        if (keylen == 1 && keystart[0] == 's') {
+                        if (keylen == 1 && keystart[0] == 'p') {
+                            zend_string *parent_key = zend_string_init("_dd.parent_id", strlen("_dd.parent_id"), 0);
+                            zval zv;
+                            ZVAL_STRINGL(&zv, valuestart, valuelen);
+                            zend_hash_update(&result.meta_tags, parent_key, &zv);
+                            zend_string_release(parent_key);
+                        } else if (keylen == 1 && keystart[0] == 's') {
                             int extraced_priority = strtol(valuestart, NULL, 10);
                             if ((result.priority_sampling > 0) == (extraced_priority > 0)) {
                                 result.priority_sampling = extraced_priority;

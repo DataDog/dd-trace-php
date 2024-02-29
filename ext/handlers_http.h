@@ -180,6 +180,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
 
                 zend_string *full_tracestate = ddtrace_format_tracestate(tracestate, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys);
                 if (full_tracestate) {
+                    // Replace dd=.... with dd=p:<zero padded span_id>;.....
                     ADD_HEADER("tracestate", "%.*s", (int)ZSTR_LEN(full_tracestate), ZSTR_VAL(full_tracestate));
                     zend_string_release(full_tracestate);
                 }
