@@ -573,6 +573,7 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     zai_hook_gshutdown();
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
+    // FrankenPHP calls `ts_free_thread()` in rshutdown
     if (!dd_is_main_thread && ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         dd_run_rust_thread_destructors(NULL);
     }
@@ -1014,6 +1015,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_active_sapi = datadog_php_sapi_from_name(datadog_php_string_view_from_cstr(sapi_module.name));
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
+    // FrankenPHP calls `ts_free_thread()` in rshutdown
     if (ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         dd_is_main_thread = true;
         glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
