@@ -62,7 +62,7 @@ $emptyReplays = 0;
 $valid = 0;
 
 for ($i = 0; $i < $totalRequests; $i++) {
-    $rr->setResponse(["rate_by_service" => ["service:,env:" => rand(0, 1)]]);
+    $rr->setResponse(["rate_by_service" => ["service:,env:" => $i/19]]);
     foo();
     $rr->waitForFlush();
     $sampling = $get_sampling();
