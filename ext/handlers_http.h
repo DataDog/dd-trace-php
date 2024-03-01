@@ -7,10 +7,17 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, zend_string *origin, zend_long sampling_priority, zend_string *propagated_tags, zend_array *tracestate_unknown_dd_keys) {
+static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, uint64_t span_id, zend_string *origin, zend_long sampling_priority, zend_string *propagated_tags, zend_array *tracestate_unknown_dd_keys) {
     smart_str str = {0};
 
+    if (span_id) {
+        smart_str_append_printf(&str, "p:%016" PRIx64, span_id);
+    }
+
     if (origin) {
+        if (str.s) {
+            smart_str_appendc(&str, ';');
+        }
         smart_str_appends(&str, "o:");
         signed char *cur = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s);
         smart_str_append(&str, origin);
@@ -178,9 +185,16 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
                            span_id,
                            sampling_priority > 0);
 
-                zend_string *full_tracestate = ddtrace_format_tracestate(tracestate, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys);
+                uint64_t propagated_span_id = 0;
+                zval *old_parent_id;
+                if (root) {
+                    propagated_span_id = span_id;
+                } else if ((old_parent_id = zend_hash_str_find(&DDTRACE_G(root_span_tags_preset), ZEND_STRL("_dd.parent_id")))) {
+                    propagated_span_id = ddtrace_parse_hex_span_id(old_parent_id);
+                }
+
+                zend_string *full_tracestate = ddtrace_format_tracestate(tracestate, propagated_span_id, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys);
                 if (full_tracestate) {
-                    // Replace dd=.... with dd=p:<zero padded span_id>;.....
                     ADD_HEADER("tracestate", "%.*s", (int)ZSTR_LEN(full_tracestate), ZSTR_VAL(full_tracestate));
                     zend_string_release(full_tracestate);
                 }
