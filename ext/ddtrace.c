@@ -118,7 +118,7 @@ static bool dd_has_other_observers;
 static int dd_observer_extension_backup = -1;
 #endif
 
-datadog_php_sapi ddtrace_active_sapi;
+static datadog_php_sapi ddtrace_active_sapi = DATADOG_PHP_SAPI_UNKNOWN;
 
 _Atomic(int64_t) ddtrace_warn_legacy_api;
 
