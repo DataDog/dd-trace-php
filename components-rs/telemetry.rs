@@ -1,4 +1,3 @@
-use datadog_sidecar::config;
 use datadog_sidecar::interface::blocking::SidecarTransport;
 use datadog_sidecar::interface::{blocking, InstanceId, QueueId};
 use ddcommon_ffi::slice::AsBytes;
@@ -7,17 +6,11 @@ use ddtelemetry::data;
 use ddtelemetry::data::{Dependency, Integration};
 use ddtelemetry::worker::TelemetryActions;
 use ddtelemetry_ffi::{try_c, MaybeError};
-#[cfg(any(windows, php_shared_build))]
-use spawn_worker::LibDependency;
 use std::error::Error;
 use std::path::Path;
 use std::fs;
-use std::ffi::{c_char, CStr, OsStr};
-#[cfg(unix)]
-use std::os::unix::ffi::OsStrExt;
-use datadog_sidecar::config::LogMethod;
-#[cfg(windows)]
-use spawn_worker::get_trampoline_target_data;
+use serde::Deserialize;
+use serde_with::{serde_as, VecSkipError};
 
 #[cfg(windows)]
 macro_rules! windowsify_path {
@@ -46,24 +39,26 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
     false
 }
 
+#[serde_as]
+#[derive(Deserialize)]
+struct ComposerPackages {
+    #[serde_as(as = "VecSkipError<_>")]
+    packages: Vec<Dependency>,
+}
+
 fn parse_composer_installed_json(
     transport: &mut Box<SidecarTransport>,
     instance_id: &InstanceId,
     queue_id: &QueueId,
     path: String,
 ) -> Result<(), Box<dyn Error>> {
-    let json = fs::read_to_string(Path::new(path.as_str()))?;
-    let parsed = json::parse(json.as_str())?;
+    let mut json = fs::read(Path::new(path.as_str()))?;
+    let parsed: ComposerPackages = simd_json::from_slice(json.as_mut_slice())?;
 
     let mut deps = Vec::new();
 
-    for dep in parsed["packages"].members() {
-        if let Some(name) = dep["name"].as_str() {
-            deps.push(TelemetryActions::AddDependecy(Dependency {
-                name: String::from(name),
-                version: dep["version"].as_str().map(String::from),
-            }));
-        }
+    for dep in parsed.packages.into_iter() {
+        deps.push(TelemetryActions::AddDependecy(dep));
     }
 
     if !deps.is_empty() {
@@ -71,67 +66,6 @@ fn parse_composer_installed_json(
     }
 
     Ok(())
-}
-
-#[cfg(php_shared_build)]
-extern "C" {
-    static DDTRACE_MOCK_PHP: u8;
-    static DDTRACE_MOCK_PHP_SIZE: usize;
-}
-
-#[cfg(php_shared_build)]
-fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    let mock = unsafe { std::slice::from_raw_parts(&DDTRACE_MOCK_PHP, DDTRACE_MOCK_PHP_SIZE) };
-    cfg.library_dependencies
-        .push(LibDependency::Binary(mock));
-    datadog_sidecar::start_or_connect_to_sidecar(cfg)
-}
-
-#[cfg(not(any(windows, php_shared_build)))]
-fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    datadog_sidecar::start_or_connect_to_sidecar(cfg)
-}
-
-#[no_mangle]
-#[cfg(windows)]
-pub static mut DDOG_PHP_FUNCTION: *const u8 = std::ptr::null();
-
-#[cfg(windows)]
-fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    let php_dll = get_trampoline_target_data(unsafe { DDOG_PHP_FUNCTION })?;
-    cfg.library_dependencies.push(LibDependency::Path(php_dll.into()));
-    datadog_sidecar::start_or_connect_to_sidecar(cfg)
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_sidecar_connect_php(
-    connection: &mut *mut SidecarTransport,
-    error_path: *const c_char,
-    log_level: CharSlice,
-    enable_telemetry: bool,
-) -> MaybeError {
-    let mut cfg = config::FromEnv::config();
-    cfg.self_telemetry = enable_telemetry;
-    unsafe {
-        if *error_path != 0 {
-            let error_path = CStr::from_ptr(error_path).to_bytes();
-            #[cfg(windows)]
-            if let Ok(str) = std::str::from_utf8(error_path) {
-                cfg.log_method = LogMethod::File(str.into());
-            }
-            #[cfg(not(windows))]
-            { cfg.log_method = LogMethod::File(OsStr::from_bytes(error_path).into()); }
-        }
-        #[cfg(windows)]
-        let log_level = log_level.to_utf8_lossy().as_ref().into();
-        #[cfg(not(windows))]
-        let log_level = OsStr::from_bytes(log_level.as_bytes()).into();
-        cfg.child_env.insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), log_level);
-    }
-    let stream = Box::new(try_c!(run_sidecar(cfg)));
-    *connection = Box::into_raw(stream);
-
-    MaybeError::None
 }
 
 #[derive(Default)]
