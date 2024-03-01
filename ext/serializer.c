@@ -179,7 +179,7 @@ size_t ddtrace_serialize_simple_array_into_mapped_menory(zval *trace, char *map,
         mpack_writer_destroy(&writer);
         return 0;
     }
-    size_t written = mpack_writer_buffer_size(&writer);
+    size_t written = mpack_writer_buffer_used(&writer);
     // finish writing
     if (mpack_writer_destroy(&writer) != mpack_ok) {
         return 0;

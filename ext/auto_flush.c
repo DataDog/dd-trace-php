@@ -70,10 +70,14 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                         do {
                             if (send_error.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
                                 // retry sending it directly through the socket as last resort. May block though with large traces.
-                                ddog_map_shm(shm, &mapped_shm, &ptr, &size);
-                                ddog_MaybeError retry_error = ddog_sidecar_send_trace_v04_bytes(&ddtrace_sidecar, ddtrace_sidecar_instance_id, (ddog_CharSlice){ .ptr = ptr, .len = size }, &tags);
-                                shm = ddog_unmap_shm(mapped_shm);
-                                ddog_drop_anon_shm_handle(shm);
+                                ptr = emalloc(written);
+                                // write the same thing again
+                                ddtrace_serialize_simple_array_into_mapped_menory(&traces, ptr, written);
+
+                                ddog_MaybeError retry_error = ddog_sidecar_send_trace_v04_bytes(&ddtrace_sidecar, ddtrace_sidecar_instance_id, (ddog_CharSlice){ .ptr = ptr, .len = written }, &tags);
+
+                                efree(ptr);
+
                                 if (ddtrace_ffi_try("Failed sending traces to the sidecar", retry_error)) {
                                     LOG(Debug, "Failed sending traces via shm to sidecar: %.*s", (int) send_error.some.len, send_error.some.ptr);
                                 } else {
