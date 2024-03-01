@@ -5,17 +5,32 @@ dd_trace_send_traces_via_thread is passed wrong parameters
 
 declare(strict_types = 1);
 
-try {
-    \dd_trace_send_traces_via_thread(0);
-} catch (ArgumentCountError $e) {
-    echo "OK1\n";
+if (PHP_VERSION_ID < 70100) {
+    try {
+        \dd_trace_send_traces_via_thread(0);
+    } catch (TypeError $e) {
+        echo "OK1\n";
+    }
+
+    try {
+        \dd_trace_send_traces_via_thread(0, ["foo"]);
+    } catch (TypeError $e) {
+        echo "OK2\n";
+    }
+} else {
+    try {
+        \dd_trace_send_traces_via_thread(0);
+    } catch (ArgumentCountError $e) {
+        echo "OK1\n";
+    }
+
+    try {
+        \dd_trace_send_traces_via_thread(0, ["foo"]);
+    } catch (ArgumentCountError $e) {
+        echo "OK2\n";
+    }
 }
 
-try {
-    \dd_trace_send_traces_via_thread(0, ["foo"]);
-} catch (ArgumentCountError $e) {
-    echo "OK2\n";
-}
 
 try {
     \dd_trace_send_traces_via_thread(0, ["foo"], new StdClass());

@@ -5,16 +5,30 @@ DDTrace_hook_method is passed wrong parameters
 
 declare(strict_types = 1);
 
-try {
-    \DDTrace\hook_method();
-} catch (ArgumentCountError $e) {
-    echo "OK1\n";
-}
+if (PHP_VERSION_ID < 70100) {
+    try {
+        \DDTrace\hook_method();
+    } catch (TypeError $e) {
+        echo "OK1\n";
+    }
 
-try {
-    \DDTrace\hook_method("foo");
-} catch (ArgumentCountError $e) {
-    echo "OK2\n";
+    try {
+        \DDTrace\hook_method("foo");
+    } catch (TypeError $e) {
+        echo "OK2\n";
+    }
+} else {
+    try {
+        \DDTrace\hook_method();
+    } catch (ArgumentCountError $e) {
+        echo "OK1\n";
+    }
+
+    try {
+        \DDTrace\hook_method("foo");
+    } catch (ArgumentCountError $e) {
+        echo "OK2\n";
+    }
 }
 
 try {
