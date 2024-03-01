@@ -12,6 +12,7 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/integration-telemetry.out"
 ddtrace.request_init_hook="{PWD}/../sandbox/deferred_loading_helper.php"
+zend.assertions=1
 --FILE--
 <?php
 

@@ -928,8 +928,9 @@ jobs:
             DEBIAN_FRONTEND=noninteractive apt-get install -y php8.1 php8.1-dom php-pear
             cd /root
             php ./build/packages/datadog-setup.php --php-bin all --file $(ls build/packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
+            rm /etc/php/8.1/cli/conf.d/10-opcache.ini
             sed -i 's/datadog.trace.request_init_hook/\;datadog.trace.request_init_hook/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
-            pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1 -d ddtrace.request_init_hook=" \$(find tests/ext -type d)
+            pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" \$(find tests/ext -type d)
             COMMANDS
 
   test_arm:
