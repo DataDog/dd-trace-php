@@ -118,6 +118,8 @@ static bool dd_has_other_observers;
 static int dd_observer_extension_backup = -1;
 #endif
 
+static datadog_php_sapi ddtrace_active_sapi = DATADOG_PHP_SAPI_UNKNOWN;
+
 _Atomic(int64_t) ddtrace_warn_legacy_api;
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
@@ -579,7 +581,8 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     zai_hook_gshutdown();
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
-    if (!dd_is_main_thread) {
+    // FrankenPHP calls `ts_free_thread()` in rshutdown
+    if (!dd_is_main_thread && ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         dd_run_rust_thread_destructors(NULL);
     }
 #endif
@@ -991,13 +994,14 @@ static void dd_register_fatal_error_ce(void) {
     ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_ce_exception);
 }
 
-static bool dd_is_compatible_sapi(datadog_php_string_view module_name) {
-    switch (datadog_php_sapi_from_name(module_name)) {
+static bool dd_is_compatible_sapi() {
+    switch (ddtrace_active_sapi) {
         case DATADOG_PHP_SAPI_APACHE2HANDLER:
         case DATADOG_PHP_SAPI_CGI_FCGI:
         case DATADOG_PHP_SAPI_CLI:
         case DATADOG_PHP_SAPI_CLI_SERVER:
         case DATADOG_PHP_SAPI_FPM_FCGI:
+        case DATADOG_PHP_SAPI_FRANKENPHP:
         case DATADOG_PHP_SAPI_TEA:
             return true;
 
@@ -1007,8 +1011,7 @@ static bool dd_is_compatible_sapi(datadog_php_string_view module_name) {
 }
 
 static void dd_disable_if_incompatible_sapi_detected(void) {
-    datadog_php_string_view module_name = datadog_php_string_view_from_cstr(sapi_module.name);
-    if (UNEXPECTED(!dd_is_compatible_sapi(module_name))) {
+    if (UNEXPECTED(!dd_is_compatible_sapi())) {
         LOG(WARN, "Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
         ddtrace_disable = 1;
     }
@@ -1017,10 +1020,15 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
+    ddtrace_active_sapi = datadog_php_sapi_from_name(datadog_php_string_view_from_cstr(sapi_module.name));
+
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
-    dd_is_main_thread = true;
-    glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
-    atexit(dd_clean_main_thread_locals);
+    // FrankenPHP calls `ts_free_thread()` in rshutdown
+    if (ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
+        dd_is_main_thread = true;
+        glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
+        atexit(dd_clean_main_thread_locals);
+    }
 #endif
 
     // Reset on every minit for `apachectl graceful`.
