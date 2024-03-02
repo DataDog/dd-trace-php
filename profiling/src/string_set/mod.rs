@@ -22,7 +22,7 @@ struct LengthPrefixedString {
 
 /// WARNING! Definitely not safe generally! Keep this as private type.
 #[derive(Copy, Clone)]
-struct LengthPrefixedStr(*const u8);
+struct LengthPrefixedStr(*const LengthPrefixedStringHeader);
 
 /// # SAFETY
 /// NOT INHERENTLY SAFE as it's just a pointer! The container using the
@@ -42,7 +42,7 @@ impl LengthPrefixedStr {
         // SAFETY:
         let bytes_ptr = len_ptr.cast::<u8>().add(2);
         ptr::copy_nonoverlapping(src.as_ptr(), bytes_ptr, src.len());
-        Self(base_ptr)
+        Self(header)
     }
 }
 
@@ -53,7 +53,7 @@ impl Deref for LengthPrefixedStr {
         let header = self.0.cast::<LengthPrefixedStringHeader>();
         // SAFETY: no mutable references are created for these strings, and
         // the pointer is valid as long as encapsulation is correct.
-        let len = u16::from_ne_bytes(unsafe { &*header }.length);
+        let len = u16::from_ne_bytes(unsafe { (*header).length });
         // SAFETY: header is repr(C), and str data comes immediately after it.
         let ptr = unsafe { header.add(1) }.cast::<u8>();
         // SAFETY: u8 slices cannot be misaligned, the string was created from
@@ -136,14 +136,13 @@ impl StringSet {
             return None;
         }
 
-        match self.arena.data_ptr() {
-            None => None,
-            Some(data_ptr) => {
-                let base_ptr = data_ptr.as_ptr();
-                let item_ptr = unsafe { base_ptr.add(handle.offset as usize) };
-                // SAFETY: the
-                Some(unsafe { mem::transmute::<&str, &str>(LengthPrefixedStr(item_ptr).deref()) })
-            }
+        let base_ptr = self.arena.base_ptr();
+        if !base_ptr.is_null() {
+            let item_ptr = unsafe { base_ptr.add(handle.offset as usize) }.cast();
+            // SAFETY: todo
+            Some(unsafe { mem::transmute::<&str, &str>(LengthPrefixedStr(item_ptr).deref()) })
+        } else {
+            None
         }
     }
 
@@ -170,11 +169,10 @@ impl StringSet {
             Some(prefixed_str) => *prefixed_str,
         };
 
-        // SAFETY: todo
-        let base_ptr = unsafe { self.arena.data_ptr().unwrap_unchecked() }.as_ptr();
-
+        let base_ptr = self.arena.base_ptr();
+        let item_ptr = prefixed_str.0.cast::<u8>();
         // won't be negative, will fit in u32
-        let offset = unsafe { prefixed_str.0.offset_from(base_ptr) as usize as u32 };
+        let offset = unsafe { item_ptr.offset_from(base_ptr) as usize as u32 };
 
         Ok(StringHandle {
             generation: self.generation,

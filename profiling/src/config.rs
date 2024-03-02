@@ -975,7 +975,6 @@ pub(crate) unsafe fn on_fork_in_child() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::MaybeUninit;
     use libc::memcmp;
 
     #[test]

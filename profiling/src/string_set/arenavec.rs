@@ -20,28 +20,52 @@ struct ArenaHeader {
     data: [mem::MaybeUninit<u8>; 0],
 }
 
-#[repr(C)]
-pub struct ArenaSlice {
-    // "borrows" the pointer. It cannot add new items.
-    ptr: Option<ptr::NonNull<ArenaHeader>>,
+#[repr(transparent)]
+struct HeaderPtr {
+    ptr: ptr::NonNull<ArenaHeader>,
 }
 
-impl Clone for ArenaSlice {
+impl Deref for HeaderPtr {
+    type Target = ArenaHeader;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: kept alive by refcount, no mutable references are ever made
+        // to the header.
+        unsafe { &self.ptr.as_ref() }
+    }
+}
+
+impl Clone for HeaderPtr {
     fn clone(&self) -> Self {
-        match self.ptr {
-            None => Self { ptr: None },
-            Some(nonnull) => {
-                // SAFETY: since the ArenaVec holds a reference to the data, it
-                // will still be alive.
-                let header = unsafe { nonnull.as_ref() };
+        self.deref().rc.fetch_add(1, Ordering::Acquire);
+        Self { ptr: self.ptr }
+    }
+}
 
-                // todo: should we consider overflows here and abort?
-                header.rc.fetch_add(1, Ordering::SeqCst);
+/// # Safety
+/// Refcount keeps the item alive.
+unsafe impl Send for HeaderPtr {}
 
-                Self { ptr: Some(nonnull) }
+impl Drop for HeaderPtr {
+    fn drop(&mut self) {
+        let header = self.deref();
+        if header.rc.fetch_sub(1, Ordering::SeqCst) == 1 {
+            // Safety: passing pointer and size un-changed.
+            let _result = unsafe { virtual_free(self.ptr.cast(), header.allocation_size as usize) };
+
+            #[cfg(debug_assertions)]
+            if let Err(err) = _result {
+                panic!("failed to drop ArenaVec: {err:#}");
             }
         }
     }
+}
+
+#[derive(Clone)]
+#[repr(C)]
+pub struct ArenaSlice {
+    // "borrows" the pointer. It cannot add new items.
+    ptr: Option<HeaderPtr>,
 }
 
 impl ArenaHeader {
@@ -60,7 +84,11 @@ pub struct ArenaVec {
     /// "owns" the header, meaning it is allowed to append new items, but it
     /// cannot mutate existing items. When appending, be careful to write the
     /// item before atomically increasing the length.
-    header_ptr: Option<ptr::NonNull<ArenaHeader>>,
+    ///
+    /// Dangles when capacity=0.
+    ///
+    /// Must never create a mutable reference to the header!
+    header_ptr: mem::ManuallyDrop<HeaderPtr>,
 
     /// The number of bytes allocated in the arena. This does not include the
     /// space occupied by the header. This is also duplicate information, the
@@ -75,34 +103,14 @@ pub struct ArenaVec {
 
 impl Drop for ArenaVec {
     fn drop(&mut self) {
-        if let Some(nonnull) = self.header_ptr.take() {
-            // SAFETY: since the ArenaVec holds a reference to the data, it will
-            // still be alive.
-            let header = unsafe { nonnull.as_ref() };
-            if header.rc.fetch_sub(1, Ordering::SeqCst) == 1 {
-                // Safety: passing pointer and size un-changed.
-                let _result =
-                    unsafe { virtual_free(nonnull.cast(), header.allocation_size as usize) };
-
-                #[cfg(debug_assertions)]
-                if let Err(err) = _result {
-                    panic!("failed to drop ArenaVec: {err:#}");
-                }
-            }
+        if self.capacity != 0 {
+            // SAFETY: dropped only if capacity is non-zero, compiler enforces
+            // this is called only once, unless the user invokes unsafe drop
+            // as well, and it's their responsibility to get that right.
+            unsafe { mem::ManuallyDrop::drop(&mut self.header_ptr) }
         }
     }
 }
-
-/// # Safety
-/// The struct only holds a pointer to the real data. Since it owns the header,
-/// it can be moved to another thread without issue.
-unsafe impl Send for ArenaVec {}
-
-
-/// # Safety
-/// The struct only holds a pointer to the real data. It only exposes
-/// thread-safe methods for reading data.
-unsafe impl Send for ArenaSlice {}
 
 static mut EMPTY_ARENA_HEADER: ArenaHeader = ArenaHeader {
     allocation_size: 0,
@@ -114,7 +122,9 @@ static mut EMPTY_ARENA_HEADER: ArenaHeader = ArenaHeader {
 impl ArenaVec {
     pub const fn new() -> Self {
         Self {
-            header_ptr: None,
+            header_ptr: mem::ManuallyDrop::new(HeaderPtr {
+                ptr: ptr::NonNull::dangling(),
+            }),
             length: Cell::new(0),
             capacity: 0,
         }
@@ -150,7 +160,7 @@ impl ArenaVec {
 
                 let header_size = mem::size_of::<ArenaHeader>() as u32;
                 Ok(Self {
-                    header_ptr: Some(nonnull),
+                    header_ptr: mem::ManuallyDrop::new(HeaderPtr { ptr: nonnull }),
                     length: Cell::new(0),
                     // SAFETY: points inside an allocation (non-null).
                     // will not underflow, min_bytes was .max'd with size of the header.
@@ -170,6 +180,7 @@ impl ArenaVec {
         self.len() == 0
     }
 
+    /// Tries to reserve `additional` bytes. Returns a fatptr to it on success.
     pub fn try_reserve(&self, additional: u32) -> Result<ptr::NonNull<[u8]>, AllocError> {
         let len = self.len();
         // When all 3 u32 numbers are converted to u64, this cannot overflow.
@@ -177,11 +188,9 @@ impl ArenaVec {
             return Err(AllocError);
         } else {
             unsafe {
-                // SAFETY: if there room for the reservation, there must be a
-                // mapping backing the ArenaVec.
-                let data_ptr = self.data_ptr().unwrap_unchecked().as_ptr();
-                // SAFETY: this is in-bounds of the mapping, check math above.
-                let reserved_addr = data_ptr.add(len as usize);
+                // SAFETY: if there is capacity for the reservation, then this
+                // pointer is not-null and  is in-bounds of the mapping.
+                let reserved_addr = self.base_ptr_mut().add(len as usize);
                 let slice = ptr::slice_from_raw_parts_mut(reserved_addr, additional as usize);
                 // SAFETY: it exists within the mapping, inherently non-null.
                 Ok(ptr::NonNull::new_unchecked(slice))
@@ -195,53 +204,35 @@ impl ArenaVec {
     pub unsafe fn commit(&self, additional: u32) {
         let new_len = self.length.get() + additional;
         self.length.set(new_len);
-        // SAFETY: if the reservation succeeded, then there must be a mapping.
-        let header_ptr = self.header_ptr.unwrap_unchecked().as_ptr();
-        // SAFETY: the header is a valid ArenaHeader object, so projecting to
-        // the len member is safe.
-        let len_ptr = ptr::addr_of!((*header_ptr).len);
-        // SAFETY: the len member never has a mutable reference to it, so it's
-        // safe to create a const reference to it.
-        (*len_ptr).store(new_len, Ordering::Release);
+        let header = self.header_ptr.deref();
+        header.len.store(new_len, Ordering::Release);
     }
 
+    /// Returns a pointer to the beginning of the item storage (skips header).
+    /// The caller must be sure to not mutate existing already inserted through
+    /// this pointer!
     #[inline]
-    pub(crate) fn data_ptr(&self) -> Option<ptr::NonNull<u8>> {
-        match self.header_ptr {
-            Some(nonnull_header) => {
-                let header_ptr = nonnull_header.as_ptr();
-                // SAFETY: since header is a valid mapping, projection to the
-                // data member is safe.
-                let data_ptr = unsafe { ptr::addr_of_mut!((*header_ptr).data).cast::<u8>() };
-                Some(unsafe { ptr::NonNull::new_unchecked(data_ptr) })
-            }
-            None => None,
+    pub(crate) fn base_ptr(&self) -> *const u8 {
+        // SAFETY: reducing to const and not modifying existing items.
+        unsafe { self.base_ptr_mut() }
+    }
+
+    /// # Safety
+    /// Calling this function is safe but since doing things with it is
+    /// dangerous, it's marked unsafe anyway to alert the caller. Items which
+    /// already exist in the arena must not be modified.
+    unsafe fn base_ptr_mut(&self) -> *mut u8 {
+        if self.capacity != 0 {
+            let nonnull = self.header_ptr.ptr;
+            ptr::addr_of_mut!((*nonnull.as_ptr()).data).cast::<u8>()
+        } else {
+            ptr::null_mut()
         }
     }
 
     pub fn slice(&self) -> ArenaSlice {
-        match self.header_ptr {
-            None => ArenaSlice { ptr: None },
-            Some(header) => {
-                unsafe {
-                    // SAFETY:
-                    let rc_ptr = ptr::addr_of!((*header.as_ptr()).rc);
-                    // SAFETY:
-                    (*rc_ptr).fetch_add(1, Ordering::Release);
-                }
-                ArenaSlice { ptr: Some(header) }
-            }
-        }
-    }
-}
-
-impl ArenaSlice {
-    fn header(&self) -> Option<&ArenaHeader> {
-        match self.ptr.as_ref() {
-            None => None,
-            // SAFETY: slice has a reference count, will be alive.
-            Some(nonull) => unsafe { Some(nonull.as_ref()) },
-        }
+        let ptr = (self.capacity != 0).then(|| HeaderPtr::clone(&*self.header_ptr));
+        ArenaSlice { ptr }
     }
 }
 
@@ -261,9 +252,9 @@ impl Deref for ArenaSlice {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
-        match self.header() {
-            None => &[],
+        match &self.ptr {
             Some(header) => header.deref(),
+            None => &[],
         }
     }
 }
@@ -274,18 +265,12 @@ impl Deref for ArenaVec {
     fn deref(&self) -> &Self::Target {
         // This is re-implemented instead of using the header's deref to avoid
         // having to load the atomic length.
-        match self.data_ptr() {
-            None => &[],
-
-            // SAFETY: struct retains a refcount, so it's definitely alive or
-            // something has already been screwed up.
-            Some(nonnull) => {
-                let ptr = nonnull.as_ptr();
-                let len = self.len() as usize;
-                // SAFETY: ArenaHeader::layout() aligned it correctly, and  the first
-                // `len` are properly initialized.
-                unsafe { slice::from_raw_parts(ptr, len) }
-            }
+        let base_ptr = self.base_ptr();
+        if !base_ptr.is_null() {
+            // SAFETY: cannot be misaligned, and first `len` are initialized.
+            unsafe { slice::from_raw_parts(base_ptr, self.len() as usize) }
+        } else {
+            &[]
         }
     }
 }
@@ -302,7 +287,6 @@ mod tests {
         // One extra byte, since that's the capacity we asked for.
         assert_eq!(layout.size(), 1 + mem::size_of::<ArenaHeader>());
     }
-
 
     #[test]
     fn test_is_send() {
