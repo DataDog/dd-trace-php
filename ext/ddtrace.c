@@ -184,7 +184,7 @@ static void dd_patched_zend_call_known_function(
 
     // If current_execute_data is on the stack, move it to the VM stack
     zend_execute_data *execute_data = EG(current_execute_data);
-    if ((uintptr_t)&retval > (uintptr_t)EX(func) && (uintptr_t)&retval - 0xfffff < (uintptr_t)EX(func)) {
+    if (execute_data && (uintptr_t)&retval > (uintptr_t)EX(func) && (uintptr_t)&retval - 0xfffff < (uintptr_t)EX(func)) {
         zend_execute_data *call = zend_vm_stack_push_call_frame_ex(
                 ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_execute_data), sizeof(zval)) +
                 ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_op), sizeof(zval)) +

@@ -4,6 +4,7 @@ deferred loading dispatch can be overridden
 _DD_LOAD_TEST_INTEGRATIONS=1
 --INI--
 ddtrace.request_init_hook={PWD}/deferred_loading_helper.php
+zend.assertions=1
 --FILE--
 <?php
 

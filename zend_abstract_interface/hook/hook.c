@@ -193,6 +193,7 @@ static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_
         ZEND_MAP_PTR_INIT(func.common.run_time_cache, hooks->run_time_cache);
 #else
         ZEND_MAP_PTR_INIT(func.op_array.run_time_cache, hooks->run_time_cache);
+        func.common.scope = NULL; // attributes are checked on PHP 8.0, 8.1
 #endif
         zai_hook_on_update(&func, true, &zai_hook_last_observer);
     }
