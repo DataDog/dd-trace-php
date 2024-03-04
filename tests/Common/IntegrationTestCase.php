@@ -35,7 +35,7 @@ abstract class IntegrationTestCase extends BaseTestCase
             $csv = $csv . $ext . ';' . phpversion($ext) . '\n';
         }
 
-        $artifactsDir = '/tmp/artifacts';
+        $artifactsDir = '/tmp/artifacts/';
         if ( !file_exists( $artifactsDir ) && !is_dir( $artifactsDir ) ) {
             mkdir($artifactsDir, 0755, true);
         }
