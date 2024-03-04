@@ -38,7 +38,6 @@ EOD;
         self::putenv('DD_TRACE_ANALYTICS_ENABLED');
         self::putenv('DD_TRACE_DEBUG');
         self::putenv('DD_TRACE_ENABLED');
-        self::putenv('DD_TRACE_GLOBAL_TAGS');
         self::putenv('DD_TRACE_PDO_ENABLED');
         self::putenv('DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST');
         self::putenv('DD_TRACE_SAMPLE_RATE');
@@ -256,12 +255,6 @@ EOD;
     public function testGlobalTags()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1,key2:value2']);
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
-    }
-
-    public function testGlobalTagsLegacyEnv()
-    {
-        $this->putEnvAndReloadConfig(['DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2']);
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }
 

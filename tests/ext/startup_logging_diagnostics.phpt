@@ -13,7 +13,7 @@ $env = [
     'DD_TRACE_DEBUG' => '1',
     'DD_AGENT_HOST' => 'invalid_host',
     'DD_SERVICE' => 'foo_service',
-    'DD_TRACE_GLOBAL_TAGS' => 'foo:tag',
+    'DD_TAGS' => 'foo:tag',
 ];
 $logs = dd_get_startup_logs($args, $env);
 
@@ -21,7 +21,7 @@ dd_dump_startup_logs($logs, [
     'open_basedir_sources_allowed',
     'open_basedir_container_tagging_allowed',
     'service',
-    'DD_TRACE_GLOBAL_TAGS',
+    'tags',
     'agent_url',
     'datadog.trace.sources_path',
     'open_basedir_configured',
@@ -32,9 +32,9 @@ var_dump(strncasecmp(PHP_OS, "WIN", 3) == 0 || isset($logs["agent_error"]));
 --EXPECTF--
 open_basedir_sources_allowed: false
 open_basedir_container_tagging_allowed: false
-DD_TRACE_GLOBAL_TAGS: "'DD_TRACE_GLOBAL_TAGS=foo:tag' is deprecated, use DD_TAGS instead."
 service: "foo_service"
 agent_url: "http://invalid_host:8126"
+tags: {"foo":"tag"}
 d%s.sources_path: "%s/includes/"
 open_basedir_configured: true
 bool(true)
