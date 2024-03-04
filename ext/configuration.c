@@ -134,12 +134,7 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
         return;
     }
 
-    if (env_name.ptr == strstr(env_name.ptr, "DDTRACE_")) {
-        // legacy names
-        dd_copy_tolower(ini_name->ptr, env_name.ptr);
-        ini_name->len = env_name.len;
-        ini_name->ptr[sizeof("ddtrace") - 1] = '.';
-    } else if (env_name.ptr == strstr(env_name.ptr, "DD_")) {
+    if (env_name.ptr == strstr(env_name.ptr, "DD_")) {
         dd_copy_tolower(ini_name->ptr + DD_TO_DATADOG_INC, env_name.ptr);
         memcpy(ini_name->ptr, "datadog.", sizeof("datadog.") - 1);
         ini_name->len = env_name.len + DD_TO_DATADOG_INC;
