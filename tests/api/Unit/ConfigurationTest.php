@@ -33,7 +33,6 @@ EOD;
     {
         self::putenv('DD_DISTRIBUTED_TRACING');
         self::putenv('DD_ENV');
-        self::putenv('DD_SAMPLING_RATE');
         self::putenv('DD_SERVICE_MAPPING');
         self::putenv('DD_SERVICE');
         self::putenv('DD_TAGS');
@@ -293,19 +292,6 @@ EOD;
                 ],
                 1.0,
             ],
-            'deprecated DD_SAMPLING_RATE can still be used' => [
-                [
-                    'DD_SAMPLING_RATE=0.7',
-                ],
-                0.7,
-            ],
-            'DD_TRACE_SAMPLE_RATE wins over deprecated DD_SAMPLING_RATE' => [
-                [
-                    'DD_SAMPLING_RATE=0.3',
-                    'DD_TRACE_SAMPLE_RATE=0.7',
-                ],
-                0.7,
-            ],
         ];
     }
 
@@ -390,7 +376,7 @@ EOD;
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }
-    
+
     public function testGlobalTagsWrongValueJustResultsInNoTags()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=wrong_key_value']);

@@ -3,7 +3,7 @@ Test max_per_second single span limiting
 --SKIPIF--
 <?php if (getenv("USE_ZEND_ALLOC") === "0" && !getenv("SKIP_ASAN")) die('skip timing sensitive test, does not make sense with valgrind'); ?>
 --ENV--
-DD_SAMPLING_RATE=0
+DD_TRACE_SAMPLE_RATE=0
 DD_SPAN_SAMPLING_RULES=[{"sample_rate":1,"max_per_second":10}]
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--

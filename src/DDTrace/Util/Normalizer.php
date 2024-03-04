@@ -75,27 +75,10 @@ class Normalizer
         $incomingMappings = self::decodeConfigSet("datadog.trace.resource_uri_mapping_incoming");
         $outgoingMappings = self::decodeConfigSet("datadog.trace.resource_uri_mapping_outgoing");
 
-        // We can now be in one of 3 cases:
+        // We can now be in one of 2 cases:
         //   1) At least one of DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX and DD_TRACE_RESOURCE_URI_MAPPING_INCOMING|OUTGOING
         //      is defined.
         //   2) Nothing is defined, then apply *new normalization*.
-        //      is defined. Then ignore legacy DD_TRACE_RESOURCE_URI_MAPPING and apply *new normalization*.
-        //   2) Only DD_TRACE_RESOURCE_URI_MAPPING is set, then apply *legacy normalization* for backward compatibility.
-        //   3) Nothing is defined, then apply *new normalization*.
-
-        // DEPRECATED: Applying legacy normalization for backward compatibility if preconditions are matched.
-        $legacyMappings = getenv('DD_TRACE_RESOURCE_URI_MAPPING');
-        if (
-            empty($fragmentRegexes)
-            && empty($incomingMappings)
-            && empty($outgoingMappings)
-            && !empty($legacyMappings)
-        ) {
-            $normalizer = new Urls(explode(',', $legacyMappings));
-            return $normalizer->normalize($uriPath)
-                . self::cleanQueryString($inputUriPath, "datadog.trace.resource_uri_query_param_allowed");
-        }
-
 
         $result = $uriPath;
 

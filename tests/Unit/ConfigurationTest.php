@@ -31,7 +31,6 @@ EOD;
     {
         self::putenv('DD_DISTRIBUTED_TRACING');
         self::putenv('DD_ENV');
-        self::putenv('DD_SAMPLING_RATE');
         self::putenv('DD_SERVICE_MAPPING');
         self::putenv('DD_SERVICE');
         self::putenv('DD_TAGS');

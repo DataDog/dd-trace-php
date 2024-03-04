@@ -1,7 +1,7 @@
 --TEST--
 Ingest all spans
 --ENV--
-DD_SAMPLING_RATE=0
+DD_TRACE_SAMPLE_RATE=0
 DD_SPAN_SAMPLING_RULES=[{"sample_rate":1}]
 --FILE--
 <?php
