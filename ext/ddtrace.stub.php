@@ -992,29 +992,6 @@ namespace {
     function dd_trace_synchronous_flush(int $timeout): void {}
 
     /**
-     * Alias to dd_trace_push_span_id
-     *
-     * @alias dd_trace_push_span_id
-     * @deprecated
-     * @param string $existingID
-     * @return string
-     */
-    function dd_trace_generate_id(string $existingID): string {}
-
-    /**
-     * @deprecated
-     * @param string $existingID
-     * @return string
-     */
-    function dd_trace_push_span_id(string $existingID): string {}
-
-    /**
-     * @deprecated
-     * @return string
-     */
-    function dd_trace_pop_span_id(): string {}
-
-    /**
      * @deprecated
      * @return array
      */
