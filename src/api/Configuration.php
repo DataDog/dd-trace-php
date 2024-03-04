@@ -196,17 +196,6 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * Whether or not sandboxed tracing closures are enabled.
-     * @deprecated 0.48.0 Sandoxing is always enabled.
-     *
-     * @return bool
-     */
-    public function isSandboxEnabled()
-    {
-        return true;
-    }
-
-    /**
      * The name of the application.
      *
      * @param string $default
