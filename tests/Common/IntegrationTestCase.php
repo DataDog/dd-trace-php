@@ -40,7 +40,7 @@ abstract class IntegrationTestCase extends BaseTestCase
             mkdir($artifactsDir, 0755, true);
         }
 
-        file_put_contents($artifactsDir . '/' . get_class($this) . '.csv', $csv, FILE_APPEND);
+        file_put_contents($artifactsDir . '/' . get_class($this) . '.csv', $csv);
 
         $this->errorReportingBefore = error_reporting();
         $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
