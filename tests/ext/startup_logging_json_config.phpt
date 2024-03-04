@@ -20,7 +20,6 @@ DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=1
 DD_TRACE_MEASURE_COMPILE_TIME=0
 DD_TRACE_REPORT_HOSTNAME=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,mt_rand,DateTime::add
-DD_INTEGRATIONS_DISABLED=curl,mysqli
 DD_TRACE_ENABLED=0
 --INI--
 auto_prepend_file={PWD}/includes/sanity_check.php
@@ -51,7 +50,7 @@ dd_dump_startup_logs($logs, [
     'measure_compile_time',
     'report_hostname_on_root_span',
     'traced_internal_functions',
-    'integrations_disabled',
+    'auto_prepend_file_configured',
     'enabled_from_env',
 ]);
 ?>
@@ -76,5 +75,5 @@ http_client_split_by_domain: true
 measure_compile_time: false
 report_hostname_on_root_span: true
 traced_internal_functions: "array_sum,mt_rand,DateTime::add"
-integrations_disabled: "curl,mysqli"
+auto_prepend_file_configured: true
 enabled_from_env: false

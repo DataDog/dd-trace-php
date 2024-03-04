@@ -45,7 +45,7 @@ http_client_split_by_domain: false
 measure_compile_time: true
 report_hostname_on_root_span: false
 traced_internal_functions: null
-integrations_disabled: "default"
+auto_prepend_file_configured: false
 enabled_from_env: true
 opcache.file_cache: null
 datadog.trace.sources_path_reachable: false
