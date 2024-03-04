@@ -46,9 +46,11 @@ abstract class IntegrationTestCase extends BaseTestCase
             mkdir($artifactsDir, 0755, true);
         }
 
-        fwrite(STDOUT, "Writting to file: " . $artifactsDir . "/" . get_class($this) . ".csv\n");
+        $reflect = new ReflectionClass($this);
+        $fileName = $reflect->getShortName() . ".csv";
+        fwrite(STDOUT, "Writing to file: " . $artifactsDir . "/" . $fileName . "\n");
         fwrite(STDOUT, $csv);
-        file_put_contents($artifactsDir . "/" . get_class($this) . ".csv", $csv);
+        file_put_contents($artifactsDir . "/" . $fileName, $csv);
         fwrite(STDOUT, "!!!!!!!! Finished setting up artifacts\n");
 
         $this->errorReportingBefore = error_reporting();
