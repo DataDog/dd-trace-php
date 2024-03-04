@@ -50,7 +50,7 @@ extern bool runtime_config_first_init;
     SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                                            \
     CONFIG(CUSTOM(SET), DD_EXTRA_SERVICES, "", .parser = _parse_list)                                                                 \
     CONFIG(STRING, DD_APPSEC_HELPER_EXTRA_ARGS, "")                                                                                   \
-    CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                                       \
+    CONFIG(STRING, DD_SERVICE, "")                                                                       \
     CONFIG(STRING, DD_ENV, "")                                                                                                        \
     CONFIG(STRING, DD_VERSION, "")                                                                                                    \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true")                                                                                    \
