@@ -35,11 +35,16 @@ abstract class IntegrationTestCase extends BaseTestCase
             $csv = $csv . $ext . ';' . phpversion($ext) . '\n';
         }
 
+        $zendExts = get_loaded_extensions(true);
+        foreach ($zendExts as $ext) {
+            $csv = $csv . $ext . ';' . phpversion($ext) . '\n';
+        }
+
         $artifactsDir = '/tmp/artifacts';
         if ( !file_exists( $artifactsDir ) && !is_dir( $artifactsDir ) ) {
             mkdir($artifactsDir, 0755, true);
         }
-
+        
         file_put_contents($artifactsDir . '/' . get_class($this) . '.csv', $csv);
 
         $this->errorReportingBefore = error_reporting();
