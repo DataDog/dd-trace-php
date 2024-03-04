@@ -836,6 +836,8 @@ dependencies = [
  "rmp-serde",
  "sendfd",
  "serde",
+ "serde_with",
+ "simd-json",
  "spawn_worker",
  "sys-info",
  "tempfile",
