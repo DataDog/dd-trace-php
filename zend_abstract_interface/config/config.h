@@ -37,9 +37,6 @@ struct zai_config_entry_s {
     zai_str name;
     zai_config_type type;
     zai_str default_encoded_value;
-    // Alias env names in order of precedence:
-    // (e.g. DD_SERVICE_NAME, DD_TRACE_APP_NAME, ddtrace_app_name)
-    // TODO: Drop old names
     const zai_str *aliases;
     uint8_t aliases_count;
     // Accept or reject ini changes, potentially apply to the currently running system
