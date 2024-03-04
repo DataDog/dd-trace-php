@@ -29,6 +29,15 @@ abstract class IntegrationTestCase extends BaseTestCase
 
     protected function ddSetUp()
     {
+        $exts = get_loaded_extensions(false);
+        $csv = '';
+        foreach ($exts as $ext) {
+            $csv = $csv . $ext . ';' . phpversion($ext) . '\n';
+        }
+
+        mkdir('/tmp/artifacts', 0755, true);
+        file_put_contents('/tmp/artifacts/' . get_class($this) . '.csv', $csv, FILE_APPEND);
+
         $this->errorReportingBefore = error_reporting();
         $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         parent::ddSetUp();
