@@ -29,26 +29,27 @@ abstract class IntegrationTestCase extends BaseTestCase
 
     protected function ddSetUp()
     {
-        fwrite(STDOUT, '!!!!!!!! Setting up\n');
+        fwrite(STDOUT, "!!!!!!!! Setting up\n");
         $exts = get_loaded_extensions(false);
         $csv = '';
         foreach ($exts as $ext) {
-            $csv = $csv . $ext . ';' . phpversion($ext) . '\n';
+            $csv = $csv . $ext . ";" . phpversion($ext) . "\n";
         }
 
         $zendExts = get_loaded_extensions(true);
         foreach ($zendExts as $ext) {
-            $csv = $csv . $ext . ';' . phpversion($ext) . '\n';
+            $csv = $csv . $ext . ";" . phpversion($ext) . "\n";
         }
 
-        $artifactsDir = '/tmp/artifacts';
+        $artifactsDir = "/tmp/artifacts";
         if ( !file_exists( $artifactsDir ) && !is_dir( $artifactsDir ) ) {
             mkdir($artifactsDir, 0755, true);
         }
 
-        file_put_contents($artifactsDir . '/' . get_class($this) . '.csv', $csv);
+        fwrite(STDOUT, "Writting to file: " . $artifactsDir . "/" . get_class($this) . ".csv\n");
         fwrite(STDOUT, $csv);
-        fwrite(STDOUT, '!!!!!!!! Finished setting up artifacts\n');
+        file_put_contents($artifactsDir . "/" . get_class($this) . ".csv", $csv);
+        fwrite(STDOUT, "!!!!!!!! Finished setting up artifacts\n");
 
         $this->errorReportingBefore = error_reporting();
         $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
