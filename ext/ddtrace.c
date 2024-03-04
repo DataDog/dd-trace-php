@@ -40,7 +40,6 @@
 #include <components/log/log.h>
 
 #include "auto_flush.h"
-#include "circuit_breaker.h"
 #include "compatibility.h"
 #ifndef _WIN32
 #include "comms_php.h"
@@ -1775,48 +1774,6 @@ PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     }
 
     RETURN_BOOL(ddtrace_is_memory_under_limit());
-}
-
-PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    dd_tracer_circuit_breaker_register_error();
-
-    RETURN_BOOL(1);
-}
-
-PHP_FUNCTION(dd_tracer_circuit_breaker_register_success) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    dd_tracer_circuit_breaker_register_success();
-
-    RETURN_BOOL(1);
-}
-
-PHP_FUNCTION(dd_tracer_circuit_breaker_can_try) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    RETURN_BOOL(dd_tracer_circuit_breaker_can_try());
-}
-
-PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    array_init_size(return_value, 5);
-
-    add_assoc_bool(return_value, "closed", dd_tracer_circuit_breaker_is_closed());
-    add_assoc_long(return_value, "total_failures", dd_tracer_circuit_breaker_total_failures());
-    add_assoc_long(return_value, "consecutive_failures", dd_tracer_circuit_breaker_consecutive_failures());
-    add_assoc_long(return_value, "opened_timestamp", (zend_long)dd_tracer_circuit_breaker_opened_timestamp());
-    add_assoc_long(return_value, "last_failure_timestamp", (zend_long)dd_tracer_circuit_breaker_last_failure_timestamp());
 }
 
 typedef zend_long ddtrace_zpplong_t;

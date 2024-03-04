@@ -2,7 +2,6 @@
 
 #include <assert.h>
 
-#include "circuit_breaker.h"
 #include "ip_extraction.h"
 #include "logging.h"
 #include <components/log/log.h>
