@@ -992,12 +992,6 @@ namespace {
     function dd_trace_synchronous_flush(int $timeout): void {}
 
     /**
-     * @deprecated
-     * @return bool
-     */
-    function dd_trace_forward_call(): bool {}
-
-    /**
      * Alias to dd_trace_push_span_id
      *
      * @alias dd_trace_push_span_id
