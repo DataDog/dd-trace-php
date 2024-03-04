@@ -179,7 +179,6 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_bool(ht, ZEND_STRL("report_hostname_on_root_span"), get_DD_TRACE_REPORT_HOSTNAME());
     _dd_add_assoc_zstring(ht, ZEND_STRL("traced_internal_functions"),
                           _dd_implode_keys(get_DD_TRACE_TRACED_INTERNAL_FUNCTIONS()));
-    _dd_add_assoc_zstring(ht, ZEND_STRL("integrations_disabled"), _dd_implode_keys(get_DD_INTEGRATIONS_DISABLED()));
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled_from_env"), get_DD_TRACE_ENABLED());
     _dd_add_assoc_string(ht, ZEND_STRL("opcache.file_cache"), _dd_get_ini(ZEND_STRL("opcache.file_cache")));
 }
@@ -301,15 +300,6 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
                                                    ZSTR_VAL(cfg->ini_entries[0]->value), cfg->names[0].ptr);
             _dd_add_assoc_zstring(ht, old_name->ptr, old_name->len, message);
         }
-    }
-
-    zai_config_memoized_entry *integrations_disabled_cfg =
-        &zai_config_memoized_entries[DDTRACE_CONFIG_DD_INTEGRATIONS_DISABLED];
-    if (integrations_disabled_cfg->name_index >= 0) {
-        zend_string *message = zend_strpprintf(
-            0, "'DD_INTEGRATIONS_DISABLED=%s' is deprecated, use DD_TRACE_[INTEGRATION]_ENABLED=false instead.",
-            ZSTR_VAL(integrations_disabled_cfg->ini_entries[0]->value));
-        _dd_add_assoc_zstring(ht, ZEND_STRL("DD_INTEGRATIONS_DISABLED"), message);
     }
 
     if (ddtrace_has_excluded_module == true) {
