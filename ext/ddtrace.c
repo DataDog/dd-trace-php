@@ -1017,6 +1017,8 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
+static void dd_post_sapi_deactivate_minit(void);
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
@@ -1042,6 +1044,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 #if ZAI_JIT_BLACKLIST_ACTIVE
     zai_jit_minit();
 #endif
+    dd_post_sapi_deactivate_minit();
 #if PHP_VERSION_ID >= 80100
     ddtrace_setup_fiber_observers();
 #endif
@@ -1374,13 +1377,6 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = false;
 }
 
-static void dd_finalize_telemetry(void) {
-    if (DDTRACE_G(telemetry_queue_id)) {
-        ddtrace_telemetry_finalize();
-        DDTRACE_G(telemetry_queue_id) = 0;
-    }
-}
-
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
@@ -1401,7 +1397,19 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         DDTRACE_G(active_stack) = NULL;
     }
 
-    dd_finalize_telemetry();
+    if (DDTRACE_G(telemetry_queue_id)) {
+        ddtrace_telemetry_collect_config();
+    }
+
+    return SUCCESS;
+}
+
+static void dd_post_sapi_deactivate_do(void) {
+    if (DDTRACE_G(telemetry_queue_id)) {
+        ddtrace_telemetry_finalize();
+        DDTRACE_G(telemetry_queue_id) = 0;
+    }
+
     if (DDTRACE_G(last_flushed_root_service_name)) {
         zend_string_release(DDTRACE_G(last_flushed_root_service_name));
         DDTRACE_G(last_flushed_root_service_name) = NULL;
@@ -1411,7 +1419,14 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         DDTRACE_G(last_flushed_root_env_name) = NULL;
     }
 
-    return SUCCESS;
+    zai_interceptor_deactivate();
+
+    // we can only actually free our hooks hashtables in post_deactivate or later, as within RSHUTDOWN some user code may still run
+    zai_hook_rshutdown();
+    zai_uhook_rshutdown();
+
+    // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
+    zai_config_rshutdown();
 }
 
 #if PHP_VERSION_ID < 80000
@@ -1419,15 +1434,71 @@ int ddtrace_post_deactivate(void) {
 #else
 zend_result ddtrace_post_deactivate(void) {
 #endif
-    zai_interceptor_deactivate();
-
-    // we can only actually free our hooks hashtables in post_deactivate, as within RSHUTDOWN some user code may still run
-    zai_hook_rshutdown();
-    zai_uhook_rshutdown();
-
-    // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
-    zai_config_rshutdown();
+    if (sapi_module.deactivate == NULL) { // e.g. in preloading
+        dd_post_sapi_deactivate_do();
+    }
     return SUCCESS;
+}
+
+static int (*dd_prev_sapi_deactivate)(void);
+
+// Start of request_rec from httpd.h, this has been unchanged forever, so we can just use this.
+struct apache_request_rec {
+    void *pool;
+    void *connection;
+    void *server;
+    void *next;
+    void *prev;
+    void *main;
+};
+static void (*dd_ap_finalize_request_protocol)(struct apache_request_rec *r);
+
+static int dd_post_apache_deactivate(void) {
+    int result = dd_prev_sapi_deactivate ? dd_prev_sapi_deactivate() : SUCCESS;
+
+    if (SG(sapi_started)) {
+        struct apache_request_rec *r = ((struct {
+            int state;
+            struct apache_request_rec *r;
+        } *) SG(server_context))->r;
+        // Check whether this is not an apache sub-request, otherwise we may not alter the state of the connection, i.e. here we don't gain any latency benefit
+        if (!r->main) {
+            dd_ap_finalize_request_protocol(r);
+        }
+
+        dd_post_sapi_deactivate_do();
+    }
+
+    return result;
+}
+
+static int dd_post_sapi_deactivate(void) {
+    int result = dd_prev_sapi_deactivate ? dd_prev_sapi_deactivate() : SUCCESS;
+    if (SG(sapi_started)) { // only if a proper request happened; it's also called during minit
+        dd_post_sapi_deactivate_do();
+    }
+    return result;
+}
+
+static void dd_post_sapi_deactivate_minit(void) {
+    dd_prev_sapi_deactivate = sapi_module.deactivate;
+
+    if (!ddtrace_disable && ddtrace_active_sapi == DATADOG_PHP_SAPI_APACHE2HANDLER) {
+#ifndef _WIN32
+        void *handle = dlopen(NULL, RTLD_LAZY);
+#else
+        void *handle = GetModuleHandle(NULL); // not refcounted, must not be closed
+#endif
+        dd_ap_finalize_request_protocol = DL_FETCH_SYMBOL(handle, "ap_finalize_request_protocol");
+#ifndef _WIN32
+        dlclose(handle);
+#endif
+        if (dd_ap_finalize_request_protocol) {
+            sapi_module.deactivate = dd_post_apache_deactivate;
+            return;
+        }
+    }
+    sapi_module.deactivate = dd_post_sapi_deactivate;
 }
 
 void ddtrace_disable_tracing_in_current_request(void) {
@@ -2056,7 +2127,11 @@ PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (ZSTR_LEN(function_val) > 0) {
         if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
-            dd_finalize_telemetry();
+            if (DDTRACE_G(telemetry_queue_id)) {
+                ddtrace_telemetry_collect_config();
+                ddtrace_telemetry_finalize();
+                DDTRACE_G(telemetry_queue_id) = 0;
+            }
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
