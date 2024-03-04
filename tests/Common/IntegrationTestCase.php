@@ -29,7 +29,7 @@ abstract class IntegrationTestCase extends BaseTestCase
 
     protected function ddSetUp()
     {
-        fwrite(STDOUT, '!!!!!!!! Setting up');
+        fwrite(STDOUT, '!!!!!!!! Setting up\n');
         $exts = get_loaded_extensions(false);
         $csv = '';
         foreach ($exts as $ext) {
@@ -47,7 +47,8 @@ abstract class IntegrationTestCase extends BaseTestCase
         }
 
         file_put_contents($artifactsDir . '/' . get_class($this) . '.csv', $csv);
-        fwrite(STDOUT, '!!!!!!!! Finished setting up artifacts');
+        fwrite(STDOUT, $csv);
+        fwrite(STDOUT, '!!!!!!!! Finished setting up artifacts\n');
 
         $this->errorReportingBefore = error_reporting();
         $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
