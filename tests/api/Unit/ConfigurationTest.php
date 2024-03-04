@@ -33,7 +33,6 @@ EOD;
     {
         self::putenv('DD_DISTRIBUTED_TRACING');
         self::putenv('DD_ENV');
-        self::putenv('DD_INTEGRATIONS_DISABLED');
         self::putenv('DD_SAMPLING_RATE');
         self::putenv('DD_SERVICE_MAPPING');
         self::putenv('DD_SERVICE_NAME');
@@ -88,21 +87,6 @@ EOD;
         $this->assertTrue(Configuration::get()->isIntegrationEnabled('pdo'));
     }
 
-    public function testIntegrationsDisabledDeprecatedEnv()
-    {
-        $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=pdo,slim']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
-        $this->assertTrue(Configuration::get()->isIntegrationEnabled('mysqli'));
-    }
-
-    public function testIntegrationsDisabledIfGlobalDisabledDeprecatedEnv()
-    {
-        $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=pdo', 'DD_TRACE_ENABLED=false']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('mysqli'));
-    }
-
     public function testIntegrationsDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=false', 'DD_TRACE_SLIM_ENABLED=false']);
@@ -116,13 +100,6 @@ EOD;
         $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=false', 'DD_TRACE_ENABLED=false']);
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('mysqli'));
-    }
-
-    public function testIntegrationsDisabledPrecedenceWithDeprecatedEnv()
-    {
-        $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=true', 'DD_INTEGRATIONS_DISABLED=pdo,slim']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
     }
 
     public function testAllIntegrationsEnabledToggleConfig()
