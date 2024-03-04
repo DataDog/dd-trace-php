@@ -1552,14 +1552,6 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     DISPLAY_INI_ENTRIES();
 }
 
-// legacy function
-PHP_FUNCTION(additional_trace_meta) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-    array_init(return_value);
-}
-
 /* {{{ proto string DDTrace\add_global_tag(string $key, string $value) */
 PHP_FUNCTION(DDTrace_add_global_tag) {
     UNUSED(execute_data);
