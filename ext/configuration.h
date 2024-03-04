@@ -149,10 +149,6 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                  \
     CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "true")                                          \
     CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED, "false")                                            \
-    CONFIG(INT, DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES,                                                       \
-           DD_CFG_EXPSTR(DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES))                           \
-    CONFIG(INT, DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC,                                                        \
-           DD_CFG_EXPSTR(DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC))                                    \
     CONFIG(INT, DD_TRACE_BGS_CONNECT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_CONNECT_TIMEOUT_VAL),                 \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_BGS_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_TIMEOUT_VAL),                                 \
