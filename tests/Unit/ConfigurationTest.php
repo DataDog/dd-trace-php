@@ -34,7 +34,6 @@ EOD;
         self::putenv('DD_INTEGRATIONS_DISABLED');
         self::putenv('DD_SAMPLING_RATE');
         self::putenv('DD_SERVICE_MAPPING');
-        self::putenv('DD_SERVICE_NAME');
         self::putenv('DD_SERVICE');
         self::putenv('DD_TAGS');
         self::putenv('DD_TRACE_ANALYTICS_ENABLED');
@@ -192,35 +191,13 @@ EOD;
         }, $dirs);
     }
 
-    public function testAppNameFallbackPriorities()
-    {
-        // we do not support these fallbacks anymore; testing that we ignore them
-        $this->putEnvAndReloadConfig(['ddtrace_app_name', 'DD_TRACE_APP_NAME']);
-        $this->assertSame(
-            'fallback_name',
-            \ddtrace_config_app_name('fallback_name')
-        );
-
-        $this->putEnvAndReloadConfig(['ddtrace_app_name=foo_app']);
-        $this->assertSame('fallback_name', \ddtrace_config_app_name('fallback_name'));
-
-        $this->putEnvAndReloadConfig(['ddtrace_app_name=foo_app', 'DD_TRACE_APP_NAME=bar_app']);
-        $this->assertSame('fallback_name', \ddtrace_config_app_name('fallback_name'));
-    }
-
     public function testServiceName()
     {
-        $this->putEnvAndReloadConfig(['DD_SERVICE', 'DD_TRACE_APP_NAME', 'ddtrace_app_name']);
+        $this->putEnvAndReloadConfig(['DD_SERVICE']);
 
         $this->assertSame('__default__', \ddtrace_config_app_name('__default__'));
 
         $this->putEnvAndReloadConfig(['DD_SERVICE=my_app']);
-        $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
-    }
-
-    public function testServiceNameViaDDServiceNameForBackwardCompatibility()
-    {
-        $this->putEnvAndReloadConfig(['DD_SERVICE_NAME=my_app']);
         $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
     }
 
