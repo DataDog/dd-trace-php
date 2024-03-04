@@ -769,6 +769,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "arrayref",
+ "bincode",
  "bytes",
  "chrono",
  "console-subscriber",
@@ -800,7 +801,6 @@ dependencies = [
  "rmp-serde",
  "sendfd",
  "serde",
- "serde_json",
  "spawn_worker",
  "sys-info",
  "tempfile",
