@@ -1,5 +1,6 @@
-// Unless explicitly stated otherwise all files in this repository are licensed under the Apache License Version 2.0.
-// This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2021-Present Datadog, Inc.
+// Copyright 2021-Present Datadog, Inc. https://www.datadoghq.com/
+// SPDX-License-Identifier: Apache-2.0
+
 
 #ifndef DDOG_COMMON_H
 #define DDOG_COMMON_H
@@ -136,7 +137,7 @@ typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterface
 
 typedef struct ddog_InstanceId ddog_InstanceId;
 
-typedef struct ddog_TelemetryActionsBuffer ddog_TelemetryActionsBuffer;
+typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
 typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_SidecarTransport;
 
