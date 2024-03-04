@@ -1700,15 +1700,6 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     ddtrace_init_span_stacks();
 }
 
-// Invoke the function/method from the original context
-PHP_FUNCTION(dd_trace_forward_call) {
-    UNUSED(execute_data);
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-    RETURN_FALSE;
-}
-
 PHP_FUNCTION(dd_trace_env_config) {
     UNUSED(execute_data);
     zend_string *env_name;
