@@ -85,24 +85,6 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * Returns the sampling rate provided by the user. Default: 1.0 (keep all).
-     *
-     * @return float
-     */
-    public function getSamplingRate()
-    {
-        // DD_SAMPLING_RATE is deprecated and will be removed in 0.40.0
-        $deprecatedValue = $this->floatValue('sampling.rate', 1.0);
-        $value = $this->floatValue('trace.sample.rate', $deprecatedValue);
-        if ($value < 0) {
-            $value = 1;
-        } else {
-            $value = min(1, max(0, $value));
-        }
-        return $value;
-    }
-
-    /**
      * Returns the sampling rules defined for the current service.
      * Results are cached so it is perfectly fine to call this method multiple times.
      * The expected format for sampling rule env variable is:
