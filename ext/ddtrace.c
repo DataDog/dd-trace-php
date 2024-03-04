@@ -2116,36 +2116,6 @@ PHP_FUNCTION(dd_trace_set_trace_id) {
     RETURN_FALSE;
 }
 
-_Atomic(int64_t) ddtrace_warn_span_id_legacy_api = 1;
-static void ddtrace_warn_span_id_legacy(void) {
-    int64_t expected = 1;
-    if (atomic_compare_exchange_strong(&ddtrace_warn_span_id_legacy_api, &expected, 0) &&
-        get_DD_TRACE_WARN_LEGACY_DD_TRACE()) {
-        LOG(DEPRECATED,
-            "dd_trace_push_span_id and dd_trace_pop_span_id DEPRECATION NOTICE: the functions `dd_trace_push_span_id` and `dd_trace_pop_span_id` are deprecated and have become a no-op since 0.74.0, and will eventually be removed. To create or pop spans use `DDTrace\\start_span` and `DDTrace\\close_span` respectively. To set a distributed parent trace context use `DDTrace\\set_distributed_tracing_context`. Set DD_TRACE_WARN_LEGACY_DD_TRACE=0 to suppress this warning.");
-    }
-}
-
-/* {{{ proto string dd_trace_push_span_id() */
-PHP_FUNCTION(dd_trace_push_span_id) {
-    zend_string *arg;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &arg) == FAILURE) {
-        RETURN_THROWS();
-    }
-    ddtrace_warn_span_id_legacy();
-    RETURN_STRING("0");
-}
-
-/* {{{ proto string dd_trace_pop_span_id() */
-PHP_FUNCTION(dd_trace_pop_span_id) {
-    UNUSED(execute_data);
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-    ddtrace_warn_span_id_legacy();
-    RETURN_STRING("0");
-}
-
 /* {{{ proto string dd_trace_peek_span_id() */
 PHP_FUNCTION(dd_trace_peek_span_id) {
     UNUSED(execute_data);
