@@ -21,15 +21,12 @@ public:
     system_clock::duration time;
 };
 
-class rate_limiter : public dds::rate_limiter {
+class rate_limiter : public dds::rate_limiter<mock::timer> {
 public:
     explicit rate_limiter(uint32_t max_per_second)
-        : dds::rate_limiter(max_per_second)
+        : dds::rate_limiter<mock::timer>(max_per_second)
     {}
-    void set_timer(std::unique_ptr<mock::timer> &&timer)
-    {
-        timer_ = std::move(timer);
-    }
+    void set_timer(mock::timer timer) { timer_ = timer; }
 };
 } // namespace mock
 
@@ -38,12 +35,12 @@ TEST(RateLimitTest, OnlyAllowedMaxPerSecondNonConsecutiveSeconds)
     auto first_round_time = system_clock::duration(1708963615);
     auto second_round_time = first_round_time + std::chrono::seconds(5);
 
-    std::unique_ptr<mock::timer> timer = std::make_unique<mock::timer>();
+    mock::timer timer;
     // Four calls within the same second
-    timer->time = first_round_time;
+    timer.time = first_round_time;
 
     mock::rate_limiter rate_limiter(2);
-    rate_limiter.set_timer(std::move(timer));
+    rate_limiter.set_timer(timer);
 
     int allowed = 0;
     for (int i = 0; i < 10; i++) {
@@ -53,9 +50,8 @@ TEST(RateLimitTest, OnlyAllowedMaxPerSecondNonConsecutiveSeconds)
     }
     EXPECT_EQ(2, allowed);
 
-    timer = std::make_unique<mock::timer>();
-    timer->time = second_round_time;
-    rate_limiter.set_timer(std::move(timer));
+    timer.time = second_round_time;
+    rate_limiter.set_timer(timer);
 
     allowed = 0;
     for (int i = 0; i < 10; i++) {
@@ -71,12 +67,12 @@ TEST(RateLimitTest, OnlyAllowedMaxPerSecondConsecutiveSeconds)
     auto first_round_time = system_clock::duration(1708963615);
     auto second_round_time = first_round_time + std::chrono::seconds(1);
 
-    std::unique_ptr<mock::timer> timer = std::make_unique<mock::timer>();
+    mock::timer timer;
     // Four calls within the same second
-    timer->time = first_round_time;
+    timer.time = first_round_time;
 
     mock::rate_limiter rate_limiter(2);
-    rate_limiter.set_timer(std::move(timer));
+    rate_limiter.set_timer(timer);
 
     int allowed = 0;
     for (int i = 0; i < 10; i++) {
@@ -86,9 +82,8 @@ TEST(RateLimitTest, OnlyAllowedMaxPerSecondConsecutiveSeconds)
     }
     EXPECT_EQ(2, allowed);
 
-    timer = std::make_unique<mock::timer>();
-    timer->time = second_round_time;
-    rate_limiter.set_timer(std::move(timer));
+    timer.time = second_round_time;
+    rate_limiter.set_timer(timer);
 
     allowed = 0;
     for (int i = 0; i < 10; i++) {
@@ -102,7 +97,7 @@ TEST(RateLimitTest, OnlyAllowedMaxPerSecondConsecutiveSeconds)
 
 TEST(RateLimitTest, WhenNotMaxPerSecondItAlwaysAllow)
 {
-    dds::rate_limiter rate_limiter(0);
+    dds::rate_limiter<dds::timer> rate_limiter(0);
 
     EXPECT_TRUE(rate_limiter.allow());
     EXPECT_TRUE(rate_limiter.allow());
