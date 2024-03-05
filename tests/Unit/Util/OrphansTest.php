@@ -34,7 +34,7 @@ final class OrphansTest extends IntegrationTestCase
     function testOrphansRemovalWithAgentSampling()
     {
         if (\extension_loaded('xdebug')) {
-            $this->markTestSkipped('Request Replayer isn\'t run in debug test suites')
+            $this->markTestSkipped('Request Replayer isn\'t run in debug test suites');
         }
 
         \DDTrace\trace_method("DDTrace\Tests\Unit\Util\CommonTest", "foo", function (\DDTrace\SpanData $span) {
