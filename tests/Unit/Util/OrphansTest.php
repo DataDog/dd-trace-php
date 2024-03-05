@@ -33,7 +33,7 @@ final class OrphansTest extends IntegrationTestCase
 
     function testOrphansRemovalWithAgentSampling()
     {
-        \DDTrace\trace_method("DDTrace\Tests\Unit\Util\CommonTest", "foo", function (\DDTrace\SpanData $span) {
+        \DDTrace\trace_method(self::class, "foo", function (\DDTrace\SpanData $span) {
             Common::handleOrphan($span);
         });
 
