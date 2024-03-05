@@ -531,6 +531,7 @@ commands:
                   -v $(pwd):/home/circleci/datadog \
                   -v /tmp/bashenv:/home/circleci/bashenv \
                   -v /rust:/rust \
+                  -v /tmp/artifacts:/tmp/artifacts \
                   $(if [ -n "${CARGO_TARGET_DIR:-}" ]; then echo -v ${CARGO_TARGET_DIR}:${CARGO_TARGET_DIR} -e CARGO_TARGET_DIR=${CARGO_TARGET_DIR}; fi) \
                   $image \
                   bash -c 'echo Started; sleep 10000' 2>&1 | tee /tmp/docker.out &
