@@ -240,7 +240,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
-            ])->setTraceAnalyticsCandidate()
+            ])
             ->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')->withChildren([
                     SpanAssertion::exists('Psr\Http\Client\ClientInterface.sendRequest', 'sendRequest'),
@@ -449,7 +449,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
-            ])->setTraceAnalyticsCandidate()
+            ])
             ->withChildren([
                 SpanAssertion::exists('Elastic.Transport.Serializer.JsonSerializer.serialize', 'Elastic.Transport.Serializer.JsonSerializer.serialize'),
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')->withChildren([
