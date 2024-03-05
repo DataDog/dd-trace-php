@@ -184,8 +184,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_PROPAGATE_USER_ID_DEFAULT, "false")                                                  \
     CONFIG(CUSTOM(INT), DD_DBM_PROPAGATION_MODE, "disabled", .parser = dd_parse_dbm_mode)                      \
     CONFIG(SET, DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS, "")                                                      \
-    CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "false")                                                          \
-    CONFIG(BOOL, DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION, "false")                                              \
+    CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "true")                                                          \
     CONFIG(BOOL, DD_TRACE_OTEL_ENABLED, "false")                                                               \
     CONFIG(STRING, DD_TRACE_LOG_FILE, "", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(STRING, DD_TRACE_LOG_LEVEL, "error", .ini_change = ddtrace_alter_dd_trace_log_level)                \
