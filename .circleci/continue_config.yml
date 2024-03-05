@@ -750,7 +750,7 @@ jobs:
         default: none
     working_directory: ~/datadog
     executor:
-      name: with_agent
+      name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
     steps:
       - restore_cache:
