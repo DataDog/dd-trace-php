@@ -513,6 +513,7 @@ function install($options)
 
     // Tracer sources
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
+    $installDirSrcDir = $installDirSourcesDir . '/src';
     $installDirBridgeDir = $installDirSourcesDir . '/bridge';
     $installDirWrapperPath = $installDirBridgeDir . '/dd_wrap_autoloader.php';
     // copying sources to the final destination
@@ -529,7 +530,7 @@ function install($options)
     if (file_exists($tmpSrcDir)) {
         execute_or_exit(
             "Cannot copy files from '$tmpSrcDir' to '$installDirSourcesDir'",
-            "cp -r " . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSourcesDir)
+            (IS_WINDOWS ? "echo d | xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSrcDir)
         );
     }
     echo "Installed required source files to '$installDir'\n";
@@ -656,9 +657,9 @@ function install($options)
                      * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
                      * `;`, hence not automatically re-activating the extension if the user had commented it out.
                      */
-                    '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace." . EXTENSION_SUFFIX,
+                    '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
                     // Support upgrading from the C based zend_extension.
-                    '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling." . EXTENSION_SUFFIX,
+                    '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
                 ];
             }
 
@@ -666,7 +667,7 @@ function install($options)
             if (is_truthy($options[OPT_ENABLE_PROFILING])) {
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 if ($shouldInstallProfiling) {
-                    $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling." . EXTENSION_SUFFIX;
+                    $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
                 } else {
                     $enableProfiling = OPT_ENABLE_PROFILING;
                     print_error_and_exit(
@@ -682,7 +683,7 @@ function install($options)
             if ($shouldInstallAppsec) {
                 $rulesPathRegex = preg_quote($options[OPT_INSTALL_DIR]) . "/[0-9\.]*/etc/recommended.json";
                 $replacements += [
-                    '(^\s*;\s*extension\s*=\s*.*ddappsec.*)m' => "extension = ddappsec." . EXTENSION_SUFFIX,
+                    '(^\s*;\s*extension\s*=\s*.*ddappsec.*)m' => "extension = ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
                     // Update helper path
                     '(datadog.appsec.helper_path\s*=.*)' => "datadog.appsec.helper_path = $appSecHelperPath",
                     // Update and comment rules path
@@ -691,7 +692,7 @@ function install($options)
                 ];
             } else {
                 // Ensure AppSec isn't loaded if not compatible
-                $replacements['(^[\s;]*extension\s*=\s*.*ddappsec.*)m'] = "; extension = ddappsec." . EXTENSION_SUFFIX;
+                $replacements['(^[\s;]*extension\s*=\s*.*ddappsec.*)m'] = "; extension = ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
 
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     $enableAppsec = OPT_ENABLE_APPSEC;
@@ -1413,6 +1414,7 @@ function download($url, $destination)
 
     // file_get_contents
     if (is_truthy(ini_get('allow_url_fopen')) && extension_loaded('openssl')) {
+        ini_set("memory_limit", "-1"); // disable memory limit otherwise we may run OOM here.
         if (false === file_put_contents($destination, file_get_contents($url))) {
             print_error_and_exit("Error while downloading the installable archive from $url\n");
         }
@@ -1504,6 +1506,13 @@ function ini_values($binary)
             }
         }
     }
+
+    if ($found[EXTENSION_DIR] == "") {
+        $found[EXTENSION_DIR] = dirname(PHP_BINARY);
+    } elseif ($found[EXTENSION_DIR][0] != "/" && (!IS_WINDOWS || !preg_match('~^([A-Z]:|\\\\)\\\\~i', $found[EXTENSION_DIR]))) {
+        $found[EXTENSION_DIR] = dirname(PHP_BINARY) . '/' . $found[EXTENSION_DIR];
+    }
+
     return $found;
 }
 
@@ -1545,6 +1554,7 @@ function search_php_binaries($prefix = '')
             dirname(PHP_BINARY),
             PHP_BINDIR,
             $bootDisk . 'WINDOWS',
+            $bootDisk . 'tools', // chocolatey default location
         ];
 
         foreach (scandir($bootDisk) as $file) {
