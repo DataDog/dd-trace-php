@@ -43,7 +43,7 @@ abstract class IntegrationTestCase extends BaseTestCase
 
         $artifactsDir = "/tmp/artifacts";
         if ( !file_exists( $artifactsDir ) && !is_dir( $artifactsDir ) ) {
-            mkdir($artifactsDir, 0755, true);
+            mkdir($artifactsDir, 0777, true);
         }
 
         $reflect = new \ReflectionClass($this);

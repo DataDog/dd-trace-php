@@ -512,6 +512,8 @@ commands:
             mkdir /tmp/bashenv
             sudo mkdir /rust
             sudo chmod 777 /rust
+            mkdir /tmp/artifacts
+            sudo chmod 777 /tmp/artifacts
             image=<< parameters.docker_image >>
             retries=$max_retries
             while
