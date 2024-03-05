@@ -19,17 +19,7 @@ abstract class IntegrationTestCase extends BaseTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-    }
 
-    public static function ddTearDownAfterClass()
-    {
-        parent::ddTearDownAfterClass();
-        \dd_trace_internal_fn('ddtrace_reload_config');
-    }
-
-    protected function ddSetUp()
-    {
-        fwrite(STDOUT, "!!!!!!!! Setting up\n");
         $exts = get_loaded_extensions(false);
         $csv = '';
         foreach ($exts as $ext) {
@@ -46,13 +36,27 @@ abstract class IntegrationTestCase extends BaseTestCase
             mkdir($artifactsDir, 0777, true);
         }
 
-        $reflect = new \ReflectionClass($this);
-        $fileName = $reflect->getShortName() . ".csv";
-        fwrite(STDOUT, "Writing to file: " . $artifactsDir . "/" . $fileName . "\n");
-        fwrite(STDOUT, $csv);
-        file_put_contents($artifactsDir . "/" . $fileName, $csv);
-        fwrite(STDOUT, "!!!!!!!! Finished setting up artifacts\n");
+        file_put_contents($artifactsDir . "/extension_versions.csv", $csv);
 
+        $csv = '';
+        $output = shell_exec('composer show -i -f json');
+        $data = json_decode($output, true);
+
+        foreach ($data['installed'] as $package) {
+            $csv = $csv . $package['name'] . ";" . $package['version'] . "\n";
+        }
+
+        file_put_contents($artifactsDir . "/composer_versions.csv", $csv);
+    }
+
+    public static function ddTearDownAfterClass()
+    {
+        parent::ddTearDownAfterClass();
+        \dd_trace_internal_fn('ddtrace_reload_config');
+    }
+
+    protected function ddSetUp()
+    {
         $this->errorReportingBefore = error_reporting();
         $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         parent::ddSetUp();
