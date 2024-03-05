@@ -196,6 +196,10 @@ void ddtrace_config_first_rinit() {
     }
     zend_string_release(internal_functions_old);
 
+    if (!get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_APPSEC_SCA_ENABLED()) {
+        LOG(WARN, "DD_APPSEC_SCA_ENABLED requires DD_INSTRUMENTATION_TELEMETRY_ENABLED in order to work");
+    }
+
     runtime_config_first_init = true;
 }
 
