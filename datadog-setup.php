@@ -642,9 +642,9 @@ function install($options)
 
                 $replacements += [
                     // Old name is deprecated
-                    '(ddtrace\.request_init_hook)' => 'datadog.trace.sources_dir',
-                    '(datadog\.trace\.request_init_hook)' => 'datadog.trace.sources_dir',
-                    '((datadog\.trace\.sources_dir)\s*=\s*.*)' => "$1 = $installDirSrcDir",
+                    '(ddtrace\.request_init_hook)' => 'datadog.trace.sources_path',
+                    '(datadog\.trace\.request_init_hook)' => 'datadog.trace.sources_path',
+                    '((datadog\.trace\.sources_path)\s*=\s*.*)' => "$1 = $installDirSrcDir",
                     /* In order to support upgrading from legacy installation method to new installation method, we
                      * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
                      * `;`, hence not automatically re-activating the extension if the user had commented it out.
@@ -1914,7 +1914,7 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
         ],
 
         [
-            'name' => 'datadog.trace.sources_dir',
+            'name' => 'datadog.trace.sources_path',
             'default' => $sourcesDir,
             'commented' => false,
             'description' => 'Path to the request init hook (set by the installer, do not change it)',
