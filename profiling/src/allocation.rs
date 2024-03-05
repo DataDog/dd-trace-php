@@ -368,12 +368,18 @@ unsafe extern "C" fn alloc_profiling_malloc(len: size_t) -> *mut c_void {
     ptr
 }
 
+/// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_alloc()`
+/// when at the same time the `ZEND_MM_STATE.prev_custom_mm_alloc` is initialised to a valid
+/// function pointer, otherwise there will be dragons.
 static mut ALLOCATION_PROFILING_ALLOC: unsafe fn(size_t) -> *mut c_void =
     allocation_profiling_orig_alloc;
 
 unsafe fn allocation_profiling_prev_alloc(len: size_t) -> *mut c_void {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
+        // Safety: `ALLOCATION_PROFILING_ALLOC` will be initialised in
+        // `allocation_profiling_rinit()` and only point to this function when
+        // `prev_custom_mm_alloc` is also initialised
         let prev = (*zend_mm_state).prev_custom_mm_alloc.unwrap();
         prev(len)
     })
@@ -395,11 +401,17 @@ unsafe extern "C" fn alloc_profiling_free(ptr: *mut c_void) {
     ALLOCATION_PROFILING_FREE(ptr);
 }
 
+/// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_free()`
+/// when at the same time the `ZEND_MM_STATE.prev_custom_mm_free` is initialised to a valid
+/// function pointer, otherwise there will be dragons.
 static mut ALLOCATION_PROFILING_FREE: unsafe fn(*mut c_void) = allocation_profiling_orig_free;
 
 unsafe fn allocation_profiling_prev_free(ptr: *mut c_void) {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
+        // Safety: `ALLOCATION_PROFILING_FREE` will be initialised in
+        // `allocation_profiling_free()` and only point to this function when
+        // `prev_custom_mm_free` is also initialised
         let prev = (*zend_mm_state).prev_custom_mm_free.unwrap();
         prev(ptr)
     })
@@ -430,12 +442,18 @@ unsafe extern "C" fn alloc_profiling_realloc(prev_ptr: *mut c_void, len: size_t)
     ptr
 }
 
+/// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_realloc()`
+/// when at the same time the `ZEND_MM_STATE.prev_custom_mm_realloc` is initialised to a valid
+/// function pointer, otherwise there will be dragons.
 static mut ALLOCATION_PROFILING_REALLOC: unsafe fn(*mut c_void, size_t) -> *mut c_void =
     allocation_profiling_orig_realloc;
 
 unsafe fn allocation_profiling_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
+        // Safety: `ALLOCATION_PROFILING_REALLOC` will be initialised in
+        // `allocation_profiling_realloc()` and only point to this function when
+        // `prev_custom_mm_realloc` is also initialised
         let prev = (*zend_mm_state).prev_custom_mm_realloc.unwrap();
         prev(prev_ptr, len)
     })
