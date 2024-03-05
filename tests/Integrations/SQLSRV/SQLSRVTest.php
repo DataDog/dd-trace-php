@@ -99,7 +99,6 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
@@ -124,7 +123,6 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
@@ -148,7 +146,6 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
                 ->setError(
                     'SQLSRV error',
@@ -176,7 +173,6 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query, true))
                 ->setError(
                     'SQLSRV error',
@@ -204,7 +200,6 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
@@ -232,7 +227,6 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
                 ->withExactTags(self::baseTags($query)),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
@@ -260,7 +254,6 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
                 ->withExactTags(self::baseTags($query)),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
@@ -285,7 +278,6 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::exists('sqlsrv_prepare'),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
@@ -314,7 +306,6 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::exists('sqlsrv_prepare'),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
@@ -343,7 +334,6 @@ class SQLSRVTest extends IntegrationTestCase
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::exists('sqlsrv_prepare'),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
@@ -412,7 +402,6 @@ class SQLSRVTest extends IntegrationTestCase
                         '_dd.base_service' => 'phpunit',
                     ])),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags($query), [
                     '_dd.base_service' => 'phpunit',
                 ]))
@@ -440,7 +429,6 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'configured_service', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,

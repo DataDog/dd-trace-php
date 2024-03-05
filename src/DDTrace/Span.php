@@ -402,25 +402,6 @@ class Span extends DataSpan
         return $this->context->baggageItems;
     }
 
-    /**
-     * @deprecated
-     * @param bool $value
-     * @return self
-     */
-    public function setTraceAnalyticsCandidate($value = true)
-    {
-        return $this;
-    }
-
-    /**
-     * @deprecated
-     * @return bool
-     */
-    public function isTraceAnalyticsCandidate()
-    {
-        return false;
-    }
-
     public function __destruct()
     {
         if (!$this->isFinished()) {
