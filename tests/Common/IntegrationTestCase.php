@@ -39,7 +39,7 @@ abstract class IntegrationTestCase extends BaseTestCase
         file_put_contents($artifactsDir . "/extension_versions.csv", $csv);
 
         $csv = '';
-        $output = shell_exec('composer show -f json -D');
+        $output = shell_exec('DD_TRACE_ENABLED=0 ; composer show -f json -D');
         $data = json_decode($output, true);
 
         foreach ($data['installed'] as $package) {
