@@ -26,9 +26,24 @@ static mut SLEEP_HANDLER: InternalFunctionHandler = None;
 static mut USLEEP_HANDLER: InternalFunctionHandler = None;
 static mut TIME_NANOSLEEP_HANDLER: InternalFunctionHandler = None;
 static mut TIME_SLEEP_UNTIL_HANDLER: InternalFunctionHandler = None;
+static mut FRANKENPHP_HANDLE_REQUEST_HANDLER: InternalFunctionHandler = None;
 
 thread_local! {
     static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
+}
+
+enum State {
+    Idle,
+    Sleeping,
+}
+
+impl State {
+    fn as_str(&self) -> &'static str {
+        match self {
+            State::Idle => "idle",
+            State::Sleeping => "sleeping",
+        }
+    }
 }
 
 #[inline]
@@ -36,6 +51,7 @@ fn try_sleeping_fn(
     func: unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval),
     execute_data: *mut zend_execute_data,
     return_value: *mut zval,
+    state: State,
 ) -> anyhow::Result<()> {
     let timeline_enabled = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
@@ -71,7 +87,7 @@ fn try_sleeping_fn(
             if let Some(profiler) = guard.as_ref() {
                 let now = now.as_nanos() as i64;
                 let duration = duration.as_nanos() as i64;
-                profiler.collect_idle(now, duration, "sleeping")
+                profiler.collect_idle(now, duration, state.as_str())
             }
         }
         Err(err) => anyhow::bail!("profiler mutex: {err:#}"),
@@ -83,8 +99,9 @@ fn sleeping_fn(
     func: unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval),
     execute_data: *mut zend_execute_data,
     return_value: *mut zval,
+    state: State,
 ) {
-    if let Err(err) = try_sleeping_fn(func, execute_data, return_value) {
+    if let Err(err) = try_sleeping_fn(func, execute_data, return_value, state) {
         warn!("error creating profiling timeline sample for an internal function: {err:#}");
     }
 }
@@ -96,7 +113,7 @@ unsafe extern "C" fn ddog_php_prof_sleep(
     return_value: *mut zval,
 ) {
     if let Some(func) = SLEEP_HANDLER {
-        sleeping_fn(func, execute_data, return_value)
+        sleeping_fn(func, execute_data, return_value, State::Sleeping)
     }
 }
 
@@ -107,7 +124,7 @@ unsafe extern "C" fn ddog_php_prof_usleep(
     return_value: *mut zval,
 ) {
     if let Some(func) = USLEEP_HANDLER {
-        sleeping_fn(func, execute_data, return_value)
+        sleeping_fn(func, execute_data, return_value, State::Sleeping)
     }
 }
 
@@ -118,7 +135,7 @@ unsafe extern "C" fn ddog_php_prof_time_nanosleep(
     return_value: *mut zval,
 ) {
     if let Some(func) = TIME_NANOSLEEP_HANDLER {
-        sleeping_fn(func, execute_data, return_value)
+        sleeping_fn(func, execute_data, return_value, State::Sleeping)
     }
 }
 
@@ -129,7 +146,18 @@ unsafe extern "C" fn ddog_php_prof_time_sleep_until(
     return_value: *mut zval,
 ) {
     if let Some(func) = TIME_SLEEP_UNTIL_HANDLER {
-        sleeping_fn(func, execute_data, return_value)
+        sleeping_fn(func, execute_data, return_value, State::Sleeping)
+    }
+}
+
+/// Wrapping the FrankenPHP `frankenphp_handle_request()` function to take the time it is blocking the current thread
+#[no_mangle]
+unsafe extern "C" fn ddog_php_prof_frankenphp_handle_request(
+    execute_data: *mut zend_execute_data,
+    return_value: *mut zval,
+) {
+    if let Some(func) = FRANKENPHP_HANDLE_REQUEST_HANDLER {
+        sleeping_fn(func, execute_data, return_value, State::Idle)
     }
 }
 
@@ -174,6 +202,11 @@ pub unsafe fn timeline_startup() {
             &mut TIME_SLEEP_UNTIL_HANDLER,
             Some(ddog_php_prof_time_sleep_until),
         ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"frankenphp_handle_request\0"),
+            &mut FRANKENPHP_HANDLE_REQUEST_HANDLER,
+            Some(ddog_php_prof_frankenphp_handle_request),
+        ),
     ];
 
     for handler in handlers.into_iter() {
@@ -210,7 +243,7 @@ pub unsafe fn timeline_rinit() {
                         .unwrap()
                         .as_nanos() as i64,
                     idle_since.elapsed().as_nanos() as i64,
-                    "idle",
+                    State::Idle.as_str(),
                 );
             }
         });

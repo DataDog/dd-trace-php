@@ -275,6 +275,16 @@ trait TracerTestTrait
             ],
             $customEnvs
         ));
+
+        if (getenv('PHPUNIT_COVERAGE')) {
+            $customInis['auto_prepend_file'] = __DIR__ . '/../save_code_coverage.php';
+
+            $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
+            $xdebugExtension = end($xdebugExtension);
+            $customInis['zend_extension'] = $xdebugExtension;
+            $customInis['xdebug.mode'] = 'coverage';
+        }
+
         $inis = (string) new IniSerializer(array_merge(
             [
                 'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',

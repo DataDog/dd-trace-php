@@ -84,7 +84,7 @@ public:
         std::vector<parameter> prev_published_params_;
         std::map<subscriber::ptr, subscriber::listener::ptr> listeners_;
         std::shared_ptr<shared_state> common_;
-        rate_limiter &limiter_;
+        rate_limiter<dds::timer> &limiter_;
     };
 
     engine(const engine &) = delete;
@@ -132,7 +132,7 @@ protected:
     static const action_map default_actions;
 
     std::shared_ptr<shared_state> common_;
-    rate_limiter limiter_;
+    rate_limiter<dds::timer> limiter_;
 };
 
 } // namespace dds

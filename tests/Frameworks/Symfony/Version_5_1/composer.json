@@ -44,7 +44,6 @@
         "symfony/css-selector": "5.1.*",
         "symfony/debug-bundle": "5.1.*",
         "symfony/maker-bundle": "^1.0",
-        "symfony/phpunit-bridge": "5.1.*",
         "symfony/stopwatch": "5.1.*",
         "symfony/var-dumper": "5.1.*",
         "symfony/web-profiler-bundle": "5.1.*"

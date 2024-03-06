@@ -16,6 +16,7 @@ class SpanBench
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
+     * @Warmup(1)
      */
     public function benchDatadogAPI()
     {
@@ -44,6 +45,7 @@ class SpanBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUpOpenTelemetry")
+     * @Warmup(1)
      */
     public function benchOpenTelemetryAPI()
     {
@@ -72,6 +74,7 @@ class SpanBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUpOpenTelemetry")
+     * @Warmup(1)
      */
     public function benchOpenTelemetryInteroperability()
     {

@@ -12,6 +12,7 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/integration-telemetry.out"
 ddtrace.request_init_hook="{PWD}/../sandbox/deferred_loading_helper.php"
+zend.assertions=1
 --FILE--
 <?php
 
@@ -72,20 +73,30 @@ array(1) {
   ["integrations"]=>
   array(2) {
     [0]=>
-    array(2) {
+    array(5) {
       ["name"]=>
       string(37) "ddtrace\test\testsandboxedintegration"
       ["enabled"]=>
       bool(true)
+      ["version"]=>
+      NULL
+      ["compatible"]=>
+      NULL
+      ["auto_enabled"]=>
+      NULL
     }
     [1]=>
-    array(3) {
+    array(5) {
       ["name"]=>
       string(4) "logs"
       ["enabled"]=>
       bool(false)
       ["version"]=>
       string(0) ""
+      ["compatible"]=>
+      NULL
+      ["auto_enabled"]=>
+      NULL
     }
   }
 }

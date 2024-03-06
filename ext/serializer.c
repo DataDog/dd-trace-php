@@ -137,7 +137,7 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
             mpack_write_cstr(writer, Z_STRVAL_P(trace));
             break;
         default:
-            LOG(Warn, "Serialize values must be of type array, string, int, float, bool or null");
+            LOG(WARN, "Serialize values must be of type array, string, int, float, bool or null");
             mpack_writer_flag_error(writer, mpack_error_type);
             return 0;
     }
@@ -179,7 +179,7 @@ size_t ddtrace_serialize_simple_array_into_mapped_menory(zval *trace, char *map,
         mpack_writer_destroy(&writer);
         return 0;
     }
-    size_t written = mpack_writer_buffer_size(&writer);
+    size_t written = mpack_writer_buffer_used(&writer);
     // finish writing
     if (mpack_writer_destroy(&writer) != mpack_ok) {
         return 0;
@@ -1497,7 +1497,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             type = (zai_str) ZAI_STR_FROM_ZSTR(Z_STR(prop_type_as_string));
         }
         zai_str resource = (zai_str)ZAI_STR_FROM_ZSTR(Z_STR(prop_resource_as_string));
-        LOG(Warn, "Notifying profiler of finished local root span.");
+        LOG(WARN, "Notifying profiler of finished local root span.");
         profiling_notify_trace_finished(span->span_id, type, resource);
     }
 
@@ -1670,7 +1670,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         add_assoc_double(&metrics_zv, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
     }
 
-    LOGEV(Span, {
+    LOGEV(SPAN, {
         zend_string *key;
         zval *tag_zv;
         zval *serialized_meta = zend_hash_str_find(Z_ARR_P(el), ZEND_STRL("meta"));

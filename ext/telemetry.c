@@ -30,7 +30,7 @@ void ddtrace_telemetry_finalize(void) {
         return;
     }
 
-    ddog_TelemetryActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
+    ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
 
     zend_module_entry *module;
     char module_name[261] = { 'e', 'x', 't', '-' };
