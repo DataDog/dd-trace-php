@@ -48,6 +48,20 @@ struct ZendMMState {
     prev_custom_mm_realloc: Option<zend::VmMmCustomReallocFn>,
     /// The engine's previous custom free function, if there is one.
     prev_custom_mm_free: Option<zend::VmMmCustomFreeFn>,
+    prepare_zend_heap: unsafe fn(heap: *mut zend::_zend_mm_heap) -> c_int,
+    restore_zend_heap: unsafe fn(heap: *mut zend::_zend_mm_heap, custom_heap: c_int),
+    /// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_alloc()`
+    /// when at the same time the `ZEND_MM_STATE.prev_custom_mm_alloc` is initialised to a valid
+    /// function pointer, otherwise there will be dragons.
+    alloc: unsafe fn(size_t) -> *mut c_void,
+    /// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_realloc()`
+    /// when at the same time the `ZEND_MM_STATE.prev_custom_mm_realloc` is initialised to a valid
+    /// function pointer, otherwise there will be dragons.
+    realloc: unsafe fn(*mut c_void, size_t) -> *mut c_void,
+    /// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_free()`
+    /// when at the same time the `ZEND_MM_STATE.prev_custom_mm_free` is initialised to a valid
+    /// function pointer, otherwise there will be dragons.
+    free: unsafe fn(*mut c_void),
 }
 
 impl AllocationProfilingStats {
@@ -99,7 +113,12 @@ thread_local! {
                 heap: None,
                 prev_custom_mm_alloc: None,
                 prev_custom_mm_realloc: None,
-                prev_custom_mm_free: None
+                prev_custom_mm_free: None,
+                prepare_zend_heap: prepare_zend_heap,
+                restore_zend_heap: restore_zend_heap,
+                alloc:  allocation_profiling_orig_alloc,
+                realloc: allocation_profiling_orig_realloc,
+                free: allocation_profiling_orig_free,
             }
         )
     };
@@ -168,19 +187,19 @@ pub fn allocation_profiling_rinit() {
                     &mut (*zend_mm_state).prev_custom_mm_free,
                     &mut (*zend_mm_state).prev_custom_mm_realloc,
                 );
-                ALLOCATION_PROFILING_ALLOC = allocation_profiling_prev_alloc;
-                ALLOCATION_PROFILING_FREE = allocation_profiling_prev_free;
-                ALLOCATION_PROFILING_REALLOC = allocation_profiling_prev_realloc;
-                ALLOCATION_PROFILING_PREPARE_ZEND_HEAP = prepare_zend_heap_none;
-                ALLOCATION_PROFILING_RESTORE_ZEND_HEAP = restore_zend_heap_none;
+                (*zend_mm_state).alloc = allocation_profiling_prev_alloc;
+                (*zend_mm_state).free = allocation_profiling_prev_free;
+                (*zend_mm_state).realloc = allocation_profiling_prev_realloc;
+                (*zend_mm_state).prepare_zend_heap = prepare_zend_heap_none;
+                (*zend_mm_state).restore_zend_heap = restore_zend_heap_none;
             }
         } else {
             unsafe {
-                ALLOCATION_PROFILING_ALLOC = allocation_profiling_orig_alloc;
-                ALLOCATION_PROFILING_FREE = allocation_profiling_orig_free;
-                ALLOCATION_PROFILING_REALLOC = allocation_profiling_orig_realloc;
-                ALLOCATION_PROFILING_PREPARE_ZEND_HEAP = prepare_zend_heap;
-                ALLOCATION_PROFILING_RESTORE_ZEND_HEAP = restore_zend_heap;
+                (*zend_mm_state).alloc = allocation_profiling_orig_alloc;
+                (*zend_mm_state).free = allocation_profiling_orig_free;
+                (*zend_mm_state).realloc = allocation_profiling_orig_realloc;
+                (*zend_mm_state).prepare_zend_heap = prepare_zend_heap;
+                (*zend_mm_state).restore_zend_heap = restore_zend_heap;
             }
         }
 
@@ -286,10 +305,6 @@ pub fn allocation_profiling_startup() {
     }
 }
 
-static mut ALLOCATION_PROFILING_PREPARE_ZEND_HEAP: unsafe fn(
-    heap: *mut zend::_zend_mm_heap,
-) -> c_int = prepare_zend_heap;
-
 /// Overrides the ZendMM heap's `use_custom_heap` flag with the default `ZEND_MM_CUSTOM_HEAP_NONE`
 /// (currently a `u32: 0`). This needs to be done, as the `zend_mm_gc()` and `zend_mm_shutdown()`
 /// functions alter behaviour in case custom handlers are installed.
@@ -307,11 +322,6 @@ unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
 fn prepare_zend_heap_none(_heap: *mut zend::_zend_mm_heap) -> c_int {
     0
 }
-
-static mut ALLOCATION_PROFILING_RESTORE_ZEND_HEAP: unsafe fn(
-    heap: *mut zend::_zend_mm_heap,
-    custom_heap: c_int,
-) = restore_zend_heap;
 
 /// Restore the ZendMM heap's `use_custom_heap` flag, see `prepare_zend_heap` for details
 unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) {
@@ -337,9 +347,15 @@ unsafe extern "C" fn alloc_profiling_gc_mem_caches(
     if let Some(func) = GC_MEM_CACHES_HANDLER {
         if allocation_profiling {
             let heap = zend::zend_mm_get_heap();
-            let custom_heap = ALLOCATION_PROFILING_PREPARE_ZEND_HEAP(heap);
+            let custom_heap = ZEND_MM_STATE.with(|cell| {
+                let zend_mm_state = cell.get();
+                ((*zend_mm_state).prepare_zend_heap)(heap)
+            });
             func(execute_data, return_value);
-            ALLOCATION_PROFILING_RESTORE_ZEND_HEAP(heap, custom_heap);
+            ZEND_MM_STATE.with(|cell| {
+                let zend_mm_state = cell.get();
+                ((*zend_mm_state).restore_zend_heap)(heap, custom_heap);
+            });
         } else {
             func(execute_data, return_value);
         }
@@ -352,7 +368,10 @@ unsafe extern "C" fn alloc_profiling_malloc(len: size_t) -> *mut c_void {
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
-    let ptr: *mut c_void = ALLOCATION_PROFILING_ALLOC(len);
+    let ptr = ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        ((*zend_mm_state).alloc)(len)
+    });
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -368,12 +387,6 @@ unsafe extern "C" fn alloc_profiling_malloc(len: size_t) -> *mut c_void {
     ptr
 }
 
-/// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_alloc()`
-/// when at the same time the `ZEND_MM_STATE.prev_custom_mm_alloc` is initialised to a valid
-/// function pointer, otherwise there will be dragons.
-static mut ALLOCATION_PROFILING_ALLOC: unsafe fn(size_t) -> *mut c_void =
-    allocation_profiling_orig_alloc;
-
 unsafe fn allocation_profiling_prev_alloc(len: size_t) -> *mut c_void {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
@@ -387,9 +400,15 @@ unsafe fn allocation_profiling_prev_alloc(len: size_t) -> *mut c_void {
 
 unsafe fn allocation_profiling_orig_alloc(len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let custom_heap = ALLOCATION_PROFILING_PREPARE_ZEND_HEAP(heap);
+    let custom_heap = ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        ((*zend_mm_state).prepare_zend_heap)(heap)
+    });
     let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
-    ALLOCATION_PROFILING_RESTORE_ZEND_HEAP(heap, custom_heap);
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        ((*zend_mm_state).restore_zend_heap)(heap, custom_heap);
+    });
     ptr
 }
 
@@ -398,13 +417,11 @@ unsafe fn allocation_profiling_orig_alloc(len: size_t) -> *mut c_void {
 // installed. We can not just point to the original `zend::_zend_mm_free()` as the function
 // definitions differ.
 unsafe extern "C" fn alloc_profiling_free(ptr: *mut c_void) {
-    ALLOCATION_PROFILING_FREE(ptr);
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        ((*zend_mm_state).free)(ptr);
+    });
 }
-
-/// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_free()`
-/// when at the same time the `ZEND_MM_STATE.prev_custom_mm_free` is initialised to a valid
-/// function pointer, otherwise there will be dragons.
-static mut ALLOCATION_PROFILING_FREE: unsafe fn(*mut c_void) = allocation_profiling_orig_free;
 
 unsafe fn allocation_profiling_prev_free(ptr: *mut c_void) {
     ZEND_MM_STATE.with(|cell| {
@@ -426,7 +443,10 @@ unsafe extern "C" fn alloc_profiling_realloc(prev_ptr: *mut c_void, len: size_t)
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
-    let ptr: *mut c_void = ALLOCATION_PROFILING_REALLOC(prev_ptr, len);
+    let ptr = ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        ((*zend_mm_state).realloc)(prev_ptr, len)
+    });
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -442,12 +462,6 @@ unsafe extern "C" fn alloc_profiling_realloc(prev_ptr: *mut c_void, len: size_t)
     ptr
 }
 
-/// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_realloc()`
-/// when at the same time the `ZEND_MM_STATE.prev_custom_mm_realloc` is initialised to a valid
-/// function pointer, otherwise there will be dragons.
-static mut ALLOCATION_PROFILING_REALLOC: unsafe fn(*mut c_void, size_t) -> *mut c_void =
-    allocation_profiling_orig_realloc;
-
 unsafe fn allocation_profiling_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
@@ -461,9 +475,15 @@ unsafe fn allocation_profiling_prev_realloc(prev_ptr: *mut c_void, len: size_t) 
 
 unsafe fn allocation_profiling_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let custom_heap = ALLOCATION_PROFILING_PREPARE_ZEND_HEAP(heap);
+    let custom_heap = ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        ((*zend_mm_state).prepare_zend_heap)(heap)
+    });
     let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
-    ALLOCATION_PROFILING_RESTORE_ZEND_HEAP(heap, custom_heap);
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        ((*zend_mm_state).restore_zend_heap)(heap, custom_heap);
+    });
     ptr
 }
 
