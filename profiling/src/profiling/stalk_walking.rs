@@ -328,6 +328,7 @@ mod tests {
     #[test]
     #[cfg(feature = "stack_walking_tests")]
     fn test_collect_stack_sample() {
+        CACHED_STRINGS.with(|cell| cell.new_generation_with_capacity(1024).unwrap());
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
 
