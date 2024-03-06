@@ -150,23 +150,18 @@ bool ddtrace_detect_composer_installed_json(ddog_SidecarTransport **transport,
                                             const ddog_QueueId *queue_id,
                                             ddog_CharSlice path);
 
-ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection,
-                                         const char *error_path,
-                                         ddog_CharSlice log_level,
-                                         bool enable_telemetry);
+struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
 
-struct ddog_TelemetryActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
-
-void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_TelemetryActionsBuffer *buffer,
+void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                   ddog_CharSlice integration_name,
                                                   ddog_CharSlice integration_version,
                                                   bool integration_enabled);
 
-void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_TelemetryActionsBuffer *buffer,
+void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                  ddog_CharSlice dependency_name,
                                                  ddog_CharSlice dependency_version);
 
-void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_TelemetryActionsBuffer *buffer,
+void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                  ddog_CharSlice config_key,
                                                  ddog_CharSlice config_value,
                                                  enum ddog_ConfigurationOrigin origin);
@@ -174,6 +169,11 @@ void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_TelemetryActionsBuf
 ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(ddog_SidecarTransport **transport,
                                                     const struct ddog_InstanceId *instance_id,
                                                     const ddog_QueueId *queue_id,
-                                                    struct ddog_TelemetryActionsBuffer *buffer);
+                                                    struct ddog_SidecarActionsBuffer *buffer);
+
+ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection,
+                                         const char *error_path,
+                                         ddog_CharSlice log_level,
+                                         bool enable_telemetry);
 
 #endif /* DDTRACE_PHP_H */
