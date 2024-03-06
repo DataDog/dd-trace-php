@@ -80,7 +80,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
             success = zai_symbol_call_global((zai_str)ZAI_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
         }
 
-        if (UNEXPECTED(!success)) {
+        if (UNEXPECTED(!success) && get_DD_TRACE_ENABLED()) {
             LOG(WARN,
                     "Error loading deferred integration '%s' from DDTrace\\Integrations\\load_deferred_integration",
                     Z_STRVAL(integration));
