@@ -1554,12 +1554,20 @@ function search_php_binaries($prefix = '')
             dirname(PHP_BINARY),
             PHP_BINDIR,
             $bootDisk . 'WINDOWS',
-            $bootDisk . 'tools', // chocolatey default location
         ];
 
         foreach (scandir($bootDisk) as $file) {
             if (stripos($file, "php") !== false) {
                 $standardPaths[] = "$bootDisk$file";
+            }
+        }
+
+        $chocolateyDir = getenv("ChocolateyToolsLocation") ?: $bootDisk . 'tools'; // chocolatey tools location
+        if (is_dir($chocolateyDir)) {
+            foreach (scandir($chocolateyDir) as $file) {
+                if (stripos($file, "php") !== false) {
+                    $standardPaths[] = "$chocolateyDir/$file";
+                }
             }
         }
 
