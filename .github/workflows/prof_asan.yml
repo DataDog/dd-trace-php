@@ -41,6 +41,7 @@ jobs:
           export RUSTC_LINKER=lld-16
           triplet=$(uname -m)-unknown-linux-gnu
           rustup install nightly-2024-02-27
+          rustup component add rust-src --toolchain nightly-2024-02-27-x86_64-unknown-linux-gnu
           RUSTFLAGS='-Zsanitizer=address' cargo +nightly-2024-02-27 build -Zbuild-std --target $triplet --release
           cp -v "$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 
