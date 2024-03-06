@@ -136,8 +136,8 @@ unsafe fn handle_file_cache_slot_helper(
 
     let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
     // todo: handle failure
-    let offset = string_set.insert(&file).unwrap();
-    cache_slots[1] = mem::transmute(offset);
+    let handle = string_set.insert(&file).unwrap();
+    cache_slots[1] = mem::transmute(handle);
 
     Some(file)
 }

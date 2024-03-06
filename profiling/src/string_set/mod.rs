@@ -50,25 +50,11 @@ impl StringSetCell {
     /// consider using [StringSetCell::reader] to get a reader which can safely
     /// return references.
     pub fn fetch(&self, handle: StringHandle) -> Option<String> {
-        if self.is_same_generation(handle) {
-            return None;
-        }
-
         // SAFETY: no references are ever returned out of local scope
         // (unique reference is guaranteed), and the pointer is definitely
         // valid (cell always contains a value).
         let set = unsafe { &mut *self.cell.get() };
-
-        let base_ptr = set.arena.base_ptr();
-        if !base_ptr.is_null() {
-            let item_ptr = unsafe { base_ptr.add(handle.offset as usize) };
-            let header_ptr = item_ptr.cast::<LengthPrefixedStr>();
-            // SAFETY: repr(transparent) to compatible type.
-            let prefixed_str: LengthPrefixedStr = unsafe { mem::transmute(header_ptr) };
-            Some(String::from(prefixed_str.deref()))
-        } else {
-            None
-        }
+        set.fetch(handle).map(String::from)
     }
 
     /// Inserts the string into the set if it doesn't exist already, and then
