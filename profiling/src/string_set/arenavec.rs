@@ -68,6 +68,18 @@ pub struct ArenaSlice {
     ptr: Option<HeaderPtr>,
 }
 
+impl ArenaSlice {
+    /// Return a pointer to the beginning of the data (skips the header).
+    /// Returns null if there isn't a mapping.
+    pub fn base_ptr(&self) -> *const u8 {
+        match &self.ptr {
+            None => ptr::null(),
+            // SAFETY: todo
+            Some(header_ptr) => unsafe { ptr::addr_of!((*header_ptr.ptr.as_ptr()).data).cast() },
+        }
+    }
+}
+
 impl ArenaHeader {
     #[track_caller]
     fn layout(capacity: usize) -> (Layout, usize) {
@@ -111,13 +123,6 @@ impl Drop for ArenaVec {
         }
     }
 }
-
-static mut EMPTY_ARENA_HEADER: ArenaHeader = ArenaHeader {
-    allocation_size: 0,
-    rc: AtomicU32::new(1),
-    len: AtomicU32::new(0),
-    data: [],
-};
 
 impl ArenaVec {
     pub const fn new() -> Self {
@@ -180,6 +185,11 @@ impl ArenaVec {
         self.len() == 0
     }
 
+    #[inline]
+    pub fn capacity(&self) -> u32 {
+        self.capacity
+    }
+
     /// Tries to reserve `additional` bytes. Returns a fatptr to it on success.
     pub fn try_reserve(&self, additional: u32) -> Result<ptr::NonNull<[u8]>, AllocError> {
         let len = self.len();
@@ -236,24 +246,20 @@ impl ArenaVec {
     }
 }
 
-impl Deref for ArenaHeader {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        let ptr = self.data.as_ptr().cast();
-        let len = self.len.load(Ordering::Acquire) as usize;
-        // SAFETY: ArenaHeader::layout() aligned it correctly, and  the first
-        // `len` are properly initialized.
-        unsafe { slice::from_raw_parts(ptr, len) }
-    }
-}
-
 impl Deref for ArenaSlice {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
         match &self.ptr {
-            Some(header) => header.deref(),
+            Some(header) => {
+                let header_ptr = header.ptr.as_ptr();
+                // SAFETY: projection to data member is safe on valid pointer.
+                let base_ptr = unsafe { ptr::addr_of!((*header_ptr).data).cast::<u8>() };
+                let len = header.len.load(Ordering::Acquire) as usize;
+                // SAFETY: ArenaHeader::layout() aligned it correctly, and  the first
+                // `len` are properly initialized.
+                unsafe { slice::from_raw_parts(base_ptr, len) }
+            }
             None => &[],
         }
     }

@@ -1,14 +1,15 @@
 use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function, ZEND_USER_FUNCTION};
-use crate::string_table::StringTable;
+use crate::string_set::StringSetCell;
 use std::borrow::Cow;
-use std::cell::RefCell;
+use std::cell::Cell;
+use std::mem;
 use std::str::Utf8Error;
 
 /// Used to help track the function run_time_cache hit rate. It glosses over
 /// the fact that there are two cache slots used, and they don't have to be in
 /// sync. However, they usually are, so we simplify.
 #[cfg(php_run_time_cache)]
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct FunctionRunTimeCacheStats {
     hit: usize,
     missed: usize,
@@ -40,8 +41,8 @@ impl Default for FunctionRunTimeCacheStats {
 
 #[cfg(php_run_time_cache)]
 thread_local! {
-    static CACHED_STRINGS: RefCell<StringTable> = RefCell::new(StringTable::new());
-    pub static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> = const { RefCell::new(FunctionRunTimeCacheStats::new()) };
+    static CACHED_STRINGS: StringSetCell = StringSetCell::new();
+    pub static FUNCTION_CACHE_STATS: Cell<FunctionRunTimeCacheStats> = const { Cell::new(FunctionRunTimeCacheStats::new()) };
 }
 
 /// # Safety
@@ -49,7 +50,12 @@ thread_local! {
 #[inline]
 pub unsafe fn activate_run_time_cache() {
     #[cfg(php_run_time_cache)]
-    CACHED_STRINGS.with(|cell| cell.replace(StringTable::new()));
+    CACHED_STRINGS.with(|cell| {
+        // Chosen arbitrarily.
+        const MIN_ARENA_MEMORY: u32 = 4 * 1024 * 1024;
+        // todo: handle failure
+        cell.new_generation_with_capacity(MIN_ARENA_MEMORY).unwrap();
+    });
 }
 
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
@@ -112,25 +118,26 @@ pub fn extract_function_name(func: &zend_function) -> Option<String> {
 #[inline]
 unsafe fn handle_file_cache_slot_helper(
     execute_data: &zend_execute_data,
-    string_table: &mut StringTable,
+    string_set: &StringSetCell,
     cache_slots: &mut [usize; 2],
 ) -> Option<String> {
-    let file = if cache_slots[1] > 0 {
-        let offset = cache_slots[1] as u32;
-        let str = string_table.get_offset(offset);
-        String::from(str)
-    } else {
-        // Safety: if we have cache slots, we definitely have a func.
-        let func = &*execute_data.func;
-        if func.type_ != ZEND_USER_FUNCTION as u8 {
-            return None;
-        };
+    if cache_slots[1] > 0 {
+        let handle = mem::transmute(cache_slots[1]);
+        if let Some(file_name) = string_set.fetch(handle) {
+            return Some(file_name);
+        }
+    }
 
-        let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
-        let offset = string_table.insert(file.as_ref());
-        cache_slots[1] = offset as usize;
-        file
+    // Safety: if we have cache slots, we definitely have a func.
+    let func = &*execute_data.func;
+    if func.type_ != ZEND_USER_FUNCTION as u8 {
+        return None;
     };
+
+    let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
+    // todo: handle failure
+    let offset = string_set.insert(&file).unwrap();
+    cache_slots[1] = mem::transmute(offset);
 
     Some(file)
 }
@@ -138,10 +145,10 @@ unsafe fn handle_file_cache_slot_helper(
 #[cfg(php_run_time_cache)]
 unsafe fn handle_file_cache_slot(
     execute_data: &zend_execute_data,
-    string_table: &mut StringTable,
+    string_set: &StringSetCell,
     cache_slots: &mut [usize; 2],
 ) -> (Option<String>, u32) {
-    match handle_file_cache_slot_helper(execute_data, string_table, cache_slots) {
+    match handle_file_cache_slot_helper(execute_data, string_set, cache_slots) {
         Some(filename) => {
             let lineno = match execute_data.opline.as_ref() {
                 Some(opline) => opline.lineno,
@@ -156,19 +163,22 @@ unsafe fn handle_file_cache_slot(
 #[cfg(php_run_time_cache)]
 fn handle_function_cache_slot(
     func: &zend_function,
-    string_table: &mut StringTable,
+    string_set: &StringSetCell,
     cache_slots: &mut [usize; 2],
 ) -> Option<Cow<'static, str>> {
-    let fname = if cache_slots[0] > 0 {
-        let offset = cache_slots[0] as u32;
-        let str = string_table.get_offset(offset);
-        str.to_string()
-    } else {
-        let name = extract_function_name(func)?;
-        let offset = string_table.insert(name.as_ref());
-        cache_slots[0] = offset as usize;
-        name
-    };
+    if cache_slots[0] > 0 {
+        let handle = unsafe { mem::transmute(cache_slots[0]) };
+        if let Some(fname) = string_set.fetch(handle) {
+            return Some(Cow::Owned(fname));
+        }
+    }
+
+    let fname = extract_function_name(func)?;
+    // todo: handle failure
+    let handle = string_set.insert(&fname).unwrap();
+    // SAFETY: todo
+    cache_slots[0] = unsafe { mem::transmute(handle) };
+
     Some(Cow::Owned(fname))
 }
 
@@ -191,7 +201,7 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
 #[cfg(php_run_time_cache)]
 unsafe fn collect_call_frame(
     execute_data: &zend_execute_data,
-    string_table: &mut StringTable,
+    string_set: &StringSetCell,
 ) -> Option<ZendFrame> {
     #[cfg(not(feature = "stack_walking_tests"))]
     use crate::bindings::ddog_php_prof_function_run_time_cache;
@@ -202,23 +212,25 @@ unsafe fn collect_call_frame(
     let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
         Some(cache_slots) => {
             FUNCTION_CACHE_STATS.with(|cell| {
-                let mut stats = cell.borrow_mut();
+                let mut stats = cell.get();
                 if cache_slots[0] == 0 {
                     stats.missed += 1;
                 } else {
                     stats.hit += 1;
                 }
+                cell.set(stats);
             });
-            let function = handle_function_cache_slot(func, string_table, cache_slots);
-            let (file, line) = handle_file_cache_slot(execute_data, string_table, cache_slots);
+            let function = handle_function_cache_slot(func, string_set, cache_slots);
+            let (file, line) = handle_file_cache_slot(execute_data, string_set, cache_slots);
 
             (function, file, line)
         }
 
         None => {
             FUNCTION_CACHE_STATS.with(|cell| {
-                let mut stats = cell.borrow_mut();
+                let mut stats = cell.get();
                 stats.not_applicable += 1;
+                cell.set(stats)
             });
             let function = extract_function_name(func).map(Cow::Owned);
             let (file, line) = extract_file_and_line(execute_data);
@@ -260,7 +272,7 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
 #[inline]
 fn collect_stack_sample_helper(
     top_execute_data: *mut zend_execute_data,
-    #[cfg(php_run_time_cache)] string_table: &mut StringTable,
+    #[cfg(php_run_time_cache)] string_set: &StringSetCell,
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     let max_depth = 512;
     let mut samples = Vec::with_capacity(max_depth >> 3);
@@ -271,7 +283,7 @@ fn collect_stack_sample_helper(
             collect_call_frame(
                 execute_data,
                 #[cfg(php_run_time_cache)]
-                string_table,
+                string_set,
             )
         };
         if let Some(frame) = maybe_frame {
@@ -301,10 +313,7 @@ pub fn collect_stack_sample(
 ) -> Result<Vec<ZendFrame>, Utf8Error> {
     cfg_if::cfg_if! {
         if #[cfg(php_run_time_cache)] {
-            CACHED_STRINGS.with(|cell| {
-                let mut string_table = cell.borrow_mut();
-                collect_stack_sample_helper(top_execute_data, &mut string_table)
-            })
+            CACHED_STRINGS.with(|cell| collect_stack_sample_helper(top_execute_data, &cell))
         } else {
             collect_stack_sample_helper(top_execute_data)
         }
