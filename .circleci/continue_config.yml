@@ -996,7 +996,7 @@ jobs:
 #          name: Run some integration tests
 #          shell: powershell.exe
 #          command: |
-#            docker exec php powershell.exe 'cd app; php -d $sourcesDir=$pwd\src\bridge\dd_wrap_autoloader.php'
+#            docker exec php powershell.exe 'cd app; php -d datadog.trace.sources_path=$pwd\src'
       - run:
           when: always
           command: |

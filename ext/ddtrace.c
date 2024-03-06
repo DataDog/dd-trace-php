@@ -1939,11 +1939,6 @@ PHP_FUNCTION(DDTrace_Testing_trigger_error) {
     }
 }
 
-PHP_FUNCTION(ddtrace_init) {
-    UNUSED(execute_data);
-    RETVAL_BOOL(false);
-}
-
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     char *payload = NULL;
     ddtrace_zpplong_t num_traces = 0;
