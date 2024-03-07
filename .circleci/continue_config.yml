@@ -2183,6 +2183,23 @@ jobs:
           name: Test
           command: ./dockerfiles/verify_packages/verify_no_ext_json.sh
 
+  verify_windows:
+    working_directory: ~/datadog
+    resource_class: 'windows.medium'
+    machine:
+      image: 'windows-server-2019-vs2019:2022.08.1'
+      shell: 'powershell.exe -ExecutionPolicy Bypass'
+    parameters:
+      docker_image:
+        type: string
+    steps:
+      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Build nts
+          shell: powershell.exe
+          command: .\dockerfiles\verify_packages\verify_windows.ps1
+
   installer_tests:
     working_directory: ~/datadog
     machine:
