@@ -1831,6 +1831,9 @@ jobs:
           php_version: << parameters.switch_php_version >>
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
+      - run:
+          name: Install required packages
+          command: sudo apt update && sudo apt install -y jq
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
