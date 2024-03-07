@@ -972,9 +972,9 @@ define run_composer_with_retry
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
 		$(COMPOSER) --working-dir=$1 update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
-	done
+	done \
 
-	$(COMPOSER) --working-dir=$1 show -f json -D | jq -r '.installed[] | "\(.name);\(.version)"' > "/tmp/artifacts/${1////_}_versions.json"
+	$(COMPOSER) --working-dir=$1 show -f json -D | jq -r '.installed[] | "\(.name);\(.version)"' > "/tmp/artifacts/${1//\//_}_versions.json"
 endef
 
 define run_tests_without_coverage
