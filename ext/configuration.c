@@ -145,6 +145,10 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
         memcpy(ini_name->ptr, "datadog.", sizeof("datadog.") - 1);
         ini_name->len = env_name.len + DD_TO_DATADOG_INC;
 
+        if (env_name.ptr == strstr(env_name.ptr, "DD_APPSEC_")) {
+            ini_name->ptr[sizeof("datadog.appsec") - 1] = '.';
+        }
+
         if (env_name.ptr == strstr(env_name.ptr, "DD_TRACE_")) {
             ini_name->ptr[sizeof("datadog.trace") - 1] = '.';
         }
