@@ -5,6 +5,14 @@ use std::cell::Cell;
 use std::mem;
 use std::str::Utf8Error;
 
+#[cfg(php_run_time_cache)]
+thread_local! {
+    static CACHED_STRINGS: StringSetCell = StringSetCell::new();
+    pub static FUNCTION_CACHE_STATS: Cell<FunctionRunTimeCacheStats> = const {
+        Cell::new(FunctionRunTimeCacheStats::new())
+    };
+}
+
 /// Used to help track the function run_time_cache hit rate. It glosses over
 /// the fact that there are two cache slots used, and they don't have to be in
 /// sync. However, they usually are, so we simplify.
@@ -39,12 +47,6 @@ impl Default for FunctionRunTimeCacheStats {
     }
 }
 
-#[cfg(php_run_time_cache)]
-thread_local! {
-    static CACHED_STRINGS: StringSetCell = StringSetCell::new();
-    pub static FUNCTION_CACHE_STATS: Cell<FunctionRunTimeCacheStats> = const { Cell::new(FunctionRunTimeCacheStats::new()) };
-}
-
 /// # Safety
 /// Must be called in Zend Extension activate.
 #[inline]
@@ -52,9 +54,11 @@ pub unsafe fn activate_run_time_cache() {
     #[cfg(php_run_time_cache)]
     CACHED_STRINGS.with(|cell| {
         // Chosen arbitrarily.
-        const MIN_ARENA_MEMORY: u32 = 4 * 1024 * 1024;
-        // todo: handle failure
-        cell.new_generation_with_capacity(MIN_ARENA_MEMORY).unwrap();
+        const MIN_ARENA_MEMORY: u32 = 16 * 1024 * 1024;
+        if cell.arena_fullness() > 0.5 {
+            // todo: handle failure
+            cell.new_generation_with_capacity(MIN_ARENA_MEMORY).unwrap();
+        }
     });
 }
 

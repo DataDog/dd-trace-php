@@ -37,6 +37,21 @@ impl StringSetCell {
         })
     }
 
+    /// Returns how full the arena is, as a value from 0 to 1.0. For the
+    /// case of zero capacity, it will return 1.0.
+    pub fn arena_fullness(&self) -> f64 {
+        // SAFETY: no references are ever returned out of local scope
+        // (unique reference is guaranteed), and the pointer is definitely
+        // valid (cell always contains a value).
+        let set = unsafe { &mut *self.cell.get() };
+        let capacity = set.arena.capacity();
+        if capacity == 0 {
+            1.0
+        } else {
+            set.arena.len() as f64 / set.arena.capacity() as f64
+        }
+    }
+
     pub fn is_same_generation(&self, handle: StringHandle) -> bool {
         // SAFETY: no references are ever returned out of local scope
         // (unique reference is guaranteed), and the pointer is definitely
@@ -346,6 +361,10 @@ mod tests {
             let world2 = cell.insert("world").unwrap();
             assert_eq!(hello, hello2);
             assert_eq!(world, world2);
+
+            let set = unsafe { &*cell.cell.get() };
+            assert_eq!(2, set.set.len());
+
             (hello, world, cell.reader())
         });
 
