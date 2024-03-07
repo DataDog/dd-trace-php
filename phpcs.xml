@@ -35,7 +35,7 @@
         <exclude-pattern>tests/*</exclude-pattern>
     </rule>
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
-        <exclude-pattern>bridge/autoload.php</exclude-pattern>
+        <exclude-pattern>src/bridge/autoload.php</exclude-pattern>
         <exclude-pattern>build/packages/*</exclude-pattern>
         <exclude-pattern>ext/*</exclude-pattern>
         <exclude-pattern>datadog-setup.php</exclude-pattern>
@@ -72,11 +72,11 @@
     <exclude-pattern>*/node_modules/*</exclude-pattern>
     <exclude-pattern>*/tests/stubs/*</exclude-pattern>
     <exclude-pattern>*/vendor/*</exclude-pattern>
-    <exclude-pattern>bridge/_generated_api.php</exclude-pattern>
-    <exclude-pattern>bridge/_generated_integrations.php</exclude-pattern>
-    <exclude-pattern>bridge/_generated_tracer.php</exclude-pattern>
-    <exclude-pattern>bridge/_generated_tracer_api.php</exclude-pattern>
-    <exclude-pattern>bridge/dd_register_optional_deps_autoloader.php</exclude-pattern>
+    <exclude-pattern>src/bridge/_generated_api.php</exclude-pattern>
+    <exclude-pattern>src/bridge/_generated_integrations.php</exclude-pattern>
+    <exclude-pattern>src/bridge/_generated_tracer.php</exclude-pattern>
+    <exclude-pattern>src/bridge/_generated_opentelemetry.php</exclude-pattern>
+    <exclude-pattern>src/bridge/dd_register_optional_deps_autoloader.php</exclude-pattern>
     <exclude-pattern>dockerfiles/*</exclude-pattern>
     <exclude-pattern>playground*.php</exclude-pattern>
     <exclude-pattern>run-tests.php</exclude-pattern>

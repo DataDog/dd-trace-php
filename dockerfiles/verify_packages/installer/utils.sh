@@ -101,9 +101,9 @@ assert_appsec_disabled() {
     fi
 }
 
-assert_request_init_hook_exists() {
+assert_sources_path_exists() {
     php_bin=${1:-php}
-    assert_file_exists $($php_bin -r 'echo ini_get("datadog.trace.request_init_hook");')
+    assert_file_exists $($php_bin -r 'echo ini_get("datadog.trace.sources_path") . "/bridge/_files_api.php";')
 }
 
 assert_file_exists() {

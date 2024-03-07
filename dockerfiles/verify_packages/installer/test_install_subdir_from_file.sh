@@ -27,6 +27,6 @@ else
     echo "\nOk: ddtrace is installed\n"
 fi
 
-assert_file_exists /opt/datadog/dd-library/*/dd-trace-sources/bridge/dd_wrap_autoloader.php
+assert_file_exists /opt/datadog/dd-library/*/dd-trace-sources/src/bridge/_files_api.php
 
-assert_request_init_hook_exists
+assert_sources_path_exists

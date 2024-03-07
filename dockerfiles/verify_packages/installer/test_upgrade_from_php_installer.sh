@@ -19,4 +19,4 @@ version=$(cat VERSION)
 php ./build/packages/datadog-setup.php --php-bin php
 assert_ddtrace_version "${version}"
 
-assert_request_init_hook_exists
+assert_sources_path_exists

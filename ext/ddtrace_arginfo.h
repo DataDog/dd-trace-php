@@ -204,10 +204,6 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_ddtrace_config_integration_enabled arginfo_DDTrace_Config_integration_analytics_enabled
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ddtrace_init, 0, 1, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, dir, IS_STRING, 0)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_send_traces_via_thread, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, numTraces, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, curlHeaders, IS_ARRAY, 0)
@@ -343,7 +339,6 @@ ZEND_FUNCTION(ddtrace_config_app_name);
 ZEND_FUNCTION(ddtrace_config_distributed_tracing_enabled);
 ZEND_FUNCTION(ddtrace_config_trace_enabled);
 ZEND_FUNCTION(ddtrace_config_integration_enabled);
-ZEND_FUNCTION(ddtrace_init);
 ZEND_FUNCTION(dd_trace_send_traces_via_thread);
 ZEND_FUNCTION(dd_trace_buffer_span);
 ZEND_FUNCTION(dd_trace_coms_trigger_writer_flush);
@@ -426,7 +421,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(ddtrace_config_distributed_tracing_enabled, arginfo_ddtrace_config_distributed_tracing_enabled)
 	ZEND_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled)
 	ZEND_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled)
-	ZEND_FE(ddtrace_init, arginfo_ddtrace_init)
 	ZEND_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread)
 	ZEND_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span)
 	ZEND_FE(dd_trace_coms_trigger_writer_flush, arginfo_dd_trace_coms_trigger_writer_flush)

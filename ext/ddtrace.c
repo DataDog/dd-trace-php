@@ -65,7 +65,7 @@
 #include "limiter/limiter.h"
 #include "priority_sampling/priority_sampling.h"
 #include "random.h"
-#include "request_hooks.h"
+#include "autoload_php_files.h"
 #include "serializer.h"
 #include "sidecar.h"
 #ifndef _WIN32
@@ -437,8 +437,6 @@ static void ddtrace_activate(void) {
     if (DDTRACE_G(disable)) {
         ddtrace_disable_tracing_in_current_request();
     }
-
-    DDTRACE_G(request_init_hook_loaded) = 0;
 
 #if PHP_VERSION_ID < 80000
     // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
@@ -1095,6 +1093,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_dogstatsd_client_minit();
 #endif
     ddshared_minit();
+    ddtrace_autoload_minit();
 
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
@@ -1218,10 +1217,6 @@ static void dd_initialize_request(void) {
         }
     }
 
-    if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
-        dd_request_init_hook_rinit();
-    }
-
     ddtrace_internal_handlers_rinit();
 
     ddtrace_log_rinit(PG(error_log));
@@ -1264,6 +1259,9 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
         zai_hook_activate();
         DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
+#if PHP_VERSION_ID < 80000
+        ddtrace_autoload_rinit();
+#endif
     }
 
     if (get_DD_TRACE_ENABLED()) {
@@ -1307,10 +1305,6 @@ static void dd_clean_globals(void) {
         ddtrace_coms_rshutdown();
     }
 #endif
-
-    if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
-        dd_request_init_hook_rshutdown();
-    }
 }
 
 static void dd_shutdown_hooks_and_observer(void) {
@@ -1384,6 +1378,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     if (!DDTRACE_G(disable)) {
+        ddtrace_autoload_rshutdown();
+
         OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
         DDTRACE_G(active_stack) = NULL;
     }
@@ -1941,27 +1937,6 @@ PHP_FUNCTION(DDTrace_Testing_trigger_error) {
             LOG_LINE(Warn, "Invalid error type specified: %i", level);
             break;
     }
-}
-
-PHP_FUNCTION(ddtrace_init) {
-    if (DDTRACE_G(request_init_hook_loaded) == 1) {
-        RETURN_FALSE;
-    }
-
-    ddtrace_string dir;
-    int ret = 0;
-    DDTRACE_G(request_init_hook_loaded) = 1;
-    if (get_DD_TRACE_ENABLED() && zend_parse_parameters(ZEND_NUM_ARGS(), "s", &dir.ptr, &dir.len) == SUCCESS) {
-        char *init_file = emalloc(dir.len + sizeof("/dd_init.php"));
-        sprintf(init_file, "%s/dd_init.php", dir.ptr);
-        ret = dd_execute_php_file(init_file);
-        efree(init_file);
-    }
-
-    if (DDTRACE_G(auto_prepend_file) && DDTRACE_G(auto_prepend_file)[0]) {
-        dd_execute_auto_prepend_file(DDTRACE_G(auto_prepend_file));
-    }
-    RETVAL_BOOL(ret);
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {

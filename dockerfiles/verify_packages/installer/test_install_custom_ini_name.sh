@@ -28,4 +28,4 @@ assert_file_contains "${custom_ini_file}" 'datadog.version'
 
 assert_file_not_exists "${ini_file}"
 
-assert_request_init_hook_exists
+assert_sources_path_exists

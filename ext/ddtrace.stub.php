@@ -868,15 +868,6 @@ namespace {
     function ddtrace_config_integration_enabled(string $integrationName): bool {}
 
     /**
-     * Initialize the tracer and executes the dd_init.php in the sandbox
-     *
-     * @internal
-     * @param string $dir Directory where 'dd_init.php' is located
-     * @return bool 'true' if the initialization was successful, else 'false'
-     */
-    function ddtrace_init(string $dir): bool {}
-
-    /**
      * Send payload to background sender's buffer
      *
      * @internal

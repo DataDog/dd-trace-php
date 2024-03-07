@@ -40,14 +40,14 @@ class ComposerInteroperabilityTest extends BaseTestCase
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
             ],
             [
-                'ddtrace.request_init_hook' => 'do_not_exists',
+                'datadog.trace.sources_path' => 'do_not_exists',
             ]
         );
 
         $this->assertEmpty($traces);
     }
 
-    public function testComposerInteroperabilityWhenInitHookWorks()
+    public function testComposerInteroperabilityWhenSourcesValid()
     {
         $traces = $this->inWebServer(
             function ($execute) {
@@ -59,7 +59,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
             ],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
             ]
         );
 
@@ -84,7 +84,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
             ]
@@ -118,7 +118,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
             ]
@@ -158,7 +158,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.composer.no.ddtrace.php',
             ]
@@ -198,7 +198,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.ddtrace.php',
             ]
@@ -232,7 +232,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.ddtrace.php',
             ]
@@ -268,7 +268,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
             ]
         );
 
@@ -296,7 +296,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
             ]
         );
 
@@ -327,7 +327,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
             ]
@@ -362,7 +362,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
             ]
@@ -397,7 +397,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
                 'zend_extension' => 'opcache.so',
                 'opcache.preload' => __DIR__ . '/app/preload.no.ddtrace.php',
             ]

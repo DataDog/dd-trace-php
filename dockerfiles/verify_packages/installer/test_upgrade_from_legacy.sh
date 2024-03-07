@@ -31,4 +31,4 @@ else
     exit 1
 fi
 
-assert_request_init_hook_exists
+assert_sources_path_exists

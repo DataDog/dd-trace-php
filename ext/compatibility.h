@@ -358,6 +358,19 @@ static zend_always_inline bool zend_string_equals_cstr(const zend_string *s1, co
     return ZSTR_LEN(s1) == s2_length && !memcmp(ZSTR_VAL(s1), s2, s2_length);
 }
 
+static zend_always_inline bool zend_string_starts_with_cstr(const zend_string *str, const char *prefix, size_t prefix_length)
+{
+    return ZSTR_LEN(str) >= prefix_length && !memcmp(ZSTR_VAL(str), prefix, prefix_length);
+}
+
+static zend_always_inline bool zend_string_starts_with(const zend_string *str, const zend_string *prefix)
+{
+    return zend_string_starts_with_cstr(str, ZSTR_VAL(prefix), ZSTR_LEN(prefix));
+}
+
+#define zend_string_starts_with_literal(str, prefix) \
+    zend_string_starts_with_cstr(str, prefix, strlen(prefix))
+
 static inline zend_string *ddtrace_vstrpprintf(size_t max_len, const char *format, va_list ap)
 {
     zend_string *str = zend_vstrpprintf(max_len, format, ap);
