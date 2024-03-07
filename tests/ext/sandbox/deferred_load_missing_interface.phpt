@@ -3,7 +3,6 @@ deferred loading doesn't crash if integration loading fails
 --ENV--
 _DD_LOAD_TEST_INTEGRATIONS=1
 --INI--
-ddtrace.request_init_hook=
 datadog.trace.log_level=warn
 --FILE--
 <?php

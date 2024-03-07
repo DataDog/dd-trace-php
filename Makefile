@@ -1,6 +1,6 @@
 Q := @
 PROJECT_ROOT := ${PWD}
-REQUEST_INIT_HOOK_PATH := $(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
+TRACER_SOURCE_DIR := $(PROJECT_ROOT)/src/
 ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q libasan && echo 1)
 SHELL = /bin/bash
 BUILD_SUFFIX = extension
@@ -138,11 +138,11 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
 	export USE_ZEND_ALLOC=0; \
 	export ZEND_DONT_UNLOAD_MODULES=1; \
 	export USE_TRACKED_ALLOC=1; \
-	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access php -n -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php $(INIT_HOOK_TEST_FILES); \
+	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access php -n -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES); \
 	)
 
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php $(INIT_HOOK_TEST_FILES);
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
 
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
@@ -412,8 +412,7 @@ define FPM_FILES
 	extensions_$(shell test $(1) = arm64 && echo aarch64 || echo $(1))/=$(EXT_DIR)/extensions \
 		$(shell test $(1) = windows || echo package/post-install.sh=$(EXT_DIR)/bin/post-install.sh) package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
 		docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md \
-		src=$(EXT_DIR)/dd-trace-sources \
-		bridge=$(EXT_DIR)/dd-trace-sources
+		src=$(EXT_DIR)/dd-trace-sources
 endef
 define FPM_OPTS
 	-a $(1) -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
@@ -459,12 +458,7 @@ dbgsym.tar.gz:
 packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
-# Generates the bridge/_generated_api and _generate_internal.php files. Note it only works on PHP < 8.0 because:
-#  - we need classpreloader: 1.4.* because otherwise the generated file is not compatible with 5.4
-#  - classpreloader: 1.4.* does not work on PHP 8 (even from a dedicated composer.json file), showing an incompatibility
-#    with nikic/php-parser lexer's.
-#  - even if we leave classpreloader: 1.4.* and not use it for PHP 8, this is not enough because it would force
-#    phpunit version down to 5 (nikic common dependency) which is not compatible with PHP 8.
+# Generates the src/bridge/_generated_*.php files.
 generate:
 	@composer -dtooling/generation update
 	@composer -dtooling/generation generate
@@ -477,7 +471,7 @@ cores:
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
-REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(REQUEST_INIT_HOOK_PATH)
+TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
 ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true) DD_TRACE_CLI_ENABLED=true
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
@@ -967,11 +961,11 @@ define run_composer_with_retry
 endef
 
 define run_tests_without_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 define run_tests_with_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)
 endef
 
 # Note: The condition below only checks for existence - i.e., whether PHPUNIT_COVERAGE is set to anything.
@@ -991,7 +985,7 @@ endef
 
 
 define run_benchmarks
-	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
 endef
 
 
@@ -1347,7 +1341,7 @@ merge_coverage_reports:
 API_TESTS_ROOT := ./tests/api
 
 test_api_unit: composer.lock global_test_run_dependencies
-	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
+	$(ENV_OVERRIDE) php $(TRACER_SOURCES_INI) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
 
 # Just test it does not crash, i.e. the exit code
 test_internal_api_randomized: $(SO_FILE)

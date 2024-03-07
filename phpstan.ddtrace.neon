@@ -1,9 +1,6 @@
 parameters:
 	scanDirectories:
 		- src/DDTrace
-		- src/Integrations/Util
-	scanFiles:
-		- bridge/dd_register_optional_deps_autoloader.php
 	excludes_analyse:
 		- src/DDTrace/Integrations
 		- src/DDTrace/OpenTracer

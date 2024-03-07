@@ -120,7 +120,6 @@ test_profiler_install_unsupported.sh \
 
 test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
-test_alpine_no_libexecinfo.sh \
 test_alpine_no_libgcc_s.sh \
 test_first_install_alpine.sh \
 test_alpine_install_no_ext_curl_no_curl_cli.sh \

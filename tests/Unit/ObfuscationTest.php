@@ -2,8 +2,8 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Obfuscation;
 use DDTrace\Tests\Common\BaseTestCase;
+use DDTrace\Util\Obfuscation;
 
 final class ObfuscationTest extends BaseTestCase
 {

@@ -4,9 +4,9 @@ namespace DDTrace\Tests\Integrations\Memcache;
 
 use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
-use DDTrace\Obfuscation;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Util\Obfuscation;
 
 final class MemcacheTest extends IntegrationTestCase
 {

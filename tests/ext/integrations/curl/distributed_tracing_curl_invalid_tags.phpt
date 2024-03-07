@@ -4,8 +4,6 @@ Distributed tracing headers contain properly escaped values
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 <?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: The request-replayer used on Windows is sanitizing a bit too much'); ?>
---INI--
-ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_PROPAGATION_STYLE_INJECT=B3 single header,tracecontext

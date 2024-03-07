@@ -11,6 +11,6 @@ assert_no_ddtrace
 version=$(cat VERSION)
 php ./build/packages/datadog-setup.php --php-bin php --install-dir /custom/dd
 assert_ddtrace_version "${version}"
-assert_file_exists /custom/dd/dd-library/${version}/dd-trace-sources/bridge/dd_wrap_autoloader.php
+assert_file_exists /custom/dd/dd-library/${version}/dd-trace-sources/src/bridge/_files_api.php
 
-assert_request_init_hook_exists
+assert_sources_path_exists

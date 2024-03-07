@@ -38,9 +38,6 @@ function missing_ddtrace_class_fatal_autoloader($class)
 
 function prepend_test_autoloaders()
 {
-    \putenv('DD_PHPUNIT_BOOTSTRAP=true');
-    require_once __DIR__ . '/../bridge/dd_init.php';
-    \putenv('DD_PHPUNIT_BOOTSTRAP');
     spl_autoload_register('\DDTrace\Tests\missing_ddtrace_class_fatal_autoloader', true);
     require_once __DIR__ . '/vendor/autoload.php';
 }

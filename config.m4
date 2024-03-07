@@ -137,6 +137,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/ddtrace.c \
     ext/arrays.c \
     ext/auto_flush.c \
+    ext/autoload_php_files.c \
     ext/circuit_breaker.c \
     ext/comms_php.c \
     ext/compat_string.c \
@@ -161,7 +162,6 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/priority_sampling/priority_sampling.c \
     ext/profiling.c \
     ext/random.c \
-    ext/request_hooks.c \
     ext/serializer.c \
     ext/sidecar.c \
     ext/signals.c \

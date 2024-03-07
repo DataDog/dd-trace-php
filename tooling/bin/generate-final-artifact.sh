@@ -54,12 +54,9 @@ for architecture in "${architectures[@]}"; do
         fi
     done;
     cp -r ./src ${tmp_folder_final_gnu_trace};
-    cp -r ./bridge ${tmp_folder_final_gnu_trace};
     cp -r ./src ${tmp_folder_final_musl_trace};
-    cp -r ./bridge ${tmp_folder_final_musl_trace};
     if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} && $architecture == "x86_64" ]]; then
       cp -r ./src ${tmp_folder_final_windows_trace};
-      cp -r ./bridge ${tmp_folder_final_windows_trace};
     fi
 
     ########################
