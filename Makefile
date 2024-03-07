@@ -974,7 +974,7 @@ define run_composer_with_retry
 		$(COMPOSER) --working-dir=$1 update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
 	done
 
-	$(COMPOSER) --working-dir=$1 show -f json -D | jq -r '.installed[] | "\(.name);\(.version)"' > '/tmp/artifacts/$1_versions.json'
+	$(COMPOSER) --working-dir=$1 show -f json -D | jq -r '.installed[] | "\(.name);\(.version)"' > "/tmp/artifacts/${1////_}_versions.json"
 endef
 
 define run_tests_without_coverage
