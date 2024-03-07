@@ -30,7 +30,7 @@ static void _dd_get_time(char *buf) {
     if (tm) {
         strftime(buf, ISO_8601_LEN, "%Y-%m-%dT%TZ", tm);
     } else {
-        LOG(Warn, "Error getting time");
+        LOG(WARN, "Error getting time");
     }
 }
 
@@ -368,7 +368,7 @@ static void _dd_print_values_to_log(HashTable *ht, void (*log)(const char *forma
 
 // Only show startup logs on the first request
 void ddtrace_startup_logging_first_rinit(void) {
-    LOGEV(Startup, {
+    LOGEV(STARTUP, {
         HashTable *ht;
         ALLOC_HASHTABLE(ht);
         zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);

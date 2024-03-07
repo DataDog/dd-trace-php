@@ -73,6 +73,10 @@ void dd_integration_aux_free(void *auxiliary) {
 static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     (void) dynamic, (void) retval, (void) invocation;
 
+    if (!get_DD_TRACE_ENABLED()) {
+        return;
+    }
+
     dd_integration_aux *aux = auxiliary;
     volatile bool unload_hooks = true;
 
@@ -90,13 +94,13 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
             do {
                 zend_class_entry *ce = zend_lookup_class(aux->classname);
                 if (!ce) {
-                    LOG(Warn, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
+                    LOG(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
                     success = true;
                     break;
                 }
 
                 if (!instanceof_function(ce, ddtrace_ce_integration)) {
-                    LOG(Warn, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
+                    LOG(WARN, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
                     success = true;
                     break;
                 }
@@ -119,17 +123,17 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                 if (success) {
                     switch (Z_LVAL(rv)) {
                         case DD_TRACE_INTEGRATION_LOADED:
-                            LOG(Debug, "Loaded integration %s", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Loaded integration %s", ZSTR_VAL(aux->classname));
                             break;
                         case DD_TRACE_INTEGRATION_NOT_LOADED:
-                            LOG(Debug, "Integration %s not available. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Integration %s not available. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
                             break;
                         case DD_TRACE_INTEGRATION_NOT_AVAILABLE:
-                            LOG(Debug, "Integration {name} not loaded. New attempts might be performed.", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Integration {name} not loaded. New attempts might be performed.", ZSTR_VAL(aux->classname));
                             unload_hooks = false;
                             break;
                         default:
-                            LOG(Warn, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
+                            LOG(WARN, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
                             break;
                     }
                 }
@@ -137,7 +141,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
         } zend_catch {
         } zend_end_try();
         if (!success || PG(last_error_message)) {
-            LOGEV(Warn, {
+            LOGEV(WARN, {
                 zend_object *ex = EG(exception);
                 if (ex) {
                     const char *type = ZSTR_VAL(ex->ce->name);

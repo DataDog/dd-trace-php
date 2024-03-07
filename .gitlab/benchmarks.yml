@@ -55,6 +55,8 @@ benchmarks-tracer:
           - bridge/*
           - ext/**/*
           - src/**/*
+          - components/**/*
+          - components-rs/**/*
           - zend_abstract_interface/**/*
           - tests/Benchmarks/**/*
           - benchmark/*

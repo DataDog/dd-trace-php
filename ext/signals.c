@@ -40,7 +40,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 static void ddtrace_sigsegv_handler(int sig) {
     if (!DDTRACE_G(backtrace_handler_already_run)) {
         DDTRACE_G(backtrace_handler_already_run) = true;
-        LOG(Error, "Segmentation fault");
+        LOG(ERROR, "Segmentation fault");
 
 #if HAVE_SIGACTION
         bool health_metrics_enabled = get_DD_TRACE_HEALTH_METRICS_ENABLED();
@@ -51,27 +51,27 @@ static void ddtrace_sigsegv_handler(int sig) {
             dogstatsd_client_status status = dogstatsd_client_count(client, metric, "1", tags);
 
             if (status == DOGSTATSD_CLIENT_OK) {
-                LOG(Error, "sigsegv health metric sent");
+                LOG(ERROR, "sigsegv health metric sent");
             }
         }
 #endif
 
 #if DDTRACE_HAVE_BACKTRACE
-        LOG(Error, "Datadog PHP Trace extension (DEBUG MODE)");
-        LOG(Error, "Received Signal %d", sig);
+        LOG(ERROR, "Datadog PHP Trace extension (DEBUG MODE)");
+        LOG(ERROR, "Received Signal %d", sig);
         void *array[MAX_STACK_SIZE];
         backtrace_size_t size = backtrace(array, MAX_STACK_SIZE);
         if (size == MAX_STACK_SIZE) {
-            LOG(Error, "Note: max stacktrace size reached");
+            LOG(ERROR, "Note: max stacktrace size reached");
         }
 
-        LOG(Error, "Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
-        LOG(Error, "Backtrace:");
+        LOG(ERROR, "Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
+        LOG(ERROR, "Backtrace:");
 
         char **backtraces = backtrace_symbols(array, size);
         if (backtraces) {
             for (backtrace_size_t i = 0; i < size; i++) {
-                LOG(Error, backtraces[i]);
+                LOG(ERROR, backtraces[i]);
             }
             free(backtraces);
         }

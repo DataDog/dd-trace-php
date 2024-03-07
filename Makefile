@@ -35,7 +35,7 @@ RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKE
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{ddcommon,ddcommon-ffi,ddtelemetry,ddtelemetry-ffi,ipc,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,ddcommon,ddcommon-ffi,ddtelemetry,ddtelemetry-ffi,ipc,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -1038,6 +1038,8 @@ test: global_test_run_dependencies
 
 test_unit: global_test_run_dependencies
 	$(call run_tests,--testsuite=unit $(TESTS))
+test_unit_coverage: global_test_run_dependencies
+	PHPUNIT_COVERAGE=1 $(MAKE) test_unit
 
 test_integration: global_test_run_dependencies
 	$(call run_tests,--testsuite=integration $(TESTS))
@@ -1273,7 +1275,7 @@ test_web_symfony_34: global_test_run_dependencies
 test_web_symfony_40: global_test_run_dependencies
 	# We hit broken updates in this unmaintained version, so we committed a
 	# working composer.lock and we composer install instead of composer update
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 install
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 install --no-dev
 	php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V4_0)
 test_web_symfony_42: global_test_run_dependencies
@@ -1339,7 +1341,7 @@ test_scenario_%:
 	$(Q) $(COMPOSER_TESTS) scenario $*
 
 merge_coverage_reports:
-	$(PHPCOV) merge --clover reports/coverage.xml reports/cov
+	php -d memory_limit=-1 $(PHPCOV) merge --clover reports/coverage.xml reports/cov
 
 ### Api tests ###
 API_TESTS_ROOT := ./tests/api

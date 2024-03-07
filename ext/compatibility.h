@@ -185,6 +185,16 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define zend_hash_str_add_new(...) _zend_hash_str_add_new(__VA_ARGS__ ZEND_FILE_LINE_CC)
 
 #define smart_str_free_ex(str, persistent) smart_str_free(str)
+
+static inline zend_bool zend_ini_parse_bool(zend_string *str) {
+    if ((ZSTR_LEN(str) == 4 && strcasecmp(ZSTR_VAL(str), "true") == 0)
+      || (ZSTR_LEN(str) == 3 && strcasecmp(ZSTR_VAL(str), "yes") == 0)
+      || (ZSTR_LEN(str) == 2 && strcasecmp(ZSTR_VAL(str), "on") == 0)) {
+        return 1;
+    } else {
+        return atoi(ZSTR_VAL(str)) != 0;
+    }
+}
 #endif
 
 #if PHP_VERSION_ID < 70400
