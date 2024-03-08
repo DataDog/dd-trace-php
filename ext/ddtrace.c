@@ -942,6 +942,76 @@ PHP_METHOD(DDTrace_SpanData, hexId) {
     RETURN_STR(ddtrace_span_id_as_hex_string(span->span_id));
 }
 
+
+void add_distributed_tag(zend_string *key, zval *value) {
+    if (!get_DD_TRACE_ENABLED()) {
+        return;
+    }
+
+    zend_string *prefixed_key = zend_strpprintf(0, "_dd.p.%s", ZSTR_VAL(key));
+
+    zend_array *target_table, *propagated;
+    if (DDTRACE_G(active_stack)->root_span) {
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+        propagated = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_propagated_tags);
+    } else {
+        target_table = &DDTRACE_G(root_span_tags_preset);
+        propagated = &DDTRACE_G(propagated_root_span_tags);
+    }
+
+    zend_hash_update(target_table, prefixed_key, value);
+    zend_hash_add_empty_element(propagated, prefixed_key);
+
+    zend_string_release(prefixed_key);
+}
+
+/* {{{ proto setTag(string $key, ?mixed $value): SpanData */
+PHP_METHOD(DDTrace_SpanData, setTag) {
+    zend_string *key;
+    zval *value;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sz", &key, &value) == FAILURE) {
+        RETURN_THROWS();
+    }
+
+    ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ_P(ZEND_THIS));
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
+    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
+
+    if (Z_TYPE_P(value) == IS_NULL) {
+        if (zend_hash_del(meta, key) == SUCCESS) {
+            RETURN_ZVAL(getThis(), 1, 0);
+        } else if (zend_hash_del(metrics, key) == SUCCESS) {
+            RETURN_ZVAL(getThis(), 1, 0);
+        }
+
+        RETURN_ZVAL(getThis(), 1, 0);
+    }
+
+    if (ZSTR_LEN(key) >= 6 && memcmp(ZSTR_VAL(key), "_dd.p.", 6) == 0) {
+        zend_string *prefixed_key = zend_string_init(ZSTR_VAL(key) + 6, ZSTR_LEN(key) - 6, 0);
+        add_distributed_tag(prefixed_key, value);
+        zend_string_release(prefixed_key);
+    } else if (Z_TYPE_P(value) == IS_LONG || Z_TYPE_P(value) == IS_DOUBLE) {
+        Z_TRY_ADDREF_P(value);
+        zend_hash_update(metrics, key, value);
+    } else if (Z_TYPE_P(value) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(value)) > 0) {
+        zval *first = zend_hash_index_find(Z_ARR_P(value), 0);
+        if (Z_TYPE_P(first) == IS_LONG || Z_TYPE_P(first) == IS_DOUBLE) {
+            Z_TRY_ADDREF_P(value);
+            zend_hash_update(metrics, key, value);
+        } else {
+            Z_TRY_ADDREF_P(value);
+            zend_hash_update(meta, key, value);
+        }
+    } else {
+        Z_TRY_ADDREF_P(value);
+        zend_hash_update(meta, key, value);
+    }
+
+    RETURN_ZVAL(getThis(), 1, 0);
+}
+
 static void dd_register_span_data_ce(void) {
     ddtrace_ce_span_data = register_class_DDTrace_SpanData();
     ddtrace_ce_span_data->create_object = ddtrace_span_data_create;
@@ -980,7 +1050,6 @@ static void dd_register_span_data_ce(void) {
     ddtrace_span_stack_handlers.clone_obj = ddtrace_span_stack_clone_obj;
     ddtrace_span_stack_handlers.dtor_obj = ddtrace_span_stack_dtor_obj;
     ddtrace_span_stack_handlers.write_property = ddtrace_span_stack_readonly;
-
 }
 
 /* DDTrace\FatalError */
@@ -1593,24 +1662,9 @@ PHP_FUNCTION(DDTrace_add_distributed_tag) {
         RETURN_NULL();
     }
 
-    zend_string *prefixed_key = zend_strpprintf(0, "_dd.p.%s", ZSTR_VAL(key));
-
-    zend_array *target_table, *propagated;
-    if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
-        propagated = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_propagated_tags);
-    } else {
-        target_table = &DDTRACE_G(root_span_tags_preset);
-        propagated = &DDTRACE_G(propagated_root_span_tags);
-    }
-
     zval value_zv;
     ZVAL_STR_COPY(&value_zv, val);
-    zend_hash_update(target_table, prefixed_key, &value_zv);
-
-    zend_hash_add_empty_element(propagated, prefixed_key);
-
-    zend_string_release(prefixed_key);
+    add_distributed_tag(key, &value_zv);
 
     RETURN_NULL();
 }

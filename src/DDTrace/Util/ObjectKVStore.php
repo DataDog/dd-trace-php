@@ -207,8 +207,8 @@ class ObjectKVStore
     {
         return
             empty($instance)
-            || !is_object($instance)
             || empty($key)
-            || !is_string($key);
+            || !is_string($key)
+            || !is_object($instance);
     }
 }

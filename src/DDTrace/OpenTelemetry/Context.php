@@ -178,16 +178,15 @@ final class Context implements ContextInterface
         $traceState = new API\TraceState($traceContext['tracestate'] ?? null);
 
         // Check for span links
-        $links = [];
-        foreach ($currentSpan->links as $spanLink) {
+        $links = array_map(function ($spanLink) {
             $linkSpanContext = API\SpanContext::create(
                 $spanLink->traceId,
                 $spanLink->spanId,
                 API\TraceFlags::DEFAULT,
-                new API\TraceState($spanLink->traceState ?? null),
+                new API\TraceState($spanLink->traceState ?? null)
             );
-            $links[] = new SDK\Link($linkSpanContext, Attributes::create($spanLink->attributes));
-        }
+            return new SDK\Link($linkSpanContext, Attributes::create($spanLink->attributes));
+        }, $currentSpan->links);
 
         $OTelCurrentSpan = SDK\Span::startSpan(
             $currentSpan,

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 9356ea34a0a1611519c3a3d1b1731b3e3e1c9c7d */
+ * Stub hash: 4215611ee5594833d1392f2ce1be80eed4293c28 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -282,6 +282,11 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_DDTrace_SpanData_hexId arginfo_DDTrace_startup_logs
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_SpanData_setTag, 0, 2, DDTrace\\SpanData, 0)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, value, IS_MIXED, 1)
+ZEND_END_ARG_INFO()
+
 #define arginfo_class_DDTrace_Integration_init arginfo_dd_trace_dd_get_memory_limit
 
 
@@ -364,6 +369,7 @@ ZEND_METHOD(DDTrace_SpanData, getDuration);
 ZEND_METHOD(DDTrace_SpanData, getStartTime);
 ZEND_METHOD(DDTrace_SpanData, getLink);
 ZEND_METHOD(DDTrace_SpanData, hexId);
+ZEND_METHOD(DDTrace_SpanData, setTag);
 
 
 static const zend_function_entry ext_functions[] = {
@@ -457,6 +463,7 @@ static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 	ZEND_ME(DDTrace_SpanData, getStartTime, arginfo_class_DDTrace_SpanData_getStartTime, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, getLink, arginfo_class_DDTrace_SpanData_getLink, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, hexId, arginfo_class_DDTrace_SpanData_hexId, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_SpanData, setTag, arginfo_class_DDTrace_SpanData_setTag, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
