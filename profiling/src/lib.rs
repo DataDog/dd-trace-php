@@ -516,6 +516,15 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 // standardized tag name.
                 add_tag(&mut tags, "runtime_version", PHP_VERSION.as_str());
                 add_tag(&mut tags, "php.sapi", SAPI.as_ref());
+                // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
+                // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
+                // `zend-nts-ndebug`
+                let runtime_engine = if cfg!(php_zts) {
+                    "zend-zts-ndebug"
+                } else {
+                    "zend-nts-ndebug"
+                };
+                add_tag(&mut tags, "runtime_engine", runtime_engine);
                 cell.replace(Arc::new(tags));
             });
 
