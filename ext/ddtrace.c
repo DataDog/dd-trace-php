@@ -944,10 +944,6 @@ PHP_METHOD(DDTrace_SpanData, hexId) {
 
 
 void add_distributed_tag(zend_string *key, zval *value) {
-    if (!get_DD_TRACE_ENABLED()) {
-        return;
-    }
-
     zend_string *prefixed_key = zend_strpprintf(0, "_dd.p.%s", ZSTR_VAL(key));
 
     zend_array *target_table, *propagated;

@@ -19,6 +19,16 @@ $span->setTag('foo', 'bar')
 
 var_dump(\DDTrace\generate_distributed_tracing_headers(['tracecontext'])['tracestate']);
 
+$child = \DDTrace\start_span();
+$child->setTag('_dd.p.user', 12)
+    ->setTag('num', 1.0);
+
+var_dump(\DDTrace\generate_distributed_tracing_headers(['tracecontext'])['tracestate']);
+
+$child->setTag('num', null);
+
+\DDTrace\close_span();
+
 \DDTrace\close_span();
 
 var_dump(dd_trace_serialize_closed_spans());
@@ -26,7 +36,8 @@ var_dump(dd_trace_serialize_closed_spans());
 ?>
 --EXPECTF--
 string(29) "dd=t.key:val;t.fl:1.2;t.dm:-0"
-array(1) {
+string(39) "dd=t.key:val;t.fl:1.2;t.dm:-0;t.user:12"
+array(2) {
   [0]=>
   array(11) {
     ["trace_id"]=>
@@ -77,5 +88,26 @@ array(1) {
       ["int-arr.2"]=>
       float(3)
     }
+  }
+  [1]=>
+  array(9) {
+    ["trace_id"]=>
+    string(%d) "%d"
+    ["span_id"]=>
+    string(%d) "%d"
+    ["parent_id"]=>
+    string(%d) "%d"
+    ["start"]=>
+    int(%d)
+    ["duration"]=>
+    int(%d)
+    ["name"]=>
+    string(0) ""
+    ["resource"]=>
+    string(0) ""
+    ["service"]=>
+    string(27) "DDTrace_SpanData_setTag.php"
+    ["type"]=>
+    string(3) "cli"
   }
 }
