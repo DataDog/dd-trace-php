@@ -4,6 +4,7 @@ use datadog_php_profiling::profiling::stalk_walking::collect_stack_sample;
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use criterion_perf_events::Perf;
+use datadog_php_profiling::profiling::activate_run_time_cache;
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use perfcnt::linux::HardwareEventType as Hardware;
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
@@ -11,6 +12,10 @@ use perfcnt::linux::PerfCounterBuilderLinux as Builder;
 
 fn benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("walk_stack");
+    #[cfg(php_run_time_cache)]
+    unsafe {
+        activate_run_time_cache()
+    };
     group.sampling_mode(SamplingMode::Flat);
     for depth in [1, 50, 99].iter() {
         let stack = unsafe { zend::ddog_php_test_create_fake_zend_execute_data(99) };
