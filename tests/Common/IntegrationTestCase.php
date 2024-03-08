@@ -23,12 +23,12 @@ abstract class IntegrationTestCase extends BaseTestCase
         $exts = get_loaded_extensions(false);
         $csv = '';
         foreach ($exts as $ext) {
-            $csv = $csv . $ext . ";" . phpversion($ext) . "\n";
+            $csv = $csv . "ext/" . $ext . ";" . phpversion($ext) . "\n";
         }
 
         $zendExts = get_loaded_extensions(true);
         foreach ($zendExts as $ext) {
-            $csv = $csv . $ext . ";" . phpversion($ext) . "\n";
+            $csv = $csv . "ext/" . $ext . ";" . phpversion($ext) . "\n";
         }
 
         $artifactsDir = "/tmp/artifacts";
