@@ -82,7 +82,14 @@ final class SpanContext implements SpanContextInterface
         } else {
             $traceContext = generate_distributed_tracing_headers(['tracecontext']);
         }
-        return new TraceState($traceContext['tracestate'] ?? null);
+        $newTracestate = $traceContext['tracestate'] ?? null;
+
+        if ($this->currentTracestateInstance === null || $this->currentTracestateString !== $newTracestate) {
+            $this->currentTracestateString = $newTracestate;
+            $this->currentTracestateInstance = new TraceState($newTracestate);
+        }
+
+        return $this->currentTracestateInstance;
     }
 
     public function isSampled(): bool

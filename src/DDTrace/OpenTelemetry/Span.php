@@ -133,12 +133,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         ContextInterface $parentContext,
         SpanProcessorInterface $spanProcessor,
         ResourceInfo $resource,
-        AttributesBuilderInterface $attributesBuilder,
+        array $attributes,
         array $links,
         int $totalRecordedLinks,
         bool $isRemapped = true // Answers the question "Was the span created using the OTel API?"
     ): self {
-        $attributes = $attributesBuilder->build()->toArray();
         self::_setAttributes($span, $attributes);
 
         $resourceAttributes = $resource->getAttributes()->toArray();
