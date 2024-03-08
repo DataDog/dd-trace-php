@@ -37,7 +37,6 @@ return [
     __DIR__ . '/../DDTrace/Scope.php',
     __DIR__ . '/../DDTrace/Propagator.php',
     __DIR__ . '/../DDTrace/Propagators/TextMap.php',
-    __DIR__ . '/../DDTrace/Http/Request.php',
     __DIR__ . '/../DDTrace/ScopeManager.php',
     __DIR__ . '/../DDTrace/Tracer.php',
 ];
