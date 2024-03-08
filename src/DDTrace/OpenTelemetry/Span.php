@@ -262,28 +262,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         return !$this->hasEnded();
     }
 
-    private static function _setAttribute(SpanData $span, string $key, $value): void
-    {
-        if ($value === null && isset($span->meta[$key])) {
-            unset($span->meta[$key]);
-        } elseif ($value === null && isset($span->metrics[$key])) {
-            unset($span->metrics[$key]);
-        } elseif (strpos($key, '_dd.p.') === 0) {
-            $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
-            \DDTrace\add_distributed_tag($distributedKey, $value);
-        } elseif (is_float($value)
-            || is_int($value)
-            || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
-            $span->metrics[$key] = $value;
-        } else {
-            $span->meta[$key] = $value;
-        }
-    }
-
     private static function _setAttributes(SpanData $span, iterable $attributes): void
     {
         foreach ($attributes as $key => $value) {
-            self::_setAttribute($span, $key, $value);
+            $span->setTag($key, $value);
         }
     }
 
@@ -300,7 +282,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function setAttribute(string $key, $value): SpanInterface
     {
         if (!$this->hasEnded()) {
-            self::_setAttribute($this->span, $key, $value);
+            $this->span->setTag($key, $value);
         }
 
         $this->updateConvention();

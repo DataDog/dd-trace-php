@@ -149,6 +149,14 @@ namespace DDTrace {
          * @return Returns the span id as zero-padded 16 character hexadecimal string.
          */
         public function hexId(): string {}
+
+        /**
+         * Set a tag on the span
+         * @var string $key The tag key. If the key starts with "_dd.p.", a distributed tag will be added instead.
+         * @var mixed $value The tag value. If it is null, removes the entry if it exists.
+         * @return SpanData The span instance
+         */
+        public function setTag(string $key, ?mixed $value): SpanData {}
     }
 
     class RootSpanData extends SpanData {
