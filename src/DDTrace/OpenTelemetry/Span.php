@@ -264,16 +264,15 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     private static function _setAttribute(SpanData $span, string $key, $value): void
     {
-        if ($value === null && isset($span->meta[$key])) {
+        if ($value === null) {
             unset($span->meta[$key]);
-        } elseif ($value === null && isset($span->metrics[$key])) {
             unset($span->metrics[$key]);
-        } elseif (strpos($key, '_dd.p.') === 0) {
-            $distributedKey = substr($key, 6); // strlen('_dd.p.') === 6
+        } elseif ($key[0] === '_' && \strncmp($key, '_dd.p.', 6) === 0) {
+            $distributedKey = \substr($key, 6); // strlen('_dd.p.') === 6
             \DDTrace\add_distributed_tag($distributedKey, $value);
-        } elseif (is_float($value)
-            || is_int($value)
-            || (is_array($value) && count($value) > 0 && is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
+        } elseif (\is_float($value)
+            || \is_int($value)
+            || (\is_array($value) && \count($value) > 0 && \is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
             $span->metrics[$key] = $value;
         } else {
             $span->meta[$key] = $value;
