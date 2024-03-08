@@ -1,9 +1,11 @@
 use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function, ZEND_USER_FUNCTION};
-use crate::string_set::StringSetCell;
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::mem;
 use std::str::Utf8Error;
+
+#[cfg(php_run_time_cache)]
+use crate::string_set::StringSetCell;
 
 #[cfg(php_run_time_cache)]
 thread_local! {
@@ -332,6 +334,7 @@ mod tests {
     #[test]
     #[cfg(feature = "stack_walking_tests")]
     fn test_collect_stack_sample() {
+        #[cfg(php_run_time_cache)]
         CACHED_STRINGS.with(|cell| cell.new_generation_with_capacity(1024).unwrap());
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
