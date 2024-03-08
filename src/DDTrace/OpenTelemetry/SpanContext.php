@@ -29,6 +29,10 @@ final class SpanContext implements SpanContextInterface
 
     private bool $isValid = true;
 
+    private ?string $currentTracestateString = null;
+
+    private ?TraceStateInterface $currentTracestateInstance = null;
+
     private function __construct(SpanData $span, bool $sampled, bool $remote, ?string $traceId = null, ?string $spanId = null)
     {
         $this->span = $span;
