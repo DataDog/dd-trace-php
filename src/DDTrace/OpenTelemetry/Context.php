@@ -178,15 +178,16 @@ final class Context implements ContextInterface
         $traceState = new API\TraceState($traceContext['tracestate'] ?? null);
 
         // Check for span links
-        $links = array_map(function ($spanLink) {
+        $links = [];
+        foreach ($currentSpan->links as $spanLink) {
             $linkSpanContext = API\SpanContext::create(
                 $spanLink->traceId,
                 $spanLink->spanId,
                 API\TraceFlags::DEFAULT,
-                new API\TraceState($spanLink->traceState ?? null)
+                new API\TraceState($spanLink->traceState ?? null),
             );
-            return new SDK\Link($linkSpanContext, Attributes::create($spanLink->attributes));
-        }, $currentSpan->links);
+            $links[] = new SDK\Link($linkSpanContext, Attributes::create($spanLink->attributes));
+        }
 
         $OTelCurrentSpan = SDK\Span::startSpan(
             $currentSpan,
@@ -197,7 +198,7 @@ final class Context implements ContextInterface
             $parentContext, // $parentContext
             NoopSpanProcessor::getInstance(), // $spanProcessor
             ResourceInfoFactory::defaultResource(), // $resource
-            (new AttributesFactory())->builder(), // $attributesBuilder
+            [], // $attributesBuilder
             $links, // $links
             count($links), // $totalRecordedLinks
             false // The span was created using the DD Api

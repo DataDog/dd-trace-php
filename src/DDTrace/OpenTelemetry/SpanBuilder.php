@@ -13,7 +13,7 @@ use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
-use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
+use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
 
 final class SpanBuilder implements API\SpanBuilderInterface
@@ -41,8 +41,11 @@ final class SpanBuilder implements API\SpanBuilderInterface
     /** @var list<LinkInterface> */
     private array $links = [];
 
-    private AttributesBuilderInterface $attributesBuilder;
+    /** @var array */
+    private array $attributes;
+
     private int $totalNumberOfLinksAdded = 0;
+
     private float $startEpochNanos = 0;
 
     /** @param non-empty-string $spanName */
@@ -54,7 +57,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $this->spanName = $spanName;
         $this->instrumentationScope = $instrumentationScope;
         $this->tracerSharedState = $tracerSharedState;
-        $this->attributesBuilder = $tracerSharedState->getSpanLimits()->getAttributesFactory()->builder();
+        $this->attributes = [];
     }
 
     /**
@@ -90,7 +93,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
     /** @inheritDoc */
     public function setAttribute(string $key, $value): API\SpanBuilderInterface
     {
-        $this->attributesBuilder[$key] = $value;
+        $this->attributes[$key] = $value;
 
         return $this;
     }
@@ -99,7 +102,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
     public function setAttributes(iterable $attributes): API\SpanBuilderInterface
     {
         foreach ($attributes as $key => $value) {
-            $this->attributesBuilder[$key] = $value;
+            $this->attributes[$key] = $value;
         }
 
         return $this;
@@ -149,7 +152,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
                 $traceId,
                 $this->spanName,
                 $this->spanKind,
-                $this->attributesBuilder->build(),
+                Attributes::create($this->attributes),
                 $this->links,
             );
 
@@ -182,10 +185,9 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
         $span->resource = $this->spanName; // OTel.name => DD.resource
 
-        $attributesBuilder = clone $this->attributesBuilder; // According to OTel's spec, attributes can't be changed after span creation...
         $attributes = $samplingResult->getAttributes();
         foreach ($attributes as $key => $value) {
-            $attributesBuilder[$key] = $value;
+            $this->attributes[$key] = $value;
         }
 
         return Span::startSpan(
@@ -197,7 +199,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $parentContext,
             $this->tracerSharedState->getSpanProcessor(),
             $this->tracerSharedState->getResource(),
-            $attributesBuilder,
+            $this->attributes,
             $this->links,
             $this->totalNumberOfLinksAdded,
         );
