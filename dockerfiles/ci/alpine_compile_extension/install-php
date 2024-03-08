@@ -36,31 +36,34 @@ if [ "${PHP_API}" -ge "${PHP_74_API}" ] ; then
     PHP_CONFIG_ARGS="--with-ffi $PHP_CONFIG_ARGS"
 fi
 
-srcdir="$PWD"
-# Installing PHP
-mkdir -vp /tmp/build-php
-cd /tmp/build-php
-"$srcdir/configure" \
-    --prefix="${PHP_INSTALL_DIR}" \
-    --with-config-file-path="${PHP_INI_DIR}" \
-    --with-config-file-scan-dir="${PHP_INI_DIR}/conf.d" \
-    --with-mhash \
-    --enable-ftp \
-    --enable-mbstring \
-    --with-curl \
-    --with-libedit \
-    --without-pdo-sqlite \
-    --without-sqlite3 \
-    $([ -n "$SSL_DEV_DEP" ] && echo --with-openssl || echo --without-openssl ) \
-    --with-zlib \
-    --enable-fpm \
-    --with-fpm-user=www-data \
-    --with-fpm-group=www-data \
-    ${PHP_CONFIG_ARGS}
-make -j "$(nproc)"
-make install clean
-cd -
-rm -fr /tmp/build-php
+for target in "" "-zts"; do
+  srcdir="$PWD"
+  # Installing PHP
+  mkdir -vp /tmp/build-php
+  cd /tmp/build-php
+  "$srcdir/configure" \
+      --prefix="${PHP_INSTALL_DIR}${target}" \
+      $([ "${target}" = '-zts' ] && echo --enable$(grep -q 'maintainer-zts' "${srcdir}/configure" && echo "-maintainer")-zts) \
+      --with-config-file-path="${PHP_INI_DIR}" \
+      --with-config-file-scan-dir="${PHP_INI_DIR}/conf.d" \
+      --with-mhash \
+      --enable-ftp \
+      --enable-mbstring \
+      --with-curl \
+      --with-libedit \
+      --without-pdo-sqlite \
+      --without-sqlite3 \
+      $([ -n "$SSL_DEV_DEP" ] && echo --with-openssl || echo --without-openssl ) \
+      --with-zlib \
+      --enable-fpm \
+      --with-fpm-user=www-data \
+      --with-fpm-group=www-data \
+      ${PHP_CONFIG_ARGS}
+  make -j "$(nproc)"
+  make install clean
+  cd -
+  rm -fr /tmp/build-php
+done
 
 # Removing sources and unused packages
 docker-php-source delete
