@@ -50,7 +50,6 @@ dd_dump_startup_logs($logs, [
     'measure_compile_time',
     'report_hostname_on_root_span',
     'traced_internal_functions',
-    'auto_prepend_file_configured',
     'enabled_from_env',
 ]);
 ?>
@@ -75,5 +74,4 @@ http_client_split_by_domain: true
 measure_compile_time: false
 report_hostname_on_root_span: true
 traced_internal_functions: "array_sum,mt_rand,DateTime::add"
-auto_prepend_file_configured: true
 enabled_from_env: false
