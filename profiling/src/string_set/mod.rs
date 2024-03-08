@@ -40,6 +40,8 @@ impl StringSetCell {
     /// Returns how full the arena is, as a value from 0 to 1.0. For the
     /// case of zero capacity, it will return 1.0.
     pub fn arena_fullness(&self) -> f64 {
+        // todo: remove always full
+        return 1.0;
         // SAFETY: no references are ever returned out of local scope
         // (unique reference is guaranteed), and the pointer is definitely
         // valid (cell always contains a value).

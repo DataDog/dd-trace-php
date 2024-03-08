@@ -157,7 +157,18 @@ impl ArenaVec {
                     )),
                 };
 
-                let nonnull = virtual_alloc(allocation_size)?.cast::<ArenaHeader>();
+                let allocation = virtual_alloc(allocation_size)?;
+
+                #[cfg(target_os = "linux")]
+                libc::prctl(
+                    libc::PR_SET_VMA,
+                    libc::PR_SET_VMA_ANON_NAME,
+                    allocation.as_ptr(),
+                    allocation_size,
+                    b"arenavec\0".as_ptr()
+                );
+
+                let nonnull = allocation.cast::<ArenaHeader>();
                 let header = nonnull.as_ptr();
                 ptr::addr_of_mut!((*header).allocation_size).write(unadjusted_capacity);
                 ptr::addr_of_mut!((*header).rc).write(AtomicU32::new(1));
