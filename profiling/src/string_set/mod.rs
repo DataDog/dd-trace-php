@@ -195,9 +195,11 @@ impl StringSet {
 
         let base_ptr = self.arena.base_ptr();
         if !base_ptr.is_null() {
-            let item_ptr = unsafe { base_ptr.add(handle.offset as usize) };
+            // SAFETY: todo
+            let item_ptr = unsafe { base_ptr.add(handle.offset as usize - 2) };
             let header_ptr = item_ptr.cast::<LengthPrefixedStr>();
             // SAFETY: repr(transparent) to compatible type.
+            // SAFETY: todo
             let prefixed_str: LengthPrefixedStr = unsafe { mem::transmute(header_ptr) };
             // SAFETY: align lifetime to the set's (which is the same as the
             // arena's, which is the true lifetime).
