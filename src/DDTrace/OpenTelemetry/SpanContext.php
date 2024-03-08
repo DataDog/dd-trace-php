@@ -78,18 +78,12 @@ final class SpanContext implements SpanContextInterface
 
     public function getTraceState(): ?TraceStateInterface
     {
-        if ($this->currentTracestateInstance === null) {
-            $this->currentTracestateString = generate_distributed_tracing_headers(['tracecontext'])['tracestate'] ?? null;
-            $this->currentTracestateInstance = new TraceState($this->currentTracestateString);
-            return $this->currentTracestateInstance;
-        }
-
         $traceContext = generate_distributed_tracing_headers(['tracecontext']);
         $newTracestate = $traceContext['tracestate'] ?? null;
-        if ($this->currentTracestateString !== $newTracestate) {
+
+        if ($this->currentTracestateInstance === null || $this->currentTracestateString !== $newTracestate) {
             $this->currentTracestateString = $newTracestate;
             $this->currentTracestateInstance = new TraceState($newTracestate);
-
         }
 
         return $this->currentTracestateInstance;
