@@ -6,6 +6,9 @@ use DDTrace\Contracts\Scope as ScopeInterface;
 use OpenTracing\Scope as OTScope;
 use OpenTracing\Span as OTSpan;
 
+/**
+ * @deprecated
+ */
 final class Scope implements OTScope
 {
     /**

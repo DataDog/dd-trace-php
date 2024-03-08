@@ -6,6 +6,9 @@ use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
 use OpenTracing\ScopeManager as OTScopeManager;
 use OpenTracing\Span as OTSpan;
 
+/**
+ * @deprecated
+ */
 final class ScopeManager implements OTScopeManager
 {
     /**

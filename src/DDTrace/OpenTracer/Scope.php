@@ -5,6 +5,9 @@ namespace DDTrace\OpenTracer;
 use DDTrace\Contracts\Scope as ScopeInterface;
 use OpenTracing\Scope as OTScope;
 
+/**
+ * @deprecated
+ */
 final class Scope implements OTScope
 {
     /**

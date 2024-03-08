@@ -6,6 +6,9 @@ use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\SpanContext as DDSpanContext;
 use OpenTracing\SpanContext as OTSpanContext;
 
+/**
+ * @deprecated
+ */
 final class SpanContext implements OTSpanContext
 {
     /**

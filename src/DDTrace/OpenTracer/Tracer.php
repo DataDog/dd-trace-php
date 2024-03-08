@@ -11,6 +11,9 @@ use OpenTracing\ScopeManager as OTScopeManager;
 use OpenTracing\SpanContext as OTSpanContext;
 use OpenTracing\Tracer as OTTracer;
 
+/**
+ * @deprecated
+ */
 final class Tracer implements OTTracer
 {
     /**

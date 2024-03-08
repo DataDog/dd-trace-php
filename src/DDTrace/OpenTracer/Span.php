@@ -6,6 +6,9 @@ use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Span as DDSpan;
 use OpenTracing\Span as OTSpan;
 
+/**
+ * @deprecated
+ */
 final class Span implements OTSpan
 {
     /**

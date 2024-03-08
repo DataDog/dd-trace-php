@@ -7,6 +7,9 @@ use OpenTracing\Scope as OTScope;
 use OpenTracing\ScopeManager as OTScopeManager;
 use OpenTracing\Span as OTSpan;
 
+/**
+ * @deprecated
+ */
 final class ScopeManager implements OTScopeManager
 {
     /**

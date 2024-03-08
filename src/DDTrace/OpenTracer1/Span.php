@@ -7,6 +7,9 @@ use DDTrace\Span as DDSpan;
 use OpenTracing\Span as OTSpan;
 use OpenTracing\SpanContext as OTSpanContext;
 
+/**
+ * @deprecated
+ */
 final class Span implements OTSpan
 {
     /**

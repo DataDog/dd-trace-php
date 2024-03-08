@@ -13,6 +13,9 @@ use OpenTracing\Span as OTSpan;
 use OpenTracing\SpanContext as OTSpanContext;
 use OpenTracing\Tracer as OTTracer;
 
+/**
+ * @deprecated
+ */
 final class Tracer implements OTTracer
 {
     /**
