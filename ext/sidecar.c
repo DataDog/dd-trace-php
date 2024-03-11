@@ -64,7 +64,7 @@ static bool dd_sidecar_connection_init(void) {
                                     get_global_DD_TRACE_AGENT_FLUSH_INTERVAL(),
                                     get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
                                     get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
-                                    get_global_DD_TRACE_DEBUG() ? (ddog_CharSlice)DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
+                                    get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                                     (ddog_CharSlice){ .ptr = logpath, .len = strlen(logpath) });
 
     return true;
