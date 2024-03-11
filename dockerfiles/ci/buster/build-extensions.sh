@@ -122,3 +122,9 @@ else
   done
   echo "zend_extension=opcache.so" >> ${iniDir}/../php-apache2handler.ini;
 fi
+
+# ext-parallel needs PHP 8
+if [[ $PHP_VERSION_ID -ge 80 ]]; then
+  pecl install parallel;
+  echo "extension=parallel" >> ${iniDir}/parallel.ini;
+fi
