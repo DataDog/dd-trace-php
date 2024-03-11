@@ -12,7 +12,10 @@
 #include <stdint.h>
 
 #define DDOG_CHARSLICE_C(string) \
-/* NOTE: Compilation fails if you pass in a char* instead of a literal */ {.ptr = "" string, .len = sizeof(string) - 1}
+/* NOTE: Compilation fails if you pass in a char* instead of a literal */ ((ddog_CharSlice){ .ptr = "" string, .len = sizeof(string) - 1 })
+
+#define DDOG_CHARSLICE_C_BARE(string) \
+/* NOTE: Compilation fails if you pass in a char* instead of a literal */ { .ptr = "" string, .len = sizeof(string) - 1 }
 
 #if defined __GNUC__
 #  define DDOG_GNUC_VERSION(major) __GNUC__ >= major

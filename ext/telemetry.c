@@ -66,23 +66,23 @@ void ddtrace_telemetry_finalize(void) {
         ddtrace_integration *integration = &ddtrace_integrations[i];
         if (!integration->is_enabled()) {
             ddog_CharSlice integration_name = (ddog_CharSlice) {.len = integration->name_len, .ptr = integration->name_lcase};
-            ddog_sidecar_telemetry_addIntegration_buffer(buffer, integration_name, (ddog_CharSlice)DDOG_CHARSLICE_C(""), false);
+            ddog_sidecar_telemetry_addIntegration_buffer(buffer, integration_name, DDOG_CHARSLICE_C(""), false);
         }
     }
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 
-    ddog_CharSlice service_name = DDOG_CHARSLICE_C("unnamed-php-service");
+    ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
     if (DDTRACE_G(last_flushed_root_service_name)) {
         service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_service_name));
     }
 
-    ddog_CharSlice env_name = DDOG_CHARSLICE_C("none");
+    ddog_CharSlice env_name = DDOG_CHARSLICE_C_BARE("none");
     if (DDTRACE_G(last_flushed_root_env_name)) {
         env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_env_name));
     }
 
     ddog_CharSlice php_version = dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION"))));
-    struct ddog_RuntimeMeta *meta = ddog_sidecar_runtimeMeta_build((ddog_CharSlice)DDOG_CHARSLICE_C("php"), php_version, (ddog_CharSlice)DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
+    struct ddog_RuntimeMeta *meta = ddog_sidecar_runtimeMeta_build(DDOG_CHARSLICE_C("php"), php_version, DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
 
     ddog_sidecar_telemetry_flushServiceData(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name, env_name);
 
@@ -95,6 +95,6 @@ void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
     if (ddtrace_sidecar && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddog_CharSlice integration = (ddog_CharSlice) {.len = name_len, .ptr = name};
         ddog_sidecar_telemetry_addIntegration(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), integration,
-                                              (ddog_CharSlice)DDOG_CHARSLICE_C(""), true);
+                                              DDOG_CHARSLICE_C(""), true);
     }
 }
