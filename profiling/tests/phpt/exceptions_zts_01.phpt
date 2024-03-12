@@ -50,7 +50,7 @@ echo 'Done.';
 
 ?>
 --EXPECTREGEX--
-.* Exception profiling sampling distance initialized to 20
+.* Exception profiling initialized with sampling distance: 20
 .* Sent stack sample of 1 frames, 1 labels with Exception RuntimeException to profiler.
 .*Worker [0-9] exited
 .*Done..*

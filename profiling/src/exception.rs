@@ -9,10 +9,14 @@ use std::sync::atomic::Ordering;
 
 use rand_distr::{Distribution, Poisson};
 
-/// The engine's previous throw exception hook
+/// The engine's previous throw exception hook.
+/// We need to occupy the `zend_throw_exception_hook` in MINIT which is before threads get started
+/// (in ZTS), so we do not need a thread local for this function pointer.
 static mut PREV_ZEND_THROW_EXCEPTION_HOOK: Option<zend::VmZendThrowExceptionHook> = None;
 
 /// Take a sample every 100 exceptions
+/// Will be initialized on first RINIT and is controlled by a INI_SYSTEM, so we do not need a
+/// thread local for the profiling interval.
 pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 = AtomicU32::new(100);
 
 /// This will store the number of exceptions thrown during a profiling period. It will overflow
@@ -102,9 +106,18 @@ pub fn exception_profiling_minit() {
 }
 
 /// This initializes the `EXCEPTION_PROFILING_INTERVAL` atomic on first RINIT with the value from
-/// the INI / ENV variable. We need to initialize here even when exception profiling is turned off,
-/// as it might get enabled via a per directory setting
+/// the INI / ENV variable.
 pub fn exception_profiling_first_rinit() {
+    let exception_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_exception_enabled)
+            .unwrap_or(false)
+    });
+
+    if !exception_profiling {
+        return;
+    }
+
     let sampling_distance = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
             Ok(locals) => locals.system_settings().profiling_exception_sampling_distance,
@@ -117,7 +130,7 @@ pub fn exception_profiling_first_rinit() {
 
     EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::SeqCst);
 
-    info!("Exception profiling sampling distance initialized to {sampling_distance}");
+    info!("Exception profiling initialized with sampling distance: {sampling_distance}");
 }
 
 pub fn exception_profiling_mshutdown() {
