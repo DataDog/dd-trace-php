@@ -42,8 +42,6 @@ use std::sync::{Arc, Mutex, Once};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
-use crate::zend::datadog_sapi_globals_request_info;
-
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
 static PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
@@ -422,7 +420,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 match *SAPI {
                     Sapi::Cli => {
                         // Safety: sapi globals are safe to access during rinit
-                        SAPI.request_script_name(datadog_sapi_globals_request_info())
+                        SAPI.request_script_name(*bindings::sg!(request_info))
                             .or(Some(Cow::Borrowed("cli.command")))
                     }
                     _ => Some(Cow::Borrowed("web.request")),

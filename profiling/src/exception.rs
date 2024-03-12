@@ -80,11 +80,8 @@ impl ExceptionProfilingStats {
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
             unsafe {
-                profiler.collect_exception(
-                    zend::ddog_php_prof_get_current_execute_data(),
-                    exception_name,
-                    message,
-                )
+                let execute_data = *zend::eg!(current_execute_data);
+                profiler.collect_exception(execute_data, exception_name, message)
             };
         }
     }

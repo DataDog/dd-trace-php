@@ -79,11 +79,8 @@ impl AllocationProfilingStats {
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
             unsafe {
-                profiler.collect_allocations(
-                    zend::ddog_php_prof_get_current_execute_data(),
-                    1_i64,
-                    len as i64,
-                )
+                let execute_data = *zend::eg!(current_execute_data);
+                profiler.collect_allocations(execute_data, 1_i64, len as i64)
             };
         }
     }
@@ -106,10 +103,10 @@ lazy_static! {
 }
 
 pub fn allocation_profiling_minit() {
-    #[cfg(php_zts)]
-    return;
-
-    unsafe { zend::ddog_php_opcache_init_handle() };
+    #[cfg(not(php_zts))]
+    unsafe {
+        zend::ddog_php_opcache_init_handle();
+    }
 }
 
 pub fn first_rinit_should_disable_due_to_jit() -> bool {
@@ -124,6 +121,7 @@ pub fn first_rinit_should_disable_due_to_jit() -> bool {
     }
 }
 
+#[cfg_attr(php_zts, allow(unreachable_code))]
 pub fn allocation_profiling_rinit() {
     #[cfg(php_zts)]
     return;
@@ -197,6 +195,7 @@ pub fn allocation_profiling_rinit() {
     }
 }
 
+#[cfg_attr(php_zts, allow(unreachable_code))]
 pub fn allocation_profiling_rshutdown() {
     #[cfg(php_zts)]
     return;
@@ -266,6 +265,7 @@ pub fn allocation_profiling_rshutdown() {
     }
 }
 
+#[cfg_attr(php_zts, allow(unreachable_code))]
 pub fn allocation_profiling_startup() {
     #[cfg(php_zts)]
     return;
@@ -350,7 +350,7 @@ unsafe extern "C" fn alloc_profiling_malloc(len: size_t) -> *mut c_void {
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() {
+    if zend::eg!(current_execute_data).is_null() {
         return ptr;
     }
 
@@ -406,7 +406,7 @@ unsafe extern "C" fn alloc_profiling_realloc(prev_ptr: *mut c_void, len: size_t)
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr == prev_ptr {
+    if zend::eg!(current_execute_data).is_null() || ptr == prev_ptr {
         return ptr;
     }
 

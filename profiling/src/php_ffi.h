@@ -45,21 +45,11 @@ const char *datadog_extension_build_id(void);
 const char *datadog_module_build_id(void);
 
 /**
- * Returns the `sapi_request_info` from the SAPI_GLOBALS
- */
-sapi_request_info datadog_sapi_globals_request_info();
-
-/**
  * Lookup module by name in the module registry. Returns NULL if not found.
  * This is meant to be called from Rust, so it uses uintptr_t, not size_t, for
  * the length for convenience.
  */
 zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len);
-
-/**
- * Fetches the VM interrupt address of the calling PHP thread.
- */
-void *datadog_php_profiling_vm_interrupt_addr(void);
 
 /**
  * For Code Hotspots, we need the tracer's local root span id and the current
@@ -133,8 +123,6 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
                                                void* (*_malloc)(size_t),
                                                void  (*_free)(void*),
                                                void* (*_realloc)(void*, size_t));
-
-zend_execute_data* ddog_php_prof_get_current_execute_data();
 
 #if CFG_FIBERS
 zend_fiber* ddog_php_prof_get_active_fiber();

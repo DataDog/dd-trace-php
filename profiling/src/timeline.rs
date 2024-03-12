@@ -444,7 +444,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
 /// of a userland call  to `gc_collect_cycles()`, otherwise the engine decided
 /// to run it.
 unsafe fn gc_reason() -> &'static str {
-    let execute_data = zend::ddog_php_prof_get_current_execute_data();
+    let execute_data = *zend::eg!(current_execute_data);
     let fname = || execute_data.as_ref()?.func.as_ref()?.name();
     match fname() {
         Some(name) if name == b"gc_collect_cycles" => "induced",

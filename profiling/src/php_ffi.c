@@ -71,10 +71,6 @@ static unsigned int php_version_id(void) {
 }
 #endif
 
-sapi_request_info datadog_sapi_globals_request_info() {
-    return SG(request_info);
-}
-
 /**
  * Returns the PHP_VERSION_ID of the engine at run-time, not the version the
  * extension was built against at compile-time.
@@ -221,6 +217,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 #endif
 }
 
+/* Has a manual definition in Rust to cast return to *const AtomicBool */
 void *datadog_php_profiling_vm_interrupt_addr(void) { return &EG(vm_interrupt); }
 
 zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
@@ -272,10 +269,6 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
         memset(heap, ZEND_MM_CUSTOM_HEAP_NONE, sizeof(int));
     }
 #endif
-}
-
-zend_execute_data* ddog_php_prof_get_current_execute_data() {
-    return EG(current_execute_data);
 }
 
 #if CFG_FIBERS // defined by build.rs

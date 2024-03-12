@@ -1,6 +1,8 @@
 mod ffi;
+mod tsrm;
 
 pub use ffi::*;
+pub use tsrm::*;
 
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use std::borrow::Cow;

@@ -230,8 +230,6 @@ fn generate_bindings(php_config_includes: &str, fibers: bool) {
         .blocklist_item("zend_result")
         .blocklist_item("zend_register_extension")
         .blocklist_item("_zend_string")
-        // Block a few of functions that we'll provide defs for manually
-        .blocklist_item("datadog_php_profiling_vm_interrupt_addr")
         // I had to block these for some reason *shrug*
         .blocklist_item("FP_INFINITE")
         .blocklist_item("FP_INT_DOWNWARD")
