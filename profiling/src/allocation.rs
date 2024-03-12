@@ -40,7 +40,9 @@ pub struct AllocationProfilingStats {
 }
 
 struct ZendMMState {
-    /// The heap installed in ZendMM at the time we install our custom handlers
+    /// The heap installed in ZendMM at the time we install our custom handlers, this is also the
+    /// heap our custom handlers are installed in. We need this in case there is no custom handlers
+    /// installed prior to us, in order to forward our allocation calls to this heap.
     heap: Option<*mut zend::zend_mm_heap>,
     /// The engine's previous custom allocation function, if there is one.
     prev_custom_mm_alloc: Option<zend::VmMmCustomAllocFn>,
@@ -172,8 +174,12 @@ pub fn allocation_profiling_rinit() {
 
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
+
+        // Safety: `zend_mm_get_heap()` always returns a non null pointer to a valid heap structure
+        let heap = unsafe { Some(zend::zend_mm_get_heap()).unwrap() };
+
         unsafe {
-            (*zend_mm_state).heap = Some(zend::zend_mm_get_heap());
+            (*zend_mm_state).heap = Some(heap);
         }
 
         if !is_zend_mm() {
@@ -181,8 +187,7 @@ pub fn allocation_profiling_rinit() {
             debug!("Found another extension using the ZendMM custom handler hook");
             unsafe {
                 zend::zend_mm_get_custom_handlers(
-                    // Safety: `unwrap()` is safe here, as `heap` is initialized just above
-                    (*zend_mm_state).heap.unwrap(),
+                    heap,
                     &mut (*zend_mm_state).prev_custom_mm_alloc,
                     &mut (*zend_mm_state).prev_custom_mm_free,
                     &mut (*zend_mm_state).prev_custom_mm_realloc,
@@ -206,8 +211,7 @@ pub fn allocation_profiling_rinit() {
         // install our custom handler to ZendMM
         unsafe {
             zend::ddog_php_prof_zend_mm_set_custom_handlers(
-                // Safety: `unwrap()` is safe here, as `heap` is initialized just above
-                (*zend_mm_state).heap.unwrap(),
+                heap,
                 Some(alloc_profiling_malloc),
                 Some(alloc_profiling_free),
                 Some(alloc_profiling_realloc),
@@ -220,9 +224,8 @@ pub fn allocation_profiling_rinit() {
         // Can't proceed with it being disabled, because that's a system-wide
         // setting, not per-request.
         panic!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
-    } else {
-        trace!("Memory allocation profiling enabled.")
     }
+    trace!("Memory allocation profiling enabled.")
 }
 
 pub fn allocation_profiling_rshutdown() {
