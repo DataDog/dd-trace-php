@@ -8,7 +8,7 @@ if [ "$SCENARIO" = "profiler" ]; then
 
   cargo build --release --features trigger_time_sample
 
-  sirun benches/memory.json > "$ARTIFACTS_DIR/sirun_mem.ndjson"
+  sirun benches/timeline.json > "$ARTIFACTS_DIR/sirun_timeline.ndjson"
 
   sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
 
