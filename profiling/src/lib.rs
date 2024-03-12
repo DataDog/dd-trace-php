@@ -420,7 +420,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 match *SAPI {
                     Sapi::Cli => {
                         // Safety: sapi globals are safe to access during rinit
-                        SAPI.request_script_name(*bindings::sg!(request_info))
+                        SAPI.request_script_name(&*bindings::sg!(request_info))
                             .or(Some(Cow::Borrowed("cli.command")))
                     }
                     _ => Some(Cow::Borrowed("web.request")),

@@ -51,7 +51,7 @@ impl Sapi {
 
     pub fn request_script_name<'a>(
         &self,
-        sapi_request_info: sapi_request_info,
+        sapi_request_info: &sapi_request_info,
     ) -> Option<Cow<'a, str>> {
         match self {
             /* Right now all we need is CLI support, but theoretically it can
