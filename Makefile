@@ -822,6 +822,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_monolog2 \
 	test_integrations_monolog3 \
 	test_integrations_mysqli \
+	test_integrations_openai \
 	test_opentelemetry_1 \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
@@ -872,6 +873,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_monolog2 \
 	test_integrations_monolog3 \
 	test_integrations_mysqli \
+	test_integrations_openai \
 	test_opentelemetry_1 \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
@@ -1200,6 +1202,9 @@ test_integrations_mongo: global_test_run_dependencies
 test_integrations_mongodb1:
 	$(MAKE) test_scenario_mongodb1
 	$(call run_tests_debug,tests/Integrations/MongoDB)
+test_integrations_openai:
+	$(MAKE) test_scenario_openai
+	$(call run_tests_debug,tests/Integrations/OpenAI)
 test_integrations_pcntl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PCNTL)
 test_integrations_pdo: global_test_run_dependencies
