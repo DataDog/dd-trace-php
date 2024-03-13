@@ -68,6 +68,20 @@ class Tag
     const LARAVELQ_NAME = 'messaging.laravel.name';
     const LARAVELQ_TIMEOUT = 'messaging.laravel.timeout';
 
+    // LLMObs
+    const LLMOBS_INPUT_MESSAGES = '_ml_obs.meta.input.messages';
+    const LLMOBS_INPUT_VALUE = '_ml_obs.meta.input.value';
+    const LLMOBS_INPUT_PARAMETERS = '_ml_obs.meta.input.parameters';
+    const LLMOBS_MODEL_NAME = '_ml_obs.meta.model_name';
+    const LLMOBS_MODEL_PROVIDER = '_ml_obs.meta.model_provider';
+    const LLMOBS_METRICS = '_ml_obs.metrics';
+    const LLMOBS_OUTPUT_MESSAGES = '_ml_obs.meta.output.messages';
+    const LLMOBS_OUTPUT_VALUE = '_ml_obs.meta.output.value';
+    const LLMOBS_SESSION_ID = '_ml_obs.session_id';
+    const LLMOBS_SPAN_KIND = '_ml_obs.meta.span.kind';
+    const LLMOBS_TAGS = '_ml_obs.tags';
+
+
     // MongoDB
     const MONGODB_BSON_ID = 'mongodb.bson.id';
     const MONGODB_COLLECTION = 'mongodb.collection';
