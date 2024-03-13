@@ -106,23 +106,24 @@ impl AllocationProfilingStats {
 }
 
 thread_local! {
-    static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> = RefCell::new(AllocationProfilingStats::new());
-    /// Using an `UnsafeCell` here should be okay. There might not be any synchronisation issues,
-    /// as it is used in as thread local and only mutated in RINIT and RSHUTDOWN.
+    static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> =
+        RefCell::new(AllocationProfilingStats::new());
+
+    /// Using an `UnsafeCell` here should be okay. There might not be any
+    /// synchronisation issues, as it is used in as thread local and only
+    /// mutated in RINIT and RSHUTDOWN.
     static ZEND_MM_STATE: UnsafeCell<ZendMMState> = const {
-        UnsafeCell::new(
-            ZendMMState{
-                heap: None,
-                prev_custom_mm_alloc: None,
-                prev_custom_mm_realloc: None,
-                prev_custom_mm_free: None,
-                prepare_zend_heap: prepare_zend_heap,
-                restore_zend_heap: restore_zend_heap,
-                alloc:  allocation_profiling_orig_alloc,
-                realloc: allocation_profiling_orig_realloc,
-                free: allocation_profiling_orig_free,
-            }
-        )
+        UnsafeCell::new(ZendMMState {
+            heap: None,
+            prev_custom_mm_alloc: None,
+            prev_custom_mm_realloc: None,
+            prev_custom_mm_free: None,
+            prepare_zend_heap,
+            restore_zend_heap,
+            alloc: allocation_profiling_orig_alloc,
+            realloc: allocation_profiling_orig_realloc,
+            free: allocation_profiling_orig_free,
+        })
     };
 }
 
