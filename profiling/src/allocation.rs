@@ -40,9 +40,10 @@ pub struct AllocationProfilingStats {
 }
 
 struct ZendMMState {
-    /// The heap installed in ZendMM at the time we install our custom handlers, this is also the
-    /// heap our custom handlers are installed in. We need this in case there is no custom handlers
-    /// installed prior to us, in order to forward our allocation calls to this heap.
+    /// The heap installed in ZendMM at the time we install our custom
+    /// handlers, this is also the heap our custom handlers are installed in.
+    /// We need this in case there is no custom handlers installed prior to us,
+    /// in order to forward our allocation calls to this heap.
     heap: Option<*mut zend::zend_mm_heap>,
     /// The engine's previous custom allocation function, if there is one.
     prev_custom_mm_alloc: Option<zend::VmMmCustomAllocFn>,
@@ -52,17 +53,20 @@ struct ZendMMState {
     prev_custom_mm_free: Option<zend::VmMmCustomFreeFn>,
     prepare_zend_heap: unsafe fn(heap: *mut zend::_zend_mm_heap) -> c_int,
     restore_zend_heap: unsafe fn(heap: *mut zend::_zend_mm_heap, custom_heap: c_int),
-    /// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_alloc()`
-    /// when at the same time the `ZEND_MM_STATE.prev_custom_mm_alloc` is initialised to a valid
-    /// function pointer, otherwise there will be dragons.
+    /// Safety: this function pointer is only allowed to point to
+    /// `allocation_profiling_prev_alloc()` when at the same time the
+    /// `ZEND_MM_STATE.prev_custom_mm_alloc` is initialised to a valid function
+    /// pointer, otherwise there will be dragons.
     alloc: unsafe fn(size_t) -> *mut c_void,
-    /// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_realloc()`
-    /// when at the same time the `ZEND_MM_STATE.prev_custom_mm_realloc` is initialised to a valid
+    /// Safety: this function pointer is only allowed to point to
+    /// `allocation_profiling_prev_realloc()` when at the same time the
+    /// `ZEND_MM_STATE.prev_custom_mm_realloc` is initialised to a valid
     /// function pointer, otherwise there will be dragons.
     realloc: unsafe fn(*mut c_void, size_t) -> *mut c_void,
-    /// Safety: this function pointer is only allowed to point to `allocation_profiling_prev_free()`
-    /// when at the same time the `ZEND_MM_STATE.prev_custom_mm_free` is initialised to a valid
-    /// function pointer, otherwise there will be dragons.
+    /// Safety: this function pointer is only allowed to point to
+    /// `allocation_profiling_prev_free()` when at the same time the
+    /// `ZEND_MM_STATE.prev_custom_mm_free` is initialised to a valid function
+    /// pointer, otherwise there will be dragons.
     free: unsafe fn(*mut c_void),
 }
 
