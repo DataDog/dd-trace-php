@@ -213,7 +213,7 @@ pub fn alloc_prof_rinit() {
         unsafe {
             zend::ddog_php_prof_zend_mm_set_custom_handlers(
                 heap,
-                Some(alloc_profiling_malloc),
+                Some(alloc_prof_malloc),
                 Some(alloc_prof_free),
                 Some(alloc_prof_realloc),
             );
@@ -264,7 +264,7 @@ pub fn alloc_prof_rshutdown() {
             );
         }
         if custom_mm_free != Some(alloc_prof_free)
-            || custom_mm_malloc != Some(alloc_profiling_malloc)
+            || custom_mm_malloc != Some(alloc_prof_malloc)
             || custom_mm_realloc != Some(alloc_prof_realloc)
         {
             // Custom handlers are installed, but it's not us. Someone, somewhere might have
@@ -299,7 +299,7 @@ pub fn alloc_prof_startup() {
         let handle = datadog_php_zif_handler::new(
             ffi::CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0"),
             &mut GC_MEM_CACHES_HANDLER,
-            Some(alloc_profiling_gc_mem_caches),
+            Some(alloc_prof_gc_mem_caches),
         );
         datadog_php_install_handler(handle);
     }
@@ -333,7 +333,7 @@ fn restore_zend_heap_none(_heap: *mut zend::_zend_mm_heap, _custom_heap: c_int) 
 /// The PHP userland function `gc_mem_caches()` directly calls the `zend_mm_gc()` function which
 /// does nothing in case custom handlers are installed on the heap used. So we prepare the heap for
 /// this operation, call the original function and restore the heap again
-unsafe extern "C" fn alloc_profiling_gc_mem_caches(
+unsafe extern "C" fn alloc_prof_gc_mem_caches(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
@@ -370,7 +370,7 @@ unsafe fn tls_prepare_restore_get() -> (ZendHeapPrepareFn, ZendHeapRestoreFn) {
     })
 }
 
-unsafe extern "C" fn alloc_profiling_malloc(len: size_t) -> *mut c_void {
+unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
