@@ -49,8 +49,7 @@ struct ZendMMState {
     prev_custom_mm_realloc: Option<zend::VmMmCustomReallocFn>,
     /// The engine's previous custom free function, if there is one.
     prev_custom_mm_free: Option<zend::VmMmCustomFreeFn>,
-    prepare_zend_heap: ZendHeapPrepareFn,
-    restore_zend_heap: ZendHeapRestoreFn,
+    prepare_restore_zend_heap: (ZendHeapPrepareFn, ZendHeapRestoreFn),
     /// Safety: this function pointer is only allowed to point to
     /// `alloc_prof_prev_alloc()` when at the same time the
     /// `ZEND_MM_STATE.prev_custom_mm_alloc` is initialised to a valid function
@@ -120,11 +119,19 @@ thread_local! {
             prev_custom_mm_alloc: None,
             prev_custom_mm_realloc: None,
             prev_custom_mm_free: None,
-            prepare_zend_heap,
-            restore_zend_heap,
+            prepare_restore_zend_heap: (prepare_zend_heap, restore_zend_heap),
             alloc: alloc_prof_orig_alloc,
             realloc: alloc_prof_orig_realloc,
             free: alloc_prof_orig_free,
+        })
+    };
+}
+
+macro_rules! TLS_ZEND_MM_STATE {
+    ($x:ident) => {
+        ZEND_MM_STATE.with(|cell| {
+            let zend_mm_state = cell.get();
+            (*zend_mm_state).$x
         })
     };
 }
@@ -196,16 +203,16 @@ pub fn alloc_prof_rinit() {
                 ptr::addr_of_mut!((*zend_mm_state).alloc).write(alloc_prof_prev_alloc);
                 ptr::addr_of_mut!((*zend_mm_state).free).write(alloc_prof_prev_free);
                 ptr::addr_of_mut!((*zend_mm_state).realloc).write(alloc_prof_prev_realloc);
-                ptr::addr_of_mut!((*zend_mm_state).prepare_zend_heap).write(prepare_zend_heap_none);
-                ptr::addr_of_mut!((*zend_mm_state).restore_zend_heap).write(restore_zend_heap_none);
+                ptr::addr_of_mut!((*zend_mm_state).prepare_restore_zend_heap)
+                    .write((prepare_zend_heap_none, restore_zend_heap_none));
             }
         } else {
             unsafe {
                 ptr::addr_of_mut!((*zend_mm_state).alloc).write(alloc_prof_orig_alloc);
                 ptr::addr_of_mut!((*zend_mm_state).free).write(alloc_prof_orig_free);
                 ptr::addr_of_mut!((*zend_mm_state).realloc).write(alloc_prof_orig_realloc);
-                ptr::addr_of_mut!((*zend_mm_state).prepare_zend_heap).write(prepare_zend_heap);
-                ptr::addr_of_mut!((*zend_mm_state).restore_zend_heap).write(restore_zend_heap);
+                ptr::addr_of_mut!((*zend_mm_state).prepare_restore_zend_heap)
+                    .write((prepare_zend_heap, restore_zend_heap));
             }
         }
 
@@ -347,7 +354,7 @@ unsafe extern "C" fn alloc_prof_gc_mem_caches(
     if let Some(func) = GC_MEM_CACHES_HANDLER {
         if allocation_profiling {
             let heap = zend::zend_mm_get_heap();
-            let (prepare, restore) = tls_prepare_restore_get();
+            let (prepare, restore) = TLS_ZEND_MM_STATE!(prepare_restore_zend_heap);
             let custom_heap = prepare(heap);
             func(execute_data, return_value);
             restore(heap, custom_heap);
@@ -359,26 +366,11 @@ unsafe extern "C" fn alloc_prof_gc_mem_caches(
     }
 }
 
-#[inline]
-unsafe fn tls_prepare_restore_get() -> (ZendHeapPrepareFn, ZendHeapRestoreFn) {
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-        (
-            (*zend_mm_state).prepare_zend_heap,
-            (*zend_mm_state).restore_zend_heap,
-        )
-    })
-}
-
 unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
-    let alloc = ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-        (*zend_mm_state).alloc
-    });
-    let ptr = alloc(len);
+    let ptr = TLS_ZEND_MM_STATE!(alloc)(len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -395,19 +387,16 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
 }
 
 unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
-    let alloc = ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-        // Safety: `ALLOCATION_PROFILING_ALLOC` will be initialised in
-        // `alloc_prof_rinit()` and only point to this function when
-        // `prev_custom_mm_alloc` is also initialised
-        (*zend_mm_state).prev_custom_mm_alloc.unwrap()
-    });
+    // Safety: `ALLOCATION_PROFILING_ALLOC` will be initialised in
+    // `alloc_prof_rinit()` and only point to this function when
+    // `prev_custom_mm_alloc` is also initialised
+    let alloc = TLS_ZEND_MM_STATE!(prev_custom_mm_alloc).unwrap();
     alloc(len)
 }
 
 unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let (prepare, restore) = tls_prepare_restore_get();
+    let (prepare, restore) = TLS_ZEND_MM_STATE!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
     let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
     restore(heap, custom_heap);
@@ -419,21 +408,14 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 /// custom handlers won't be installed. We can not just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
 unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
-    let free = ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-        (*zend_mm_state).free
-    });
-    free(ptr);
+    TLS_ZEND_MM_STATE!(free)(ptr);
 }
 
 unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
-    let free = ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-        // Safety: `ALLOCATION_PROFILING_FREE` will be initialised in
-        // `alloc_prof_free()` and only point to this function when
-        // `prev_custom_mm_free` is also initialised
-        (*zend_mm_state).prev_custom_mm_free.unwrap()
-    });
+    // Safety: `ALLOCATION_PROFILING_FREE` will be initialised in
+    // `alloc_prof_free()` and only point to this function when
+    // `prev_custom_mm_free` is also initialised
+    let free = TLS_ZEND_MM_STATE!(prev_custom_mm_free).unwrap();
     free(ptr)
 }
 
@@ -446,11 +428,7 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
-    let realloc = ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-        (*zend_mm_state).realloc
-    });
-    let ptr = realloc(prev_ptr, len);
+    let ptr = TLS_ZEND_MM_STATE!(realloc)(prev_ptr, len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -467,19 +445,16 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
 }
 
 unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    let realloc = ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-        // Safety: `ALLOCATION_PROFILING_REALLOC` will be initialised in
-        // `alloc_prof_realloc()` and only point to this function when
-        // `prev_custom_mm_realloc` is also initialised
-        (*zend_mm_state).prev_custom_mm_realloc.unwrap()
-    });
+    // Safety: `ALLOCATION_PROFILING_REALLOC` will be initialised in
+    // `alloc_prof_realloc()` and only point to this function when
+    // `prev_custom_mm_realloc` is also initialised
+    let realloc = TLS_ZEND_MM_STATE!(prev_custom_mm_realloc).unwrap();
     realloc(prev_ptr, len)
 }
 
 unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let (prepare, restore) = tls_prepare_restore_get();
+    let (prepare, restore) = TLS_ZEND_MM_STATE!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
     let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
     restore(heap, custom_heap);
