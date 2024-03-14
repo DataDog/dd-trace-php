@@ -2,21 +2,14 @@ version: '3.7'
 
 services:
 
-  base:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine
-    build:
-      context: .
-      target: base
-      x-bake: &bake
-        platforms:
-          - linux/arm64
-          - linux/amd64
-
   7.0-alpine:
     image: datadog/dd-trace-ci:php-compile-extension-alpine-7.0
     build:
       context: .
-      x-bake: *bake
+      x-bake: &bake
+        platforms:
+          - linux/arm64
+          - linux/amd64
       args:
         php_version: 7.0.33
         php_sha: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a

@@ -51,6 +51,10 @@ ENV PATH ${PATH}:${PHP_INSTALL_DIR}/bin
 
 ADD ./build-dd-trace-php /usr/bin/build-dd-trace-php
 
+ADD ./env-init /root/.bashrc
+ENV ENV=/root/.bashrc
+ENV BASH_ENV=/root/.bashrc
+
 CMD sh
 
 ENV CARGO_HOME=/rust/cargo
