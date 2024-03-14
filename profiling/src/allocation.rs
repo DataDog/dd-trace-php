@@ -127,7 +127,7 @@ thread_local! {
     };
 }
 
-macro_rules! TLS_ZEND_MM_STATE {
+macro_rules! tls_zend_mm_state {
     ($x:ident) => {
         ZEND_MM_STATE.with(|cell| {
             let zend_mm_state = cell.get();
@@ -354,7 +354,7 @@ unsafe extern "C" fn alloc_prof_gc_mem_caches(
     if let Some(func) = GC_MEM_CACHES_HANDLER {
         if allocation_profiling {
             let heap = zend::zend_mm_get_heap();
-            let (prepare, restore) = TLS_ZEND_MM_STATE!(prepare_restore_zend_heap);
+            let (prepare, restore) = tls_zend_mm_state!(prepare_restore_zend_heap);
             let custom_heap = prepare(heap);
             func(execute_data, return_value);
             restore(heap, custom_heap);
@@ -370,7 +370,7 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
-    let ptr = TLS_ZEND_MM_STATE!(alloc)(len);
+    let ptr = tls_zend_mm_state!(alloc)(len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -390,13 +390,13 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
     // Safety: `ALLOCATION_PROFILING_ALLOC` will be initialised in
     // `alloc_prof_rinit()` and only point to this function when
     // `prev_custom_mm_alloc` is also initialised
-    let alloc = TLS_ZEND_MM_STATE!(prev_custom_mm_alloc).unwrap();
+    let alloc = tls_zend_mm_state!(prev_custom_mm_alloc).unwrap();
     alloc(len)
 }
 
 unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let (prepare, restore) = TLS_ZEND_MM_STATE!(prepare_restore_zend_heap);
+    let (prepare, restore) = tls_zend_mm_state!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
     let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
     restore(heap, custom_heap);
@@ -408,14 +408,14 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 /// custom handlers won't be installed. We can not just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
 unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
-    TLS_ZEND_MM_STATE!(free)(ptr);
+    tls_zend_mm_state!(free)(ptr);
 }
 
 unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
     // Safety: `ALLOCATION_PROFILING_FREE` will be initialised in
     // `alloc_prof_free()` and only point to this function when
     // `prev_custom_mm_free` is also initialised
-    let free = TLS_ZEND_MM_STATE!(prev_custom_mm_free).unwrap();
+    let free = tls_zend_mm_state!(prev_custom_mm_free).unwrap();
     free(ptr)
 }
 
@@ -428,7 +428,7 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
-    let ptr = TLS_ZEND_MM_STATE!(realloc)(prev_ptr, len);
+    let ptr = tls_zend_mm_state!(realloc)(prev_ptr, len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -448,13 +448,13 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
     // Safety: `ALLOCATION_PROFILING_REALLOC` will be initialised in
     // `alloc_prof_realloc()` and only point to this function when
     // `prev_custom_mm_realloc` is also initialised
-    let realloc = TLS_ZEND_MM_STATE!(prev_custom_mm_realloc).unwrap();
+    let realloc = tls_zend_mm_state!(prev_custom_mm_realloc).unwrap();
     realloc(prev_ptr, len)
 }
 
 unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let (prepare, restore) = TLS_ZEND_MM_STATE!(prepare_restore_zend_heap);
+    let (prepare, restore) = tls_zend_mm_state!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
     let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
     restore(heap, custom_heap);
