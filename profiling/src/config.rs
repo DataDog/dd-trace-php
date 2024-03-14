@@ -135,7 +135,7 @@ impl SystemSettings {
 
     unsafe fn on_fork_in_child() {
         let system_settings = SYSTEM_SETTINGS.assume_init_mut();
-        system_settings.profiling_enabled;
+        system_settings.profiling_enabled = false;
         system_settings.profiling_experimental_features_enabled = false;
         system_settings.profiling_endpoint_collection_enabled = false;
         system_settings.profiling_experimental_cpu_time_enabled = false;
