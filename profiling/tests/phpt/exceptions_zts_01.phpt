@@ -7,6 +7,8 @@ sampling rate will actually be used.
 <?php
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires Datadog Continuous Profiler\n";
+if (!extension_loaded('parallel'))
+    echo "skip: test requires `ext-parallel`\n";
 ob_start();
 phpinfo(INFO_MODULES);
 $info = ob_get_clean();
@@ -24,23 +26,32 @@ DD_PROFILING_LOG_LEVEL=trace
 --FILE--
 <?php
 
-function generateExceptions() {
+$generateExceptions = function(int $worker) {
     for ($i = 0; $i <= 100; $i++) {
         try {
-            throw new \RuntimeException();
+            throw new \RuntimeException($worker);
         } catch (\RuntimeException $e) {
             # I don't care :-P
         }
     }
+    return $worker;
+};
+
+for ($i = 0; $i < 10; $i++) {
+    $runtime[$i] = new \parallel\Runtime();
+    $future[$i] = $runtime[$i]->run($generateExceptions, [$i]);
 }
 
-generateExceptions();
+for ($i = 0; $i < 10; $i++) {
+    printf("\nWorker %s exited\n", $future[$i]->value());
+}
 
 echo 'Done.';
 
 ?>
 --EXPECTREGEX--
 .* Exception profiling initialized with sampling distance: 20
-.* Sent stack sample of 2 frames, 1 labels with Exception RuntimeException to profiler.
+.* Sent stack sample of 1 frames, 1 labels with Exception RuntimeException to profiler.
+.*Worker [0-9] exited
 .*Done..*
 .*
