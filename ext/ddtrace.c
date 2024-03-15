@@ -423,6 +423,10 @@ static void ddtrace_activate(void) {
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
 
+    // FIXME: move to telemetry.c?
+    zend_hash_init(&DDTRACE_G(telemetry_spans_created_per_integration), 8, unused, NULL, 0);
+    DDTRACE_G(telemetry_spans_created_without_integration) = 0;
+
     if (!ddtrace_disable && ddtrace_has_excluded_module == true) {
         ddtrace_disable = 2;
     }
@@ -1403,6 +1407,12 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     dd_finalize_telemetry();
+
+    // FIXME: move to telemetry.c?
+    zend_hash_destroy(&DDTRACE_G(telemetry_spans_created_per_integration));
+    // FIXME: needed?
+    DDTRACE_G(telemetry_spans_created_without_integration) = 0;
+
     if (DDTRACE_G(last_flushed_root_service_name)) {
         zend_string_release(DDTRACE_G(last_flushed_root_service_name));
         DDTRACE_G(last_flushed_root_service_name) = NULL;

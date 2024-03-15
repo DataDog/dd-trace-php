@@ -1,7 +1,8 @@
 use datadog_sidecar::interface::blocking::SidecarTransport;
-use datadog_sidecar::interface::{blocking, InstanceId, QueueId, SidecarAction};
+use datadog_sidecar::interface::{blocking, InstanceId, MetricDefinition, QueueId, SidecarAction};
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::CharSlice;
+use ddcommon::tag::Tag;
 use ddtelemetry::data;
 use ddtelemetry::data::{Dependency, Integration};
 use ddtelemetry::worker::TelemetryActions;
@@ -9,6 +10,10 @@ use ddtelemetry_ffi::{try_c, MaybeError};
 use std::error::Error;
 use std::path::PathBuf;
 use std::str::FromStr;
+
+// use ddtelemetry::data::metrics::MetricType;
+// use ddtelemetry::metrics::MetricContexts;
+// use ddtelemetry::data::metrics::MetricNamespace;
 
 #[cfg(windows)]
 macro_rules! windowsify_path {
@@ -126,4 +131,35 @@ pub extern "C" fn ddog_sidecar_telemetry_buffer_flush(
     ));
 
     MaybeError::None
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
+    buffer: &mut SidecarActionsBuffer,
+    metric_name: CharSlice,
+    // FIXME: missing type (count, gauge, ...), namespace, ...
+) {
+
+    buffer.buffer.push(SidecarAction::RegisterTelemetryMetric(MetricDefinition {
+        name: metric_name.to_utf8_lossy().into_owned()
+    }));
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_add_point_buffer(
+    buffer: &mut SidecarActionsBuffer,
+    metric_name: CharSlice,
+    metric_value: u32, // FIXME: should be f64
+    integration_name: CharSlice, // FIXME: should be an array of tags
+) {
+    let mut tags: Vec<Tag> = Vec::default();
+    if integration_name.len() > 0 {
+        tags.push(Tag::new("integration_name", integration_name.to_utf8_lossy().into_owned()).unwrap())
+    }
+
+    buffer.buffer.push(SidecarAction::AddTelemetryMetricPoint((
+        metric_name.to_utf8_lossy().into_owned(),
+        metric_value as f64,
+        tags,
+    )));
 }
