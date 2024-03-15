@@ -7,5 +7,6 @@ void ddtrace_telemetry_first_init(void);
 ddog_TelemetryWorkerHandle *ddtrace_build_telemetry_handle(void);
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len);
 void ddtrace_telemetry_finalize(void);
+void ddtrace_telemetry_inc_spans_created(zend_string *integration);
 
 #endif // DDTRACE_TELEMETRY_H

@@ -157,6 +157,15 @@ void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_SidecarActionsBuff
                                                   ddog_CharSlice integration_version,
                                                   bool integration_enabled);
 
+void ddog_sidecar_telemetry_register_metric_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                                   ddog_CharSlice metric_name);
+
+void ddog_sidecar_telemetry_add_point_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                             ddog_CharSlice metric_name,
+                                             uint32_t metric_value, // FIXME: should be f64
+                                             ddog_CharSlice integration_name // FIXME: should be an array of tags
+                                             );
+
 void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                  ddog_CharSlice dependency_name,
                                                  ddog_CharSlice dependency_version);
