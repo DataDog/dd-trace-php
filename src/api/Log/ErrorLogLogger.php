@@ -84,6 +84,10 @@ class ErrorLogLogger extends AbstractLogger
                 'message' => $message,
                 'level' => $level,
                 'timestamp' => date(\DateTime::ATOM),
+                'dd' => [
+                    'trace_id' => \DDTrace\logs_correlation_trace_id(),
+                    'span_id' => dd_trace_peek_span_id(),
+                ],
                 ...$context,
             ]) . PHP_EOL;
 
