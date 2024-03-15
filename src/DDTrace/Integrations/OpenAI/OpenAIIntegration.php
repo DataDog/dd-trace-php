@@ -674,6 +674,11 @@ class OpenAIIntegration extends Integration
         bool     $error = false
     )
     {
+        $sampling = \DDTrace\get_priority_sampling();
+        if ($sampling === DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT || $sampling === DD_TRACE_PRIORITY_SAMPLING_USER_REJECT) {
+            return;
+        }
+
         $tags = OpenAIIntegration::getLogTags(
             span: $span,
             methodName: $methodName
