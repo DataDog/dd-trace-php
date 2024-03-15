@@ -11,13 +11,16 @@ use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 use OpenAI\Contracts\ResponseContract;
 use OpenAI\Contracts\ResponseHasMetaInformationContract;
+use OpenAI\Exceptions\ErrorException;
 use OpenAI\Transporters\HttpTransporter;
 use OpenAI\ValueObjects\Transporter\BaseUri;
 use OpenAI\ValueObjects\Transporter\Headers;
+use OpenAI\ValueObjects\Transporter\Response;
 
 class OpenAIIntegration extends Integration
 {
     const NAME = 'openai';
+
     const COMMON_PARAMETERS = [
         'best_of' => true,
         'echo' => true,
@@ -79,19 +82,20 @@ class OpenAIIntegration extends Integration
             'datadog_host' => 'https://app.datadoghq.eu'
         ]);
 
+        $errorStorage = [];
+
         $targets = [
             'OpenAI\Resources\Completions::create' => ['createCompletion', 'POST', '/v1/completions'],
             'OpenAI\Resources\Chat::create' => ['createChatCompletion', 'POST', '/v1/chat/completions'],
             'OpenAI\Resources\Embeddings::create' => ['createEmbedding', 'POST', '/v1/embeddings'],
             'OpenAI\Resources\Models::list' => ['listModels', 'GET', '/v1/models'],
             'OpenAI\Resources\Files::list' => ['listFiles', 'GET', '/v1/files'],
-            'OpenAI\Resources\FineTunes::list' => ['listFineTunes', 'GET', '/v1/fine-tunes'],
+            'OpenAI\Resources\FineTuning::listJobs' => ['listFineTunes', 'GET', '/v1/fine-tunes'],
             'OpenAI\Resources\Models::retrieve' => ['retrieveModel', 'GET', '/v1/models/*'],
             'OpenAI\Resources\Files::retrieve' => ['retrieveFile', 'GET', '/v1/files/*'],
-            'OpenAI\Resources\FineTunes::retrieve' => ['retrieveFineTune', 'GET', '/v1/fine-tunes/*'],
+            'OpenAI\Resources\FineTuning::retrieve' => ['retrieveFineTune', 'GET', '/v1/fine-tunes/*'],
             'OpenAI\Resources\Models::delete' => ['deleteModel', 'DELETE', '/v1/models/*'],
             'OpenAI\Resources\Files::delete' => ['deleteFile', 'DELETE', '/v1/files/*'],
-            'OpenAI\Resources\Edits::create' => ['createEdit', 'POST', '/v1/edits'],
             'OpenAI\Resources\Images::create' => ['createImage', 'POST', '/v1/images/generations'],
             'OpenAI\Resources\Images::edit' => ['createImageEdit', 'POST', '/v1/images/edits'],
             'OpenAI\Resources\Images::variation' => ['createImageVariation', 'POST', '/v1/images/variations'],
@@ -100,9 +104,9 @@ class OpenAIIntegration extends Integration
             'OpenAI\Resources\Moderations::create' => ['createModeration', 'POST', '/v1/moderations'],
             'OpenAI\Resources\Files::upload' => ['createFile', 'POST', '/v1/files'],
             'OpenAI\Resources\Files::download' => ['downloadFile', 'GET', '/v1/files/*/content'],
-            'OpenAI\Resources\FineTunes::create' => ['createFineTune', 'POST', '/v1/fine-tunes'],
-            'OpenAI\Resources\FineTunes::cancel' => ['cancelFineTune', 'POST', '/v1/fine-tunes/*/cancel'],
-            'OpenAI\Resources\FineTunes::listEvents' => ['listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events'],
+            'OpenAI\Resources\FineTuning::createJob' => ['createFineTune', 'POST', '/v1/fine-tunes'],
+            'OpenAI\Resources\FineTunes::cancelJob' => ['cancelFineTune', 'POST', '/v1/fine-tunes/*/cancel'],
+            'OpenAI\Resources\FineTunes::listJobEvents' => ['listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events'],
         ];
 
         \DDTrace\hook_method(
@@ -163,15 +167,14 @@ class OpenAIIntegration extends Integration
                         apiKey: $clientData['apiKey'],
                     );
                 },
-                function (\DDTrace\HookData $hook) use ($statsd, $httpMethod, $endpoint) {
+                function (\DDTrace\HookData $hook) use ($statsd, $httpMethod, $endpoint, $errorStorage) {
                     /** @var ResponseContract&ResponseHasMetaInformationContract $returned */
+                    $span = $hook->span();
                     $response = $hook->returned;
-                    $meta = $response->meta();
-
                     OpenAIIntegration::handleResponse(
                         statsd: $statsd,
-                        headers: $meta->toArray(),
-                        response: $response->toArray(),
+                        headers: $response ? $response->meta()->toArray() : [],
+                        response: $response ? $response->toArray() : [],
                         httpMethod: $httpMethod,
                         endpoint: $endpoint,
                         args: $hook->args,
@@ -179,6 +182,32 @@ class OpenAIIntegration extends Integration
                 }
             );
         }
+
+        \DDTrace\hook_method(
+            'OpenAI\ValueObjects\Transporter\Response',
+            'from',
+            null,
+            function ($This, $scope, $args) use (&$errorStorage) {
+                /** @var Response $response */
+                $data = $args[0];
+
+
+                $error = $data['error'] ?? null;
+                if (!$error) {
+                    return;
+                }
+
+                $openAISpan = \DDTrace\active_span();
+                while ($openAISpan && $openAISpan->name !== 'openai.request') {
+                    $openAISpan = $openAISpan->parent;
+                }
+
+                if ($openAISpan) {
+                    $openAISpan->exception = new ErrorException($error);
+                    $openAISpan->meta[Tag::ERROR_TYPE] = $error['type'];
+                }
+            }
+        );
 
         return Integration::LOADED;
     }
@@ -557,11 +586,6 @@ class OpenAIIntegration extends Integration
 
         \DDTrace\close_span();
 
-        $logTags = OpenAIIntegration::getLogTags(
-            span: $span,
-            methodName: $methodName
-        );
-
         OpenAIIntegration::sendMetrics(
             span: $span,
             statsd: $statsd,
@@ -569,27 +593,15 @@ class OpenAIIntegration extends Integration
             response: $response,
             duration: $span->getDuration()
         );
-        /*
-        if ($methodName === 'createCompletion') {
-            OpenAIIntegration::setLLMTags(
-                span: $span,
-                recordType: 'completion',
-                arguments: $args[0],
-                responseAttributes: $response
-            );
-        } elseif ($methodName === 'createChatCompletion') {
-            OpenAIIntegration::setLLMTags(
-                span: $span,
-                recordType: 'chat',
-                arguments: $args[0],
-                responseAttributes: $response
-            );
-        }
-        */
+        OpenAIIntegration::setLLMTags(
+            span: $span,
+            recordType: $methodName === 'createCompletion' ? 'completion' : ($methodName === 'createChatCompletion' ? 'chat' : ''),
+            arguments: $args[0],
+            responseAttributes: $response
+        );
         OpenAIIntegration::sendLog(
             span: $span,
             methodName: $methodName,
-            tags: $logTags
         );
     }
 
@@ -618,20 +630,55 @@ class OpenAIIntegration extends Integration
                 ];
                 break;
             case 'createChatCompletion':
+                $tags += [
+                    'messages.0.content' => $span->meta['openai.request.message.0.content'] ?? null,
+                    'completion.0.finish_reason' => $span->meta['openai.response.choices.0.finish_reason'] ?? null,
+                    'completion.0.message.content' => $span->meta['openai.response.choices.0.message.content'] ?? null,
+                ];
+                break;
+            case 'createEdit':
+                $tags += [
+                    'input' => $span->meta['openai.request.input'] ?? null,
+                    'instruction' => $span->meta['openai.request.instruction'] ?? null,
+                    'choices.0.text' => $span->meta['openai.response.choices.0.text'] ?? null,
+                ];
+                break;
+            case 'createImage':
+            case 'createImageEdit':
+            case 'createImageVariation':
+                $tags += [
+                    'prompt' => $span->meta['openai.request.prompt'] ?? null,
+                    'image' => $span->meta['openai.request.image'] ?? null,
+                    'mask' => $span->meta['openai.request.mask'] ?? null,
+                    'choices.0.b64_json' => $span->meta['openai.response.images.0.b64_json'] ?? null,
+                    'choices.0.url' => $span->meta['openai.response.images.0.url'] ?? null,
+                ];
+                break;
+            case 'createTranscription':
+            case 'createTranslation':
+                $tags += [
+                    'file' => $span->meta['openai.request.file'] ?? null,
+                    'prompt' => $span->meta['openai.request.prompt'] ?? null,
+                    'choices.0.text' => $span->meta['openai.response.choices.0.text'] ?? null,
+                ];
                 break;
 
         }
 
-        return $tags;
+        return \array_filter($tags, fn($v) => !\is_null($v));
     }
 
     public static function sendLog(
         SpanData $span,
         string   $methodName,
-        array    $tags,
         bool     $error = false
     )
     {
+        $tags = OpenAIIntegration::getLogTags(
+            span: $span,
+            methodName: $methodName
+        );
+
         $logger = Logger::get(true, true);
         $logMethod = $error ? 'error' : 'info';
         $logMessage = "sampled $methodName";
@@ -658,8 +705,11 @@ class OpenAIIntegration extends Integration
             'openai.user.api_key' => $span->meta['openai.user.api_key'] ?? null,
             'openai.request.endpoint' => $span->meta['openai.request.endpoint'] ?? null,
             'openai.estimated' => false,
-            'openai.request.error' => 0,
+            'openai.request.error' => $span->exception ? 1 : 0,
+            'error_type' => $span->meta[Tag::ERROR_TYPE] ?? null,
         ];
+
+        $tags = array_filter($tags, fn($v) => !\is_null($v));
 
         $statsd->distribution(
             stat: 'openai.request.duration',
@@ -671,10 +721,12 @@ class OpenAIIntegration extends Integration
             value: $duration / 1e9, // Duration in seconds
             tags: $tags
         );
-        $statsd->increment(
-            stats: 'openai.request.error',
-            tags: $tags
-        );
+        if ($span->exception) {
+            $statsd->increment(
+                stats: 'openai.request.error',
+                tags: $tags
+            );
+        }
 
         $usage = $response['usage'] ?? null;
         if ($usage) {
@@ -736,9 +788,9 @@ class OpenAIIntegration extends Integration
         return [
             'openai.request.training_file' => $payload['training_file'] ?? null,
             'openai.request.validation_file' => $payload['validation_file'] ?? null,
-            'openai.request.n_epochs' => $payload['hyperparameters']['n_epochs'] ?? null,
-            'openai.request.batch_size' => $payload['hyperparameters']['batch_size'] ?? null,
-            'openai.request.learning_rate_multiplier' => $payload['hyperparameters']['learning_rate_multiplier'] ?? null,
+            'openai.request.n_epochs' => $payload['hyperparams']['n_epochs'] ?? null,
+            'openai.request.batch_size' => $payload['hyperparams']['batch_size'] ?? null,
+            'openai.request.learning_rate_multiplier' => $payload['hyperparams']['learning_rate_multiplier'] ?? null,
         ];
     }
 
@@ -761,10 +813,10 @@ class OpenAIIntegration extends Integration
 
         $tags = [];
         foreach ($messages as $idx => $message) {
-            $tags["openai.request.$idx.content"] = $message['content'] ?? null;
-            $tags["openai.request.$idx.role"] = $message['role'] ?? null;
-            $tags["openai.request.$idx.name"] = $message['name'] ?? null;
-            $tags["openai.request.$idx.finish_reason"] = $message['finish_reason'] ?? null;
+            $tags["openai.request.message.$idx.content"] = $message['content'] ?? null;
+            $tags["openai.request.message.$idx.role"] = $message['role'] ?? null;
+            $tags["openai.request.message.$idx.name"] = $message['name'] ?? null;
+            $tags["openai.request.message.$idx.finish_reason"] = $message['finish_reason'] ?? null;
         }
 
         return $tags;
@@ -926,10 +978,10 @@ class OpenAIIntegration extends Integration
         return [
             //'openai.response.events_count' => isset($payload['events']) ? \count($payload['events']) : null,
             'openai.response.fine_tuned_model' => $payload['fine_tuned_model'] ?? null,
-            'openai.response.hyperparams.n_epochs' => $payload['hyperparameters']['n_epochs'] ?? null,
-            'openai.response.hyperparams.batch_size' => $payload['hyperparameters']['batch_size'] ?? null,
-            'openai.response.hyperparams.prompt_loss_weight' => $payload['hyperparameters']['prompt_loss_weight'] ?? null,
-            'openai.response.hyperparams.learning_rate_multiplier' => $payload['hyperparameters']['learning_rate_multiplier'] ?? null,
+            'openai.response.hyperparams.n_epochs' => $payload['hyperparams']['n_epochs'] ?? null,
+            'openai.response.hyperparams.batch_size' => $payload['hyperparams']['batch_size'] ?? null,
+            'openai.response.hyperparams.prompt_loss_weight' => $payload['hyperparams']['prompt_loss_weight'] ?? null,
+            'openai.response.hyperparams.learning_rate_multiplier' => $payload['hyperparams']['learning_rate_multiplier'] ?? null,
             //'openai.response.training_files_count' => \count($)
             'openai.response.updated_at' => $payload['updated_at'],
             'openai.response.status' => $payload['status'],
