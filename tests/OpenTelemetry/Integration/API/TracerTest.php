@@ -812,7 +812,7 @@ final class TracerTest extends BaseTestCase
             $grandChild = $tracer->spanBuilder("grandChild")
                 ->setParent(Context::getCurrent()->withContextValue($child))
                 ->startSpan();
-            $expected_tracestate = sprintf('dd=p:%016X;t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE"', $child->getSpanId());
+            $expected_tracestate = sprintf("dd=p:%016X;t.dm:-0,remoteparent=yes,rojo=00f067aa0ba902b7,congo=t61rcWkgMzE", $child->getContext()->getSpanId());
             $this->assertSame($expected_tracestate, (string)$child->getContext()->getTraceState());
             $grandChildScope = $grandChild->activate();
 
