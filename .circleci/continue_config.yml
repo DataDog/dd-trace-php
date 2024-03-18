@@ -1578,9 +1578,6 @@ jobs:
                 name: Updating composer to v2
                 command: sudo composer self-update --2 --no-interaction
       - install_extension
-      - run:
-          name: Install required packages
-          command: sudo apt update && sudo apt install -y jq
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE

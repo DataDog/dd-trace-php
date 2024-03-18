@@ -968,12 +968,14 @@ TEST_WEB_83 := \
 FILTER := .
 MAX_RETRIES := 3
 
+# Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17" 
 define run_composer_with_retry
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
 		$(COMPOSER) --working-dir=$1 update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
 	done \
 
+	mkdir -p /tmp/artifacts
 	$(COMPOSER) --working-dir=$1 show -f json -D | grep -o '"name": "[^"]*\|"version": "[^"]*' | paste -d';' - - | sed 's/"name": //; s/"version": //' | tr -d '"' >> "/tmp/artifacts/web_versions.csv"
 endef
 
