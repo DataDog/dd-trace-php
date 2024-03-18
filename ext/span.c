@@ -559,9 +559,9 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     ddtrace_close_top_span_without_stack_swap(span);
 
     // Telemetry: increment the spans_created counter
-    // Must be done at closing because we need to read the "integration" meta which is not available at creation
+    // Must be done at closing because we need to read the "component" meta which is not available at creation
     zend_array *meta = ddtrace_property_array(&span->props.property_meta);
-    zval *component = zend_hash_str_find(meta, ZEND_STRL("component")); // FIXME: use #define?
+    zval *component = zend_hash_str_find(meta, ZEND_STRL("component"));
     zend_string *integration_name = NULL;
     if (component && Z_TYPE_P(component) == IS_STRING) {
         integration_name = Z_STR_P(component);
