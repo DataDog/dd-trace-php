@@ -1046,9 +1046,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 #if ZAI_JIT_BLACKLIST_ACTIVE
     zai_jit_minit();
 #endif
-#if PHP_VERSION_ID >= 80100
-    ddtrace_setup_fiber_observers();
-#endif
 
 #if PHP_VERSION_ID < 70300 || (defined(_WIN32) && PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400)
     ddtrace_startup_hrtime();
@@ -1099,6 +1096,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (ddtrace_disable) {
         return SUCCESS;
     }
+
+#if PHP_VERSION_ID >= 80100
+    ddtrace_setup_fiber_observers();
+#endif
 
 #ifndef _WIN32
     ddtrace_set_coredumpfilter();
