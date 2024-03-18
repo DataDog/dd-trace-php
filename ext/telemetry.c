@@ -79,10 +79,6 @@ void ddtrace_telemetry_finalize(void) {
         ddog_sidecar_telemetry_add_point_buffer(buffer, metric_name, Z_LVAL_P(metric_value), dd_zend_string_to_CharSlice(integration_name));
     } ZEND_HASH_FOREACH_END();
 
-    // FIXME: empty string is probably not the best solution
-    ddog_CharSlice no_integration = DDOG_CHARSLICE_C("");
-    ddog_sidecar_telemetry_add_point_buffer(buffer, metric_name, DDTRACE_G(telemetry_spans_created_without_integration), no_integration);
-
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 
     ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
@@ -114,19 +110,22 @@ void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
 }
 
 void ddtrace_telemetry_inc_spans_created(zend_string *integration) {
-    // FIXME: remove log
-    LOG(WARN, "SPAN created by integration: '%s'", ZSTR_VAL(integration));
-
     if (integration) {
-        zval *current = zend_hash_find(&DDTRACE_G(telemetry_spans_created_per_integration), integration);
-        if (current) {
-            ++Z_LVAL_P(current);
-        } else {
-            zval counter;
-            ZVAL_LONG(&counter, 1);
-            zend_hash_add(&DDTRACE_G(telemetry_spans_created_per_integration), integration, &counter);
-        }
+        integration = zend_string_copy(integration);
     } else {
-            ++DDTRACE_G(telemetry_spans_created_without_integration);
+        // Fallback value when the span has not been created by an integration (i.e. \DDTrace\span_start())
+        // FIXME: Detect spans from OpenTracing/OpenTelemetry. Add an helper function?
+        integration = zend_string_init(ZEND_STRL("datadog"), 0);
     }
+
+    zval *current = zend_hash_find(&DDTRACE_G(telemetry_spans_created_per_integration), integration);
+    if (current) {
+        ++Z_LVAL_P(current);
+    } else {
+        zval counter;
+        ZVAL_LONG(&counter, 1);
+        zend_hash_add(&DDTRACE_G(telemetry_spans_created_per_integration), integration, &counter);
+    }
+
+    zend_string_release(integration);
 }

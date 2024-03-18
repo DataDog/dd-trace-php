@@ -11,10 +11,6 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-// use ddtelemetry::data::metrics::MetricType;
-// use ddtelemetry::metrics::MetricContexts;
-// use ddtelemetry::data::metrics::MetricNamespace;
-
 #[cfg(windows)]
 macro_rules! windowsify_path {
     ($lit:literal) => (const_str::replace!($lit, "/", "\\"))
@@ -150,7 +146,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_point_buffer(
     buffer: &mut SidecarActionsBuffer,
     metric_name: CharSlice,
     metric_value: u32, // FIXME: should be f64
-    integration_name: CharSlice, // FIXME: should be an array of tags
+    integration_name: CharSlice,
 ) {
     let mut tags: Vec<Tag> = Vec::default();
     if integration_name.len() > 0 {
