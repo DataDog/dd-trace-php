@@ -79,7 +79,7 @@ class TracerTest extends BaseTestCase
             $span = $tracer->spanBuilder('test.span')->setParent($parentContext)->startSpan();
 
             $this->assertNotEquals($parentTraceState, $span->getContext()->getTraceState());
-            $this->assertEquals('dd=t.dm:-0,new-key=new_value', (string)$span->getContext()->getTraceState());
+            $this->assertEquals(sprintf('dd=p:%016X;t.dm:-0,new-key=new_value', $parentContext->getSpanID()), (string)$span->getContext()->getTraceState());
         });
     }
 
