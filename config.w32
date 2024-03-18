@@ -15,7 +15,7 @@ if (PHP_DDTRACE != 'no') {
 
 	var version = PHP_VERSION * 100 + PHP_MINOR_VERSION;
 
-	var DDTRACE_EXT_SOURCES = "arrays.c auto_flush.c autoload_php_files.c compat_string.c configuration.c distributed_tracing_headers.c ddshared.c dogstatsd.c engine_api.c engine_hooks.c excluded_modules.c git.c handlers_api.c handlers_curl" + (version < 800 ? "_php7" : "") + ".c handlers_exception.c handlers_internal.c handlers_pcntl.c ip_extraction.c logging.c memory_limit.c otel_config.c profiling.c random.c serializer.c sidecar.c span.c startup_logging.c telemetry.c user_request.c";
+	var DDTRACE_EXT_SOURCES = "arrays.c auto_flush.c autoload_php_files.c collect_backtrace.c compat_string.c configuration.c distributed_tracing_headers.c ddshared.c dogstatsd.c engine_api.c engine_hooks.c excluded_modules.c git.c handlers_api.c handlers_curl" + (version < 800 ? "_php7" : "") + ".c handlers_exception.c handlers_internal.c handlers_pcntl.c ip_extraction.c logging.c memory_limit.c otel_config.c profiling.c random.c remote_config.c serializer.c sidecar.c span.c startup_logging.c telemetry.c user_request.c";
 	if (version >= 800 && version < 802) {
 		DDTRACE_EXT_SOURCES += " weakrefs.c";
 	}

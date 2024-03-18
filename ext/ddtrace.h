@@ -127,6 +127,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_QueueId telemetry_queue_id;
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
+    zend_arena *exception_debugger_arena;
+    ddog_Vec_DebuggerPayloadCharSlice exception_debugger_buffer;
     HashTable active_rc_hooks;
     HashTable *agent_rate_by_service;
     zend_string *last_flushed_root_service_name;
