@@ -589,7 +589,7 @@ final class TracerTest extends BaseTestCase
             $this->assertSame($remoteContext->getSpanId(), $child->getParentContext()->getSpanId());
             $this->assertFalse($childContext->isRemote()); // "When creating children from remote spans, their IsRemote flag MUST be set to false."
             $this->assertEquals(1, $childContext->getTraceFlags()); // RECORD_AND_SAMPLED ==> 01 (AlwaysOn sampler)
-            $this->assertSame('dd=p:0000000000000000;t.dm:-0' . ($traceState ? ",$traceState" : ""), (string)$childContext->getTraceState());
+            $this->assertSame(sprintf("dd=p:%016X;t.dm:-0", $child->getContext()->getSpanID()) . ($traceState ? ",$traceState" : ""), (string)$childContext->getTraceState());
         });
 
         $span = $traces[0][0];
