@@ -56,6 +56,14 @@ void ddog_agent_remote_config_reader_drop(struct ddog_AgentRemoteConfigReader*);
 
 void ddog_agent_remote_config_writer_drop(struct ddog_AgentRemoteConfigWriter_ShmHandle*);
 
+struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_endpoint(const ddog_CharSlice *language,
+                                                                       const ddog_CharSlice *tracer_version,
+                                                                       const struct ddog_Endpoint *endpoint);
+
+bool ddog_remote_config_read(struct ddog_RemoteConfigReader *reader, ddog_CharSlice *data);
+
+void ddog_remote_config_reader_drop(struct ddog_RemoteConfigReader*);
+
 void ddog_sidecar_transport_drop(ddog_SidecarTransport*);
 
 /**
@@ -115,6 +123,8 @@ bool ddog_sidecar_is_closed(ddog_SidecarTransport **transport);
 ddog_MaybeError ddog_sidecar_session_set_config(ddog_SidecarTransport **transport,
                                                 ddog_CharSlice session_id,
                                                 const struct ddog_Endpoint *endpoint,
+                                                ddog_CharSlice language,
+                                                ddog_CharSlice tracer_version,
                                                 uint64_t flush_interval_milliseconds,
                                                 uintptr_t force_flush_size,
                                                 uintptr_t force_drop_size,
@@ -130,6 +140,16 @@ ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(ddog_SidecarTransport **transp
                                                   const struct ddog_InstanceId *instance_id,
                                                   ddog_CharSlice data,
                                                   const struct ddog_TracerHeaderTags *tracer_header_tags);
+
+ddog_MaybeError ddog_sidecar_send_debugger_data(ddog_SidecarTransport **transport,
+                                                const struct ddog_InstanceId *instance_id,
+                                                struct ddog_Vec_DebuggerPayloadCharSlice payloads);
+
+ddog_MaybeError ddog_sidecar_set_remote_config_data(ddog_SidecarTransport **transport,
+                                                    const struct ddog_InstanceId *instance_id,
+                                                    ddog_CharSlice service,
+                                                    ddog_CharSlice env,
+                                                    ddog_CharSlice app_version);
 
 ddog_CharSlice ddog_sidecar_dump(ddog_SidecarTransport **transport);
 

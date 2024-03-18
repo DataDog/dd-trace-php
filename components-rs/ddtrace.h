@@ -145,6 +145,19 @@ void ddog_log(enum ddog_Log category, bool once, ddog_CharSlice msg);
 
 void ddog_reset_log_once(void);
 
+struct ddog_RemoteConfigState *ddog_init_remote_config(ddog_CharSlice tracer_version,
+                                                       const struct ddog_Endpoint *endpoint);
+
+void ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
+
+void ddog_init_live_debugger(const struct ddog_LiveDebuggerSetup *setup);
+
+void ddog_rinit_remote_config(struct ddog_RemoteConfigState *remote_config);
+
+void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
+
+void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
+
 bool ddtrace_detect_composer_installed_json(ddog_SidecarTransport **transport,
                                             const struct ddog_InstanceId *instance_id,
                                             const ddog_QueueId *queue_id,
@@ -175,18 +188,5 @@ ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,
                                          bool enable_telemetry);
-
-struct ddog_RemoteConfigState *ddog_init_remote_config(ddog_CharSlice tracer_version,
-                                                       const struct ddog_Endpoint *endpoint);
-
-void ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
-
-void ddog_init_live_debugger(const struct ddog_LiveDebuggerSetup *setup);
-
-void ddog_rinit_remote_config(struct ddog_RemoteConfigState *remote_config);
-
-void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
-
-void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
 
 #endif /* DDTRACE_PHP_H */

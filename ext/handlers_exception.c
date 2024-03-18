@@ -2,6 +2,7 @@
 #include <exceptions/exceptions.h>
 #include <php.h>
 
+#include "collect_backtrace.h"
 #include "configuration.h"
 #include "engine_hooks.h"  // For 'ddtrace_resource'
 #include "handlers_exception.h"
@@ -388,6 +389,70 @@ void dd_exception_handler_freed(zend_object *object) {
 }
 #endif
 
+static zend_object *ddtrace_exception_new(zend_class_entry *class_type, zend_object *(*prev)(zend_class_entry *class_type)) {
+    zend_execute_data *ex = EG(current_execute_data);
+    EG(current_execute_data) = NULL;
+    zend_object *object = prev(class_type);
+    EG(current_execute_data) = ex;
+
+    zend_class_entry *base_ce = zai_get_exception_base(object);
+
+    zval trace;
+    ddtrace_fetch_debug_backtrace(&trace, 0, (EG(exception_ignore_args) ? DEBUG_BACKTRACE_IGNORE_ARGS : 0) | DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS, 0);
+    Z_SET_REFCOUNT(trace, 0);
+    zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_TRACE), &trace);
+
+    zval tmp;
+    zend_string *filename;
+    if (EXPECTED((class_type != zend_ce_parse_error && class_type != zend_ce_compile_error)
+                 || !(filename = zend_get_compiled_filename()))) {
+        ZVAL_STRING(&tmp, zend_get_executed_filename());
+        zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_FILE), &tmp);
+        zval_ptr_dtor(&tmp);
+        ZVAL_LONG(&tmp, zend_get_executed_lineno());
+        zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_LINE), &tmp);
+    } else {
+        ZVAL_STR(&tmp, filename);
+        zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_FILE), &tmp);
+        ZVAL_LONG(&tmp, zend_get_compiled_lineno());
+        zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_LINE), &tmp);
+    }
+
+    if (ex->func && ZEND_USER_CODE(ex->func->type)) {
+        ddtrace_call_get_locals(ex, &tmp, !EG(exception_ignore_args));
+        zend_string *key_locals = zend_string_init(ZEND_STRL("locals"), 0);
+        Z_SET_REFCOUNT(tmp, 0);
+        zend_update_property_ex(base_ce, object, key_locals, &tmp);
+        zend_string_release(key_locals);
+    }
+
+    return object;
+}
+
+// fast path
+zend_object *(*prev_exception_default_create_object)(zend_class_entry *class_type);
+static zend_object *ddtrace_default_exception_new(zend_class_entry *class_type) {
+    return ddtrace_exception_new(class_type, prev_exception_default_create_object);
+}
+
+// support custom exception create handlers
+HashTable ddtrace_exception_custom_create_object;
+static zend_object *ddtrace_custom_exception_new(zend_class_entry *class_type) {
+    zend_class_entry *ce = class_type;
+    zend_object *(*prev)(zend_class_entry *class_type);
+    while (!(prev = zend_hash_index_find_ptr(&ddtrace_exception_custom_create_object, (zend_long)(uintptr_t)ce))) {
+        ce = ce->parent;
+    }
+    return ddtrace_exception_new(class_type, prev);
+}
+
+static zend_property_info *dd_add_exception_locals_property(zend_class_entry *ce) {
+    zend_string *key = zend_string_init(ZEND_STRL("locals"), 1);
+    zend_property_info *prop = zend_declare_typed_property(ce, key, &EG(uninitialized_zval), ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+    zend_string_release(key);
+    return prop;
+}
+
 void ddtrace_exception_handlers_startup(void) {
     ddtrace_exception_or_error_handler = (zend_internal_function){
         .type = ZEND_INTERNAL_FUNCTION,
@@ -422,6 +487,62 @@ void ddtrace_exception_handlers_startup(void) {
     for (size_t i = 0; i < handlers_len; ++i) {
         datadog_php_install_handler(handlers[i]);
     }
+
+    zend_property_info *exception_prop = dd_add_exception_locals_property(zend_ce_exception);
+    zend_property_info *error_prop = dd_add_exception_locals_property(zend_ce_error);
+
+    prev_exception_default_create_object = zend_ce_exception->create_object;
+    zend_hash_init(&ddtrace_exception_custom_create_object, 8, NULL, NULL, 1);
+    zend_class_entry *ce;
+    ZEND_HASH_FOREACH_PTR(CG(class_table), ce) {
+        if ((ce->ce_flags & ZEND_ACC_INTERFACE) == 0 && instanceof_function_slow(ce, zend_ce_throwable)) {
+            if (ce->create_object) {
+                if (ce->create_object == prev_exception_default_create_object) {
+                    ce->create_object = ddtrace_default_exception_new;
+                } else {
+                    zend_hash_index_add_ptr(&ddtrace_exception_custom_create_object, (zend_long)(uintptr_t)ce, ce->create_object);
+                    ce->create_object = ddtrace_custom_exception_new;
+                }
+
+                // add locals property to all existing throwables
+                zend_class_entry *base_ce = NULL;
+                zend_property_info *parent_info;
+                if (ce != zend_ce_exception && instanceof_function_slow(ce, zend_ce_exception)) {
+                    base_ce = zend_ce_exception;
+                    parent_info = exception_prop;
+                } else if (ce != zend_ce_error && instanceof_function_slow(ce, zend_ce_error)) {
+                    base_ce = zend_ce_error;
+                    parent_info = error_prop;
+                }
+                if (base_ce) {
+                    zval *child = zend_hash_find_known_hash(&ce->properties_info, parent_info->name);
+                    if (child) {
+                        ((zend_property_info *)Z_PTR_P(child))->flags |= ZEND_ACC_CHANGED;
+                    } else {
+                        zend_hash_add_new_ptr(&ce->properties_info, parent_info->name, parent_info);
+                    }
+
+                    zend_property_info *property_info;
+                    ZEND_HASH_MAP_FOREACH_PTR(&ce->properties_info, property_info) {
+                        if (property_info->ce == ce && (property_info->flags & ZEND_ACC_STATIC) == 0) {
+                            property_info->offset += sizeof(zval);
+                        }
+                    } ZEND_HASH_FOREACH_END();
+
+                    int insert_at = zend_hash_num_elements(&base_ce->properties_info) - 1;
+                    ce->default_properties_count++;
+
+                    ce->default_properties_table = perealloc(ce->default_properties_table, sizeof(zval) * ce->default_properties_count, 1);
+                    memmove(ce->default_properties_table + insert_at + 1, ce->default_properties_table + insert_at, sizeof(zval) * (ce->default_properties_count - insert_at - 1));
+                    ZVAL_COPY_VALUE_PROP(ce->default_properties_table + insert_at, base_ce->default_properties_table + insert_at);
+
+                    ce->properties_info_table = perealloc(ce->properties_info_table, sizeof(zend_property_info *) * ce->default_properties_count, 1);
+                    memmove(ce->properties_info_table + insert_at + 1, ce->properties_info_table + insert_at, sizeof(zend_property_info *) * (ce->default_properties_count - insert_at - 1));
+                    ce->properties_info_table[insert_at] = parent_info;
+                }
+            }
+        }
+    } ZEND_HASH_FOREACH_END();
 }
 
 void ddtrace_exception_handlers_shutdown(void) { ddtrace_free_unregistered_class(&dd_exception_or_error_handler_ce); }
