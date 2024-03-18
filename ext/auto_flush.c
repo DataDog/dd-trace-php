@@ -58,10 +58,10 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                     if (written) {
                         ddog_TracerHeaderTags tags = {
                                 .container_id = ddtrace_get_container_id(),
-                                .lang = DDOG_CHARSLICE_C("php"),
+                                .lang = DDOG_CHARSLICE_C_BARE("php"),
                                 .lang_interpreter = (ddog_CharSlice) {.ptr = sapi_module.name, .len = strlen(sapi_module.name)},
-                                .lang_vendor = DDOG_CHARSLICE_C(""),
-                                .tracer_version = DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
+                                .lang_vendor = DDOG_CHARSLICE_C_BARE(""),
+                                .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
                                 .lang_version = dd_zend_string_to_CharSlice(ddtrace_php_version),
                                 .client_computed_top_level = false,
                                 .client_computed_stats = false,

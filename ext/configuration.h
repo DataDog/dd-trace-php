@@ -190,6 +190,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_OTEL_ENABLED, "false")                                                               \
     CONFIG(STRING, DD_TRACE_LOG_FILE, "", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(STRING, DD_TRACE_LOG_LEVEL, "error", .ini_change = ddtrace_alter_dd_trace_log_level)                \
+    CONFIG(BOOL, DD_APPSEC_SCA_ENABLED, "false", .ini_change = zai_config_system_ini_change)                   \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

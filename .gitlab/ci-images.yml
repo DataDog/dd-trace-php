@@ -86,3 +86,31 @@ Ubuntu Bookworm:
     - cd dockerfiles/ci/bookworm
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
+
+Ubuntu Buster:
+  stage: ci-build
+  rules:
+    - when: manual
+  needs: []
+  tags: ["arch:amd64"]
+  timeout: 1h
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  parallel:
+    matrix:
+      - PHP_VERSION:
+        - base
+        - php-8.3
+        - php-8.2
+        - php-8.1
+        - php-8.0
+        - php-8.0-shared-ext
+        - php-7.4
+        - php-7.4-shared-ext
+        - php-7.3
+        - php-7.2
+        - php-7.1
+        - php-7.0
+  script:
+    - cd dockerfiles/ci/buster
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - docker buildx bake --no-cache --pull --push $PHP_VERSION

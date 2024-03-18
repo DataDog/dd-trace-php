@@ -1,0 +1,16 @@
+#!/bin/sh
+
+switch_php() {
+  phpType=$1
+  
+  if [ ${phpType} != 'zts' ] && [ ${phpType} != 'nts' ]; then
+      echo "Invalid PHP version. Valid versions are: 'nts' and 'zts-"
+      return 1
+  fi
+  
+  if [ ${phpType} = 'zts' ]; then
+    export PATH="$(echo "${PATH}" | sed 's/\(\/usr\/local\/php-[^:]*\)\(-zts\|\)\/bin/\1-zts\/bin/')"
+  else
+    export PATH="$(echo "${PATH}" | sed 's/\(\/usr\/local\/php-[^:]*\)\(-zts\|\)\/bin/\1\/bin/')"
+  fi
+}

@@ -6,8 +6,8 @@ use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::marker::PhantomData;
-use std::str::Utf8Error;
 use std::sync::atomic::AtomicBool;
+use std::{ptr, str};
 
 extern "C" {
     pub static ddog_php_prof_functions: *const zend_function_entry;
@@ -220,29 +220,29 @@ impl Default for ModuleEntry {
             zend_api: ZEND_MODULE_API_NO,
             zend_debug: ZEND_DEBUG as u8,
             zts: USING_ZTS as u8,
-            ini_entry: std::ptr::null(),
-            deps: std::ptr::null(),
+            ini_entry: ptr::null(),
+            deps: ptr::null(),
             name: b"\0".as_ptr(),
-            functions: std::ptr::null(),
+            functions: ptr::null(),
             module_startup_func: None,
             module_shutdown_func: None,
             request_startup_func: None,
             request_shutdown_func: None,
             info_func: None,
-            version: std::ptr::null(),
+            version: ptr::null(),
             globals_size: 0,
 
             #[cfg(php_zts)]
-            globals_id_ptr: std::ptr::null_mut(),
+            globals_id_ptr: ptr::null_mut(),
             #[cfg(not(php_zts))]
-            globals_ptr: std::ptr::null_mut(),
+            globals_ptr: ptr::null_mut(),
 
             globals_ctor: None,
             globals_dtor: None,
             post_deactivate_func: None,
             module_started: 0,
             type_: MODULE_PERSISTENT as c_uchar,
-            handle: std::ptr::null_mut(),
+            handle: ptr::null_mut(),
             module_number: -1,
             build_id: unsafe { datadog_module_build_id() },
         }
@@ -272,11 +272,11 @@ impl Default for ZendExtension {
             build_id_check: None,
             op_array_persist_calc: None,
             op_array_persist: None,
-            reserved5: std::ptr::null_mut(),
-            reserved6: std::ptr::null_mut(),
-            reserved7: std::ptr::null_mut(),
-            reserved8: std::ptr::null_mut(),
-            handle: std::ptr::null_mut(),
+            reserved5: ptr::null_mut(),
+            reserved6: ptr::null_mut(),
+            reserved7: ptr::null_mut(),
+            reserved8: ptr::null_mut(),
+            handle: ptr::null_mut(),
             resource_number: -1,
         }
     }
@@ -344,8 +344,8 @@ impl ModuleDep {
     pub const fn required(name: &CStr) -> Self {
         Self {
             name: name.as_ptr(),
-            rel: std::ptr::null(),
-            version: std::ptr::null(),
+            rel: ptr::null(),
+            version: ptr::null(),
             type_: MODULE_DEP_REQUIRED as c_uchar,
         }
     }
@@ -353,17 +353,17 @@ impl ModuleDep {
     pub const fn optional(name: &CStr) -> Self {
         Self {
             name: name.as_ptr(),
-            rel: std::ptr::null(),
-            version: std::ptr::null(),
+            rel: ptr::null(),
+            version: ptr::null(),
             type_: MODULE_DEP_OPTIONAL as c_uchar,
         }
     }
 
     pub const fn end() -> Self {
         Self {
-            name: std::ptr::null(),
-            rel: std::ptr::null(),
-            version: std::ptr::null(),
+            name: ptr::null(),
+            rel: ptr::null(),
+            version: ptr::null(),
             type_: 0,
         }
     }
@@ -575,9 +575,9 @@ impl<'a> ZaiStr<'a> {
     }
 
     #[inline]
-    pub fn into_utf8(self) -> Result<&'a str, Utf8Error> {
+    pub fn into_utf8(self) -> Result<&'a str, str::Utf8Error> {
         let bytes = self.into_bytes();
-        std::str::from_utf8(bytes)
+        str::from_utf8(bytes)
     }
 
     #[inline]
@@ -634,18 +634,16 @@ pub struct ZaiConfigMemoizedEntry {
 
 #[cfg(test)]
 mod tests {
+    use core::mem;
 
     // If this fails, then ddog_php_prof_function_run_time_cache needs to be
     // adjusted accordingly.
     #[test]
     fn test_sizeof_fixed_size_slice_is_same_as_pointer() {
+        assert_eq!(mem::size_of::<&[usize; 2]>(), mem::size_of::<*mut usize>());
         assert_eq!(
-            std::mem::size_of::<&[usize; 2]>(),
-            std::mem::size_of::<*mut usize>()
-        );
-        assert_eq!(
-            std::mem::align_of::<&[usize; 2]>(),
-            std::mem::align_of::<*mut usize>()
+            mem::align_of::<&[usize; 2]>(),
+            mem::align_of::<*mut usize>()
         );
     }
 }

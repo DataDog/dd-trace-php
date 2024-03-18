@@ -14,9 +14,9 @@ static void dd_log_set_level(bool debug) {
     bool once = runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS();
     if (debug) {
         if (strcmp("cli", sapi_module.name) != 0 && (runtime_config_first_init ? get_DD_TRACE_STARTUP_LOGS() : get_global_DD_TRACE_STARTUP_LOGS())) {
-            ddog_set_log_level((ddog_CharSlice)DDOG_CHARSLICE_C("debug"), once);
+            ddog_set_log_level(DDOG_CHARSLICE_C("debug"), once);
         } else {
-            ddog_set_log_level((ddog_CharSlice)DDOG_CHARSLICE_C("debug,startup=error"), once);
+            ddog_set_log_level(DDOG_CHARSLICE_C("debug,startup=error"), once);
         }
     } else if (runtime_config_first_init) {
         ddog_set_log_level(dd_zend_string_to_CharSlice(get_DD_TRACE_LOG_LEVEL()), once);
