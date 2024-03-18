@@ -4,8 +4,9 @@
 
 The profiler is implemented in Rust. To see the currently required Rust
 version, refer to the [rust-toolchain](rust-toolchain) file. The profiler
-requires PHP 7.1+, and does not support debug nor ZTS builds. There are bits of
-ZTS support in the build system and profiler, but it's not complete.
+requires PHP 7.1+, and does not support debug builds. There are bits of ZTS
+support in the build system and profiler, but it's not complete, consider the
+current state of ZTS support beta.
 
 ## Time Profiling
 
