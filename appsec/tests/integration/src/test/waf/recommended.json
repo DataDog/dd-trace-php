@@ -6699,6 +6699,12 @@
           "parameters": {
             "inputs": [
               {
+                  "address": "server.request.body",
+                  "key_path": [
+                      "message"
+                  ]
+              },
+              {
                 "address": "server.response.body",
                 "key_path": [
                     "message"
@@ -6751,6 +6757,12 @@
             {
                 "parameters": {
                     "inputs": [
+                        {
+                            "address": "server.request.body",
+                            "key_path": [
+                                "note"
+                            ]
+                        },
                         {
                             "address": "server.response.body",
                             "key_path": [

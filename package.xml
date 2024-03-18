@@ -62,51 +62,85 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
+### Fixes across all extensions
+- Handle Apache graceful restarts more accurately #2483
+- Mark config as immutable and interned to avoid refcounting race conditions #2516
+
 ## Tracer
+This release includes Windows dlls for the tracer starting with PHP 7.2. #2230
+
+Windows support is in beta. We recommend carefully deploying the tracer to staging environments and testing it there before putting it to production. We are looking towards stabilizing Windows quickly, so any feedback and issue reports are welcome.
+
 ### Added
-- Add span links capabilities to the OTel API #2451
-- Add exec integration #2361, #2455, #2459
+- Enhance logging #2490
+  - This features two new logging options:
+    - `datadog.trace.log_level` allows more fine-grained control over logging (`error`, `warn`, `info`, `debug`, `trace`). It follows the RUST_LOG standard. Note that `datadog.trace.debug` still takes precedence if set.
+    - `datadog.trace.log_file` allows specifying a dedicated target file for any datadog trace logs instead of the default php error location.
+  - More log lines were added to allow for observing submitted spans (debug level) and hook invocations (trace level).
+- Add http.route to Wordpress #2491
 
 ### Changed
-- Implement http.route for Yii #2430
-- Implement http.route for Slim #2402
+- Have datadog.trace.db_client_split_by_instance also affect mysqli and sqlsrv #2508
+- Record nested exceptions in the integrations #2514
+- Evaluate numbers and bools in tags and metrics for sampling rules #2521
 
 ### Fixed
-- Remove Symfony controller hook after execution #2436
-- Move the dummy function of call_attribute_constructor onto the VM stack #2446
-- Avoid resolving unresolved functions and classes #2450
-- Fix removal of the directly accessed hook after binding in DDTrace\remove_hook #2449
-- Handle async requests using Guzzle #2460
-- Fix removing an end observer with other observers active #2469
-- Fix fibers on PHP 8.1.2 #2473
+- Access to undefined method `attempts` in LaravelQueueIntegration #2485
+- Include generated curl_exec spans of curl_multi_exec() in metrics #2505
+- Remove Symfony Command Hook After Execution #2492
+- Add zend_try around closing and flushing spans #2507
+- Make PDO split-by coherent with other DB split-by with service name flattening #2524
 
-### Internal Changes
-- Add MicroBenchmarks #2435, #2456, #2458
-- Add Symfony 7.0 test suite #2437
-- Track DD_TRACE_DEBUG=1 errors in integration and web tests #2472
-- Reduce noise in composer package download #2401
+### Internal
+- No longer compile the mockgen as part of the rust build #2512
+- Add TEA Benchmarks #2438
+- Reduce CI and Local Flakiness #2496, #2518
 
 ## Profiling
+This release requires System INIs to be used to configure the profiler settings which control the enabling/disabling of individual features. If you are configuring the profiler using `php datadog-setup.php config set`, you should be fine. We recommend switching to use the [config mode of datadog-setup.php](https://docs.datadoghq.com/profiler/enabling/php/?tab=gnuclinux#installation) to configure profiling.
+
 ### Added
-- prevent emitting empty profiles #2397
+- Enable timeline by default #2480. This can be disabled by setting the INI setting datadog.profiling.timeline_enabled to 0 or false. Using the datadog-setup.php script is recommended, for example:
 
-### Fixed
-- potential allocation profiling crashes with certain opcodes #2352
+    php datadog-setup.php config set --php-bin all -ddatadog.profiling.timeline_enabled=0
+- PHP ZTS support for CPU- and Wall Time profiling #2470
+- Add exception message to exception sample (opt-in) #2434
 
-### Internal Changes
-- test with address sanitizer on bookworm with GH actions #2432
-- make the profiler compile in ZTS PHP #2463
-- extract wall_time.rs file #2467
+### Changed
+- Breaking-change: require system INIs for profiling features #2468
+
+### Internal
+- Update dependencies and pin `ahash` #2479
+- Fix clippy::single-match #2482
+- Update to libdatadog 6 #2513
+- Refactor: use SystemSettings in locals #2487
+- Fix accidentally skipped tests #2517
 
 ## Application Security Management
-### Internal changes
-- Change schema extraction zip compression to PHP_ZLIB_ENCODING_GZIP #2447
+This release introduces support for the Roadrunner application server and extends threat detection and blocking on XML and JSON request payloads. Request and response payloads are now also used to expand the already existing API security features.
+
+### Added
+- Roadrunner appsec support #2443
+- Provide server.response.body #2489
+- Support json/xml request bodies #2499
+
+### Changed
+- Change ip header parsing/header reporting #2503
+
+### Fixed
+- Fix blocking on PHP 7.0-7.1 ZTS #2502
+- Ensure logs are committed to disk upon shutdown #2495 
+
+### Internal
+- Upgrade libddwaf and ruleset #2520
 ]]></notes>
     <contents>
         <dir name="/">
-            <!-- code and test files -->${codefiles}
+            <!-- code, PHP and test files -->${codefiles}
             <file name="config.m4" role="src" />
+            <file name="config.w32" role="src" />
             <file name="ddtrace.sym" role="src" />
+            <file name="compile_rust.sh" role="src" />
 
             <!-- Docs -->
             <file name="CHANGELOG.md" role="doc" />
@@ -116,18 +150,6 @@
             <file name="NOTICE" role="doc" />
             <file name="README.md" role="doc" />
             <file name="UPGRADE-0.10.md" role="doc" />
-
-            <!-- PHP files -->
-            <!-- Include any files from ./bridge that are not referenced in ./bridge/_files.php -->
-            <!-- Make sure to update <filelist> below too -->
-            <file name="bridge/_generated_api.php" role="php" />
-            <file name="bridge/_generated_integrations.php" role="php" />
-            <file name="bridge/_generated_tracer.php" role="php" />
-            <file name="bridge/_generated_tracer_api.php" role="php" />
-            <file name="bridge/autoload.php" role="php" />
-            <file name="bridge/dd_init.php" role="php" />
-            <file name="bridge/dd_register_optional_deps_autoloader.php" role="php" />
-            <file name="bridge/dd_wrap_autoloader.php" role="php" />
         </dir>
     </contents>
     <dependencies>
@@ -147,14 +169,7 @@
     <providesextension>ddtrace</providesextension>
     <extsrcrelease>
         <filelist>
-            <install as="datadog_trace/bridge/_generated_api.php" name="bridge/_generated_api.php" />
-            <install as="datadog_trace/bridge/_generated_integrations.php" name="bridge/_generated_integrations.php" />
-            <install as="datadog_trace/bridge/_generated_tracer.php" name="bridge/_generated_tracer.php" />
-            <install as="datadog_trace/bridge/_generated_tracer_api.php" name="bridge/_generated_tracer_api.php" />
-            <install as="datadog_trace/bridge/autoload.php" name="bridge/autoload.php" />
-            <install as="datadog_trace/bridge/dd_init.php" name="bridge/dd_init.php" />
-            <install as="datadog_trace/bridge/dd_register_optional_deps_autoloader.php" name="bridge/dd_register_optional_deps_autoloader.php" />
-            <install as="datadog_trace/bridge/dd_wrap_autoloader.php" name="bridge/dd_wrap_autoloader.php" />
+            <!-- Move PHP files to target destination -->${filelist}
         </filelist>
     </extsrcrelease>
 </package>

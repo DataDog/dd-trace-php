@@ -35,7 +35,7 @@ class RequestReplayer
         // Request replayer now returns as many requests as were sent during a session.
         // For the scope of the tests, we are returning the very first one.
         $allRequests = json_decode(file_get_contents($this->endpoint . '/replay'), true);
-        return count($allRequests) == 0 ? [] : $allRequests[0];
+        return $allRequests ? $allRequests[0] : [];
     }
 
     public function replayHeaders($showOnly = [])

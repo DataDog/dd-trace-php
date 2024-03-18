@@ -48,9 +48,13 @@ try {
 }
 
 $rr->waitForFlush();
-
-$root = json_decode($rr->replayRequest()["body"], true);
-$span = $root[0][0];
+if (!$replay = $rr->replayRequest()) {
+    $rr->waitForFlush();
+    $replay = $rr->replayRequest();
+}
+$root = json_decode($replay["body"], true);
+$spans = $root["chunks"][0]["spans"] ?? $root[0];
+$span = $spans[0];
 var_dump($span['meta']['error.message']);
 var_dump($span['meta']['error.type']);
 var_dump($span['meta']['error.stack']);
@@ -58,9 +62,9 @@ var_dump($span['meta']['_dd.span_links']);
 ?>
 --EXPECTF--
 Caught exception: Oops!
-string(%d) "Uncaught Exception: Oops! in %s/dd_trace_span_link_with_exception.php:17"
+string(%d) "Uncaught Exception: Oops! in %sdd_trace_span_link_with_exception.php:17"
 string(9) "Exception"
-string(%d) "#0 %s/dd_trace_span_link_with_exception.php(12): Foo->doException()
-#1 %s/dd_trace_span_link_with_exception.php(33): Foo->bar()
+string(%d) "#0 %sdd_trace_span_link_with_exception.php(12): Foo->doException()
+#1 %sdd_trace_span_link_with_exception.php(33): Foo->bar()
 #2 {main}"
 string(33) "[{"trace_id":"42","span_id":"6"}]"

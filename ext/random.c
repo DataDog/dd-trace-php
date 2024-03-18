@@ -12,7 +12,7 @@
 
 #include "configuration.h"
 #include "ddtrace.h"
-#include "mt19937/mt19937-64.h"
+#include <vendor/mt19937/mt19937-64.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

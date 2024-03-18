@@ -53,7 +53,6 @@ extern bool runtime_config_first_init;
     CALIAS(STRING, DD_SERVICE, "", CALIASES("DD_SERVICE_NAME"))                                                                       \
     CONFIG(STRING, DD_ENV, "")                                                                                                        \
     CONFIG(STRING, DD_VERSION, "")                                                                                                    \
-    CONFIG(CUSTOM(STRING), DD_TRACE_CLIENT_IP_HEADER, "", .parser = dd_parse_client_ip_header_config)                                 \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true")                                                                                    \
     CONFIG(CUSTOM(uint32_t), DD_REMOTE_CONFIG_POLL_INTERVAL, "1000", .parser = _parse_uint32)                                         \
     CONFIG(STRING, DD_AGENT_HOST, "")                                                                                                 \
@@ -64,7 +63,8 @@ extern bool runtime_config_first_init;
     CONFIG(CUSTOM(STRING), DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING, "safe", .parser = dd_parse_automated_user_events_tracking)       \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                                          \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")                                                                          \
-    CONFIG(DOUBLE, DD_API_SECURITY_REQUEST_SAMPLE_RATE, "0.1")
+    CONFIG(DOUBLE, DD_API_SECURITY_REQUEST_SAMPLE_RATE, "0.1", .ini_change = zai_config_system_ini_change)                            \
+    CONFIG(BOOL, DD_API_SECURITY_ENABLED, "true", .ini_change = zai_config_system_ini_change)
 // clang-format on
 
 #define CALIAS CONFIG

@@ -15,8 +15,19 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+#if PHP_VERSION_ID < 80000
+#define LAST_ERROR_STRING PG(last_error_message)
+#else
+#define LAST_ERROR_STRING ZSTR_VAL(PG(last_error_message))
+#endif
+#if PHP_VERSION_ID < 80100
+#define LAST_ERROR_FILE PG(last_error_file)
+#else
+#define LAST_ERROR_FILE ZSTR_VAL(PG(last_error_file))
+#endif
+
 int dd_execute_php_file(const char *filename) {
-    int filename_len = strlen(filename);
+    size_t filename_len = strlen(filename);
     if (filename_len == 0) {
         return FAILURE;
     }
@@ -41,20 +52,9 @@ int dd_execute_php_file(const char *filename) {
     zend_string_release(fn);
 #endif
 
-    LOGEV(Warn, {
+    LOGEV(WARN, {
         if (PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
-#if PHP_VERSION_ID < 80000
-            char *error = PG(last_error_message);
-#else
-            char *error = ZSTR_VAL(PG(last_error_message));
-#endif
-#if PHP_VERSION_ID < 80100
-            char *error_filename = PG(last_error_file);
-#else
-            char *error_filename = ZSTR_VAL(PG(last_error_file));
-#endif
-            log("Error raised while opening request-init-hook stream: %s in %s on line %d", error,
-                error_filename, PG(last_error_lineno));
+            log("Error raised while opening request-init-hook stream: %s in %s on line %d", LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
         }
     })
 
@@ -89,20 +89,9 @@ int dd_execute_php_file(const char *filename) {
 
             zend_execute(new_op_array, &result);
 
-            LOGEV(Warn, {
+            LOGEV(WARN, {
                 if (PG(last_error_message) && eh.message != PG(last_error_message)) {
-#if PHP_VERSION_ID < 80000
-                    char *error = PG(last_error_message);
-#else
-                    char *error = ZSTR_VAL(PG(last_error_message));
-#endif
-#if PHP_VERSION_ID < 80100
-                    char *error_filename = PG(last_error_file);
-#else
-                    char *error_filename = ZSTR_VAL(PG(last_error_file));
-#endif
-                    log("Error raised in request init hook: %s in %s on line %d", error, error_filename,
-                        PG(last_error_lineno));
+                    log("Error raised in request init hook: %s in %s on line %d", LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
                 }
             })
 
@@ -113,7 +102,7 @@ int dd_execute_php_file(const char *filename) {
             if (!EG(exception)) {
                 zval_ptr_dtor(&result);
             } else {
-                LOGEV(Warn, {
+                LOGEV(WARN, {
                     zend_object *ex = EG(exception);
 
                     const char *type = ex->ce->name->val;
@@ -126,7 +115,7 @@ int dd_execute_php_file(const char *filename) {
         }
     } else {
         ddtrace_maybe_clear_exception();
-        LOG(Warn, "Error opening request init hook: %s", filename);
+        LOG(WARN, "Error opening request init hook: %s", filename);
 #if PHP_VERSION_ID >= 80100
         zend_destroy_file_handle(&file_handle);
 #endif
@@ -165,7 +154,7 @@ void dd_request_init_hook_rinit(void) {
     DDTRACE_G(auto_prepend_file) = PG(auto_prepend_file);
     zend_string *hook_path = get_DD_TRACE_REQUEST_INIT_HOOK();
     if (php_check_open_basedir_ex(ZSTR_VAL(hook_path), 0) == -1) {
-        LOG(Warn, "open_basedir restriction in effect; cannot open request init hook: '%s'",
+        LOG(WARN, "open_basedir restriction in effect; cannot open request init hook: '%s'",
                            ZSTR_VAL(hook_path));
         return;
     }
@@ -177,13 +166,13 @@ void dd_request_init_hook_rinit(void) {
     php_stat(hook_path, FS_EXISTS, &exists_flag);
 #endif
     if (Z_TYPE(exists_flag) == IS_FALSE) {
-        LOG(Warn, "Cannot open request init hook; file does not exist: '%s'", ZSTR_VAL(hook_path));
+        LOG(WARN, "Cannot open request init hook; file does not exist: '%s'", ZSTR_VAL(hook_path));
         return;
     }
 
     PG(auto_prepend_file) = ZSTR_VAL(hook_path);
     if (DDTRACE_G(auto_prepend_file) && DDTRACE_G(auto_prepend_file)[0]) {
-        LOG(Warn, "Backing up auto_prepend_file '%s'", DDTRACE_G(auto_prepend_file));
+        LOG(INFO, "Backing up auto_prepend_file '%s'", DDTRACE_G(auto_prepend_file));
     }
 }
 

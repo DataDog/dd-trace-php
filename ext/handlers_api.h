@@ -4,6 +4,7 @@
 // This api is used by both the tracer and profiler.
 
 #include <php.h>
+#include "compatibility.h"
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80101 && defined(ZTS)
 
@@ -13,14 +14,14 @@
 #    define ATTR_TLS_GLOBAL_DYNAMIC
 #  endif
 
-extern __thread void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
+extern TSRM_TLS void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
 #endif
 
 typedef struct datadog_php_zif_handler_s {
     const char *name;
     size_t name_len;
-    void (**old_handler)(INTERNAL_FUNCTION_PARAMETERS);
-    void (*new_handler)(INTERNAL_FUNCTION_PARAMETERS);
+    zif_handler *old_handler;
+    zif_handler new_handler;
 } datadog_php_zif_handler;
 
 /**

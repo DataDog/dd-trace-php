@@ -19,11 +19,11 @@ static zend_object_handlers dd_error_handler_handlers;
 
 static zval *dd_exception_or_error_handler_handler(zend_object *obj) { return OBJ_PROP_NUM(obj, 0); }
 
-static void (*dd_header)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_http_response_code)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_set_error_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_set_exception_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*dd_restore_exception_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+static zif_handler dd_header = NULL;
+static zif_handler dd_http_response_code = NULL;
+static zif_handler dd_set_error_handler = NULL;
+static zif_handler dd_set_exception_handler = NULL;
+static zif_handler dd_restore_exception_handler = NULL;
 
 static void dd_check_exception_in_header(int old_response_code) {
     int new_response_code = SG(sapi_headers).http_response_code;
@@ -359,7 +359,13 @@ static int dd_exception_handler_get_closure(zval *obj_zv, zend_class_entry **ce_
                                             zend_object **obj_ptr) {
     zend_object *obj = Z_OBJ_P(obj_zv);
 #else
-static int dd_exception_handler_get_closure(zend_object *obj, zend_class_entry **ce_ptr, zend_function **fptr_ptr,
+static
+#if PHP_VERSION_ID < 80100
+int
+#else
+zend_result
+#endif
+dd_exception_handler_get_closure(zend_object *obj, zend_class_entry **ce_ptr, zend_function **fptr_ptr,
                                             zend_object **obj_ptr, zend_bool check_only) {
     UNUSED(check_only);
 #endif

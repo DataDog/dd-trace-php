@@ -3,8 +3,10 @@
 #include <assert.h>
 
 #include "circuit_breaker.h"
+#include "ip_extraction.h"
 #include "logging.h"
 #include <components/log/log.h>
+#include <zai_string/string.h>
 
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
@@ -16,9 +18,15 @@
 #define APPLY_NAME_EXPAND(count) APPLY_##count
 #define APPLY_NAME(count) APPLY_NAME_EXPAND(count)
 #define APPLY_COUNT(_0, _1, _2, _3, _4, N, ...) N
+#if defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL
+#define EXPAND(...) __VA_ARGS__
+#define APPLY_N(macro, ...) APPLY_NAME(EXPAND(APPLY_COUNT(0, ##__VA_ARGS__, 4, 3, 2, 1, 0)))EXPAND((macro, ##__VA_ARGS__))
+#else
 #define APPLY_N(macro, ...) APPLY_NAME(APPLY_COUNT(0, ##__VA_ARGS__, 4, 3, 2, 1, 0))(macro, ##__VA_ARGS__)
+#endif
 
-// static assert name lengths, number of configs and number of aliases
+// static assert name lengths, number of configs and number of aliases (Visual Studio 2017 and older do not support _Static_assert)
+#ifndef _WIN32
 #define CALIAS CONFIG
 #define CONFIG(...) 1,
 #define NUMBER_OF_CONFIGURATIONS sizeof((uint8_t[]){DD_CONFIGURATION})
@@ -51,6 +59,7 @@ DD_CONFIGURATION
 #undef CALIAS
 #undef CALIASES
 #undef CONFIG
+#endif
 
 static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persistent) {
     UNUSED(persistent);
@@ -80,14 +89,29 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
     return true;
 }
 
+#define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
+
+#ifndef _WIN32
 // Allow for partially defined struct initialization here
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#else
+#define CONFIG(...)
+#define CALIASES(...) {APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)}
+#define CALIAS(type, name, default, aliases, ...) const zai_str dd_config_aliases_##name[] = aliases;
+DD_CONFIGURATION
+#undef CALIAS
+#undef CONFIG
+#endif
 
 #define CUSTOM(...) CUSTOM
-#define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
+#define EXPAND_CALL(macro, args) macro args // I hate the "traditional" MSVC preprocessor
+#define CONFIG(type, name, ...) EXPAND_CALL(ZAI_CONFIG_ENTRY, (DDTRACE_CONFIG_##name, name, type, __VA_ARGS__)),
+#ifndef _WIN32
 #define CALIASES(...) ((zai_str[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
-#define CONFIG(type, name, ...) ZAI_CONFIG_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
 #define CALIAS(type, name, ...) ZAI_CONFIG_ALIASED_ENTRY(DDTRACE_CONFIG_##name, name, type, __VA_ARGS__),
+#else
+#define CALIAS(type, name, default, aliases, ...) ZAI_CONFIG_ALIASED_ENTRY(DDTRACE_CONFIG_##name, name, type, default, dd_config_aliases_##name, ##__VA_ARGS__),
+#endif
 static zai_config_entry config_entries[] = {DD_CONFIGURATION};
 #undef CALIAS
 #undef CONFIG
@@ -96,6 +120,9 @@ bool runtime_config_first_init = false;
 
 static char dd_tolower_ascii(char c) { return c >= 'A' && c <= 'Z' ? c - ('A' - 'a') : c; }
 
+#if defined(_WIN32) && PHP_VERSION_ID < 80000 && !defined(restrict)
+#define restrict
+#endif
 static void dd_copy_tolower(char *restrict dst, const char *restrict src) {
     while (*src) {
         *(dst++) = dd_tolower_ascii(*(src++));
@@ -120,6 +147,8 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
 
         if (env_name.ptr == strstr(env_name.ptr, "DD_TRACE_")) {
             ini_name->ptr[sizeof("datadog.trace") - 1] = '.';
+        } else if (env_name.ptr == strstr(env_name.ptr, "DD_APPSEC_")) {
+            ini_name->ptr[sizeof("datadog.appsec") - 1] = '.';
         }
     } else {
         ini_name->len = 0;
@@ -133,14 +162,14 @@ bool ddtrace_config_minit(int module_number) {
     if (!zai_config_minit(config_entries, (sizeof config_entries / sizeof *config_entries), dd_ini_env_to_ini_name,
                           module_number)) {
         ddtrace_log_ginit();
-        LOG(Error, "Unable to load configuration; likely due to json symbols failing to resolve.");
+        LOG(ERROR, "Unable to load configuration; likely due to json symbols failing to resolve.");
         return false;
     }
     // We immediately initialize inis at MINIT, so that we can use a select few values already at minit.
     // Note that we are not calling zai_config_rinit(), i.e. the get_...() functions will not work.
     // This is intentional, so that places wishing to use values pre-RINIT do have to explicitly opt in by using the
     // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
-    zai_config_first_time_rinit();
+    zai_config_first_time_rinit(false);
 
     ddtrace_log_ginit();
     return true;
@@ -152,14 +181,14 @@ void ddtrace_config_first_rinit() {
     zend_string *internal_functions_old = zend_string_copy(
         internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value);
 
-    zai_config_first_time_rinit();
+    zai_config_first_time_rinit(true);
     zai_config_rinit();
 
     zend_string *internal_functions_new =
         internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value;
 
     if (!zend_string_equals(internal_functions_old, internal_functions_new)) {
-        LOG(Error,
+        LOG(ERROR,
             "Received DD_TRACE_TRACED_INTERNAL_FUNCTIONS configuration via environment variable."
             "This specific value cannot be set via environment variable for this SAPI. This configuration "
             "needs to be available early in startup. To provide this value, set an ini value with the key "
@@ -168,6 +197,10 @@ void ddtrace_config_first_rinit() {
             ZSTR_VAL(internal_functions_old), ZSTR_VAL(internal_functions_new));
     }
     zend_string_release(internal_functions_old);
+
+    if (!get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_APPSEC_SCA_ENABLED()) {
+        LOG(WARN, "DD_APPSEC_SCA_ENABLED requires DD_INSTRUMENTATION_TELEMETRY_ENABLED in order to work");
+    }
 
     runtime_config_first_init = true;
 }

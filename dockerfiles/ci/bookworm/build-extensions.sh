@@ -4,6 +4,7 @@ set -eux
 # We can't match for "shared" only, as zend_test is built shared. Match something explicitly.
 SHARED_BUILD=$(if php -i | grep -q enable-pcntl=shared; then echo 1; else echo 0; fi)
 PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
+PHP_ZTS=$(php -r 'echo PHP_ZTS;')
 
 XDEBUG_VERSIONS=(-3.1.2)
 if [[ $PHP_VERSION_ID -le 70 ]]; then
@@ -46,6 +47,8 @@ elif [[ $PHP_VERSION_ID -le 71 ]]; then
   SQLSRV_VERSION=-5.6.1
 elif [[ $PHP_VERSION_ID -le 74 ]]; then
   SQLSRV_VERSION=-5.8.0
+elif [[ $PHP_VERSION_ID -le 80 ]]; then
+  SQLSRV_VERSION=-5.11.0
 fi
 
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
@@ -121,4 +124,10 @@ else
     mv xdebug.so xdebug$VERSION.so;
   done
   echo "zend_extension=opcache.so" >> ${iniDir}/../php-apache2handler.ini;
+
+  # ext-parallel needs PHP 8
+  if [[ $PHP_VERSION_ID -ge 80 && $PHP_ZTS -eq 1 ]]; then
+    pecl install parallel;
+    echo "extension=parallel" >> ${iniDir}/parallel.ini;
+  fi
 fi

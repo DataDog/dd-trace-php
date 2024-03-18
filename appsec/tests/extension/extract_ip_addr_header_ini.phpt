@@ -3,6 +3,7 @@ Extract client IP address (ip ini set)
 --INI--
 datadog.trace.client_ip_header=foo-Bar
 datadog.appsec.log_level=info
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\extract_ip_addr;
@@ -34,7 +35,7 @@ foo_bar: for=::1, for=[::ffff:1.1.1.1]:8888
 string(7) "1.1.1.1"
 
 foo_bar: 10.0.0.1
-NULL
+string(8) "10.0.0.1"
 
 unused remote address fallback: 8.8.8.8
 NULL

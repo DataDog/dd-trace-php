@@ -7,20 +7,20 @@
 #undef INTEGRATION
 
 #define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
-    dd_hook_method_and_unhook_on_first_call(ZAI_STRL(class), ZAI_STRL(fname), \
-                          ZAI_STRL(integration_name), (ddtrace_integration_name)-1, false)
+    dd_hook_method_and_unhook_on_first_call((zai_str)ZAI_STRL(class), (zai_str)ZAI_STRL(fname), \
+                          (zai_str)ZAI_STRL(integration_name), (ddtrace_integration_name)-1, false)
 
 #define DD_SET_UP_DEFERRED_LOADING_BY_METHOD(name, Class, fname, integration)                                \
-    dd_set_up_deferred_loading_by_method(name, ZAI_STRL(Class), ZAI_STRL(fname), \
-                                         ZAI_STRL(integration), false)
+    dd_set_up_deferred_loading_by_method(name, (zai_str)ZAI_STRL(Class), (zai_str)ZAI_STRL(fname), \
+                                         (zai_str)ZAI_STRL(integration), false)
 
 #define DD_SET_UP_DEFERRED_LOADING_BY_METHOD_POST(name, Class, fname, integration)                                \
-    dd_set_up_deferred_loading_by_method(name, ZAI_STRL(Class), ZAI_STRL(fname), \
-                                         ZAI_STRL(integration), true)
+    dd_set_up_deferred_loading_by_method(name, (zai_str)ZAI_STRL(Class), (zai_str)ZAI_STRL(fname), \
+                                         (zai_str)ZAI_STRL(integration), true)
 
 #define DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(name, fname, integration)                           \
-    dd_set_up_deferred_loading_by_method(name, ZAI_STR_EMPTY, ZAI_STRL(fname), \
-                                         ZAI_STRL(integration), false)
+    dd_set_up_deferred_loading_by_method(name, (zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STRL(fname), \
+                                         (zai_str)ZAI_STRL(integration), false)
 
 #define INTEGRATION(id, lcname, ...)                                    \
     {                                                                  \
@@ -75,13 +75,13 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
         bool success;
         zval *thisp = getThis();
         if (thisp) {
-            success = zai_symbol_call_global(ZAI_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 2, &integration, thisp);
+            success = zai_symbol_call_global((zai_str)ZAI_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 2, &integration, thisp);
         } else {
-            success = zai_symbol_call_global(ZAI_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
+            success = zai_symbol_call_global((zai_str)ZAI_STRL("ddtrace\\integrations\\load_deferred_integration"), &rv, 1, &integration);
         }
 
-        if (UNEXPECTED(!success)) {
-            LOG(Warn,
+        if (UNEXPECTED(!success) && get_DD_TRACE_ENABLED()) {
+            LOG(WARN,
                     "Error loading deferred integration '%s' from DDTrace\\Integrations\\load_deferred_integration",
                     Z_STRVAL(integration));
         }

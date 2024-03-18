@@ -1,6 +1,5 @@
 #include "ddtrace.h"
 #include "configuration.h"
-#include "coms.h"
 #include "integrations/integrations.h"
 #include <hook/hook.h>
 #include <components-rs/ddtrace.h>
@@ -16,14 +15,14 @@ static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute
 
     ddog_CharSlice composer_path = dd_zend_string_to_CharSlice(execute_data->func->op_array.filename);
     if (!ddtrace_sidecar // if sidecar connection was broken, let's skip immediately
-     || ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), composer_path)) {
-        zai_hook_remove(ZAI_STR_EMPTY, ZAI_STR_EMPTY, dd_composer_hook_id);
+        || ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), composer_path)) {
+        zai_hook_remove((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_composer_hook_id);
     }
     return true;
 }
 
 void ddtrace_telemetry_first_init(void) {
-    dd_composer_hook_id = zai_hook_install(ZAI_STR_EMPTY, ZAI_STR_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
+    dd_composer_hook_id = zai_hook_install((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
 }
 
 void ddtrace_telemetry_finalize(void) {
@@ -31,7 +30,7 @@ void ddtrace_telemetry_finalize(void) {
         return;
     }
 
-    ddog_TelemetryActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
+    ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
 
     zend_module_entry *module;
     char module_name[261] = { 'e', 'x', 't', '-' };
@@ -51,7 +50,7 @@ void ddtrace_telemetry_finalize(void) {
         ini = zend_hash_find_ptr(EG(ini_directives), ini->name);
 #endif
         if (!zend_string_equals_literal(ini->name, "datadog.trace.enabled")) { // datadog.trace.enabled is meaningless: always off at rshutdown
-            ddog_ConfigurationOrigin origin = DDOG_CONFIGURATION_ORIGIN_DEFAULT;
+            ddog_ConfigurationOrigin origin = cfg->name_index == -1 ? DDOG_CONFIGURATION_ORIGIN_DEFAULT : DDOG_CONFIGURATION_ORIGIN_ENV_VAR;
             if (!zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
                 origin = cfg->name_index >= 0 ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE;
             }
@@ -72,12 +71,12 @@ void ddtrace_telemetry_finalize(void) {
     }
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 
-    ddog_CharSlice service_name = DDOG_CHARSLICE_C("unnamed-php-service");
+    ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
     if (DDTRACE_G(last_flushed_root_service_name)) {
         service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_service_name));
     }
 
-    ddog_CharSlice env_name = DDOG_CHARSLICE_C("none");
+    ddog_CharSlice env_name = DDOG_CHARSLICE_C_BARE("none");
     if (DDTRACE_G(last_flushed_root_env_name)) {
         env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_env_name));
     }

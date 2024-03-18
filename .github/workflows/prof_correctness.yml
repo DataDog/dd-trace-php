@@ -10,8 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-versions: ['8.1', '8.2', '8.3']
-        phpts: ['nts', 'zts']
+        php-version: [8.1, 8.2, 8.3]
+        phpts: [nts, zts]
+        include:
+          - phpts: zts
+            extensions: parallel
 
     steps:
       - name: Checkout
@@ -23,7 +26,8 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-versions }}
+          php-version: ${{ matrix.php-version }}
+          extensions: ${{ matrix.extensions }}
         env:
           phpts: ${{ matrix.phpts }}
 
@@ -67,6 +71,7 @@ jobs:
         run: |
           export DD_PROFILING_ENABLED=Off
           export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
+          export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
           php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
@@ -84,6 +89,7 @@ jobs:
           export DD_PROFILING_LOG_LEVEL=trace
           export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
+          export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
           php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
@@ -92,7 +98,23 @@ jobs:
               php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
           done
 
+      - name: Run ZTS tests
+        if: matrix.phpts == 'zts'
+        run: |
+          export DD_PROFILING_LOG_LEVEL=trace
+          export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
+          export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
+          export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
+          php -v
+          php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
+          for test_case in "exceptions_zts"; do
+              mkdir -p profiling/tests/correctness/"$test_case"/
+              export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
+              php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
+          done
+
       - name: Check profiler correctness for allocations
+        if: matrix.phpts != 'zts'
         uses: Datadog/prof-correctness/analyze@main
         with:
           expected_json: profiling/tests/correctness/allocations.json
@@ -115,6 +137,13 @@ jobs:
         with:
           expected_json: profiling/tests/correctness/timeline.json
           pprof_path: profiling/tests/correctness/timeline/
+
+      - name: Check profiler correctness for exceptions ZTS
+        if: matrix.phpts == 'zts'
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/exceptions_zts.json
+          pprof_path: profiling/tests/correctness/exceptions_zts/
 
       - name: Check profiler correctness for exceptions
         uses: Datadog/prof-correctness/analyze@main

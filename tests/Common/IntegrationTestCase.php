@@ -19,6 +19,34 @@ abstract class IntegrationTestCase extends BaseTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
+
+        $exts = get_loaded_extensions(false);
+        $csv = '';
+        foreach ($exts as $ext) {
+            $csv = $csv . "ext/" . $ext . ";" . phpversion($ext) . "\n";
+        }
+
+        $zendExts = get_loaded_extensions(true);
+        foreach ($zendExts as $ext) {
+            $csv = $csv . "ext/" . $ext . ";" . phpversion($ext) . "\n";
+        }
+
+        $artifactsDir = "/tmp/artifacts";
+        if ( !file_exists( $artifactsDir ) && !is_dir( $artifactsDir ) ) {
+            mkdir($artifactsDir, 0777, true);
+        }
+
+        file_put_contents($artifactsDir . "/extension_versions.csv", $csv);
+
+        $csv = '';
+        $output = shell_exec('DD_TRACE_ENABLED=0 composer show -f json -D');
+        $data = json_decode($output, true);
+
+        foreach ($data['installed'] as $package) {
+            $csv = $csv . $package['name'] . ";" . $package['version'] . "\n";
+        }
+
+        file_put_contents($artifactsDir . "/composer_versions.csv", $csv);
     }
 
     public static function ddTearDownAfterClass()

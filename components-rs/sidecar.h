@@ -1,5 +1,5 @@
-// Unless explicitly stated otherwise all files in this repository are licensed under the Apache License Version 2.0.
-// This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2021-Present Datadog, Inc.
+// Copyright 2021-Present Datadog, Inc. https://www.datadoghq.com/
+// SPDX-License-Identifier: Apache-2.0
 
 
 #ifndef DDOG_SIDECAR_H
@@ -57,8 +57,6 @@ void ddog_agent_remote_config_reader_drop(struct ddog_AgentRemoteConfigReader*);
 void ddog_agent_remote_config_writer_drop(struct ddog_AgentRemoteConfigWriter_ShmHandle*);
 
 void ddog_sidecar_transport_drop(ddog_SidecarTransport*);
-
-ddog_SidecarTransport *ddog_sidecar_transport_clone(const ddog_SidecarTransport *transport);
 
 /**
  * # Safety

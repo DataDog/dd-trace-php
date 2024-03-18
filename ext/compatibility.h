@@ -117,6 +117,7 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
         { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
 
 typedef void zend_type;
+typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
 
 static inline void smart_str_append_printf(smart_str *dest, const char *format, ...) {
     va_list arg;
@@ -182,12 +183,26 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define zend_hash_str_add_new(...) _zend_hash_str_add_new(__VA_ARGS__ ZEND_FILE_LINE_CC)
 
 #define smart_str_free_ex(str, persistent) smart_str_free(str)
+
+static inline zend_bool zend_ini_parse_bool(zend_string *str) {
+    if ((ZSTR_LEN(str) == 4 && strcasecmp(ZSTR_VAL(str), "true") == 0)
+      || (ZSTR_LEN(str) == 3 && strcasecmp(ZSTR_VAL(str), "yes") == 0)
+      || (ZSTR_LEN(str) == 2 && strcasecmp(ZSTR_VAL(str), "on") == 0)) {
+        return 1;
+    } else {
+        return atoi(ZSTR_VAL(str)) != 0;
+    }
+}
 #endif
 
 #if PHP_VERSION_ID < 70400
 #define ZEND_THIS (&EX(This))
 
 #define Z_PROP_FLAG_P(z) Z_EXTRA_P(z)
+
+#define DD_PARAM_ERROR_CODE error_code
+#else
+#define DD_PARAM_ERROR_CODE _error_code
 #endif
 
 #if PHP_VERSION_ID < 80000
@@ -255,12 +270,6 @@ static zend_always_inline bool zend_parse_arg_obj(zval *arg, zend_object **dest,
     return 1;
 }
 
-#if PHP_VERSION_ID < 70400
-#define DD_PARAM_ERROR_CODE error_code
-#else
-#define DD_PARAM_ERROR_CODE _error_code
-#endif
-
 #define Z_PARAM_OBJ_EX2(dest, check_null, deref, separate) \
         DD_PARAM_PROLOGUE(deref, separate); \
         if (UNEXPECTED(!zend_parse_arg_obj(_arg, &dest, NULL, check_null))) { \
@@ -313,6 +322,7 @@ static zend_always_inline void zend_array_release(zend_array *array)
 }
 
 #define ZEND_ARG_SEND_MODE(arg_info) (arg_info)->pass_by_reference
+#define zend_value_error zend_type_error
 #endif
 
 #if PHP_VERSION_ID < 80100
@@ -415,6 +425,10 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
 
 #define Z_PARAM_ZVAL_OR_NULL(dest) Z_PARAM_ZVAL_EX(dest, 1, 0)
 
+#endif
+
+#if PHP_VERSION_ID < 80400
+#define zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error, free_trampoline) zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error)
 #endif
 
 #if PHP_VERSION_ID < 80400

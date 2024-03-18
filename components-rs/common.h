@@ -1,5 +1,6 @@
-// Unless explicitly stated otherwise all files in this repository are licensed under the Apache License Version 2.0.
-// This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2021-Present Datadog, Inc.
+// Copyright 2021-Present Datadog, Inc. https://www.datadoghq.com/
+// SPDX-License-Identifier: Apache-2.0
+
 
 #ifndef DDOG_COMMON_H
 #define DDOG_COMMON_H
@@ -10,13 +11,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#if defined(_MSC_VER)
-#define DDOG_CHARSLICE_C(string) \
-/* NOTE: Compilation fails if you pass in a char* instead of a literal */ {.ptr = "" string, .len = sizeof(string) - 1}
-#else
 #define DDOG_CHARSLICE_C(string) \
 /* NOTE: Compilation fails if you pass in a char* instead of a literal */ ((ddog_CharSlice){ .ptr = "" string, .len = sizeof(string) - 1 })
-#endif
+
+#define DDOG_CHARSLICE_C_BARE(string) \
+/* NOTE: Compilation fails if you pass in a char* instead of a literal */ { .ptr = "" string, .len = sizeof(string) - 1 }
 
 #if defined __GNUC__
 #  define DDOG_GNUC_VERSION(major) __GNUC__ >= major
@@ -67,21 +66,21 @@ typedef struct ddog_Error {
   struct ddog_Vec_U8 message;
 } ddog_Error;
 
-/**
- * Remember, the data inside of each member is potentially coming from FFI,
- * so every operation on it is unsafe!
- */
 typedef struct ddog_Slice_CChar {
   /**
    * Must be non-null and suitably aligned for the underlying type.
    */
   const char *ptr;
   /**
-   * The number of elements (not bytes) that `.ptr` points to.
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
    */
   uintptr_t len;
 } ddog_Slice_CChar;
 
+/**
+ * Use to represent strings -- should be valid UTF-8.
+ */
 typedef struct ddog_Slice_CChar ddog_CharSlice;
 
 /**
@@ -113,6 +112,8 @@ typedef struct ddog_Vec_Tag_ParseResult {
   struct ddog_Error *error_message;
 } ddog_Vec_Tag_ParseResult;
 
+#define ddog_LOG_ONCE (1 << 3)
+
 typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
   DDOG_CONFIGURATION_ORIGIN_CODE,
@@ -121,15 +122,26 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_DEFAULT,
 } ddog_ConfigurationOrigin;
 
+typedef enum ddog_Log {
+  DDOG_LOG_ERROR = 1,
+  DDOG_LOG_WARN = 2,
+  DDOG_LOG_INFO = 3,
+  DDOG_LOG_DEBUG = 4,
+  DDOG_LOG_TRACE = 5,
+  DDOG_LOG_DEPRECATED = (3 | ddog_LOG_ONCE),
+  DDOG_LOG_STARTUP = (3 | (2 << 4)),
+  DDOG_LOG_STARTUP_WARN = (1 | (2 << 4)),
+  DDOG_LOG_SPAN = (4 | (3 << 4)),
+  DDOG_LOG_SPAN_TRACE = (5 | (3 << 4)),
+  DDOG_LOG_HOOK_TRACE = (5 | (4 << 4)),
+} ddog_Log;
+
 typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest;
 
 typedef struct ddog_InstanceId ddog_InstanceId;
 
-typedef struct ddog_TelemetryActionsBuffer ddog_TelemetryActionsBuffer;
+typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
-typedef struct ddog_Log {
-  uint32_t bits;
-} ddog_Log;
 typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_SidecarTransport;
 
 typedef enum ddog_Option_VecU8_Tag {
@@ -154,8 +166,59 @@ typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_DEBUG,
 } ddog_LogLevel;
 
+typedef enum ddog_MetricNamespace {
+  DDOG_METRIC_NAMESPACE_TRACERS,
+  DDOG_METRIC_NAMESPACE_PROFILERS,
+  DDOG_METRIC_NAMESPACE_RUM,
+  DDOG_METRIC_NAMESPACE_APPSEC,
+  DDOG_METRIC_NAMESPACE_IDE_PLUGINS,
+  DDOG_METRIC_NAMESPACE_LIVE_DEBUGGER,
+  DDOG_METRIC_NAMESPACE_IAST,
+  DDOG_METRIC_NAMESPACE_GENERAL,
+  DDOG_METRIC_NAMESPACE_TELEMETRY,
+  DDOG_METRIC_NAMESPACE_APM,
+  DDOG_METRIC_NAMESPACE_SIDECAR,
+} ddog_MetricNamespace;
+
+typedef enum ddog_MetricType {
+  DDOG_METRIC_TYPE_GAUGE,
+  DDOG_METRIC_TYPE_COUNT,
+  DDOG_METRIC_TYPE_DISTRIBUTION,
+} ddog_MetricType;
+
+typedef enum ddog_TelemetryWorkerBuilderBoolProperty {
+  DDOG_TELEMETRY_WORKER_BUILDER_BOOL_PROPERTY_CONFIG_TELEMETRY_DEBUG_LOGGING_ENABLED,
+} ddog_TelemetryWorkerBuilderBoolProperty;
+
+typedef enum ddog_TelemetryWorkerBuilderEndpointProperty {
+  DDOG_TELEMETRY_WORKER_BUILDER_ENDPOINT_PROPERTY_CONFIG_ENDPOINT,
+} ddog_TelemetryWorkerBuilderEndpointProperty;
+
+typedef enum ddog_TelemetryWorkerBuilderStrProperty {
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_APPLICATION_SERVICE_VERSION,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_APPLICATION_ENV,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_APPLICATION_RUNTIME_NAME,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_APPLICATION_RUNTIME_VERSION,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_APPLICATION_RUNTIME_PATCHES,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_HOST_CONTAINER_ID,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_HOST_OS,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_HOST_KERNEL_NAME,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_HOST_KERNEL_RELEASE,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_HOST_KERNEL_VERSION,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_RUNTIME_ID,
+} ddog_TelemetryWorkerBuilderStrProperty;
+
 typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
 
+/**
+ * TelemetryWorkerHandle is a handle which allows interactions with the telemetry worker.
+ * The handle is safe to use across threads.
+ *
+ * The worker won't send data to the agent until you call `TelemetryWorkerHandle::send_start`
+ *
+ * To stop the worker, call `TelemetryWorkerHandle::send_stop` which trigger flush aynchronously
+ * then `TelemetryWorkerHandle::wait_for_shutdown`
+ */
 typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
 
 typedef enum ddog_Option_Bool_Tag {
@@ -171,6 +234,11 @@ typedef struct ddog_Option_Bool {
     };
   };
 } ddog_Option_Bool;
+
+typedef struct ddog_ContextKey {
+  uint32_t _0;
+  enum ddog_MetricType _1;
+} ddog_ContextKey;
 
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
@@ -202,6 +270,10 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_top_level;
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 
 /**
  * # Safety
@@ -253,5 +325,9 @@ struct ddog_Vec_Tag_PushResult ddog_Vec_Tag_push(struct ddog_Vec_Tag *vec,
  * .len property.
  */
 DDOG_CHECK_RETURN struct ddog_Vec_Tag_ParseResult ddog_Vec_Tag_parse(ddog_CharSlice string);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif // __cplusplus
 
 #endif /* DDOG_COMMON_H */

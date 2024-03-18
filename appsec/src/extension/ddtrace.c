@@ -42,6 +42,8 @@ static void (*nullable _ddtrace_set_priority_sampling_on_span_zobj)(
 static bool (*nullable _ddtrace_user_req_add_listeners)(
     ddtrace_user_req_listeners *listeners);
 
+static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
+
 static void dd_trace_load_symbols(void)
 {
     bool testing = get_global_DD_APPSEC_TESTING();
@@ -86,6 +88,12 @@ static void dd_trace_load_symbols(void)
         dlsym(handle, "ddtrace_user_req_add_listeners");
     if (_ddtrace_user_req_add_listeners == NULL) {
         mlog(dd_log_error, "Failed to load ddtrace_user_req_add_listeners: %s",
+            dlerror()); // NOLINT(concurrency-mt-unsafe)
+    }
+
+    _ddtrace_ip_extraction_find = dlsym(handle, "ddtrace_ip_extraction_find");
+    if (_ddtrace_ip_extraction_find == NULL && !testing) {
+        mlog(dd_log_error, "Failed to load ddtrace_ip_extraction_find: %s",
             dlerror()); // NOLINT(concurrency-mt-unsafe)
     }
 
@@ -332,6 +340,14 @@ zend_object *nullable dd_trace_get_active_root_span()
     }
 
     return _ddtrace_get_root_span();
+}
+
+zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
+{
+    if (!_ddtrace_ip_extraction_find) {
+        return NULL;
+    }
+    return _ddtrace_ip_extraction_find(server);
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)

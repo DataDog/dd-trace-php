@@ -3,9 +3,13 @@
 #include <php.h>
 
 #include "configuration.h"
+#ifndef _WIN32
 #include <stdatomic.h>
+#else
+#include <components/atomic_win32_polyfill.h>
+#endif
 
-extern atomic_int ddtrace_error_log_fd;
+extern _Atomic(int) ddtrace_error_log_fd;
 
 /* These are used by the background sender; use other log component from PHP thread.
  * {{{ */

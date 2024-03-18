@@ -63,7 +63,11 @@ class RoadrunnerIntegration extends Integration
         foreach ($req->headers as $name => $values) {
             $collapsedValue = implode(', ', $values);
             $name = preg_replace("/[^A-Z\d]/", "_", strtoupper($name));
-            $server["HTTP_$name"] = $collapsedValue;
+            // these two have special treatment. See RFC 3875
+            if ($name != 'CONTENT_TYPE' && $name != 'CONTENT_LENGTH') {
+                $name = "HTTP_$name";
+            }
+            $server[$name] = $collapsedValue;
         }
 
         $ret['_SERVER'] = $server;
@@ -188,7 +192,7 @@ class RoadrunnerIntegration extends Integration
                         return $headers[$headername] ?? null;
                     });
 
-                    $res = notify_start($activeSpan, RoadrunnerIntegration::build_req_spec($retval));
+                    $res = notify_start($activeSpan, RoadrunnerIntegration::build_req_spec($retval), $retval->body);
                     if ($res) {
                         // block on start
                         RoadrunnerIntegration::ensure_headers_map_fmt($res['headers']);

@@ -10,7 +10,7 @@ if (!extension_loaded('datadog-profiling'))
 ob_start();
 phpinfo(INFO_MODULES);
 $info = ob_get_clean();
-if (strpos($info, 'Experimental Exception Profiling Enabled') === false)
+if (strpos($info, 'Exception Profiling Enabled') === false)
     echo "skip: datadog profiler is compiled without exception profiling support\n";
 ?>
 --ENV--
@@ -40,7 +40,7 @@ echo 'Done.';
 
 ?>
 --EXPECTREGEX--
-.* Exception profiling sampling distance initialized to 20
+.* Exception profiling initialized with sampling distance: 20
 .* Sent stack sample of 2 frames, 1 labels with Exception RuntimeException to profiler.
 .*Done..*
 .*

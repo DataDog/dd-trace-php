@@ -26,12 +26,12 @@ echo 'min time set CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' :
 
 ini_set('datadog.trace.agent_attempt_retry_time_msec', 300);
 echo '0.3 seconds retry set CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL; // 0.3 seconds not yet passed so no retry for you
-usleep(300000);
+usleep(350000);
 echo '0.3 seconds has passed CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL; // 0.3 seconds passed lets retry
 
 dd_tracer_circuit_breaker_register_error();
 echo '0.3 seconds has passed but new error was registered CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL; // start counting from beginning
-usleep(300000);
+usleep(350000);
 echo 'another 0.3 seconds has passed CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL; // another 0.3 seconds passed lets retry
 ?>
 --EXPECT--

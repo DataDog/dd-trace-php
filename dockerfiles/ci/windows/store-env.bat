@@ -1,0 +1,1 @@
+powershell "foreach ($a in dir env:) { [Environment]::SetEnvironmentVariable($a.Name, $a.Value, 'Machine'); }"

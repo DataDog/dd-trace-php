@@ -32,13 +32,16 @@ void ddtrace_log_ginit(void) {
     dd_log_set_level(get_global_DD_TRACE_DEBUG());
 }
 
-atomic_int ddtrace_error_log_fd = -1;
-atomic_uintmax_t dd_error_log_fd_rotated = 0;
+_Atomic(int) ddtrace_error_log_fd = -1;
+_Atomic(uintmax_t) dd_error_log_fd_rotated = 0;
 
 void ddtrace_log_minit(void) {
     if (ZSTR_LEN(get_global_DD_TRACE_LOG_FILE())) {
         int fd = VCWD_OPEN_MODE(ZSTR_VAL(get_global_DD_TRACE_LOG_FILE()), O_CREAT | O_RDWR | O_APPEND, 0666);
         if (fd >= 0) {
+#ifndef _WIN32
+            fchmod(fd, 0666); // ignore umask
+#endif
             atomic_store(&ddtrace_error_log_fd, fd);
 
             time_t now;
@@ -60,6 +63,10 @@ void ddtrace_log_rinit(char *error_log) {
     }
 
     int desired = VCWD_OPEN_MODE(error_log, O_CREAT | O_RDWR | O_APPEND, 0666);
+#ifndef _WIN32
+    fchmod(desired, 0666); // ignore umask
+#endif
+
     time_t now;
     time(&now);
     atomic_store(&dd_error_log_fd_rotated, (uintmax_t) now);
@@ -71,11 +78,17 @@ void ddtrace_log_rinit(char *error_log) {
 }
 
 int ddtrace_get_fd_path(int fd, char *buf) {
-#ifdef F_GETPATH
+#ifdef _WIN32
+    intptr_t handle = _get_osfhandle(fd);
+    if (handle == INVALID_HANDLE_VALUE) {
+        return -1;
+    }
+    return GetFinalPathNameByHandleA((HANDLE) handle, buf, MAXPATHLEN, VOLUME_NAME_DOS) ? 1 : -1;
+#elif defined(F_GETPATH)
     return fcntl(fd, F_GETPATH, buf);
 #else
-    char pathbuf[PATH_MAX];
-    snprintf(pathbuf, PATH_MAX, "/proc/self/fd/%d", fd);
+    char pathbuf[MAXPATHLEN];
+    snprintf(pathbuf, MAXPATHLEN, "/proc/self/fd/%d", fd);
     int len = readlink(pathbuf, buf, PATH_MAX);
     if (len >= 0) {
         buf[len] = 0;
@@ -114,9 +127,12 @@ int ddtrace_log_with_time(int fd, const char *msg, int msg_len) {
 
     uintmax_t last_check = atomic_exchange(&dd_error_log_fd_rotated, (uintmax_t) now);
     if (last_check < (uintmax_t)now - 60) { // 1x/min
-        char pathbuf[PATH_MAX + 1];
+        char pathbuf[MAXPATHLEN];
         if (ddtrace_get_fd_path(fd, pathbuf) >= 0) {
             int new_fd = VCWD_OPEN_MODE(pathbuf, O_CREAT | O_RDWR | O_APPEND, 0666);
+#ifndef _WIN32
+            fchmod(new_fd, 0666); // ignore umask
+#endif
             dup2(new_fd, fd); // atomic replace
             close(new_fd);
         }
@@ -159,7 +175,7 @@ static void ddtrace_log_callback(ddog_CharSlice msg) {
         ddtrace_log_with_time(error_log_fd, message, (int)msg.len);
     } else {
         if (msg.ptr[msg.len]) {
-            message = strndup(msg.ptr, msg.len);
+            message = zend_strndup(msg.ptr, msg.len);
             php_log_err(message);
             free(message);
         } else {

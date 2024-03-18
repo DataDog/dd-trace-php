@@ -6,7 +6,8 @@
 typedef struct _ddtrace_user_req_listeners ddtrace_user_req_listeners;
 struct _ddtrace_user_req_listeners {
     int priority;
-    zend_array *(*start_user_req)(ddtrace_user_req_listeners *self, zend_object *span, zend_array *variables);
+    // entity is nullable
+    zend_array *(*start_user_req)(ddtrace_user_req_listeners *self, zend_object *span, zend_array *variables, zval *entity);
     // headers is an array string => array(string). The header names are not normalized. entity is nullable.
     zend_array *(*response_committed)(ddtrace_user_req_listeners *self, zend_object *span, int status, zend_array *headers,
                                       zval *entity);

@@ -24,6 +24,5 @@ struct req_shutdown_info {
     zend_string *nullable entity;
 };
 
-void dd_request_shutdown_startup(void);
 dd_result dd_request_shutdown(
     dd_conn *nonnull conn, struct req_shutdown_info *nonnull req_info);

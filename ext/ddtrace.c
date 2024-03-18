@@ -23,9 +23,14 @@
 #include <jit_utils/jit_blacklist.h>
 #include <php.h>
 #include <php_ini.h>
+#ifndef _WIN32
 #include <pthread.h>
 #include <stdatomic.h>
 #include <sys/mman.h>
+#else
+#include <components/pthread_polyfill.h>
+#include <components/atomic_win32_polyfill.h>
+#endif
 
 #include <ext/standard/info.h>
 #include <ext/standard/php_string.h>
@@ -36,14 +41,18 @@
 
 #include "auto_flush.h"
 #include "circuit_breaker.h"
-#include "comms_php.h"
 #include "compatibility.h"
+#ifndef _WIN32
+#include "comms_php.h"
 #include "coms.h"
+#endif
 #include "config/config.h"
 #include "configuration.h"
 #include "ddshared.h"
 #include "ddtrace_string.h"
+#ifndef _WIN32
 #include "dogstatsd_client.h"
+#endif
 #include "engine_hooks.h"
 #include "excluded_modules.h"
 #include "handlers_http.h"
@@ -59,15 +68,18 @@
 #include "request_hooks.h"
 #include "serializer.h"
 #include "sidecar.h"
+#ifndef _WIN32
 #include "signals.h"
+#endif
 #include "span.h"
 #include "startup_logging.h"
 #include "telemetry.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "user_request.h"
+#include "zend_hrtime.h"
 #include "ext/standard/file.h"
 
-#include "../hook/uhook.h"
+#include "hook/uhook.h"
 #include "handlers_fiber.h"
 #include "handlers_exception.h"
 #include "exceptions/exceptions.h"
@@ -106,7 +118,9 @@ static bool dd_has_other_observers;
 static int dd_observer_extension_backup = -1;
 #endif
 
-atomic_int ddtrace_warn_legacy_api;
+static datadog_php_sapi ddtrace_active_sapi = DATADOG_PHP_SAPI_UNKNOWN;
+
+_Atomic(int64_t) ddtrace_warn_legacy_api;
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
@@ -117,13 +131,21 @@ TSRM_TLS void *TSRMLS_CACHE = NULL;
 #endif
 #endif
 
-PHP_INI_BEGIN()
-STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals,
-                    ddtrace_globals)
+int ddtrace_disable = 0; // 0 = enabled, 1 = disabled via INI, 2 = disabled, but MINIT was fully executed
+static ZEND_INI_MH(dd_OnUpdateDisabled) {
+    UNUSED(entry, mh_arg1, mh_arg2, mh_arg3, stage);
+    if (!ddtrace_disable) {
+        ddtrace_disable = zend_ini_parse_bool(new_value);
+    }
+    return SUCCESS;
+}
 
-// Exposed for testing only
-STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, OnUpdateString, cgroup_file,
-                  zend_ddtrace_globals, ddtrace_globals)
+PHP_INI_BEGIN()
+    ZEND_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, dd_OnUpdateDisabled)
+
+    // Exposed for testing only
+    STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, OnUpdateString, cgroup_file,
+                      zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 
 #if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
@@ -162,7 +184,7 @@ static void dd_patched_zend_call_known_function(
 
     // If current_execute_data is on the stack, move it to the VM stack
     zend_execute_data *execute_data = EG(current_execute_data);
-    if ((uintptr_t)&retval > (uintptr_t)EX(func) && (uintptr_t)&retval - 0xfffff < (uintptr_t)EX(func)) {
+    if (execute_data && (uintptr_t)&retval > (uintptr_t)EX(func) && (uintptr_t)&retval - 0xfffff < (uintptr_t)EX(func)) {
         zend_execute_data *call = zend_vm_stack_push_call_frame_ex(
                 ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_execute_data), sizeof(zval)) +
                 ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_op), sizeof(zval)) +
@@ -212,14 +234,27 @@ static void dd_patched_zend_call_known_function(
 
 // We need to hijack zend_call_known_function as that's what's being called by call_attribute_constructor, and call_attribute_constructor itself is not exported.
 static void dd_patch_zend_call_known_function(void) {
+#ifdef _WIN32
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    size_t page_size = (size_t)si.dwPageSize;
+#else
     size_t page_size = sysconf(_SC_PAGESIZE);
+#endif
     void *page = (void *)(~(page_size - 1) & (uintptr_t)zend_call_known_function);
     // 20 is the largest size of a trampoline we have to inject
     if ((((uintptr_t)zend_call_known_function + 20) & page_size) < 20) {
         page_size <<= 1; // if overlapping pages, use two
     }
-    if (mprotect(page, page_size, PROT_READ | PROT_WRITE) != 0) { // Some architectures enforce W^X (either write _or_ execute, but not both).
-        LOG(Error, "Could not alter the memory protection for zend_call_known_function. Tracer execution continues, but may crash when encountering attributes.");
+
+#ifdef _WIN32
+    DWORD old_protection;
+    if (VirtualProtect(page, page_size, PAGE_READWRITE, &old_protection))
+#else
+    if (mprotect(page, page_size, PROT_READ | PROT_WRITE) != 0)
+#endif
+    { // Some architectures enforce W^X (either write _or_ execute, but not both).
+        LOG(ERROR, "Could not alter the memory protection for zend_call_known_function. Tracer execution continues, but may crash when encountering attributes.");
         return; // Make absolutely sure we can write
     }
 
@@ -243,7 +278,11 @@ static void dd_patch_zend_call_known_function(void) {
     memcpy(zend_call_known_function, absolute_jump_instrs, sizeof(absolute_jump_instrs));
 #endif
 
+#ifdef _WIN32
+    VirtualProtect(page, page_size, old_protection, NULL);
+#else
     mprotect(page, page_size, PROT_READ | PROT_EXEC);
+#endif
 }
 #endif
 
@@ -360,11 +399,16 @@ static void dd_activate_once(void) {
     ddtrace_generate_runtime_id();
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
-    if (!DDTRACE_G(disable) && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
-        bool modules_activated = PG(modules_activated);
-        PG(modules_activated) = false;
-        ddtrace_sidecar_setup();
-        PG(modules_activated) = modules_activated;
+    if (!ddtrace_disable) {
+#ifndef _WIN32
+        if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())
+#endif
+        {
+            bool modules_activated = PG(modules_activated);
+            PG(modules_activated) = false;
+            ddtrace_sidecar_setup();
+            PG(modules_activated) = modules_activated;
+        }
     }
 }
 
@@ -379,15 +423,15 @@ static void ddtrace_activate(void) {
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
 
-    if (!DDTRACE_G(disable) && ddtrace_has_excluded_module == true) {
-        DDTRACE_G(disable) = 2;
+    if (!ddtrace_disable && ddtrace_has_excluded_module == true) {
+        ddtrace_disable = 2;
     }
 
     // ZAI config is always set up
     pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
 
-    if (!DDTRACE_G(disable) && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
+    if (!ddtrace_disable && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
         ddtrace_sidecar_ensure_active();
     }
 
@@ -396,11 +440,11 @@ static void ddtrace_activate(void) {
         dd_save_sampling_rules_file_config(sampling_rules_file, PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
     }
 
-    if (!DDTRACE_G(disable) && strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
-        DDTRACE_G(disable) = 2;
+    if (!ddtrace_disable && strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
+        ddtrace_disable = 2;
     }
 
-    if (DDTRACE_G(disable)) {
+    if (ddtrace_disable) {
         ddtrace_disable_tracing_in_current_request();
     }
 
@@ -459,43 +503,6 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     zai_hook_ginit();
 }
 
-#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
-#define CXA_THREAD_ATEXIT_WRAPPER 1
-#endif
-#ifdef CXA_THREAD_ATEXIT_WRAPPER
-struct dd_rust_thread_destructor {
-    void (*dtor)(void *);
-    void *obj;
-    struct dd_rust_thread_destructor *next;
-};
-ZEND_TLS struct dd_rust_thread_destructor *dd_rust_thread_destructors = NULL;
-ZEND_TLS bool dd_is_main_thread = false;
-
-static void dd_run_rust_thread_destructors(void *unused) {
-    UNUSED(unused);
-    struct dd_rust_thread_destructor *entry = dd_rust_thread_destructors;
-    while (entry) {
-        struct dd_rust_thread_destructor *cur = entry;
-        cur->dtor(cur->obj);
-        entry = entry->next;
-        free(cur);
-    }
-}
-#endif
-
-static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
-    if (ddtrace_globals->remote_config_reader) {
-        ddog_agent_remote_config_reader_drop(ddtrace_globals->remote_config_reader);
-    }
-    zai_hook_gshutdown();
-
-#ifdef CXA_THREAD_ATEXIT_WRAPPER
-    if (!dd_is_main_thread) {
-        dd_run_rust_thread_destructors(NULL);
-    }
-#endif
-}
-
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
 // The problem is that calls to __cxa_thread_atexit_impl cause shared libraries to remain referenced until the calling thread terminates.
 // However in NTS builds the calling thread is the main thread and thus the shared object (i.e. ddtrace.so) WILL remain loaded.
@@ -503,6 +510,9 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
 // This prevents us from a) having the weak symbols updated to the new locations and b) having ddtrace updates going live without hard restart.
 // Thus, we need to intercept it: define it ourselves so that the linker will force the rust code to call our code here.
 // Then we can collect the callbacks and invoke them ourselves right at thread shutdown, i.e. GSHUTDOWN.
+#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
+#define CXA_THREAD_ATEXIT_WRAPPER 1
+#endif
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
 #define CXA_THREAD_ATEXIT_PHP ((void *)0)
 #define CXA_THREAD_ATEXIT_UNINITIALIZED ((void *)1)
@@ -511,10 +521,31 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
 static int (*glibc__cxa_thread_atexit_impl)(void (*func)(void *), void *obj, void *dso_symbol) = CXA_THREAD_ATEXIT_UNINITIALIZED;
 static pthread_key_t dd_cxa_thread_atexit_key; // fallback for sidecar
 
+struct dd_rust_thread_destructor {
+    void (*dtor)(void *);
+    void *obj;
+    struct dd_rust_thread_destructor *next;
+};
+// Use __thread explicitly: ZEND_TLS is empty on NTS builds.
+static __thread struct dd_rust_thread_destructor *dd_rust_thread_destructors = NULL;
+ZEND_TLS bool dd_is_main_thread = false;
+
+static void dd_run_rust_thread_destructors(void *unused) {
+    UNUSED(unused);
+    struct dd_rust_thread_destructor *entry = dd_rust_thread_destructors;
+    dd_rust_thread_destructors = NULL; // destructors _may_ be invoked multiple times. We need to reset thus.
+    while (entry) {
+        struct dd_rust_thread_destructor *cur = entry;
+        cur->dtor(cur->obj);
+        entry = entry->next;
+        free(cur);
+    }
+}
+
 // Note: this symbol is not public
 int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) {
     if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNINITIALIZED) {
-        glibc__cxa_thread_atexit_impl = DL_FETCH_SYMBOL(NULL, "__cxa_thread_atexit_impl");
+        glibc__cxa_thread_atexit_impl = NULL; // DL_FETCH_SYMBOL(RTLD_DEFAULT, "__cxa_thread_atexit_impl");
         if (glibc__cxa_thread_atexit_impl == NULL) {
             // no race condition here: logging is initialized in MINIT, at which point only a single thread lives
             glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_UNAVAILABLE;
@@ -542,6 +573,20 @@ static void dd_clean_main_thread_locals() {
     dd_run_rust_thread_destructors(NULL);
 }
 #endif
+
+static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
+    if (ddtrace_globals->remote_config_reader) {
+        ddog_agent_remote_config_reader_drop(ddtrace_globals->remote_config_reader);
+    }
+    zai_hook_gshutdown();
+
+#ifdef CXA_THREAD_ATEXIT_WRAPPER
+    // FrankenPHP calls `ts_free_thread()` in rshutdown
+    if (!dd_is_main_thread && ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
+        dd_run_rust_thread_destructors(NULL);
+    }
+#endif
+}
 
 /* DDTrace\SpanLink */
 zend_class_entry *ddtrace_ce_span_link;
@@ -827,7 +872,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
         if (!span->trace_id.low && !span->trace_id.high) {
             span->trace_id = (ddtrace_trace_id) {
                 .low = span->span_id,
-                .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / UINT64_C(1000000000) : 0,
+                .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / ZEND_NANO_IN_SEC : 0,
             };
             value = &span->property_id;
         }
@@ -949,13 +994,14 @@ static void dd_register_fatal_error_ce(void) {
     ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_ce_exception);
 }
 
-static bool dd_is_compatible_sapi(datadog_php_string_view module_name) {
-    switch (datadog_php_sapi_from_name(module_name)) {
+static bool dd_is_compatible_sapi() {
+    switch (ddtrace_active_sapi) {
         case DATADOG_PHP_SAPI_APACHE2HANDLER:
         case DATADOG_PHP_SAPI_CGI_FCGI:
         case DATADOG_PHP_SAPI_CLI:
         case DATADOG_PHP_SAPI_CLI_SERVER:
         case DATADOG_PHP_SAPI_FPM_FCGI:
+        case DATADOG_PHP_SAPI_FRANKENPHP:
         case DATADOG_PHP_SAPI_TEA:
             return true;
 
@@ -965,21 +1011,28 @@ static bool dd_is_compatible_sapi(datadog_php_string_view module_name) {
 }
 
 static void dd_disable_if_incompatible_sapi_detected(void) {
-    datadog_php_string_view module_name = datadog_php_string_view_from_cstr(sapi_module.name);
-    if (UNEXPECTED(!dd_is_compatible_sapi(module_name))) {
-        LOG(Warn, "Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
-        DDTRACE_G(disable) = 1;
+    if (UNEXPECTED(!dd_is_compatible_sapi())) {
+        LOG(WARN, "Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
+        ddtrace_disable = 1;
     }
 }
 
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
+    ddtrace_active_sapi = datadog_php_sapi_from_name(datadog_php_string_view_from_cstr(sapi_module.name));
+
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
-    dd_is_main_thread = true;
-    glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
-    atexit(dd_clean_main_thread_locals);
+    // FrankenPHP calls `ts_free_thread()` in rshutdown
+    if (ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
+        dd_is_main_thread = true;
+        glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
+        atexit(dd_clean_main_thread_locals);
+    }
 #endif
+
+    // Reset on every minit for `apachectl graceful`.
+    dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
 
     zai_hook_minit();
     zai_uhook_minit(module_number);
@@ -991,6 +1044,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 #endif
 #if PHP_VERSION_ID >= 80100
     ddtrace_setup_fiber_observers();
+#endif
+
+#if PHP_VERSION_ID < 70300 || (defined(_WIN32) && PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400)
+    ddtrace_startup_hrtime();
 #endif
 
     register_ddtrace_symbols(module_number);
@@ -1035,18 +1092,22 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     mod_ptr->handle = NULL;
     /* }}} */
 
-    if (DDTRACE_G(disable)) {
+    if (ddtrace_disable) {
         return SUCCESS;
     }
 
+#ifndef _WIN32
     ddtrace_set_coredumpfilter();
+#endif
 
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
 
     ddtrace_log_minit();
 
+#ifndef _WIN32
     ddtrace_dogstatsd_client_minit();
+#endif
     ddshared_minit();
 
     dd_register_span_data_ce();
@@ -1055,11 +1116,13 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_engine_hooks_minit();
 
+#ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
                            get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                            get_global_DD_TRACE_AGENT_STACK_BACKLOG());
     }
+#endif
 
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();
@@ -1076,7 +1139,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     UNREGISTER_INI_ENTRIES();
 
-    if (DDTRACE_G(disable) == 1) {
+    if (ddtrace_disable == 1) {
         zai_config_mshutdown();
         zai_json_shutdown_bindings();
         return SUCCESS;
@@ -1089,6 +1152,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_integrations_mshutdown();
 
+#ifndef _WIN32
     ddtrace_signals_mshutdown();
 
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
@@ -1097,6 +1161,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
             ddtrace_coms_curl_shutdown();
         }
     }
+#endif
 
     ddtrace_log_mshutdown();
 
@@ -1131,10 +1196,12 @@ static void dd_rinit_once(void) {
     ddtrace_startup_logging_first_rinit();
 
     // Uses config, cannot run earlier
+#ifndef _WIN32
     ddtrace_signals_first_rinit();
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_init_and_start_writer();
     }
+#endif
 }
 
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
@@ -1149,14 +1216,18 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
 
-    // Things that should only run on the first RINIT
+    // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
     if (!DDTRACE_G(remote_config_reader)) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-            DDTRACE_G(remote_config_reader) = ddog_agent_remote_config_reader_for_endpoint(ddtrace_endpoint);
+            if (ddtrace_endpoint) {
+                DDTRACE_G(remote_config_reader) = ddog_agent_remote_config_reader_for_endpoint(ddtrace_endpoint);
+            }
+#ifndef _WIN32
         } else if (ddtrace_coms_agent_config_handle) {
             ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(remote_config_reader));
+#endif
         }
     }
 
@@ -1168,13 +1239,15 @@ static void dd_initialize_request(void) {
 
     ddtrace_log_rinit(PG(error_log));
 
-    ddtrace_dogstatsd_client_rinit();
-
     ddtrace_seed_prng();
     ddtrace_init_span_stacks();
+
+#ifndef _WIN32
+    ddtrace_dogstatsd_client_rinit();
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_on_pid_change();
     }
+#endif
 
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset();
@@ -1200,7 +1273,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     zai_interceptor_rinit();
 #endif
 
-    if (!DDTRACE_G(disable)) {
+    if (!ddtrace_disable) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
         zai_hook_activate();
         DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
@@ -1237,12 +1310,16 @@ static void dd_clean_globals(void) {
     }
 
     ddtrace_internal_handlers_rshutdown();
+#ifndef _WIN32
     ddtrace_dogstatsd_client_rshutdown();
+#endif
 
     ddtrace_free_span_stacks(false);
+#ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_rshutdown();
     }
+#endif
 
     if (ZSTR_LEN(get_DD_TRACE_REQUEST_INIT_HOOK())) {
         dd_request_init_hook_rshutdown();
@@ -1277,15 +1354,15 @@ void dd_force_shutdown_tracing(void) {
     zend_try {
         ddtrace_close_all_open_spans(true);  // All remaining userland spans (and root span)
     } zend_catch {
-        LOG(Warn, "Failed to close remaining spans due to bailout");
+        LOG(WARN, "Failed to close remaining spans due to bailout");
     } zend_end_try();
 
     zend_try {
         if (ddtrace_flush_tracer(false, true) == FAILURE) {
-            LOG(Warn, "Unable to flush the tracer");
+            LOG(WARN, "Unable to flush the tracer");
         }
     } zend_catch {
-        LOG(Warn, "Unable to flush the tracer due to bailout");
+        LOG(WARN, "Unable to flush the tracer due to bailout");
     } zend_end_try();
 
     // we here need to disable the tracer, so that further hooks do not trigger
@@ -1315,11 +1392,11 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     if (get_DD_TRACE_ENABLED()) {
         dd_force_shutdown_tracing();
-    } else if (!DDTRACE_G(disable)) {
+    } else if (!ddtrace_disable) {
         dd_shutdown_hooks_and_observer();
     }
 
-    if (!DDTRACE_G(disable)) {
+    if (!ddtrace_disable) {
         OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
         DDTRACE_G(active_stack) = NULL;
     }
@@ -1366,7 +1443,7 @@ bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
         return true;
     }
 
-    if (DDTRACE_G(disable)) {
+    if (ddtrace_disable) {
         return Z_TYPE_P(new_value) == IS_FALSE;  // no changing to enabled allowed if globally disabled
     }
 
@@ -1376,7 +1453,7 @@ bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
 
     if (Z_TYPE_P(old_value) == IS_FALSE) {
         dd_initialize_request();
-    } else if (!DDTRACE_G(disable)) {  // if this is true, the request has not been initialized at all
+    } else if (!ddtrace_disable) {  // if this is true, the request has not been initialized at all
         ddtrace_close_all_open_spans(false);  // All remaining userland spans (and root span)
         dd_clean_globals();
     }
@@ -1464,12 +1541,12 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     php_info_print_box_end();
 
     php_info_print_table_start();
-    php_info_print_table_row(2, "Datadog tracing support", DDTRACE_G(disable) ? "disabled" : "enabled");
+    php_info_print_table_row(2, "Datadog tracing support", ddtrace_disable ? "disabled" : "enabled");
     php_info_print_table_row(2, "Version", PHP_DDTRACE_VERSION);
     _dd_info_tracer_config();
     php_info_print_table_end();
 
-    if (!DDTRACE_G(disable)) {
+    if (!ddtrace_disable) {
         _dd_info_diagnostics_table();
     }
 
@@ -1479,7 +1556,7 @@ static PHP_MINFO_FUNCTION(ddtrace) {
 // legacy function
 PHP_FUNCTION(additional_trace_meta) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\additional_trace_meta");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\additional_trace_meta");
     }
     array_init(return_value);
 }
@@ -1554,7 +1631,7 @@ PHP_FUNCTION(DDTrace_set_user) {
     }
 
     if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
-        LOG_LINE(Warn, "Unexpected empty user id in DDTrace\\set_user");
+        LOG_LINE(WARN, "Unexpected empty user id in DDTrace\\set_user");
         RETURN_NULL();
     }
 
@@ -1607,7 +1684,7 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     UNUSED(execute_data);
 
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_serialize_closed_spans");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_trace_serialize_closed_spans");
     }
 
     if (!get_DD_TRACE_ENABLED()) {
@@ -1640,7 +1717,7 @@ PHP_FUNCTION(dd_trace_env_config) {
     }
 
     zai_config_id id;
-    if (zai_config_get_id_by_name(ZAI_STR_FROM_ZSTR(env_name), &id)) {
+    if (zai_config_get_id_by_name((zai_str)ZAI_STR_FROM_ZSTR(env_name), &id)) {
         RETURN_COPY(zai_config_get_value(id));
     } else {
         RETURN_NULL();
@@ -1649,7 +1726,7 @@ PHP_FUNCTION(dd_trace_env_config) {
 
 PHP_FUNCTION(dd_trace_disable_in_request) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_disable_in_request");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_trace_disable_in_request");
     }
 
     ddtrace_disable_tracing_in_current_request();
@@ -1659,10 +1736,10 @@ PHP_FUNCTION(dd_trace_disable_in_request) {
 
 PHP_FUNCTION(dd_trace_reset) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_reset");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_trace_reset");
     }
 
-    if (DDTRACE_G(disable)) {
+    if (ddtrace_disable) {
         RETURN_BOOL(0);
     }
 
@@ -1675,7 +1752,7 @@ PHP_FUNCTION(dd_trace_serialize_msgpack) {
     zval *trace_array;
 
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "a", &trace_array) == FAILURE) {
-        LOG_LINE_ONCE(Error, "Expected argument to dd_trace_serialize_msgpack() to be an array");
+        LOG_LINE_ONCE(ERROR, "Expected argument to dd_trace_serialize_msgpack() to be an array");
         RETURN_BOOL(0);
     }
 
@@ -1702,7 +1779,7 @@ PHP_FUNCTION(dd_trace_noop) {
 /* {{{ proto int dd_trace_dd_get_memory_limit() */
 PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_dd_get_memory_limit");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_trace_dd_get_memory_limit");
     }
 
     RETURN_LONG(ddtrace_get_memory_limit());
@@ -1711,7 +1788,7 @@ PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
 /* {{{ proto bool dd_trace_check_memory_under_limit() */
 PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_check_memory_under_limit");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_trace_check_memory_under_limit");
     }
 
     RETURN_BOOL(ddtrace_is_memory_under_limit());
@@ -1719,7 +1796,7 @@ PHP_FUNCTION(dd_trace_check_memory_under_limit) {
 
 PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_tracer_circuit_breaker_register_error");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_tracer_circuit_breaker_register_error");
     }
 
     dd_tracer_circuit_breaker_register_error();
@@ -1729,7 +1806,7 @@ PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
 
 PHP_FUNCTION(dd_tracer_circuit_breaker_register_success) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_tracer_circuit_breaker_register_success");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_tracer_circuit_breaker_register_success");
     }
 
     dd_tracer_circuit_breaker_register_success();
@@ -1739,7 +1816,7 @@ PHP_FUNCTION(dd_tracer_circuit_breaker_register_success) {
 
 PHP_FUNCTION(dd_tracer_circuit_breaker_can_try) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_tracer_circuit_breaker_can_try");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_tracer_circuit_breaker_can_try");
     }
 
     RETURN_BOOL(dd_tracer_circuit_breaker_can_try());
@@ -1747,7 +1824,7 @@ PHP_FUNCTION(dd_tracer_circuit_breaker_can_try) {
 
 PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_tracer_circuit_breaker_info");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_tracer_circuit_breaker_info");
     }
 
     array_init_size(return_value, 5);
@@ -1776,7 +1853,7 @@ PHP_FUNCTION(ddtrace_config_app_name) {
 
 PHP_FUNCTION(ddtrace_config_distributed_tracing_enabled) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to ddtrace_config_distributed_tracing_enabled");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to ddtrace_config_distributed_tracing_enabled");
     }
 
     RETURN_BOOL(get_DD_DISTRIBUTED_TRACING());
@@ -1784,7 +1861,7 @@ PHP_FUNCTION(ddtrace_config_distributed_tracing_enabled) {
 
 PHP_FUNCTION(ddtrace_config_trace_enabled) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to ddtrace_config_trace_enabled");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to ddtrace_config_trace_enabled");
     }
 
     RETURN_BOOL(get_DD_TRACE_ENABLED());
@@ -1873,7 +1950,7 @@ PHP_FUNCTION(DDTrace_Testing_trigger_error) {
             break;
 
         default:
-            LOG_LINE(Warn, "Invalid error type specified: %i", level);
+            LOG_LINE(WARN, "Invalid error type specified: %i", level);
             break;
     }
 }
@@ -1908,23 +1985,28 @@ PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     // Agent HTTP headers are now set at the extension level so 'curl_headers' from userland is ignored
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "las", &num_traces, &curl_headers, &payload,
                                  &payload_len) == FAILURE) {
-        LOG_LINE_ONCE(Error, "dd_trace_send_traces_via_thread() expects trace count, http headers, and http body");
+        LOG_LINE_ONCE(ERROR, "dd_trace_send_traces_via_thread() expects trace count, http headers, and http body");
         RETURN_FALSE;
     }
-
+#ifndef _WIN32
     bool result = ddtrace_send_traces_via_thread(num_traces, payload, payload_len);
     dd_prepare_for_new_trace();
     RETURN_BOOL(result);
+#else
+    RETURN_FALSE;
+#endif
 }
 
 PHP_FUNCTION(dd_trace_buffer_span) {
-    if (!get_DD_TRACE_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        RETURN_BOOL(0);
-    }
     zval *trace_array = NULL;
 
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "a", &trace_array) == FAILURE) {
-        LOG_LINE_ONCE(Error, "Expected group id and an array");
+        LOG_LINE_ONCE(ERROR, "Expected group id and an array");
+        RETURN_BOOL(0);
+    }
+
+#ifndef _WIN32
+    if (!get_DD_TRACE_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         RETURN_BOOL(0);
     }
 
@@ -1938,18 +2020,25 @@ PHP_FUNCTION(dd_trace_buffer_span) {
     } else {
         RETURN_FALSE;
     }
+#else
+    RETURN_BOOL(0);
+#endif
 }
 
 PHP_FUNCTION(dd_trace_coms_trigger_writer_flush) {
+    if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_trace_coms_trigger_writer_flush");
+    }
+
+#ifndef _WIN32
     if (!get_DD_TRACE_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         RETURN_LONG(0);
     }
 
-    if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_coms_trigger_writer_flush");
-    }
-
     RETURN_LONG(ddtrace_coms_trigger_writer_flush());
+#else
+    RETURN_BOOL(0);
+#endif
 }
 
 #define FUNCTION_NAME_MATCHES(function) zend_string_equals_literal(function_val, function)
@@ -1966,7 +2055,22 @@ PHP_FUNCTION(dd_trace_internal_fn) {
 
     RETVAL_FALSE;
     if (ZSTR_LEN(function_val) > 0) {
-        if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
+        if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
+            dd_finalize_telemetry();
+            RETVAL_TRUE;
+        } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
+            ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
+            ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), path);
+            RETVAL_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
+            if (!ddtrace_sidecar) {
+                RETURN_FALSE;
+            }
+            ddog_CharSlice slice = ddog_sidecar_dump(&ddtrace_sidecar);
+            RETVAL_STRINGL(slice.ptr, slice.len);
+            free((void *) slice.ptr);
+#ifndef _WIN32
+        } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
             RETVAL_BOOL(ddtrace_coms_init_and_start_writer());
         } else if (FUNCTION_NAME_MATCHES("ddtrace_coms_next_group_id")) {
             RETVAL_LONG(ddtrace_coms_next_group_id());
@@ -1998,20 +2102,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
         } else if (FUNCTION_NAME_MATCHES("test_msgpack_consumer")) {
             ddtrace_coms_test_msgpack_consumer();
             RETVAL_TRUE;
-        } else if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
-            dd_finalize_telemetry();
-            RETVAL_TRUE;
-        } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
-            if (!ddtrace_sidecar) {
-                RETURN_FALSE;
-            }
-            ddog_CharSlice slice = ddog_sidecar_dump(&ddtrace_sidecar);
-            RETVAL_STRINGL(slice.ptr, slice.len);
-            free((void *) slice.ptr);
-        } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
-            ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
-            ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), path);
-            RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
             uint32_t timeout = 100;
             if (params_count == 1) {
@@ -2019,6 +2109,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
             ddtrace_coms_synchronous_flush(timeout);
             RETVAL_TRUE;
+#endif
         }
     }
 }
@@ -2029,7 +2120,7 @@ PHP_FUNCTION(DDTrace_close_spans_until) {
 
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "O!", &spanzv, ddtrace_ce_span_data) ==
         FAILURE) {
-        LOG_LINE_ONCE(Error, "DDTrace\\close_spans_until() expects null or a SpanData object");
+        LOG_LINE_ONCE(ERROR, "DDTrace\\close_spans_until() expects null or a SpanData object");
         RETURN_FALSE;
     }
 
@@ -2047,7 +2138,7 @@ PHP_FUNCTION(dd_trace_set_trace_id) {
 
     zend_string *trace_id = NULL;
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "S", &trace_id) == FAILURE) {
-        LOG_LINE_ONCE(Error, "dd_trace_set_trace_id() expects a string");
+        LOG_LINE_ONCE(ERROR, "dd_trace_set_trace_id() expects a string");
         RETURN_FALSE;
     }
 
@@ -2060,12 +2151,12 @@ PHP_FUNCTION(dd_trace_set_trace_id) {
     RETURN_FALSE;
 }
 
-atomic_int ddtrace_warn_span_id_legacy_api = 1;
+_Atomic(int64_t) ddtrace_warn_span_id_legacy_api = 1;
 static void ddtrace_warn_span_id_legacy(void) {
-    int expected = 1;
+    int64_t expected = 1;
     if (atomic_compare_exchange_strong(&ddtrace_warn_span_id_legacy_api, &expected, 0) &&
         get_DD_TRACE_WARN_LEGACY_DD_TRACE()) {
-        LOG(Deprecated,
+        LOG(DEPRECATED,
             "dd_trace_push_span_id and dd_trace_pop_span_id DEPRECATION NOTICE: the functions `dd_trace_push_span_id` and `dd_trace_pop_span_id` are deprecated and have become a no-op since 0.74.0, and will eventually be removed. To create or pop spans use `DDTrace\\start_span` and `DDTrace\\close_span` respectively. To set a distributed parent trace context use `DDTrace\\set_distributed_tracing_context`. Set DD_TRACE_WARN_LEGACY_DD_TRACE=0 to suppress this warning.");
     }
 }
@@ -2109,11 +2200,13 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
 
     // If zend_long is not a uint32_t, we can't pass it to ddtrace_coms_synchronous_flush
     if (timeout < 0 || timeout > UINT32_MAX) {
-        LOG_LINE_ONCE(Error, "dd_trace_synchronous_flush() expects a timeout in milliseconds");
+        LOG_LINE_ONCE(ERROR, "dd_trace_synchronous_flush() expects a timeout in milliseconds");
         RETURN_NULL();
     }
 
+#ifndef _WIN32
     ddtrace_coms_synchronous_flush(timeout);
+#endif
     RETURN_NULL();
 }
 
@@ -2126,7 +2219,7 @@ static void dd_ensure_root_span(void) {
 /* {{{ proto string DDTrace\active_span() */
 PHP_FUNCTION(DDTrace_active_span) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\active_span");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\active_span");
     }
 
     if (!get_DD_TRACE_ENABLED()) {
@@ -2143,7 +2236,7 @@ PHP_FUNCTION(DDTrace_active_span) {
 /* {{{ proto string DDTrace\root_span() */
 PHP_FUNCTION(DDTrace_root_span) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\root_span");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\root_span");
     }
 
     if (!get_DD_TRACE_ENABLED()) {
@@ -2160,7 +2253,7 @@ PHP_FUNCTION(DDTrace_root_span) {
 static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
     double start_time_seconds = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &start_time_seconds) != SUCCESS) {
-        LOG_LINE_ONCE(Warn, "unexpected parameter, expecting double for start time");
+        LOG_LINE_ONCE(WARN, "unexpected parameter, expecting double for start time");
         RETURN_FALSE;
     }
 
@@ -2173,7 +2266,7 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
     }
 
     if (start_time_seconds > 0) {
-        span->start = (uint64_t)(start_time_seconds * 1000000000);
+        span->start = (uint64_t)(start_time_seconds * ZEND_NANO_IN_SEC);
     }
 
     RETURN_OBJ(&span->std);
@@ -2209,14 +2302,14 @@ static void dd_set_span_finish_time(ddtrace_span_data *span, double finish_time_
 PHP_FUNCTION(DDTrace_close_span) {
     double finish_time_seconds = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &finish_time_seconds) != SUCCESS) {
-        LOG_LINE_ONCE(Warn, "unexpected parameter, expecting double for finish time");
+        LOG_LINE_ONCE(WARN, "unexpected parameter, expecting double for finish time");
         RETURN_FALSE;
     }
 
     ddtrace_span_data *top_span = ddtrace_active_span();
 
     if (!top_span || top_span->type != DDTRACE_USER_SPAN) {
-        LOG(Error, "There is no user-span on the top of the stack. Cannot close.");
+        LOG(ERROR, "There is no user-span on the top of the stack. Cannot close.");
         RETURN_NULL();
     }
 
@@ -2237,7 +2330,7 @@ PHP_FUNCTION(DDTrace_update_span_duration) {
     ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ_P(spanzv));
 
     if (span->duration == 0) {
-        LOG(Error, "Cannot update the span duration of an unfinished span.");
+        LOG(ERROR, "Cannot update the span duration of an unfinished span.");
         RETURN_NULL();
     }
 
@@ -2253,7 +2346,7 @@ PHP_FUNCTION(DDTrace_update_span_duration) {
 /* {{{ proto string DDTrace\active_stack() */
 PHP_FUNCTION(DDTrace_active_stack) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\active_stack");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\active_stack");
     }
 
     if (!DDTRACE_G(active_stack)) {
@@ -2265,7 +2358,7 @@ PHP_FUNCTION(DDTrace_active_stack) {
 /* {{{ proto string DDTrace\create_stack() */
 PHP_FUNCTION(DDTrace_create_stack) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\create_stack");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\create_stack");
     }
 
     if (!get_DD_TRACE_ENABLED()) {
@@ -2311,14 +2404,14 @@ PHP_FUNCTION(DDTrace_switch_stack) {
 
 PHP_FUNCTION(DDTrace_flush) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\flush");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\flush");
     }
 
     if (get_DD_AUTOFINISH_SPANS()) {
         ddtrace_close_userland_spans_until(NULL);
     }
     if (ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE) {
-        LOG_LINE(Warn, "Unable to flush the tracer");
+        LOG_LINE(WARN, "Unable to flush the tracer");
     }
     RETURN_NULL();
 }
@@ -2326,7 +2419,7 @@ PHP_FUNCTION(DDTrace_flush) {
 /* {{{ proto string \DDTrace\trace_id() */
 PHP_FUNCTION(DDTrace_trace_id) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\trace_id");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\trace_id");
     }
 
     RETURN_STR(ddtrace_trace_id_as_string(ddtrace_peek_trace_id()));
@@ -2335,7 +2428,7 @@ PHP_FUNCTION(DDTrace_trace_id) {
 /* {{{ proto string \DDTrace\logs_correlation_trace_id() */
 PHP_FUNCTION(DDTrace_logs_correlation_trace_id) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\logs_correlation_trace_id");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\logs_correlation_trace_id");
     }
 
     ddtrace_trace_id trace_id = ddtrace_peek_trace_id();
@@ -2359,7 +2452,7 @@ PHP_FUNCTION(DDTrace_logs_correlation_trace_id) {
 /* {{{ proto array \DDTrace\current_context() */
 PHP_FUNCTION(DDTrace_current_context) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\current_context");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\current_context");
     }
 
     array_init(return_value);
@@ -2425,7 +2518,7 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "SS|S!z!", &trace_id_str, &parent_id_str,
                                  &origin, &tags) != SUCCESS ||
         (tags && Z_TYPE_P(tags) > IS_FALSE && Z_TYPE_P(tags) != IS_ARRAY && Z_TYPE_P(tags) != IS_STRING)) {
-        LOG_LINE_ONCE(Error,
+        LOG_LINE_ONCE(ERROR,
             "unexpected parameter. expecting string trace id and string parent id and possibly string origin and string or array propagated tags");
         RETURN_FALSE;
     }
@@ -2456,7 +2549,7 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
         if (!new_trace_id.low && !new_trace_id.high) {
             root_span->trace_id = (ddtrace_trace_id) {
                 .low = root_span->span_id,
-                .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? root_span->start / UINT64_C(1000000000) : 0,
+                .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? root_span->start / ZEND_NANO_IN_SEC : 0,
             };
         } else {
             root_span->trace_id = new_trace_id;
@@ -2620,7 +2713,7 @@ PHP_FUNCTION(DDTrace_generate_distributed_tracing_headers) {
 /* {{{ proto string dd_trace_closed_spans_count() */
 PHP_FUNCTION(dd_trace_closed_spans_count) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_closed_spans_count");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_trace_closed_spans_count");
     }
 
     RETURN_LONG(DDTRACE_G(closed_spans_count));
@@ -2641,7 +2734,7 @@ bool ddtrace_tracer_is_limited(void) {
 /* {{{ proto string dd_trace_tracer_is_limited() */
 PHP_FUNCTION(dd_trace_tracer_is_limited) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_tracer_is_limited");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_trace_tracer_is_limited");
     }
 
     RETURN_BOOL(ddtrace_tracer_is_limited() == true ? 1 : 0);
@@ -2650,7 +2743,7 @@ PHP_FUNCTION(dd_trace_tracer_is_limited) {
 /* {{{ proto string dd_trace_compile_time_microseconds() */
 PHP_FUNCTION(dd_trace_compile_time_microseconds) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to dd_trace_compile_time_microseconds");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to dd_trace_compile_time_microseconds");
     }
 
     RETURN_LONG(ddtrace_compile_time_get());
@@ -2661,7 +2754,7 @@ PHP_FUNCTION(DDTrace_set_priority_sampling) {
     zend_long priority;
 
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "l|b", &priority, &global) == FAILURE) {
-        LOG_LINE_ONCE(Error, "Expected an integer and an optional boolean");
+        LOG_LINE_ONCE(ERROR, "Expected an integer and an optional boolean");
         RETURN_FALSE;
     }
 
@@ -2676,7 +2769,7 @@ PHP_FUNCTION(DDTrace_get_priority_sampling) {
     zend_bool global = false;
 
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "|b", &global) == FAILURE) {
-        LOG_LINE_ONCE(Error, "Expected an optional boolean");
+        LOG_LINE_ONCE(ERROR, "Expected an optional boolean");
         RETURN_NULL();
     }
 
@@ -2696,7 +2789,7 @@ PHP_FUNCTION(DDTrace_get_sanitized_exception_trace) {
         Z_PARAM_OPTIONAL
         Z_PARAM_LONG(skip)
     ZEND_PARSE_PARAMETERS_END_EX({
-        LOG_LINE_ONCE(Error, "unexpected parameter for DDTrace\\get_sanitized_exception_trace, the first argument must be a Throwable");
+        LOG_LINE_ONCE(ERROR, "unexpected parameter for DDTrace\\get_sanitized_exception_trace, the first argument must be a Throwable");
         RETURN_FALSE;
     });
 
@@ -2705,7 +2798,7 @@ PHP_FUNCTION(DDTrace_get_sanitized_exception_trace) {
 
 PHP_FUNCTION(DDTrace_startup_logs) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\startup_logs");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\startup_logs");
     }
 
     smart_str buf = {0};
@@ -2715,7 +2808,7 @@ PHP_FUNCTION(DDTrace_startup_logs) {
 
 PHP_FUNCTION(DDTrace_find_active_exception) {
     if (zend_parse_parameters_ex(ddtrace_quiet_zpp(), ZEND_NUM_ARGS(), "")) {
-        LOG_LINE_ONCE(Error, "Unexpected parameters to DDTrace\\find_active_exception");
+        LOG_LINE_ONCE(ERROR, "Unexpected parameters to DDTrace\\find_active_exception");
     }
 
     zend_object *ex = ddtrace_find_active_exception();
@@ -2785,4 +2878,8 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:
 //   - set a new trace (group) id
-void dd_prepare_for_new_trace(void) { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
+void dd_prepare_for_new_trace(void) {
+#ifndef _WIN32
+    DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
+#endif
+}

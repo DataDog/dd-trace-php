@@ -46,9 +46,9 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_d
     zend_string *trace_id_str, *parent_id_str, *priority_str, *propagated_tags;
     ddtrace_distributed_tracing_result result = dd_init_empty_result();
 
-    read_header(ZAI_STRL("X_DATADOG_ORIGIN"), "x-datadog-origin", &result.origin, data);
+    read_header((zai_str)ZAI_STRL("X_DATADOG_ORIGIN"), "x-datadog-origin", &result.origin, data);
 
-    if (read_header(ZAI_STRL("X_DATADOG_TRACE_ID"), "x-datadog-trace-id", &trace_id_str, data)) {
+    if (read_header((zai_str)ZAI_STRL("X_DATADOG_TRACE_ID"), "x-datadog-trace-id", &trace_id_str, data)) {
         zval trace_zv;
         ZVAL_STR(&trace_zv, trace_id_str);
         result.trace_id = (ddtrace_trace_id) {.low = ddtrace_parse_userland_span_id(&trace_zv)};
@@ -59,19 +59,19 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_d
         return result;
     }
 
-    if (read_header(ZAI_STRL("X_DATADOG_PARENT_ID"), "x-datadog-parent-id", &parent_id_str, data)) {
+    if (read_header((zai_str)ZAI_STRL("X_DATADOG_PARENT_ID"), "x-datadog-parent-id", &parent_id_str, data)) {
         zval parent_zv;
         ZVAL_STR(&parent_zv, parent_id_str);
         result.parent_id = ddtrace_parse_userland_span_id(&parent_zv);
         zend_string_release(parent_id_str);
     }
 
-    if (read_header(ZAI_STRL("X_DATADOG_SAMPLING_PRIORITY"), "x-datadog-sampling-priority", &priority_str, data)) {
+    if (read_header((zai_str)ZAI_STRL("X_DATADOG_SAMPLING_PRIORITY"), "x-datadog-sampling-priority", &priority_str, data)) {
         result.priority_sampling = strtol(ZSTR_VAL(priority_str), NULL, 10);
         zend_string_release(priority_str);
     }
 
-    if (read_header(ZAI_STRL("X_DATADOG_TAGS"), "x-datadog-tags", &propagated_tags, data)) {
+    if (read_header((zai_str)ZAI_STRL("X_DATADOG_TAGS"), "x-datadog-tags", &propagated_tags, data)) {
         ddtrace_add_tracer_tags_from_header(propagated_tags, &result.meta_tags, &result.propagated_tags);
         zend_string_release(propagated_tags);
 
@@ -85,7 +85,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_b
     zend_string *b3_header_str;
     ddtrace_distributed_tracing_result result = dd_init_empty_result();
 
-    if (read_header(ZAI_STRL("B3"), "b3", &b3_header_str, data)) {
+    if (read_header((zai_str)ZAI_STRL("B3"), "b3", &b3_header_str, data)) {
         char *b3_ptr = ZSTR_VAL(b3_header_str), *b3_end = b3_ptr + ZSTR_LEN(b3_header_str);
         char *b3_traceid = b3_ptr;
         while (b3_ptr < b3_end && *b3_ptr != '-') {
@@ -129,7 +129,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_b
     zend_string *trace_id_str, *parent_id_str, *priority_str;
     ddtrace_distributed_tracing_result result = dd_init_empty_result();
 
-    if (read_header(ZAI_STRL("X_B3_TRACEID"), "x-b3-traceid", &trace_id_str, data)) {
+    if (read_header((zai_str)ZAI_STRL("X_B3_TRACEID"), "x-b3-traceid", &trace_id_str, data)) {
         result.trace_id = ddtrace_parse_hex_trace_id(ZSTR_VAL(trace_id_str), ZSTR_LEN(trace_id_str));
         zend_string_release(trace_id_str);
     }
@@ -138,14 +138,14 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_b
         return result;
     }
 
-    if (read_header(ZAI_STRL("X_B3_SPANID"), "x-b3-spanid", &parent_id_str, data)) {
+    if (read_header((zai_str)ZAI_STRL("X_B3_SPANID"), "x-b3-spanid", &parent_id_str, data)) {
         zval parent_zv;
         ZVAL_STR(&parent_zv, parent_id_str);
         result.parent_id = ddtrace_parse_hex_span_id(&parent_zv);
         zend_string_release(parent_id_str);
     }
 
-    if (read_header(ZAI_STRL("X_B3_SAMPLED"), "x-b3-sampled", &priority_str, data)) {
+    if (read_header((zai_str)ZAI_STRL("X_B3_SAMPLED"), "x-b3-sampled", &priority_str, data)) {
         if (ZSTR_LEN(priority_str) == 1) {
             if (ZSTR_VAL(priority_str)[0] == '0') {
                 result.priority_sampling = 0;
@@ -158,7 +158,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_b
             result.priority_sampling = 0;
         }
         zend_string_release(priority_str);
-    } else if (read_header(ZAI_STRL("X_B3_FLAGS"), "x-b3-flags", &priority_str, data)) {
+    } else if (read_header((zai_str)ZAI_STRL("X_B3_FLAGS"), "x-b3-flags", &priority_str, data)) {
         if (ZSTR_LEN(priority_str) == 1 && ZSTR_VAL(priority_str)[1] == '1') {
             result.priority_sampling = PRIORITY_SAMPLING_USER_KEEP;
         }
@@ -173,7 +173,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
     ddtrace_distributed_tracing_result result = dd_init_empty_result();
 
     // "{version:2}-{trace-id:32}-{parent-id:16}-{trace-flags:2}"
-    if (read_header(ZAI_STRL("TRACEPARENT"), "traceparent", &traceparent, data)) {
+    if (read_header((zai_str)ZAI_STRL("TRACEPARENT"), "traceparent", &traceparent, data)) {
         // skip whitespace
         char *ws = ZSTR_VAL(traceparent), *wsend = ws + ZSTR_LEN(traceparent);
         while (ws < wsend && isspace(*ws)) {

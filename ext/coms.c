@@ -1,3 +1,4 @@
+// Note: Not included on Windows
 #include <SAPI.h>
 #include <curl/curl.h>
 #include <errno.h>
@@ -27,6 +28,7 @@
 #include <sys/syscall.h>
 #endif
 
+#include "auto_flush.h"
 #include "compatibility.h"
 #include "configuration.h"
 #include "ddshared.h"
@@ -663,9 +665,6 @@ static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
 }
 
 #define TRACE_PATH_STR "/v0.4/traces"
-#define HOST_V6_FORMAT_STR "http://[%s]:%u"
-#define HOST_V4_FORMAT_STR "http://%s:%u"
-#define DEFAULT_UDS_PATH "/var/run/datadog/apm.socket"
 
 static struct curl_slist *dd_agent_curl_headers = NULL;
 
@@ -730,42 +729,6 @@ void ddtrace_curl_set_timeout(CURL *curl) {
 void ddtrace_curl_set_connect_timeout(CURL *curl) {
     long timeout = _dd_max_long(get_global_DD_TRACE_BGS_CONNECT_TIMEOUT(), get_global_DD_TRACE_AGENT_CONNECT_TIMEOUT());
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
-}
-
-char *ddtrace_agent_url(void) {
-    zend_string *url = get_global_DD_TRACE_AGENT_URL();
-    if (ZSTR_LEN(url) > 0) {
-        return zend_strndup(ZSTR_VAL(url), ZSTR_LEN(url));
-    }
-
-    zend_string *hostname = get_global_DD_AGENT_HOST();
-    if (ZSTR_LEN(hostname) > 7 && strncmp(ZSTR_VAL(hostname), "unix://", 7) == 0) {
-        return zend_strndup(ZSTR_VAL(hostname), ZSTR_LEN(hostname));
-    }
-
-    if (ZSTR_LEN(hostname) > 0) {
-        bool isIPv6 = memchr(ZSTR_VAL(hostname), ':', ZSTR_LEN(hostname));
-
-        int64_t port = get_global_DD_TRACE_AGENT_PORT();
-        if (port <= 0 || port > 65535) {
-            port = 8126;
-        }
-        char *formatted_url;
-        UNUSED(asprintf(&formatted_url, isIPv6 ? HOST_V6_FORMAT_STR : HOST_V4_FORMAT_STR, ZSTR_VAL(hostname), (uint32_t)port));
-        return formatted_url;
-    }
-
-    if (access(DEFAULT_UDS_PATH, F_OK) == SUCCESS) {
-        return zend_strndup(ZEND_STRL("unix://" DEFAULT_UDS_PATH));
-    }
-
-    int64_t port = get_global_DD_TRACE_AGENT_PORT();
-    if (port <= 0 || port > 65535) {
-        port = 8126;
-    }
-    char *formatted_url;
-    UNUSED(asprintf(&formatted_url, HOST_V4_FORMAT_STR, "localhost", (uint32_t)port));
-    return formatted_url;
 }
 
 void ddtrace_curl_set_hostname(CURL *curl) {
@@ -849,42 +812,62 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
     }
 
     if (writer->curl) {
-        CURLcode res;
-
         void *read_data = _dd_init_read_userdata(stack);
         struct _grouped_stack_t *kData = read_data;
-        _dd_curl_set_headers(writer, kData->total_groups);
-        curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
-        ddtrace_curl_set_hostname(writer->curl);
-        ddtrace_curl_set_timeout(writer->curl);
-        ddtrace_curl_set_connect_timeout(writer->curl);
 
-        smart_str response = {0};
+        int retries = MAX(get_global_DD_TRACE_AGENT_RETRIES(), 0) + 1;
+        for (int retry = 0; retry < retries; retry++) {
+            CURLcode res;
 
-        curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
-        curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long)get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
-        curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_curl_writefunc);
-        curl_easy_setopt(writer->curl, CURLOPT_WRITEDATA, &response);
-        res = curl_easy_perform(writer->curl);
+            _dd_curl_set_headers(writer, kData->total_groups);
+            curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
+            ddtrace_curl_set_hostname(writer->curl);
+            ddtrace_curl_set_timeout(writer->curl);
+            ddtrace_curl_set_connect_timeout(writer->curl);
 
-        if (res != CURLE_OK) {
-            ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-        } else {
-            if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
-                double uploaded;
+            smart_str response = {0};
+
+            curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
+            curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long) get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
+            curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_curl_writefunc);
+            curl_easy_setopt(writer->curl, CURLOPT_WRITEDATA, &response);
+            res = curl_easy_perform(writer->curl);
+
+            if (res != CURLE_OK) {
+                ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+
+                CURL *curl = writer->curl;
+                writer->curl = NULL;
+                curl_easy_cleanup(curl);
+
+                writer->curl = curl_easy_init();
+                curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, _dd_coms_read_callback);
+                curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_dummy_write_callback);
+                // as per https://curl.se/libcurl/c/threadsafe.html
+                // Also note that the docs mention potential SIGPIPEs, which may occur with OpenSSL:
+                // We can ignore that for now as we don't do TLS traffic to the agent currently
+                curl_easy_setopt(writer->curl, CURLOPT_NOSIGNAL, 1);
+
+                continue;
+            } else {
+                if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
+                    double uploaded;
 // only deprecated on relatively new libcurl versions
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-                curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
+                    curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
 #pragma GCC diagnostic pop
-                ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
+                    ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
+                }
+
+                // No response happens with test agents for example
+                if (response.s) {
+                    ddog_agent_remote_config_write(dd_agent_config_writer, dd_zend_string_to_CharSlice(response.s));
+                    smart_str_free_ex(&response, true);
+                }
             }
 
-            // No response happens with test agents for example
-            if (response.s) {
-                ddog_agent_remote_config_write(dd_agent_config_writer, dd_zend_string_to_CharSlice(response.s));
-                smart_str_free_ex(&response, true);
-            }
+            break;
         }
 
         _dd_deinit_read_userdata(read_data);

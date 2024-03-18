@@ -46,7 +46,7 @@ static PHP_RINIT_FUNCTION(zai_config) {
 
         int expected_first_rinit = 1;
         if (atomic_compare_exchange_strong(&ext_first_rinit, &expected_first_rinit, 0)) {
-            zai_config_first_time_rinit();
+            zai_config_first_time_rinit(true);
         }
 
         zai_config_rinit();

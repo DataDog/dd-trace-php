@@ -1,5 +1,5 @@
 [workspace]
-members = ["components-rs", "profiling"]
+members = ["components-rs", "components-rs/php_sidecar_mockgen", "profiling"]
 resolver = "2"
 
 [workspace.package]

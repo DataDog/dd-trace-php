@@ -5,7 +5,7 @@ Startup logging is enabled by default
 --FILE--
 <?php
 include_once 'startup_logging.inc';
-$logs = dd_get_startup_logs(['-ddatadog.trace.request_init_hook='], ['DD_TRACE_DEBUG=1']);
+$logs = dd_get_startup_logs(['-ddatadog.trace.request_init_hook='], ['DD_TRACE_DEBUG' => 1]);
 
 // Ignore any Agent connection errors for now
 unset($logs['agent_error']);

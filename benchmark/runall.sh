@@ -8,7 +8,7 @@ if [ "$SCENARIO" = "profiler" ]; then
 
   cargo build --release --features trigger_time_sample
 
-  sirun benches/memory.json > "$ARTIFACTS_DIR/sirun_mem.ndjson"
+  sirun benches/timeline.json > "$ARTIFACTS_DIR/sirun_timeline.ndjson"
 
   sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
 
@@ -25,4 +25,8 @@ elif [ "$SCENARIO" = "tracer" ]; then
   ## OPCache Benchmarks
   make benchmarks_opcache
   cp tests/Benchmarks/reports/tracer-bench-results-opcache.csv "$ARTIFACTS_DIR"
+
+  ## Request Startup/Shutdown Benchmarks
+  make benchmarks_tea
+  cp tea/benchmarks/reports/tea-bench-results.json "$ARTIFACTS_DIR"
 fi

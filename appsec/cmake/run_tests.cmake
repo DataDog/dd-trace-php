@@ -1,10 +1,14 @@
-get_filename_component(DD_APPSEC_TRACER_EXT_FILE "${CMAKE_SOURCE_DIR}/../tmp/build_extension/modules/ddtrace.so" REALPATH)
-
-add_custom_target(ddtrace
-    COMMAND ${CMAKE_COMMAND} -E env "PATH=${PhpConfig_ROOT_DIR}/bin:$ENV{PATH}" PHPRC=
-            make "${DD_APPSEC_TRACER_EXT_FILE}"
-    BYPRODUCTS ${DD_APPSEC_TRACER_EXT_FILE}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../)
+if(DD_APPSEC_DDTRACE_ALT)
+    include(cmake/ddtrace.cmake)
+    set(DD_APPSEC_TRACER_EXT_FILE $<TARGET_FILE:ddtrace>)
+else()
+    get_filename_component(DD_APPSEC_TRACER_EXT_FILE "${CMAKE_SOURCE_DIR}/../tmp/build_extension/modules/ddtrace.so" REALPATH)
+    add_custom_target(ddtrace
+        COMMAND ${CMAKE_COMMAND} -E env "PATH=${PhpConfig_ROOT_DIR}/bin:$ENV{PATH}" PHPRC=
+                make "${DD_APPSEC_TRACER_EXT_FILE}"
+        BYPRODUCTS ${DD_APPSEC_TRACER_EXT_FILE}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../)
+endif()
 
 add_custom_target(xtest-prepare
     COMMAND mkdir -p /tmp/appsec-ext-test)

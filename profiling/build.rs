@@ -39,6 +39,7 @@ fn main() {
         run_time_cache,
         fibers,
         trigger_time_sample,
+        vernum,
     );
 
     cfg_php_major_version(vernum);
@@ -78,6 +79,7 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/config/config_decode.h",
     "../zend_abstract_interface/config/config_ini.h",
     "../zend_abstract_interface/env/env.h",
+    "../zend_abstract_interface/exceptions/exceptions.h",
     "../zend_abstract_interface/json/json.h",
 ];
 
@@ -88,19 +90,29 @@ fn build_zend_php_ffis(
     run_time_cache: bool,
     fibers: bool,
     trigger_time_sample: bool,
+    vernum: u64,
 ) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=src/php_ffi.c");
     println!("cargo:rerun-if-changed=../ext/handlers_api.c");
     println!("cargo:rerun-if-changed=../ext/handlers_api.h");
 
-    // Profiling only needs config and its dependencies.
+    let sandbox = if vernum < 80000 {
+        "../zend_abstract_interface/sandbox/php7/sandbox.c"
+    } else {
+        "../zend_abstract_interface/sandbox/php8/sandbox.c"
+    };
+
+    // Profiling only needs config, exceptions and its dependencies.
     let zai_c_files = [
         "../zend_abstract_interface/config/config_decode.c",
         "../zend_abstract_interface/config/config_ini.c",
         "../zend_abstract_interface/config/config.c",
         "../zend_abstract_interface/config/config_runtime.c",
         "../zend_abstract_interface/env/env.c",
+        "../zend_abstract_interface/exceptions/exceptions.c",
+        "../zend_abstract_interface/symbols/lookup.c",
+        sandbox,
         "../zend_abstract_interface/json/json.c",
         "../zend_abstract_interface/zai_string/string.c",
     ];

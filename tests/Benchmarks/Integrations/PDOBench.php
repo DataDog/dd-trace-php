@@ -25,6 +25,7 @@ class PDOBench
      * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
+     * @Warmup(1)
      */
     public function benchPDOBaseline()
     {
@@ -37,6 +38,7 @@ class PDOBench
      * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
+     * @Warmup(1)
      */
     public function benchPDOOverhead()
     {
@@ -49,6 +51,7 @@ class PDOBench
      * @Iterations(15)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
+     * @Warmup(1)
      */
     public function benchPDOOverheadWithDBM()
     {

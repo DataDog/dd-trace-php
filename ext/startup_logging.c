@@ -3,7 +3,6 @@
 #include <SAPI.h>
 #include <Zend/zend_API.h>
 #include <Zend/zend_smart_str.h>
-#include <curl/curl.h>
 #include <json/json.h>
 #include <php.h>
 #include <stdbool.h>
@@ -11,7 +10,12 @@
 
 #include <ext/standard/info.h>
 
+#ifndef _WIN32
+#include <curl/curl.h>
 #include "coms.h"
+#endif
+
+#include "auto_flush.h"
 #include "configuration.h"
 #include "excluded_modules.h"
 #include "ext/version.h"
@@ -26,7 +30,7 @@ static void _dd_get_time(char *buf) {
     if (tm) {
         strftime(buf, ISO_8601_LEN, "%Y-%m-%dT%TZ", tm);
     } else {
-        LOG(Warn, "Error getting time");
+        LOG(WARN, "Error getting time");
     }
 }
 
@@ -182,6 +186,7 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_string(ht, ZEND_STRL("opcache.file_cache"), _dd_get_ini(ZEND_STRL("opcache.file_cache")));
 }
 
+#ifndef _WIN32
 static size_t _dd_curl_write_noop(void *ptr, size_t size, size_t nmemb, void *userdata) {
     UNUSED(ptr, userdata);
     return size * nmemb;
@@ -221,6 +226,7 @@ static size_t _dd_check_for_agent_error(char *error, bool quick) {
     curl_easy_cleanup(curl);
     return error_len;
 }
+#endif
 
 static bool _dd_file_exists(const char *file) {
     if (!strlen(file)) {
@@ -250,10 +256,12 @@ static void dd_check_for_excluded_module(HashTable *ht, zend_module_entry *modul
  */
 void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
     // Cross-language tracer values
+#ifndef _WIN32
     char agent_error[CURL_ERROR_SIZE];
     if (_dd_check_for_agent_error(agent_error, quick)) {
         _dd_add_assoc_string(ht, ZEND_STRL("agent_error"), agent_error);
     }
+#endif
     //_dd_add_assoc_string(ht, ZEND_STRL("sampling_rules_error"), ""); // TODO Parse at C level
     //_dd_add_assoc_string(ht, ZEND_STRL("service_mapping_error"), ""); // TODO Parse at C level
 
@@ -361,7 +369,7 @@ static void _dd_print_values_to_log(HashTable *ht, void (*log)(const char *forma
 
 // Only show startup logs on the first request
 void ddtrace_startup_logging_first_rinit(void) {
-    LOGEV(Startup, {
+    LOGEV(STARTUP, {
         HashTable *ht;
         ALLOC_HASHTABLE(ht);
         zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);

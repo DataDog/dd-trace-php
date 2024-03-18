@@ -18,20 +18,19 @@
 #include "request_abort.h"
 #include "string_helpers.h"
 #include "tags.h"
-#include "zend_string.h"
-#include "zend_types.h"
 
 #include <SAPI.h>
 #include <Zend/zend_exceptions.h>
 #include <stdio.h>
 
 static void _do_request_finish_php(bool ignore_verdict);
-static zend_array *nullable _do_request_begin(bool user_req);
+static zend_array *nullable _do_request_begin(
+    zval *nullable rbe_zv, bool user_req);
 static void _do_request_begin_php(void);
 static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     zend_array *nonnull superglob_equiv, int status_code,
     zend_array *nullable resp_headers, zend_string *nullable entity);
-static zend_array *nullable _do_request_begin_user_req(void);
+static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv);
 static zend_string *nullable _extract_ip_from_autoglobal(void);
 static zend_string *nullable _get_entity_as_string(zval *rbe_zv);
 static void _set_cur_span(zend_object *nullable span);
@@ -109,21 +108,39 @@ void dd_req_lifecycle_rinit(bool force)
     _do_request_begin_php();
 }
 
-static void _do_request_begin_php() { (void)_do_request_begin(false); }
-
-static zend_array *nullable _do_request_begin_user_req()
+static void _do_request_begin_php()
 {
-    return _do_request_begin(true);
+    zend_string *nonnull req_body =
+        dd_request_body_buffered(get_DD_APPSEC_MAX_BODY_BUFF_SIZE());
+    zval req_body_zv;
+    ZVAL_STR(&req_body_zv, req_body);
+    (void)_do_request_begin(&req_body_zv, false);
 }
 
-static zend_array *nullable _do_request_begin(bool user_req)
+static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv)
+{
+    if (rbe_zv) {
+        Z_TRY_ADDREF_P(rbe_zv);
+    }
+    return _do_request_begin(rbe_zv, true);
+}
+
+static zend_array *nullable _do_request_begin(
+    zval *nullable rbe_zv /* needs free */, bool user_req)
 {
     dd_tags_rinit();
+
+    zend_string *nullable rbe = NULL;
+    if (rbe_zv) {
+        rbe = _get_entity_as_string(rbe_zv);
+        zval_ptr_dtor(rbe_zv);
+    }
 
     struct req_info_init req_info = {
         .req_info.root_span = dd_req_lifecycle_get_cur_span(),
         .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
         .superglob_equiv = _superglob_equiv,
+        .entity = rbe,
     };
 
     // connect/client_init
@@ -132,6 +149,9 @@ static zend_array *nullable _do_request_begin(bool user_req)
     if (conn == NULL) {
         mlog_g(dd_log_debug,
             "No connection; skipping rest of request initialization");
+        if (rbe) {
+            zend_string_release(rbe);
+        }
         return NULL;
     }
 
@@ -146,6 +166,10 @@ static zend_array *nullable _do_request_begin(bool user_req)
             // Since it came as enabled, lets proceed
             res = dd_request_init(conn, &req_info);
         }
+    }
+
+    if (rbe) {
+        zend_string_release(rbe);
     }
 
     // we might have been disabled by request_init
@@ -375,7 +399,7 @@ zend_string *nullable dd_req_lifecycle_get_client_ip()
 
 static zend_array *nullable _start_user_req(
     ddtrace_user_req_listeners *listener, zend_object *span,
-    zend_array *super_global_equiv)
+    zend_array *super_global_equiv, zval *nullable rbe_zv)
 {
     UNUSED(listener);
 
@@ -399,7 +423,7 @@ static zend_array *nullable _start_user_req(
     _set_cur_span(span);
     GC_TRY_ADDREF(super_global_equiv);
     _superglob_equiv = super_global_equiv;
-    return _do_request_begin_user_req();
+    return _do_request_begin_user_req(rbe_zv);
 }
 
 static zend_array *nullable _response_commit(

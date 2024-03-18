@@ -34,13 +34,14 @@
 #define DD_TAG_HTTP_URL "http.url"
 #define DD_TAG_NETWORK_CLIENT_IP "network.client.ip"
 #define DD_PREFIX_TAG_REQUEST_HEADER "http.request.headers."
+#define DD_TAG_HTTP_REQH_CONTENT_TYPE "http.request.headers.content-type"
+#define DD_TAG_HTTP_REQH_CONTENT_LENGTH "http.request.headers.content-length"
 #define DD_TAG_HTTP_RH_CONTENT_LENGTH "http.response.headers.content-length"
 #define DD_TAG_HTTP_RH_CONTENT_TYPE "http.response.headers.content-type"
 #define DD_TAG_HTTP_RH_CONTENT_ENCODING "http.response.headers.content-encoding"
 #define DD_TAG_HTTP_RH_CONTENT_LANGUAGE "http.response.headers.content-language"
 #define DD_TAG_HTTP_CLIENT_IP "http.client_ip"
 #define DD_TAG_USER_ID "usr.id"
-#define DD_MULTIPLE_IP_HEADERS "_dd.multiple-ip-headers"
 #define DD_METRIC_ENABLED "_dd.appsec.enabled"
 #define DD_APPSEC_EVENTS_PREFIX "appsec.events."
 #define DD_SIGNUP_EVENT DD_APPSEC_EVENTS_PREFIX "users.signup"
@@ -78,12 +79,13 @@ static zend_string *_dd_tag_http_status_code_zstr;
 static zend_string *_dd_tag_http_url_zstr;
 static zend_string *_dd_tag_network_client_ip_zstr;
 static zend_string *_dd_tag_http_client_ip_zstr;
+static zend_string *_dd_tag_content_type;
+static zend_string *_dd_tag_content_length;
 static zend_string *_dd_tag_rh_content_length;   // response
 static zend_string *_dd_tag_rh_content_type;     // response
 static zend_string *_dd_tag_rh_content_encoding; // response
 static zend_string *_dd_tag_rh_content_language; // response
 static zend_string *_dd_tag_user_id;
-static zend_string *_dd_multiple_ip_headers;
 static zend_string *_dd_metric_enabled;
 static zend_string *_dd_signup_event;
 static zend_string *_dd_login_success_event;
@@ -108,8 +110,8 @@ static zend_string *_usr_exists_zstr;
 static zend_string *_uuid_zstr;
 static zend_string *_id_zstr;
 static zend_string *_server_zstr;
-static HashTable _relevant_headers;
-static HashTable _relevant_ip_headers;
+static HashTable _relevant_headers;       // headers for requests with attacks
+static HashTable _relevant_basic_headers; // headers for all requests
 static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
@@ -152,6 +154,10 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_NETWORK_CLIENT_IP), 1);
     _dd_tag_http_client_ip_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_CLIENT_IP), 1);
+    _dd_tag_content_type =
+        zend_string_init_interned(LSTRARG(DD_TAG_HTTP_REQH_CONTENT_TYPE), 1);
+    _dd_tag_content_length =
+        zend_string_init_interned(LSTRARG(DD_TAG_HTTP_REQH_CONTENT_LENGTH), 1);
 
     _dd_tag_rh_content_length =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LENGTH), 1);
@@ -163,8 +169,6 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LANGUAGE), 1);
     _dd_tag_user_id = zend_string_init_interned(LSTRARG(DD_TAG_USER_ID), 1);
 
-    _dd_multiple_ip_headers =
-        zend_string_init_interned(LSTRARG(DD_MULTIPLE_IP_HEADERS), 1);
     _dd_metric_enabled =
         zend_string_init_interned(LSTRARG(DD_METRIC_ENABLED), 1);
 
@@ -228,35 +232,30 @@ void dd_tags_startup()
 static void _init_relevant_headers()
 {
     zend_hash_init(&_relevant_headers, 32, NULL, NULL, 1);
-    zend_hash_init(&_relevant_ip_headers, 32, NULL, NULL, 1);
+    zend_hash_init(&_relevant_basic_headers, 32, NULL, NULL, 1);
     zval nullzv;
     ZVAL_NULL(&nullzv);
 #define ADD_RELEVANT_HEADER(str)                                               \
     zend_hash_str_add_new(&_relevant_headers, str "", sizeof(str) - 1, &nullzv);
-#define ADD_RELEVANT_IP_HEADER(str)                                            \
+#define ADD_RELEVANT_BASIC_HEADER(str)                                         \
     zend_hash_str_add_new(                                                     \
-        &_relevant_ip_headers, str "", sizeof(str) - 1, &nullzv);
+        &_relevant_basic_headers, str "", sizeof(str) - 1, &nullzv);           \
+    ADD_RELEVANT_HEADER(str)
 
-    ADD_RELEVANT_IP_HEADER("x-forwarded-for");
-    ADD_RELEVANT_IP_HEADER("x-real-ip");
-    ADD_RELEVANT_IP_HEADER("client-ip");
-    ADD_RELEVANT_IP_HEADER("x-forwarded");
-    ADD_RELEVANT_IP_HEADER("x-cluster-client-ip");
-    ADD_RELEVANT_IP_HEADER("forwarded-for");
-    ADD_RELEVANT_IP_HEADER("forwarded");
-    ADD_RELEVANT_IP_HEADER("true-client-ip");
-    ADD_RELEVANT_IP_HEADER("via");
+    ADD_RELEVANT_BASIC_HEADER("x-amzn-trace-id");
 
     ADD_RELEVANT_HEADER("x-forwarded-for");
     ADD_RELEVANT_HEADER("x-client-ip");
     ADD_RELEVANT_HEADER("x-real-ip");
-    ADD_RELEVANT_HEADER("client-ip");
     ADD_RELEVANT_HEADER("x-forwarded");
     ADD_RELEVANT_HEADER("x-cluster-client-ip");
     ADD_RELEVANT_HEADER("forwarded-for");
     ADD_RELEVANT_HEADER("forwarded");
-    ADD_RELEVANT_HEADER("true-client-ip");
     ADD_RELEVANT_HEADER("via");
+    ADD_RELEVANT_HEADER("true-client-ip");
+    ADD_RELEVANT_HEADER("fastly-client-ip");
+    ADD_RELEVANT_HEADER("cf-connecting-ip");
+    ADD_RELEVANT_HEADER("cf-connecting-ipv6");
     ADD_RELEVANT_HEADER("content-length");
     ADD_RELEVANT_HEADER("content-type");
     ADD_RELEVANT_HEADER("content-encoding");
@@ -278,8 +277,8 @@ void dd_tags_shutdown()
     zend_hash_destroy(&_relevant_headers);
     _relevant_headers = (HashTable){0};
 
-    zend_hash_destroy(&_relevant_ip_headers);
-    _relevant_ip_headers = (HashTable){0};
+    zend_hash_destroy(&_relevant_basic_headers);
+    _relevant_basic_headers = (HashTable){0};
 }
 
 void dd_tags_rinit()
@@ -484,7 +483,7 @@ static void _add_basic_tags_to_meta(
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     _dd_http_client_ip(meta_ht);
-    _dd_request_headers(meta_ht, _server, &_relevant_ip_headers);
+    _dd_request_headers(meta_ht, _server, &_relevant_basic_headers);
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -646,14 +645,26 @@ static void _dd_http_network_client_ip(
 
 static void _dd_http_client_ip(zend_array *meta_ht)
 {
-    if (zend_hash_exists(meta_ht, _dd_tag_http_client_ip_zstr) ||
-        zend_hash_exists(meta_ht, _dd_multiple_ip_headers)) {
+    if (zend_hash_exists(meta_ht, _dd_tag_http_client_ip_zstr)) {
         return;
     }
     zend_string *client_ip = dd_req_lifecycle_get_client_ip();
     if (client_ip) {
         _add_new_zstr_to_meta(
             meta_ht, _dd_tag_http_client_ip_zstr, client_ip, true, false);
+    }
+}
+
+static void _try_add_tag(zend_array *meta_ht, zend_string *tag_name, zval *val)
+{
+
+    Z_TRY_ADDREF_P(val);
+    bool added = zend_hash_add(meta_ht, tag_name, val) != NULL;
+    if (added) {
+        mlog(dd_log_debug, "Adding request header tag '%s' -> '%s",
+            ZSTR_VAL(tag_name), ZSTR_VAL(Z_STR_P(val)));
+    } else {
+        zval_delref_p(val);
     }
 }
 
@@ -673,6 +684,12 @@ static void _dd_request_headers(
 
         if (Z_TYPE_P(val) != IS_STRING) {
             continue;
+        }
+
+        if (zend_string_equals_literal(key, "CONTENT_TYPE")) {
+            _try_add_tag(meta_ht, _dd_tag_content_type, val);
+        } else if (zend_string_equals_literal(key, "CONTENT_LENGTH")) {
+            _try_add_tag(meta_ht, _dd_tag_content_length, val);
         }
 
         if (ZSTR_LEN(key) <= LSTRLEN("HTTP_") ||
@@ -698,14 +715,7 @@ static void _dd_request_headers(
             continue;
         }
 
-        Z_TRY_ADDREF_P(val);
-        bool added = zend_hash_add(meta_ht, tag_name, val) != NULL;
-        if (added) {
-            mlog(dd_log_debug, "Adding request header tag '%s' -> '%s",
-                ZSTR_VAL(tag_name), ZSTR_VAL(Z_STR_P(val)));
-        } else {
-            zval_delref_p(val);
-        }
+        _try_add_tag(meta_ht, tag_name, val);
         zend_string_release(tag_name);
     }
     ZEND_HASH_FOREACH_END();

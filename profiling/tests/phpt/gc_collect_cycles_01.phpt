@@ -10,7 +10,7 @@ if (!extension_loaded('datadog-profiling'))
 ob_start();
 phpinfo(INFO_MODULES);
 $info = ob_get_clean();
-if (strpos($info, 'Experimental Timeline Enabled') === false)
+if (strpos($info, 'Timeline Enabled') === false)
     echo "skip: datadog profiler is compiled without timeline support\n";
 ?>
 --ENV--

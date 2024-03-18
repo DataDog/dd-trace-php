@@ -61,31 +61,52 @@ struct _php_json_parser {
     php_json_parser_methods methods;
 };
 
-#if PHP_VERSION_ID >= 70100
-void (*zai_json_parser_init)(php_json_parser *parser, zval *return_value, const char *str, size_t str_len, int options, int max_depth);
-int (*zai_json_parse)(php_json_parser *parser);
-
-__attribute__((weak)) void php_json_parser_init(php_json_parser *parser, zval *return_value, const char *str, size_t str_len, int options, int max_depth);
-__attribute__((weak)) int php_json_parse(php_json_parser *parser);
-#endif
-
 #if PHP_VERSION_ID < 70100
-void (*zai_json_encode)(smart_str *buf, zval *val, int options TSRMLS_DC);
-void (*zai_json_decode_ex)(zval *return_value, char *str, int str_len, int options, long depth TSRMLS_DC);
+#define zai_json_encode_signature(name) void name(smart_str *buf, zval *val, int options)
+#define zai_json_decode_ex_signature(name) void name(zval *return_value, char *str, int str_len, int options, long depth)
 
-__attribute__((weak)) void php_json_encode(smart_str *buf, zval *val, int options TSRMLS_DC);
-__attribute__((weak)) void php_json_decode_ex(zval *return_value, char *str, int str_len, int options,
-                                              long depth TSRMLS_DC);
-#elif PHP_VERSION_ID < 80000
-int (*zai_json_encode)(smart_str *buf, zval *val, int options);
-
-__attribute__((weak)) int php_json_encode(smart_str *buf, zval *val, int options);
+zai_json_decode_ex_signature((*zai_json_decode_ex));
+#ifndef _WIN32
+__attribute__((weak)) zai_json_decode_ex_signature(php_json_decode_ex);
 #else
-int (*zai_json_encode)(smart_str *buf, zval *val, int options);
-
-__attribute__((weak)) int php_json_encode(smart_str *buf, zval *val, int options);
+extern zai_json_decode_ex_signature(php_json_decode_ex);
+#pragma comment(linker, "/alternatename:php_json_decode_ex=_php_json_decode_ex")
+zai_json_decode_ex_signature((*_php_json_decode_ex)) = NULL;
 #endif
-#ifndef __APPLE__
+#else
+#define zai_json_encode_signature(name) int name(smart_str *buf, zval *val, int options)
+#define zai_json_parser_init_signature(name) void name(php_json_parser *parser, zval *return_value, const char *str, size_t str_len, int options, int max_depth)
+#define zai_json_parse_signature(name) int name(php_json_parser *parser)
+
+zai_json_parser_init_signature((*zai_json_parser_init));
+zai_json_parse_signature((*zai_json_parse));
+#ifndef _WIN32
+__attribute__((weak)) zai_json_parser_init_signature(php_json_parser_init);
+__attribute__((weak)) zai_json_parse_signature(php_json_parse);
+#else
+extern zai_json_parser_init_signature(php_json_parser_init);
+#pragma comment(linker, "/alternatename:php_json_parser_init=_php_json_parser_init")
+zai_json_parser_init_signature((*_php_json_parser_init)) = NULL;
+
+extern zai_json_parse_signature(php_json_parse);
+#pragma comment(linker, "/alternatename:php_json_parse=_php_json_parse")
+zai_json_parse_signature((*_php_json_parse)) = NULL;
+#endif
+#endif
+
+zai_json_encode_signature((*zai_json_encode));
+#ifndef _WIN32
+__attribute__((weak)) zai_json_encode_signature(php_json_encode);
+#else
+extern zai_json_encode_signature(php_json_encode);
+#pragma comment(linker, "/alternatename:php_json_encode=_php_json_encode")
+zai_json_encode_signature((*_php_json_encode)) = NULL;
+
+extern zend_class_entry *_php_json_serializable_ce = NULL;
+#pragma comment(linker, "/alternatename:php_json_serializable_ce=_php_json_serializable_ce")
+#endif
+
+#if !defined(_WIN32) && !defined(__APPLE__)
 __attribute__((weak)) zend_class_entry *php_json_serializable_ce;
 #endif
 
@@ -105,35 +126,44 @@ bool zai_json_setup_bindings(void) {
 
     zend_module_entry *json_me = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("json"));
 
-    if (!json_me) return false;
+    void *handle = NULL;
+    if (json_me && json_me->handle) {
+        handle = json_me->handle;
+#ifdef _WIN32
+    } else {
+        // some well known function
+        // We need the php.dll, not the php.exe,
+        GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCTSTR)php_write, (HMODULE *)&handle);
+#endif
+    }
 
     zai_json_dynamic_bindings = true;
 
-    zai_json_encode = DL_FETCH_SYMBOL(json_me->handle, "php_json_encode");
+    zai_json_encode = (zai_json_encode_signature((*))) DL_FETCH_SYMBOL(handle, "php_json_encode");
     if (zai_json_encode == NULL) {
-        zai_json_encode = DL_FETCH_SYMBOL(json_me->handle, "_php_json_encode");
+        zai_json_encode = (zai_json_encode_signature((*))) DL_FETCH_SYMBOL(handle, "_php_json_encode");
     }
 
 #if PHP_VERSION_ID < 70100
-    zai_json_decode_ex = DL_FETCH_SYMBOL(json_me->handle, "php_json_decode_ex");
+    zai_json_decode_ex = (zai_json_decode_ex_signature((*))) DL_FETCH_SYMBOL(handle, "php_json_decode_ex");
     if (zai_json_decode_ex == NULL) {
-        zai_json_decode_ex = DL_FETCH_SYMBOL(json_me->handle, "_php_json_decode_ex");
+        zai_json_decode_ex = (zai_json_decode_ex_signature((*))) DL_FETCH_SYMBOL(handle, "_php_json_decode_ex");
     }
 #else
-    zai_json_parse = DL_FETCH_SYMBOL(json_me->handle, "php_json_parse");
+    zai_json_parse = (zai_json_parse_signature((*))) DL_FETCH_SYMBOL(handle, "php_json_parse");
     if (zai_json_parse == NULL) {
-        zai_json_parse = DL_FETCH_SYMBOL(json_me->handle, "_php_json_parse");
+        zai_json_parse = (zai_json_parse_signature((*))) DL_FETCH_SYMBOL(handle, "_php_json_parse");
     }
 
-    zai_json_parser_init = DL_FETCH_SYMBOL(json_me->handle, "php_json_parser_init");
+    zai_json_parser_init = (zai_json_parser_init_signature((*))) DL_FETCH_SYMBOL(handle, "php_json_parser_init");
     if (zai_json_parser_init == NULL) {
-        zai_json_parser_init = DL_FETCH_SYMBOL(json_me->handle, "_php_json_parser_init");
+        zai_json_parser_init = (zai_json_parser_init_signature((*))) DL_FETCH_SYMBOL(handle, "_php_json_parser_init");
     }
 #endif
 
-    zend_class_entry **tmp_json_serializable_ce = (zend_class_entry **)DL_FETCH_SYMBOL(json_me->handle, "php_json_serializable_ce");
+    zend_class_entry **tmp_json_serializable_ce = (zend_class_entry **) DL_FETCH_SYMBOL(handle, "php_json_serializable_ce");
     if (tmp_json_serializable_ce == NULL) {
-        tmp_json_serializable_ce = (zend_class_entry **)DL_FETCH_SYMBOL(json_me->handle, "_php_json_serializable_ce");
+        tmp_json_serializable_ce = (zend_class_entry **) DL_FETCH_SYMBOL(handle, "_php_json_serializable_ce");
     }
     if (tmp_json_serializable_ce != NULL) {
         php_json_serializable_ce = *tmp_json_serializable_ce;
@@ -150,10 +180,11 @@ void zai_json_shutdown_bindings(void) {
 }
 
 void zai_json_release_persistent_array(HashTable *ht) {
+    uint32_t immutable = (GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) != 0;
 #if PHP_VERSION_ID < 70300
-    if (--GC_REFCOUNT(ht) == 0)
+    if (--GC_REFCOUNT(ht) == immutable)
 #else
-    if (GC_DELREF(ht) == 0)
+    if (GC_DELREF(ht) == immutable)
 #endif
     {
         zend_hash_destroy(ht);
@@ -164,7 +195,20 @@ void zai_json_release_persistent_array(HashTable *ht) {
 void zai_json_dtor_pzval(zval *pval) {
     if (Z_TYPE_P(pval) == IS_ARRAY) {
         zai_json_release_persistent_array(Z_ARR_P(pval));
+#if PHP_VERSION_ID >= 70400
+    } else if (Z_TYPE_P(pval) == IS_STRING && ZSTR_IS_INTERNED(Z_STR_P(pval))) {
+        // nothing
+#endif
     } else {
+#if PHP_VERSION_ID >= 70200 && PHP_VERSION_ID < 70400
+        if (Z_TYPE_P(pval) == IS_STRING && ZSTR_IS_INTERNED(Z_STR_P(pval)) && !zend_interned_string_find_permanent(Z_STR_P(pval))) {
+#if PHP_VERSION_ID >= 70300
+            GC_DEL_FLAGS(Z_STR_P(pval), IS_STR_INTERNED);
+#else
+            GC_FLAGS(Z_STR_P(pval)) &= ~IS_STR_INTERNED;
+#endif
+        }
+#endif
         zval_internal_ptr_dtor(pval);
     }
     // Prevent an accidental use after free

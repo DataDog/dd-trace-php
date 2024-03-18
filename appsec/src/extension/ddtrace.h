@@ -63,7 +63,7 @@ struct _ddtrace_user_req_listeners {
     int priority;
     zend_array *nullable (*nonnull start_user_req)(
         ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span,
-        zend_array *nonnull variables);
+        zend_array *nonnull variables, zval *nullable rbe_zv);
     zend_array *nullable(*nonnull response_committed)(
         ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span,
         int status, zend_array *nonnull headers, zval *nullable entity);
@@ -76,3 +76,5 @@ struct _ddtrace_user_req_listeners {
 };
 bool dd_trace_user_req_add_listeners(
     ddtrace_user_req_listeners *nonnull listeners);
+
+zend_string *nullable dd_ip_extraction_find(zval *nonnull server);

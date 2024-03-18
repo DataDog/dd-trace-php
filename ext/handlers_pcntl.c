@@ -3,7 +3,9 @@
 
 #include <components-rs/ddtrace.h>
 
+#ifndef _WIN32
 #include "coms.h"
+#endif
 #include "ddtrace.h"
 #include "span.h"
 #include "configuration.h"
@@ -13,21 +15,23 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static void (*dd_pcntl_fork_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+static zif_handler dd_pcntl_fork_handler = NULL;
 #if PHP_VERSION_ID >= 80100
-static void (*dd_pcntl_rfork_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+static zif_handler dd_pcntl_rfork_handler = NULL;
 #endif
 #if PHP_VERSION_ID >= 80200
-static void (*dd_pcntl_forkx_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+static zif_handler dd_pcntl_forkx_handler = NULL;
 #endif
 
 static void dd_handle_fork(zval *return_value) {
     if (Z_LVAL_P(return_value) == 0) {
         // CHILD PROCESS
+#ifndef _WIN32
         if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             ddtrace_coms_curl_shutdown();
             ddtrace_coms_clean_background_sender_after_fork();
         }
+#endif
         if (DDTRACE_G(remote_config_reader)) {
             ddog_agent_remote_config_reader_drop(DDTRACE_G(remote_config_reader));
             DDTRACE_G(remote_config_reader) = NULL;
@@ -53,6 +57,7 @@ static void dd_handle_fork(zval *return_value) {
             }
         }
 
+#ifndef _WIN32
         if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             ddtrace_coms_init_and_start_writer();
 
@@ -60,6 +65,7 @@ static void dd_handle_fork(zval *return_value) {
                 ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(remote_config_reader));
             }
         }
+#endif
     }
 }
 

@@ -72,4 +72,5 @@ fi
 
 mkdir -p extensions
 
-cp "$sofile" "extensions/ddtrace-${PHP_API}-alpine.so"
+zts=$(php -v | grep -q NTS || echo -zts)
+cp "$sofile" "extensions/ddtrace-${PHP_API}-alpine$zts.so"

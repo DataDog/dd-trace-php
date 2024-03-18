@@ -9,14 +9,17 @@ path = "lib.rs"
 
 [dependencies]
 ddcommon = { path = "../libdatadog/ddcommon" }
-ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi" }
+ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi", default-features = false }
 ddtelemetry = { path = "../libdatadog/ddtelemetry" }
-ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi" }
+ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
 datadog-sidecar = { path = "../libdatadog/sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/sidecar-ffi" }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
-bitflags = "2.3.3"
-json = "0.12.4"
+anyhow = { version = "1.0" }
+const-str = "0.5.6"
+serde = "1.0.196"
+simd-json = "0.13.8"
+serde_with = "3.6.0"
 lazy_static = "1.4"
 log = "0.4.20"
 env_logger = "0.10.1"
@@ -32,6 +35,4 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 ] }
 
 [build-dependencies]
-cbindgen = "0.24"
-cc_utils = { path = "../libdatadog/tools/cc_utils" }
-sidecar_mockgen = { path = "../libdatadog/tools/sidecar_mockgen" }
+cbindgen = "0.26"

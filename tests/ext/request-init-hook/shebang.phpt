@@ -1,7 +1,7 @@
 --TEST--
 Shebang should not affect line numbers
 --INI--
-ddtrace.request_init_hook={PWD}/../includes/request_init_hook.inc
+ddtrace.request_init_hook="{PWD}/../includes/request_init_hook.inc"
 --FILE--
 #!php
 <?php
