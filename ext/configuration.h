@@ -124,6 +124,9 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE, "false")                                                \
     CONFIG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                                                \
     CONFIG(BOOL, DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST, "false")                                                 \
+    CONFIG(BOOL, DD_EXCEPTION_DEBUGGING_ENABLED, "true")                                                 \
+    CONFIG(BOOL, DD_EXCEPTION_DEBUGGING_CAPTURE_FULL_CALLSTACK, "true")                                                 \
+    CONFIG(INT, DD_EXCEPTION_DEBUGGING_MAX_FRAMES_TO_CAPTURE, "0")                                                 \
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                  \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                            \
     CONFIG(BOOL, DD_TRACE_FLUSH_COLLECT_CYCLES, "false")                                                       \

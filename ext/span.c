@@ -17,6 +17,7 @@
 #include <hook/hook.h>
 #include "user_request.h"
 #include "zend_types.h"
+#include "sidecar.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -713,6 +714,8 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 
 void ddtrace_serialize_closed_spans(zval *serialized) {
     if (DDTRACE_G(top_closed_stack)) {
+        memset(&DDTRACE_G(exception_debugger_buffer), 0, sizeof(DDTRACE_G(exception_debugger_buffer)));
+
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
         DDTRACE_G(top_closed_stack) = NULL;
         do {
@@ -745,6 +748,12 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                 }
             } while (stack);
         } while (rootstack);
+
+        ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(exception_debugger_buffer));
+        if (DDTRACE_G(exception_debugger_arena)) {
+            zend_arena_destroy(DDTRACE_G(exception_debugger_arena));
+            DDTRACE_G(exception_debugger_arena) = NULL;
+        }
     }
 
     // Reset closed span counter for limit-refresh, don't touch open spans
