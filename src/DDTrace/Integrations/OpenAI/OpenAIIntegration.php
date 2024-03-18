@@ -73,6 +73,12 @@ class OpenAIIntegration extends Integration
         return \substr($apiKey, 0, 3) . '...' . \substr($apiKey, -4);
     }
 
+    public static function shouldSample(float $rate): bool
+    {
+        $random = \mt_rand() / \mt_getrandmax();
+        return $random <= $rate;
+    }
+
     /**
      * Add instrumentation to OpenAI API Requests
      */
@@ -407,7 +413,9 @@ class OpenAIIntegration extends Integration
         }
 
         // createChatCompletion, createCompletion, createImage, createImageEdit, createTranscription, createTranslation
-        if (array_key_exists('prompt', $payload)) {
+        if (array_key_exists('prompt', $payload)
+            && OpenAIIntegration::shouldSample(\dd_trace_env_config('DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE'))
+        ) {
             $prompt = $payload['prompt'];
             if (\is_string($prompt)) {
                 $span->meta["openai.request.prompt"] = OpenAIIntegration::normalizeStringOrTokenArray($prompt);
@@ -613,7 +621,7 @@ class OpenAIIntegration extends Integration
         $tags = [
             'env' => \dd_trace_env_config('DD_ENV'),
             'version' => \dd_trace_env_config('DD_VERSION'),
-            'service' => \dd_trace_env_config('DD_SERVICE') ?? $span->service,
+            'service' => \dd_trace_env_config('DD_OPENAI_SERVICE') ??  \dd_trace_env_config('DD_SERVICE') ?? $span->service,
             'openai.request.method' => $span->meta['openai.request.method'] ?? null,
             'openai.request.endpoint' => $span->meta['openai.request.endpoint'] ?? null,
             'openai.request.model' => $span->meta['openai.request.model'] ?? null,
@@ -674,8 +682,17 @@ class OpenAIIntegration extends Integration
         bool     $error = false
     )
     {
+        if (!(dd_trace_env_config('DD_OPENAI_LOGS_ENABLED')
+            && OpenAIIntegration::shouldSample(\dd_trace_env_config('DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE')))
+        ) {
+            return;
+        }
+
         $sampling = \DDTrace\get_priority_sampling();
-        if ($sampling === DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT || $sampling === DD_TRACE_PRIORITY_SAMPLING_USER_REJECT) {
+        if ($sampling === DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT
+            || $sampling === DD_TRACE_PRIORITY_SAMPLING_USER_REJECT
+            || floatval($span->id) > OpenAIIntegration::SAMPLING_THRESHOLD // 10% of 2^64, knowing that all span IDs are 64-bit unsigned integers
+        ) {
             return;
         }
 
@@ -699,9 +716,13 @@ class OpenAIIntegration extends Integration
         int       $duration,
     )
     {
+        if (!dd_trace_env_config('DD_OPENAI_METRICS_ENABLED')) {
+            return;
+        }
+
         $tags = [
             'env' => \dd_trace_env_config('DD_ENV'),
-            'service' => \dd_trace_env_config('DD_SERVICE') ?? $span->service,
+            'service' => \dd_trace_env_config('DD_OPENAI_SERVICE') ?? \dd_trace_env_config('DD_SERVICE') ?? $span->service,
             'version' => \dd_trace_env_config('DD_VERSION'),
             'openai.request.model' => $span->meta['openai.request.model'] ?? null,
             'model' => $span->meta['openai.request.model'] ?? null,
@@ -1075,7 +1096,7 @@ class OpenAIIntegration extends Integration
             $input = \json_encode($input);
         }
 
-        $spanCharLimit = 128;//\dd_trace_env_config('DD_OPENAI_SPAN_CHAR_LIMIT');
+        $spanCharLimit = \dd_trace_env_config('DD_OPENAI_SPAN_CHAR_LIMIT');
         if (\strlen($input) > $spanCharLimit) {
             return \substr($input, 0, $spanCharLimit) . '...';
         }
