@@ -32,7 +32,7 @@ extern bool runtime_config_first_init;
 // clang-format off
 #define DD_CONFIGURATION \
     CONFIG(BOOL, DD_APPSEC_ENABLED, "false")                                                                                          \
-    SYSCFG(BOOL, DD_APPSEC_CLI_START_ON_RINIT, "false")                                                                                          \
+    SYSCFG(BOOL, DD_APPSEC_CLI_START_ON_RINIT, "false")                                                                               \
     SYSCFG(STRING, DD_APPSEC_RULES, "")                                                                                               \
     SYSCFG(CUSTOM(uint64_t), DD_APPSEC_WAF_TIMEOUT, "10000", .parser = _parse_uint64)                                                 \
     SYSCFG(CUSTOM(uint32_t), DD_APPSEC_TRACE_RATE_LIMIT, "100", .parser = _parse_uint32)                                              \
@@ -50,7 +50,7 @@ extern bool runtime_config_first_init;
     SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                                            \
     CONFIG(CUSTOM(SET), DD_EXTRA_SERVICES, "", .parser = _parse_list)                                                                 \
     CONFIG(STRING, DD_APPSEC_HELPER_EXTRA_ARGS, "")                                                                                   \
-    CONFIG(STRING, DD_SERVICE, "")                                                                       \
+    CONFIG(STRING, DD_SERVICE, "")                                                                                                    \
     CONFIG(STRING, DD_ENV, "")                                                                                                        \
     CONFIG(STRING, DD_VERSION, "")                                                                                                    \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true")                                                                                    \
