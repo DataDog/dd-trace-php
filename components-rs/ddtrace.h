@@ -160,11 +160,11 @@ void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_SidecarActionsBuff
 void ddog_sidecar_telemetry_register_metric_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                    ddog_CharSlice metric_name);
 
-void ddog_sidecar_telemetry_add_point_buffer(struct ddog_SidecarActionsBuffer *buffer,
-                                             ddog_CharSlice metric_name,
-                                             double metric_value,
-                                             ddog_CharSlice integration_name
-                                             );
+void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                                         ddog_CharSlice metric_name,
+                                                         double metric_value,
+                                                         ddog_CharSlice integration_name
+                                                         );
 
 void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                  ddog_CharSlice dependency_name,

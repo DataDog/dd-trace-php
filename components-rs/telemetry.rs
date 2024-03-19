@@ -146,7 +146,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_sidecar_telemetry_add_point_buffer(
+pub unsafe extern "C" fn ddog_sidecar_telemetry_add_span_metric_point_buffer(
     buffer: &mut SidecarActionsBuffer,
     metric_name: CharSlice,
     metric_value: f64,
