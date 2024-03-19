@@ -1,10 +1,11 @@
 use datadog_sidecar::interface::blocking::SidecarTransport;
-use datadog_sidecar::interface::{blocking, InstanceId, MetricDefinition, QueueId, SidecarAction};
+use datadog_sidecar::interface::{blocking, InstanceId, QueueId, SidecarAction};
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::CharSlice;
 use ddcommon::tag::Tag;
 use ddtelemetry::data;
 use ddtelemetry::data::{Dependency, Integration};
+use ddtelemetry::metrics::MetricContext;
 use ddtelemetry::worker::TelemetryActions;
 use ddtelemetry_ffi::{try_c, MaybeError};
 use std::error::Error;
@@ -133,11 +134,14 @@ pub extern "C" fn ddog_sidecar_telemetry_buffer_flush(
 pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
     buffer: &mut SidecarActionsBuffer,
     metric_name: CharSlice,
-    // FIXME: missing type (count, gauge, ...), namespace, ...
 ) {
 
-    buffer.buffer.push(SidecarAction::RegisterTelemetryMetric(MetricDefinition {
-        name: metric_name.to_utf8_lossy().into_owned()
+    buffer.buffer.push(SidecarAction::RegisterTelemetryMetric(MetricContext {
+        name: metric_name.to_utf8_lossy().into_owned(),
+        namespace: data::metrics::MetricNamespace::Tracers,
+        metric_type: data::metrics::MetricType::Count,
+        tags: Vec::default(),
+        common: false,
     }));
 }
 
@@ -145,7 +149,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
 pub unsafe extern "C" fn ddog_sidecar_telemetry_add_point_buffer(
     buffer: &mut SidecarActionsBuffer,
     metric_name: CharSlice,
-    metric_value: u32, // FIXME: should be f64
+    metric_value: f64,
     integration_name: CharSlice,
 ) {
     let mut tags: Vec<Tag> = Vec::default();
@@ -155,7 +159,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_point_buffer(
 
     buffer.buffer.push(SidecarAction::AddTelemetryMetricPoint((
         metric_name.to_utf8_lossy().into_owned(),
-        metric_value as f64,
+        metric_value,
         tags,
     )));
 }
