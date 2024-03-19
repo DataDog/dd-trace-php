@@ -52,3 +52,5 @@ if [[ -n $XDEBUG ]]; then
     echo xdebug.remote_log = /tmp/logs/xdebug.log
   } >> /etc/php/php.ini
 fi
+
+cat /etc/php/php.ini
