@@ -646,7 +646,7 @@ final class InteroperabilityTest extends BaseTestCase
             $OTelRootSpan->end();
 
             $this->assertSame("00-ff0000000000051791e0000000000041-$DDChildSpanId-01", $carrier[TraceContextPropagator::TRACEPARENT]);
-            $this->assertSame('dd=t.dm:-0', $carrier[TraceContextPropagator::TRACESTATE]); // ff00000000000517 is the high 64-bit part of the 128-bit trace id
+            $this->assertSame("dd=p:$DDChildSpanId;t.dm:-0", $carrier[TraceContextPropagator::TRACESTATE]); // ff00000000000517 is the high 64-bit part of the 128-bit trace id
         });
 
         $this->assertSame('10511401530282737729', $traces[0][0]['trace_id']);

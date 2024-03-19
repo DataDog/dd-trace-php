@@ -9,7 +9,7 @@ ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_GENERATE_ROOT_SPAN=0
 HTTP_TRACEPARENT=00-12345678901234567890123456789012-6543210987654321-01
-HTTP_TRACESTATE=foo=bar:;=,dd=o:phpt-test;unknown1:val;t.test:qvalue;s:2;unknown2:1,baz=qux
+HTTP_TRACESTATE=foo=bar:;=,dd=o:phpt-test;p:0123456789abcdef;unknown1:val;t.test:qvalue;s:2;unknown2:1,baz=qux
 DD_PROPAGATION_STYLE_INJECT=B3 single header,tracecontext
 --FILE--
 <?php
@@ -45,7 +45,7 @@ echo 'Done.' . PHP_EOL;
 --EXPECTF--
 b3: 12345678901234567890123456789012-6543210987654321-d
 traceparent: 00-12345678901234567890123456789012-6543210987654321-01
-tracestate: dd=o:phpt-test;s:2;t.test:qvalue;t.dm:-0;unknown1:val;unknown2:1,foo=bar:;=,baz=qux
+tracestate: dd=p:0123456789abcdef;o:phpt-test;s:2;t.test:qvalue;t.dm:-0;unknown1:val;unknown2:1,foo=bar:;=,baz=qux
 x-datadog-origin: phpt-test
 x-datadog-tags: _dd.p.tid=1234567890123456,_dd.p.test=qvalue,_dd.p.dm=-0
 bool(false)
