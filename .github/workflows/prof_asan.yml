@@ -9,7 +9,7 @@ jobs:
     container:
       image: datadog/dd-trace-ci:php-8.3_bookworm-1
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
-      options: --user root
+      options: --user root --privileged
 
     steps:
       - name: Checkout
@@ -53,6 +53,13 @@ jobs:
             ~/.cargo/git/db/
             /tmp/build-cargo/
           key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Fix kernel mmap rnd bits
+        # Asan in llvm 14 provided in ubuntu 22.04 is incompatible with
+        # high-entropy ASLR in much newer kernels that GitHub runners are
+        # using leading to random crashes: https://reviews.llvm.org/D148280
+        # https://github.com/actions/runner-images/issues/9491#issuecomment-1989718917
+        run: sysctl vm.mmap_rnd_bits=28
 
       - name: Run phpt tests
         run: |
