@@ -18,7 +18,7 @@ typedef struct ddtrace_coms_state_t {
     // This is the current stack where new incoming payloads are written to.
     _Atomic(ddtrace_coms_stack_t *) current_stack;
     ddtrace_coms_stack_t *tmp_stack;
-    /* An array of `DDTRACE_COMS_STACKS_BACKLOG_SIZE` stacks. Different stacks can have different size.
+    /* An array of `DD_TRACE_AGENT_MAX_BACKLOG_SIZE` stacks. Different stacks can have different size.
      * Stacks that are accessed through this array are not for write. They are either empty, if their content has been
      * sent and the stack is ready to be reused, or filled with data ready to be sent at the next writer iteration.
      */

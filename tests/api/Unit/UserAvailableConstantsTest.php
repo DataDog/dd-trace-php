@@ -62,7 +62,6 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Format::BINARY, 'binary'],
             [Format::TEXT_MAP, 'text_map'],
             [Format::HTTP_HEADERS, 'http_headers'],
-            [Format::CURL_HTTP_HEADERS, 'curl_http_headers'],
         ];
     }
 

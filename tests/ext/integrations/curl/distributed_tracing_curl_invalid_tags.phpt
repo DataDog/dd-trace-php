@@ -6,7 +6,7 @@ Distributed tracing headers contain properly escaped values
 <?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: The request-replayer used on Windows is sanitizing a bit too much'); ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
-DD_PROPAGATION_STYLE_INJECT=B3 single header,tracecontext
+DD_TRACE_PROPAGATION_STYLE_INJECT=B3 single header,tracecontext
 DD_TRACE_DEBUG_PRNG_SEED=1000
 --FILE--
 <?php

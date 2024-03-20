@@ -189,7 +189,6 @@ final class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'redis', 'SET foo value')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge([], $this->baseTags(), [
                     'redis.raw_command' => 'SET foo value',
                     'redis.args_length' => '3',
@@ -209,7 +208,6 @@ final class PredisTest extends IntegrationTestCase
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::exists('Predis.Client.executeCommand'),
             SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'redis', 'GET key')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge([], $this->baseTags(), [
                     'redis.raw_command' => 'GET key',
                     'redis.args_length' => '2',
@@ -227,7 +225,6 @@ final class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.executeRaw', 'redis', 'redis', 'SET key value')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge([], $this->baseTags(), [
                     'redis.raw_command' => 'SET key value',
                     'redis.args_length' => '3',

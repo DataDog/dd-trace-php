@@ -91,9 +91,7 @@ class Configuration extends AbstractConfiguration
      */
     public function getSamplingRate()
     {
-        // DD_SAMPLING_RATE is deprecated and will be removed in 0.40.0
-        $deprecatedValue = $this->floatValue('sampling.rate', 1.0);
-        $value = $this->floatValue('trace.sample.rate', $deprecatedValue);
+        $value = $this->floatValue('trace.sample.rate', 1.0);
         if ($value < 0) {
             $value = 1;
         } else {
@@ -211,17 +209,6 @@ class Configuration extends AbstractConfiguration
     public function isHttpClientSplitByDomain()
     {
         return $this->boolValue('trace.http.client.split.by.domain', false);
-    }
-
-    /**
-     * Whether or not sandboxed tracing closures are enabled.
-     * @deprecated 0.48.0 Sandoxing is always enabled.
-     *
-     * @return bool
-     */
-    public function isSandboxEnabled()
-    {
-        return true;
     }
 
     /**

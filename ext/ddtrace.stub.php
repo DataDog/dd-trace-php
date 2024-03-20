@@ -795,48 +795,6 @@ namespace {
     function dd_trace_check_memory_under_limit(): bool {}
 
     /**
-     * Register a failure into the circuit breaker
-     *
-     * @return true
-     */
-    function dd_tracer_circuit_breaker_register_error(): bool {}
-
-    /**
-     * Reset the number of consecutive failures of the circuit breaker to zero, and close it
-     *
-     * In other words, calling this function will close the circuit breaker, hence allowing protected calls to be made
-     *
-     * @return bool true
-     */
-    function dd_tracer_circuit_breaker_register_success(): bool {}
-
-    /**
-     * Check whether the circuit breaker is closed or half-opened.
-     *
-     * The circuit breaker avoids making protected call when the circuit is opened (i.e., once the failures reach
-     * the set threshold 'DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES', all further calls to the circuit
-     * will raise an error). While in this opened state, the circuit will self-reset to a half-opened state after the
-     * interval set by 'DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC', and will be ready to make a trial call to see if the
-     * problem is fixed.
-     *
-     * @return bool 'true' if a protected call can be made, else 'false'
-     */
-    function dd_tracer_circuit_breaker_can_try(): bool {}
-
-    /**
-     * Get information about the circuit breaker status
-     *
-     * @return array{
-     *     closed: bool,
-     *     total_failures: int,
-     *     consecutive_failures: int,
-     *     opened_timestamp: int,
-     *     last_failure_timestamp: int
-     * }
-     */
-    function dd_tracer_circuit_breaker_info(): array {}
-
-    /**
      * Get the name of the app (DD_SERVICE)
      *
      * @param string|null $fallbackName Fallback name if the app's name wasn't set
@@ -990,39 +948,4 @@ namespace {
      * @param int $timeout Timeout in milliseconds to wait for the flush to complete
      */
     function dd_trace_synchronous_flush(int $timeout): void {}
-
-    /**
-     * @deprecated
-     * @return bool
-     */
-    function dd_trace_forward_call(): bool {}
-
-    /**
-     * Alias to dd_trace_push_span_id
-     *
-     * @alias dd_trace_push_span_id
-     * @deprecated
-     * @param string $existingID
-     * @return string
-     */
-    function dd_trace_generate_id(string $existingID): string {}
-
-    /**
-     * @deprecated
-     * @param string $existingID
-     * @return string
-     */
-    function dd_trace_push_span_id(string $existingID): string {}
-
-    /**
-     * @deprecated
-     * @return string
-     */
-    function dd_trace_pop_span_id(): string {}
-
-    /**
-     * @deprecated
-     * @return array
-     */
-    function additional_trace_meta(): array {}
 }

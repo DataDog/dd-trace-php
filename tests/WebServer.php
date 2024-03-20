@@ -196,12 +196,9 @@ final class WebServer
     public function stop()
     {
         if ($this->sapi) {
-            $shouldWaitForBgs = !isset($this->envs['DD_TRACE_BGS_ENABLED']) || !$this->envs['DD_TRACE_BGS_ENABLED'];
-            if ($shouldWaitForBgs) {
-                // If we don't before stopping the server the main process might die before traces
-                // are actually sent to the agent via the BGS.
-                \usleep($this->envs['DD_TRACE_AGENT_FLUSH_INTERVAL'] * 2 * 1000);
-            }
+            // If we don't before stopping the server the main process might die before traces
+            // are actually sent to the agent via the BGS.
+            \usleep($this->envs['DD_TRACE_AGENT_FLUSH_INTERVAL'] * 2 * 1000);
             if ($this->sapi !== self::$apache) {
                 $this->sapi->stop();
             }

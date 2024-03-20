@@ -64,7 +64,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/?foo=secret',
@@ -97,7 +96,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
@@ -116,7 +114,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
@@ -136,7 +133,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-            ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
@@ -324,7 +320,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'host-example.com', 'http', 'send')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
@@ -345,7 +340,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'host-example.com', 'http', 'send')
-            ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
@@ -376,7 +370,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                        ->setTraceAnalyticsCandidate()
                         ->withExactTags([
                             'http.method' => 'GET',
                             'http.url' => self::URL . '/status/200',
@@ -403,7 +396,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
         SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-            ->setTraceAnalyticsCandidate()
             ->withExactTags([
                 'http.method' => 'PUT',
                 'http.url' => 'http://example.com',

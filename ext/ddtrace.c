@@ -40,7 +40,6 @@
 #include <components/log/log.h>
 
 #include "auto_flush.h"
-#include "circuit_breaker.h"
 #include "compatibility.h"
 #ifndef _WIN32
 #include "comms_php.h"
@@ -1552,14 +1551,6 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     DISPLAY_INI_ENTRIES();
 }
 
-// legacy function
-PHP_FUNCTION(additional_trace_meta) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-    array_init(return_value);
-}
-
 /* {{{ proto string DDTrace\add_global_tag(string $key, string $value) */
 PHP_FUNCTION(DDTrace_add_global_tag) {
     UNUSED(execute_data);
@@ -1700,15 +1691,6 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     ddtrace_init_span_stacks();
 }
 
-// Invoke the function/method from the original context
-PHP_FUNCTION(dd_trace_forward_call) {
-    UNUSED(execute_data);
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-    RETURN_FALSE;
-}
-
 PHP_FUNCTION(dd_trace_env_config) {
     UNUSED(execute_data);
     zend_string *env_name;
@@ -1792,48 +1774,6 @@ PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     }
 
     RETURN_BOOL(ddtrace_is_memory_under_limit());
-}
-
-PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    dd_tracer_circuit_breaker_register_error();
-
-    RETURN_BOOL(1);
-}
-
-PHP_FUNCTION(dd_tracer_circuit_breaker_register_success) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    dd_tracer_circuit_breaker_register_success();
-
-    RETURN_BOOL(1);
-}
-
-PHP_FUNCTION(dd_tracer_circuit_breaker_can_try) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    RETURN_BOOL(dd_tracer_circuit_breaker_can_try());
-}
-
-PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    array_init_size(return_value, 5);
-
-    add_assoc_bool(return_value, "closed", dd_tracer_circuit_breaker_is_closed());
-    add_assoc_long(return_value, "total_failures", dd_tracer_circuit_breaker_total_failures());
-    add_assoc_long(return_value, "consecutive_failures", dd_tracer_circuit_breaker_consecutive_failures());
-    add_assoc_long(return_value, "opened_timestamp", (zend_long)dd_tracer_circuit_breaker_opened_timestamp());
-    add_assoc_long(return_value, "last_failure_timestamp", (zend_long)dd_tracer_circuit_breaker_last_failure_timestamp());
 }
 
 typedef zend_long ddtrace_zpplong_t;
@@ -2123,36 +2063,6 @@ PHP_FUNCTION(dd_trace_set_trace_id) {
     }
 
     RETURN_FALSE;
-}
-
-_Atomic(int64_t) ddtrace_warn_span_id_legacy_api = 1;
-static void ddtrace_warn_span_id_legacy(void) {
-    int64_t expected = 1;
-    if (atomic_compare_exchange_strong(&ddtrace_warn_span_id_legacy_api, &expected, 0) &&
-        get_DD_TRACE_WARN_LEGACY_DD_TRACE()) {
-        LOG(DEPRECATED,
-            "dd_trace_push_span_id and dd_trace_pop_span_id DEPRECATION NOTICE: the functions `dd_trace_push_span_id` and `dd_trace_pop_span_id` are deprecated and have become a no-op since 0.74.0, and will eventually be removed. To create or pop spans use `DDTrace\\start_span` and `DDTrace\\close_span` respectively. To set a distributed parent trace context use `DDTrace\\set_distributed_tracing_context`. Set DD_TRACE_WARN_LEGACY_DD_TRACE=0 to suppress this warning.");
-    }
-}
-
-/* {{{ proto string dd_trace_push_span_id() */
-PHP_FUNCTION(dd_trace_push_span_id) {
-    zend_string *arg;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &arg) == FAILURE) {
-        RETURN_THROWS();
-    }
-    ddtrace_warn_span_id_legacy();
-    RETURN_STRING("0");
-}
-
-/* {{{ proto string dd_trace_pop_span_id() */
-PHP_FUNCTION(dd_trace_pop_span_id) {
-    UNUSED(execute_data);
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-    ddtrace_warn_span_id_legacy();
-    RETURN_STRING("0");
 }
 
 /* {{{ proto string dd_trace_peek_span_id() */

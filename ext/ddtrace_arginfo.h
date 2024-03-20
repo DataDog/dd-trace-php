@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 9356ea34a0a1611519c3a3d1b1731b3e3e1c9c7d */
+ * Stub hash: 1653c288223e8fa9f3325beb6214ebc2f3b17c70 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -186,14 +186,6 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_dd_trace_check_memory_under_limit arginfo_DDTrace_UserRequest_has_listeners
 
-#define arginfo_dd_tracer_circuit_breaker_register_error arginfo_DDTrace_UserRequest_has_listeners
-
-#define arginfo_dd_tracer_circuit_breaker_register_success arginfo_DDTrace_UserRequest_has_listeners
-
-#define arginfo_dd_tracer_circuit_breaker_can_try arginfo_DDTrace_UserRequest_has_listeners
-
-#define arginfo_dd_tracer_circuit_breaker_info arginfo_DDTrace_current_context
-
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, fallbackName, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
@@ -253,18 +245,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_synchronous_flush, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, timeout, IS_LONG, 0)
 ZEND_END_ARG_INFO()
-
-#define arginfo_dd_trace_forward_call arginfo_DDTrace_UserRequest_has_listeners
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_generate_id, 0, 1, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO(0, existingID, IS_STRING, 0)
-ZEND_END_ARG_INFO()
-
-#define arginfo_dd_trace_push_span_id arginfo_dd_trace_generate_id
-
-#define arginfo_dd_trace_pop_span_id arginfo_DDTrace_startup_logs
-
-#define arginfo_additional_trace_meta arginfo_DDTrace_current_context
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_SpanLink_jsonSerialize, 0, 0, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
@@ -331,10 +311,6 @@ ZEND_FUNCTION(dd_trace_serialize_msgpack);
 ZEND_FUNCTION(dd_trace_noop);
 ZEND_FUNCTION(dd_trace_dd_get_memory_limit);
 ZEND_FUNCTION(dd_trace_check_memory_under_limit);
-ZEND_FUNCTION(dd_tracer_circuit_breaker_register_error);
-ZEND_FUNCTION(dd_tracer_circuit_breaker_register_success);
-ZEND_FUNCTION(dd_tracer_circuit_breaker_can_try);
-ZEND_FUNCTION(dd_tracer_circuit_breaker_info);
 ZEND_FUNCTION(ddtrace_config_app_name);
 ZEND_FUNCTION(ddtrace_config_distributed_tracing_enabled);
 ZEND_FUNCTION(ddtrace_config_trace_enabled);
@@ -354,10 +330,6 @@ ZEND_FUNCTION(DDTrace_trace_function);
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(dd_untrace);
 ZEND_FUNCTION(dd_trace_synchronous_flush);
-ZEND_FUNCTION(dd_trace_forward_call);
-ZEND_FUNCTION(dd_trace_push_span_id);
-ZEND_FUNCTION(dd_trace_pop_span_id);
-ZEND_FUNCTION(additional_trace_meta);
 ZEND_METHOD(DDTrace_SpanLink, jsonSerialize);
 ZEND_METHOD(DDTrace_SpanLink, fromHeaders);
 ZEND_METHOD(DDTrace_SpanData, getDuration);
@@ -413,10 +385,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(dd_trace_noop, arginfo_dd_trace_noop)
 	ZEND_FE(dd_trace_dd_get_memory_limit, arginfo_dd_trace_dd_get_memory_limit)
 	ZEND_FE(dd_trace_check_memory_under_limit, arginfo_dd_trace_check_memory_under_limit)
-	ZEND_FE(dd_tracer_circuit_breaker_register_error, arginfo_dd_tracer_circuit_breaker_register_error)
-	ZEND_FE(dd_tracer_circuit_breaker_register_success, arginfo_dd_tracer_circuit_breaker_register_success)
-	ZEND_FE(dd_tracer_circuit_breaker_can_try, arginfo_dd_tracer_circuit_breaker_can_try)
-	ZEND_FE(dd_tracer_circuit_breaker_info, arginfo_dd_tracer_circuit_breaker_info)
 	ZEND_FE(ddtrace_config_app_name, arginfo_ddtrace_config_app_name)
 	ZEND_FE(ddtrace_config_distributed_tracing_enabled, arginfo_ddtrace_config_distributed_tracing_enabled)
 	ZEND_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled)
@@ -436,11 +404,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FALIAS(dd_trace_method, DDTrace_trace_method, arginfo_dd_trace_method)
 	ZEND_FE(dd_untrace, arginfo_dd_untrace)
 	ZEND_FE(dd_trace_synchronous_flush, arginfo_dd_trace_synchronous_flush)
-	ZEND_DEP_FE(dd_trace_forward_call, arginfo_dd_trace_forward_call)
-	ZEND_DEP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, arginfo_dd_trace_generate_id)
-	ZEND_DEP_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id)
-	ZEND_DEP_FE(dd_trace_pop_span_id, arginfo_dd_trace_pop_span_id)
-	ZEND_DEP_FE(additional_trace_meta, arginfo_additional_trace_meta)
 	ZEND_FE_END
 };
 

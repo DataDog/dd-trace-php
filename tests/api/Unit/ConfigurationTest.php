@@ -33,16 +33,12 @@ EOD;
     {
         self::putenv('DD_DISTRIBUTED_TRACING');
         self::putenv('DD_ENV');
-        self::putenv('DD_INTEGRATIONS_DISABLED');
-        self::putenv('DD_SAMPLING_RATE');
         self::putenv('DD_SERVICE_MAPPING');
-        self::putenv('DD_SERVICE_NAME');
         self::putenv('DD_SERVICE');
         self::putenv('DD_TAGS');
         self::putenv('DD_TRACE_ANALYTICS_ENABLED');
         self::putenv('DD_TRACE_DEBUG');
         self::putenv('DD_TRACE_ENABLED');
-        self::putenv('DD_TRACE_GLOBAL_TAGS');
         self::putenv('DD_TRACE_SAMPLE_RATE');
         self::putenv('DD_TRACE_SAMPLING_RULES');
         self::putenv('DD_TRACE_SLIM_ENABLED');
@@ -88,21 +84,6 @@ EOD;
         $this->assertTrue(Configuration::get()->isIntegrationEnabled('pdo'));
     }
 
-    public function testIntegrationsDisabledDeprecatedEnv()
-    {
-        $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=pdo,slim']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
-        $this->assertTrue(Configuration::get()->isIntegrationEnabled('mysqli'));
-    }
-
-    public function testIntegrationsDisabledIfGlobalDisabledDeprecatedEnv()
-    {
-        $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=pdo', 'DD_TRACE_ENABLED=false']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('mysqli'));
-    }
-
     public function testIntegrationsDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=false', 'DD_TRACE_SLIM_ENABLED=false']);
@@ -116,13 +97,6 @@ EOD;
         $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=false', 'DD_TRACE_ENABLED=false']);
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('mysqli'));
-    }
-
-    public function testIntegrationsDisabledPrecedenceWithDeprecatedEnv()
-    {
-        $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=true', 'DD_INTEGRATIONS_DISABLED=pdo,slim']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
     }
 
     public function testAllIntegrationsEnabledToggleConfig()
@@ -151,49 +125,15 @@ EOD;
         }, $dirs);
     }
 
-    public function testAppNameFallbackPriorities()
-    {
-        // we do not support these fallbacks anymore; testing that we ignore them
-        $this->putEnvAndReloadConfig(['ddtrace_app_name', 'DD_TRACE_APP_NAME']);
-        $this->assertSame(
-            'fallback_name',
-            Configuration::get()->appName('fallback_name')
-        );
-
-        $this->putEnvAndReloadConfig(['ddtrace_app_name=foo_app']);
-        Configuration::clear();
-        $this->assertSame('fallback_name', Configuration::get()->appName('fallback_name'));
-
-        Configuration::clear();
-        $this->putEnvAndReloadConfig(['ddtrace_app_name=foo_app', 'DD_TRACE_APP_NAME=bar_app']);
-        $this->assertSame('fallback_name', Configuration::get()->appName('fallback_name'));
-    }
-
     public function testServiceName()
     {
-        $this->putEnvAndReloadConfig(['DD_SERVICE', 'DD_TRACE_APP_NAME', 'ddtrace_app_name']);
+        $this->putEnvAndReloadConfig(['DD_SERVICE']);
 
         $this->assertSame('__default__', Configuration::get()->appName('__default__'));
 
         $this->putEnvAndReloadConfig(['DD_SERVICE=my_app']);
         Configuration::clear();
         $this->assertSame('my_app', Configuration::get()->appName('__default__'));
-    }
-
-    public function testServiceNameViaDDServiceNameForBackwardCompatibility()
-    {
-        $this->putEnvAndReloadConfig(['DD_SERVICE_NAME=my_app']);
-        $this->assertSame('my_app', Configuration::get()->appName('__default__'));
-    }
-
-    public function testServiceNameHasPrecedenceOverDeprecatedMethods()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_SERVICE=my_app',
-            'DD_TRACE_APP_NAME=wrong_app',
-            'ddtrace_app_name=wrong_app',
-        ]);
-        $this->assertSame('my_app', Configuration::get()->appName('my_app'));
     }
 
     public function testAnalyticsDisabledByDefault()
@@ -352,19 +292,6 @@ EOD;
                 ],
                 1.0,
             ],
-            'deprecated DD_SAMPLING_RATE can still be used' => [
-                [
-                    'DD_SAMPLING_RATE=0.7',
-                ],
-                0.7,
-            ],
-            'DD_TRACE_SAMPLE_RATE wins over deprecated DD_SAMPLING_RATE' => [
-                [
-                    'DD_SAMPLING_RATE=0.3',
-                    'DD_TRACE_SAMPLE_RATE=0.7',
-                ],
-                0.7,
-            ],
         ];
     }
 
@@ -446,23 +373,6 @@ EOD;
     public function testGlobalTags()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1,key2:value2']);
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
-    }
-
-    public function testGlobalTagsLegacyEnv()
-    {
-        $this->putEnvAndReloadConfig(['DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2']);
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
-    }
-
-    public function testGlobalTagsNewEnvWinsOverLegacyEnv()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_TRACE_GLOBAL_TAGS=key10:value10,key20:value20',
-            'DD_TAGS=key1:value1,key2:value2',
-        ]);
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }

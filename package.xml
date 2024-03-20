@@ -129,7 +129,7 @@ This release introduces support for the Roadrunner application server and extend
 
 ### Fixed
 - Fix blocking on PHP 7.0-7.1 ZTS #2502
-- Ensure logs are committed to disk upon shutdown #2495 
+- Ensure logs are committed to disk upon shutdown #2495
 
 ### Internal
 - Upgrade libddwaf and ruleset #2520
@@ -150,7 +150,6 @@ This release introduces support for the Roadrunner application server and extend
             <file name="LICENSE.BSD3" role="doc" />
             <file name="NOTICE" role="doc" />
             <file name="README.md" role="doc" />
-            <file name="UPGRADE-0.10.md" role="doc" />
         </dir>
     </contents>
     <dependencies>
