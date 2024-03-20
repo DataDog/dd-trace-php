@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\Symfony;
 use DDTrace\HookData;
 use DDTrace\Integrations\Drupal\DrupalIntegration;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\Symfony\PathExtractor;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -71,6 +70,27 @@ class SymfonyIntegration extends Integration
                     $span->meta[Tag::SPAN_KIND] = 'server';
                     $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                 },
+                'posthook' => function (SpanData $span, $args) use ($integration) {
+                    $rootSpan = \DDTrace\root_span();
+                    if ($rootSpan === $span) {
+                        return false;
+                    }
+
+                    /** @var \Symfony\Component\HttpKernel\Kernel $this */
+                    $request = $args[0];
+                    $_route = $request->attributes->get('_route');
+                    if ($_route === null) {
+                        return;
+                    }
+
+                    $router = $this->getContainer()->get('router');
+                    $routeCollection = $router->getRouteCollection();
+                    $route = $routeCollection->get($_route);
+                    $path = $route ? $route->getPath() : null;
+                    if ($path !== null) {
+                        $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
+                    }
+                }
             ]
         );
 
@@ -400,11 +420,6 @@ class SymfonyIntegration extends Integration
                         $rootSpan->resource = $route;
                     }
                     $rootSpan->meta['symfony.route.name'] = $route;
-                }
-
-                $path = (new PathExtractor())->extract($request->attributes->get('_controller'), $route, $request->get('_locale'));
-                if ($path !== null) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
                 }
             }
         );
