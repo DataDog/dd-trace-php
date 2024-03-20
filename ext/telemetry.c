@@ -25,23 +25,16 @@ void ddtrace_telemetry_first_init(void) {
     dd_composer_hook_id = zai_hook_install((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
 }
 
-void ddtrace_telemetry_finalize(void) {
+void ddtrace_telemetry_collect_config(void) {
     if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
     }
 
-    ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
+    if (DDTRACE_G(telemetry_buffer)) {
+        ddog_sidecar_telemetry_buffer_drop(DDTRACE_G(telemetry_buffer));
+    }
 
-    zend_module_entry *module;
-    char module_name[261] = { 'e', 'x', 't', '-' };
-    ZEND_HASH_FOREACH_PTR(&module_registry, module) {
-        size_t namelen = strlen(module->name);
-        memcpy(module_name + 4, module->name, MIN(256, strlen(module->name)));
-        const char *version = module->version ? module->version : "";
-        ddog_sidecar_telemetry_addDependency_buffer(buffer,
-                                                    (ddog_CharSlice) {.len = namelen + 4, .ptr = module_name},
-                                                    (ddog_CharSlice) {.len = strlen(version), .ptr = version});
-    } ZEND_HASH_FOREACH_END();
+    ddog_SidecarActionsBuffer *buffer = DDTRACE_G(telemetry_buffer) = ddog_sidecar_telemetry_buffer_alloc();
 
     for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
@@ -69,6 +62,31 @@ void ddtrace_telemetry_finalize(void) {
             ddog_sidecar_telemetry_addIntegration_buffer(buffer, integration_name, DDOG_CHARSLICE_C(""), false);
         }
     }
+}
+
+void ddtrace_telemetry_finalize(void) {
+    if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+        return;
+    }
+
+    ddog_SidecarActionsBuffer *buffer = DDTRACE_G(telemetry_buffer);
+    if (buffer) {
+        DDTRACE_G(telemetry_buffer) = NULL;
+    } else {
+        buffer = ddog_sidecar_telemetry_buffer_alloc();
+    }
+
+    zend_module_entry *module;
+    char module_name[261] = { 'e', 'x', 't', '-' };
+    ZEND_HASH_FOREACH_PTR(&module_registry, module) {
+        size_t namelen = strlen(module->name);
+        memcpy(module_name + 4, module->name, MIN(256, strlen(module->name)));
+        const char *version = module->version ? module->version : "";
+        ddog_sidecar_telemetry_addDependency_buffer(buffer,
+                                                    (ddog_CharSlice) {.len = namelen + 4, .ptr = module_name},
+                                                    (ddog_CharSlice) {.len = strlen(version), .ptr = version});
+    } ZEND_HASH_FOREACH_END();
+
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 
     ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");

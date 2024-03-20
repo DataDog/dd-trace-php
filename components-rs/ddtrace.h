@@ -171,6 +171,8 @@ ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(ddog_SidecarTransport **tran
                                                     const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer);
 
+void ddog_sidecar_telemetry_buffer_drop(struct ddog_SidecarActionsBuffer*);
+
 ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,

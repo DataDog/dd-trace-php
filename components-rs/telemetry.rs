@@ -127,3 +127,7 @@ pub extern "C" fn ddog_sidecar_telemetry_buffer_flush(
 
     MaybeError::None
 }
+
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_telemetry_buffer_drop(_: Box<SidecarActionsBuffer>) {
+}
