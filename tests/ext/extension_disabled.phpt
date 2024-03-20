@@ -1,7 +1,7 @@
 --TEST--
 Sanity check when extension is disabled
 --INI--
-ddtrace.disable=true
+datadog.trace.disable=true
 --FILE--
 <?php
 function test(){

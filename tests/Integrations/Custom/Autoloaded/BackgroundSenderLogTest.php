@@ -24,10 +24,7 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_BETA_SEND_TRACES_VIA_THREAD' => true,
-            'DD_TRACE_BGS_ENABLED' => true,
             'DD_TRACE_DEBUG_CURL_OUTPUT' => true,
-            'DD_TRACE_ENCODER' => 'msgpack',
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => self::BGS_FLUSH_INTERVAL_MS,
         ]);
     }
@@ -58,8 +55,10 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
             self::assertEquals('This is a string', $response);
 
             // Endpoint seemed to work; allow for flush interval to trigger
-            \usleep(self::BGS_FLUSH_INTERVAL_MS * 1000);
+            \usleep(self::BGS_FLUSH_INTERVAL_MS * 2 * 1000);
         });
+
+        \usleep(self::BGS_FLUSH_INTERVAL_MS * 2 * 1000);
 
         $log = self::getAppErrorLog();
         $contents = \file_get_contents($log);

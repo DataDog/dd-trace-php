@@ -1,7 +1,7 @@
 --TEST--
 [Sandbox regression] Tracing closures do not run when extension is disabled
 --INI--
-ddtrace.disable=true
+datadog.trace.disable=true
 --FILE--
 <?php
 function test(){

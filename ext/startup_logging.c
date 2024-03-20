@@ -135,7 +135,7 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_string(ht, ZEND_STRL("lang"), "php");
     _dd_add_assoc_string(ht, ZEND_STRL("lang_version"), PHP_VERSION);
     _dd_add_assoc_zstring(ht, ZEND_STRL("env"), zend_string_copy(get_DD_ENV()));
-    _dd_add_assoc_bool(ht, ZEND_STRL("enabled"), !_dd_parse_bool(ZEND_STRL("ddtrace.disable")));
+    _dd_add_assoc_bool(ht, ZEND_STRL("enabled"), !_dd_parse_bool(ZEND_STRL("datadog.trace.disable")));
     _dd_add_assoc_zstring(ht, ZEND_STRL("service"), zend_string_copy(get_DD_SERVICE()));
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled_cli"), get_DD_TRACE_CLI_ENABLED());
 
