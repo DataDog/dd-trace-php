@@ -1,5 +1,7 @@
 --TEST--
 Test executing fibers with tracer fully disabled
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 80100) die("skip: Fibers are a PHP 8.1+ feature"); ?>
 --INI--
 ddtrace.disable=1
 --FILE--
