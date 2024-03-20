@@ -282,7 +282,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     unsafe { zend::zend_register_extension(&extension, handle) };
 
     #[cfg(feature = "allocation_profiling")]
-    allocation::allocation_profiling_minit();
+    allocation::alloc_prof_minit();
 
     #[cfg(feature = "timeline")]
     timeline::timeline_minit();
@@ -369,8 +369,8 @@ thread_local! {
     /// The tags for this thread/request. These get sent to other threads,
     /// which is why they are Arc. However, they are wrapped in a RefCell
     /// because the values _can_ change from request to request depending on
-    /// the on the values sent in the SAPI for env, service, version, etc.
-    /// They get reset at the end of the request.
+    /// the values sent in the SAPI for env, service, version, etc. They get
+    /// reset at the end of the request.
     static TAGS: RefCell<Arc<Vec<Tag>>> = RefCell::new(Arc::new(Vec::new()));
 }
 
@@ -541,7 +541,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     }
 
     #[cfg(feature = "allocation_profiling")]
-    allocation::allocation_profiling_rinit();
+    allocation::alloc_prof_rinit();
 
     // SAFETY: called after config is initialized.
     #[cfg(feature = "timeline")]
@@ -599,7 +599,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     });
 
     #[cfg(feature = "allocation_profiling")]
-    allocation::allocation_profiling_rshutdown();
+    allocation::alloc_prof_rshutdown();
 
     ZendResult::Success
 }
@@ -843,7 +843,7 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     }
 
     #[cfg(feature = "allocation_profiling")]
-    allocation::allocation_profiling_startup();
+    allocation::alloc_prof_startup();
 
     ZendResult::Success
 }
