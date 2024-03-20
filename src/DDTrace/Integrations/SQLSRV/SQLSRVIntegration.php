@@ -47,79 +47,47 @@ class SQLSRVIntegration extends Integration
             $integration->detectError($retval, $span);
         });
 
-        if (PHP_MAJOR_VERSION > 5) {
-            // sqlsrv_query ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
-            \DDTrace\install_hook('sqlsrv_query', function (HookData $hook) use ($integration) {
-                list(, $query) = $hook->args;
+        // sqlsrv_query ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
+        \DDTrace\install_hook('sqlsrv_query', function (HookData $hook) use ($integration) {
+            list(, $query) = $hook->args;
 
-                $span = $hook->span();
-                self::setDefaultAttributes($this, $span, 'sqlsrv_query', $query);
-                $integration->addTraceAnalyticsIfEnabled($span);
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
+            $span = $hook->span();
+            self::setDefaultAttributes($this, $span, 'sqlsrv_query', $query);
+            $integration->addTraceAnalyticsIfEnabled($span);
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
-                ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
+            ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
 
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
-            }, function (HookData $hook) use ($integration) {
-                $span = $hook->span();
-                if (is_object($hook->returned)) {
-                    ObjectKVStore::propagate($this, $hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY);
-                }
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
+        }, function (HookData $hook) use ($integration) {
+            $span = $hook->span();
+            if (is_object($hook->returned)) {
+                ObjectKVStore::propagate($this, $hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY);
+            }
 
-                $result = $hook->returned;
-                $this->setMetrics($span, $result);
-                $integration->detectError($result, $span);
-            });
+            $result = $hook->returned;
+            $this->setMetrics($span, $result);
+            $integration->detectError($result, $span);
+        });
 
-            // sqlsrv_prepare ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
-            \DDTrace\install_hook('sqlsrv_prepare', function (HookData $hook) use ($integration) {
-                list(, $query) = $hook->args;
+        // sqlsrv_prepare ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
+        \DDTrace\install_hook('sqlsrv_prepare', function (HookData $hook) use ($integration) {
+            list(, $query) = $hook->args;
 
-                ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
+            ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
 
-                $span = $hook->span();
-                self::setDefaultAttributes($this, $span, 'sqlsrv_prepare', $query);
+            $span = $hook->span();
+            self::setDefaultAttributes($this, $span, 'sqlsrv_prepare', $query);
 
-                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
-            }, function (HookData $hook) use ($integration) {
-                $span = $hook->span();
-                if (is_object($hook->returned)) {
-                    ObjectKVStore::propagate($this, $hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY);
-                }
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
+        }, function (HookData $hook) use ($integration) {
+            $span = $hook->span();
+            if (is_object($hook->returned)) {
+                ObjectKVStore::propagate($this, $hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY);
+            }
 
-                $integration->detectError($hook->returned, $span);
-            });
-        } else {
-            // sqlsrv_query ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
-            \DDTrace\trace_function('sqlsrv_query', function (SpanData $span, $args, $retval) use ($integration) {
-                /** @var resource $conn */
-                $conn = $args[0];
-                /** @var string $query */
-                $query = $args[1];
-                self::setDefaultAttributes($this, $span, 'sqlsrv_query', $query, $retval);
-                $integration->addTraceAnalyticsIfEnabled($span);
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
-                ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
-
-                $this->setMetrics($span, $retval);
-
-                $integration->detectError($retval, $span);
-            });
-
-            // sqlsrv_prepare ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
-            \DDTrace\trace_function('sqlsrv_prepare', function (SpanData $span, $args, $retval) use ($integration) {
-                /** @var string $query */
-                $query = $args[1];
-                self::setDefaultAttributes($this, $span, 'sqlsrv_prepare', $query, $retval);
-                ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
-
-                $integration->detectError($retval, $span);
-            });
-        }
+            $integration->detectError($hook->returned, $span);
+        });
 
         // sqlsrv_commit ( resource $conn ) : bool
         \DDTrace\trace_function('sqlsrv_commit', function (SpanData $span, $args, $retval) use ($integration) {
@@ -133,9 +101,7 @@ class SQLSRVIntegration extends Integration
             $query = ObjectKVStore::get($this, SQLSRVIntegration::QUERY_TAGS_KEY);
             self::setDefaultAttributes($this, $span, 'sqlsrv_execute', $query, $retval);
             $integration->addTraceAnalyticsIfEnabled($span);
-            if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            }
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             if ($retval) {
                 $this->setMetrics($span, $args[0]);
             }

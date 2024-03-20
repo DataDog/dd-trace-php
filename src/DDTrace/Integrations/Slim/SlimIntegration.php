@@ -89,7 +89,7 @@ class SlimIntegration extends Integration
                             /** @var \Slim\Interfaces\RouteInterface $return */
                             $rootSpan->meta[Tag::HTTP_ROUTE] = $return->getPattern();
 
-                            if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                            if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                                 $rootSpan->resource =
                                     $_SERVER['REQUEST_METHOD'] . ' ' . ($return->getName() ?: $return->getPattern());
                             }

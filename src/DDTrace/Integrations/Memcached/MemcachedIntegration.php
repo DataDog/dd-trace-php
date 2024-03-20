@@ -95,9 +95,7 @@ class MemcachedIntegration extends Integration
 
         \DDTrace\trace_method('Memcached', 'flush', function (SpanData $span) use ($integration) {
             $integration->setCommonData($span, 'flush');
-            if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            }
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             $integration->setServerTags($span, $this);
         });
 
@@ -105,9 +103,7 @@ class MemcachedIntegration extends Integration
             $integration->setCommonData($span, 'cas');
             $span->meta['memcached.cas_token'] = $args[0];
             $span->meta['memcached.query'] = 'cas ?';
-            if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            }
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             $integration->setServerTags($span, $this);
         });
 
@@ -139,9 +135,7 @@ class MemcachedIntegration extends Integration
                     $integration->setServerTags($span, $this);
                     $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
                 }
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
                 $integration->markForTraceAnalytics($span, $command);
             }
@@ -164,9 +158,7 @@ class MemcachedIntegration extends Integration
                     $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
                     $span->meta['memcached.server_key'] = $args[0];
                 }
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
                 $integration->markForTraceAnalytics($span, $command);
             }
@@ -186,9 +178,7 @@ class MemcachedIntegration extends Integration
                 }
                 $integration->setServerTags($span, $this);
                 $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0], ',');
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 $integration->markForTraceAnalytics($span, $command);
             }
         );
@@ -209,9 +199,7 @@ class MemcachedIntegration extends Integration
                 $integration->setServerTags($span, $this);
                 $query = "$command " . Obfuscation::toObfuscatedString($args[1], ',');
                 $span->meta['memcached.query'] = $query;
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 $integration->markForTraceAnalytics($span, $command);
             }
         );

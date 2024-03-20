@@ -158,51 +158,49 @@ class LaravelQueueIntegration extends Integration
             ]
         );
 
-        if (PHP_MAJOR_VERSION > 5) {
-            hook_method(
-                'Illuminate\Queue\Jobs\Job',
-                'fire',
-                function ($job, $scope, $args) use ($integration) {
-                    $payload = $job->payload();
-                    list($class, $method) = JobName::parse($payload['job']);
+        hook_method(
+            'Illuminate\Queue\Jobs\Job',
+            'fire',
+            function ($job, $scope, $args) use ($integration) {
+                $payload = $job->payload();
+                list($class, $method) = JobName::parse($payload['job']);
 
-                    if ($class == 'Illuminate\\Queue\\CallQueuedHandler') {
-                        $class = $payload['data']['commandName'];
-                        $method = 'handle';
-                    }
-
-                    install_hook(
-                        "$class::$method",
-                        function (HookData $hook) use ($integration, $class, $method) {
-                            $span = $hook->span();
-                            $span->name = 'laravel.queue.action';
-                            $span->type = 'queue';
-                            $span->service = $integration->getName();
-                            $span->resource = $class . '@' . $method;
-                            $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
-
-                            if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
-                                $span->meta[Tag::LARAVELQ_BATCH_ID] = $this->batchId ?? null;
-                            }
-
-                            if (isset($this->job)) {
-                                $integration->setSpanAttributes(
-                                    $span,
-                                    'laravel.queue.action',
-                                    null,
-                                    $this->job,
-                                    null,
-                                    null,
-                                    $class . '@' . $method
-                                );
-                            }
-
-                            remove_hook($hook->id);
-                        }
-                    );
+                if ($class == 'Illuminate\\Queue\\CallQueuedHandler') {
+                    $class = $payload['data']['commandName'];
+                    $method = 'handle';
                 }
-            );
-        }
+
+                install_hook(
+                    "$class::$method",
+                    function (HookData $hook) use ($integration, $class, $method) {
+                        $span = $hook->span();
+                        $span->name = 'laravel.queue.action';
+                        $span->type = 'queue';
+                        $span->service = $integration->getName();
+                        $span->resource = $class . '@' . $method;
+                        $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
+
+                        if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
+                            $span->meta[Tag::LARAVELQ_BATCH_ID] = $this->batchId ?? null;
+                        }
+
+                        if (isset($this->job)) {
+                            $integration->setSpanAttributes(
+                                $span,
+                                'laravel.queue.action',
+                                null,
+                                $this->job,
+                                null,
+                                null,
+                                $class . '@' . $method
+                            );
+                        }
+
+                        remove_hook($hook->id);
+                    }
+                );
+            }
+        );
 
         trace_method(
             'Illuminate\Queue\Jobs\Job',

@@ -155,13 +155,11 @@ class ElasticSearchIntegration extends Integration
          * Since the arguments passed to the tracing closure on PHP 7 are mutable,
          * the closure must be run _before_ the original call via 'prehook'.
         */
-        $hookType = (PHP_MAJOR_VERSION >= 7) ? 'prehook' : 'posthook';
-
         \DDTrace\trace_method(
             $class,
             $name,
             [
-                $hookType => function (SpanData $span, $args) use ($name, $isTraceAnalyticsCandidate, $integration) {
+                'prehook' => function (SpanData $span, $args) use ($name, $isTraceAnalyticsCandidate, $integration) {
                     $span->name = "Elasticsearch.Client.$name";
 
                     if ($isTraceAnalyticsCandidate) {

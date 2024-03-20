@@ -60,14 +60,6 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                             ]),
                             SpanAssertion::exists('symfony.kernel.controller'),
                             SpanAssertion::exists('symfony.kernel.controller'),
-                            SpanAssertion::build(
-                                'symfony.controller',
-                                'symfony',
-                                'web',
-                                'AppBundle\Controller\CommonScenariosController::simpleAction'
-                            )->withExactTags([
-                                Tag::COMPONENT => 'symfony',
-                            ])->skipIf(\PHP_MAJOR_VERSION !== 5), // call_user_func_array
                             SpanAssertion::exists('symfony.kernel.response'),
                             SpanAssertion::exists('symfony.kernel.finish_request'),
                         ]),

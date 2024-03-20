@@ -84,9 +84,7 @@ class MemcacheIntegration extends Integration
                 $span->meta['memcache.cas_token'] = $args[4];
             }
             $span->meta['memcache.query'] = 'cas ?';
-            if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            }
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             $integration->setServerTags($span, $this);
         };
 
@@ -109,9 +107,7 @@ class MemcacheIntegration extends Integration
                 $integration->setServerTags($span, $this);
                 $span->meta['memcache.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
             }
-            if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            }
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             $integration->markForTraceAnalytics($span, $command);
         };
         \DDTrace\trace_method('Memcache', $command, $trace);

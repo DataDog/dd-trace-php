@@ -29,7 +29,7 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
         $span->meta['zf1.controller'] = $controller;
         $span->meta['zf1.action'] = $action;
         $span->meta['zf1.route_name'] = $route;
-        if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+        if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
             $span->resource = $controller . '@' . $action . ' ' . $route;
         }
         $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
