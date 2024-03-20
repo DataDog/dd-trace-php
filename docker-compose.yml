@@ -42,8 +42,8 @@ x-aliases:
         - SYS_PTRACE
       security_opt:
         - seccomp:unconfined
-      # Privileged is requires to run some pcntl tests locally.
-      # privileged: true
+      # Privileged is required to run some pcntl tests locally as well as native profiler.
+      privileged: true
       
   - &windows_php_service
       volumes:
