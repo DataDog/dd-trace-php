@@ -26,6 +26,7 @@ pub struct SystemSettings {
     pub profiling_timeline_enabled: bool,
     pub profiling_exception_enabled: bool,
     pub profiling_exception_message_enabled: bool,
+    pub profiling_wall_time_enabled: bool,
 
     // todo: can't this be Option<String>? I don't think the string can ever be static.
     pub output_pprof: Option<Cow<'static, str>>,
@@ -65,6 +66,7 @@ impl SystemSettings {
             profiling_timeline_enabled: profiling_timeline_enabled(),
             profiling_exception_enabled: profiling_exception_enabled(),
             profiling_exception_message_enabled: profiling_exception_message_enabled(),
+            profiling_wall_time_enabled: profiling_wall_time_enabled(),
             output_pprof: profiling_output_pprof(),
             profiling_exception_sampling_distance: profiling_exception_sampling_distance(),
             profiling_log_level: profiling_log_level(),
@@ -126,6 +128,7 @@ impl SystemSettings {
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
+            profiling_wall_time_enabled: false,
             output_pprof: None,
             profiling_exception_sampling_distance: 0,
             profiling_log_level: LevelFilter::Off,
@@ -341,6 +344,7 @@ pub(crate) enum ConfigId {
     ProfilingExceptionSamplingDistance,
     ProfilingLogLevel,
     ProfilingOutputPprof,
+    ProfilingWallTimeEnabled,
 
     // todo: do these need to be kept in sync with the tracer?
     AgentHost,
@@ -368,10 +372,10 @@ impl ConfigId {
             ProfilingExceptionSamplingDistance => b"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
-            /* Note: this is meant only for debugging and testing. Please don't
-             * advertise this in the docs.
-             */
+            // Note: this group is meant only for debugging and testing. Please
+            // don't advertise this group of settings in the docs.
             ProfilingOutputPprof => b"DD_PROFILING_OUTPUT_PPROF\0",
+            ProfilingWallTimeEnabled => b"DD_PROFILING_WALLTIME_ENABLED\0",
 
             AgentHost => b"DD_AGENT_HOST\0",
             Env => b"DD_ENV\0",
@@ -408,6 +412,7 @@ lazy_static::lazy_static! {
         profiling_timeline_enabled: false,
         profiling_exception_enabled: false,
         profiling_exception_message_enabled: false,
+        profiling_wall_time_enabled: false,
         output_pprof: None,
         profiling_exception_sampling_distance: u32::MAX,
         profiling_log_level: LevelFilter::Off,
@@ -424,6 +429,7 @@ lazy_static::lazy_static! {
         profiling_timeline_enabled: true,
         profiling_exception_enabled: true,
         profiling_exception_message_enabled: false,
+        profiling_wall_time_enabled: true,
         output_pprof: None,
         profiling_exception_sampling_distance: 100,
         profiling_log_level: LevelFilter::Off,
@@ -530,6 +536,13 @@ unsafe fn profiling_exception_sampling_distance() -> u32 {
 /// first rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
     get_system_str(ProfilingOutputPprof)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// first rinit, and before it is uninitialized in mshutdown.
+unsafe fn profiling_wall_time_enabled() -> bool {
+    profiling_enabled() && get_system_bool(ProfilingWallTimeEnabled, true)
 }
 
 unsafe fn get_system_bool(id: ConfigId, default: bool) -> bool {
@@ -870,6 +883,19 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
                 },
+                // At the moment, wall-time cannot be fully disabled. This only
+                // controls automatic collection (manual collection is still
+                // possible).
+                zai_config_entry {
+                    id: transmute(ProfilingWallTimeEnabled),
+                    name: ProfilingWallTimeEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
+                    aliases: ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: None,
+                },
                 zai_config_entry {
                     id: transmute(AgentHost),
                     name: AgentHost.env_var_name(),
@@ -1022,6 +1048,10 @@ mod tests {
             (
                 b"DD_PROFILING_OUTPUT_PPROF\0",
                 "datadog.profiling.output_pprof",
+            ),
+            (
+                b"DD_PROFILING_WALL_TIME_ENABLED\0",
+                "datadog.profiling.wall_time_enabled",
             ),
         ];
 

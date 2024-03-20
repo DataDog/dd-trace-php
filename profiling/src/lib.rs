@@ -505,6 +505,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         REQUEST_LOCALS.with(|cell| {
             let locals = cell.borrow();
             let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
+            let wall_time_enabled = system_settings.profiling_wall_time_enabled;
             CLOCKS.with(|cell| cell.borrow_mut().initialize(cpu_time_enabled));
 
             TAGS.with(|cell| {
@@ -527,6 +528,11 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 add_tag(&mut tags, "runtime_engine", runtime_engine);
                 cell.replace(Arc::new(tags));
             });
+
+            // Only add interrupt if cpu- or wall-time is enabled.
+            if !(cpu_time_enabled | wall_time_enabled) {
+                return;
+            }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 let interrupt = VmInterrupt {
@@ -587,6 +593,9 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         let locals = cell.borrow();
         let system_settings = locals.system_settings();
 
+        // The interrupt is only added if CPU- or wall-time are enabled BUT
+        // wall-time is not expected to ever be disabled, except in testing,
+        // and we don't need to optimize for that.
         if system_settings.profiling_enabled {
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 let interrupt = VmInterrupt {
