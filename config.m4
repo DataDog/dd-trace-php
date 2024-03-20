@@ -192,13 +192,15 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_COMPONENT_SOURCES $ZAI_SOURCES $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
-  dnl sidecar requires us to be linked against libm for pow and powf
+  dnl sidecar requires us to be linked against libm for pow and powf and librt for shm_* functions
   AC_CHECK_LIBM
   EXTRA_LDFLAGS="$EXTRA_LDFLAGS $LIBM"
   dnl as well as explicitly for pthread_atfork
   PTHREADS_CHECK
   EXTRA_CFLAGS="$EXTRA_CFLAGS $ac_cv_pthreads_cflags"
   EXTRA_LIBS="$EXTRA_LIBS -l$ac_cv_pthreads_lib"
+  PHP_CHECK_LIBRARY(rt, shm_open,
+    [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"; DDTRACE_SHARED_LIBADD="${DDTRACE_SHARED_LIBADD:-} -lrt"])
 
   dnl rust imports these, so we need them to link
   case $host_os in
@@ -208,9 +210,6 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_ADD_FRAMEWORK([Security])
     PHP_SUBST(EXTRA_LDFLAGS)
   esac
-
-  PHP_CHECK_LIBRARY(rt, shm_open,
-    [PHP_ADD_LIBRARY(rt, , EXTRA_LDFLAGS)])
 
   PHP_CHECK_LIBRARY(curl, curl_easy_setopt,
     [PHP_ADD_LIBRARY(curl, , EXTRA_LDFLAGS)],
@@ -226,6 +225,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
     PHP_SUBST(EXTRA_CFLAGS)
     PHP_SUBST(EXTRA_LDFLAGS)
+    PHP_SUBST(DDTRACE_SHARED_LIBADD)
   fi
 
   cat <<EOT >ext/version.h
