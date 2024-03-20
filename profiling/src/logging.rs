@@ -1,5 +1,4 @@
 use env_logger::Target;
-pub use log::Level;
 pub use log::LevelFilter;
 use std::fs::File;
 use std::os::unix::io::FromRawFd;

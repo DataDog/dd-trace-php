@@ -6,7 +6,6 @@ mod logging;
 mod pcntl;
 pub mod profiling;
 mod sapi;
-mod string_table;
 
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
@@ -17,6 +16,7 @@ mod exception;
 #[cfg(feature = "timeline")]
 mod timeline;
 
+mod string_set;
 mod wall_time;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
@@ -326,8 +326,8 @@ pub struct RequestLocals {
 
     /// SystemSettings are global. Note that if this is being read in fringe
     /// conditions such as in mshutdown when there were no requests served,
-    /// then the settings are still memory safe but they may not have the real
-    /// configuration. Instead they have a best-effort values such as
+    /// then the settings are still memory safe, but they may not have the real
+    /// configuration. Instead, they have a best-effort values such as
     /// INITIAL_SYSTEM_SETTINGS, or possibly the values which were available
     /// in MINIT.
     pub system_settings: ptr::NonNull<SystemSettings>,
@@ -369,7 +369,7 @@ thread_local! {
     /// The tags for this thread/request. These get sent to other threads,
     /// which is why they are Arc. However, they are wrapped in a RefCell
     /// because the values _can_ change from request to request depending on
-    /// the on the values sent in the SAPI for env, service, version, etc.
+    /// the values sent in the SAPI for env, service, version, etc.
     /// They get reset at the end of the request.
     static TAGS: RefCell<Arc<Vec<Tag>>> = RefCell::new(Arc::new(Vec::new()));
 }
@@ -577,7 +577,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(php_run_time_cache)]
     {
         profiling::FUNCTION_CACHE_STATS.with(|cell| {
-            let stats = cell.borrow();
+            let stats = cell.get();
             let hit_rate = stats.hit_rate();
             debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
         });

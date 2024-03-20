@@ -30,9 +30,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.6"
+version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91429305e9f0a25f6205c5b8e0d2db09e0708a7a6df0f42212bb56c32c8ac97a"
+checksum = "e89da841a80418a9b391ebaea17f5c112ffaaa96f621d2c285b5174da76b9011"
 dependencies = [
  "cfg-if",
  "getrandom",
@@ -733,7 +733,7 @@ dependencies = [
 name = "datadog-php-profiling"
 version = "0.98.0"
 dependencies = [
- "ahash 0.8.6",
+ "ahash 0.8.11",
  "anyhow",
  "bindgen",
  "bumpalo",
@@ -746,6 +746,7 @@ dependencies = [
  "datadog-profiling",
  "ddcommon 6.0.0",
  "env_logger",
+ "hashbrown 0.14.3",
  "indexmap 2.2.3",
  "lazy_static",
  "libc 0.2.153",
@@ -755,6 +756,7 @@ dependencies = [
  "perfcnt",
  "rand 0.8.5",
  "rand_distr",
+ "rustc-hash",
  "serde_json",
  "uuid",
 ]
@@ -762,7 +764,7 @@ dependencies = [
 [[package]]
 name = "datadog-profiling"
 version = "6.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v6.0.0#724a83c3a1875ac1eb1685b92d42a135b7bf2366"
+source = "git+https://github.com/DataDog/libdatadog?rev=50d0d3c#50d0d3c49c7bfdb1a44621bb1d97e1e3e0ff12a7"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -775,6 +777,7 @@ dependencies = [
  "futures",
  "futures-core",
  "futures-util",
+ "hashbrown 0.14.3",
  "hex",
  "http",
  "http-body",
@@ -787,7 +790,6 @@ dependencies = [
  "mime_guess",
  "nix 0.27.1",
  "os_info",
- "page_size",
  "percent-encoding",
  "prost 0.12.3",
  "rustc-hash",
@@ -796,6 +798,7 @@ dependencies = [
  "tokio",
  "tokio-util 0.7.10",
  "uuid",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -946,7 +949,7 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "6.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v6.0.0#724a83c3a1875ac1eb1685b92d42a135b7bf2366"
+source = "git+https://github.com/DataDog/libdatadog?rev=50d0d3c#50d0d3c49c7bfdb1a44621bb1d97e1e3e0ff12a7"
 dependencies = [
  "anyhow",
  "futures",
@@ -1376,7 +1379,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 dependencies = [
- "ahash 0.8.6",
+ "ahash 0.8.11",
 ]
 
 [[package]]
