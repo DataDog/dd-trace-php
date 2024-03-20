@@ -2,6 +2,7 @@
 
 #include <assert.h>
 
+#include "ext/version.h"
 #include "ip_extraction.h"
 #include "logging.h"
 #include <components/log/log.h>
