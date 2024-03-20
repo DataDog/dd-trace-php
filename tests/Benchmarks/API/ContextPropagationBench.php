@@ -37,6 +37,7 @@ class ContextPropagationBench
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchExtractTraceContext128Bit()
     {
@@ -50,6 +51,7 @@ class ContextPropagationBench
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchExtractTraceContext64Bit()
     {
@@ -63,6 +65,7 @@ class ContextPropagationBench
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchExtractHeaders128Bit()
     {
@@ -76,6 +79,7 @@ class ContextPropagationBench
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchExtractHeaders64Bit()
     {
@@ -89,6 +93,7 @@ class ContextPropagationBench
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUp128BitContext")
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchInject128Bit()
     {
@@ -102,6 +107,7 @@ class ContextPropagationBench
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUp64BitContext")
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchInject64Bit()
     {

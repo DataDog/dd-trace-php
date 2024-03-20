@@ -17,6 +17,7 @@ class SymfonyBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"baseline"})
      */
     public function benchSymfonyBaseline()
     {
@@ -34,6 +35,7 @@ class SymfonyBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchSymfonyOverhead()
     {
@@ -50,9 +52,7 @@ class SymfonyBench extends WebFrameworkTestCase
 
     public function disableSymfonyTracing()
     {
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 0,
-        ]);
+        $this->setUpWebServer([], ['ddtrace.disable' => 'true']);
     }
 
     public function afterMethod()

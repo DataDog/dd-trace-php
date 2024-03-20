@@ -19,6 +19,7 @@ class PHPRedisBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(2)
+     * @Groups({"baseline"})
      */
     public function benchRedisBaseline()
     {
@@ -33,6 +34,7 @@ class PHPRedisBench
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(2)
+     * @Groups({"overhead"})
      */
     public function benchRedisOverhead()
     {
@@ -58,7 +60,6 @@ class PHPRedisBench
 
     public function disablePHPRedisIntegration()
     {
-        \dd_trace_serialize_closed_spans();
         Utils::putEnvAndReloadConfig([
             'DD_TRACE_ENABLED=0'
         ]);

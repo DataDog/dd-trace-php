@@ -17,6 +17,7 @@ class LaravelBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"baseline"})
      */
     public function benchLaravelBaseline()
     {
@@ -34,6 +35,7 @@ class LaravelBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchLaravelOverhead()
     {
@@ -50,9 +52,7 @@ class LaravelBench extends WebFrameworkTestCase
 
     public function disableLaravelTracing()
     {
-        $this->setUpWebServer([
-                'DD_TRACE_ENABLED' => 0,
-        ]);
+        $this->setUpWebServer([], ['ddtrace.disable' => 'true']);
     }
 
     public function afterMethod()

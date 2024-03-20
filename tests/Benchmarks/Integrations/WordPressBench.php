@@ -17,6 +17,7 @@ class WordPressBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchWordPressOverhead()
     {
@@ -34,6 +35,7 @@ class WordPressBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"overhead"})
      */
     public function benchEnhancedWordPressOverhead()
     {
@@ -52,9 +54,7 @@ class WordPressBench extends WebFrameworkTestCase
     {
         $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
         $pdo->exec(file_get_contents(__DIR__ . '/../../Frameworks/WordPress/Version_6_1/scripts/wp_initdb.sql'));
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 0,
-        ]);
+        $this->setUpWebServer([], ['ddtrace.disable' => 'true']);
     }
 
     public function afterMethod()
@@ -85,6 +85,7 @@ class WordPressBench extends WebFrameworkTestCase
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
+     * @Groups({"baseline"})
      */
     public function benchWordPressBaseline()
     {

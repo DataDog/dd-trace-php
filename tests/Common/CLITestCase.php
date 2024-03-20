@@ -43,7 +43,7 @@ abstract class CLITestCase extends IntegrationTestCase
      *
      * @return array
      */
-    protected static function getInis()
+    protected static function getInis($enableTracing = true)
     {
         return [
             'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
