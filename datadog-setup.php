@@ -467,7 +467,6 @@ function install($options)
     $tmpArchiveAppsecBin = "{$tmpArchiveAppsecRoot}/bin";
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
-    $tmpBridgeDir = $tmpArchiveTraceRoot . '/bridge';
     $tmpSrcDir = $tmpArchiveTraceRoot . '/src';
     if (!file_exists($tmpDir)) {
         execute_or_exit("Cannot create directory '$tmpDir'", "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($tmpDir));
@@ -513,8 +512,7 @@ function install($options)
 
     // Tracer sources
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
-    $installDirBridgeDir = $installDirSourcesDir . '/bridge';
-    $installDirWrapperPath = $installDirBridgeDir . '/dd_wrap_autoloader.php';
+    $installDirSrcDir = $installDirSourcesDir . '/src';
     // copying sources to the final destination
     if (!file_exists($installDirSourcesDir)) {
         execute_or_exit(
@@ -523,15 +521,9 @@ function install($options)
         );
     }
     execute_or_exit(
-        "Cannot copy files from '$tmpBridgeDir' to '$installDirBridgeDir'",
-        (IS_WINDOWS ? "echo d | xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg($tmpBridgeDir) . ' ' . escapeshellarg($installDirBridgeDir)
+        "Cannot copy files from '$tmpSrcDir' to '$installDirSourcesDir'",
+        (IS_WINDOWS ? "echo d | xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSrcDir)
     );
-    if (file_exists($tmpSrcDir)) {
-        execute_or_exit(
-            "Cannot copy files from '$tmpSrcDir' to '$installDirSourcesDir'",
-            "cp -r " . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSourcesDir)
-        );
-    }
     echo "Installed required source files to '$installDir'\n";
 
     // Appsec helper and rules
@@ -650,15 +642,16 @@ function install($options)
 
                 $replacements += [
                     // Old name is deprecated
-                    '(ddtrace\.request_init_hook)' => 'datadog.trace.request_init_hook',
-                    '((datadog\.trace\.request_init_hook)\s*=\s*.*)' => "$1 = $installDirWrapperPath",
+                    '(ddtrace\.request_init_hook)' => 'datadog.trace.sources_path',
+                    '(datadog\.trace\.request_init_hook)' => 'datadog.trace.sources_path',
+                    '((datadog\.trace\.sources_path)\s*=\s*.*)' => "$1 = $installDirSrcDir",
                     /* In order to support upgrading from legacy installation method to new installation method, we
                      * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
                      * `;`, hence not automatically re-activating the extension if the user had commented it out.
                      */
-                    '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace." . EXTENSION_SUFFIX,
+                    '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
                     // Support upgrading from the C based zend_extension.
-                    '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling." . EXTENSION_SUFFIX,
+                    '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
                 ];
             }
 
@@ -666,7 +659,7 @@ function install($options)
             if (is_truthy($options[OPT_ENABLE_PROFILING])) {
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 if ($shouldInstallProfiling) {
-                    $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling." . EXTENSION_SUFFIX;
+                    $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
                 } else {
                     $enableProfiling = OPT_ENABLE_PROFILING;
                     print_error_and_exit(
@@ -682,7 +675,7 @@ function install($options)
             if ($shouldInstallAppsec) {
                 $rulesPathRegex = preg_quote($options[OPT_INSTALL_DIR]) . "/[0-9\.]*/etc/recommended.json";
                 $replacements += [
-                    '(^\s*;\s*extension\s*=\s*.*ddappsec.*)m' => "extension = ddappsec." . EXTENSION_SUFFIX,
+                    '(^\s*;\s*extension\s*=\s*.*ddappsec.*)m' => "extension = ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
                     // Update helper path
                     '(datadog.appsec.helper_path\s*=.*)' => "datadog.appsec.helper_path = $appSecHelperPath",
                     // Update and comment rules path
@@ -691,7 +684,7 @@ function install($options)
                 ];
             } else {
                 // Ensure AppSec isn't loaded if not compatible
-                $replacements['(^[\s;]*extension\s*=\s*.*ddappsec.*)m'] = "; extension = ddappsec." . EXTENSION_SUFFIX;
+                $replacements['(^[\s;]*extension\s*=\s*.*ddappsec.*)m'] = "; extension = ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
 
                 if (is_truthy($options[OPT_ENABLE_APPSEC])) {
                     $enableAppsec = OPT_ENABLE_APPSEC;
@@ -703,7 +696,7 @@ function install($options)
 
             add_missing_ini_settings(
                 $iniFilePath,
-                get_ini_settings($installDirWrapperPath, $appSecHelperPath, $appSecRulesPath),
+                get_ini_settings($installDirSrcDir, $appSecHelperPath, $appSecRulesPath),
                 $replacements
             );
 
@@ -1413,12 +1406,30 @@ function download($url, $destination)
 
     // file_get_contents
     if (is_truthy(ini_get('allow_url_fopen')) && extension_loaded('openssl')) {
-        if (false === file_put_contents($destination, file_get_contents($url))) {
+        ini_set("memory_limit", "1G"); // increase memory limit otherwise we may run OOM here.
+        $data = @file_get_contents($url);
+        // PHP doesn't like too long location headers, and on PHP 7.3 and older they weren't read at all.
+        // But this only really matters for CircleCI artifacts, so not too bad.
+        if ($data == "") {
+            foreach ($http_response_header as $header) {
+                if (stripos($header, "location: ") === 0) {
+                    $data = file_get_contents(substr($header, 10));
+                    goto got_data;
+                }
+            }
+            if (PHP_VERSION_ID < 70400) {
+                goto next_method; // location redirects may not be read on 7.3 and older
+            }
+        }
+        got_data: ;
+        if ($data == "" || false === file_put_contents($destination, $data)) {
             print_error_and_exit("Error while downloading the installable archive from $url\n");
         }
 
         echo $okMessage;
         return;
+
+        next_method:
     }
 
     if (IS_WINDOWS) {
@@ -1504,6 +1515,13 @@ function ini_values($binary)
             }
         }
     }
+
+    if ($found[EXTENSION_DIR] == "") {
+        $found[EXTENSION_DIR] = dirname(PHP_BINARY);
+    } elseif ($found[EXTENSION_DIR][0] != "/" && (!IS_WINDOWS || !preg_match('~^([A-Z]:|\\\\)\\\\~i', $found[EXTENSION_DIR]))) {
+        $found[EXTENSION_DIR] = dirname(PHP_BINARY) . '/' . $found[EXTENSION_DIR];
+    }
+
     return $found;
 }
 
@@ -1550,6 +1568,15 @@ function search_php_binaries($prefix = '')
         foreach (scandir($bootDisk) as $file) {
             if (stripos($file, "php") !== false) {
                 $standardPaths[] = "$bootDisk$file";
+            }
+        }
+
+        $chocolateyDir = getenv("ChocolateyToolsLocation") ?: $bootDisk . 'tools'; // chocolatey tools location
+        if (is_dir($chocolateyDir)) {
+            foreach (scandir($chocolateyDir) as $file) {
+                if (stripos($file, "php") !== false) {
+                    $standardPaths[] = "$chocolateyDir/$file";
+                }
             }
         }
 
@@ -1800,12 +1827,12 @@ function map_env_to_ini($env)
  *   - description (string|string[]): A string (or an array of strings, each representing a line) that describes
  *                                    the setting.
  *
- * @param string $requestInitHookPath
+ * @param string $sourcesDir
  * @param string $appsecHelperPath
  * @param string $appsecRulesPath
  * @return array
  */
-function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesPath)
+function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
 {
     // phpcs:disable Generic.Files.LineLength.TooLong
     return [
@@ -1903,8 +1930,8 @@ function get_ini_settings($requestInitHookPath, $appsecHelperPath, $appsecRulesP
         ],
 
         [
-            'name' => 'datadog.trace.request_init_hook',
-            'default' => $requestInitHookPath,
+            'name' => 'datadog.trace.sources_path',
+            'default' => $sourcesDir,
             'commented' => false,
             'description' => 'Path to the request init hook (set by the installer, do not change it)',
         ],

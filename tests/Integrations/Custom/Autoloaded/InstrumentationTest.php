@@ -41,6 +41,10 @@ final class InstrumentationTest extends WebFrameworkTestCase
 
     public function testInstrumentation()
     {
+        if (extension_loaded('xdebug')) {
+            $this->markTestSkipped('Xdebug extension is loaded');
+        }
+
         $this->resetRequestDumper();
 
         $this->call(GetSpec::create("autoloaded", "/simple"));
@@ -82,16 +86,23 @@ final class InstrumentationTest extends WebFrameworkTestCase
             [
                 "name" => "pdo",
                 "enabled" => true,
+                'version' => null,
+                'compatible' => null,
+                'auto_enabled' => null,
             ],
             [
                 "name" => "exec",
                 "enabled" => false,
-                "version" => ""
+                "version" => "",
+                'compatible' => null,
+                'auto_enabled' => null,
             ],
             [
                 "name" => "logs",
                 "enabled" => false,
-                "version" => ""
+                "version" => "",
+                'compatible' => null,
+                'auto_enabled' => null,
             ]
         ], $payloads[2]["payload"]["integrations"]);
     }

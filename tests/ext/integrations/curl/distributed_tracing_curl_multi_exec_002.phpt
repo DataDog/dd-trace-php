@@ -3,8 +3,6 @@ Distributed tracing headers propagate when curl_multi_init() is called before cu
 --SKIPIF--
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
---INI--
-ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 HTTP_X_DATADOG_ORIGIN=phpt-test

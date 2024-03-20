@@ -140,7 +140,7 @@ HashTable *dd_uhook_collect_args(zend_execute_data *execute_data) {
 #endif
 
 void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure) {
-    LOGEV(Warn, {
+    LOGEV(WARN, {
         char *scope = "";
         char *colon = "";
         char *name = "(unknown function)";
@@ -184,6 +184,7 @@ static bool dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *clo
     bool has_this = getThis() != NULL;
     zval rv;
     zai_sandbox sandbox;
+    zai_sandbox_open(&sandbox);
     bool success = zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL,
                                    ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
                                    &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &hook_data_zv);
@@ -284,7 +285,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     if (def->begin && !def->running) {
         dyn->hook_data->execute_data = execute_data;
 
-        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
+        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
 
         def->running = true;
         dd_uhook_call_hook(execute_data, def->begin, dyn->hook_data);
@@ -405,7 +406,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         }
         zval_ptr_dtor(&tmp);
 
-        LOGEV(Hook_Trace, dd_uhook_log_invocation(log, execute_data, "end", def->end););
+        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "end", def->end););
 
         def->running = true;
         dyn->hook_data->retval_ptr = retval;
@@ -577,7 +578,7 @@ type_error:
             HashTable *baseTable = resolved->common.scope ? &resolved->common.scope->function_table : EG(function_table);
             zend_function *original = zend_hash_find_ptr(baseTable, resolved->common.function_name);
             if (!original) {
-                LOG(Error,
+                LOG(ERROR,
                         "Could not find original function for fake closure ",
                         resolved->common.scope ? ZSTR_VAL(resolved->common.scope->name) : "",
                         resolved->common.scope ? "::" : "",
@@ -589,7 +590,7 @@ type_error:
         def->install_address = zai_hook_install_address(resolved);
 
         if (hook_limit > 0 && zai_hook_count_resolved(resolved) >= hook_limit) {
-            LOG_LINE_ONCE(Error,
+            LOG_LINE_ONCE(ERROR,
                     "Could not add hook to callable with more than datadog.trace.hook_limit = %d installed hooks",
                     hook_limit);
             goto error;
@@ -598,7 +599,7 @@ type_error:
             dd_uhook_begin, dd_uhook_end,
             ZAI_HOOK_AUX(def, dd_uhook_dtor), sizeof(dd_uhook_dynamic));
 
-        LOG(Hook_Trace, "Installing a hook function %d at %s:%d on runtime %s %s%s%s",
+        LOG(HOOK_TRACE, "Installing a hook function %d at %s:%d on runtime %s %s%s%s",
             id,
             zend_get_executed_filename(), zend_get_executed_lineno(),
             resolved->common.scope ? "method" : "function",
@@ -639,7 +640,7 @@ type_error:
                     def->file = zend_string_init(resolved_path_buf, strlen(resolved_path_buf), 0);
                 } else if (ZSTR_LEN(name) > 2 && ZSTR_VAL(name)[0] == '.' && (ZSTR_VAL(name)[1] == '/' || ZSTR_VAL(name)[1] == '\\'
                      || (ZSTR_VAL(name)[1] == '.' && (ZSTR_VAL(name)[2] == '/' || ZSTR_VAL(name)[2] == '\\')))) { // relative path handling
-                    LOG_LINE_ONCE(Error, "Could not add hook to file path %s, could not resolve path", ZSTR_VAL(name));
+                    LOG_LINE_ONCE(ERROR, "Could not add hook to file path %s, could not resolve path", ZSTR_VAL(name));
                     goto error;
                 } else {
                     def->file = zend_string_copy(name);
@@ -651,7 +652,7 @@ type_error:
         }
 
         if (hook_limit > 0 && zai_hook_count_installed(scope, function) >= hook_limit) {
-            LOG_LINE_ONCE(Error,
+            LOG_LINE_ONCE(ERROR,
                 "Could not add hook to %s%s%s with more than datadog.trace.hook_limit = %d installed hooks",
                 def->scope ? ZSTR_VAL(def->scope) : "",
                 def->scope ? "::" : "",
@@ -668,7 +669,7 @@ type_error:
                 sizeof(dd_uhook_dynamic));
 
         if (id >= 0) {
-            LOG(Hook_Trace, "Installing a hook function %d at %s:%d on %s %s%s%s",
+            LOG(HOOK_TRACE, "Installing a hook function %d at %s:%d on %s %s%s%s",
                 id,
                 zend_get_executed_filename(), zend_get_executed_lineno(),
                 def->file ? "file" : (def->scope ? "method" : "function"),
@@ -713,7 +714,7 @@ PHP_FUNCTION(DDTrace_remove_hook) {
                 zai_hook_exclude_class(scope, function, id, lower);
                 zend_string_release(lower);
 
-                LOG(Hook_Trace, "Excluding class %s from hook %d at %s:%d on %s %s%s%s",
+                LOG(HOOK_TRACE, "Excluding class %s from hook %d at %s:%d on %s %s%s%s",
                     ZSTR_VAL(location),
                     id,
                     zend_get_executed_filename(), zend_get_executed_lineno(),
@@ -724,7 +725,7 @@ PHP_FUNCTION(DDTrace_remove_hook) {
             } else {
                 zai_hook_remove(scope, function, id);
 
-                LOG(Hook_Trace, "Removing hook %d at %s:%d on %s %s%s%s",
+                LOG(HOOK_TRACE, "Removing hook %d at %s:%d on %s %s%s%s",
                     id,
                     zend_get_executed_filename(), zend_get_executed_lineno(),
                     def->file ? "file" : (def->scope ? "method" : "function"),
@@ -740,7 +741,7 @@ PHP_FUNCTION(DDTrace_remove_hook) {
             } else {
                 zai_hook_remove_resolved(def->install_address, id);
 
-                LOG(Hook_Trace, "Removing hook %d at %s:%d on %s %s%s%s",
+                LOG(HOOK_TRACE, "Removing hook %d at %s:%d on %s %s%s%s",
                     id,
                     zend_get_executed_filename(), zend_get_executed_lineno(),
                     def->file ? "file" : (def->scope ? "method" : "function"),
@@ -788,7 +789,7 @@ void dd_uhook_span(INTERNAL_FUNCTION_PARAMETERS, bool unlimited) {
         ddtrace_span_data *span = zend_hash_index_find_ptr(&DDTRACE_G(traced_spans), hookData->invocation);
         if (span) {
             if (span->stack != stack) {
-                LOG(Error, "Could not switch stack for hook in %s:%d", zend_get_executed_filename(), zend_get_executed_lineno());
+                LOG(ERROR, "Could not switch stack for hook in %s:%d", zend_get_executed_filename(), zend_get_executed_lineno());
             }
         } else {
             hookData->prior_stack = DDTRACE_G(active_stack);
@@ -836,7 +837,7 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
     zend_function *func = hookData->execute_data->func;
     if (MAX(func->common.num_args, passed_args) < zend_hash_num_elements(args)) {
         // Adding args would mean that we would have to possibly transfer execute_data to a new stack, but changing that pointer may break all sorts of extensions
-        LOG_LINE_ONCE(Error, "Cannot set more args than provided: got too many arguments for hook");
+        LOG_LINE_ONCE(ERROR, "Cannot set more args than provided: got too many arguments for hook");
         RETURN_FALSE;
     }
 
@@ -851,14 +852,14 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
     }
 
     if (func->common.required_num_args > zend_hash_num_elements(args)) {
-        LOG_LINE_ONCE(Error, "Not enough args provided for hook");
+        LOG_LINE_ONCE(ERROR, "Not enough args provided for hook");
         RETURN_FALSE;
     }
 
     // If we'd remove args, we'd need to re-evaluate potential RECV_INIT opcodes, to get their default values, or outright throw a TypeError
     // Guard against that for now instead of manually re-evaluating RECV_INIT opcodes.
     if (ZEND_USER_CODE(func->type) && MIN(func->common.num_args, passed_args) > zend_hash_num_elements(args)) {
-        LOG_LINE_ONCE(Error, "Can't pass less args to an untyped function than originally passed (minus extra args)");
+        LOG_LINE_ONCE(ERROR, "Can't pass less args to an untyped function than originally passed (minus extra args)");
         RETURN_FALSE;
     }
 
@@ -977,11 +978,11 @@ ZEND_METHOD(DDTrace_HookData, suppressCall) {
     }
 
     if (!hookData->dis_jit_inlining_called) {
-        LOG(Error, "suppressCall called without disableJitInlining before");
+        LOG(ERROR, "suppressCall called without disableJitInlining before");
     }
 
     if (hookData->execute_data->func->type != ZEND_USER_FUNCTION) {
-        LOG(Error, "suppressCall is only supported for user functions");
+        LOG(ERROR, "suppressCall is only supported for user functions");
         RETURN_FALSE;
     }
 

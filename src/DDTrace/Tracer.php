@@ -19,14 +19,6 @@ final class Tracer implements TracerInterface
     use LoggingTrait;
 
     /**
-     * @deprecated Use Tracer::version() instead
-     *
-     * Must begin with a number for Debian packaging requirements
-     * Must use single-quotes for packaging script to work
-     */
-    const VERSION = '0.98.1';
-
-    /**
      * @var Span[][]
      */
     private $traces = [];
@@ -99,8 +91,8 @@ final class Tracer implements TracerInterface
         foreach ($this->config['global_tags'] as $key => $val) {
             add_global_tag($key, $val);
         }
-        $this->serviceVersion = \ddtrace_config_service_version();
-        $this->environment = \ddtrace_config_env();
+        $this->serviceVersion = \dd_trace_env_config("DD_VERSION");
+        $this->environment = \dd_trace_env_config("DD_ENV");
 
         $context = current_context();
         if (isset($context["distributed_tracing_parent_id"])) {
@@ -124,7 +116,7 @@ final class Tracer implements TracerInterface
      */
     public function reset()
     {
-        if (_ddtrace_config_bool(ini_get("datadog.trace.enabled"), false)) {
+        if ($this->config['enabled'] && \ddtrace_config_trace_enabled()) {
             // Do a full shutdown and re-startup of the tracer, which implies clearing the internal span stack
             ini_set("datadog.trace.enabled", 0);
             ini_set("datadog.trace.enabled", 1);
@@ -297,7 +289,7 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled() && $rootSpan = $this->getSafeRootSpan()) {
+        if ('cli' !== PHP_SAPI && \dd_trace_env_config("DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED") && $rootSpan = $this->getSafeRootSpan()) {
             $this->addUrlAsResourceNameToSpan($rootSpan);
         }
 
@@ -365,10 +357,6 @@ final class Tracer implements TracerInterface
      */
     private function setPrioritySamplingFromSpan(SpanInterface $span)
     {
-        if (!\ddtrace_config_priority_sampling_enabled()) {
-            return;
-        }
-
         if (!$span->getContext()->isHostRoot()) {
             // Only root spans for each host must have the sampling priority value set.
             return;
@@ -418,7 +406,7 @@ final class Tracer implements TracerInterface
      */
     public static function version()
     {
-        return self::VERSION;
+        return \phpversion("ddtrace");
     }
 
     /**

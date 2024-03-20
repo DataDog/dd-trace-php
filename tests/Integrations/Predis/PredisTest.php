@@ -3,10 +3,8 @@
 namespace DDTrace\Tests\Integrations\Predis;
 
 use DDTrace\Tag;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Util\Versions;
 use Predis\Configuration\Options;
 
 final class PredisTest extends IntegrationTestCase
@@ -17,7 +15,6 @@ final class PredisTest extends IntegrationTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        IntegrationsLoader::load();
     }
 
     protected function ddSetUp()
@@ -250,20 +247,12 @@ final class PredisTest extends IntegrationTestCase
             $this->assertInstanceOf('Predis\Response\Status', $responseFlush);
         });
 
-        if (Versions::phpVersionMatches('5')) {
-            $exactTags = [
-                Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'predis',
-                Tag::DB_SYSTEM => 'redis',
-            ];
-        } else {
-            $exactTags = [
-                Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'predis',
-                Tag::DB_SYSTEM => 'redis',
-                'redis.pipeline_length' => '2',
-            ];
-        }
+        $exactTags = [
+            Tag::SPAN_KIND => 'client',
+            Tag::COMPONENT => 'predis',
+            Tag::DB_SYSTEM => 'redis',
+            'redis.pipeline_length' => '2',
+        ];
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),

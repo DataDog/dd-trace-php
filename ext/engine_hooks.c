@@ -43,13 +43,13 @@ void dd_search_for_profiling_symbols(void *arg) {
 
         profiling_interrupt_function = (void(*)(zend_execute_data *))DL_FETCH_SYMBOL(handle, "ddog_php_prof_interrupt_function");
         if (UNEXPECTED(!profiling_interrupt_function)) {
-            LOG(Warn, "[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n", "ddog_php_prof_interrupt_function",
+            LOG(WARN, "[Datadog Trace] Profiling was detected, but locating symbol %s failed: %s\n", "ddog_php_prof_interrupt_function",
                                GET_DL_ERROR());
         }
 
         profiling_notify_trace_finished = (profiling_notify_trace_finished_t)DL_FETCH_SYMBOL(handle, "datadog_profiling_notify_trace_finished");
         if (UNEXPECTED(!profiling_notify_trace_finished)) {
-            LOG(Warn, "[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n", extension->version, GET_DL_ERROR());
+            LOG(WARN, "[Datadog Trace] Profiling v%s was detected, but locating symbol failed: %s\n", extension->version, GET_DL_ERROR());
         }
     }
 }

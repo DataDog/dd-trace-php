@@ -32,7 +32,6 @@ EOD;
         self::putenv('DD_DISTRIBUTED_TRACING');
         self::putenv('DD_ENV');
         self::putenv('DD_INTEGRATIONS_DISABLED');
-        self::putenv('DD_PRIORITY_SAMPLING');
         self::putenv('DD_SAMPLING_RATE');
         self::putenv('DD_SERVICE_MAPPING');
         self::putenv('DD_SERVICE_NAME');
@@ -64,13 +63,13 @@ EOD;
 
     public function testDebugModeDisabledByDefault()
     {
-        $this->assertFalse(\ddtrace_config_debug_enabled());
+        $this->assertFalse(\dd_trace_env_config("DD_TRACE_DEBUG"));
     }
 
     public function testDebugModeCanBeEnabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_DEBUG=true']);
-        $this->assertTrue(\ddtrace_config_debug_enabled());
+        $this->assertTrue(\dd_trace_env_config("DD_TRACE_DEBUG"));
     }
 
     public function testDistributedTracingEnabledByDefault()
@@ -82,17 +81,6 @@ EOD;
     {
         $this->putEnvAndReloadConfig(['DD_DISTRIBUTED_TRACING=false']);
         $this->assertFalse(\ddtrace_config_distributed_tracing_enabled());
-    }
-
-    public function testPrioritySamplingEnabledByDefault()
-    {
-        $this->assertTrue(\ddtrace_config_priority_sampling_enabled());
-    }
-
-    public function testPrioritySamplingDisabled()
-    {
-        $this->putEnvAndReloadConfig(['DD_PRIORITY_SAMPLING=false']);
-        $this->assertFalse(\ddtrace_config_priority_sampling_enabled());
     }
 
     public function testAllIntegrationsEnabledByDefault()
@@ -236,17 +224,6 @@ EOD;
         $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
     }
 
-    public function testAnalyticsDisabledByDefault()
-    {
-        $this->assertFalse(\ddtrace_config_analytics_enabled());
-    }
-
-    public function testAnalyticsCanBeGloballyEnabled()
-    {
-        $this->putEnvAndReloadConfig(['DD_TRACE_ANALYTICS_ENABLED=true']);
-        $this->assertTrue(\ddtrace_config_analytics_enabled());
-    }
-
     /**
      * @dataProvider dataProviderTestServiceMapping
      * @param mixed $envs
@@ -258,7 +235,7 @@ EOD;
             $this->putEnvAndReloadConfig(["DD_SERVICE_MAPPING=$env"]);
         }
 
-        $this->assertSame($expected, \ddtrace_config_service_mapping());
+        $this->assertSame($expected, \dd_trace_env_config("DD_SERVICE_MAPPING"));
     }
 
     public function dataProviderTestServiceMapping()
@@ -290,106 +267,59 @@ EOD;
     public function testEnv()
     {
         $this->putEnvAndReloadConfig(['DD_ENV=my-env']);
-        $this->assertSame('my-env', \ddtrace_config_env());
+        $this->assertSame('my-env', \dd_trace_env_config("DD_ENV"));
     }
 
     public function testEnvNotSet()
     {
         $this->putEnvAndReloadConfig(['DD_ENV']);
-        $this->assertEmpty(\ddtrace_config_env());
+        $this->assertEmpty(\dd_trace_env_config("DD_ENV"));
     }
 
     public function testVersion()
     {
         $this->putEnvAndReloadConfig(['DD_VERSION=1.2.3']);
-        $this->assertSame('1.2.3', \ddtrace_config_service_version());
+        $this->assertSame('1.2.3', \dd_trace_env_config("DD_VERSION"));
     }
 
     public function testVersionNotSet()
     {
         $this->putEnvAndReloadConfig(['DD_VERSION']);
-        $this->assertEmpty(\ddtrace_config_service_version());
+        $this->assertEmpty(\dd_trace_env_config("DD_VERSION"));
     }
 
     public function testUriAsResourceNameEnabledDefault()
     {
-        $this->assertTrue(\ddtrace_config_url_resource_name_enabled());
+        $this->assertTrue(\dd_trace_env_config("DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED"));
     }
 
     public function testUriAsResourceNameCanBeDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=false']);
-        $this->assertFalse(\ddtrace_config_url_resource_name_enabled());
+        $this->assertFalse(\dd_trace_env_config("DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED"));
     }
 
     public function testGlobalTags()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1,key2:value2']);
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }
 
     public function testGlobalTagsLegacyEnv()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2']);
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }
 
     public function testGlobalTagsWrongValueJustResultsInNoTags()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=wrong_key_value']);
-        $this->assertEquals([], \ddtrace_config_global_tags());
-    }
-
-    public function testUriNormalizationSettingWhenNotSet()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
-            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
-            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
-        ]);
-
-        $this->assertSame([], \ddtrace_config_path_fragment_regex());
-        $this->assertSame([], \ddtrace_config_path_mapping_incoming());
-        $this->assertSame([], \ddtrace_config_path_mapping_outgoing());
-    }
-
-    public function testUriNormalizationSettingWheSet()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/a/',
-            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=path/*',
-            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=path/*',
-        ]);
-
-        $this->assertSame(['/a/'], \ddtrace_config_path_fragment_regex());
-        $this->assertSame(['path/*'], \ddtrace_config_path_mapping_incoming());
-        $this->assertSame(['path/*'], \ddtrace_config_path_mapping_outgoing());
-    }
-
-    public function testRedisClientSplitHostNotSet()
-    {
-        $this->assertFalse(\ddtrace_config_redis_client_split_by_host_enabled());
-    }
-
-    public function testRedisClientSplitHostSetFalse()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=false',
-        ]);
-        $this->assertFalse(\ddtrace_config_redis_client_split_by_host_enabled());
-    }
-
-    public function testRedisClientSplitHostSetTrue()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true',
-        ]);
-        $this->assertTrue(\ddtrace_config_redis_client_split_by_host_enabled());
+        $this->assertEquals([], \dd_trace_env_config("DD_TAGS"));
     }
 
     public function testHttpHeadersDefaultsToEmpty()
     {
-        $this->assertEmpty(\ddtrace_config_http_headers());
+        $this->assertEmpty(\dd_trace_env_config("DD_TRACE_HEADER_TAGS"));
     }
 
     public function testHttpHeadersCanSetOne()
@@ -397,7 +327,7 @@ EOD;
         $this->putEnvAndReloadConfig([
             'DD_TRACE_HEADER_TAGS=A-Header',
         ]);
-        $this->assertSame(['a-header'], \ddtrace_config_http_headers());
+        $this->assertSame(['a-header'], array_keys(\dd_trace_env_config("DD_TRACE_HEADER_TAGS")));
     }
 
     public function testHttpHeadersCanSetMultiple()
@@ -407,6 +337,6 @@ EOD;
         ]);
         // Same behavior as python tracer:
         // https://github.com/DataDog/dd-trace-py/blob/f1298cb8100f146059f978b58c88641bd7424af8/ddtrace/http/headers.py
-        $this->assertSame(['a-header', 'any-name', 'con7aining-!spe_cial?:ch/ars'], \ddtrace_config_http_headers());
+        $this->assertSame(['a-header', 'any-name', 'con7aining-!spe_cial?:ch/ars'], array_keys(\dd_trace_env_config("DD_TRACE_HEADER_TAGS")));
     }
 }

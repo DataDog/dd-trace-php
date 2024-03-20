@@ -23,7 +23,6 @@ const ENVS = [
     'DD_TRACE_AGENT_PORT' => ['9999'],
     'DD_DISTRIBUTED_TRACING' => ['false'],
     'DD_AUTOFINISH_SPANS' => ['true'],
-    'DD_PRIORITY_SAMPLING' => ['false'],
     'DD_SERVICE_MAPPING' => ['pdo:pdo-changed,curl:curl-changed'],
     'DD_TRACE_AGENT_CONNECT_TIMEOUT' => ['1'],
     'DD_TRACE_AGENT_TIMEOUT' => ['1'],

@@ -58,7 +58,7 @@ services:
     volumes:
       - ./callgrind-files:/var/www/callgrind-files
       # - ../../:/dd-trace-php
-      # - ./Laravel57/public/inithook.php:/var/www/public/inithook.php
+      # - ./Laravel57/public/dd-trace-sources:/var/www/public/dd-trace-sources
 
   php-fpm-release:
     image: overhead-php-fpm-release

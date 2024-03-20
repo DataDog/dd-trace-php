@@ -78,6 +78,7 @@
             <file name="config.w32" role="src" />
             <file name="ddtrace.sym" role="src" />
             <file name="compile_rust.sh" role="src" />
+            <file name="VERSION" role="src" />
 
             <!-- Docs -->
             <file name="CHANGELOG.md" role="doc" />

@@ -14,8 +14,6 @@
 #include "../span.h"
 #include "exec_integration_arginfo.h"
 
-#define NS "DDTrace\\Integrations\\Exec\\"
-
 #if PHP_VERSION_ID < 80000
 typedef struct php_process_handle php_process_handle;
 #endif
@@ -58,7 +56,7 @@ static void dd_exec_destroy_tracked_streams() {
     tracked_streams = NULL;
 }
 
-static PHP_FUNCTION(DDTrace_integrations_exec_register_stream) {
+PHP_FUNCTION(DDTrace_Integrations_Exec_register_stream) {
     php_stream *stream;
     zval *zstream;
     zend_object *span;
@@ -191,7 +189,7 @@ static void dd_waitpid(ddtrace_span_data *span_data, dd_proc_span *proc) {
     }
 }
 
-static PHP_FUNCTION(DDTrace_integrations_exec_proc_assoc_span) {
+PHP_FUNCTION(DDTrace_Integrations_Exec_proc_assoc_span) {
     zval *zres;
     zend_object *span;
 
@@ -222,7 +220,7 @@ static PHP_FUNCTION(DDTrace_integrations_exec_proc_assoc_span) {
     RETURN_TRUE;
 }
 
-static PHP_FUNCTION(DDTrace_integrations_exec_proc_get_span) {
+PHP_FUNCTION(DDTrace_Integrations_Exec_proc_get_span) {
     zval *zres;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -248,7 +246,7 @@ static PHP_FUNCTION(DDTrace_integrations_exec_proc_get_span) {
 }
 
 // used in testing only
-static PHP_FUNCTION(DDTrace_integrations_exec_proc_get_pid) {
+PHP_FUNCTION(DDTrace_Integrations_Exec_proc_get_pid) {
     zval *zres;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -262,7 +260,7 @@ static PHP_FUNCTION(DDTrace_integrations_exec_proc_get_pid) {
     php_process_handle *proc_h = Z_RES_P(zres)->ptr;
     RETURN_LONG((long)proc_h->child);
 }
-static PHP_FUNCTION(DDTrace_integrations_exec_test_rshutdown) {
+PHP_FUNCTION(DDTrace_Integrations_Exec_test_rshutdown) {
     if (zend_parse_parameters_none() != SUCCESS) {
         return;
     }
@@ -272,23 +270,12 @@ static PHP_FUNCTION(DDTrace_integrations_exec_test_rshutdown) {
     RETURN_TRUE;
 }
 
-// clang-format off
-static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(NS "register_stream", PHP_FN(DDTrace_integrations_exec_register_stream), arginfo_DDTrace_Integrations_Exec_register_stream, 0)
-    ZEND_RAW_FENTRY(NS "proc_assoc_span", PHP_FN(DDTrace_integrations_exec_proc_assoc_span), arginfo_DDTrace_Integrations_Exec_proc_assoc_span, 0)
-    ZEND_RAW_FENTRY(NS "proc_get_span", PHP_FN(DDTrace_integrations_exec_proc_get_span), arginfo_DDTrace_Integrations_Exec_proc_get_span, 0)
-    ZEND_RAW_FENTRY(NS "proc_get_pid", PHP_FN(DDTrace_integrations_exec_proc_get_pid), arginfo_DDTrace_Integrations_Exec_proc_get_pid, 0)
-    ZEND_RAW_FENTRY(NS "test_rshutdown", PHP_FN(DDTrace_integrations_exec_test_rshutdown), arginfo_DDTrace_Integrations_Exec_test_rshutdown, 0)
-    PHP_FE_END
-};
-// clang-format on
-
 void ddtrace_exec_handlers_startup() {
     // popen
     orig_php_stream_stdio_ops_close = php_stream_stdio_ops.close;
     php_stream_stdio_ops.close = dd_php_stdiop_close_wrapper;
 
-    zend_register_functions(NULL, functions, NULL, MODULE_PERSISTENT);
+    zend_register_functions(NULL, ext_functions, NULL, MODULE_PERSISTENT);
     cmd_exit_code_zstr = zend_string_init_interned(ZEND_STRL("cmd.exit_code"), 1);
     error_message_zstr = zend_string_init_interned(ZEND_STRL("error.message"), 1);
     has_signalled_zstr = zend_string_init_interned(ZEND_STRL("The process was terminated by a signal"), 1);

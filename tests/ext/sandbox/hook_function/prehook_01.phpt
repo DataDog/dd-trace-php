@@ -1,7 +1,5 @@
 --TEST--
 DDTrace\hook_function prehook basic functionality
---INI--
-ddtrace.request_init_hook=
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
