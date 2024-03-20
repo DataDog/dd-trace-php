@@ -140,10 +140,10 @@ static ZEND_INI_MH(dd_OnUpdateDisabled) {
 }
 
 PHP_INI_BEGIN()
-    ZEND_INI_ENTRY("datadog.trace.disable", "0", PHP_INI_SYSTEM, dd_OnUpdateDisabled)
+    ZEND_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, dd_OnUpdateDisabled)
 
     // Exposed for testing only
-    STD_PHP_INI_ENTRY("datadog.trace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, OnUpdateString, cgroup_file,
+    STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, OnUpdateString, cgroup_file,
                       zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 
