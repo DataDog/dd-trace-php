@@ -213,6 +213,14 @@ pub fn alloc_prof_rinit() {
                 ptr::addr_of_mut!((*zend_mm_state).realloc).write(alloc_prof_orig_realloc);
                 ptr::addr_of_mut!((*zend_mm_state).prepare_restore_zend_heap)
                     .write((prepare_zend_heap, restore_zend_heap));
+
+                // Reset previous handlers to None. There might be a chaotic neighbor that
+                // registered custom handlers in an earlier request, but it doesn't do so for this
+                // request. In that case we would restore the neighbouring extensions custom
+                // handlers to the ZendMM in RSHUTDOWN which would lead to a crash!
+                ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_alloc).write(None);
+                ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_free).write(None);
+                ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_realloc).write(None);
             }
         }
 
@@ -286,7 +294,11 @@ pub fn alloc_prof_rshutdown() {
             }
             warn!("Found another extension using the custom heap which is unexpected at this point, so the extension handle was `null`'ed to avoid being `dlclose()`'ed.");
         } else {
-            // This is the happy path (restore previously installed custom handlers)!
+            // This is the happy path. Restore previously installed custom handlers or
+            // NULL-pointers to the ZendMM. In case all pointers are NULL, the ZendMM will reset
+            // the `use_custom_heap` flag to `None`, in case we restore a neighbouring extension
+            // custom handlers, ZendMM will call those for future allocations. In either way, we
+            // have unregistered and we'll not receive any allocation calls anymore.
             unsafe {
                 zend::ddog_php_prof_zend_mm_set_custom_handlers(
                     heap,
