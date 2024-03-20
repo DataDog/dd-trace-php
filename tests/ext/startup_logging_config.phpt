@@ -5,9 +5,7 @@ Startup logging config
 --FILE--
 <?php
 include_once 'startup_logging.inc';
-$ini = [
-    '-dauto_prepend_file=/foo/fake.php',
-];
+$ini = [];
 $env = [
     'DD_ENV' => 'my-env',
     'DD_SERVICE' => 'my-service',
@@ -18,7 +16,6 @@ $env = [
     'DD_TAGS' => 'key1:value1,key2:value2',
     'DD_SERVICE_MAPPING' => 'pdo:payments-db,mysqli:orders-db',
     'DD_DISTRIBUTED_TRACING' => '0',
-    'DD_PRIORITY_SAMPLING' => '0',
     'DD_VERSION' => '4.2',
     'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX' => '^[a-f0-9]{7}$',
     'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING' => 'cities/*,articles/*',
@@ -56,7 +53,6 @@ dd_dump_startup_logs($logs, [
     'measure_compile_time',
     'report_hostname_on_root_span',
     'traced_internal_functions',
-    'auto_prepend_file_configured',
     'integrations_disabled',
     'enabled_from_env',
 ]);
@@ -71,7 +67,6 @@ sampling_rules: [{"service":"a.*","name":"b","sample_rate":0.1},{"sample_rate":0
 tags: {"key1":"value1","key2":"value2"}
 service_mapping: {"pdo":"payments-db","mysqli":"orders-db"}
 distributed_tracing_enabled: false
-priority_sampling_enabled: false
 dd_version: "4.2"
 uri_fragment_regex: "^[a-f0-9]{7}$"
 uri_mapping_incoming: "cities/*,articles/*"
@@ -82,6 +77,5 @@ http_client_split_by_domain: true
 measure_compile_time: false
 report_hostname_on_root_span: true
 traced_internal_functions: "array_sum,mt_rand,DateTime::add"
-auto_prepend_file_configured: true
 integrations_disabled: "curl,mysqli"
 enabled_from_env: true

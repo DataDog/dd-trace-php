@@ -3,7 +3,6 @@ DDTrace\hook_method posthook is called at exit (shutdown handler)
 --INI--
 zend.assertions=1
 assert.exception=1
-ddtrace.request_init_hook=
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--

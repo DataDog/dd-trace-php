@@ -223,6 +223,34 @@ namespace DDTrace {
         public SpanData|null $active = null;
     }
 
+    interface Integration {
+        // Possible statuses for the concrete:
+        /**
+         * It has not been loaded yet
+         *
+         * @cvalue DD_TRACE_INTEGRATION_NOT_LOADED
+         * @var int
+         */
+        const NOT_LOADED = UNKNOWN;
+        /**
+         * It has been loaded, no more work required
+         *
+         * @cvalue DD_TRACE_INTEGRATION_LOADED
+         * @var int
+         */
+        const LOADED = UNKNOWN;
+        /**
+         * Prerequisites are not matched and won't be matched in the future.
+         *
+         * @cvalue DD_TRACE_INTEGRATION_NOT_AVAILABLE
+         * @var int
+         */
+        const NOT_AVAILABLE = UNKNOWN;
+
+        /** Load the integration */
+        public function init(): int;
+    }
+
     // phpcs:disable Generic.Files.LineLength.TooLong
 
     /**
@@ -838,15 +866,6 @@ namespace {
      * @return bool The status of the integration, or 'false' if tracing isn't enabled.
      */
     function ddtrace_config_integration_enabled(string $integrationName): bool {}
-
-    /**
-     * Initialize the tracer and executes the dd_init.php in the sandbox
-     *
-     * @internal
-     * @param string $dir Directory where 'dd_init.php' is located
-     * @return bool 'true' if the initialization was successful, else 'false'
-     */
-    function ddtrace_init(string $dir): bool {}
 
     /**
      * Send payload to background sender's buffer

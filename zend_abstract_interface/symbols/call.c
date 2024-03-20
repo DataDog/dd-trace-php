@@ -36,7 +36,7 @@ zend_result zend_call_function_wrapper(zend_fcall_info *fci, zend_fcall_info_cac
 #if PHP_VERSION_ID >= 80200
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
-static zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data) {
+zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data) {
     // Although the tracer being present should always cause an observer to be
     // present, if zai is used from another extension, like say the profiler,
     // then this may not be set.
@@ -73,6 +73,23 @@ static zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data
     efree(rt_cache);
 
     return cur_prev_observed;
+}
+#endif
+
+#if PHP_VERSION_ID >= 80000
+void zai_reset_observed_frame_post_bailout(void) {
+    if (EG(current_execute_data)) {
+        zend_execute_data *cur_ex = EG(current_execute_data);
+        zend_execute_data backup_ex = *cur_ex;
+        EG(current_execute_data) = &backup_ex;
+        cur_ex->prev_execute_data = NULL;
+        cur_ex->func = NULL;
+        zend_observer_fcall_end_all();
+        *cur_ex = *EG(current_execute_data);
+        EG(current_execute_data) = cur_ex;
+    } else {
+        zend_observer_fcall_end_all();
+    }
 }
 #endif
 
@@ -163,9 +180,11 @@ bool zai_symbol_call_impl(
     // clang-format on
 
     // Always open the sandbox, because the caller will always try to close it
-    zai_sandbox sandbox, *sandbox_ptr = NULL;
-    zai_sandbox_open(&sandbox);
-    if (argc & ZAI_SYMBOL_SANDBOX) {
+    zai_sandbox sandbox, *sandbox_ptr = &sandbox;
+    volatile bool needs_sandbox = (argc & ZAI_SYMBOL_SANDBOX) == 0;
+    if (needs_sandbox) {
+        zai_sandbox_open(&sandbox);
+    } else {
         sandbox_ptr = va_arg(*args, zai_sandbox *);
     }
     argc &= ~ZAI_SYMBOL_SANDBOX;
@@ -277,20 +296,9 @@ bool zai_symbol_call_impl(
     }
 
     if (zai_symbol_call_bailed) {
-        zai_sandbox_bailout(&sandbox);
+        zai_sandbox_bailout(sandbox_ptr);
 #if PHP_VERSION_ID >= 80000
-        if (EG(current_execute_data)) {
-            zend_execute_data *cur_ex = EG(current_execute_data);
-            zend_execute_data backup_ex = *cur_ex;
-            EG(current_execute_data) = &backup_ex;
-            cur_ex->prev_execute_data = NULL;
-            cur_ex->func = NULL;
-            zend_observer_fcall_end_all();
-            *cur_ex = *EG(current_execute_data);
-            EG(current_execute_data) = cur_ex;
-        } else {
-            zend_observer_fcall_end_all();
-        }
+        zai_reset_observed_frame_post_bailout();
 #endif
     }
 
@@ -320,9 +328,7 @@ bool zai_symbol_call_impl(
     success = zai_symbol_call_result == SUCCESS && EG(exception) == NULL;
 
 leave:
-    if (sandbox_ptr) {
-        *sandbox_ptr = sandbox;
-    } else {
+    if (needs_sandbox) {
         zai_sandbox_close(&sandbox);
     }
 

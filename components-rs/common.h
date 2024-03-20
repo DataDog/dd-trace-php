@@ -1,5 +1,6 @@
-// Unless explicitly stated otherwise all files in this repository are licensed under the Apache License Version 2.0.
-// This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2021-Present Datadog, Inc.
+// Copyright 2021-Present Datadog, Inc. https://www.datadoghq.com/
+// SPDX-License-Identifier: Apache-2.0
+
 
 #ifndef DDOG_COMMON_H
 #define DDOG_COMMON_H
@@ -108,6 +109,8 @@ typedef struct ddog_Vec_Tag_ParseResult {
   struct ddog_Error *error_message;
 } ddog_Vec_Tag_ParseResult;
 
+#define ddog_LOG_ONCE (1 << 3)
+
 typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
   DDOG_CONFIGURATION_ORIGIN_CODE,
@@ -116,15 +119,26 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_DEFAULT,
 } ddog_ConfigurationOrigin;
 
+typedef enum ddog_Log {
+  DDOG_LOG_ERROR = 1,
+  DDOG_LOG_WARN = 2,
+  DDOG_LOG_INFO = 3,
+  DDOG_LOG_DEBUG = 4,
+  DDOG_LOG_TRACE = 5,
+  DDOG_LOG_DEPRECATED = (3 | ddog_LOG_ONCE),
+  DDOG_LOG_STARTUP = (3 | (2 << 4)),
+  DDOG_LOG_STARTUP_WARN = (1 | (2 << 4)),
+  DDOG_LOG_SPAN = (4 | (3 << 4)),
+  DDOG_LOG_SPAN_TRACE = (5 | (3 << 4)),
+  DDOG_LOG_HOOK_TRACE = (5 | (4 << 4)),
+} ddog_Log;
+
 typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest;
 
 typedef struct ddog_InstanceId ddog_InstanceId;
 
-typedef struct ddog_TelemetryActionsBuffer ddog_TelemetryActionsBuffer;
+typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
-typedef struct ddog_Log {
-  uint32_t bits;
-} ddog_Log;
 typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_SidecarTransport;
 
 typedef enum ddog_Option_VecU8_Tag {

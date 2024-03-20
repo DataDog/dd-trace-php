@@ -3,8 +3,6 @@ Distributed tracing headers propagate existing headers on error: curl_setopt_arr
 --SKIPIF--
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
---INI--
-ddtrace.request_init_hook={PWD}/distributed_tracing_curl_inject.inc
 --DESCRIPTION--
 Some libraries do not check the return stats when setting curl opts.
 @see https://github.com/stripe/stripe-php/blob/33317c9/lib/HttpClient/CurlClient.php#L441

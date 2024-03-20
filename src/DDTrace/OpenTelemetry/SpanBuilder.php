@@ -15,6 +15,7 @@ use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\SDK\Common\Attribute\AttributesBuilderInterface;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
+use OpenTelemetry\SDK\Resource\ResourceInfoFactory;
 
 final class SpanBuilder implements API\SpanBuilderInterface
 {
@@ -196,7 +197,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $parentSpan,
             $parentContext,
             $this->tracerSharedState->getSpanProcessor(),
-            $this->tracerSharedState->getResource(),
+            $parentSpanContext->isValid() ? ResourceInfoFactory::emptyResource() : $this->tracerSharedState->getResource(),
             $attributesBuilder,
             $this->links,
             $this->totalNumberOfLinksAdded,

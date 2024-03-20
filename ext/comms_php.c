@@ -12,7 +12,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t payload_len) {
     if (!get_DD_TRACE_ENABLED()) {
         // If the tracer is set to drop all the spans, we do not signal an error.
-        LOG(Warn, "Traces are dropped by PID %ld because tracing is disabled.", getpid());
+        LOG(WARN, "Traces are dropped by PID %ld because tracing is disabled.", getpid());
         return true;
     }
 
@@ -32,7 +32,7 @@ bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t pay
         mpack_expect_array_match(&reader, 1);
 
         if (mpack_reader_error(&reader) != mpack_ok) {
-            LOG(Warn, "Background sender expected a msgpack array of size 1");
+            LOG(WARN, "Background sender expected a msgpack array of size 1");
             break;
         }
 
@@ -43,7 +43,7 @@ bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t pay
         if (ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), data, data_len)) {
             sent_to_background_sender = true;
         } else {
-            LOG(Warn, "Unable to send payload to background sender's buffer");
+            LOG(WARN, "Unable to send payload to background sender's buffer");
         }
     } while (false);
 

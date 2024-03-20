@@ -23,8 +23,8 @@ var_dump(flock($f, LOCK_EX));
 var_dump(helper_mgr_acquire_conn());
 
 require __DIR__ . '/inc/logging.php';
-match_log("/Attempting to connect to UNIX socket \/tmp\/appsec-ext-test\/ddappsec_" . $version . "_" . $uid . "." . $gid . ".sock/");
-match_log("/The helper lock on \/tmp\/appsec-ext-test\/ddappsec_" . $version . "_" . $uid . "." . $gid . ".lock is already being held/");
+match_log("/Attempting to connect to UNIX socket \/tmp\/appsec-ext-test\/ddappsec_" . preg_quote($version, "/") . "_" . $uid . "." . $gid . ".sock/");
+match_log("/The helper lock on \/tmp\/appsec-ext-test\/ddappsec_" . preg_quote($version, "/") . "_" . $uid . "." . $gid . ".lock is already being held/");
 
 var_dump(backoff_status());
 ?>

@@ -84,7 +84,7 @@ $message = "\x91\x92". //[[
             "\xABclient_init". //"client_init"
             "\x95". // [
             "\xA2ok". //"ok"
-            chr(0xA0 + strlen($version)) . $version . //"0.4.0"
+            (strlen($version) > 31 ? "\xd9" . chr(strlen($version)) : chr(0xA0 + strlen($version))) . $version . //"0.4.0"
             "\x90\x80\x80"; // [], {}, {}]]]
 
 $data = "dds\0" .

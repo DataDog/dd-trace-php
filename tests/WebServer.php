@@ -95,7 +95,7 @@ final class WebServer
         $this->indexFile = realpath($indexFile);
         $this->defaultInis['error_log'] = dirname($this->indexFile) .  '/' . self::ERROR_LOG_NAME;
         // Enable auto-instrumentation
-        $this->defaultInis['ddtrace.request_init_hook'] = realpath(__DIR__ .  '/../bridge/dd_wrap_autoloader.php');
+        $this->defaultInis['datadog.trace.sources_path'] = realpath(__DIR__ .  '/../src');
         $this->host = $host;
         $this->port = $port;
     }

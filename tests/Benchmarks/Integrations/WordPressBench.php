@@ -26,23 +26,6 @@ class WordPressBench extends WebFrameworkTestCase
         ));
     }
 
-    /**
-     * @BeforeMethods("enableEnhancedWordPressTracing")
-     * @AfterMethods("afterMethod")
-     * @Revs(10)
-     * @Iterations(10)
-     * @OutputTimeUnit("microseconds")
-     * @RetryThreshold(10.0)
-     * @Warmup(1)
-     */
-    public function benchEnhancedWordPressOverhead()
-    {
-        $this->call(GetSpec::create(
-            'A simple GET request with a view',
-            '/simple_view?key=value&pwd=should_redact'
-        ));
-    }
-
     public static function getAppIndexScript()
     {
         return __DIR__ . '/../../Frameworks/WordPress/Version_6_1/index.php';
@@ -66,14 +49,6 @@ class WordPressBench extends WebFrameworkTestCase
     {
         $this->setUpWebServer([
             'DD_TRACE_ENABLED' => 1
-        ]);
-    }
-
-    public function enableEnhancedWordPressTracing()
-    {
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 1,
-            'DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION' => '1'
         ]);
     }
 

@@ -30,7 +30,7 @@ static void _dd_get_time(char *buf) {
     if (tm) {
         strftime(buf, ISO_8601_LEN, "%Y-%m-%dT%TZ", tm);
     } else {
-        LOG(Warn, "Error getting time");
+        LOG(WARN, "Error getting time");
     }
 }
 
@@ -155,7 +155,6 @@ static void _dd_get_startup_config(HashTable *ht) {
     // "vm" N/A for PHP
     // "partial_flushing_enabled" N/A for PHP
     _dd_add_assoc_bool(ht, ZEND_STRL("distributed_tracing_enabled"), get_DD_DISTRIBUTED_TRACING());
-    _dd_add_assoc_bool(ht, ZEND_STRL("priority_sampling_enabled"), get_DD_PRIORITY_SAMPLING());
     // "logs_correlation_enabled" N/A for PHP
     // "profiling_enabled" N/A for PHP
     _dd_add_assoc_zstring(ht, ZEND_STRL("dd_version"), zend_string_copy(get_DD_VERSION()));
@@ -164,8 +163,8 @@ static void _dd_get_startup_config(HashTable *ht) {
 
     // PHP-specific values
     _dd_add_assoc_string(ht, ZEND_STRL("sapi"), sapi_module.name);
-    _dd_add_assoc_zstring(ht, ZEND_STRL("datadog.trace.request_init_hook"),
-                          zend_string_copy(get_DD_TRACE_REQUEST_INIT_HOOK()));
+    _dd_add_assoc_zstring(ht, ZEND_STRL("datadog.trace.sources_path"),
+                          zend_string_copy(get_DD_TRACE_SOURCES_PATH()));
     _dd_add_assoc_bool(ht, ZEND_STRL("open_basedir_configured"), _dd_ini_is_set(ZEND_STRL("open_basedir")));
     _dd_add_assoc_zstring(ht, ZEND_STRL("uri_fragment_regex"),
                           _dd_implode_keys(get_DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX()));
@@ -180,7 +179,6 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_bool(ht, ZEND_STRL("report_hostname_on_root_span"), get_DD_TRACE_REPORT_HOSTNAME());
     _dd_add_assoc_zstring(ht, ZEND_STRL("traced_internal_functions"),
                           _dd_implode_keys(get_DD_TRACE_TRACED_INTERNAL_FUNCTIONS()));
-    _dd_add_assoc_bool(ht, ZEND_STRL("auto_prepend_file_configured"), _dd_ini_is_set(ZEND_STRL("auto_prepend_file")));
     _dd_add_assoc_zstring(ht, ZEND_STRL("integrations_disabled"), _dd_implode_keys(get_DD_INTEGRATIONS_DISABLED()));
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled_from_env"), get_DD_TRACE_ENABLED());
     _dd_add_assoc_string(ht, ZEND_STRL("opcache.file_cache"), _dd_get_ini(ZEND_STRL("opcache.file_cache")));
@@ -266,14 +264,14 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
     //_dd_add_assoc_string(ht, ZEND_STRL("service_mapping_error"), ""); // TODO Parse at C level
 
     // PHP-specific values
-    const char *rih = ZSTR_VAL(get_DD_TRACE_REQUEST_INIT_HOOK());
-    bool rih_exists = _dd_file_exists(rih);
-    if (!rih_exists) {
-        _dd_add_assoc_bool(ht, ZEND_STRL("datadog.trace.request_init_hook_reachable"), rih_exists);
+    const char *sources = ZSTR_VAL(get_DD_TRACE_SOURCES_PATH());
+    bool sources_exist = _dd_file_exists(sources);
+    if (!sources_exist) {
+        _dd_add_assoc_bool(ht, ZEND_STRL("datadog.trace.sources_path_reachable"), sources_exist);
     } else {
-        bool rih_allowed = _dd_open_basedir_allowed(rih);
-        if (!rih_allowed) {
-            _dd_add_assoc_bool(ht, ZEND_STRL("open_basedir_init_hook_allowed"), rih_allowed);
+        bool sources_allowed = _dd_open_basedir_allowed(sources);
+        if (!sources_allowed) {
+            _dd_add_assoc_bool(ht, ZEND_STRL("open_basedir_sources_allowed"), sources_allowed);
         }
     }
 
@@ -369,7 +367,7 @@ static void _dd_print_values_to_log(HashTable *ht, void (*log)(const char *forma
 
 // Only show startup logs on the first request
 void ddtrace_startup_logging_first_rinit(void) {
-    LOGEV(Startup, {
+    LOGEV(STARTUP, {
         HashTable *ht;
         ALLOC_HASHTABLE(ht);
         zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);

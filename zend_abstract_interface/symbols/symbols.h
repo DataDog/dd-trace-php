@@ -77,6 +77,13 @@ bool zai_symbol_call_impl(
     zval *rv,
     uint32_t argc, va_list *args);
 
+#if PHP_VERSION_ID >= 80200
+zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data);
+#endif
+#if PHP_VERSION_ID >= 80000
+void zai_reset_observed_frame_post_bailout(void);
+#endif
+
 #include "api/call.h"
 
 bool zai_symbol_new(zval *zv, zend_class_entry *ce, uint32_t argc, ...);

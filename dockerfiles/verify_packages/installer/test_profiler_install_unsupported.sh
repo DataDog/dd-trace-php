@@ -8,9 +8,6 @@ set -e
 assert_no_ddtrace
 
 # Install using the php installer
-new_version="0.79.0"
-generate_installers "${new_version}"
-
 set +e
 output=$(php ./build/packages/datadog-setup.php --php-bin php --enable-profiling)
 exit_status=$?

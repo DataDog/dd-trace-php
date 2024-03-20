@@ -3,7 +3,6 @@
 namespace DDTrace\Tests\Integrations\Mysqli;
 
 use DDTrace\Tag;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -18,7 +17,6 @@ class MysqliTest extends IntegrationTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        IntegrationsLoader::load();
     }
 
     protected function ddSetUp()

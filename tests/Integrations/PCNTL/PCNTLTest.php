@@ -42,6 +42,10 @@ final class PCNTLTest extends IntegrationTestCase
      */
     public function testDoesNoHangAtShutdownWhenEnabled($scriptPath)
     {
+        if (extension_loaded('xdebug')) {
+            $this->markTestSkipped('xdebug is enabled, which causes the tracer to slow down dramatically.');
+        }
+
         $start = \microtime(true);
         $this->executeCli(
             $scriptPath,
@@ -265,6 +269,10 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliLongRunningMultipleForksManualFlush()
     {
+        if (extension_loaded('xdebug')) {
+            $this->markTestSkipped('xdebug is enabled, which causes the tracer to slow down dramatically.');
+        }
+
         $this->executeCli(
             __DIR__ . '/scripts/long-running-manual-flush.php',
             [

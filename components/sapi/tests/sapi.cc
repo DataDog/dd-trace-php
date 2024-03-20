@@ -16,6 +16,7 @@ TEST_CASE("recognize real sapis", "[sapi]") {
         {"cli-server", DATADOG_PHP_SAPI_CLI_SERVER},
         {"embed", DATADOG_PHP_SAPI_EMBED},
         {"fpm-fcgi", DATADOG_PHP_SAPI_FPM_FCGI},
+        {"frankenphp", DATADOG_PHP_SAPI_FRANKENPHP},
         {"litespeed", DATADOG_PHP_SAPI_LITESPEED},
         {"phpdbg", DATADOG_PHP_SAPI_PHPDBG},
         {"tea", DATADOG_PHP_SAPI_TEA},

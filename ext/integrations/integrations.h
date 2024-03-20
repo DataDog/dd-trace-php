@@ -5,6 +5,10 @@
 
 #include "../ddtrace_string.h"
 
+#define DD_TRACE_INTEGRATION_NOT_LOADED 0
+#define DD_TRACE_INTEGRATION_LOADED 1
+#define DD_TRACE_INTEGRATION_NOT_AVAILABLE 2
+
 #define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 13  // "zendframework" FTW!
 
 #define DD_INTEGRATIONS                         \

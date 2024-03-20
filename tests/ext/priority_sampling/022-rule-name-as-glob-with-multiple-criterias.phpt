@@ -2,7 +2,6 @@
 priority_sampling rule with name match, using glob
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=1
-DD_TRACE_SAMPLING_RULES_FORMAT=glob
 --FILE--
 <?php
 

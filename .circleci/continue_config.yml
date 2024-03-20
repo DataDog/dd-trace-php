@@ -112,9 +112,7 @@ aliases:
         if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
           echo "Release branch detected; not adding git sha1 to version number."
         else
-          sed -E -i "s/const\s+VERSION\s*=\s*'(.*)'/const VERSION = '\1+$githash'/g" "src/DDTrace/Tracer.php"
-          sed -E -i "s/define\s+PHP_DDTRACE_VERSION\s*\"(.*)\"/define PHP_DDTRACE_VERSION \"\1+$githash\"/g" "ext/version.h"
-          sed -E -i "s/^version\s*=\s*\"(.*)\"/version = \"\1+$githash\"/g" "profiling/Cargo.toml"
+          echo -n "+$githash" >>VERSION
           echo "Appended +$githash to version number."
         fi
 
@@ -122,6 +120,30 @@ aliases:
     run:
       name: Build and install extension
       command: make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension
+
+  - &STEP_CODE_COVERAGE
+    when:
+      # codecov uploader only on amd64
+      condition:
+        and:
+          - equal: [ true, << parameters.coverage >> ]
+          - matches:
+              pattern: "^[^.]+$"
+              value: << parameters.resource_class >>
+      steps:
+        - run:
+            name: Merge coverage reports
+            command: |
+              make merge_coverage_reports
+        - run:
+            name: Install CodeCov Uploader Dependencies
+            command: |
+              sudo apt update
+              sudo apt install -y gpg
+        - codecov/upload:
+            file: reports/coverage.xml
+            upload_name: "PHP<< parameters.php_major_minor >>.<< parameters.make_target >>.dd-trace-php"
+            flags: << parameters.codecov_flags >>
 
   - &STEP_COMPOSER_CACHE_RESTORE
     restore_cache:
@@ -628,32 +650,6 @@ executors:
 
 
 jobs:
-  "Lint PHP 5":
-    parameters:
-      resource_class:
-        type: string
-        default: small
-    <<: *BARE_DOCKER_MACHINE
-    steps:
-      - restore_cache:
-          keys:
-            - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          command: |
-            docker run --rm -v "$HOME/datadog:/src" -i php:5.4-cli bash \<<'CMD'
-              set -eu
-              cd /src
-              php -l datadog-setup.php
-              cd /src/bridge
-              for file in *.php; do
-                if [ "$file" != "_generated_integrations.php" ]; then
-                  php -l "$file"
-                fi
-              done
-            CMD
-
   static_analysis:
     parameters:
       docker_image:
@@ -775,6 +771,12 @@ jobs:
       resource_class:
         type: string
         default: medium
+      coverage:
+        type: boolean
+        default: false
+      codecov_flags:
+        type: string
+        default: ""
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
@@ -803,8 +805,10 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
+            <<# parameters.coverage >>unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true<</ parameters.coverage >>
             make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
             rm -rf tmp/build_extension/tests/opcache/file_cache/* || true
+      - <<: *STEP_CODE_COVERAGE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -1047,7 +1051,7 @@ jobs:
 #          name: Run some integration tests
 #          shell: powershell.exe
 #          command: |
-#            docker exec php powershell.exe 'cd app; php -d ddtrace.request_init_hook=$pwd\bridge\dd_wrap_autoloader.php'
+#            docker exec php powershell.exe 'cd app; php -d datadog.trace.sources_path=$pwd\src'
       - run:
           when: always
           command: |
@@ -1513,6 +1517,9 @@ jobs:
       coverage:
         type: boolean
         default: false
+      codecov_flags:
+        type: string
+        default: ""
     <<: *BARE_DOCKER_MACHINE
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
@@ -1545,35 +1552,21 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_DISABLE_XDEBUG
+      - when:
+          condition:
+            equal: [ false, << parameters.coverage >> ]
+          steps:
+            - <<: *STEP_DISABLE_XDEBUG
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run tests
-          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
-      - when:
-          # codecov uploader only on amd64
-          condition:
-            and:
-              - equal: [ true, << parameters.coverage >> ]
-              - matches:
-                  pattern: "^[^.]+$"
-                  value: << parameters.resource_class >>
-          steps:
-            - run:
-                name: Merge coverage reports
-                command: |
-                  make merge_coverage_reports
-            - run:
-                name: Install CodeCov Uploader Dependencies
-                command: |
-                  sudo apt update
-                  sudo apt install -y gpg
-            - codecov/upload:
-                file: reports/coverage.xml
-                upload_name: "PHP<< parameters.php_major_minor >>.<< parameters.make_target >>.dd-trace-php"
-                flags: tracer-integrations
+          command: |
+            set -euo pipefail
+            <<# parameters.coverage >>unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true<</ parameters.coverage >>
+            DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+      - <<: *STEP_CODE_COVERAGE
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -1608,6 +1601,9 @@ jobs:
       coverage:
         type: boolean
         default: false
+      codecov_flags:
+        type: string
+        default: ""
       with_executor:
         type: string
         default: 'with_integrations'
@@ -1643,39 +1639,25 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_DISABLE_XDEBUG
       - when:
-            condition:
-                equal: [ "with_integrations", << parameters.with_executor >> ]
-            steps:
-              - <<: *STEP_WAIT_MYSQL
+          condition:
+            equal: [ false, << parameters.coverage >> ]
+          steps:
+            - <<: *STEP_DISABLE_XDEBUG
+      - when:
+          condition:
+            equal: [ "with_integrations", << parameters.with_executor >> ]
+          steps:
+            - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Run tests
-          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
-      - when:
-          # codecov uploader only on amd64
-          condition:
-            and:
-              - equal: [ true, << parameters.coverage >> ]
-              - matches:
-                  pattern: "^[^.]+$"
-                  value: << parameters.resource_class >>
-          steps:
-            - run:
-                name: Merge coverage reports
-                command: |
-                  make merge_coverage_reports
-            - run:
-                name: Install CodeCov Uploader Dependencies
-                command: |
-                  sudo apt update
-                  sudo apt install -y gpg
-            - codecov/upload:
-                file: reports/coverage.xml
-                upload_name: "PHP<< parameters.php_major_minor >>.<< parameters.make_target >>.dd-trace-php"
-                flags: tracer-integrations
+          command: |
+            set -euo pipefail
+            <<# parameters.coverage >>unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true<</ parameters.coverage >>
+            DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+      - <<: *STEP_CODE_COVERAGE
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -1749,7 +1731,7 @@ jobs:
               -p /usr/local/bin/php \
               --show-diff \
               -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php \
+              -d datadog.trace.sources_path=/home/circleci/datadog/src \
               $(if [[ "<<parameters.parallel_workers>>" == "true" ]]; then echo -j5; fi)
       - run:
           command: |
@@ -2173,6 +2155,23 @@ jobs:
           name: Test
           command: ./dockerfiles/verify_packages/verify_no_ext_json.sh
 
+  verify_windows:
+    working_directory: ~/datadog
+    resource_class: 'windows.medium'
+    machine:
+      image: 'windows-server-2019-vs2019:2022.08.1'
+      shell: 'powershell.exe -ExecutionPolicy Bypass'
+    parameters:
+      docker_image:
+        type: string
+    steps:
+      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Build nts
+          shell: powershell.exe
+          command: .\dockerfiles\verify_packages\verify_windows.ps1
+
   installer_tests:
     working_directory: ~/datadog
     machine:
@@ -2184,8 +2183,6 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
-          # In order to hard-code the proper version required in tests, we need to regenerate the 'released' installer
-          # scripts which are saved to build/packages
           name: Let testing images to write to build/packages dir
           command: chmod a+w build/packages
       - run:
@@ -2339,7 +2336,7 @@ jobs:
             HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME} \
             DATADOG_HAVE_DEV_ENV=1 \
             DD_TRACE_CLI_ENABLED=1 \
-            pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
+            pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d datadog.trace.sources_path=" -p datadog_trace
       - run:
           name: Gather .diff files for artifacts
           command: |
@@ -3183,15 +3180,12 @@ jobs:
       - <<: *STEP_COMPOSER_GENERATE
       - run:
           name: Showing folder containing generated files
-          command: ls -al ~/datadog/bridge
+          command: ls -al ~/datadog/src/bridge
       - persist_to_workspace:
           root: '.'
           paths:
-            - './bridge/_generated*.php'
-            # Persist files below because we generate a new version number.
-            - './src/DDTrace/Tracer.php'
-            - './ext/version.h'
-            - './profiling/Cargo.toml'
+            - './src/bridge/_generated*.php'
+            - './VERSION' # we generate a new version number
 
   "package extension":
     working_directory: ~/datadog
@@ -3210,16 +3204,6 @@ jobs:
       - unless:
           condition: << parameters.asan_build >>
           steps:
-            - run:
-                name: Fetch PHP 5 packages
-                command: |
-                  set -eu
-                  PIPELINE_ID=$(curl 'https://circleci.com/api/v2/project/gh/DataDog/dd-trace-php/pipeline?branch=PHP-5' | jq -r '.items[0].id')
-                  WORKFLOW_ID=$(curl "https://circleci.com/api/v2/pipeline/$PIPELINE_ID/workflow" | jq -r '.items[]|select(.name == "build_packages").id' | head -1)
-                  JOB_ID=$(curl "https://circleci.com/api/v2/workflow/$WORKFLOW_ID/job" | jq -r '.items[]|select(.name == "package extension").id')
-                  curl -Lo php5.tar.gz "https://output.circle-artifacts.com/output/job/$JOB_ID/artifacts/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz"
-                  tar xzf php5.tar.gz
-                  mv opt/datadog-php/extensions/* extensions_x86_64/
             - run:
                 name: Package Profiler
                 command: |
@@ -3245,7 +3229,7 @@ jobs:
       - run:
           name: Spot-check shape of library name
           command: |
-            version=$(awk -F\' '/const VERSION/ { print $2 }' < src/DDTrace/Tracer.php)
+            version=$(cat VERSION)
             filename="dd-library-php-${version}-x86_64-linux-gnu.tar.gz"
             if ! [[ -f "build/packages/$filename" ]] ; then
               echo "Expected file 'build/packages/$filename' to exist!"
@@ -4445,6 +4429,18 @@ workflows:
 
       - test:
           requires: [ 'Prepare Code' ]
+          coverage: true
+          codecov_flags: tracer-php
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.4"
+                - "8.2"
+              make_target:
+                - test_unit_coverage
+
+      - test:
+          requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               php_major_minor:
@@ -4555,29 +4551,30 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
-              make_target:
-                - test_composer
-                - test_integration
-                - test_distributed_tracing
-                - test_auto_instrumentation
-
-      - integration:
-          requires: [ 'Prepare Code' ]
-          resource_class: medium+
-          coverage: true
-          matrix:
-            parameters:
-              php_major_minor:
                 - '7.4'
                 - '8.0'
                 - '8.1'
                 - '8.2'
                 - '8.3'
               make_target:
-                - test_composer_coverage
+                - test_auto_instrumentation
+                - test_composer
+                - test_distributed_tracing
+                - test_integration
+
+      - integration:
+          requires: [ 'Prepare Code' ]
+          resource_class: medium+
+          coverage: true
+          codecov_flags: tracer-php
+          matrix:
+            parameters:
+              php_major_minor:
+                - '7.4'
+                - '8.2'
+              make_target:
                 - test_integration_coverage
                 - test_distributed_tracing_coverage
-                - test_auto_instrumentation_coverage
 
       - integration_snapshots:
           requires: [ 'Prepare Code' ]
@@ -4590,6 +4587,11 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
+                - '7.4'
+                - '8.0'
+                - '8.1'
+                - '8.2'
+                - '8.3'
               make_target:
                 - test_web
                 - test_integrations
@@ -4599,14 +4601,12 @@ workflows:
           # Due to Symfony OOM during composer update
           resource_class: xlarge
           coverage: true
+          codecov_flags: tracer-php
           matrix:
             parameters:
               php_major_minor:
                 - '7.4'
-                - '8.0'
-                - '8.1'
                 - '8.2'
-                - '8.3'
               make_target:
                 - test_web_coverage
                 - test_integrations_coverage
@@ -4624,6 +4624,11 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
+                - '7.4'
+                - '8.0'
+                - '8.1'
+                - '8.2'
+                - '8.3'
               make_target:
                 - test_distributed_tracing
 
@@ -4654,15 +4659,13 @@ workflows:
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
           coverage: true
+          codecov_flags: tracer-php
           with_executor: 'with_httpbin_and_request_replayer'
           matrix:
             parameters:
               php_major_minor:
                 - '7.4'
-                - '8.0'
-                - '8.1'
                 - '8.2'
-                - '8.3'
               make_target:
                 - test_distributed_tracing_coverage
 
@@ -4779,8 +4782,6 @@ workflows:
           name: "PHP 80 curl integration tests a shared lib"
           ext_name: "curl"
           docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
-      - "Lint PHP 5":
-          requires: [ 'Prepare Code' ]
       - static_analysis:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 71"

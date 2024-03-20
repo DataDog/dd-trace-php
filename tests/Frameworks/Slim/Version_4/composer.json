@@ -30,9 +30,6 @@
         "slim/slim": "^4.5",
         "slim/twig-view": "^3.0"
     },
-    "require-dev": {
-        "phpunit/phpunit": "^8.5"
-    },
     "config": {
         "process-timeout": 0,
         "sort-packages": true
@@ -48,7 +45,6 @@
         }
     },
     "scripts": {
-        "start": "php -S localhost:8080 -t public",
-        "test": "phpunit"
+        "start": "php -S localhost:8080 -t public"
     }
 }

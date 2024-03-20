@@ -23,9 +23,14 @@ final class ErrorReportingTest extends WebFrameworkTestCase
 
     public function testUnhandledUserErrorIndex()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped('This test does not work with code coverage');
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-index'));
         });
+        echo json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL;
         $this->assertError($traces[0][0], "Index message", [['index.php', '{main}']]);
         // open task: depends on internal status code tracking (separate PR)
         // $this->assertSame('500', $traces[0][0]['meta']['http.status_code']);
@@ -43,6 +48,10 @@ final class ErrorReportingTest extends WebFrameworkTestCase
 
     public function testUnhandledUserErrorExternal()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped('This test does not work with code coverage');
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-external'));
         });
@@ -63,6 +72,10 @@ final class ErrorReportingTest extends WebFrameworkTestCase
 
     public function testUnhandledUserErrorInFunction()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped('This test does not work with code coverage');
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-in-function'));
         });
@@ -79,6 +92,10 @@ final class ErrorReportingTest extends WebFrameworkTestCase
 
     public function testUnhandledUserErrorInNestedFunction()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped('This test does not work with code coverage');
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-in-nested-function'));
         });
@@ -87,6 +104,10 @@ final class ErrorReportingTest extends WebFrameworkTestCase
 
     public function testUnhandledUserErrorWithErrorHandlerNotHandlingIt()
     {
+        if (\getenv('PHPUNIT_COVERAGE')) {
+            $this->markTestSkipped('This test does not work with code coverage');
+        }
+
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-run-through-handler-continuing-handling'));
         });
@@ -292,7 +313,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/internal-exception-not-resulting-in-error'));
         });
-        $this->assertSame(0, $traces[0][0]['error']);
+        $this->assertArrayNotHasKey("error", $traces[0][0]);
     }
 
     public function testInternalExceptionUsedForRedirect()
@@ -301,7 +322,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('', '/internal-exception-used-for-redirect'));
         });
         $this->assertSame('303', $traces[0][0]['meta']['http.status_code']);
-        $this->assertSame(0, $traces[0][0]['error']);
+        $this->assertArrayNotHasKey("error", $traces[0][0]);
     }
 
 
@@ -310,6 +331,6 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/internal-user-error-not-resulting-in-error'));
         });
-        $this->assertSame(0, $traces[0][0]['error']);
+        $this->assertArrayNotHasKey("error", $traces[0][0]);
     }
 }

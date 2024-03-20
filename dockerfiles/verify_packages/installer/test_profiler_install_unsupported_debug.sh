@@ -2,9 +2,29 @@
 
 set -e
 
-# Fixing permissions, as this test is run in our own custom image using circleci as the executor
-sudo chmod a+w ./build/packages/*
+. "$(dirname ${0})/utils.sh"
 
 switch-php debug
 
-sh "$(dirname ${0})/test_profiler_install_unsupported.sh"
+# Initially no ddtrace
+assert_no_ddtrace
+
+# Install using the php installer
+set +e
+output=$(php ./build/packages/datadog-setup.php --php-bin php --enable-profiling)
+exit_status=$?
+set -e
+
+if [ "${exit_status}" = "1" ]; then
+    dashed_print "Ok: expected exit status 1." "${exit_status}" "${output}"
+else
+    dashed_print "Error: Unexpected exit status. Should be 1." "${exit_status}" "${output}"
+    exit 1
+fi
+
+if [ -z "${output##*not supported*}" ]; then
+    dashed_print "Ok: Output contains text 'not supported'." "${output}"
+else
+    dashed_print "Error: output did not contain 'not supported' as expected." "${output}"
+    exit 1
+fi

@@ -56,9 +56,9 @@ void ddtrace_excluded_modules_startup() {
         if (module && module->name && module->version && ddtrace_is_excluded_module(module, error)) {
             ddtrace_has_excluded_module = true;
             if (strcmp("xdebug", module->name) == 0) {
-                LOG(Error, error);
+                LOG(ERROR, error);
             } else {
-                LOG(Warn, error);
+                LOG(WARN, error);
             }
             return;
         }

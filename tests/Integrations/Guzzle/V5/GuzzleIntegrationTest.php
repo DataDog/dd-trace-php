@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Guzzle\V5;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;
 use DDTrace\Tag;
@@ -31,7 +30,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        IntegrationsLoader::load();
     }
 
     /**

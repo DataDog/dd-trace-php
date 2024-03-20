@@ -3,6 +3,7 @@
 
 pub mod log;
 pub mod telemetry;
+pub mod sidecar;
 
 use ddcommon::container_id::{get_container_id, set_cgroup_file};
 use ddcommon_ffi::CharSlice;

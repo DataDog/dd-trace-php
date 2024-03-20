@@ -166,21 +166,12 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         TAG::COMPONENT => 'laravel'
                     ])->setError('Exception', 'Controller error', true)->withChildren([
                         SpanAssertion::exists('laravel.action'),
-                        SpanAssertion::exists('laravel.view.render')
-                            ->withChildren([
-                                SpanAssertion::exists('laravel.view')->withChildren([
-                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
-                                    SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
-                                ]),
-                                SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
-                            ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load',
                             null,
                             'laravel_test_app'
                         ),
-                        SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                         SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                         SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),
                         SpanAssertion::exists('laravel.event.handle', null, null, 'laravel_test_app'),

@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Guzzle\V6;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\SnapshotTestTrait;
 use DDTrace\Tracer;
@@ -26,7 +25,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        IntegrationsLoader::load();
     }
 
     protected function getMockedClient(array $responseStack = null)

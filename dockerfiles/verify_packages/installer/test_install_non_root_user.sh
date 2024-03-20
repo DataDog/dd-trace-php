@@ -7,11 +7,10 @@ set -e
 # Initially no ddtrace
 assert_no_ddtrace
 
+version=$(cat VERSION)
+
 useradd -m datadog -p datadog
 usermod -a -G datadog datadog
-
-new_version="0.78.0"
-generate_installers "${new_version}"
 
 set +e
 output=$(su datadog -c "php /app/build/packages/datadog-setup.php --php-bin php")
@@ -25,9 +24,9 @@ else
     exit 1
 fi
 
-if [ -z "${output##*Cannot create directory \'/opt/datadog/dd-library/${new_version}/dd-trace-sources\'*}" ]; then
-    echo "Ok: Output contains - Cannot create directory '/opt/datadog/dd-library/${new_version}/dd-trace-sources'"
+if [ -z "${output##*Cannot create directory \'/opt/datadog/dd-library/${version}/dd-trace-sources\'*}" ]; then
+    echo "Ok: Output contains - Cannot create directory '/opt/datadog/dd-library/${version}/dd-trace-sources'"
 else
-    echo "Error: Output does not contain - Cannot create directory '/opt/datadog/dd-library/${new_version}/dd-trace-sources'\n---\n${output}\n---\n"
+    echo "Error: Output does not contain - Cannot create directory '/opt/datadog/dd-library/${version}/dd-trace-sources'\n---\n${output}\n---\n"
     exit 1
 fi

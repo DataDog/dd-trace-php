@@ -3,7 +3,6 @@
 namespace DDTrace\Tests\Integrations\Curl;
 
 use DDTrace\Tag;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -36,7 +35,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
     public function ddSetUp()
     {
         parent::ddSetUp();
-        IntegrationsLoader::load();
     }
 
     protected function envsToCleanUpAtTearDown()
@@ -82,30 +80,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                 ->setTraceAnalyticsCandidate()
-                ->withExactTags([
-                    'http.url' => self::URL . '/status/200',
-                    'http.status_code' => '200',
-                    'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin_integration',
-                    Tag::COMPONENT => 'curl',
-                ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
-        ]);
-    }
-
-    public function testSampleExternalAgent()
-    {
-        $traces = $this->simulateAgent(function () {
-            $ch = curl_init(self::URL . '/status/200');
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            $response = curl_exec($ch);
-            $this->assertSame('', $response);
-            curl_close($ch);
-        });
-
-        $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',

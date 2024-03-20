@@ -1,5 +1,7 @@
 <?php
 
+/** @generate-class-entries */
+
 namespace DDTrace\Integrations\Exec {
 
     /**

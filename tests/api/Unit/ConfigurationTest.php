@@ -34,7 +34,6 @@ EOD;
         self::putenv('DD_DISTRIBUTED_TRACING');
         self::putenv('DD_ENV');
         self::putenv('DD_INTEGRATIONS_DISABLED');
-        self::putenv('DD_PRIORITY_SAMPLING');
         self::putenv('DD_SAMPLING_RATE');
         self::putenv('DD_SERVICE_MAPPING');
         self::putenv('DD_SERVICE_NAME');
@@ -82,17 +81,6 @@ EOD;
     {
         $this->putEnvAndReloadConfig(['DD_DISTRIBUTED_TRACING=false']);
         $this->assertFalse(Configuration::get()->isDistributedTracingEnabled());
-    }
-
-    public function testPrioritySamplingEnabledByDefault()
-    {
-        $this->assertTrue(Configuration::get()->isPrioritySamplingEnabled());
-    }
-
-    public function testPrioritySamplingDisabled()
-    {
-        $this->putEnvAndReloadConfig(['DD_PRIORITY_SAMPLING=false']);
-        $this->assertFalse(Configuration::get()->isPrioritySamplingEnabled());
     }
 
     public function testAllIntegrationsEnabledByDefault()
@@ -211,7 +199,6 @@ EOD;
     public function testAnalyticsDisabledByDefault()
     {
         $this->assertFalse(Configuration::get()->isAnalyticsEnabled());
-        $this->assertFalse(\ddtrace_config_analytics_enabled());
     }
 
     public function testAnalyticsCanBeGloballyEnabled()
@@ -460,14 +447,14 @@ EOD;
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1,key2:value2']);
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }
 
     public function testGlobalTagsLegacyEnv()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2']);
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }
 
     public function testGlobalTagsNewEnvWinsOverLegacyEnv()
@@ -477,7 +464,7 @@ EOD;
             'DD_TAGS=key1:value1,key2:value2',
         ]);
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }
 
     public function testGlobalTagsWrongValueJustResultsInNoTags()

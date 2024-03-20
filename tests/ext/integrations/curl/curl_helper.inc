@@ -18,8 +18,12 @@ namespace {
     }
 }
 
-namespace DDTrace\Integrations {
-    function load_deferred_integration()
+namespace DDTrace\Integrations\Curl {
+    class CurlIntegration implements \DDTrace\Integration
     {
+        function init(): int
+        {
+            return self::LOADED;
+        }
     }
 }

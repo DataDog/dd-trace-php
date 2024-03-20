@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\NoopTracer;
 
 /**

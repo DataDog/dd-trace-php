@@ -39,7 +39,7 @@ final class StartupLoggingDiagnosticsTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getInis(), [
             'error_log' => self::getAppErrorLog(),
-            'ddtrace.request_init_hook' => '/foo/invalid.php', // Will fail diagnostic check
+            'datadog.trace.sources_path' => '/foo/invalid.php', // Will fail diagnostic check
         ]);
     }
 
@@ -53,6 +53,6 @@ final class StartupLoggingDiagnosticsTest extends WebFrameworkTestCase
         $contents = \file_get_contents(self::getAppErrorLog());
 
         self::assertStringContains('DATADOG TRACER DIAGNOSTICS - agent_error:', $contents);
-        self::assertStringContains('DATADOG TRACER DIAGNOSTICS - datadog.trace.request_init_hook_reachable:', $contents);
+        self::assertStringContains('DATADOG TRACER DIAGNOSTICS - datadog.trace.sources_path_reachable:', $contents);
     }
 }

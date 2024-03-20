@@ -9,7 +9,7 @@ __thread ddog_Log _ddog_log_source_value;
 __declspec(thread) ddog_Log _ddog_log_source_value;
 #endif
 
-static void ddog_logf_va(ddog_Log source, const char *format, va_list va) {
+static void ddog_logf_va(ddog_Log source, bool once, const char *format, va_list va) {
     char buf[0x100];
     va_list va2;
     va_copy(va2, va);
@@ -17,24 +17,24 @@ static void ddog_logf_va(ddog_Log source, const char *format, va_list va) {
     if (len > (int)sizeof(buf)) {
         char *msg = malloc(len + 1);
         len = vsnprintf(msg, len + 1, format, va2);
-        ddog_log(source, (ddog_CharSlice){ .ptr = msg, .len = (uintptr_t)len });
+        ddog_log(source, once || (source & ddog_LOG_ONCE), (ddog_CharSlice){ .ptr = msg, .len = (uintptr_t)len });
         free(msg);
     } else {
-        ddog_log(source, (ddog_CharSlice){ .ptr = buf, .len = (uintptr_t)len });
+        ddog_log(source, once || (source & ddog_LOG_ONCE), (ddog_CharSlice){ .ptr = buf, .len = (uintptr_t)len });
     }
     va_end(va2);
 }
 
-void ddog_logf(ddog_Log source, const char *format, ...) {
+void ddog_logf(ddog_Log source, bool once, const char *format, ...) {
     va_list va;
     va_start(va, format);
-    ddog_logf_va(source, format, va);
+    ddog_logf_va(source, once, format, va);
     va_end(va);
 }
 
 void _ddog_log_source(const char *format, ...) {
     va_list va;
     va_start(va, format);
-    ddog_logf_va(_ddog_log_source_value, format, va);
+    ddog_logf_va(_ddog_log_source_value, false, format, va);
     va_end(va);
 }

@@ -44,7 +44,7 @@ final class GlobalTracer
         }
 
         // Ensure that, when trying to use the legacy API, our Tracer is also loaded
-        if (\extension_loaded('ddtrace') && function_exists('ddtrace_legacy_tracer_autoloading_possible')) {
+        if (\extension_loaded('ddtrace') && class_exists(Tracer::class)) {
             /** @phpstan-ignore-next-line */
             return self::$instance = new Tracer();
         }

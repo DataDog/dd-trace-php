@@ -2,4 +2,4 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-echo DDTrace\Tracer::VERSION;
+echo DDTrace\Tracer::version();

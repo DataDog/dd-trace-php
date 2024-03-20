@@ -8,20 +8,6 @@
 #include "telemetry.h"
 #include "sidecar.h"
 
-#define ddog_Log_Error (ddog_Log){ .bits = (uint32_t)1 }
-#define ddog_Log_Warn (ddog_Log){ .bits = (uint32_t)2 }
-#define ddog_Log_Info (ddog_Log){ .bits = (uint32_t)3 }
-#define ddog_Log_Debug (ddog_Log){ .bits = (uint32_t)4 }
-#define ddog_Log_Trace (ddog_Log){ .bits = (uint32_t)5 }
-#define ddog_Log_Once (ddog_Log){ .bits = (uint32_t)(1 << 3) }
-#define ddog_Log__Deprecated (ddog_Log){ .bits = (uint32_t)(3 | (1 << 4)) }
-#define ddog_Log_Deprecated (ddog_Log){ .bits = (uint32_t)((3 | (1 << 4)) | (1 << 3)) }
-#define ddog_Log_Startup (ddog_Log){ .bits = (uint32_t)(3 | (2 << 4)) }
-#define ddog_Log_Startup_Warn (ddog_Log){ .bits = (uint32_t)(1 | (2 << 4)) }
-#define ddog_Log_Span (ddog_Log){ .bits = (uint32_t)(4 | (3 << 4)) }
-#define ddog_Log_Span_Trace (ddog_Log){ .bits = (uint32_t)(5 | (3 << 4)) }
-#define ddog_Log_Hook_Trace (ddog_Log){ .bits = (uint32_t)(5 | (4 << 4)) }
-
 typedef uint64_t ddog_QueueId;
 
 /**
@@ -149,13 +135,13 @@ ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
 
-bool ddog_shall_log(struct ddog_Log category);
+bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
 
 void ddog_set_log_level(ddog_CharSlice level, bool once);
 
-void ddog_log(struct ddog_Log category, ddog_CharSlice msg);
+void ddog_log(enum ddog_Log category, bool once, ddog_CharSlice msg);
 
 void ddog_reset_log_once(void);
 
@@ -164,23 +150,18 @@ bool ddtrace_detect_composer_installed_json(ddog_SidecarTransport **transport,
                                             const ddog_QueueId *queue_id,
                                             ddog_CharSlice path);
 
-ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection,
-                                         const char *error_path,
-                                         ddog_CharSlice log_level,
-                                         bool enable_telemetry);
+struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
 
-struct ddog_TelemetryActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
-
-void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_TelemetryActionsBuffer *buffer,
+void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                   ddog_CharSlice integration_name,
                                                   ddog_CharSlice integration_version,
                                                   bool integration_enabled);
 
-void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_TelemetryActionsBuffer *buffer,
+void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                  ddog_CharSlice dependency_name,
                                                  ddog_CharSlice dependency_version);
 
-void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_TelemetryActionsBuffer *buffer,
+void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                  ddog_CharSlice config_key,
                                                  ddog_CharSlice config_value,
                                                  enum ddog_ConfigurationOrigin origin);
@@ -188,6 +169,11 @@ void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_TelemetryActionsBuf
 ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(ddog_SidecarTransport **transport,
                                                     const struct ddog_InstanceId *instance_id,
                                                     const ddog_QueueId *queue_id,
-                                                    struct ddog_TelemetryActionsBuffer *buffer);
+                                                    struct ddog_SidecarActionsBuffer *buffer);
+
+ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection,
+                                         const char *error_path,
+                                         ddog_CharSlice log_level,
+                                         bool enable_telemetry);
 
 #endif /* DDTRACE_PHP_H */

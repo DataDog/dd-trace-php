@@ -137,6 +137,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/ddtrace.c \
     ext/arrays.c \
     ext/auto_flush.c \
+    ext/autoload_php_files.c \
     ext/circuit_breaker.c \
     ext/comms_php.c \
     ext/compat_string.c \
@@ -161,7 +162,6 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/priority_sampling/priority_sampling.c \
     ext/profiling.c \
     ext/random.c \
-    ext/request_hooks.c \
     ext/serializer.c \
     ext/sidecar.c \
     ext/signals.c \
@@ -229,6 +229,12 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_SUBST(EXTRA_LDFLAGS)
   fi
 
+  cat <<EOT >ext/version.h
+#ifndef PHP_DDTRACE_VERSION
+#define PHP_DDTRACE_VERSION "$(cat "$ext_srcdir/VERSION")"
+#endif
+EOT
+
   PHP_ADD_INCLUDE([$ext_srcdir])
   PHP_ADD_INCLUDE([$ext_srcdir/ext])
 
@@ -285,8 +291,6 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/tracer_tag_propagation])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
   PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
-
-  echo "" > Makefile.fragments
 
   if test "$PHP_DDTRACE_RUST_LIBRARY" != "-"; then
     ddtrace_rust_lib="$PHP_DDTRACE_RUST_LIBRARY"

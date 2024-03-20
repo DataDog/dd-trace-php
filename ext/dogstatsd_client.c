@@ -43,7 +43,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
             } else if (strlen(url) > 6 && strncmp("udp://", url, 6) == 0) {
                 char *colon = strchr(url + 6, ':');
                 if (!colon) {
-                    LOG(Warn,
+                    LOG(WARN,
                         "Dogstatsd client encountered an invalid udp:// DD_DOGSTATSD_URL: %s, missing a colon followed by a port",
                         url);
                     break;
@@ -54,14 +54,14 @@ void ddtrace_dogstatsd_client_rinit(void) {
                 port = colon + 1;
                 int err;
                 if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
-                    LOG(Warn, "Dogstatsd client failed looking up %s:%s: %s", host, port,
+                    LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
                                        (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
                     efree(host);
                     break;
                 }
                 efree(host);
             } else {
-                LOG(Warn,
+                LOG(WARN,
                     "Dogstatsd client encountered an invalid DD_DOGSTATSD_URL: %s, expecting url starting with unix:// or udp://",
                     url);
                 break;
@@ -89,7 +89,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
             } else if (port) {
                 int err;
                 if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
-                    LOG(Warn, "Dogstatsd client failed looking up %s:%s: %s", host, port,
+                    LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
                                        (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
                     break;
                 }
@@ -98,7 +98,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
 
         client = dogstatsd_client_ctor(addrs, DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE, METRICS_CONST_TAGS);
         if (dogstatsd_client_is_default_client(client)) {
-            LOG(Warn, "Dogstatsd client failed opening socket to %s%s%s", host, port ? ":" : "",
+            LOG(WARN, "Dogstatsd client failed opening socket to %s%s%s", host, port ? ":" : "",
                                port ? port : "");
             break;
         }
@@ -108,7 +108,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
         dogstatsd_metric_t type = DOGSTATSD_METRIC_GAUGE;
         dogstatsd_client_status status = dogstatsd_client_metric_send(&client, metric, "1", type, sample_rate, NULL);
         if (status != DOGSTATSD_CLIENT_OK) {
-            LOGEV(Warn, {
+            LOGEV(WARN, {
                 const char *status_str = dogstatsd_client_status_to_str(status) ?: "(unknown dogstatsd_client_status)";
                 log("Health metric '%s' failed to send: %s", metric, status_str);
             })
