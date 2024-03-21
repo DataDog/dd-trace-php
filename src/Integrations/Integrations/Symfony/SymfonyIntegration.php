@@ -416,6 +416,18 @@ class SymfonyIntegration extends Integration
                     }
                     $rootSpan->meta['symfony.route.name'] = $route;
                 }
+
+                $path = $request->get('_path');
+                if (is_array($path) && count($path) > 0) {
+                    if (isset($path[$request->get('_locale')])) {
+                        $path = $path[$request->get('_locale')];
+                    } else {
+                        $path = reset($path);
+                    }
+                }
+                if ($path) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
+                }
             }
         );
 
