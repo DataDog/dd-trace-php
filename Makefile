@@ -969,7 +969,7 @@ TEST_WEB_83 := \
 FILTER := .
 MAX_RETRIES := 3
 
-# Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17" 
+# Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17"
 define run_composer_with_retry
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
@@ -1106,13 +1106,9 @@ call_benchmarks_opcache:
 		$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG)); \
 	fi
 
-benchmarks:
-	benchmarks_run_dependencies
-	call_benchmarks
+benchmarks: benchmarks_run_dependencies call_benchmarks
 
-benchmarks_opcache:
-	benchmarks_run_dependencies
-	call_benchmarks_opcache
+benchmarks_opcache: benchmarks_run_dependencies call_benchmarks_opcache
 
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
