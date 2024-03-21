@@ -154,6 +154,22 @@ class SymfonyIntegration extends Integration
             }
         );
 
+         \DDTrace\hook_method(
+             'Symfony\Component\Routing\Annotation\Route',
+             '__construct',
+             null,
+             function ($This) use ($integration) {
+                $defaults = $This->getDefaults();
+                $path = $This->getPath();
+                if (is_null($path)) {
+                    $path = $This->getLocalizedPaths();
+                }
+                $defaults['_path'] = $path;
+
+                $This->setDefaults($defaults);
+             }
+         );
+
         //Symfony < 5
         \DDTrace\hook_method(
             'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
