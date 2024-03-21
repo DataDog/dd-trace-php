@@ -145,8 +145,7 @@ abstract class Integration implements \DDTrace\Integration
     public static function handleInternalSpanServiceName(SpanData $span, $fallbackName, $skipFlattening = false)
     {
         $flatServiceNames =
-            !$skipFlattening && \PHP_MAJOR_VERSION > 5
-                && \dd_trace_env_config('DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED');
+            !$skipFlattening && \dd_trace_env_config('DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED');
 
         if ($flatServiceNames) {
             $rootSpan = \DDTrace\root_span();

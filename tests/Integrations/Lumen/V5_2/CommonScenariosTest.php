@@ -114,8 +114,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'lumen'
-                    ])->withExistingTagsNames(\PHP_MAJOR_VERSION === 5 ? [] : ['error.stack'])
-                    ->setError(
+                    ])->withExistingTagsNames([
+                        'error.stack'
+                    ])->setError(
                         'Exception',
                         'Controller error',
                         true

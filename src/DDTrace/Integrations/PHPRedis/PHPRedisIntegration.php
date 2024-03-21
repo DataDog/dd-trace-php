@@ -140,9 +140,7 @@ class PHPRedisIntegration extends Integration
 
             $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
             $span->meta[Tag::TARGET_HOST] = $host;
-            if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            }
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
 
         self::traceMethodAsCommand('swapdb');
@@ -385,22 +383,18 @@ class PHPRedisIntegration extends Integration
 
             $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
             $span->meta[Tag::TARGET_HOST] = $host;
-            if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            }
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
         \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisIntegration::handleOrphan($span);
 
             PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster', $method);
-            if (\PHP_MAJOR_VERSION > 5) {
-                if ($clusterName = ObjectKVStore::get($this, PHPRedisIntegration::KEY_CLUSTER_NAME)) {
-                    $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_CLUSTER_NAME] = $clusterName;
-                } elseif ($firstHost = ObjectKVStore::get($this, PHPRedisIntegration::KEY_FIRST_HOST)) {
-                    $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_FIRST_HOST] = $firstHost;
-                }
-                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            if ($clusterName = ObjectKVStore::get($this, PHPRedisIntegration::KEY_CLUSTER_NAME)) {
+                $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_CLUSTER_NAME] = $clusterName;
+            } elseif ($firstHost = ObjectKVStore::get($this, PHPRedisIntegration::KEY_FIRST_HOST)) {
+                $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_FIRST_HOST] = $firstHost;
             }
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
     }
 
@@ -417,9 +411,7 @@ class PHPRedisIntegration extends Integration
 
             $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
             $span->meta[Tag::TARGET_HOST] = $host;
-            if (\PHP_MAJOR_VERSION > 5) {
-                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            }
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
         \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisIntegration::handleOrphan($span);
@@ -429,14 +421,12 @@ class PHPRedisIntegration extends Integration
             // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
             $span->meta[Tag::REDIS_RAW_COMMAND]
                 = empty($normalizedArgs) ? $method : ($method . ' ' . $normalizedArgs);
-            if (\PHP_MAJOR_VERSION > 5) {
-                if ($clusterName = ObjectKVStore::get($this, PHPRedisIntegration::KEY_CLUSTER_NAME)) {
-                    $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_CLUSTER_NAME] = $clusterName;
-                } elseif ($firstHost = ObjectKVStore::get($this, PHPRedisIntegration::KEY_FIRST_HOST)) {
-                    $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_FIRST_HOST] = $firstHost;
-                }
-                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            if ($clusterName = ObjectKVStore::get($this, PHPRedisIntegration::KEY_CLUSTER_NAME)) {
+                $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_CLUSTER_NAME] = $clusterName;
+            } elseif ($firstHost = ObjectKVStore::get($this, PHPRedisIntegration::KEY_FIRST_HOST)) {
+                $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_FIRST_HOST] = $firstHost;
             }
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
     }
 

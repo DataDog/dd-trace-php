@@ -138,7 +138,7 @@ class LaravelIntegration extends Integration
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
                 $routeName = LaravelIntegration::normalizeRouteName($route->getName());
 
-                if (PHP_VERSION_ID < 70000 || dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                     $rootSpan->resource = $route->getActionName() . ' ' . $routeName;
                 }
 

@@ -61,106 +61,64 @@ class PDOIntegration extends Integration
             PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
         });
 
-        if (PHP_MAJOR_VERSION > 5) {
-            // public int PDO::exec(string $query)
-            \DDTrace\install_hook('PDO::exec', function (HookData $hook) use ($integration) {
-                list($query) = $hook->args;
+        // public int PDO::exec(string $query)
+        \DDTrace\install_hook('PDO::exec', function (HookData $hook) use ($integration) {
+            list($query) = $hook->args;
 
-                $span = $hook->span();
-                $span->name = 'PDO.exec';
-                $span->resource = Integration::toString($query);
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
-                PDOIntegration::setCommonSpanInfo($this, $span);
-                $integration->addTraceAnalyticsIfEnabled($span);
+            $span = $hook->span();
+            $span->name = 'PDO.exec';
+            $span->resource = Integration::toString($query);
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            PDOIntegration::setCommonSpanInfo($this, $span);
+            $integration->addTraceAnalyticsIfEnabled($span);
 
-                PDOIntegration::injectDBIntegration($this, $hook);
-            }, function (HookData $hook) use ($integration) {
-                $span = $hook->span();
-                if (is_numeric($hook->returned)) {
-                    $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned;
-                }
-                PDOIntegration::detectError($this, $span);
-            });
+            PDOIntegration::injectDBIntegration($this, $hook);
+        }, function (HookData $hook) use ($integration) {
+            $span = $hook->span();
+            if (is_numeric($hook->returned)) {
+                $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned;
+            }
+            PDOIntegration::detectError($this, $span);
+        });
 
-            // public PDOStatement PDO::query(string $query)
-            // public PDOStatement PDO::query(string $query, int PDO::FETCH_COLUMN, int $colno)
-            // public PDOStatement PDO::query(string $query, int PDO::FETCH_CLASS, string $classname, array $ctorargs)
-            // public PDOStatement PDO::query(string $query, int PDO::FETCH_INFO, object $object)
-            // public int PDO::exec(string $query)
-            \DDTrace\install_hook('PDO::query', function (HookData $hook) use ($integration) {
-                list($query) = $hook->args;
+        // public PDOStatement PDO::query(string $query)
+        // public PDOStatement PDO::query(string $query, int PDO::FETCH_COLUMN, int $colno)
+        // public PDOStatement PDO::query(string $query, int PDO::FETCH_CLASS, string $classname, array $ctorargs)
+        // public PDOStatement PDO::query(string $query, int PDO::FETCH_INFO, object $object)
+        // public int PDO::exec(string $query)
+        \DDTrace\install_hook('PDO::query', function (HookData $hook) use ($integration) {
+            list($query) = $hook->args;
 
-                $span = $hook->span();
-                $span->name = 'PDO.query';
-                $span->resource = Integration::toString($query);
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
-                PDOIntegration::setCommonSpanInfo($this, $span);
-                $integration->addTraceAnalyticsIfEnabled($span);
+            $span = $hook->span();
+            $span->name = 'PDO.query';
+            $span->resource = Integration::toString($query);
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            PDOIntegration::setCommonSpanInfo($this, $span);
+            $integration->addTraceAnalyticsIfEnabled($span);
 
-                PDOIntegration::injectDBIntegration($this, $hook);
-            }, function (HookData $hook) use ($integration) {
-                $span = $hook->span();
-                if ($hook->returned instanceof \PDOStatement) {
-                    $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->rowCount();
-                    ObjectKVStore::propagate($this, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
-                }
-                PDOIntegration::detectError($this, $span);
-            });
-
-            // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
-            \DDTrace\install_hook('PDO::prepare', function (HookData $hook) use ($integration) {
-                list($query) = $hook->args;
-
-                $span = $hook->span();
-                $span->name = 'PDO.prepare';
-                $span->resource = Integration::toString($query);
-                PDOIntegration::setCommonSpanInfo($this, $span);
-
-                PDOIntegration::injectDBIntegration($this, $hook);
-            }, function (HookData $hook) use ($integration) {
+            PDOIntegration::injectDBIntegration($this, $hook);
+        }, function (HookData $hook) use ($integration) {
+            $span = $hook->span();
+            if ($hook->returned instanceof \PDOStatement) {
+                $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->rowCount();
                 ObjectKVStore::propagate($this, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
-            });
-        } else {
-            \DDTrace\trace_method('PDO', 'exec', function (SpanData $span, array $args, $retval) use ($integration) {
-                $span->name = 'PDO.exec';
-                $span->resource = Integration::toString($args[0]);
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
-                if (is_numeric($retval)) {
-                    $span->metrics[Tag::DB_ROW_COUNT] = $retval;
-                }
-                PDOIntegration::setCommonSpanInfo($this, $span);
-                $integration->addTraceAnalyticsIfEnabled($span);
-                PDOIntegration::detectError($this, $span);
-            });
+            }
+            PDOIntegration::detectError($this, $span);
+        });
 
-            \DDTrace\trace_method('PDO', 'query', function (SpanData $span, array $args, $retval) use ($integration) {
-                $span->name = 'PDO.query';
-                $span->resource = Integration::toString($args[0]);
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
-                if ($retval instanceof \PDOStatement) {
-                    $span->metrics[Tag::DB_ROW_COUNT] = $retval->rowCount();
-                    ObjectKVStore::propagate($this, $retval, PDOIntegration::CONNECTION_TAGS_KEY);
-                }
-                PDOIntegration::setCommonSpanInfo($this, $span);
-                $integration->addTraceAnalyticsIfEnabled($span);
-                PDOIntegration::detectError($this, $span);
-            });
+        // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
+        \DDTrace\install_hook('PDO::prepare', function (HookData $hook) use ($integration) {
+            list($query) = $hook->args;
 
-            \DDTrace\trace_method('PDO', 'prepare', function (SpanData $span, array $args, $retval) {
-                $span->name = 'PDO.prepare';
-                $span->resource = Integration::toString($args[0]);
-                ObjectKVStore::propagate($this, $retval, PDOIntegration::CONNECTION_TAGS_KEY);
-                PDOIntegration::setCommonSpanInfo($this, $span);
-            });
-        }
+            $span = $hook->span();
+            $span->name = 'PDO.prepare';
+            $span->resource = Integration::toString($query);
+            PDOIntegration::setCommonSpanInfo($this, $span);
+
+            PDOIntegration::injectDBIntegration($this, $hook);
+        }, function (HookData $hook) use ($integration) {
+            ObjectKVStore::propagate($this, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
+        });
 
         // public bool PDO::commit ( void )
         \DDTrace\trace_method('PDO', 'commit', function (SpanData $span) {
@@ -177,9 +135,7 @@ class PDOIntegration extends Integration
                 Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
                 $span->type = Type::SQL;
                 $span->resource = $this->queryString;
-                if (\PHP_MAJOR_VERSION > 5) {
-                    $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                }
+                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 if ($retval === true) {
                     try {
                         $span->metrics[Tag::DB_ROW_COUNT] = $this->rowCount();

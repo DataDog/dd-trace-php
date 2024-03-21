@@ -766,13 +766,8 @@ final class MemcachedTest extends IntegrationTestCase
     public function testCas()
     {
         $this->client->set('ip_block', 'some_value');
-        if (\PHP_MAJOR_VERSION === 5) {
-            $cas = null;
-            $this->client->get('ip_block', null, $cas);
-        } else {
-            $result = $this->client->get('ip_block', null, \Memcached::GET_EXTENDED);
-            $cas = $result['cas'];
-        }
+        $result = $this->client->get('ip_block', null, \Memcached::GET_EXTENDED);
+        $cas = $result['cas'];
         $traces = $this->isolateTracer(function () use ($cas) {
             $this->client->cas($cas, 'key', 'value');
         });
@@ -790,13 +785,8 @@ final class MemcachedTest extends IntegrationTestCase
     public function testCasByKey()
     {
         $this->client->setByKey('my_server', 'ip_block', 'some_value');
-        if (\PHP_MAJOR_VERSION === 5) {
-            $cas = null;
-            $this->client->getByKey('my_server', 'ip_block', null, $cas);
-        } else {
-            $result = $this->client->getByKey('my_server', 'ip_block', null, \Memcached::GET_EXTENDED);
-            $cas = $result['cas'];
-        }
+        $result = $this->client->getByKey('my_server', 'ip_block', null, \Memcached::GET_EXTENDED);
+        $cas = $result['cas'];
         $traces = $this->isolateTracer(function () use ($cas) {
             $this->client->casByKey($cas, 'my_server', 'key', 'value');
         });
@@ -948,13 +938,8 @@ final class MemcachedTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
 
         $this->client->set('ip_block', 'some_value');
-        if (\PHP_MAJOR_VERSION === 5) {
-            $cas = null;
-            $this->client->get('ip_block', null, $cas);
-        } else {
-            $result = $this->client->get('ip_block', null, \Memcached::GET_EXTENDED);
-            $cas = $result['cas'];
-        }
+        $result = $this->client->get('ip_block', null, \Memcached::GET_EXTENDED);
+        $cas = $result['cas'];
         $traces = $this->isolateTracer(function () use ($cas) {
             $this->client->cas($cas, 'key', 'value');
         });
