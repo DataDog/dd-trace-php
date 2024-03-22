@@ -113,9 +113,6 @@ final class InteroperabilityTest extends BaseTestCase
     /** @noinspection PhpParamsInspection */
     public function testMixingOpenTelemetrylAndDatadogBasic()
     {
-        //$this->markTestSkipped("d");
-        self::putEnvAndReloadConfig(["DD_TRACE_DEBUG=1"]);
-
         $traces = $this->isolateTracer(function () {
             $tracer = (new TracerProvider())->getTracer('test.tracer');
             $span = $tracer->spanBuilder("test.span")->startSpan();
