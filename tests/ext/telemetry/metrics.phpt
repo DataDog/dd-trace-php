@@ -18,17 +18,19 @@ zend.assertions=1
 
 namespace DDTrace\Test
 {
-    use DDTrace\Integrations\Integration;
-
-    class TestSandboxedIntegration extends Integration
+    class TestSandboxedIntegration implements \DDTrace\Integration
     {
-        function init()
+        function init(): int
         {
             dd_trace_method("Test", "create_span_from_anomymous_source", function() {
             });
 
             dd_trace_method("Test", "create_span_from_named_integration", function(\DDTrace\SpanData $span, array $args) {
                 $span->meta['component'] = $args[0];
+            });
+
+            dd_trace_method("Test", "create_span_with_flag", function(\DDTrace\SpanData $span, array $args) {
+                \DDTrace\Internal\set_span_flag($span, $args[0]);
             });
 
             return Integration::LOADED;
@@ -55,6 +57,11 @@ namespace
         {
             echo __METHOD__."({$integrationName})\n";
         }
+
+        public static function create_span_with_flag()
+        {
+            echo __METHOD__."\n";
+        }
     }
 
     // Don't create a span
@@ -67,6 +74,8 @@ namespace
     Test::create_span_from_named_integration('testintegration');
     Test::create_span_from_named_integration('testintegration');
     Test::create_span_from_named_integration('foo');
+
+    Test::create_span_with_flag(\DDTRACE\Internal\SPAN_FLAG_OPENTELEMETRY);
 
     dd_trace_internal_fn("finalize_telemetry");
 
@@ -105,7 +114,8 @@ Test::create_span_from_named_integration(testintegration)
 Test::create_span_from_named_integration(testintegration)
 Test::create_span_from_named_integration(testintegration)
 Test::create_span_from_named_integration(foo)
-array(3) {
+Test::create_span_with_flag
+array(4) {
   [0]=>
   array(7) {
     ["namespace"]=>
@@ -163,6 +173,34 @@ array(3) {
     int(10)
   }
   [2]=>
+  array(7) {
+    ["namespace"]=>
+    string(7) "tracers"
+    ["metric"]=>
+    string(55) "dd.instrumentation_telemetry_data.tracers.spans_created"
+    ["points"]=>
+    array(1) {
+      [0]=>
+      array(2) {
+        [0]=>
+        int(%d)
+        [1]=>
+        float(1)
+      }
+    }
+    ["tags"]=>
+    array(1) {
+      [0]=>
+      string(21) "integration_name:otel"
+    }
+    ["common"]=>
+    bool(false)
+    ["type"]=>
+    string(5) "count"
+    ["interval"]=>
+    int(10)
+  }
+  [3]=>
   array(7) {
     ["namespace"]=>
     string(7) "tracers"
