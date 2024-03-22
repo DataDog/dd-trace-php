@@ -77,11 +77,9 @@ final class CliServer implements Sapi
          * As a result auto_prepend_file (and the request init hook) is not executed.
          */
         $cmd = sprintf(
-            PHP_BINARY . ' %s -S %s:%d -t %s', // . ' %s'
+            PHP_BINARY . ' %s %s', // . ' %s'
             new IniSerializer($this->inis),
-            $this->host,
-            $this->port,
-            dirname($this->indexFile)
+            $this->indexFile
             //$this->indexFile
         );
         $envs = new EnvSerializer($this->envs);

@@ -1285,6 +1285,9 @@ test_web_slim_312: global_test_run_dependencies
 test_web_slim_4: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Slim/Version_4,)
 	$(call run_tests_debug,--testsuite=slim-4-test)
+test_web_swoole_5: global_test_run_dependencies
+	$(MAKE) test_scenario_swoole5
+	$(call run_tests_debug,--testsuite=swoole-5-test)
 test_web_symfony_23: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_2_3,)
 	$(call run_tests_debug,tests/Integrations/Symfony/V2_3)

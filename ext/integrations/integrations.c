@@ -311,6 +311,9 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SLIM, "Slim\\App", "__construct",
                                          "DDTrace\\Integrations\\Slim\\SlimIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SWOOLE, "Swoole\\Http\\Server", "on",
+                                         "DDTrace\\Integrations\\Swoole\\SwooleIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVELQUEUE, "Illuminate\\Queue\\Worker", "__construct",
                                          "DDTrace\\Integrations\\LaravelQueue\\LaravelQueueIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVELQUEUE, "Illuminate\\Contracts\\Queue\\Queue", "push",
