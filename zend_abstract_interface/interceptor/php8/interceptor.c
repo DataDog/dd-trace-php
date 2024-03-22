@@ -528,11 +528,16 @@ static void zai_interceptor_observer_placeholder_handler(zend_execute_data *exec
 }
 #endif
 
+#if PHP_VERSION_ID < 80400
+#define ZEND_MAP_INLINED_PTR ZEND_MAP_PTR
+#define ZEND_MAP_INLINED_PTR_INIT ZEND_MAP_PTR_INIT
+#endif
+
 void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler) {
 #if PHP_VERSION_ID < 80200
     if (!ZEND_MAP_PTR(func->op_array.run_time_cache) || !RUN_TIME_CACHE(&func->op_array) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
 #else
-    if (!ZEND_MAP_PTR(func->common.run_time_cache) || !RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
+    if (!ZEND_MAP_INLINED_PTR(func->common.run_time_cache) || !RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
 #endif
         return;
     }

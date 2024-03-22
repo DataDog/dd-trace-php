@@ -100,6 +100,11 @@ void (*zai_hook_on_function_resolve)(zend_function *func) = zai_hook_on_function
 typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
 #endif
 
+#if PHP_VERSION_ID < 80400
+#define ZEND_MAP_INLINED_PTR ZEND_MAP_PTR
+#define ZEND_MAP_INLINED_PTR_INIT ZEND_MAP_PTR_INIT
+#endif
+
 static void zai_hook_data_dtor(zai_hook_t *hook) {
     if (hook->aux.dtor) {
         hook->aux.dtor(hook->aux.data);
@@ -190,7 +195,7 @@ static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_
         func.common.fn_flags = hooks->is_generator ? ZEND_ACC_GENERATOR : 0;
         func.op_array.opcodes = (void *)(uintptr_t *)(install_address << 5); // does not need to be valid, but sufficient to get install_address
 #if PHP_VERSION_ID >= 80200
-        ZEND_MAP_PTR_INIT(func.common.run_time_cache, hooks->run_time_cache);
+        ZEND_MAP_INLINED_PTR_INIT(func.common.run_time_cache, hooks->run_time_cache);
 #else
         ZEND_MAP_PTR_INIT(func.op_array.run_time_cache, hooks->run_time_cache);
         func.common.scope = NULL; // attributes are checked on PHP 8.0, 8.1
@@ -395,7 +400,7 @@ static void zai_hook_resolve_hooks_entry(zai_hooks_entry *hooks, zend_function *
 #if PHP_VERSION_ID < 80200
         hooks->run_time_cache = ZEND_MAP_PTR(resolved->op_array.run_time_cache);
 #else
-        hooks->run_time_cache = ZEND_MAP_PTR(resolved->common.run_time_cache);
+        hooks->run_time_cache = ZEND_MAP_INLINED_PTR(resolved->common.run_time_cache);
 #endif
     }
     hooks->is_generator = (resolved->common.fn_flags & ZEND_ACC_GENERATOR) != 0;

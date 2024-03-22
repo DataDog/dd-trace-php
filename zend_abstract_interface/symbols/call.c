@@ -33,6 +33,11 @@ zend_result zend_call_function_wrapper(zend_fcall_info *fci, zend_fcall_info_cac
 #define zend_call_function zend_call_function_wrapper
 #endif
 
+#if PHP_VERSION_ID < 80400
+#define ZEND_MAP_INLINED_PTR ZEND_MAP_PTR
+#define ZEND_MAP_INLINED_PTR_INIT ZEND_MAP_PTR_INIT
+#endif
+
 #if PHP_VERSION_ID >= 80200
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
@@ -57,7 +62,7 @@ static zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data
     void **rt_cache = ecalloc(cache_size, 1);
     // Set the begin handler to not observed and the end handler (where ever it is) to NULL (implicitly due to ecalloc)
     rt_cache[zend_observer_fcall_op_array_extension] = ZEND_OBSERVER_NOT_OBSERVED;
-    ZEND_MAP_PTR_INIT(dummy_observable_func.op_array.run_time_cache, rt_cache);
+    ZEND_MAP_INLINED_PTR_INIT(dummy_observable_func.op_array.run_time_cache, rt_cache);
 
     // We have a run_time cache with nothing observed, meaning no uncontrolled code will be executed now
     // However, it will in any case update current_observed_frame to our fake frame (needed so that zend_observer_fcall_end() accepts our fake frame)
@@ -230,7 +235,7 @@ bool zai_symbol_call_impl(
                 op_array->fn_flags |= ZEND_ACC_HEAP_RT_CACHE;
 #if PHP_VERSION_ID >= 80200
                 void *ptr = emalloc((size_t)op_array->cache_size);
-                ZEND_MAP_PTR_INIT(op_array->run_time_cache, ptr);
+                ZEND_MAP_INLINED_PTR_INIT(op_array->run_time_cache, ptr);
 #else
                 void *ptr = emalloc(op_array->cache_size + sizeof(void *));
                 ZEND_MAP_PTR_INIT(op_array->run_time_cache, ptr);
