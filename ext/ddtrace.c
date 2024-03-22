@@ -1963,6 +1963,20 @@ PHP_FUNCTION(DDTrace_Testing_trigger_error) {
     }
 }
 
+PHP_FUNCTION(DDTrace_Internal_set_span_flag) {
+    UNUSED(return_value);
+    zend_object *span;
+    zend_long flag;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_OBJ_OF_CLASS_EX(span, ddtrace_ce_span_data, 0, 1) // FIXME: check macro values
+        Z_PARAM_LONG(flag)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_span_data *span_data = OBJ_SPANDATA(span);
+    span_data->flags |= flag;
+}
+
 PHP_FUNCTION(ddtrace_init) {
     if (DDTRACE_G(request_init_hook_loaded) == 1) {
         RETURN_FALSE;

@@ -165,6 +165,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Testing_trigger_error, 0
 	ZEND_ARG_TYPE_INFO(0, errorType, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_set_span_flag, 0, 2, IS_VOID, 0)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 0)
+	ZEND_ARG_TYPE_INFO(0, flag, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_env_config, 0, 1, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO(0, envName, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -326,6 +331,7 @@ ZEND_FUNCTION(DDTrace_UserRequest_notify_start);
 ZEND_FUNCTION(DDTrace_UserRequest_notify_commit);
 ZEND_FUNCTION(DDTrace_UserRequest_set_blocking_function);
 ZEND_FUNCTION(DDTrace_Testing_trigger_error);
+ZEND_FUNCTION(DDTrace_Internal_set_span_flag);
 ZEND_FUNCTION(dd_trace_env_config);
 ZEND_FUNCTION(dd_trace_disable_in_request);
 ZEND_FUNCTION(dd_trace_reset);
@@ -409,6 +415,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace\\UserRequest", notify_commit, DDTrace_UserRequest_notify_commit, arginfo_DDTrace_UserRequest_notify_commit)
 	ZEND_NS_FALIAS("DDTrace\\UserRequest", set_blocking_function, DDTrace_UserRequest_set_blocking_function, arginfo_DDTrace_UserRequest_set_blocking_function)
 	ZEND_NS_FALIAS("DDTrace\\Testing", trigger_error, DDTrace_Testing_trigger_error, arginfo_DDTrace_Testing_trigger_error)
+	ZEND_NS_FALIAS("DDTrace\\Internal", set_span_flag, DDTrace_Internal_set_span_flag, arginfo_DDTrace_Internal_set_span_flag)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
 	ZEND_FE(dd_trace_disable_in_request, arginfo_dd_trace_disable_in_request)
 	ZEND_FE(dd_trace_reset, arginfo_dd_trace_reset)
@@ -486,6 +493,8 @@ static void register_ddtrace_symbols(int module_number)
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_USER_REJECT", PRIORITY_SAMPLING_USER_REJECT, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNKNOWN", DDTRACE_PRIORITY_SAMPLING_UNKNOWN, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNSET", DDTRACE_PRIORITY_SAMPLING_UNSET, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DDTrace\\Internal\\SPAN_FLAG_OPENTELEMETRY", DDTRACE_SPAN_FLAG_OPENTELEMETRY, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DDTrace\\Internal\\SPAN_FLAG_OPENTRACING", DDTRACE_SPAN_FLAG_OPENTRACING, CONST_PERSISTENT);
 }
 
 static zend_class_entry *register_class_DDTrace_SpanLink(zend_class_entry *class_entry_JsonSerializable)

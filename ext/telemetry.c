@@ -109,12 +109,18 @@ void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
     }
 }
 
-void ddtrace_telemetry_inc_spans_created(zend_string *integration) {
-    if (integration) {
-        integration = zend_string_copy(integration);
+void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span) {
+    zend_array *meta = ddtrace_property_array(&span->props.property_meta);
+    zval *component = zend_hash_str_find(meta, ZEND_STRL("component"));
+    zend_string *integration = NULL;
+    if (component && Z_TYPE_P(component) == IS_STRING) {
+        integration = zend_string_copy(Z_STR_P(component));
+    } else if (span->flags & DDTRACE_SPAN_FLAG_OPENTELEMETRY) {
+        integration = zend_string_init(ZEND_STRL("otel"), 0);
+    } else if (span->flags & DDTRACE_SPAN_FLAG_OPENTRACING) {
+        integration = zend_string_init(ZEND_STRL("opentracing"), 0);
     } else {
-        // Fallback value when the span has not been created by an integration (i.e. \DDTrace\span_start())
-        // FIXME: Detect spans from OpenTracing/OpenTelemetry. Add an helper function?
+        // Fallback value when the span has not been created by an integration, nor OpenTelemetry/OpenTracing (i.e. \DDTrace\span_start())
         integration = zend_string_init(ZEND_STRL("datadog"), 0);
     }
 
