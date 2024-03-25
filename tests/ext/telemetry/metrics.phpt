@@ -30,7 +30,7 @@ namespace DDTrace\Test
             });
 
             dd_trace_method("Test", "create_span_with_flag", function(\DDTrace\SpanData $span, array $args) {
-                \DDTrace\Internal\set_span_flag($span, $args[0]);
+                \DDTrace\Internal\add_span_flag($span, $args[0]);
             });
 
             return Integration::LOADED;
