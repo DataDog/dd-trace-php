@@ -75,7 +75,7 @@ struct ddtrace_span_data {
     uint64_t start;
     uint64_t duration_start;
     uint64_t duration;
-    zend_long flags; // FIXME: right type?
+    uint8_t flags;
     enum ddtrace_span_dataype type : 8;
     bool notify_user_req_end;
     struct ddtrace_span_data *next;
