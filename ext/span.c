@@ -554,13 +554,13 @@ void ddtrace_close_span(ddtrace_span_data *span) {
         ddtrace_switch_span_stack(span->stack);
     }
 
-    ddtrace_close_stack_userland_spans_until(span);
-
-    ddtrace_close_top_span_without_stack_swap(span);
-
     // Telemetry: increment the spans_created counter
     // Must be done at closing because we need to read the "component" span's meta which is not available at creation
     ddtrace_telemetry_inc_spans_created(span);
+
+    ddtrace_close_stack_userland_spans_until(span);
+
+    ddtrace_close_top_span_without_stack_swap(span);
 }
 
 void ddtrace_close_span_restore_stack(ddtrace_span_data *span) {
