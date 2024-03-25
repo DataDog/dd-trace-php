@@ -671,18 +671,18 @@ namespace DDTrace\Testing {
 namespace DDTrace\Internal {
     /**
      * @var int
-     * @cvalue PHP_DDTRACE_VERSION
+     * @cvalue DDTRACE_SPAN_FLAG_OPENTELEMETRY
      */
-    const DDTRACE_SPAN_FLAG_OPENTELEMETRY = UNKNOWN;
+    const SPAN_FLAG_OPENTELEMETRY = UNKNOWN;
 
     /**
      * @var int
-     * @cvalue PHP_DDTRACE_VERSION
+     * @cvalue DDTRACE_SPAN_FLAG_OPENTRACING
      */
-    const DDTRACE_SPAN_FLAG_OPENTRACING = UNKNOWN;
+    const SPAN_FLAG_OPENTRACING = UNKNOWN;
 
     /**
-     * Flag a span.
+     * Adds a flag to a span.
      *
      * @internal
      *

@@ -1959,7 +1959,7 @@ PHP_FUNCTION(DDTrace_Testing_trigger_error) {
     }
 }
 
-PHP_FUNCTION(DDTrace_Internal_set_span_flag) {
+PHP_FUNCTION(DDTrace_Internal_add_span_flag) {
     zend_object *span;
     zend_long flag;
 
