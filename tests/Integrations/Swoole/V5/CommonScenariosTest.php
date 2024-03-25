@@ -2,9 +2,12 @@
 
 namespace DDTrace\Tests\Integrations\Swoole\V5;
 
+use DDTrace\Tag;
 use DDTrace\Tests\Common\SnapshotTestTrait;
+use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
@@ -13,12 +16,18 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Swoole/Version_5/index.php';
     }
 
+    protected static function isSwoole()
+    {
+        return true;
+    }
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'swoole_test_app',
             'DD_TRACE_DEBUG' => 'true',
             'DD_TRACE_CLI_ENABLED' => 'true',
+            'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED' => '*',
         ]);
     }
 
@@ -29,15 +38,69 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
-    public function testScenarioGetReturnString()
+    /**
+     * @dataProvider provideSpecs
+     * @param RequestSpec $spec
+     * @param array $spanExpectations
+     * @throws \Exception
+     */
+    public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
-        $this->tracesFromWebRequestSnapshot(function () {
-            $this->call(
-                GetSpec::create(
-                    'A simple GET request returning a string',
-                    '/simple?key=value&pwd=should_redact'
-                )
-            );
+        $traces = $this->tracesFromWebRequest(function () use ($spec) {
+            $this->call($spec);
         });
+
+        $this->assertFlameGraph($traces, $spanExpectations);
+    }
+
+    public function provideSpecs()
+    {
+        return $this->buildDataProvider(
+            [
+                'A simple GET request returning a string' => [
+                    SpanAssertion::build(
+                        'web.request',
+                        'swoole_test_app',
+                        'web',
+                        'GET /simple'
+                    )->withExactTags([
+                        'http.method' => 'GET',
+                        'http.url' => 'http://localhost:' . self::PORT . '/simple?key=value&<redacted>',
+                        'http.status_code' => '200',
+                        Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'swoole'
+                    ]),
+                ],
+                'A simple GET request with a view' => [
+                    SpanAssertion::build(
+                        'web.request',
+                        'swoole_test_app',
+                        'web',
+                        'GET /simple_view'
+                    )->withExactTags([
+                        'http.method' => 'GET',
+                        'http.url' => 'http://localhost:' . self::PORT . '/simple_view?key=value&<redacted>',
+                        'http.status_code' => '200',
+                        Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'swoole'
+                    ]),
+                ],
+                'A GET request with an exception' => [
+                    SpanAssertion::build(
+                        'web.request',
+                        'swoole_test_app',
+                        'web',
+                        'GET /error'
+                    )->withExactTags([
+                        'http.method' => 'GET',
+                        'http.url' => 'http://localhost:' . self::PORT . '/error?key=value&<redacted>',
+                        'http.status_code' => '500',
+                        'error.stack' => "#0 [internal function]: {closure}()\n#1 {main}",
+                        Tag::SPAN_KIND => 'server',
+                        Tag::COMPONENT => 'swoole'
+                    ])->setError('Exception', 'Uncaught Exception: Error page'),
+                ],
+            ]
+        );
     }
 }

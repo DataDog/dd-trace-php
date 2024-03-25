@@ -1,28 +1,18 @@
 <?php
 
-namespace DDTrace\Tests\Sapi\CliServer;
+namespace DDTrace\Tests\Sapi\SwooleServer;
 
 use DDTrace\Tests\Common\EnvSerializer;
 use DDTrace\Tests\Common\IniSerializer;
 use DDTrace\Tests\Sapi\Sapi;
 use Symfony\Component\Process\Process;
 
-final class CliServer implements Sapi
+final class SwooleServer implements Sapi
 {
     /**
      * @var Process
      */
     private $process;
-
-    /**
-     * @var string
-     */
-    private $host;
-
-    /**
-     * @var int
-     */
-    private $port;
 
     /**
      * @var string
@@ -41,16 +31,12 @@ final class CliServer implements Sapi
 
     /**
      * @param string $indexFile
-     * @param string $host
-     * @param int $port
      * @param array $envs
      * @param array $inis
      */
-    public function __construct($indexFile, $host, $port, array $envs = [], array $inis = [])
+    public function __construct($indexFile, array $envs = [], array $inis = [])
     {
         $this->indexFile = $indexFile;
-        $this->host = $host;
-        $this->port = $port;
         $this->envs = $envs;
         $this->inis = $inis;
     }
@@ -77,20 +63,17 @@ final class CliServer implements Sapi
          * As a result auto_prepend_file (and the request init hook) is not executed.
          */
         $cmd = sprintf(
-            PHP_BINARY . ' %s -S %s:%d -t %s', // . ' %s'
+            PHP_BINARY . ' %s %s',
             new IniSerializer($this->inis),
-            $this->host,
-            $this->port,
-            dirname($this->indexFile)
-            //$this->indexFile
+            $this->indexFile
         );
         $envs = new EnvSerializer($this->envs);
         $processCmd = "$envs exec $cmd";
 
         // See phpunit_error.log in CircleCI artifacts
-        error_log("[cli-server] Starting: '$envs $processCmd'");
+        error_log("[swoole-server] Starting: '$envs $processCmd'");
         if (isset($this->inis['error_log'])) {
-            error_log("[cli-server] Error log: '" . realpath($this->inis['error_log']) . "'");
+            error_log("[swoole-server] Error log: '" . realpath($this->inis['error_log']) . "'");
         }
 
         $this->process = new Process($processCmd);
@@ -99,7 +82,7 @@ final class CliServer implements Sapi
 
     public function stop()
     {
-        error_log("[cli-server] Stopping...");
+        error_log("[swoole-server] Stopping...");
         $this->process->stop(0);
     }
 
