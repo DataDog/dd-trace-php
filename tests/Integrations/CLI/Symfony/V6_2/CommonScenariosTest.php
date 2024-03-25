@@ -180,8 +180,8 @@ class CommonScenariosTest extends IntegrationTestCase
         $this->assertNotEmpty($dynamicRoutes);
 
         $this->assertEquals('/staticUrl', $staticRoutes['/staticUrl'][0][0]['_path']);
-        $this->assertEquals('/locale-en', $staticRoutes['/locale-en'][0][0]['_path']['en']);
-        $this->assertEquals('/locale-nl', $staticRoutes['/locale-nl'][0][0]['_path']['nl']);
+        $this->assertEquals('/locale-en', $staticRoutes['/locale-en'][0][0]['_path']);
+        $this->assertEquals('/locale-nl', $staticRoutes['/locale-nl'][0][0]['_path']);
         $dynamicPath = '';
         foreach($dynamicRoutes as $route) {
             if ($route[0][0]['_route'] == 'app_commonscenarios_dynamicurl') {
