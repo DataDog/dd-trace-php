@@ -862,6 +862,7 @@ TEST_WEB_81 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_swoole_5 \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
@@ -911,6 +912,7 @@ TEST_WEB_82 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_swoole_5 \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_symfony_70 \
@@ -958,6 +960,7 @@ TEST_WEB_83 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_swoole_5 \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_symfony_70 \
