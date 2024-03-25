@@ -161,9 +161,6 @@ class SymfonyIntegration extends Integration
              function ($This) use ($integration) {
                 $defaults = $This->getDefaults();
                 $path = $This->getPath();
-                if (is_null($path)) {
-                    $path = $This->getLocalizedPaths();
-                }
                 $defaults['_path'] = $path;
 
                 $This->setDefaults($defaults);
