@@ -25,6 +25,14 @@ void ddtrace_telemetry_first_init(void) {
     dd_composer_hook_id = zai_hook_install((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
 }
 
+void ddtrace_telemetry_rinit(void) {
+    zend_hash_init(&DDTRACE_G(telemetry_spans_created_per_integration), 8, unused, NULL, 0);
+}
+
+void ddtrace_telemetry_rshutdown(void) {
+    zend_hash_destroy(&DDTRACE_G(telemetry_spans_created_per_integration));
+}
+
 void ddtrace_telemetry_finalize(void) {
     if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
