@@ -120,7 +120,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
 
                 zval_ptr_dtor(&obj);
 
-                if (success) {
+                if (success && get_DD_TRACE_ENABLED()) {
                     switch (Z_LVAL(rv)) {
                         case DD_TRACE_INTEGRATION_LOADED:
                             LOG(DEBUG, "Loaded integration %s", ZSTR_VAL(aux->classname));
@@ -140,7 +140,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
             } while (0);
         } zend_catch {
         } zend_end_try();
-        if (!success || PG(last_error_message)) {
+        if ((!success || PG(last_error_message)) && get_DD_TRACE_ENABLED()) {
             LOGEV(WARN, {
                 zend_object *ex = EG(exception);
                 if (ex) {

@@ -480,6 +480,7 @@ TEST_EXTRA_ENV ?=
 TESTS_ROOT = ./tests
 COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
 COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
+DDPROF_IDENTIFIER ?=
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 PHPUNIT_COVERAGE ?=
@@ -953,11 +954,15 @@ TEST_WEB_83 := \
 FILTER := .
 MAX_RETRIES := 3
 
+# Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17"
 define run_composer_with_retry
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
 		$(COMPOSER) --working-dir=$1 update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
-	done
+	done \
+
+	mkdir -p /tmp/artifacts
+	$(COMPOSER) --working-dir=$1 show -f json -D | grep -o '"name": "[^"]*\|"version": "[^"]*' | paste -d';' - - | sed 's/"name": //; s/"version": //' | tr -d '"' >> "/tmp/artifacts/web_versions.csv"
 endef
 
 define run_tests_without_coverage
@@ -986,6 +991,10 @@ endef
 
 define run_benchmarks
 	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+endef
+
+define run_benchmarks_with_ddprof
+	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
 endef
 
 
@@ -1032,6 +1041,7 @@ test: global_test_run_dependencies
 
 test_unit: global_test_run_dependencies
 	$(call run_tests,--testsuite=unit $(TESTS))
+	DD_TRACE_AGENT_RETRIES=3 DD_TRACE_AGENT_FLUSH_INTERVAL=333 DD_TRACE_AGENT_URL=http://request-replayer:80 $(call run_tests,tests/Unit/Util/OrphansTest.php)
 test_unit_coverage: global_test_run_dependencies
 	PHPUNIT_COVERAGE=1 $(MAKE) test_unit
 
@@ -1067,11 +1077,23 @@ benchmarks_run_dependencies: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/benchmarks/composer.lock
 	$(MAKE) test_scenario_benchmarks
 
-benchmarks: benchmarks_run_dependencies
-	$(call run_benchmarks,$(PHPBENCH_CONFIG))
+call_benchmarks:
+	if [ -n "$(DDPROF_IDENTIFIER)" ]; then \
+		$(call run_benchmarks_with_ddprof,$(PHPBENCH_CONFIG)); \
+	else \
+		$(call run_benchmarks,$(PHPBENCH_CONFIG)); \
+	fi
 
-benchmarks_opcache: benchmarks_run_dependencies
-	$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG))
+call_benchmarks_opcache:
+	if [ -n "$(DDPROF_IDENTIFIER)" ]; then \
+		$(call run_benchmarks_with_ddprof,$(PHPBENCH_OPCACHE_CONFIG)); \
+	else \
+		$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG)); \
+	fi
+
+benchmarks: benchmarks_run_dependencies call_benchmarks
+
+benchmarks_opcache: benchmarks_run_dependencies call_benchmarks_opcache
 
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock

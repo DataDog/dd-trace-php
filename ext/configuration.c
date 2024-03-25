@@ -141,6 +141,8 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
 
         if (env_name.ptr == strstr(env_name.ptr, "DD_TRACE_")) {
             ini_name->ptr[sizeof("datadog.trace") - 1] = '.';
+        } else if (env_name.ptr == strstr(env_name.ptr, "DD_APPSEC_")) {
+            ini_name->ptr[sizeof("datadog.appsec") - 1] = '.';
         }
     } else {
         ini_name->len = 0;
@@ -189,6 +191,10 @@ void ddtrace_config_first_rinit() {
             ZSTR_VAL(internal_functions_old), ZSTR_VAL(internal_functions_new));
     }
     zend_string_release(internal_functions_old);
+
+    if (!get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_APPSEC_SCA_ENABLED()) {
+        LOG(WARN, "DD_APPSEC_SCA_ENABLED requires DD_INSTRUMENTATION_TELEMETRY_ENABLED in order to work");
+    }
 
     runtime_config_first_init = true;
 }

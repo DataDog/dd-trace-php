@@ -30,6 +30,17 @@ trait TracerTestTrait
         GlobalTracer::set($tracer);
     }
 
+    public static function setResponse($content)
+    {
+        $response = file_get_contents(self::$agentRequestDumperUrl . '/next-response', false, stream_context_create([
+            "http" => [
+                "method" => "POST",
+                "content" => json_encode($content),
+                "header" => "Content-Type: application/json"
+            ]
+        ]));
+    }
+
     /**
      * @param $fn
      * @param null $tracer

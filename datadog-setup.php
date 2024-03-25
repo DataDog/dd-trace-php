@@ -680,8 +680,10 @@ function install($options)
                     '(datadog.appsec.helper_path\s*=.*)' => "datadog.appsec.helper_path = $appSecHelperPath",
                     // Update and comment rules path
                     '(^[\s;]*datadog.appsec.rules\s*=\s*' . $rulesPathRegex . ')m' => "; datadog.appsec.rules = " . $appSecRulesPath,
-                    '(^[\s;]*datadog.appsec.enabled\s*=.*)m' => 'datadog.appsec.enabled = ' . (is_truthy($options[OPT_ENABLE_APPSEC]) ? 'On' : 'Off'),
                 ];
+                if (is_truthy($options[OPT_ENABLE_APPSEC])) {
+                    $replacements += ['(^[\s;]*datadog.appsec.enabled\s*=.*)m' => 'datadog.appsec.enabled = On'];
+                }
             } else {
                 // Ensure AppSec isn't loaded if not compatible
                 $replacements['(^[\s;]*extension\s*=\s*.*ddappsec.*)m'] = "; extension = ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);

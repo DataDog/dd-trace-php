@@ -510,6 +510,8 @@ commands:
             mkdir /tmp/bashenv
             sudo mkdir /rust
             sudo chmod 777 /rust
+            mkdir /tmp/artifacts
+            sudo chmod 777 /tmp/artifacts
             image=<< parameters.docker_image >>
             retries=$max_retries
             while
@@ -529,6 +531,7 @@ commands:
                   -v $(pwd):/home/circleci/datadog \
                   -v /tmp/bashenv:/home/circleci/bashenv \
                   -v /rust:/rust \
+                  -v /tmp/artifacts:/tmp/artifacts \
                   $(if [ -n "${CARGO_TARGET_DIR:-}" ]; then echo -v ${CARGO_TARGET_DIR}:${CARGO_TARGET_DIR} -e CARGO_TARGET_DIR=${CARGO_TARGET_DIR}; fi) \
                   $image \
                   bash -c 'echo Started; sleep 10000' 2>&1 | tee /tmp/docker.out &
@@ -722,7 +725,7 @@ jobs:
         default: none
     working_directory: ~/datadog
     executor:
-      name: with_agent
+      name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
     steps:
       - restore_cache:
@@ -1797,6 +1800,9 @@ jobs:
           php_version: << parameters.switch_php_version >>
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
+      - run:
+          name: Install required packages
+          command: sudo apt update && sudo apt install -y jq
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
@@ -2717,27 +2723,25 @@ jobs:
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
       - run:
-          name: Build extension
+          name: Build nts extension
           command: |
-            # Backtraces on Alpine are apparently sketchy, and removed in Alpine 3.17:
-            # https://gitlab.alpinelinux.org/alpine/aports/-/merge_requests/36722
-            # Ensure libexecinfo is _not_ installed, so support isn't detected
-            # by config.m4
-            alpine_version=$(cat /etc/os-release | awk -F= '$1 == "VERSION_ID" { print $2 }')
-            alpine_major_version=$(echo $version | cut -d . -f 1)
-            alpine_minor_version=$(echo $version | cut -d . -f 2)
-            if [ $alpine_major_version -eq 3 ] && [ $alpine_minor_version -lt 17 ] ; then
-                apk update && apk del libexecinfo libexecinfo-dev
-            fi
             build-dd-trace-php
-            mv extensions extensions_$(uname -m)
+      - run:
+          name: Build zts extension
+          command: |
+            . /root/.bashrc
+            switch_php zts
+            rm -r tmp/build_extension
+            build-dd-trace-php
       - run:
           name: Compress debug info
           command: |
-            cd extensions_$(uname -m)
+            pushd extensions
             for FILE in $(find . -name "*.so"); do
                 objcopy --compress-debug-sections $FILE
             done
+            popd
+            mv extensions extensions_$(uname -m)
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions_*']
@@ -3100,11 +3104,19 @@ jobs:
             echo 'export PHP_API=$(php -i | grep "PHP Extension => " | sed "s/PHP Extension => //g")' >> "$BASH_ENV"
             source "$BASH_ENV"
       - run:
-          name: Build
+          name: Build nts extension
           command: |
             mkdir -p appsec/build ; cd appsec/build
             cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
             cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API-alpine.so
+      - run:
+          name: Build zts extension
+          command: |
+            . /root/.bashrc
+            switch_php zts
+            mkdir -p appsec/build-zts ; cd appsec/build-zts
+            cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF  -DDD_APPSEC_TESTING=OFF ; make -j $(nproc)
+            cp -v ddappsec.so ../../appsec_$(uname -m)/ddappsec-$PHP_API-alpine-zts.so
       - run:
           name: Compress debug info
           command: |

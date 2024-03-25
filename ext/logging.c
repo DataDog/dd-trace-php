@@ -14,9 +14,9 @@ static void dd_log_set_level(bool debug) {
     bool once = runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS();
     if (debug) {
         if (strcmp("cli", sapi_module.name) != 0 && (runtime_config_first_init ? get_DD_TRACE_STARTUP_LOGS() : get_global_DD_TRACE_STARTUP_LOGS())) {
-            ddog_set_log_level((ddog_CharSlice)DDOG_CHARSLICE_C("debug"), once);
+            ddog_set_log_level(DDOG_CHARSLICE_C("debug"), once);
         } else {
-            ddog_set_log_level((ddog_CharSlice)DDOG_CHARSLICE_C("debug,startup=error"), once);
+            ddog_set_log_level(DDOG_CHARSLICE_C("debug,startup=error"), once);
         }
     } else if (runtime_config_first_init) {
         ddog_set_log_level(dd_zend_string_to_CharSlice(get_DD_TRACE_LOG_LEVEL()), once);
@@ -37,17 +37,22 @@ _Atomic(uintmax_t) dd_error_log_fd_rotated = 0;
 
 void ddtrace_log_minit(void) {
     if (ZSTR_LEN(get_global_DD_TRACE_LOG_FILE())) {
-        int fd = VCWD_OPEN_MODE(ZSTR_VAL(get_global_DD_TRACE_LOG_FILE()), O_CREAT | O_RDWR | O_APPEND, 0666);
-        if (fd >= 0) {
+        int fd = VCWD_OPEN_MODE(ZSTR_VAL(get_global_DD_TRACE_LOG_FILE()), O_RDWR | O_APPEND, 0666);
+        if (fd < 0) {
+            // Retry with CREAT to only apply fchmod() on CREAT
+            fd = VCWD_OPEN_MODE(ZSTR_VAL(get_global_DD_TRACE_LOG_FILE()), O_CREAT | O_RDWR | O_APPEND, 0666);
+            if (fd < 0) {
+                return;
+            }
 #ifndef _WIN32
             fchmod(fd, 0666); // ignore umask
 #endif
-            atomic_store(&ddtrace_error_log_fd, fd);
-
-            time_t now;
-            time(&now);
-            atomic_store(&dd_error_log_fd_rotated, (uintmax_t) now);
         }
+        atomic_store(&ddtrace_error_log_fd, fd);
+
+        time_t now;
+        time(&now);
+        atomic_store(&dd_error_log_fd_rotated, (uintmax_t) now);
     }
 
     // no need to call dd_log_set_level here, ddtrace_config_minit() inits the debug config
@@ -62,10 +67,17 @@ void ddtrace_log_rinit(char *error_log) {
         return;
     }
 
-    int desired = VCWD_OPEN_MODE(error_log, O_CREAT | O_RDWR | O_APPEND, 0666);
+    int desired = VCWD_OPEN_MODE(error_log, O_RDWR | O_APPEND, 0666);
+    if (desired < 0) {
+        // Retry with CREAT to only apply fchmod() on CREAT
+        desired = VCWD_OPEN_MODE(error_log, O_CREAT | O_RDWR | O_APPEND, 0666);
+
 #ifndef _WIN32
-    fchmod(desired, 0666); // ignore umask
+        if (desired >= 0) {
+            fchmod(desired, 0666); // ignore umask
+        }
 #endif
+    }
 
     time_t now;
     time(&now);
@@ -129,10 +141,14 @@ int ddtrace_log_with_time(int fd, const char *msg, int msg_len) {
     if (last_check < (uintmax_t)now - 60) { // 1x/min
         char pathbuf[MAXPATHLEN];
         if (ddtrace_get_fd_path(fd, pathbuf) >= 0) {
-            int new_fd = VCWD_OPEN_MODE(pathbuf, O_CREAT | O_RDWR | O_APPEND, 0666);
+            int new_fd = VCWD_OPEN_MODE(pathbuf, O_RDWR | O_APPEND, 0666);
+            if (new_fd < 0) {
+                // Retry with CREAT to only apply fchmod() on CREAT
+                new_fd = VCWD_OPEN_MODE(pathbuf, O_CREAT | O_RDWR | O_APPEND, 0666);
 #ifndef _WIN32
-            fchmod(new_fd, 0666); // ignore umask
+                fchmod(new_fd, 0666); // ignore umask
 #endif
+            }
             dup2(new_fd, fd); // atomic replace
             close(new_fd);
         }

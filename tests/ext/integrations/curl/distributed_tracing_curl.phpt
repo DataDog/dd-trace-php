@@ -55,7 +55,7 @@ echo 'Done.' . PHP_EOL;
 [ddtrace] [error] The to be propagated tag '_dd.p.very=looooooooooooooooong' is too long and exceeds the maximum limit of 25 characters and is thus dropped.
 b3: %s-%s-1
 traceparent: 00-%s-%s
-tracestate: dd=o:phpt-test
+tracestate: dd=p:%s;o:phpt-test
 x-b3-spanid: %s
 x-b3-traceid: %s
 x-datadog-origin: phpt-test

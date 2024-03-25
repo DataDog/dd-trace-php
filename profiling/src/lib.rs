@@ -282,7 +282,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     unsafe { zend::zend_register_extension(&extension, handle) };
 
     #[cfg(feature = "allocation_profiling")]
-    allocation::allocation_profiling_minit();
+    allocation::alloc_prof_minit();
 
     #[cfg(feature = "timeline")]
     timeline::timeline_minit();
@@ -369,8 +369,8 @@ thread_local! {
     /// The tags for this thread/request. These get sent to other threads,
     /// which is why they are Arc. However, they are wrapped in a RefCell
     /// because the values _can_ change from request to request depending on
-    /// the on the values sent in the SAPI for env, service, version, etc.
-    /// They get reset at the end of the request.
+    /// the values sent in the SAPI for env, service, version, etc. They get
+    /// reset at the end of the request.
     static TAGS: RefCell<Arc<Vec<Tag>>> = RefCell::new(Arc::new(Vec::new()));
 }
 
@@ -505,6 +505,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         REQUEST_LOCALS.with(|cell| {
             let locals = cell.borrow();
             let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
+            let wall_time_enabled = system_settings.profiling_wall_time_enabled;
             CLOCKS.with(|cell| cell.borrow_mut().initialize(cpu_time_enabled));
 
             TAGS.with(|cell| {
@@ -516,8 +517,22 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 // standardized tag name.
                 add_tag(&mut tags, "runtime_version", PHP_VERSION.as_str());
                 add_tag(&mut tags, "php.sapi", SAPI.as_ref());
+                // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
+                // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
+                // `zend-nts-ndebug`
+                let runtime_engine = if cfg!(php_zts) {
+                    "zend-zts-ndebug"
+                } else {
+                    "zend-nts-ndebug"
+                };
+                add_tag(&mut tags, "runtime_engine", runtime_engine);
                 cell.replace(Arc::new(tags));
             });
+
+            // Only add interrupt if cpu- or wall-time is enabled.
+            if !(cpu_time_enabled | wall_time_enabled) {
+                return;
+            }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 let interrupt = VmInterrupt {
@@ -532,7 +547,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     }
 
     #[cfg(feature = "allocation_profiling")]
-    allocation::allocation_profiling_rinit();
+    allocation::alloc_prof_rinit();
 
     // SAFETY: called after config is initialized.
     #[cfg(feature = "timeline")]
@@ -578,6 +593,9 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         let locals = cell.borrow();
         let system_settings = locals.system_settings();
 
+        // The interrupt is only added if CPU- or wall-time are enabled BUT
+        // wall-time is not expected to ever be disabled, except in testing,
+        // and we don't need to optimize for that.
         if system_settings.profiling_enabled {
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
                 let interrupt = VmInterrupt {
@@ -590,7 +608,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     });
 
     #[cfg(feature = "allocation_profiling")]
-    allocation::allocation_profiling_rshutdown();
+    allocation::alloc_prof_rshutdown();
 
     ZendResult::Success
 }
@@ -834,7 +852,7 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     }
 
     #[cfg(feature = "allocation_profiling")]
-    allocation::allocation_profiling_startup();
+    allocation::alloc_prof_startup();
 
     ZendResult::Success
 }
