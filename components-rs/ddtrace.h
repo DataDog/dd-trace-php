@@ -157,15 +157,6 @@ void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_SidecarActionsBuff
                                                   ddog_CharSlice integration_version,
                                                   bool integration_enabled);
 
-void ddog_sidecar_telemetry_register_metric_buffer(struct ddog_SidecarActionsBuffer *buffer,
-                                                   ddog_CharSlice metric_name);
-
-void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActionsBuffer *buffer,
-                                                         ddog_CharSlice metric_name,
-                                                         double metric_value,
-                                                         ddog_CharSlice integration_name
-                                                         );
-
 void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                  ddog_CharSlice dependency_name,
                                                  ddog_CharSlice dependency_version);
@@ -179,6 +170,14 @@ ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(ddog_SidecarTransport **tran
                                                     const struct ddog_InstanceId *instance_id,
                                                     const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer);
+
+void ddog_sidecar_telemetry_register_metric_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                                   ddog_CharSlice metric_name);
+
+void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                                         ddog_CharSlice metric_name,
+                                                         double metric_value,
+                                                         ddog_CharSlice integration_name);
 
 ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection,
                                          const char *error_path,
