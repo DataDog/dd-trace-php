@@ -1310,7 +1310,7 @@ test_web_symfony_52: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=symfony-52-test)
 test_web_symfony_62: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_6_2,)
-	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
+	php $(REQUEST_INIT_HOOK) tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-62-test)
 test_web_symfony_70: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_7_0,)

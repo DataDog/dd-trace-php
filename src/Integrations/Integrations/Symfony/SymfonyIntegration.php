@@ -155,7 +155,7 @@ class SymfonyIntegration extends Integration
         );
 
          \DDTrace\hook_method(
-             'Symfony\Component\Routing\Annotation\Route',
+             'Symfony\Component\Routing\Route',
              '__construct',
              null,
              function ($This) use ($integration) {
@@ -418,13 +418,6 @@ class SymfonyIntegration extends Integration
                 }
 
                 $path = $request->get('_path');
-                if (is_array($path) && count($path) > 0) {
-                    if (isset($path[$request->get('_locale')])) {
-                        $path = $path[$request->get('_locale')];
-                    } else {
-                        $path = reset($path);
-                    }
-                }
                 if ($path) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
                 }
