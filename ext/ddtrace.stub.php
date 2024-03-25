@@ -425,7 +425,7 @@ namespace DDTrace {
      * @param float $startTime Start time of the span in seconds.
      * @return RootSpanData The newly created root span
      */
-    function start_trace_span(float $startTime = 0): RootSpanData {}
+    function start_trace_span(float $startTime = 0): SpanData {}
 
     /**
      * Get the active stack
