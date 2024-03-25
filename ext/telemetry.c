@@ -118,8 +118,11 @@ void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
 }
 
 void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span) {
-    zend_array *meta = ddtrace_property_array(&span->props.property_meta);
-    zval *component = zend_hash_str_find(meta, ZEND_STRL("component"));
+    zval *component = NULL;
+    if (Z_TYPE(span->property_meta) == IS_ARRAY) {
+        component = zend_hash_str_find(Z_ARRVAL(span->property_meta), ZEND_STRL("component"));
+    }
+
     zend_string *integration = NULL;
     if (component && Z_TYPE_P(component) == IS_STRING) {
         integration = zend_string_copy(Z_STR_P(component));
