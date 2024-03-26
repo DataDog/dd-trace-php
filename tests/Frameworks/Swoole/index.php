@@ -2,9 +2,6 @@
 
 require __DIR__ . '/../../vendor/autoload.php';
 
-// If 0.0.0.0:9999 is already used, kill the process
-
-
 $http = new Swoole\Http\Server("0.0.0.0", 9999);
 $http->set(['hook_flags' => SWOOLE_HOOK_ALL]);
 
