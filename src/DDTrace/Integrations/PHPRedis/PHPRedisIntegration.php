@@ -43,7 +43,7 @@ class PHPRedisIntegration extends Integration
         return self::NAME;
     }
 
-    public function init()
+    public function init(): int
     {
         $traceConnectOpen = function (SpanData $span, $args) {
             Common::handleOrphan($span);
