@@ -17,7 +17,7 @@ use function DDTrace\switch_stack;
 class ExecIntegration extends Integration
 {
     const MAX_CMD_SIZE = 4 * 1024;
-    const NAME = "core";
+    const NAME = "exec";
     const REDACTED_PARAM_PAT =
           '/\A(?i)-{0,2}(?:p(?:ass(?:w(?:or)?d)?)?|api_?key|secret|'
               . 'a(?:ccess|uth)_token|mysql_pwd|credentials|(?:stripe)?token)\z/';
