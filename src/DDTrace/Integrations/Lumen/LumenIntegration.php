@@ -14,19 +14,11 @@ class LumenIntegration extends Integration
     const NAME = 'lumen';
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling()
+    public function isForcingTraceAnalytics()
     {
-        return false;
+        return true;
     }
 
     /**
@@ -120,7 +112,7 @@ class LumenIntegration extends Integration
 
             $rootSpan = \DDTrace\root_span();
             $exception = $args[0];
-            $integration->setError($rootSpan, $exception);
+            $rootSpan->exception =  $exception;
         };
 
         \DDTrace\trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [$hook => $exceptionRender]);

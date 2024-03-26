@@ -14,19 +14,11 @@ class YiiIntegration extends Integration
     const NAME = 'yii';
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling()
+    public function isForcingTraceAnalytics()
     {
-        return false;
+        return true;
     }
 
     /**

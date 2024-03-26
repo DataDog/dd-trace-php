@@ -29,11 +29,6 @@ final class CurlIntegration extends Integration
 {
     const NAME = 'curl';
 
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     public function init(): int
     {
         if (!extension_loaded('curl')) {

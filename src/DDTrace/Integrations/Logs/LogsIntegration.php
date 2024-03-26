@@ -13,14 +13,6 @@ class LogsIntegration extends Integration
 {
     const NAME = 'logs';
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     public static function laminasLogLevelToString(int $logLevel, string $fallback): string
     {
         switch ($logLevel) {

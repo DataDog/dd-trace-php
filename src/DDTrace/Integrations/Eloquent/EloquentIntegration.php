@@ -17,14 +17,6 @@ class EloquentIntegration extends Integration
     private $appName;
 
     /**
-     * {@inheritdoc}
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * {@inheritDoc}
      */
     public function init(): int

@@ -19,19 +19,11 @@ class RoadrunnerIntegration extends Integration
     const NAME = 'roadrunner';
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling()
+    public function isForcingTraceAnalytics()
     {
-        return false;
+        return true;
     }
 
     public static function build_req_spec(\Spiral\RoadRunner\Http\Request $req) {

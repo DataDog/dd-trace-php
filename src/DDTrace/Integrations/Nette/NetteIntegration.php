@@ -14,17 +14,9 @@ class NetteIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function getName()
+    public function isForcingTraceAnalytics()
     {
-        return self::NAME;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function requiresExplicitTraceAnalyticsEnabling()
-    {
-        return false;
+        return true;
     }
 
     /**

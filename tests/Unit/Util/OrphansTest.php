@@ -2,9 +2,9 @@
 
 namespace DDTrace\Tests\Unit\Util;
 
+use DDTrace\Integrations\Integration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\TracerTestTrait;
-use DDTrace\Util\Common;
 
 final class OrphansTest extends IntegrationTestCase
 {
@@ -34,7 +34,7 @@ final class OrphansTest extends IntegrationTestCase
     function testOrphansRemovalWithAgentSampling()
     {
         \DDTrace\trace_method(self::class, "foo", function (\DDTrace\SpanData $span) {
-            Common::handleOrphan($span);
+            Integration::handleOrphan($span);
         });
 
         $this->resetRequestDumper();

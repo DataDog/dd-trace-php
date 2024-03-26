@@ -17,14 +17,6 @@ class CakePHPIntegration extends Integration
     public $appName;
     public $rootSpan;
 
-    /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     // CakePHP v2.x - we don't need to check for v3 since it does not have \Dispatcher or \ShellDispatcher
     public function init(): int
     {
@@ -102,7 +94,7 @@ class CakePHPIntegration extends Integration
         \DDTrace\trace_method('ExceptionRenderer', '__construct', [
             'instrument_when_limited' => 1,
             'posthook' => function (SpanData $span, array $args) use ($integration) {
-                $integration->setError($integration->rootSpan, $args[0]);
+                $integration->rootSpan->exception =  $args[0];
                 $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
                 return false;
             },
