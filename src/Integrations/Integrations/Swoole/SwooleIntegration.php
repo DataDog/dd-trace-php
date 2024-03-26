@@ -147,6 +147,8 @@ class SwooleIntegration extends Integration
                     return;
                 }
 
+                // Note: The response's body can be retrieved here, from the args
+
                 if (!$rootSpan->exception
                     && ((int)$rootSpan->meta[Tag::HTTP_STATUS_CODE]) >= 500
                     && $ex = \DDTrace\find_active_exception()
