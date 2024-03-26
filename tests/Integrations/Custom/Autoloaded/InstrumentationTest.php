@@ -80,7 +80,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->assertCount(1, $metrics);
         $this->assertEquals("generate-metrics", $metrics[0]["request_type"]);
         $this->assertEquals("tracers", $metrics[0]["payload"]["series"][0]["namespace"]);
-        $this->assertEquals("dd.instrumentation_telemetry_data.tracers.spans_created", $metrics[0]["payload"]["series"][0]["metric"]);
+        $this->assertEquals("spans_created", $metrics[0]["payload"]["series"][0]["metric"]);
         $this->assertEquals(["integration_name:datadog"], $metrics[0]["payload"]["series"][0]["tags"]);
 
         $this->call(GetSpec::create("autoloaded", "/pdo"));
@@ -126,7 +126,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->assertCount(1, $metrics);
         $this->assertEquals("generate-metrics", $metrics[0]["request_type"]);
         $this->assertEquals("tracers", $metrics[0]["payload"]["series"][0]["namespace"]);
-        $this->assertEquals("dd.instrumentation_telemetry_data.tracers.spans_created", $metrics[0]["payload"]["series"][0]["metric"]);
+        $this->assertEquals("spans_created", $metrics[0]["payload"]["series"][0]["metric"]);
         $this->assertEquals(["integration_name:pdo"], $metrics[0]["payload"]["series"][0]["tags"]);
     }
 }
