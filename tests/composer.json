@@ -192,6 +192,17 @@
                     ]
                 }
             },
+            "swoole4": {
+                "scenario-options": {
+                    "create-lockfile": false
+                },
+                "scripts": {
+                    "pre-autoload-dump": [
+                        "sudo pecl uninstall swoole",
+                        "printf 'no' | sudo pecl install -f swoole-4.8.13"
+                    ]
+                }
+            },
             "swoole5": {
                 "scenario-options": {
                     "create-lockfile": false

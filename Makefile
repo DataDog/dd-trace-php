@@ -635,6 +635,7 @@ TEST_WEB_72 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_swoole_4 \
 	test_web_symfony_23 \
 	test_web_symfony_28 \
 	test_web_symfony_30 \
@@ -696,6 +697,7 @@ TEST_WEB_73 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_swoole_4 \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
@@ -757,6 +759,7 @@ TEST_WEB_74 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_swoole_4 \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_44 \
@@ -814,6 +817,8 @@ TEST_WEB_80 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_swoole_4 \
+	test_web_swoole_5 \
 	test_web_symfony_44 \
 	test_web_symfony_51 \
 	test_web_symfony_52 \
@@ -862,6 +867,7 @@ TEST_WEB_81 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_swoole_4 \
 	test_web_swoole_5 \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
@@ -912,6 +918,7 @@ TEST_WEB_82 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_swoole_4 \
 	test_web_swoole_5 \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
@@ -1288,9 +1295,12 @@ test_web_slim_312: global_test_run_dependencies
 test_web_slim_4: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Slim/Version_4,)
 	$(call run_tests_debug,--testsuite=slim-4-test)
+test_web_swoole_4: global_test_run_dependencies
+	$(MAKE) test_scenario_swoole4
+	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_swoole_5: global_test_run_dependencies
 	$(MAKE) test_scenario_swoole5
-	$(call run_tests_debug,--testsuite=swoole-5-test)
+	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_symfony_23: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_2_3,)
 	$(call run_tests_debug,tests/Integrations/Symfony/V2_3)

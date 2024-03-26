@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Swoole\V5;
+namespace DDTrace\Tests\Integrations\Swoole;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SnapshotTestTrait;
@@ -13,7 +13,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Swoole/Version_5/index.php';
+        return __DIR__ . '/../../Frameworks/Swoole/index.php';
     }
 
     protected static function isSwoole()
@@ -25,7 +25,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'swoole_test_app',
-            'DD_TRACE_DEBUG' => 'true',
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED' => '*',
         ]);

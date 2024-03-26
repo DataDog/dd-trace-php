@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Swoole\V5;
+namespace DDTrace\Tests\Integrations\Swoole;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
@@ -9,7 +9,7 @@ class InvalidContentTypeTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Swoole/Version_5/index.php';
+        return __DIR__ . '/../../Frameworks/Swoole/index.php';
     }
 
     protected static function isSwoole()

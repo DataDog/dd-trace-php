@@ -63,7 +63,7 @@ final class SwooleServer implements Sapi
          * As a result auto_prepend_file (and the request init hook) is not executed.
          */
         $cmd = sprintf(
-            PHP_BINARY . ' %s %s',
+            PHP_BINARY . ' -d variables_order=EGPCS %s %s',
             new IniSerializer($this->inis),
             $this->indexFile
         );

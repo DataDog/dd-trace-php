@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Swoole;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -14,8 +13,6 @@ use Swoole\Http\Response;
 use Swoole\Http\Server;
 use function DDTrace\consume_distributed_tracing_headers;
 use function DDTrace\extract_ip_from_headers;
-use function DDTrace\hook_method;
-use function DDTrace\UserRequest\notify_start;
 
 class SwooleIntegration extends Integration
 {
@@ -33,17 +30,6 @@ class SwooleIntegration extends Integration
         }
         $span->metrics[Tag::ANALYTICS_KEY] = $this->configuration->getTraceAnalyticsSampleRate();
     }
-
-    public static function ensure_headers_map_fmt(&$arr)
-    {
-        foreach ($arr as &$v) {
-            if (!is_array($v)) {
-                $v = [(string)$v];
-            }
-        }
-        return $arr;
-    }
-
 
     public function instrumentRequestStart(callable $callback, SwooleIntegration $integration)
     {
@@ -85,14 +71,13 @@ class SwooleIntegration extends Integration
                 }
 
                 $rawContent = $request->rawContent();
-                Logger::get()->debug('Raw content ' . $rawContent);
                 if ($rawContent) {
                     // The raw content will always be populated if the request is a POST request, independent of the
                     // Content-Type header.
                     // However, it may not be json-decodable
                     $postFields = json_decode($rawContent, true);
                     if (is_null($postFields)) {
-                        $postFields = $request->post;
+                        $postFields = $request->post; // Fallback to the post fields, which is an array (if populated)
                     }
                 }
                 if (!empty($postFields)) {
