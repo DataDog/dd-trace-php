@@ -77,7 +77,9 @@ class SwooleIntegration extends Integration
                     // However, it may not be json-decodable
                     $postFields = json_decode($rawContent, true);
                     if (is_null($postFields)) {
-                        $postFields = $request->post; // Fallback to the post fields, which is an array (if populated)
+                        // Fallback to the post fields, which is an array
+                        // This array is not always populated, depending on the Content-Type header
+                        $postFields = $request->post;
                     }
                 }
                 if (!empty($postFields)) {
@@ -116,6 +118,10 @@ class SwooleIntegration extends Integration
 
     public function init()
     {
+        if (version_compare(swoole_version(), '5.0.2', '<')) {
+            return Integration::NOT_LOADED;
+        }
+
         $integration = $this;
 
         ini_set("datadog.trace.auto_flush_enabled", 1);
