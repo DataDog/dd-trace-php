@@ -121,7 +121,7 @@ array(4) {
     ["namespace"]=>
     string(7) "tracers"
     ["metric"]=>
-    string(55) "dd.instrumentation_telemetry_data.tracers.spans_created"
+    string(13) "spans_created"
     ["points"]=>
     array(1) {
       [0]=>
@@ -149,7 +149,7 @@ array(4) {
     ["namespace"]=>
     string(7) "tracers"
     ["metric"]=>
-    string(55) "dd.instrumentation_telemetry_data.tracers.spans_created"
+    string(13) "spans_created"
     ["points"]=>
     array(1) {
       [0]=>
@@ -177,7 +177,7 @@ array(4) {
     ["namespace"]=>
     string(7) "tracers"
     ["metric"]=>
-    string(55) "dd.instrumentation_telemetry_data.tracers.spans_created"
+    string(13) "spans_created"
     ["points"]=>
     array(1) {
       [0]=>
@@ -205,7 +205,7 @@ array(4) {
     ["namespace"]=>
     string(7) "tracers"
     ["metric"]=>
-    string(55) "dd.instrumentation_telemetry_data.tracers.spans_created"
+    string(13) "spans_created"
     ["points"]=>
     array(1) {
       [0]=>

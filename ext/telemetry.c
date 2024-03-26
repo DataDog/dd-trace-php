@@ -79,7 +79,7 @@ void ddtrace_telemetry_finalize(void) {
     }
 
     // Telemetry metrics
-    ddog_CharSlice metric_name = DDOG_CHARSLICE_C("dd.instrumentation_telemetry_data.tracers.spans_created");
+    ddog_CharSlice metric_name = DDOG_CHARSLICE_C("spans_created");
     ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name);
     zend_string *integration_name;
     zval *metric_value;
