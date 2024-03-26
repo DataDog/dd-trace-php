@@ -14,14 +14,6 @@ class SlimIntegration extends Integration
     const NAME = 'slim';
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * Add instrumentation to Slim requests
      */
     public function init(): int

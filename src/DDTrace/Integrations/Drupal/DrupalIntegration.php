@@ -23,9 +23,9 @@ class DrupalIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function getName()
+    public function requiresExplicitTraceAnalyticsEnabling(): bool
     {
-        return self::NAME;
+        return false;
     }
 
     public function init(): int

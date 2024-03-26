@@ -13,11 +13,6 @@ class Psr18Integration extends Integration
 {
     const NAME = 'psr18';
 
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     public function init(): int
     {
         $integration = $this;

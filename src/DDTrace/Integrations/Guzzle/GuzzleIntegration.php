@@ -14,11 +14,6 @@ class GuzzleIntegration extends Integration
 {
     const NAME = 'guzzle';
 
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     public function init(): int
     {
         $integration = $this;

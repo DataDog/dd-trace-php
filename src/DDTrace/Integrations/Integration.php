@@ -2,104 +2,43 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Contracts\Span;
+use DDTrace\RootSpanData;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 
 abstract class Integration implements \DDTrace\Integration
 {
     /**
-     * @var DefaultIntegrationConfiguration|mixed
-     */
-    protected $configuration;
-
-
-    /**
      * @return string The integration name.
      */
-    abstract public function getName();
-
-    final public function __construct()
+    public function getName(): string
     {
-        $this->configuration = new DefaultIntegrationConfiguration(
-            $this->getName(),
-            $this->requiresExplicitTraceAnalyticsEnabling()
-        );
+        return static::NAME;
     }
 
     public function addTraceAnalyticsIfEnabled(SpanData $span)
     {
-        if (!$this->configuration->isTraceAnalyticsEnabled()) {
-            return;
-        }
-        $span->metrics[Tag::ANALYTICS_KEY] = $this->configuration->getTraceAnalyticsSampleRate();
-    }
-
-    /**
-     * Root spans still uses the legacy userland API. This method has to be removed once we move to internal span
-     * representation also for the root span.
-     *
-     * @param Span $span
-     * @return void
-     */
-    public function addTraceAnalyticsIfEnabledLegacy(Span $span)
-    {
-        if (!$this->configuration->isTraceAnalyticsEnabled()) {
-            return;
-        }
-        $span->setMetric(Tag::ANALYTICS_KEY, $this->configuration->getTraceAnalyticsSampleRate());
-    }
-
-    /**
-     * Sets common error tags for an exception.
-     *
-     * @param SpanData $span
-     * @param \Throwable $exception
-     */
-    public function setError(SpanData $span, $exception)
-    {
-        $span->exception = $exception;
-    }
-
-    /**
-     * Merge an associative array of span metadata into a span.
-     *
-     * @param SpanData $span
-     * @param array $meta
-     */
-    public function mergeMeta(SpanData $span, $meta)
-    {
-        foreach ($meta as $tagName => $value) {
-            $span->meta[$tagName] = $value;
+        $name = $this->getName();
+        if (\DDTrace\Config\integration_analytics_enabled($name)
+            || (!$this->requiresExplicitTraceAnalyticsEnabling() && \dd_trace_env_config("DD_TRACE_ANALYTICS_ENABLED"))) {
+            $span->metrics[Tag::ANALYTICS_KEY] = \DDTrace\Config\integration_analytics_sample_rate($name);
         }
     }
 
     /**
-     * @return DefaultIntegrationConfiguration|mixed
-     */
-    protected function getConfiguration()
-    {
-        return $this->configuration;
-    }
-
-    /**
-     * Whether or not this integration trace analytics configuration is enabled when the global
-     * switch is turned on or it requires explicit enabling.
+     * Whether this integration trace analytics configuration is not enabled when DD_TRACE_ANALYTICS_ENABLED=1 is specified.
      *
-     * @return bool
+     * Trace Analytics are generally enabled by default for top-level integrations, i.e. frameworks and webservers.
      */
-    public function requiresExplicitTraceAnalyticsEnabling()
+    public function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return true;
     }
 
     /**
-     * Tells whether or not the provided integration should be loaded.
-     *
-     * @param string $name
-     * @return bool
+     * Tells whether the provided integration should be loaded.
      */
-    public static function shouldLoad($name)
+    public static function shouldLoad(string $name): bool
     {
         if (!\extension_loaded('ddtrace')) {
             \trigger_error('ddtrace extension required to load integration.', \E_USER_WARNING);
@@ -109,14 +48,13 @@ abstract class Integration implements \DDTrace\Integration
         return \ddtrace_config_integration_enabled($name);
     }
 
-    public static function toString($value)
+    public static function toString($value): string
     {
         if (gettype($value) == "object") {
             if (method_exists($value, "__toString")) {
                 try {
                     return (string)$value;
                 } catch (\Throwable $t) {
-                } catch (\Exception $e) {
                 }
             }
             if (PHP_VERSION_ID >= 70200) {
@@ -138,11 +76,7 @@ abstract class Integration implements \DDTrace\Integration
         return (string) $value;
     }
 
-    /**
-     * @param SpanData $span
-     * @param string $fallbackName
-     */
-    public static function handleInternalSpanServiceName(SpanData $span, $fallbackName, $skipFlattening = false)
+    public static function handleInternalSpanServiceName(SpanData $span, string $fallbackName, bool $skipFlattening = false)
     {
         $flatServiceNames =
             !$skipFlattening && \dd_trace_env_config('DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED');
@@ -163,5 +97,23 @@ abstract class Integration implements \DDTrace\Integration
             $service = $mapping[$service];
         }
         $span->service = $service;
+    }
+
+    public static function handleOrphan(SpanData $span)
+    {
+        if (
+            \dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
+            && $span instanceof RootSpanData
+            && empty($span->parentId)
+        ) {
+            $prioritySampling = \DDTrace\get_priority_sampling();
+            if (
+                $prioritySampling == DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP
+                || $prioritySampling == DD_TRACE_PRIORITY_SAMPLING_USER_KEEP
+                || $prioritySampling == DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT
+            ) {
+                \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+            }
+        }
     }
 }

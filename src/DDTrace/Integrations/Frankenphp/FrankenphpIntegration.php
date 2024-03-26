@@ -13,15 +13,10 @@ class FrankenphpIntegration extends Integration
 {
     const NAME = 'frankenphp';
 
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling()
+    public function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
