@@ -9,7 +9,6 @@ use DDTrace\SpanContext as DDSpanContext;
 use DDTrace\Tag;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tests\Common\BaseTestCase;
-use DDTrace\Time;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\GlobalTracer;
 use OpenTracing\Formats;
@@ -85,7 +84,7 @@ final class TracerTest extends BaseTestCase
     {
         $tracer = Tracer::make(new NoopTransport());
         $rootSpan = $tracer->startSpan("rootSpan");
-        $startTime = Time::now();
+        $startTime = 12345;
         $span = $tracer
             ->startSpan(self::OPERATION_NAME, [
                 'tags' => [

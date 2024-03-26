@@ -7,7 +7,6 @@ use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
 use DDTrace\Tag;
 use DDTrace\Tests\DebugTransport;
-use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
 use DDTrace\Tests\Common\BaseTestCase;
@@ -52,7 +51,7 @@ final class TracerTest extends BaseTestCase
     {
         $tracer = new Tracer(new NoopTransport());
         $tracer->startRootSpan('foo'); // setting start_time not allowed on internal root span
-        $startTime = Time::now();
+        $startTime = 12345;
         $span = $tracer->startSpan(self::OPERATION_NAME, [
             'tags' => [
                 self::TAG_KEY => self::TAG_VALUE
