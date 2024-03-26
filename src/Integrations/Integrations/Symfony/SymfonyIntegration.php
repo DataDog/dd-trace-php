@@ -415,9 +415,9 @@ class SymfonyIntegration extends Integration
                 }
 
                 $path = $request->get('_path');
-                if ($path) {
+//                 if ($path) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
-                }
+//                 }
             }
         );
 
