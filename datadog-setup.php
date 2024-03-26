@@ -1106,7 +1106,16 @@ function is_alpine()
 function get_architecture()
 {
     if (IS_WINDOWS) {
-        return "x86_64";
+        if (PHP_INT_SIZE === 4) {
+            // we don't support that one, but we include it so that the installer can properly fail
+            return "x86";
+        } else {
+            if ($env = getenv("PROCESSOR_ARCHITECTURE")) {
+                return $env === "AMD64" ? "x86_64" : strtolower($env);
+            }
+            // fallback
+            return "x86_64";
+        }
     }
 
     return execute_or_exit(
