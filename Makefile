@@ -797,6 +797,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_pcntl \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_80 := \
@@ -814,7 +815,6 @@ TEST_WEB_80 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
-	test_web_swoole_5 \
 	test_web_symfony_44 \
 	test_web_symfony_51 \
 	test_web_symfony_52 \
@@ -844,6 +844,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_81 := \
@@ -863,7 +864,6 @@ TEST_WEB_81 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
-	test_web_swoole_5 \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
@@ -893,6 +893,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_82 := \
@@ -913,7 +914,6 @@ TEST_WEB_82 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
-	test_web_swoole_5 \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_symfony_70 \
@@ -945,6 +945,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_83 := \
@@ -961,7 +962,6 @@ TEST_WEB_83 := \
 	test_web_nette_30 \
 	test_web_slim_312 \
 	test_web_slim_4 \
-	test_web_swoole_5 \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_symfony_70 \
@@ -1220,6 +1220,9 @@ test_integrations_roadrunner: global_test_run_dependencies
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
+test_integrations_swoole_5: global_test_run_dependencies
+	$(MAKE) test_scenario_swoole5
+	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_cakephp_28: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_2_8,)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
@@ -1289,9 +1292,6 @@ test_web_slim_312: global_test_run_dependencies
 test_web_slim_4: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Slim/Version_4,)
 	$(call run_tests_debug,--testsuite=slim-4-test)
-test_web_swoole_5: global_test_run_dependencies
-	$(MAKE) test_scenario_swoole5
-	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_symfony_23: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_2_3,)
 	$(call run_tests_debug,tests/Integrations/Symfony/V2_3)
