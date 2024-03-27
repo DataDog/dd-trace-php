@@ -12,14 +12,6 @@ class ElasticSearchIntegration extends Integration
     const NAME = 'elasticsearch';
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * Add instrumentation to Elasticsearch requests
      */
     public function init(): int

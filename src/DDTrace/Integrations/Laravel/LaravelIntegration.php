@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Laravel;
 
 use DDTrace\Integrations\Lumen\LumenIntegration;
-use DDTrace\RootSpanData;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
@@ -25,19 +24,11 @@ class LaravelIntegration extends Integration
     public $serviceName;
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling()
+    public function isForcingTraceAnalytics()
     {
-        return false;
+        return true;
     }
 
     public function isArtisanQueueCommand()
@@ -168,7 +159,7 @@ class LaravelIntegration extends Integration
 
                 $ignoreError = isset($rootSpan->meta['error.ignored']) && $rootSpan->meta['error.ignored'];
                 if (isset($This->exception) && $This->getStatusCode() >= 500 && !$ignoreError) {
-                    $integration->setError($rootSpan, $This->exception);
+                    $rootSpan->exception =  $This->exception;
                 }
             }
         );
@@ -179,7 +170,7 @@ class LaravelIntegration extends Integration
             'fire',
             [
                 'prehook' => function (SpanData $span, $args) use ($integration) {
-                    Common::handleOrphan($span);
+                    Integration::handleOrphan($span);
 
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
@@ -216,7 +207,7 @@ class LaravelIntegration extends Integration
             'dispatch',
             [
                 'prehook' => function (SpanData $span, $args) use ($integration) {
-                    Common::handleOrphan($span);
+                    Integration::handleOrphan($span);
 
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
@@ -268,7 +259,7 @@ class LaravelIntegration extends Integration
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
-                Common::handleOrphan($span);
+                Integration::handleOrphan($span);
 
                 $rootSpan = \DDTrace\root_span();
                 $rootSpan->name = 'laravel.request';
@@ -301,7 +292,7 @@ class LaravelIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
-                    $integration->setError($rootSpan, $args[0]);
+                    $rootSpan->exception =  $args[0];
                 }
             }
         );
@@ -314,7 +305,7 @@ class LaravelIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
-                    $integration->setError($rootSpan, $args[0]);
+                    $rootSpan->exception =  $args[0];
                 }
             }
         );
@@ -330,7 +321,7 @@ class LaravelIntegration extends Integration
                 }
 
                 if ($args[0] && $exceptionHandler->shouldReport($args[0])) {
-                    $integration->setError($rootSpan, $args[0]);
+                    $rootSpan->exception =  $args[0];
                     $rootSpan->meta['error.ignored'] = 0;
                 } elseif ($args[0] && !$exceptionHandler->shouldReport($args[0])) {
                     $rootSpan->meta['error.ignored'] = 1;

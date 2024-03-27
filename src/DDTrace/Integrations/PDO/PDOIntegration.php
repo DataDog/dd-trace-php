@@ -32,14 +32,6 @@ class PDOIntegration extends Integration
     ];
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * Add instrumentation to PDO requests
      */
     public function init(): int

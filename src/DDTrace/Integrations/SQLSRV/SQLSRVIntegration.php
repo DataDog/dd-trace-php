@@ -20,14 +20,6 @@ class SQLSRVIntegration extends Integration
     const QUERY_TAGS_KEY = 'sqlsrv_query_tags';
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * Load the integration
      */
     public function init(): int

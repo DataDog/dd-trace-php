@@ -11,14 +11,6 @@ class PcntlIntegration extends Integration
     const NAME = 'pcntl';
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * Add instrumentation to forking
      */
     public function init(): int

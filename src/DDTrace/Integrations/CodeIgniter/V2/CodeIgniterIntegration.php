@@ -13,14 +13,6 @@ class CodeIgniterIntegration extends Integration
     const NAME = 'codeigniter';
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * Add instrumentation to CodeIgniter requests
      */
     public function init(\CI_Router $router = null): int
