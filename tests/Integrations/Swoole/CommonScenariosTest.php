@@ -27,6 +27,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             'DD_SERVICE' => 'swoole_test_app',
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED' => '*',
+            'DD_TRACE_DEBUG' => 'true',
         ]);
     }
 

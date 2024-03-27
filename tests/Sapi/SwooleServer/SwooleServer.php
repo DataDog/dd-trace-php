@@ -52,16 +52,6 @@ final class SwooleServer implements Sapi
             $this->inis['xdebug.mode'] = 'coverage';
         }
 
-        /**
-         * If a router is provided to the built-in web server (the index file),
-         * the request init hook (which hooks auto_prepend_file) will not run.
-         * If there is no router, the script is run with php_execute_script():
-         * @see https://heap.space/xref/PHP-7.4/sapi/cli/php_cli_server.c?r=58b17906#2077
-         * This runs the auto_prepend_file as expected. However, if a router is present,
-         * zend_execute_scripts() will be used instead:
-         * @see https://heap.space/xref/PHP-7.4/sapi/cli/php_cli_server.c?r=58b17906#2202
-         * As a result auto_prepend_file (and the request init hook) is not executed.
-         */
         $cmd = sprintf(
             PHP_BINARY . ' %s %s',
             new IniSerializer($this->inis),

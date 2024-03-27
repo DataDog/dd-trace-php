@@ -4,7 +4,7 @@ namespace DDTrace\Integrations\Swoole;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\SpanData;
+use DDTrace\SpanStack;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
@@ -23,20 +23,20 @@ class SwooleIntegration extends Integration
         return self::NAME;
     }
 
-    public function addTraceAnalyticsIfEnabled(SpanData $span)
+    /**
+     * {@inheritdoc}
+     */
+    public function requiresExplicitTraceAnalyticsEnabling()
     {
-        if (!$this->configuration->isTraceAnalyticsEnabled()) {
-            return;
-        }
-        $span->metrics[Tag::ANALYTICS_KEY] = $this->configuration->getTraceAnalyticsSampleRate();
+        return false;
     }
 
-    public function instrumentRequestStart(callable $callback, SwooleIntegration $integration)
+    public function instrumentRequestStart(callable $callback, SwooleIntegration $integration, Server $server)
     {
         \DDTrace\install_hook(
             $callback,
-            function (HookData $hook) use (&$rootSpan, $integration) {
-                $rootSpan = \DDTrace\start_trace_span();
+            function (HookData $hook) use ($integration, $server) {
+                $rootSpan = $hook->span(new SpanStack());
                 $rootSpan->name = "web.request";
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
                 $rootSpan->type = Type::WEB_SERVLET;
@@ -97,21 +97,14 @@ class SwooleIntegration extends Integration
                 $rootSpan->resource = $request->server['request_method'] . ' ' . $normalizedPath;
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->server['request_method'];
 
-                $serverProtocol = $request->server['server_protocol'] ?? 'HTTP/1.1';
-                $scheme = strpos($serverProtocol, 'HTTPS') !== false ? 'https://' : 'http://';
+                $scheme = $server->ssl ? 'https://' : 'http://';
                 $host = $headers['host'] ?? ($request->server['remote_addr'] . ':' . $request->server['server_port']);
                 $path = $request->server['request_uri'] ?? $request->server['path_info'] ?? '';
                 $query = isset($request->server['query_string']) ? '?' . $request->server['query_string'] : '';
                 $url = $scheme . $host . $path . $query;
                 $rootSpan->meta[Tag::HTTP_URL] = Normalizer::uriNormalizeincomingPath($url);
-            },
-            function (HookData $hook) use (&$rootSpan, $integration) {
-                if ($hook->exception) {
-                    $rootSpan->exception = $hook->exception;
-                }
 
-                \DDTrace\close_spans_until($rootSpan);
-                \DDTrace\close_span();
+                unset($rootSpan->meta['closure.declaration']);
             }
         );
     }
@@ -139,7 +132,7 @@ class SwooleIntegration extends Integration
                 list($eventName, $callback) = $args;
 
                 if ($eventName === 'request') {
-                    $integration->instrumentRequestStart($callback, $integration);
+                    $integration->instrumentRequestStart($callback, $integration, $server);
                 }
             }
         );
