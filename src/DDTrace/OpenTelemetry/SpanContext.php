@@ -29,6 +29,10 @@ final class SpanContext implements SpanContextInterface
 
     private bool $isValid = true;
 
+    private ?string $currentTracestateString = null;
+
+    private ?TraceStateInterface $currentTracestateInstance = null;
+
     private function __construct(SpanData $span, bool $sampled, bool $remote, ?string $traceId = null, ?string $spanId = null)
     {
         $this->span = $span;
@@ -82,7 +86,14 @@ final class SpanContext implements SpanContextInterface
         } else {
             $traceContext = generate_distributed_tracing_headers(['tracecontext']);
         }
-        return new TraceState($traceContext['tracestate'] ?? null);
+        $newTracestate = $traceContext['tracestate'] ?? null;
+
+        if ($this->currentTracestateInstance === null || $this->currentTracestateString !== $newTracestate) {
+            $this->currentTracestateString = $newTracestate;
+            $this->currentTracestateInstance = new TraceState($newTracestate);
+        }
+
+        return $this->currentTracestateInstance;
     }
 
     public function isSampled(): bool
