@@ -474,12 +474,7 @@ static PHP_FUNCTION(datadog_appsec_push_address)
     zval parameters_zv;
     zend_array *parameters_arr = zend_new_array(1);
     ZVAL_ARR(&parameters_zv, parameters_arr);
-    zval *res = zend_hash_add(Z_ARRVAL(parameters_zv), key, value);
-    if (res == NULL) {
-        zval_ptr_dtor(&parameters_zv);
-        mlog_g(dd_log_debug, "Parameters could not be added");
-        return;
-    }
+    zend_hash_add(Z_ARRVAL(parameters_zv), key, value);
     Z_TRY_ADDREF_P(value);
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
@@ -489,13 +484,19 @@ static PHP_FUNCTION(datadog_appsec_push_address)
         return;
     }
 
-    dd_result result = dd_request_exec(conn, &parameters_zv);
+    dd_result res = dd_request_exec(conn, &parameters_zv);
     zval_ptr_dtor(&parameters_zv);
 
-    if (result == dd_should_block) {
-        dd_request_abort_static_page();
-    } else if (result == dd_should_redirect) {
-        dd_request_abort_redirect();
+    if (dd_req_is_user_req()) {
+        if (res == dd_should_block || res == dd_should_redirect) {
+            dd_req_call_blocking_function(res);
+        }
+    } else {
+        if (res == dd_should_block) {
+            dd_request_abort_static_page();
+        } else if (res == dd_should_redirect) {
+            dd_request_abort_redirect();
+        }
     }
 }
 
