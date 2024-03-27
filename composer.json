@@ -42,10 +42,7 @@
     "autoload": {
         "psr-4": {
             "DDTrace\\": "./src/api/"
-        },
-        "files": [
-            "./src/api/ComposerBootstrap.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {

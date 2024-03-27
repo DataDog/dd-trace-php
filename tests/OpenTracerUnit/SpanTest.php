@@ -4,11 +4,9 @@ namespace DDTrace\Tests\OpenTracerUnit;
 
 use DDTrace\OpenTracer\Span;
 use DDTrace\Span as DDSpan;
-use DDTrace\SpanData;
 use DDTrace\SpanContext as DDSpanContext;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
-use DDTrace\Time;
 use Exception;
 
 final class SpanTest extends BaseTestCase
