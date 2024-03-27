@@ -90,7 +90,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_get_sanitized_exception_
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_consume_distributed_tracing_headers, 0, 1, IS_VOID, 0)
-	ZEND_ARG_TYPE_MASK(0, headersOrCallback, MAY_BE_ARRAY|MAY_BE_CALLABLE, NULL)
+	ZEND_ARG_TYPE_MASK(0, headersOrCallback, MAY_BE_NULL|MAY_BE_ARRAY|MAY_BE_CALLABLE, NULL)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_generate_distributed_tracing_headers, 0, 0, IS_ARRAY, 0)

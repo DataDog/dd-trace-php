@@ -30,6 +30,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/Mongo/MongoIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/MongoDB/MongoDBIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Slim/SlimIntegration.php',
+    __DIR__ . '/../src/Integrations/Integrations/Frankenphp/FrankenphpIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Swoole/SwooleIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/SQLSRV/SQLSRVIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Symfony/SymfonyIntegration.php',

@@ -1,0 +1,19 @@
+{
+	# Enable FrankenPHP
+	frankenphp {
+        worker {
+            file {{frankenphp_php}}
+        }
+	}
+	# Configure when the directive must be executed
+	order php_server before file_server
+	# HTTPS enabled by default...
+	auto_https off
+}
+
+http://:{{frankenphp_port}} {
+    bind {{frankenphp_host}}
+	# Execute PHP files in the current directory and serve assets
+	php_server
+	root * {{frankenphp_dir}}
+}

@@ -72,6 +72,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         return false;
     }
 
+    protected static function isFrankenphp()
+    {
+        return false;
+    }
+
     /**
      * Get additional envs to be set in the web server.
      * @return array
@@ -137,6 +142,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             }
             if ($version = static::isSwoole()) {
                 self::$appServer->setSwoole($version);
+            }
+            if ($version = static::isFrankenphp()) {
+                self::$appServer->setFrankenphp();
             }
             self::$appServer->start();
         }

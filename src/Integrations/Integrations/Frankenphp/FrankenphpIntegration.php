@@ -1,0 +1,61 @@
+<?php
+
+namespace DDTrace\Integrations\Frankenphp;
+
+use DDTrace\HookData;
+use DDTrace\Integrations\Integration;
+use DDTrace\SpanStack;
+use DDTrace\Tag;
+use DDTrace\Type;
+
+use function DDTrace\consume_distributed_tracing_headers;
+
+class FrankenphpIntegration extends Integration
+{
+    const NAME = 'frankenphp';
+
+    public function getName()
+    {
+        return self::NAME;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function requiresExplicitTraceAnalyticsEnabling()
+    {
+        return false;
+    }
+
+    public function init()
+    {
+        $integration = $this;
+
+        ini_set("datadog.trace.auto_flush_enabled", 1);
+        ini_set("datadog.trace.generate_root_span", 0);
+
+        \DDTrace\install_hook('frankenphp_handle_request', function (HookData $hook) use ($integration) {
+            $hook->data = \DDTrace\install_hook(
+                $hook->args[0],
+                function (HookData $hook) use ($integration) {
+                    $rootSpan = $hook->span(new SpanStack());
+                    $rootSpan->name = "web.request";
+                    $rootSpan->service = \ddtrace_config_app_name('frankenphp');
+                    $rootSpan->type = Type::WEB_SERVLET;
+                    $rootSpan->meta[Tag::COMPONENT] = FrankenphpIntegration::NAME;
+                    $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
+                    unset($rootSpan->meta["closure.declaration"]);
+                    $integration->addTraceAnalyticsIfEnabled($rootSpan);
+
+                    consume_distributed_tracing_headers(null);
+                }, function (HookData $hook) {
+                    var_dump($hook->span());
+                }
+            );
+        }, function (HookData $hook) {
+            \DDTrace\remove_hook($hook->data);
+        });
+
+        return Integration::LOADED;
+    }
+}
