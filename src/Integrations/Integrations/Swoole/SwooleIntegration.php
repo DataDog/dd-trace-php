@@ -169,14 +169,12 @@ class SwooleIntegration extends Integration
             'header',
             function ($response, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
-                if ($rootSpan === null) {
+                if ($rootSpan === null || \count($args) < 2) {
                     return;
                 }
 
-                /** @var string $key */
-                $key = $args[0];
-                /** @var string $value */
-                $value = $args[1];
+                /** @var string[] $args */
+                list($key, $value) = $args;
 
                 $allowedHeaders = \dd_trace_env_config("DD_TRACE_HEADER_TAGS");
                 $normalizedHeader = preg_replace("([^a-z0-9-])", "_", strtolower($key));
