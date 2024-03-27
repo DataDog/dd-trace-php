@@ -14,6 +14,7 @@ ENV DEVLIBS \
     libclang-rt-16-dev \
     llvm-16-dev \
     lld-16 \
+    libbrotli-dev \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \
@@ -281,6 +282,20 @@ RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && rm -rfv /tmp/*
 
 ENV PATH="/rust/cargo/bin:${PATH}"
+
+ARG GO_VERSION="1.22.1"
+ARG GO_SHA256_ARM="e56685a245b6a0c592fc4a55f0b7803af5b3f827aaa29feab1f40e491acf35b8"
+ARG GO_SHA256_X86="aab8e15785c997ae20f9c88422ee35d962c4562212bb0f879d052a35c8307c7f"
+ENV GOROOT=/go
+RUN MARCH=$(uname -m) \
+    && GO_SHA256=$(if [ "$MARCH" = "x86_64" ]; then echo ${GO_SHA256_X86}; elif [ "$MARCH" = "aarch64" ]; then echo ${GO_SHA256_ARM}; fi) \
+    && FILENAME=go${GO_VERSION}.linux-$(if [ "$MARCH" = "x86_64" ]; then echo amd64; elif [ "$MARCH" = "aarch64" ]; then echo arm64; fi).tar.gz \
+    && curl -L --write-out '%{http_code}' -O https://go.dev/dl/${FILENAME} \
+    && printf '%s  %s' "$GO_SHA256" "$FILENAME" | sha256sum --check --status \
+    && tar -xf "$FILENAME" -C / \
+    && rm "${FILENAME}"
+
+ENV PATH="/go/bin:${PATH}"
 
 # Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
 # be changed without an appropriate code review.

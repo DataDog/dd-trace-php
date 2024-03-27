@@ -67,6 +67,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         return null;
     }
 
+    protected static function isFrankenphp()
+    {
+        return false;
+    }
+
     /**
      * Get additional envs to be set in the web server.
      * @return array

@@ -486,10 +486,11 @@ namespace DDTrace {
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
      * if there is one, as well as the future ones if it isn't overwritten
      *
-     * @param array|callable(string):mixed $headersOrCallback Either an array with a lowercase header to value mapping,
-     * or a callback, which given a header name for distributed tracing, returns the value it should be updated to.
+     * @param null|array|callable(string):mixed $headersOrCallback Either an array with a lowercase header to value mapping,
+     * or a callback, which given a header name for distributed tracing, returns the value it should be updated to. If null,
+     * this reads the headers directly from the $_SERVER superglobal.
      */
-    function consume_distributed_tracing_headers(array|callable $headersOrCallback): void {}
+    function consume_distributed_tracing_headers(null|array|callable $headersOrCallback): void {}
 
     /**
      * Get information on the key-value pairs of the datadog headers for distributed tracing

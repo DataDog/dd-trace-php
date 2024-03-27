@@ -79,6 +79,7 @@ ${PHP_SRC_DIR}/configure \
     $(if [[ $INSTALL_VERSION == *zts* ]]; then echo --enable$(if grep -q 'maintainer-zts' ${PHP_SRC_DIR}/configure; then echo "-maintainer"; fi)-zts; fi) \
     `# https://externals.io/message/118859` \
     $(if [[ $INSTALL_VERSION == *zts* ]]; then echo --disable-zend-signals; fi) \
+    $(if [[ $INSTALL_VERSION == *zts* && ${PHP_VERSION_ID} -ge 82 ]]; then echo --enable-zend-max-execution-timers; fi) \
     --prefix=${INSTALL_DIR} \
     --with-config-file-path=${INSTALL_DIR} \
     --with-config-file-scan-dir=${INSTALL_DIR}/conf.d
