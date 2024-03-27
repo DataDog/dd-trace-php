@@ -9,7 +9,75 @@
 #include "remote_config/exception.hpp"
 #include "utils.hpp"
 #include <algorithm>
-#include <rapidjson/document.h>
+
+void dds::remote_config::asm_features_listener::parse_api_security(
+    const rapidjson::Document &serialized_doc)
+{
+    rapidjson::Value::ConstMemberIterator const api_security_itr =
+        serialized_doc.FindMember("api_security");
+
+    if (api_security_itr == serialized_doc.MemberEnd()) {
+        return;
+    }
+
+    if (rapidjson::kObjectType != api_security_itr->value.GetType()) {
+        throw error_applying_config("Invalid config json encoded contents: "
+                                    "api_security key invalid");
+    }
+
+    auto request_sample_rate_itr =
+        api_security_itr->value.FindMember("request_sample_rate");
+    if (request_sample_rate_itr == api_security_itr->value.MemberEnd()) {
+        throw error_applying_config("Invalid config json encoded contents: "
+                                    "request_sample_rate key missing");
+    }
+
+    if (request_sample_rate_itr->value.GetType() != rapidjson::kNumberType ||
+        !request_sample_rate_itr->value.IsDouble()) {
+        throw error_applying_config("Invalid config json encoded contents: "
+                                    "request_sample_rate is not double");
+    }
+
+    service_config_->set_request_sample_rate(
+        request_sample_rate_itr->value.GetDouble());
+}
+
+void dds::remote_config::asm_features_listener::parse_asm(
+    const rapidjson::Document &serialized_doc)
+{
+    rapidjson::Value::ConstMemberIterator const asm_itr =
+        serialized_doc.FindMember("asm");
+
+    if (asm_itr == serialized_doc.MemberEnd()) {
+        return;
+    }
+
+    if (rapidjson::kObjectType != asm_itr->value.GetType()) {
+        throw error_applying_config("Invalid config json encoded contents: "
+                                    "asm key invalid");
+    }
+
+    auto enabled_itr = asm_itr->value.FindMember("enabled");
+    if (enabled_itr == asm_itr->value.MemberEnd()) {
+        throw error_applying_config(
+            "Invalid config json encoded contents: enabled key missing");
+    }
+
+    if (enabled_itr->value.GetType() == rapidjson::kStringType) {
+        if (dd_tolower(enabled_itr->value.GetString()) == std::string("true")) {
+            service_config_->enable_asm();
+        } else {
+            service_config_->disable_asm();
+        }
+    } else if (enabled_itr->value.GetType() == rapidjson::kTrueType) {
+        service_config_->enable_asm();
+    } else if (enabled_itr->value.GetType() == rapidjson::kFalseType) {
+        service_config_->disable_asm();
+    } else {
+        throw error_applying_config(
+            "Invalid config json encoded contents: enabled key invalid");
+    }
+}
 
 void dds::remote_config::asm_features_listener::on_update(const config &config)
 {
@@ -19,35 +87,11 @@ void dds::remote_config::asm_features_listener::on_update(const config &config)
         throw error_applying_config("Invalid config contents");
     }
 
-    auto asm_itr = json_helper::get_field_of_type(
-        serialized_doc, "asm", rapidjson::kObjectType);
-    if (!asm_itr) {
-        throw error_applying_config("Invalid config json encoded contents: "
-                                    "asm key missing or invalid");
+    if (dynamic_enablement_) {
+        parse_asm(serialized_doc);
     }
 
-    auto enabled_itr = asm_itr.value()->value.FindMember("enabled");
-    if (enabled_itr == asm_itr.value()->value.MemberEnd()) {
-        throw error_applying_config(
-            "Invalid config json encoded contents: enabled key missing");
-    }
-
-    if (enabled_itr->value.GetType() == rapidjson::kStringType) {
-        if (dd_tolower(enabled_itr->value.GetString()) == std::string("true")) {
-            service_config_->enable_asm();
-        } else {
-            // This scenario should not happen since RC would remove the file
-            // when appsec should not be enabled
-            service_config_->disable_asm();
-        }
-    } else if (enabled_itr->value.GetType() == rapidjson::kTrueType) {
-        service_config_->enable_asm();
-    } else if (enabled_itr->value.GetType() == rapidjson::kFalseType) {
-        // This scenario should not happen since RC would remove the file
-        // when appsec should not be enabled
-        service_config_->disable_asm();
-    } else {
-        throw error_applying_config(
-            "Invalid config json encoded contents: enabled key invalid");
+    if (api_security_enabled_) {
+        parse_api_security(serialized_doc);
     }
 }

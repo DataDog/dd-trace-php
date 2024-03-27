@@ -2408,4 +2408,77 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
     }
 }
 
+TEST(ClientTest, SchemaSamplerRateIsUpdatedFromService)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    network::client_init::request msg = get_default_client_init_msg();
+    msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
+    msg.engine_settings.schema_extraction.enabled = true;
+    msg.engine_settings.schema_extraction.sample_rate =
+        1; // All request should be get
+
+    send_client_init(broker, c, std::move(msg));
+
+    { // First request
+        request_init(broker, c);
+
+        // Request Shutdown
+        {
+            network::request_shutdown::request msg;
+            msg.data = parameter::map();
+            msg.data.add("server.request.headers.no_cookies",
+                parameter::string("acunetix-product"sv));
+
+            network::request req(std::move(msg));
+
+            std::shared_ptr<network::base_response> res;
+            EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+            EXPECT_CALL(*broker,
+                send(testing::An<
+                    const std::shared_ptr<network::base_response> &>()))
+                .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+            EXPECT_TRUE(c.run_request());
+            auto msg_res =
+                dynamic_cast<network::request_shutdown::response *>(res.get());
+            EXPECT_FALSE(msg_res->meta.empty());
+            EXPECT_GT(count_schemas(msg_res->meta), 0);
+            EXPECT_STREQ(
+                msg_res->meta["_dd.appsec.s.req.headers.no_cookies"].c_str(),
+                "[8]");
+        }
+    }
+    // Setting this to zero means no more request get schema extraction
+    c.get_service()->get_service_config()->set_request_sample_rate(0);
+    { // First request
+        request_init(broker, c);
+
+        // Request Shutdown
+        {
+            network::request_shutdown::request msg;
+            msg.data = parameter::map();
+            msg.data.add("server.request.headers.no_cookies",
+                parameter::string("acunetix-product"sv));
+
+            network::request req(std::move(msg));
+
+            std::shared_ptr<network::base_response> res;
+            EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+            EXPECT_CALL(*broker,
+                send(testing::An<
+                    const std::shared_ptr<network::base_response> &>()))
+                .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+            EXPECT_TRUE(c.run_request());
+            auto msg_res =
+                dynamic_cast<network::request_shutdown::response *>(res.get());
+            EXPECT_FALSE(msg_res->meta.empty());
+            EXPECT_EQ(count_schemas(msg_res->meta), 0);
+        }
+    }
+}
+
 } // namespace dds

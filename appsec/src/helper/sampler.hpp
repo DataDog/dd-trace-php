@@ -13,21 +13,16 @@
 #include <mutex>
 #include <optional>
 
+#include "service_config.hpp"
+
 namespace dds {
 static const double min_rate = 0.0001;
 class sampler {
 public:
-    sampler(double sample_rate) : sample_rate_(sample_rate)
+    sampler(std::shared_ptr<service_config> service_config)
+        : service_config_(std::move(service_config))
     {
-        // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-        if (sample_rate_ <= 0) {
-            sample_rate_ = 0;
-        } else if (sample_rate_ > 1) {
-            sample_rate_ = 1;
-        } else if (sample_rate_ < min_rate) {
-            sample_rate_ = min_rate;
-        }
-        // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+        set_sampler_rate(service_config_->get_request_sample_rate());
     }
     class scope {
     public:
@@ -64,9 +59,19 @@ public:
 
     std::optional<scope> get()
     {
+        if (service_config_->get_asm_enabled_status() ==
+            enable_asm_status::DISABLED) {
+            return std::nullopt;
+        }
+
         const std::lock_guard<std::mutex> lock_guard(mtx_);
 
         std::optional<scope> result = std::nullopt;
+
+        if (sample_rate_ !=
+            valid_sample_rate(service_config_->get_request_sample_rate())) {
+            set_sampler_rate(service_config_->get_request_sample_rate());
+        }
 
         if (!concurrent_ && floor(request_ * sample_rate_) !=
                                 floor((request_ + 1) * sample_rate_)) {
@@ -82,10 +87,38 @@ public:
         return result;
     }
 
+    static double valid_sample_rate(double sampler_rate)
+    {
+        // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+        if (sampler_rate <= 0) {
+            sampler_rate = 0;
+        } else if (sampler_rate > 1) {
+            sampler_rate = 1;
+        } else if (sampler_rate < min_rate) {
+            sampler_rate = min_rate;
+        }
+        // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
+        return sampler_rate;
+    }
+
+    void set_sampler_rate(double sampler_rate)
+    {
+        sampler_rate = valid_sample_rate(sampler_rate);
+
+        if (sampler_rate == sample_rate_) {
+            return;
+        }
+
+        request_ = 1;
+        sample_rate_ = sampler_rate;
+    }
+
 protected:
     unsigned request_{1};
-    double sample_rate_;
+    double sample_rate_{0};
     std::atomic<bool> concurrent_{false};
     std::mutex mtx_;
+    std::shared_ptr<service_config> service_config_;
 };
 } // namespace dds
