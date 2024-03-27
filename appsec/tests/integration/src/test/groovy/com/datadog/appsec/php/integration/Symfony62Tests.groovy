@@ -88,4 +88,19 @@ class Symfony62Tests {
         assert span.meta."appsec.events.users.signup.track" == "true"
         assert span.metrics._sampling_priority_v1 == 2.0d
     }
+
+    @Test
+    void 'test path params'() {
+        HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+            assert re.body().contains('blocked')
+        }
+
+        Span span = trace.first()
+        assert span.metrics."_dd.appsec.enabled" == 1.0d
+        assert span.metrics."_dd.appsec.waf.duration" > 0.0d
+        assert span.meta."_dd.appsec.event_rules.version" != ''
+        assert span.meta."appsec.blocked" == "true"
+    }
 }

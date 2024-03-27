@@ -32,6 +32,16 @@ class CommonScenariosController extends AbstractController
     }
 
     /**
+     * @Route("/dynamic_route/{param01}/{param02?}", name="dynamic route with optionals")
+     */
+    public function dynamicWithOptionalsAction($param01, $param02)
+    {
+        return new Response(
+                   'Hi!'
+               );
+    }
+
+    /**
      * @Route("/error", name="error")
      * @throws \Exception
      */

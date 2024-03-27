@@ -152,6 +152,16 @@ class Helper {
         print_r($commands);
     }
 
+    function get_command($command) {
+            $commands = $this->get_commands();
+            foreach($commands as $c) {
+                if ($c[0] == $command) {
+                    return $c;
+                }
+            }
+            return [];
+        }
+
     static function ksort_recurse(&$arr) {
         if (!is_array($arr)) {
             return;

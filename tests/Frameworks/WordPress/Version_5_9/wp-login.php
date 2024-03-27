@@ -11,9 +11,6 @@
 /** Make sure that the WordPress bootstrap has run before continuing. */
 require __DIR__ . '/wp-load.php';
 
-//Appsec mock. This wont be needed on customer apps since this functions will be exposed by appsec
- require __DIR__.'/../../../Appsec/Mock.php';
-
 // Redirect to HTTPS login if forced to use SSL.
 if ( force_ssl_admin() && ! is_ssl() ) {
 	if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {

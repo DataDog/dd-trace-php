@@ -20,4 +20,14 @@ class HomeController extends AbstractController
             'Hi!'
         );
     }
+
+    /**
+     * @Route("/dynamic-path/{param01}", name="dynamic-path")
+     */
+    public function dynamicAction(Request $request)
+    {
+        return new Response(
+            'Hi!'
+        );
+    }
 }
