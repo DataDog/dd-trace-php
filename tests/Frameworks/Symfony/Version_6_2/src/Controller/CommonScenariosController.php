@@ -40,4 +40,37 @@ class CommonScenariosController extends AbstractController
     {
         throw new \Exception('An exception occurred');
     }
+
+    /**
+     * @Route("/staticUrl", name="static url")
+     */
+    public function staticUrlAction(Request $request)
+    {
+        // replace this example code with whatever you need
+        return new Response(
+            'Hi!'
+        );
+    }
+
+    /**
+     * @Route("/dynamicUrl/{someParam}")
+     */
+    public function dynamicUrlAction(Request $request)
+    {
+        // replace this example code with whatever you need
+        return new Response(
+            'Hi!'
+        );
+    }
+
+    /**
+     * @Route({"en": "/locale-en", "nl": "/locale-nl" }, name="locale url")
+     */
+    public function localeUrlAction(Request $request)
+    {
+        // replace this example code with whatever you need
+        return new Response(
+            'Hi!'
+        );
+    }
 }
