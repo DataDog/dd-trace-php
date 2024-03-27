@@ -3,7 +3,7 @@ name = "datadog-php-profiling"
 version = "0.98.0"
 edition = "2021"
 license = "Apache-2.0"
-rust-version = "1.64"
+rust-version = "1.71"
 
 [lib]
 crate-type = ["cdylib"]
@@ -18,8 +18,8 @@ bumpalo = { version = "3.12", features = ["collections"] }
 cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", rev = "50d0d3c" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", rev = "50d0d3c" }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", rev = "a0c0ed111f8afcb96d346c86383b0164ed89ad83" }
+ddcommon = { git = "https://github.com/DataDog/libdatadog", rev = "a0c0ed111f8afcb96d346c86383b0164ed89ad83" }
 env_logger = { version = "0.10" }
 hashbrown = { version = "0.14.3", default-features = false}
 indexmap = { version = "2.2.0" }

@@ -50,8 +50,12 @@ impl Drop for HeaderPtr {
     fn drop(&mut self) {
         let header = self.deref();
         if header.rc.fetch_sub(1, Ordering::SeqCst) == 1 {
+            let fatptr = ptr::NonNull::slice_from_raw_parts(
+                self.ptr.cast(),
+                header.allocation_size as usize,
+            );
             // Safety: passing pointer and size un-changed.
-            let _result = unsafe { virtual_free(self.ptr.cast(), header.allocation_size as usize) };
+            let _result = unsafe { virtual_free(fatptr) };
 
             #[cfg(debug_assertions)]
             if let Err(err) = _result {
