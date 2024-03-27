@@ -73,13 +73,24 @@ abstract class CLITestCase extends IntegrationTestCase
      */
     public function getAgentRequestFromCommand($arguments = '', $overrideEnvs = [])
     {
+        $this->executeCommand($arguments, $overrideEnvs);
+        return $this->retrieveDumpedTraceData()[0] ?? [];
+    }
+
+    /**
+     * Run a command from the CLI.
+     *
+     * @param string $arguments
+     * @param array $overrideEnvs
+     */
+    public function executeCommand($arguments = '', $overrideEnvs = [])
+    {
         $envs = (string) new EnvSerializer(array_merge([], static::getEnvs(), $overrideEnvs));
         $inis = (string) new IniSerializer(static::getInis());
         $script = escapeshellarg($this->getScriptLocation());
         $arguments = escapeshellarg($arguments);
         $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
         `$commandToExecute`;
-        return $this->retrieveDumpedTraceData()[0] ?? [];
     }
 
     /**

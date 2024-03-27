@@ -1,0 +1,6 @@
+{
+    "require": {
+        "php": ">=7.1",
+        "opentracing/opentracing": "^1.0"
+    }
+}
