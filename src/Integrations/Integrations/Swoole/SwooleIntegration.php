@@ -33,9 +33,11 @@ class SwooleIntegration extends Integration
 
     public function instrumentRequestStart(callable $callback, SwooleIntegration $integration, Server $server)
     {
+        $scheme = $server->ssl ? 'https://' : 'http://';
+
         \DDTrace\install_hook(
             $callback,
-            function (HookData $hook) use ($integration, $server) {
+            function (HookData $hook) use ($integration, $server, $scheme) {
                 $rootSpan = $hook->span(new SpanStack());
                 $rootSpan->name = "web.request";
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
@@ -97,7 +99,6 @@ class SwooleIntegration extends Integration
                 $rootSpan->resource = $request->server['request_method'] . ' ' . $normalizedPath;
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->server['request_method'];
 
-                $scheme = $server->ssl ? 'https://' : 'http://';
                 $host = $headers['host'] ?? ($request->server['remote_addr'] . ':' . $request->server['server_port']);
                 $path = $request->server['request_uri'] ?? $request->server['path_info'] ?? '';
                 $query = isset($request->server['query_string']) ? '?' . $request->server['query_string'] : '';
