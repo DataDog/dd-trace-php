@@ -189,7 +189,7 @@ class SwooleIntegration extends Integration
             'status',
             function ($response, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
-                if ($rootSpan) {
+                if ($rootSpan && \count($args) > 0) {
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $args[0];
                 }
             }
