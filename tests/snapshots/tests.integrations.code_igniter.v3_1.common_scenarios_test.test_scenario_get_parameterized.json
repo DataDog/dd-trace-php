@@ -1,0 +1,37 @@
+[[
+  {
+    "name": "codeigniter.request",
+    "service": "codeigniter_test_app",
+    "resource": "GET /parameterized/paramValue",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 8242584460457957692,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "65c9f02600000000",
+      "app.endpoint": "Parameterized::customAction",
+      "component": "codeigniter",
+      "http.method": "GET",
+      "http.route": "parameterized/(:any)",
+      "http.status_code": "200",
+      "http.url": "http://localhost:9999/parameterized/paramValue",
+      "runtime-id": "28d30454-75a5-4e9c-8cae-a7343bfe3710",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "Parameterized.customAction",
+       "service": "codeigniter_test_app",
+       "resource": "Parameterized.customAction",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "codeigniter"
+       }
+     }]]
