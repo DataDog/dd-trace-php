@@ -1132,7 +1132,9 @@ test_opentracing_beta6: global_test_run_dependencies
 
 test_opentracing_10: global_test_run_dependencies
 	$(MAKE) test_scenario_opentracing10
+	$(call run_composer_with_retry,tests/Frameworks/Custom/OpenTracing,)
 	$(call run_tests,tests/OpenTracer1Unit)
+	$(call run_tests,tests/OpenTracing)
 
 test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
 test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))
