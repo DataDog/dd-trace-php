@@ -161,12 +161,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         }
     }
 
-    protected function restartAppServer()
-    {
-        self::$appServer->stop();
-        self::$appServer->start();
-    }
-
     /**
      * Executed a call to the test web server.
      *

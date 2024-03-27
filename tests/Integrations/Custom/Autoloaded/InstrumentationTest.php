@@ -73,8 +73,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
             "name" => "nikic/fast-route",
             "version" => "v1.3.0",
         ]], array_filter($payloads[1]["payload"]["dependencies"], function ($i) {
-            $parts = explode("/", $i["name"], 2);
-            return strpos($i["name"], "ext-") !== 0 && !in_array($parts[0], ["symfony", "psr", "open-telemetry", "opentracing", "php-http"]);
+            return strpos($i["name"], "ext-") !== 0;
         }));
         // Not asserting app-closing, this is not expected to happen until shutdown
 

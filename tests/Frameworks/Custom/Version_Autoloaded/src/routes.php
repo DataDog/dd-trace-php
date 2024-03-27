@@ -8,8 +8,4 @@ return function(FastRoute\RouteCollector $r) {
     $r->addRoute('GET', '/pdo', '\App\PDOController');
     $r->addRoute('GET', '/circuit_breaker', '\App\CircuitBreakerController');
     $r->addRoute('GET', '/fatal', '\App\FatalErrorController');
-
-    $r->addRoute('GET', '/opentelemetry', '\App\OpenTelemetryController');
-    $r->addRoute('GET', '/opentracing', '\App\OpenTracingController');
-    $r->addRoute('GET', '/opentracing1', '\App\OpenTracing1Controller');
 };
