@@ -9,6 +9,7 @@ use DDTrace\Tests\Sapi\PhpCgi\PhpCgi;
 use DDTrace\Tests\Sapi\PhpFpm\PhpFpm;
 use DDTrace\Tests\Sapi\Roadrunner\RoadrunnerServer;
 use DDTrace\Tests\Sapi\Sapi;
+use DDTrace\Tests\Sapi\SwooleServer\SwooleServer;
 use PHPUnit\Framework\Assert;
 
 /**
@@ -70,6 +71,8 @@ final class WebServer
 
     private $roadrunnerVersion = null;
 
+    private $isSwoole = false;
+
     private $defaultInis = [
         'log_errors' => 'on',
         'datadog.trace.client_ip_header_disabled' => 'true',
@@ -105,6 +108,11 @@ final class WebServer
         $this->roadrunnerVersion = $version;
     }
 
+    public function setSwoole()
+    {
+        $this->isSwoole = true;
+    }
+
     public function start()
     {
         $this->errorLogSize = (int)@filesize($this->defaultInis['error_log']);
@@ -115,6 +123,12 @@ final class WebServer
                 $this->indexFile,
                 $this->host,
                 $this->port,
+                $this->envs,
+                $this->inis
+            );
+        } elseif ($this->isSwoole) {
+            $this->sapi = new SwooleServer(
+                $this->indexFile,
                 $this->envs,
                 $this->inis
             );

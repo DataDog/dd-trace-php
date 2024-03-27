@@ -797,6 +797,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_pcntl \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_80 := \
@@ -843,6 +844,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_81 := \
@@ -891,6 +893,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_82 := \
@@ -942,6 +945,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_83 := \
@@ -1216,6 +1220,9 @@ test_integrations_roadrunner: global_test_run_dependencies
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
+test_integrations_swoole_5: global_test_run_dependencies
+	$(MAKE) test_scenario_swoole5
+	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_cakephp_28: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_2_8,)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
