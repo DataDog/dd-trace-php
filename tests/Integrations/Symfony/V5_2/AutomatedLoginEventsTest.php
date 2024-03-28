@@ -2,20 +2,18 @@
 
 namespace DDTrace\Tests\Integrations\Symfony\V5_2;
 
-use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 use datadog\appsec\AppsecStatus;
 
-class AutomatedLoginEventsTest extends WebFrameworkTestCase
+/**
+ * @group appsec
+ */
+class AutomatedLoginEventsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_5_2/public/index.php';
-    }
-
-    protected function connection()
-    {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
     }
 
     protected function ddSetUp()
@@ -23,18 +21,6 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         parent::ddSetUp();
         $this->connection()->exec("DELETE from user where email LIKE 'test-user%'");
         AppsecStatus::getInstance()->setDefaults();
-    }
-
-    public static function ddSetUpBeforeClass()
-    {
-        parent::ddSetUpBeforeClass();
-        AppsecStatus::getInstance()->init();
-    }
-
-    public static function ddTearDownAfterClass()
-    {
-        AppsecStatus::getInstance()->destroy();
-        parent::ddTearDownAfterClass();
     }
 
     public function testUserLoginSuccessEvent()
