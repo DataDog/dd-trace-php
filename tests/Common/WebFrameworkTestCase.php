@@ -143,7 +143,10 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             if ($version = static::isSwoole()) {
                 self::$appServer->setSwoole($version);
             }
-            if ($version = static::isFrankenphp()) {
+            if (static::isFrankenphp()) {
+                if (!ZEND_THREAD_SAFE) {
+                    self::markTestSkipped("The Frankenphp testsuite needs ZTS");
+                }
                 self::$appServer->setFrankenphp();
             }
             self::$appServer->start();
