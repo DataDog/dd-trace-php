@@ -18,9 +18,11 @@ zend.assertions=1
 
 namespace DDTrace\Test
 {
-    class TestSandboxedIntegration implements \DDTrace\Integration
+    use DDTrace\Integrations\Integration;
+
+    class TestSandboxedIntegration extends Integration
     {
-        function init(): int
+        function init()
         {
             dd_trace_method("Test", "create_span_from_anomymous_source", function() {
             });
