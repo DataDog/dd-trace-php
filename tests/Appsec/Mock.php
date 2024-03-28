@@ -82,8 +82,10 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
     }
 }
 
-function appsecMockEnabled() {
-    return getenv('APPSEC_MOCK_ENABLED') === "true";
+if (!function_exists('datadog\appsec\appsecMockEnabled')) {
+    function appsecMockEnabled() {
+        return getenv('APPSEC_MOCK_ENABLED') === "true";
+    }
 }
 
 if (!function_exists('datadog\appsec\track_user_login_success_event')) {
