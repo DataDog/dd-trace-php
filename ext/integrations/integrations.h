@@ -37,6 +37,7 @@
     INTEGRATION(ROADRUNNER, "roadrunner")       \
     INTEGRATION(SQLSRV, "sqlsrv")               \
     INTEGRATION(SLIM, "slim")                   \
+    INTEGRATION(SWOOLE, "swoole")               \
     INTEGRATION(SYMFONY, "symfony")             \
     INTEGRATION(WEB, "web")                     \
     INTEGRATION(WORDPRESS, "wordpress")         \
