@@ -67,6 +67,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         return null;
     }
 
+    protected static function isSwoole()
+    {
+        return false;
+    }
+
     /**
      * Get additional envs to be set in the web server.
      * @return array
@@ -129,6 +134,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             self::$appServer->mergeInis($inis);
             if ($version = static::getRoadrunnerVersion()) {
                 self::$appServer->setRoadrunner($version);
+            }
+            if ($version = static::isSwoole()) {
+                self::$appServer->setSwoole($version);
             }
             self::$appServer->start();
         }

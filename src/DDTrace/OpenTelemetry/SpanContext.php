@@ -74,7 +74,14 @@ final class SpanContext implements SpanContextInterface
 
     public function getTraceState(): ?TraceStateInterface
     {
-        $traceContext = generate_distributed_tracing_headers(['tracecontext']);
+        $current = \DDTrace\active_stack();
+        if ($current !== $this->span->stack) {
+            \DDTrace\switch_stack($this->span);
+            $traceContext = generate_distributed_tracing_headers(['tracecontext']);
+            \DDTrace\switch_stack($current);
+        } else {
+            $traceContext = generate_distributed_tracing_headers(['tracecontext']);
+        }
         return new TraceState($traceContext['tracestate'] ?? null);
     }
 

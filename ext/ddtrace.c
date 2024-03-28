@@ -642,7 +642,7 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     zend_hash_copy(Z_ARR(link->property_attributes), &result.meta_tags, NULL);
 
     zend_string *propagated_tags = ddtrace_format_propagated_tags(&result.propagated_tags, &result.meta_tags);
-    zend_string *full_tracestate = ddtrace_format_tracestate(result.tracestate, result.origin, result.priority_sampling, propagated_tags, &result.tracestate_unknown_dd_keys);
+    zend_string *full_tracestate = ddtrace_format_tracestate(result.tracestate, 0, result.origin, result.priority_sampling, propagated_tags, &result.tracestate_unknown_dd_keys);
     zend_string_release(propagated_tags);
     if (full_tracestate) {
         ZVAL_STR(&link->property_trace_state, full_tracestate);
@@ -1042,9 +1042,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 #if ZAI_JIT_BLACKLIST_ACTIVE
     zai_jit_minit();
 #endif
-#if PHP_VERSION_ID >= 80100
-    ddtrace_setup_fiber_observers();
-#endif
 
 #if PHP_VERSION_ID < 70300 || (defined(_WIN32) && PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400)
     ddtrace_startup_hrtime();
@@ -1095,6 +1092,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (ddtrace_disable) {
         return SUCCESS;
     }
+
+#if PHP_VERSION_ID >= 80100
+    ddtrace_setup_fiber_observers();
+#endif
 
 #ifndef _WIN32
     ddtrace_set_coredumpfilter();

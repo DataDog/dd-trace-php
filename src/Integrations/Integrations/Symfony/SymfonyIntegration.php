@@ -393,6 +393,13 @@ class SymfonyIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
 
+                $parameters = $request->get('_route_params');
+                if (!empty($parameters) &&
+                    is_array($parameters) &&
+                    function_exists('\datadog\appsec\push_address')) {
+                    \datadog\appsec\push_address("server.request.path_params", $parameters);
+                }
+
                 $route = $request->get('_route');
                 if (null !== $route && null !== $request) {
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {

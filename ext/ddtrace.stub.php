@@ -413,8 +413,9 @@ namespace DDTrace {
      *
      * @param SpanData $span The span to update.
      * @param float $finishTime Finish time in seconds. Defaults to now if zero.
+     * @return false|null 'false' if unexpected parameters were given, else 'null'
      */
-    function update_span_duration(SpanData $span, float $finishTime = 0): null {}
+    function update_span_duration(SpanData $span, float $finishTime = 0): false|null {}
 
     /**
      * Start a new trace

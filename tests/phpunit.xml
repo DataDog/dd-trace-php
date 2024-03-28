@@ -67,6 +67,9 @@
         <testsuite name="slim-4-test">
             <directory>./Integrations/Slim/V4</directory>
         </testsuite>
+        <testsuite name="swoole-test">
+            <directory>./Integrations/Swoole</directory>
+        </testsuite>
         <testsuite name="symfony-44-test">
             <directory>./Integrations/Symfony/V4_4</directory>
             <directory>./Integrations/CLI/Symfony/V4_4</directory>

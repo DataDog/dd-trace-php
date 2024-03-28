@@ -507,6 +507,12 @@ static inline void zai_hook_resolved_install_inherited_internal_function_recursi
 }
 
 static zend_long zai_hook_resolved_install(zai_hook_t *hook, zend_function *resolved, zend_class_entry *ce) {
+    // Handle the edge case of inherited internal constructors: They are not fetched from the ce->function_table, but from ce->construct
+    // Hence we need to explicitly instrument the parents constructor (this will also implicitly instrument the inherited constructor for explicit calls).
+    if ((resolved->common.fn_flags & ZEND_ACC_CTOR) && !ZEND_USER_CODE(resolved->type) && resolved->common.scope->constructor) {
+        resolved = resolved->common.scope->constructor;
+    }
+
     zai_hooks_entry *hooks = zai_hook_resolved_ensure_hooks_entry(resolved, ce);
     zend_long index = zai_hook_add_entry(hooks, hook);
 
@@ -724,6 +730,12 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, ze
             return;
         }
 
+        // Handle the edge case of inherited internal constructors: They are not fetched from the ce->function_table, but from ce->construct
+        // Hence we need to explicitly instrument the parents constructor (this will also implicitly instrument the inherited constructor for explicit calls).
+        if ((function->common.fn_flags & ZEND_ACC_CTOR) && !ZEND_USER_CODE(function->type) && function->common.scope->constructor) {
+            function = function->common.scope->constructor;
+        }
+
         zai_install_address addr = zai_hook_install_address(function);
         if (!zend_hash_index_add_ptr(&zai_hook_resolved, addr, hooks)) {
             // it's already there (e.g. thanks to aliases, traits, ...), merge it
@@ -737,6 +749,12 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, ze
                 existingHooks->dynamic += hook->dynamic;
                 zend_hash_index_add_new(&existingHooks->hooks, index, hook_zv);
                 zai_hook_sort_newest(existingHooks);
+
+                if (hook->is_abstract) {
+                    zai_hook_resolved_install_abstract_recursive(hook, (zend_ulong)index, function->common.scope);
+                } else if (!ZEND_USER_CODE(function->type) && function->common.scope) {
+                    zai_hook_resolved_install_inherited_internal_function_recursive(hook, (zend_ulong)index, function->common.scope, function->internal_function.handler);
+                }
             } ZEND_HASH_FOREACH_END();
 
             // we remove the whole zai_hooks_entry, excluding the individual zai_hook_t which we moved
@@ -755,9 +773,16 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, ze
             base_ht->pDestructor = zai_hook_hash_destroy;
             zai_hook_resolve_hooks_entry(hooks, function);
             zai_hook_t *hook;
-            ZEND_HASH_FOREACH_PTR(&hooks->hooks, hook) {
+            zend_ulong index;
+            ZEND_HASH_FOREACH_NUM_KEY_PTR(&hooks->hooks, index, hook) {
                 hook->resolved_scope = ce;
                 hook->is_abstract = is_abstract;
+
+                if (hook->is_abstract) {
+                    zai_hook_resolved_install_abstract_recursive(hook, (zend_ulong)index, function->common.scope);
+                } else if (!ZEND_USER_CODE(function->type) && function->common.scope) {
+                    zai_hook_resolved_install_inherited_internal_function_recursive(hook, (zend_ulong)index, function->common.scope, function->internal_function.handler);
+                }
             } ZEND_HASH_FOREACH_END();
         }
     }

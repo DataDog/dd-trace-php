@@ -2,26 +2,18 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V5_7;
 
-use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
-class AutomatedLoginEventsTest extends WebFrameworkTestCase
+/**
+ * @group appsec
+ */
+class AutomatedLoginEventsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
-    }
-
-    protected function connection()
-    {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
-    }
-
-    public static function ddSetUpBeforeClass()
-    {
-        parent::ddSetUpBeforeClass();
-        AppsecStatus::getInstance()->init();
     }
 
     protected function ddSetUp()
@@ -29,12 +21,6 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         parent::ddSetUp();
         $this->connection()->exec("DELETE from users where email LIKE 'test-user%'");
         AppsecStatus::getInstance()->setDefaults();
-    }
-
-    public static function ddTearDownAfterClass()
-    {
-        AppsecStatus::getInstance()->destroy();
-        parent::ddTearDownAfterClass();
     }
 
     protected function login($email)

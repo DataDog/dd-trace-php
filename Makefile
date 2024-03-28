@@ -495,6 +495,7 @@ TEST_EXTRA_ENV ?=
 TESTS_ROOT = ./tests
 COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
 COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
+DDPROF_IDENTIFIER ?=
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 PHPUNIT_COVERAGE ?=
@@ -796,6 +797,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_pcntl \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_80 := \
@@ -842,6 +844,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_81 := \
@@ -890,6 +893,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_82 := \
@@ -941,6 +945,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_83 := \
@@ -968,7 +973,7 @@ TEST_WEB_83 := \
 FILTER := .
 MAX_RETRIES := 3
 
-# Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17" 
+# Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17"
 define run_composer_with_retry
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
@@ -1005,6 +1010,10 @@ endef
 
 define run_benchmarks
 	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+endef
+
+define run_benchmarks_with_ddprof
+	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
 endef
 
 
@@ -1087,11 +1096,23 @@ benchmarks_run_dependencies: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/benchmarks/composer.lock
 	$(MAKE) test_scenario_benchmarks
 
-benchmarks: benchmarks_run_dependencies
-	$(call run_benchmarks,$(PHPBENCH_CONFIG))
+call_benchmarks:
+	if [ -n "$(DDPROF_IDENTIFIER)" ]; then \
+		$(call run_benchmarks_with_ddprof,$(PHPBENCH_CONFIG)); \
+	else \
+		$(call run_benchmarks,$(PHPBENCH_CONFIG)); \
+	fi
 
-benchmarks_opcache: benchmarks_run_dependencies
-	$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG))
+call_benchmarks_opcache:
+	if [ -n "$(DDPROF_IDENTIFIER)" ]; then \
+		$(call run_benchmarks_with_ddprof,$(PHPBENCH_OPCACHE_CONFIG)); \
+	else \
+		$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG)); \
+	fi
+
+benchmarks: benchmarks_run_dependencies call_benchmarks
+
+benchmarks_opcache: benchmarks_run_dependencies call_benchmarks_opcache
 
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
@@ -1199,6 +1220,9 @@ test_integrations_roadrunner: global_test_run_dependencies
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
+test_integrations_swoole_5: global_test_run_dependencies
+	$(MAKE) test_scenario_swoole5
+	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_cakephp_28: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_2_8,)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
