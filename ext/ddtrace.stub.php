@@ -668,6 +668,30 @@ namespace DDTrace\Testing {
     function trigger_error(string $message, int $errorType): void {}
 }
 
+namespace DDTrace\Internal {
+    /**
+     * @var int
+     * @cvalue DDTRACE_SPAN_FLAG_OPENTELEMETRY
+     */
+    const SPAN_FLAG_OPENTELEMETRY = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_SPAN_FLAG_OPENTRACING
+     */
+    const SPAN_FLAG_OPENTRACING = UNKNOWN;
+
+    /**
+     * Adds a flag to a span.
+     *
+     * @internal
+     *
+     * @param \DDTrace\SpanData $span the span to flag
+     * @param int $flag the flag to add to the span
+     */
+    function add_span_flag(\DDTrace\SpanData $span, int $flag): void {}
+}
+
 namespace {
 
     /**

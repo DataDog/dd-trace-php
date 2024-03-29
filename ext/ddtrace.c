@@ -420,6 +420,7 @@ static void ddtrace_activate(void) {
     zai_hook_rinit();
     zai_interceptor_activate();
     zai_uhook_rinit();
+    ddtrace_telemetry_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
 
@@ -1403,6 +1404,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     dd_finalize_telemetry();
+    ddtrace_telemetry_rshutdown();
+
     if (DDTRACE_G(last_flushed_root_service_name)) {
         zend_string_release(DDTRACE_G(last_flushed_root_service_name));
         DDTRACE_G(last_flushed_root_service_name) = NULL;
@@ -1954,6 +1957,21 @@ PHP_FUNCTION(DDTrace_Testing_trigger_error) {
             LOG_LINE(WARN, "Invalid error type specified: %i", level);
             break;
     }
+}
+
+PHP_FUNCTION(DDTrace_Internal_add_span_flag) {
+    zend_object *span;
+    zend_long flag;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_OBJ_OF_CLASS_EX(span, ddtrace_ce_span_data, 0, 1)
+        Z_PARAM_LONG(flag)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_span_data *span_data = OBJ_SPANDATA(span);
+    span_data->flags |= (uint8_t)flag;
+
+    RETURN_NULL();
 }
 
 PHP_FUNCTION(ddtrace_init) {
