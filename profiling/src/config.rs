@@ -168,7 +168,7 @@ impl Default for AgentEndpoint {
     }
 }
 
-impl TryFrom<AgentEndpoint> for datadog_profiling::exporter::Endpoint {
+impl TryFrom<AgentEndpoint> for ddcommon::Endpoint {
     type Error = anyhow::Error;
 
     fn try_from(value: AgentEndpoint) -> Result<Self, Self::Error> {
@@ -179,7 +179,7 @@ impl TryFrom<AgentEndpoint> for datadog_profiling::exporter::Endpoint {
     }
 }
 
-impl TryFrom<&AgentEndpoint> for datadog_profiling::exporter::Endpoint {
+impl TryFrom<&AgentEndpoint> for ddcommon::Endpoint {
     type Error = anyhow::Error;
 
     fn try_from(value: &AgentEndpoint) -> Result<Self, Self::Error> {
