@@ -62,77 +62,59 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-### Fixes across all extensions
-- Handle Apache graceful restarts more accurately #2483
-- Mark config as immutable and interned to avoid refcounting race conditions #2516
-
 ## Tracer
-This release includes Windows dlls for the tracer starting with PHP 7.2. #2230
 
-Windows support is in beta. We recommend carefully deploying the tracer to staging environments and testing it there before putting it to production. We are looking towards stabilizing Windows quickly, so any feedback and issue reports are welcome.
+Windows support is officially GA (generally available) and considered stable.
+
+Some performance work has been undertaken to primarily reduce the overhead of telemetry reporting.
+The next release will be version 1.0 and remove deprecated and some unused code and APIs.
 
 ### Added
-- Enhance logging #2490
-  - This features two new logging options:
-    - `datadog.trace.log_level` allows more fine-grained control over logging (`error`, `warn`, `info`, `debug`, `trace`). It follows the RUST_LOG standard. Note that `datadog.trace.debug` still takes precedence if set.
-    - `datadog.trace.log_file` allows specifying a dedicated target file for any datadog trace logs instead of the default php error location.
-  - More log lines were added to allow for observing submitted spans (debug level) and hook invocations (trace level).
-- Add http.route to Wordpress #2491
+- Support the [FrankenPHP](https://frankenphp.dev/) SAPIs #2602
+- Add zts support for alpine #2564
+- Swoole Integration #2595
 
 ### Changed
-- Have datadog.trace.db_client_split_by_instance also affect mysqli and sqlsrv #2508
-- Record nested exceptions in the integrations #2514
-- Evaluate numbers and bools in tags and metrics for sampling rules #2521
+- w3c phase 2: add last parent_id to tracestate #2549
 
 ### Fixed
-- Access to undefined method `attempts` in LaravelQueueIntegration #2485
-- Include generated curl_exec spans of curl_multi_exec() in metrics #2505
-- Remove Symfony Command Hook After Execution #2492
-- Add zend_try around closing and flushing spans #2507
-- Make PDO split-by coherent with other DB split-by with service name flattening #2524
+- Handle relative ext/ paths and test the windows installer #2559
+- Fix exec integration build on PHP 8.4 #2543
+- Fix Orphans not being sampled-out #2550
+- Fix fibers with tracer disabled #2576
+- Update update_span_duration return type #2586
+- Fix #2563: ddtrace overrides php error log permissions #2583
+- Allow hooking an inherited internal constructor #2591
+- Distinguish architectures on windows #2593
+- Fix the ExecIntegration name #2597
 
 ### Internal
-- No longer compile the mockgen as part of the rust build #2512
-- Add TEA Benchmarks #2438
-- Reduce CI and Local Flakiness #2496, #2518
+- Get rid of some bitwise checking in ddog_shall_log #2539
+- Use faster bincode for ipc #2544
+- Update to use DDOG_CHARSLICE_C and new DDOG_CHARSLICE_C_BARE helpers #2565
+- Slightly Improve OTel Performances #2561
+- Send spans_created telemetry metric #2577
 
-## Profiling
-This release requires System INIs to be used to configure the profiler settings which control the enabling/disabling of individual features. If you are configuring the profiler using `php datadog-setup.php config set`, you should be fine. We recommend switching to use the [config mode of datadog-setup.php](https://docs.datadoghq.com/profiler/enabling/php/?tab=gnuclinux#installation) to configure profiling.
-
+## Profiler
 ### Added
-- Enable timeline by default #2480. This can be disabled by setting the INI setting datadog.profiling.timeline_enabled to 0 or false. Using the datadog-setup.php script is recommended, for example:
-
-    php datadog-setup.php config set --php-bin all -ddatadog.profiling.timeline_enabled=0
-- PHP ZTS support for CPU- and Wall Time profiling #2470
-- Add exception message to exception sample (opt-in) #2434
-
-### Changed
-- Breaking-change: require system INIs for profiling features #2468
+- add [FrankenPHP](https://frankenphp.dev/) to the list of recognised SAPIs #2523
+- enabled allocation profiling for PHP ZTS #2506
+- report PHP build (`nts-ndebug` vs `zts-ndebug`) #2536
 
 ### Internal
-- Update dependencies and pin `ahash` #2479
-- Fix clippy::single-match #2482
-- Update to libdatadog 6 #2513
-- Refactor: use SystemSettings in locals #2487
-- Fix accidentally skipped tests #2517
+- add tests for exception profiling in ZTS builds #2562
 
 ## Application Security Management
-This release introduces support for the Roadrunner application server and extends threat detection and blocking on XML and JSON request payloads. Request and response payloads are now also used to expand the already existing API security features.
-
 ### Added
-- Roadrunner appsec support #2443
-- Provide server.response.body #2489
-- Support json/xml request bodies #2499
+- Add DD_API_SECURITY_ENABLED flag #2532
+- Add DD_APPSEC_SCA_ENABLED new configuration variable #2557
 
 ### Changed
-- Change ip header parsing/header reporting #2503
+- Enable appsec by ini only when enable-appsec present #2567
 
 ### Fixed
-- Fix blocking on PHP 7.0-7.1 ZTS #2502
-- Ensure logs are committed to disk upon shutdown #2495 
-
-### Internal
-- Upgrade libddwaf and ruleset #2520
+- Make Laravel appsec login success event more accurate #2600
+- Provide path params to appsec #2395
 ]]></notes>
     <contents>
         <dir name="/">
