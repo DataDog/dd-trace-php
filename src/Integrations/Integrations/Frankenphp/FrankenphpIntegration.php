@@ -48,8 +48,6 @@ class FrankenphpIntegration extends Integration
                     $integration->addTraceAnalyticsIfEnabled($rootSpan);
 
                     consume_distributed_tracing_headers(null);
-                }, function (HookData $hook) {
-                    var_dump($hook->span());
                 }
             );
         }, function (HookData $hook) {
