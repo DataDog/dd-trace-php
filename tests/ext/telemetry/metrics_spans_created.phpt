@@ -1,5 +1,5 @@
 --TEST--
-Signal integration telemetry
+'spans_created' internal metric
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
@@ -80,7 +80,7 @@ namespace
 
     for ($i = 0; $i < 100; ++$i) {
         usleep(100000);
-        if (file_exists(__DIR__ . '/integration-telemetry.out')) {      
+        if (file_exists(__DIR__ . '/integration-telemetry.out')) {
             foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
                 if ($l) {
                     $json = json_decode($l, true);
@@ -89,12 +89,15 @@ namespace
                         if ($json["request_type"] == "generate-metrics") {
                             $series = [];
                             foreach ($json['payload']['series'] as $serie) {
+                                if ($serie['metric'] !== 'spans_created') {
+                                  continue;
+                                }
                                 $key = $serie['namespace'].$serie['metric'].implode(',', $serie['tags']);
                                 $series[$key] = $serie;
                             };
                             ksort($series);
                             var_dump(array_values($series));
-                            
+
                             break 3;
                         }
                     }

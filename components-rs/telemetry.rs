@@ -2,7 +2,7 @@ use datadog_sidecar::interface::blocking::SidecarTransport;
 use datadog_sidecar::interface::{blocking, InstanceId, QueueId, SidecarAction};
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::CharSlice;
-use ddcommon::tag::Tag;
+use ddcommon::tag::parse_tags;
 use ddtelemetry::data;
 use ddtelemetry::data::{Dependency, Integration};
 use ddtelemetry::metrics::MetricContext;
@@ -150,12 +150,9 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_span_metric_point_buffer(
     buffer: &mut SidecarActionsBuffer,
     metric_name: CharSlice,
     metric_value: f64,
-    integration_name: CharSlice,
+    tags: CharSlice,
 ) {
-    let mut tags: Vec<Tag> = Vec::default();
-    if integration_name.len() > 0 {
-        tags.push(Tag::new("integration_name", integration_name.to_utf8_lossy().into_owned()).unwrap())
-    }
+    let (tags, _) = parse_tags(&tags.to_utf8_lossy());
 
     buffer.buffer.push(SidecarAction::AddTelemetryMetricPoint((
         metric_name.to_utf8_lossy().into_owned(),

@@ -84,8 +84,18 @@ void ddtrace_telemetry_finalize(void) {
     zend_string *integration_name;
     zval *metric_value;
     ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(telemetry_spans_created_per_integration), integration_name, metric_value) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, Z_DVAL_P(metric_value), dd_zend_string_to_CharSlice(integration_name));
+        zend_string *tags = zend_string_concat2(ZEND_STRL("integration_name:"), ZSTR_VAL(integration_name), ZSTR_LEN(integration_name));
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, Z_DVAL_P(metric_value), dd_zend_string_to_CharSlice(tags));
+        zend_string_release(tags);
     } ZEND_HASH_FOREACH_END();
+
+    metric_name = DDOG_CHARSLICE_C("logs_created");
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name);
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)ddog_get_logs_count(DDOG_CHARSLICE_C("trace")), DDOG_CHARSLICE_C("level:trace"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)ddog_get_logs_count(DDOG_CHARSLICE_C("debug")), DDOG_CHARSLICE_C("level:debug"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)ddog_get_logs_count(DDOG_CHARSLICE_C("info")), DDOG_CHARSLICE_C("level:info"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)ddog_get_logs_count(DDOG_CHARSLICE_C("warn")), DDOG_CHARSLICE_C("level:warning"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)ddog_get_logs_count(DDOG_CHARSLICE_C("error")), DDOG_CHARSLICE_C("level:error"));
 
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 
