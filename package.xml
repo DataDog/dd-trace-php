@@ -64,7 +64,7 @@
         <![CDATA[
 ## Tracer
 
-Windows support is officially GA (generally available) and considered stable.
+Windows x64 support is officially GA (generally available).
 
 Some performance work has been undertaken to primarily reduce the overhead of telemetry reporting.
 The next release will be version 1.0 and remove deprecated and some unused code and APIs.
