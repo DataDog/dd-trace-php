@@ -192,8 +192,10 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELOQUENT, "Illuminate\\Database\\Eloquent\\Model", "destroy",
                                          "DDTrace\\Integrations\\Eloquent\\EloquentIntegration");
 
+#if PHP_VERSION_ID >= 80200
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FRANKENPHP, "frankenphp_handle_request",
                                           "DDTrace\\Integrations\\Frankenphp\\FrankenphpIntegration");
+#endif
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GUZZLE, "GuzzleHttp\\Client", "__construct",
                                          "DDTrace\\Integrations\\Guzzle\\GuzzleIntegration");

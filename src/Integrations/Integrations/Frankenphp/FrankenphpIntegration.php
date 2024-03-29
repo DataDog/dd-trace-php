@@ -34,9 +34,16 @@ class FrankenphpIntegration extends Integration
         ini_set("datadog.trace.auto_flush_enabled", 1);
         ini_set("datadog.trace.generate_root_span", 0);
 
-        \DDTrace\install_hook('frankenphp_handle_request', function (HookData $hook) use ($integration) {
-            $hook->data = \DDTrace\install_hook(
-                $hook->args[0],
+        $is_hooked = new \WeakMap();
+        \DDTrace\install_hook('frankenphp_handle_request', function (HookData $hook) use ($integration, $is_hooked) {
+            $handler = $hook->args[0];
+            if (isset($is_hooked[$handler])) {
+                return;
+            }
+            $is_hooked[$handler] = true;
+
+            \DDTrace\install_hook(
+                $handler,
                 function (HookData $hook) use ($integration) {
                     $rootSpan = $hook->span(new SpanStack());
                     $rootSpan->name = "web.request";
@@ -48,10 +55,10 @@ class FrankenphpIntegration extends Integration
                     $integration->addTraceAnalyticsIfEnabled($rootSpan);
 
                     consume_distributed_tracing_headers(null);
-                }
+                },
+                null,
+                \DDTrace\HOOK_INSTANCE
             );
-        }, function (HookData $hook) {
-            \DDTrace\remove_hook($hook->data);
         });
 
         return Integration::LOADED;
