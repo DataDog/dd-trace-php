@@ -9,7 +9,6 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_smart_str.h>
-#include <components/sapi/sapi.h>
 #include <headers/headers.h>
 #include <hook/hook.h>
 #include <json/json.h>
@@ -118,7 +117,7 @@ static bool dd_has_other_observers;
 static int dd_observer_extension_backup = -1;
 #endif
 
-static datadog_php_sapi ddtrace_active_sapi = DATADOG_PHP_SAPI_UNKNOWN;
+datadog_php_sapi ddtrace_active_sapi = DATADOG_PHP_SAPI_UNKNOWN;
 
 _Atomic(int64_t) ddtrace_warn_legacy_api;
 
@@ -2651,11 +2650,14 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
     UNUSED(return_value);
 
     dd_fci_fcc_pair func;
+    bool use_server_headers = false;
     zend_array *array = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         DD_PARAM_PROLOGUE(0, 0);
-        if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error, true))) {
+        if (Z_TYPE_P(_arg) == IS_NULL) {
+            use_server_headers = true;
+        } else if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error, true))) {
             if (!_error) {
                 zend_argument_type_error(1, "must be a valid callback or of type array, %s given", zend_zval_value_name(_arg));
                 _error_code = ZPP_ERROR_FAILURE;
@@ -2687,6 +2689,8 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
 
     if (array) {
         return ddtrace_read_distributed_tracing_ids(dd_read_array_header, array);
+    } else if (use_server_headers) {
+        return ddtrace_read_distributed_tracing_ids(ddtrace_read_zai_header, &func);
     } else {
         return ddtrace_read_distributed_tracing_ids(dd_read_userspace_header, &func);
     }

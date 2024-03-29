@@ -52,9 +52,7 @@ typedef struct {
 } dd_integration_aux;
 
 void dd_integration_aux_free(void *auxiliary) {
-    dd_integration_aux *aux = auxiliary;
-    zend_string_release(aux->classname);
-    free(aux);
+    free(auxiliary);
 }
 
 static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
@@ -104,7 +102,7 @@ static bool dd_invoke_integration_loader_and_unhook_prehook(zend_ulong invocatio
 static void dd_hook_method_and_unhook_on_first_call(zai_str Class, zai_str method, zai_str callback, ddtrace_integration_name name, bool posthook) {
     dd_integration_aux *aux = malloc(sizeof(*aux));
     aux->name = name;
-    aux->classname = zend_string_init(callback.ptr, callback.len, 1);
+    aux->classname = zend_string_init_interned(callback.ptr, callback.len, 1);
     aux->id = zai_hook_install(Class, method,
             posthook ? NULL : dd_invoke_integration_loader_and_unhook_prehook,
             posthook ? dd_invoke_integration_loader_and_unhook_posthook : NULL,
@@ -193,6 +191,11 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Eloquent\\EloquentIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELOQUENT, "Illuminate\\Database\\Eloquent\\Model", "destroy",
                                          "DDTrace\\Integrations\\Eloquent\\EloquentIntegration");
+
+#if PHP_VERSION_ID >= 80200
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FRANKENPHP, "frankenphp_handle_request",
+                                          "DDTrace\\Integrations\\Frankenphp\\FrankenphpIntegration");
+#endif
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GUZZLE, "GuzzleHttp\\Client", "__construct",
                                          "DDTrace\\Integrations\\Guzzle\\GuzzleIntegration");

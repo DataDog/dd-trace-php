@@ -586,7 +586,8 @@ static zend_string *dd_build_req_url(zend_array *_server) {
         return ZSTR_EMPTY_ALLOC();
     }
 
-    zend_bool is_https = zend_hash_str_exists(_server, ZEND_STRL("HTTPS"));
+    zval *https = zend_hash_str_find(_server, ZEND_STRL("HTTPS"));
+    bool is_https = https && i_zend_is_true(https);
 
     zval *host_zv;
     if ((!(host_zv = zend_hash_str_find(_server, ZEND_STRL("HTTP_HOST"))) &&
@@ -1166,7 +1167,8 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     meta = &meta_zv;
 
     zval *exception_zv = &span->property_exception;
-    if (Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
+    bool has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
+    if (has_exception) {
         ignore_error = false;
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
         if (is_root_span) {
@@ -1224,6 +1226,9 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     if (ddtrace_span_is_entrypoint_root(span)) {
         int status = SG(sapi_headers).http_response_code;
+        if (ddtrace_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP && !status) {
+            status = has_exception ? 500 : 200;
+        }
         struct iter *headers = dd_iterate_sapi_headers();
         dd_set_entrypoint_root_span_props_end(Z_ARR_P(meta), status, headers, ignore_error);
         efree(headers);

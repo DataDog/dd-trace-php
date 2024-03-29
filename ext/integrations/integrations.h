@@ -16,6 +16,7 @@
     INTEGRATION(DRUPAL, "drupal")               \
     INTEGRATION(ELASTICSEARCH, "elasticsearch") \
     INTEGRATION(ELOQUENT, "eloquent")           \
+    INTEGRATION(FRANKENPHP, "frankenphp")       \
     INTEGRATION(GUZZLE, "guzzle")               \
     INTEGRATION(LAMINAS, "laminas")             \
     INTEGRATION(LARAVEL, "laravel")             \

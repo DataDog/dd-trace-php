@@ -891,6 +891,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
 	test_integrations_predis1 \
+	test_integrations_frankenphp \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
 	test_integrations_swoole_5 \
@@ -943,6 +944,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
 	test_integrations_predis1 \
+	test_integrations_frankenphp \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
 	test_integrations_swoole_5 \
@@ -1217,6 +1219,9 @@ test_integrations_phpredis5: global_test_run_dependencies
 test_integrations_predis1: global_test_run_dependencies
 	$(MAKE) test_scenario_predis1
 	$(call run_tests_debug,tests/Integrations/Predis)
+test_integrations_frankenphp: global_test_run_dependencies
+	$(MAKE) test_scenario_default
+	$(call run_tests_debug,--testsuite=frankenphp-test)
 test_integrations_roadrunner: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Roadrunner/Version_2,)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
