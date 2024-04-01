@@ -103,6 +103,7 @@ The next release will be version 1.0 and remove deprecated and some unused code 
 
 ### Internal
 - add tests for exception profiling in ZTS builds #2562
+- update to libdatadog v7 #2605
 
 ## Application Security Management
 ### Added
