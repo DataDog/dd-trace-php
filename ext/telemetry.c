@@ -91,15 +91,15 @@ void ddtrace_telemetry_finalize(void) {
 
     metric_name = DDOG_CHARSLICE_C("logs_created");
     ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name);
-    static const struct {
-        const ddog_CharSlice level;
-        const ddog_CharSlice tags;
+    static struct {
+        ddog_CharSlice level;
+        ddog_CharSlice tags;
     } log_levels[] = {
-        {DDOG_CHARSLICE_C("trace"), DDOG_CHARSLICE_C("level:trace")},
-        {DDOG_CHARSLICE_C("debug"), DDOG_CHARSLICE_C("level:debug")},
-        {DDOG_CHARSLICE_C("info"), DDOG_CHARSLICE_C("level:info")},
-        {DDOG_CHARSLICE_C("warn"), DDOG_CHARSLICE_C("level:warn")},
-        {DDOG_CHARSLICE_C("error"), DDOG_CHARSLICE_C("level:error")},
+        {DDOG_CHARSLICE_C_BARE("trace"), DDOG_CHARSLICE_C_BARE("level:trace")},
+        {DDOG_CHARSLICE_C_BARE("debug"), DDOG_CHARSLICE_C_BARE("level:debug")},
+        {DDOG_CHARSLICE_C_BARE("info"), DDOG_CHARSLICE_C_BARE("level:info")},
+        {DDOG_CHARSLICE_C_BARE("warn"), DDOG_CHARSLICE_C_BARE("level:warn")},
+        {DDOG_CHARSLICE_C_BARE("error"), DDOG_CHARSLICE_C_BARE("level:error")},
     };
     uint32_t count;
     for (size_t i = 0; i < sizeof(log_levels) / sizeof(log_levels[0]); ++i) {
