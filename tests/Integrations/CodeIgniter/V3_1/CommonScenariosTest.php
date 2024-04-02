@@ -52,7 +52,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetWithExceptionCgi()
     {
-        if (!self::codeIgniterCgiCheck()) {
+        if (!self::codeIgniterCgiCheck() && PHP_VERSION_ID < 80200) {
             $this->markTestSkipped('Skip: Test only runs with cgi SAPIs');
         }
 
@@ -68,7 +68,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetToMissingRouteCgi()
     {
-        if (!self::codeIgniterCgiCheck()) {
+        if (!self::codeIgniterCgiCheck() && PHP_VERSION_ID < 80200) {
             $this->markTestSkipped('Skip: Test only runs with cgi SAPIs');
         }
 
@@ -84,7 +84,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetWithException()
     {
-        if (self::codeIgniterCgiCheck()) {
+        if (self::codeIgniterCgiCheck() || PHP_VERSION_ID >= 80200) {
             $this->markTestSkipped('Skip: Test doesn\'t run with cgi SAPIs');
         }
 
@@ -100,7 +100,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetToMissingRoute()
     {
-        if (self::codeIgniterCgiCheck()) {
+        if (self::codeIgniterCgiCheck() || PHP_VERSION_ID >= 80200) {
             $this->markTestSkipped('Skip: Test doesn\'t run with cgi SAPIs');
         }
 
