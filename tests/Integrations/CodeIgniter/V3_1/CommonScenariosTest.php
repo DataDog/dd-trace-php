@@ -21,6 +21,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    protected static function codeIgniterCgiCheck()
+    {
+        return strpos(getenv('DD_TRACE_TEST_SAPI'), 'cgi') === 0;
+    }
+
     public function testScenarioGetReturnString()
     {
         $this->tracesFromWebRequestSnapshot(function () {
@@ -45,8 +50,44 @@ class CommonScenariosTest extends WebFrameworkTestCase
         });
     }
 
+    public function testScenarioGetWithExceptionCgi()
+    {
+        if (!self::codeIgniterCgiCheck()) {
+            $this->markTestSkipped('Skip: Test only runs with cgi SAPIs');
+        }
+
+        $this->tracesFromWebRequestSnapshot(function () {
+            $this->call(
+                GetSpec::create(
+                    'A GET request with an exception',
+                    '/error?key=value&pwd=should_redact'
+                )
+            );
+        });
+    }
+
+    public function testScenarioGetToMissingRouteCgi()
+    {
+        if (!self::codeIgniterCgiCheck()) {
+            $this->markTestSkipped('Skip: Test only runs with cgi SAPIs');
+        }
+
+        $this->tracesFromWebRequestSnapshot(function () {
+            $this->call(
+                GetSpec::create(
+                    'A GET request to a missing route',
+                    '/does_not_exist?key=value&pwd=should_redact'
+                )
+            );
+        });
+    }
+
     public function testScenarioGetWithException()
     {
+        if (self::codeIgniterCgiCheck()) {
+            $this->markTestSkipped('Skip: Test doesn\'t run with cgi SAPIs');
+        }
+
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 GetSpec::create(
@@ -59,6 +100,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetToMissingRoute()
     {
+        if (self::codeIgniterCgiCheck()) {
+            $this->markTestSkipped('Skip: Test doesn\'t run with cgi SAPIs');
+        }
+
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 GetSpec::create(

@@ -5,17 +5,17 @@
     "resource": "GET /does_not_exist",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 1061763603094000520,
+    "parent_id": 2162643876065918024,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "660beae300000000",
+      "_dd.p.tid": "660beb1600000000",
       "component": "codeigniter",
       "http.method": "GET",
       "http.route": "does_not_exist",
-      "http.status_code": "404",
+      "http.status_code": "200",
       "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
-      "runtime-id": "232799b0-3a18-4d64-9c97-4f6b441bb91e",
+      "runtime-id": "0caac976-2232-42e0-a186-9f73b4c27f50",
       "span.kind": "server"
     },
     "metrics": {
