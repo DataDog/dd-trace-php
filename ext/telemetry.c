@@ -84,9 +84,9 @@ void ddtrace_telemetry_finalize(void) {
     zend_string *integration_name;
     zval *metric_value;
     ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(telemetry_spans_created_per_integration), integration_name, metric_value) {
-        zend_string *tags = zend_string_concat2(ZEND_STRL("integration_name:"), ZSTR_VAL(integration_name), ZSTR_LEN(integration_name));
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, Z_DVAL_P(metric_value), dd_zend_string_to_CharSlice(tags));
-        zend_string_release(tags);
+        zai_string tags = zai_string_concat3((zai_str)ZAI_STRL("integration_name:"), (zai_str)ZAI_STR_FROM_ZSTR(integration_name), (zai_str)ZAI_STRING_EMPTY);
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, Z_DVAL_P(metric_value), dd_zai_string_to_CharSlice(tags));
+        zai_string_destroy(&tags);
     } ZEND_HASH_FOREACH_END();
 
     metric_name = DDOG_CHARSLICE_C("logs_created");

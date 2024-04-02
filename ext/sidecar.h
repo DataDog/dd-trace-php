@@ -14,6 +14,10 @@ static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
     return (ddog_CharSlice){ .len = str->len, .ptr = str->val };
 }
 
+static inline ddog_CharSlice dd_zai_string_to_CharSlice(zai_string str) {
+    return (ddog_CharSlice){ .len = str.len, .ptr = str.ptr };
+}
+
 static inline bool ddtrace_ffi_try(const char *msg, ddog_Option_VecU8 maybe_error) {
     if (maybe_error.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
         LOG(ERROR, "%s: %.*s", msg, (int) maybe_error.some.len, maybe_error.some.ptr);
