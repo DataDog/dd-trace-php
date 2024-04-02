@@ -10,7 +10,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_TRACE_LOG_LEVEL=warn
 --INI--
-datadog.trace.agent_url="file://{PWD}/integration-telemetry.out"
+datadog.trace.agent_url="file://{PWD}/metrics-logs-created-telemetry.out"
 --FILE--
 <?php
 
@@ -20,8 +20,8 @@ dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 100; ++$i) {
     usleep(100000);
-    if (file_exists(__DIR__ . '/integration-telemetry.out')) {
-        foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
+    if (file_exists(__DIR__ . '/metrics-logs-created-telemetry.out')) {
+        foreach (file(__DIR__ . '/metrics-logs-created-telemetry.out') as $l) {
             if ($l) {
                 $json = json_decode($l, true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
@@ -112,4 +112,4 @@ array(2) {
 --CLEAN--
 <?php
 
-@unlink(__DIR__ . '/integration-telemetry.out');
+@unlink(__DIR__ . '/metrics-logs-created-telemetry.out');

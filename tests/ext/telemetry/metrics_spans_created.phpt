@@ -10,7 +10,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 --INI--
-datadog.trace.agent_url="file://{PWD}/integration-telemetry.out"
+datadog.trace.agent_url="file://{PWD}/metrics-spans_created-telemetry.out"
 zend.assertions=1
 --FILE--
 <?php
@@ -80,8 +80,8 @@ namespace
 
     for ($i = 0; $i < 100; ++$i) {
         usleep(100000);
-        if (file_exists(__DIR__ . '/integration-telemetry.out')) {
-            foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
+        if (file_exists(__DIR__ . '/metrics-spans_created-telemetry.out')) {
+            foreach (file(__DIR__ . '/metrics-spans_created-telemetry.out') as $l) {
                 if ($l) {
                     $json = json_decode($l, true);
                     $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
@@ -234,4 +234,4 @@ array(4) {
 --CLEAN--
 <?php
 
-@unlink(__DIR__ . '/integration-telemetry.out');
+@unlink(__DIR__ . '/metrics-spans_created-telemetry.out');
