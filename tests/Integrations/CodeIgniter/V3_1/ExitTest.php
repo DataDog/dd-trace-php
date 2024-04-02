@@ -1,6 +1,6 @@
 <?php
 
-namespace Integrations\CodeIgniter\V3_1;
+namespace DDTrace\Tests\Integrations\CodeIgniter\V3_1;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -16,7 +16,9 @@ class ExitTest extends WebFrameworkTestCase
 
     protected static function getEnvs()
     {
-        return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'codeigniter_test_app']);
+        return array_merge(parent::getEnvs(), [
+            'DD_SERVICE' => 'codeigniter_test_app',
+        ]);
     }
 
     public function testScenarioExit()

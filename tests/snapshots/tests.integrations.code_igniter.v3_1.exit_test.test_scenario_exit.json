@@ -5,18 +5,18 @@
     "resource": "GET /exits",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 18269278339612647463,
+    "parent_id": 13223261049890104880,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "65c9efa500000000",
+      "_dd.p.tid": "660bca4400000000",
       "app.endpoint": "Exits::index",
       "component": "codeigniter",
       "http.method": "GET",
       "http.route": "exits",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/exits",
-      "runtime-id": "9720020c-cd25-46fa-9e97-d3838ee03326",
+      "runtime-id": "de8ed04e-02e4-40ef-be2a-20aeeb1398ef",
       "span.kind": "server"
     },
     "metrics": {

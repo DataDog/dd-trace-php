@@ -5,18 +5,18 @@
     "resource": "GET /simple_view",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 696982836083391658,
+    "parent_id": 5481136724631663608,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "65c9ef6000000000",
+      "_dd.p.tid": "660bca2700000000",
       "app.endpoint": "Simple_View::index",
       "component": "codeigniter",
       "http.method": "GET",
       "http.route": "simple_view",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/simple_view?key=value&<redacted>",
-      "runtime-id": "9e831e94-6e62-4f5f-adc3-57d8e1936c63",
+      "runtime-id": "26ab24e6-051f-4e1f-9adf-3d609bef6946",
       "span.kind": "server"
     },
     "metrics": {

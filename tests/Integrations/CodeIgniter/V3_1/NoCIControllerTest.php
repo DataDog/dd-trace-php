@@ -16,7 +16,9 @@ class NoCIControllerTest extends WebFrameworkTestCase
 
     protected static function getEnvs()
     {
-        return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'codeigniter_test_app']);
+        return array_merge(parent::getEnvs(), [
+            'DD_SERVICE' => 'codeigniter_test_app',
+        ]);
     }
 
     public function testScenarioHealthCheck()
