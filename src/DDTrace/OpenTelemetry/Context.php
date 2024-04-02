@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OpenTelemetry\Context;
 
+use DDTrace\RootSpanData;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
@@ -197,7 +198,7 @@ final class Context implements ContextInterface
             API\Span::fromContext($parentContext), // $parentSpan (TODO: Handle null parent span) ?
             $parentContext, // $parentContext
             NoopSpanProcessor::getInstance(), // $spanProcessor
-            ResourceInfoFactory::defaultResource(), // $resource
+            ($currentSpan->parent === null && $currentSpan instanceof RootSpanData) ? ResourceInfoFactory::defaultResource() : ResourceInfoFactory::emptyResource(), // $resource
             [], // $attributesBuilder
             $links, // $links
             count($links), // $totalRecordedLinks
