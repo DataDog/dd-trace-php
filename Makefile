@@ -977,7 +977,7 @@ define run_composer_with_retry
 	done \
 
 	mkdir -p /tmp/artifacts
-	$(COMPOSER) --working-dir=$1 show -f json | grep -o '"name": "[^"]*\|"version": "[^"]*' | paste -d';' - - | sed 's/"name": //; s/"version": //' | tr -d '"' >> "/tmp/artifacts/web_versions.csv"
+	$(COMPOSER) --working-dir=$1 show -f json -D | grep -o '"name": "[^"]*\|"version": "[^"]*' | paste -d';' - - | sed 's/"name": //; s/"version": //' | tr -d '"' >> "/tmp/artifacts/web_versions.csv"
 endef
 
 define run_tests_without_coverage
