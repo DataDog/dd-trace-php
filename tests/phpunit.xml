@@ -51,6 +51,10 @@
             <directory>./Integrations/Laravel/V10_x</directory>
             <directory>./Integrations/CLI/Laravel/V10_X</directory>
         </testsuite>
+        <testsuite name="laravel-11x-test">
+            <directory>./Integrations/Laravel/V11_x</directory>
+            <directory>./Integrations/CLI/Laravel/V11_X</directory>
+        </testsuite>
         <testsuite name="opentelemetry1">
             <directory>./OpenTelemetry/Unit/API</directory>
             <directory>./OpenTelemetry/Unit/Context</directory>
