@@ -110,11 +110,9 @@ The next release will be version 1.0 and remove deprecated and some unused code 
 - Add DD_API_SECURITY_ENABLED flag #2532
 - Add DD_APPSEC_SCA_ENABLED new configuration variable #2557
 
-### Changed
-- Enable appsec by ini only when enable-appsec present #2567
-
 ### Fixed
 - Make Laravel appsec login success event more accurate #2600
+- Enable appsec by ini only when enable-appsec present #2567
 - Provide path params to appsec #2395
 ]]></notes>
     <contents>
