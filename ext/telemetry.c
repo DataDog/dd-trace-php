@@ -91,11 +91,22 @@ void ddtrace_telemetry_finalize(void) {
 
     metric_name = DDOG_CHARSLICE_C("logs_created");
     ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name);
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)ddog_get_logs_count(DDOG_CHARSLICE_C("trace")), DDOG_CHARSLICE_C("level:trace"));
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)ddog_get_logs_count(DDOG_CHARSLICE_C("debug")), DDOG_CHARSLICE_C("level:debug"));
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)ddog_get_logs_count(DDOG_CHARSLICE_C("info")), DDOG_CHARSLICE_C("level:info"));
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)ddog_get_logs_count(DDOG_CHARSLICE_C("warn")), DDOG_CHARSLICE_C("level:warning"));
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)ddog_get_logs_count(DDOG_CHARSLICE_C("error")), DDOG_CHARSLICE_C("level:error"));
+    static const struct {
+        const ddog_CharSlice level;
+        const ddog_CharSlice tags;
+    } log_levels[] = {
+        {DDOG_CHARSLICE_C("trace"), DDOG_CHARSLICE_C("level:trace")},
+        {DDOG_CHARSLICE_C("debug"), DDOG_CHARSLICE_C("level:debug")},
+        {DDOG_CHARSLICE_C("info"), DDOG_CHARSLICE_C("level:info")},
+        {DDOG_CHARSLICE_C("warn"), DDOG_CHARSLICE_C("level:warn")},
+        {DDOG_CHARSLICE_C("error"), DDOG_CHARSLICE_C("level:error")},
+    };
+    uint32_t count;
+    for (size_t i = 0; i < sizeof(log_levels) / sizeof(log_levels[0]); ++i) {
+        if ((count = ddog_get_logs_count(log_levels[i].level)) > 0) {
+            ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)count, log_levels[i].tags);
+        }
+    }
 
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 

@@ -51,36 +51,8 @@ for ($i = 0; $i < 100; ++$i) {
 [ddtrace] [warning] foo
 [ddtrace] [warning] bar
 [ddtrace] [error] Boum
-array(5) {
+array(2) {
   [0]=>
-  array(7) {
-    ["namespace"]=>
-    string(7) "tracers"
-    ["metric"]=>
-    string(12) "logs_created"
-    ["points"]=>
-    array(1) {
-      [0]=>
-      array(2) {
-        [0]=>
-        int(%d)
-        [1]=>
-        float(0)
-      }
-    }
-    ["tags"]=>
-    array(1) {
-      [0]=>
-      string(11) "level:debug"
-    }
-    ["common"]=>
-    bool(false)
-    ["type"]=>
-    string(5) "count"
-    ["interval"]=>
-    int(10)
-  }
-  [1]=>
   array(7) {
     ["namespace"]=>
     string(7) "tracers"
@@ -108,63 +80,7 @@ array(5) {
     ["interval"]=>
     int(10)
   }
-  [2]=>
-  array(7) {
-    ["namespace"]=>
-    string(7) "tracers"
-    ["metric"]=>
-    string(12) "logs_created"
-    ["points"]=>
-    array(1) {
-      [0]=>
-      array(2) {
-        [0]=>
-        int(%d)
-        [1]=>
-        float(0)
-      }
-    }
-    ["tags"]=>
-    array(1) {
-      [0]=>
-      string(10) "level:info"
-    }
-    ["common"]=>
-    bool(false)
-    ["type"]=>
-    string(5) "count"
-    ["interval"]=>
-    int(10)
-  }
-  [3]=>
-  array(7) {
-    ["namespace"]=>
-    string(7) "tracers"
-    ["metric"]=>
-    string(12) "logs_created"
-    ["points"]=>
-    array(1) {
-      [0]=>
-      array(2) {
-        [0]=>
-        int(%d)
-        [1]=>
-        float(0)
-      }
-    }
-    ["tags"]=>
-    array(1) {
-      [0]=>
-      string(11) "level:trace"
-    }
-    ["common"]=>
-    bool(false)
-    ["type"]=>
-    string(5) "count"
-    ["interval"]=>
-    int(10)
-  }
-  [4]=>
+  [1]=>
   array(7) {
     ["namespace"]=>
     string(7) "tracers"
@@ -183,7 +99,7 @@ array(5) {
     ["tags"]=>
     array(1) {
       [0]=>
-      string(13) "level:warning"
+      string(10) "level:warn"
     }
     ["common"]=>
     bool(false)
