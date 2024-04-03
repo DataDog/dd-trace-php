@@ -4,6 +4,7 @@ use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::CharSlice;
 use ddcommon::tag::parse_tags;
 use ddtelemetry::data;
+use ddtelemetry::data::metrics::MetricNamespace;
 use ddtelemetry::data::{Dependency, Integration};
 use ddtelemetry::metrics::MetricContext;
 use ddtelemetry::worker::TelemetryActions;
@@ -134,11 +135,12 @@ pub extern "C" fn ddog_sidecar_telemetry_buffer_flush(
 pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
     buffer: &mut SidecarActionsBuffer,
     metric_name: CharSlice,
+    namespace: MetricNamespace,
 ) {
 
     buffer.buffer.push(SidecarAction::RegisterTelemetryMetric(MetricContext {
         name: metric_name.to_utf8_lossy().into_owned(),
-        namespace: data::metrics::MetricNamespace::Tracers,
+        namespace,
         metric_type: data::metrics::MetricType::Count,
         tags: Vec::default(),
         common: true,

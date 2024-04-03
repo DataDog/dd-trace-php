@@ -80,7 +80,7 @@ void ddtrace_telemetry_finalize(void) {
 
     // Telemetry metrics
     ddog_CharSlice metric_name = DDOG_CHARSLICE_C("spans_created");
-    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name, DDOG_METRIC_NAMESPACE_TRACERS);
     zend_string *integration_name;
     zval *metric_value;
     ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(telemetry_spans_created_per_integration), integration_name, metric_value) {
@@ -90,7 +90,7 @@ void ddtrace_telemetry_finalize(void) {
     } ZEND_HASH_FOREACH_END();
 
     metric_name = DDOG_CHARSLICE_C("logs_created");
-    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name, DDOG_METRIC_NAMESPACE_GENERAL);
     static struct {
         ddog_CharSlice level;
         ddog_CharSlice tags;

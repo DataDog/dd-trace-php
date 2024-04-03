@@ -55,7 +55,7 @@ array(2) {
   [0]=>
   array(7) {
     ["namespace"]=>
-    string(7) "tracers"
+    string(7) "general"
     ["metric"]=>
     string(12) "logs_created"
     ["points"]=>
@@ -83,7 +83,7 @@ array(2) {
   [1]=>
   array(7) {
     ["namespace"]=>
-    string(7) "tracers"
+    string(7) "general"
     ["metric"]=>
     string(12) "logs_created"
     ["points"]=>
