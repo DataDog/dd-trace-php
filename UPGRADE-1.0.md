@@ -10,7 +10,7 @@ Version 1.0 of dd-trace-php brings significant enhancements and improvements ove
 ## Changes Summary
 
 - [PHP 5 EOL](#php-5-eol)
-- [WordPress Integration](#wordpress-integration)
+- [WordPress](#wordpress)
     - [Configuration Changes](#configuration-changes)
     - [Breaking Changes](#breaking-changes)
 - [Context Propagation](#context-propagation)
@@ -33,7 +33,7 @@ To ensure a smooth transition to version 1.0, follow these migration steps:
 
 Starting from version 1.0, support for PHP 5 is removed. If you are using PHP 5, you can still use the PHP tracer up to version 0.99. The minimum PHP version requirement for `dd-trace-php` 1.x is PHP 7.
 
-## WordPress Changes
+## WordPress
 
 An opt-in improvement to the WordPress integration was released as a public-beta in [0.91.0](https://github.com/DataDog/dd-trace-php/releases/tag/0.91.0). Starting version 1.0, the PHP tracer will adopt this integration.
 
