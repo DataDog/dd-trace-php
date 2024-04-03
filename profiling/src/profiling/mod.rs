@@ -17,6 +17,7 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
 use crate::{CLOCKS, TAGS};
+use chrono::Utc;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::api::{
@@ -527,6 +528,7 @@ impl Profiler {
             upload_receiver,
             system_settings.output_pprof.clone(),
             system_settings.uri.clone(),
+            Utc::now(),
         );
 
         let ddprof_time = "ddprof_time";

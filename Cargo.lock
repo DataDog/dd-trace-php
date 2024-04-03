@@ -739,6 +739,7 @@ dependencies = [
  "bumpalo",
  "cc",
  "cfg-if",
+ "chrono",
  "cpu-time",
  "criterion",
  "criterion-perf-events",
