@@ -74,7 +74,7 @@ array(2) {
       string(11) "level:error"
     }
     ["common"]=>
-    bool(false)
+    bool(true)
     ["type"]=>
     string(5) "count"
     ["interval"]=>
@@ -102,7 +102,7 @@ array(2) {
       string(10) "level:warn"
     }
     ["common"]=>
-    bool(false)
+    bool(true)
     ["type"]=>
     string(5) "count"
     ["interval"]=>

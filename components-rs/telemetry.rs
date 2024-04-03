@@ -141,7 +141,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
         namespace: data::metrics::MetricNamespace::Tracers,
         metric_type: data::metrics::MetricType::Count,
         tags: Vec::default(),
-        common: false,
+        common: true,
     }));
 }
 

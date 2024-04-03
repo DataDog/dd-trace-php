@@ -140,7 +140,7 @@ array(4) {
       string(24) "integration_name:datadog"
     }
     ["common"]=>
-    bool(false)
+    bool(true)
     ["type"]=>
     string(5) "count"
     ["interval"]=>
@@ -168,7 +168,7 @@ array(4) {
       string(20) "integration_name:foo"
     }
     ["common"]=>
-    bool(false)
+    bool(true)
     ["type"]=>
     string(5) "count"
     ["interval"]=>
@@ -196,7 +196,7 @@ array(4) {
       string(21) "integration_name:otel"
     }
     ["common"]=>
-    bool(false)
+    bool(true)
     ["type"]=>
     string(5) "count"
     ["interval"]=>
@@ -224,7 +224,7 @@ array(4) {
       string(32) "integration_name:testintegration"
     }
     ["common"]=>
-    bool(false)
+    bool(true)
     ["type"]=>
     string(5) "count"
     ["interval"]=>
