@@ -108,7 +108,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $spanLink->droppedAttributesCount = 0; // Attributes limit aren't supported/meaningful in DD
 
                 // Save the link
-                ObjectKVStore::put($spanLink, "link", $link);
+                ObjectKVStore::put($spanLink, "link", $link, false);
                 $span->links[] = $spanLink;
             }
         }
@@ -160,7 +160,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $isRemapped
         );
 
-        ObjectKVStore::put($span, 'otel_span', $OTelSpan);
+        ObjectKVStore::put($span, 'otel_span', $OTelSpan, false);
 
         // Call onStart here to ensure the span is fully initialized.
         $spanProcessor->onStart($OTelSpan, $parentContext);
@@ -451,7 +451,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $otel = [];
         foreach ($datadogSpanLinks as $datadogSpanLink) {
             // Check if the link relationship exists
-            $link = ObjectKVStore::get($datadogSpanLink, "link");
+            $link = ObjectKVStore::get($datadogSpanLink, "link", null, false);
             if ($link === null) {
                 // Create the link
                 $link = new Link(
@@ -465,7 +465,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 );
 
                 // Save the link
-                ObjectKVStore::put($datadogSpanLink, "link", $link);
+                ObjectKVStore::put($datadogSpanLink, "link", $link, false);
             }
             $otel[] = $link;
         }

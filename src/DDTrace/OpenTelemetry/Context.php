@@ -123,7 +123,7 @@ final class Context implements ContextInterface
 
         // The dd span is ended, so end the OTel span
         /** @var SDK\Span $OTelCurrentSpan */
-        $OTelCurrentSpan = ObjectKVStore::get($currentSpan, 'otel_span'); // Note: SDK\Span::startSpan() associates the DDTrace span with the OTel span when it is created
+        $OTelCurrentSpan = ObjectKVStore::get($currentSpan, 'otel_span', null, false); // Note: SDK\Span::startSpan() associates the DDTrace span with the OTel span when it is created
         if ($OTelCurrentSpan !== null) {
             $OTelCurrentSpan->endOTelSpan();
         }
@@ -156,10 +156,10 @@ final class Context implements ContextInterface
         }
 
         /** @var SDK\Span $OTelCurrentSpan */
-        $OTelCurrentSpan = ObjectKVStore::get($currentSpan, 'otel_span'); // Note: SDK\Span::startSpan() associates the DDTrace span with the OTel span when it is created
+        $OTelCurrentSpan = ObjectKVStore::get($currentSpan, 'otel_span', null, false); // Note: SDK\Span::startSpan() associates the DDTrace span with the OTel span when it is created
         if ($OTelCurrentSpan !== null) { // If the current span has been activated, nothing to do, trigger backtalk
             // Return the context associated with the current span
-            if (ObjectKVStore::get($currentSpan, 'ddtrace_scope_activated')) {
+            if (ObjectKVStore::get($currentSpan, 'ddtrace_scope_activated', null, false)) {
                 return self::storage()->current()->with(self::$spanContextKey, $OTelCurrentSpan);
             } else {
                 return self::storage()->current();
@@ -203,9 +203,9 @@ final class Context implements ContextInterface
             count($links), // $totalRecordedLinks
             false // The span was created using the DD Api
         );
-        ObjectKVStore::put($currentSpan, 'otel_span', $OTelCurrentSpan);
+        ObjectKVStore::put($currentSpan, 'otel_span', $OTelCurrentSpan, false);
         $currentContext = $parentContext->with(self::$spanContextKey, $OTelCurrentSpan); // Sets the current span in the context
-        ObjectKVStore::put($currentSpan, 'ddtrace_scope_activated', true);
+        ObjectKVStore::put($currentSpan, 'ddtrace_scope_activated', true, false);
         self::storage()->attach($currentContext); // TODO: Handle Detach
 
         return $currentContext;
@@ -214,7 +214,7 @@ final class Context implements ContextInterface
     public function activate(): ScopeInterface
     {
         if ($this->span instanceof SDK\Span) {
-            ObjectKVStore::put($this->span->getDDSpan(), 'ddtrace_scope_activated', true);
+            ObjectKVStore::put($this->span->getDDSpan(), 'ddtrace_scope_activated', true, false);
         }
 
         $scope = self::storage()->attach($this);

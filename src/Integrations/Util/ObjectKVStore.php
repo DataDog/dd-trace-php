@@ -116,10 +116,11 @@ class ObjectKVStore
      * @param mixed $instance
      * @param string $key
      * @param mixed $value
+     * @param bool $safetyCheck
      */
-    public static function put($instance, $key, $value)
+    public static function put($instance, $key, $value, $safetyCheck = true)
     {
-        if (self::isIncompleteInfo($instance, $key)) {
+        if ($safetyCheck && self::isIncompleteInfo($instance, $key)) {
             return;
         }
 
@@ -147,11 +148,12 @@ class ObjectKVStore
      * @param mixed $instance
      * @param string $key
      * @param mixed $default
+     * @param bool $safetyCheck
      * @return mixed|null
      */
-    public static function get($instance, $key, $default = null)
+    public static function get($instance, $key, $default = null, $safetyCheck = true)
     {
-        if (self::isIncompleteInfo($instance, $key)) {
+        if ($safetyCheck && self::isIncompleteInfo($instance, $key)) {
             return $default;
         }
 
