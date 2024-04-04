@@ -1121,7 +1121,6 @@ benchmarks_opcache: benchmarks_run_dependencies call_benchmarks_opcache
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
 	$(MAKE) test_scenario_opentelemetry1
-	$(call run_composer_with_retry,tests/Frameworks/Custom/OpenTelemetry,)
 	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0)
 	$(call run_tests,--testsuite=opentelemetry1 $(TESTS))
 	$(eval TEST_EXTRA_ENV=)
@@ -1136,9 +1135,7 @@ test_opentracing_beta6: global_test_run_dependencies
 
 test_opentracing_10: global_test_run_dependencies
 	$(MAKE) test_scenario_opentracing10
-	$(call run_composer_with_retry,tests/Frameworks/Custom/OpenTracing,)
 	$(call run_tests,tests/OpenTracer1Unit)
-	$(call run_tests,tests/OpenTracing)
 
 test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
 test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))

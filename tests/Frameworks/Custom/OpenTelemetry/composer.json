@@ -1,6 +1,0 @@
-{
-    "require": {
-        "php": ">=7.4",
-        "open-telemetry/sdk": "^1.0"
-    }
-}
