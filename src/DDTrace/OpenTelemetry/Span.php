@@ -22,7 +22,6 @@ use Throwable;
 
 use function DDTrace\close_span;
 use function DDTrace\switch_stack;
-use function DDTrace\Internal\add_span_flag;
 
 final class Span extends API\Span implements ReadWriteSpanInterface
 {
@@ -143,9 +142,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         $resourceAttributes = $resource->getAttributes()->toArray();
         self::_setAttributes($span, $resourceAttributes);
-
-        // Mark the span as created by OpenTelemetry
-        add_span_flag($span, \DDTrace\Internal\SPAN_FLAG_OPENTELEMETRY);
 
         $OTelSpan = new self(
             $span,

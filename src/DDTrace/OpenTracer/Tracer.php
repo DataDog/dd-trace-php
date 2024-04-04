@@ -10,8 +10,6 @@ use DDTrace\Transport;
 use OpenTracing\ScopeManager as OTScopeManager;
 use OpenTracing\SpanContext as OTSpanContext;
 use OpenTracing\Tracer as OTTracer;
-use function DDTrace\active_span;
-use function DDTrace\Internal\add_span_flag;
 
 final class Tracer implements OTTracer
 {
@@ -84,14 +82,9 @@ final class Tracer implements OTTracer
         if ($options instanceof \OpenTracing\StartSpanOptions) {
             $options = self::deconstructStartSpanOptions($options);
         }
-        $span = new Span(
+        return new Span(
             $this->tracer->startSpan($operationName, $options)
         );
-
-        // Mark the span as created by OpenTracing
-        add_span_flag(active_span(), \DDTrace\Internal\SPAN_FLAG_OPENTRACING);
-
-        return $span;
     }
 
     /**
@@ -102,14 +95,9 @@ final class Tracer implements OTTracer
         if ($options instanceof \OpenTracing\StartSpanOptions) {
             $options = self::deconstructStartSpanOptions($options);
         }
-        $scope = new Scope(
+        return new Scope(
             $this->tracer->startActiveSpan($operationName, $options)
         );
-
-        // Mark the span as created by OpenTracing
-        add_span_flag(active_span(), \DDTrace\Internal\SPAN_FLAG_OPENTRACING);
-
-        return $scope;
     }
 
     /**

@@ -13,9 +13,6 @@
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
 
-#define DDTRACE_SPAN_FLAG_OPENTELEMETRY (1 << 0)
-#define DDTRACE_SPAN_FLAG_OPENTRACING (1 << 1)
-
 struct ddtrace_span_stack;
 
 enum ddtrace_span_dataype {
@@ -75,7 +72,6 @@ struct ddtrace_span_data {
     uint64_t start;
     uint64_t duration_start;
     uint64_t duration;
-    uint8_t flags;
     enum ddtrace_span_dataype type : 8;
     bool notify_user_req_end;
     struct ddtrace_span_data *next;

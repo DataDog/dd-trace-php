@@ -25,14 +25,6 @@ void ddtrace_telemetry_first_init(void) {
     dd_composer_hook_id = zai_hook_install((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
 }
 
-void ddtrace_telemetry_rinit(void) {
-    zend_hash_init(&DDTRACE_G(telemetry_spans_created_per_integration), 8, unused, NULL, 0);
-}
-
-void ddtrace_telemetry_rshutdown(void) {
-    zend_hash_destroy(&DDTRACE_G(telemetry_spans_created_per_integration));
-}
-
 void ddtrace_telemetry_finalize(void) {
     if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
@@ -77,16 +69,6 @@ void ddtrace_telemetry_finalize(void) {
             ddog_sidecar_telemetry_addIntegration_buffer(buffer, integration_name, DDOG_CHARSLICE_C(""), false);
         }
     }
-
-    // Telemetry metrics
-    ddog_CharSlice metric_name = DDOG_CHARSLICE_C("spans_created");
-    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name);
-    zend_string *integration_name;
-    zval *metric_value;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(telemetry_spans_created_per_integration), integration_name, metric_value) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, Z_DVAL_P(metric_value), dd_zend_string_to_CharSlice(integration_name));
-    } ZEND_HASH_FOREACH_END();
-
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 
     ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
@@ -115,34 +97,4 @@ void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
         ddog_sidecar_telemetry_addIntegration(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), integration,
                                               DDOG_CHARSLICE_C(""), true);
     }
-}
-
-void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span) {
-    zval *component = NULL;
-    if (Z_TYPE(span->property_meta) == IS_ARRAY) {
-        component = zend_hash_str_find(Z_ARRVAL(span->property_meta), ZEND_STRL("component"));
-    }
-
-    zend_string *integration = NULL;
-    if (component && Z_TYPE_P(component) == IS_STRING) {
-        integration = zend_string_copy(Z_STR_P(component));
-    } else if (span->flags & DDTRACE_SPAN_FLAG_OPENTELEMETRY) {
-        integration = zend_string_init(ZEND_STRL("otel"), 0);
-    } else if (span->flags & DDTRACE_SPAN_FLAG_OPENTRACING) {
-        integration = zend_string_init(ZEND_STRL("opentracing"), 0);
-    } else {
-        // Fallback value when the span has not been created by an integration, nor OpenTelemetry/OpenTracing (i.e. \DDTrace\span_start())
-        integration = zend_string_init(ZEND_STRL("datadog"), 0);
-    }
-
-    zval *current = zend_hash_find(&DDTRACE_G(telemetry_spans_created_per_integration), integration);
-    if (current) {
-        ++Z_DVAL_P(current);
-    } else {
-        zval counter;
-        ZVAL_DOUBLE(&counter, 1.0);
-        zend_hash_add(&DDTRACE_G(telemetry_spans_created_per_integration), integration, &counter);
-    }
-
-    zend_string_release(integration);
 }

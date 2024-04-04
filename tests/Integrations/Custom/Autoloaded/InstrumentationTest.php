@@ -53,15 +53,8 @@ final class InstrumentationTest extends WebFrameworkTestCase
             $this->fail("Go no response from request-dumper");
         }
 
-        $this->assertCount(4, $response);
+        $this->assertCount(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
-
-        $isMetric = function (array $payload) {
-            return 'generate-metrics' === $payload['request_type'];
-        };
-        $metrics = array_values(array_filter($payloads, $isMetric));
-        $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
-
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertContains([
             "name" => "agent_host",
@@ -77,12 +70,6 @@ final class InstrumentationTest extends WebFrameworkTestCase
         }));
         // Not asserting app-closing, this is not expected to happen until shutdown
 
-        $this->assertCount(1, $metrics);
-        $this->assertEquals("generate-metrics", $metrics[0]["request_type"]);
-        $this->assertEquals("tracers", $metrics[0]["payload"]["series"][0]["namespace"]);
-        $this->assertEquals("spans_created", $metrics[0]["payload"]["series"][0]["metric"]);
-        $this->assertEquals(["integration_name:datadog"], $metrics[0]["payload"]["series"][0]["tags"]);
-
         $this->call(GetSpec::create("autoloaded", "/pdo"));
 
         $response = $this->retrieveDumpedData();
@@ -90,12 +77,8 @@ final class InstrumentationTest extends WebFrameworkTestCase
             $this->fail("Go no response from request-dumper");
         }
 
-        $this->assertCount(4, $response);
+        $this->assertCount(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
-
-        $metrics = array_values(array_filter($payloads, $isMetric));
-        $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
-
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
         $this->assertEquals("app-integrations-change", $payloads[2]["request_type"]);
@@ -122,11 +105,5 @@ final class InstrumentationTest extends WebFrameworkTestCase
                 'auto_enabled' => null,
             ]
         ], $payloads[2]["payload"]["integrations"]);
-
-        $this->assertCount(1, $metrics);
-        $this->assertEquals("generate-metrics", $metrics[0]["request_type"]);
-        $this->assertEquals("tracers", $metrics[0]["payload"]["series"][0]["namespace"]);
-        $this->assertEquals("spans_created", $metrics[0]["payload"]["series"][0]["metric"]);
-        $this->assertEquals(["integration_name:pdo"], $metrics[0]["payload"]["series"][0]["tags"]);
     }
 }

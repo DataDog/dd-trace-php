@@ -171,14 +171,6 @@ ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(ddog_SidecarTransport **tran
                                                     const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer);
 
-void ddog_sidecar_telemetry_register_metric_buffer(struct ddog_SidecarActionsBuffer *buffer,
-                                                   ddog_CharSlice metric_name);
-
-void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActionsBuffer *buffer,
-                                                         ddog_CharSlice metric_name,
-                                                         double metric_value,
-                                                         ddog_CharSlice integration_name);
-
 ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,

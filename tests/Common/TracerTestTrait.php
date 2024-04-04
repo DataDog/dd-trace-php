@@ -463,14 +463,8 @@ trait TracerTestTrait
     /**
      * Returns the raw response body, if any, or null otherwise.
      */
-    public function retrieveDumpedData(callable $until = null, $throw = false)
+    public function retrieveDumpedData()
     {
-        if (!$until) {
-            $until = function ($request) {
-                return (strpos($request["uri"] ?? "", "/telemetry/") !== 0);
-            };
-        }
-
         $allResponses = [];
 
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
@@ -494,18 +488,12 @@ trait TracerTestTrait
                 $loaded = json_decode($response, true);
                 array_push($allResponses, ...$loaded);
                 foreach ($loaded as $request) {
-                    if ($until($request)) {
-                        return $allResponses;
+                    if (strpos($request["uri"] ?? "", "/telemetry/") !== 0) {
+                        break 2;
                     }
                 }
-                \usleep(1000);
             }
         }
-
-        if ($throw) {
-            throw new \LogicException('The expected request was not found');
-        }
-
         return $allResponses;
     }
 
