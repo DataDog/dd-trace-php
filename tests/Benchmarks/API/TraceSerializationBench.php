@@ -8,7 +8,7 @@ class TraceSerializationBench
 {
     /**
      * @Revs(1)
-     * @Iterations(20)
+     * @Iterations(50)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUp")

@@ -32,7 +32,7 @@ class ContextPropagationBench
 
     /**
      * @Revs(100)
-     * @Iterations(10)
+     * @Iterations(20)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
@@ -45,7 +45,7 @@ class ContextPropagationBench
 
     /**
      * @Revs(100)
-     * @Iterations(10)
+     * @Iterations(20)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
@@ -58,7 +58,7 @@ class ContextPropagationBench
 
     /**
      * @Revs(100)
-     * @Iterations(15)
+     * @Iterations(25)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
@@ -71,7 +71,7 @@ class ContextPropagationBench
 
     /**
      * @Revs(100)
-     * @Iterations(10)
+     * @Iterations(20)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("resetContext")
@@ -84,7 +84,7 @@ class ContextPropagationBench
 
     /**
      * @Revs(100)
-     * @Iterations(10)
+     * @Iterations(20)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUp128BitContext")
@@ -97,7 +97,7 @@ class ContextPropagationBench
 
     /**
      * @Revs(100)
-     * @Iterations(10)
+     * @Iterations(20)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUp64BitContext")

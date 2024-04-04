@@ -8,7 +8,7 @@ class SamplingRuleMatchingBench
 {
     /**
      * @Revs(1000)
-     * @Iterations(10)
+     * @Iterations(50)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
@@ -20,7 +20,7 @@ class SamplingRuleMatchingBench
 
     /**
      * @Revs(1000)
-     * @Iterations(10)
+     * @Iterations(50)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
@@ -32,7 +32,7 @@ class SamplingRuleMatchingBench
 
     /**
      * @Revs(1000)
-     * @Iterations(10)
+     * @Iterations(50)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
@@ -56,7 +56,7 @@ class SamplingRuleMatchingBench
 
     /**
      * @Revs(1000)
-     * @Iterations(10)
+     * @Iterations(50)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
@@ -68,7 +68,7 @@ class SamplingRuleMatchingBench
 
     /**
      * @Revs(1000)
-     * @Iterations(10)
+     * @Iterations(50)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
@@ -80,7 +80,7 @@ class SamplingRuleMatchingBench
 
     /**
      * @Revs(1000)
-     * @Iterations(10)
+     * @Iterations(50)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
@@ -92,7 +92,7 @@ class SamplingRuleMatchingBench
 
     /**
      * @Revs(1000)
-     * @Iterations(10)
+     * @Iterations(50)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @Warmup(1)
