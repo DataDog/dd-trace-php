@@ -731,7 +731,7 @@ dependencies = [
 
 [[package]]
 name = "datadog-php-profiling"
-version = "0.99.0"
+version = "0.99.1"
 dependencies = [
  "ahash 0.8.6",
  "anyhow",

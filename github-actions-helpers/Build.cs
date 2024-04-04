@@ -25,7 +25,7 @@ partial class Build : NukeBuild
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
 
     [Parameter("The current version of the source and build")]
-    readonly string Version = "0.99.0";
+    readonly string Version = "0.99.1";
 
     Target Clean => _ => _
         .Before(Restore)
