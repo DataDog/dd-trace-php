@@ -306,7 +306,7 @@ EOT
     if test "$PHP_DDTRACE_SIDECAR_MOCKGEN" != "-"; then
       ddtrace_mockgen_invocation="HOST= TARGET= $PHP_DDTRACE_SIDECAR_MOCKGEN"
     else
-      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) run"
+      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST=$(rustc -vV | sed -n 's|host: ||p') TARGET=$(rustc -vV | sed -n 's|host: ||p') CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) run"
     fi
     cat <<EOT >> Makefile.fragments
 
