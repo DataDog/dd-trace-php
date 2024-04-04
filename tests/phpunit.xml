@@ -32,6 +32,9 @@
         <testsuite name="codeigniter-22-test">
             <directory>./Integrations/CodeIgniter/V2_2</directory>
         </testsuite>
+        <testsuite name="codeigniter-31-test">
+            <directory>./Integrations/CodeIgniter/V3_1</directory>
+        </testsuite>
         <testsuite name="composer-tests">
             <directory>./Composer</directory>
         </testsuite>
