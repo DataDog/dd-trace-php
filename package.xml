@@ -64,56 +64,11 @@
         <![CDATA[
 ## Tracer
 
-Windows x64 support is officially GA (generally available).
-
-Some performance work has been undertaken to primarily reduce the overhead of telemetry reporting.
-The next release will be version 1.0 and remove deprecated and some unused code and APIs.
-
-### Added
-- Support the [FrankenPHP](https://frankenphp.dev/) SAPIs #2602
-- Add zts support for alpine #2564
-- Swoole Integration #2595
-
 ### Changed
-- w3c phase 2: add last parent_id to tracestate #2549
+- revert “Send spans_created telemetry metric #2577” to fix a memory leak
 
 ### Fixed
-- Handle relative ext/ paths and test the windows installer #2559
-- Fix exec integration build on PHP 8.4 #2543
-- Fix Orphans not being sampled-out #2550
-- Fix fibers with tracer disabled #2576
-- Update update_span_duration return type #2586
-- Fix #2563: ddtrace overrides php error log permissions #2583
-- Allow hooking an inherited internal constructor #2591
-- Distinguish architectures on windows #2593
-- Fix the ExecIntegration name #2597
-
-### Internal
-- Get rid of some bitwise checking in ddog_shall_log #2539
-- Use faster bincode for ipc #2544
-- Update to use DDOG_CHARSLICE_C and new DDOG_CHARSLICE_C_BARE helpers #2565
-- Slightly Improve OTel Performances #2561
-- Send spans_created telemetry metric #2577
-
-## Profiler
-### Added
-- add [FrankenPHP](https://frankenphp.dev/) to the list of recognised SAPIs #2523
-- enabled allocation profiling for PHP ZTS #2506
-- report PHP build (`nts-ndebug` vs `zts-ndebug`) #2536
-
-### Internal
-- add tests for exception profiling in ZTS builds #2562
-- update to libdatadog v7 #2605
-
-## Application Security Management
-### Added
-- Add DD_API_SECURITY_ENABLED flag #2532
-- Add DD_APPSEC_SCA_ENABLED new configuration variable #2557
-
-### Fixed
-- Make Laravel appsec login success event more accurate #2600
-- Enable appsec by ini only when enable-appsec present #2567
-- Provide path params to appsec #2395
+- Fix compilation on macOs #2613
 ]]></notes>
     <contents>
         <dir name="/">
