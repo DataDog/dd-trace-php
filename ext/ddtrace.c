@@ -72,6 +72,7 @@
 #include "span.h"
 #include "startup_logging.h"
 #include "telemetry.h"
+#include "threads.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "user_request.h"
 #include "zend_hrtime.h"
@@ -536,6 +537,9 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
+#if ZTS
+    ddtrace_thread_ginit();
+#endif
     zai_hook_ginit();
     zend_hash_init(&ddtrace_globals->git_metadata, 8, unused, (dtor_func_t)ddtrace_git_metadata_dtor, 1);
 }
@@ -609,6 +613,9 @@ static void dd_clean_main_thread_locals() {
 #endif
 
 static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
+#if ZTS
+    ddtrace_thread_gshutdown();
+#endif
     if (ddtrace_globals->agent_config_reader) {
         ddog_agent_remote_config_reader_drop(ddtrace_globals->agent_config_reader);
     }
@@ -1370,6 +1377,9 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_user_req_shutdown();
 
     ddtrace_sidecar_shutdown();
+#if ZTS
+    ddtrace_thread_mshutdown();
+#endif
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
     // See dd_register_span_data_ce for explanation

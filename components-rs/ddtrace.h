@@ -174,7 +174,7 @@ bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remo
                                              ddog_CharSlice config,
                                              ddog_CharSlice new_value);
 
-void ddog_setup_dynamic_configuration(ddog_DynamicConfigUpdate update_config,
+void ddog_setup_remote_config(ddog_DynamicConfigUpdate update_config,
                                       const struct ddog_LiveDebuggerSetup *setup);
 
 void ddog_rinit_remote_config(struct ddog_RemoteConfigState *remote_config);

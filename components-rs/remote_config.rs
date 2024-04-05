@@ -232,7 +232,7 @@ pub unsafe extern "C" fn ddog_remote_config_alter_dynamic_config(remote_config: 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_setup_dynamic_configuration(update_config: DynamicConfigUpdate, setup: &LiveDebuggerSetup) {
+pub unsafe extern "C" fn ddog_setup_remote_config(update_config: DynamicConfigUpdate, setup: &LiveDebuggerSetup) {
     register_expr_evaluator(setup.evaluator);
     DYNAMIC_CONFIG_UPDATE = Some(update_config);
     LIVE_DEBUGGER_CALLBACKS = Some(setup.callbacks.clone());
