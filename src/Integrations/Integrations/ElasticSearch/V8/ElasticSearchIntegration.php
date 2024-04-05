@@ -8,7 +8,6 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
-use function DDTrace\install_hook;
 
 class ElasticSearchIntegration extends Integration
 {
