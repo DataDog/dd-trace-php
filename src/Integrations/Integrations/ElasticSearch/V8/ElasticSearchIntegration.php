@@ -34,7 +34,7 @@ class ElasticSearchIntegration extends Integration
                 if (!$constructorCalled) {
                     foreach (get_class_methods('Elastic\Elasticsearch\Traits\NamespaceTrait') as $method) {
                         $hook = function ($obj, $scope, $args, $ret) use ($integration, $method) {
-                            \dd_untrace('Elastic\Elasticsearch\Traits\NamespaceTrait', $method);
+                            \dd_untrace('Elastic\Elasticsearch\Client', $method);
                             $class = get_class($ret);
                             foreach (get_class_methods($ret) as $method) {
                                 $integration->traceNamespaceMethod($class, $method);
