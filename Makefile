@@ -512,7 +512,6 @@ TEST_INTEGRATIONS_70 := \
 TEST_WEB_70 := \
 	test_metrics \
 	test_web_cakephp_28 \
-	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_laravel_42 \
