@@ -29,6 +29,10 @@
             <directory>./Integrations/CakePHP/V2_8</directory>
             <directory>./Integrations/CLI/CakePHP/V2_8</directory>
         </testsuite>
+        <testsuite name="cakephp-310-test">
+            <directory>./Integrations/CakePHP/V3_10</directory>
+            <directory>./Integrations/CLI/CakePHP/V3_10</directory>
+        </testsuite>
         <testsuite name="codeigniter-22-test">
             <directory>./Integrations/CodeIgniter/V2_2</directory>
         </testsuite>

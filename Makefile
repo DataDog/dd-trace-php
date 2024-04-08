@@ -512,6 +512,7 @@ TEST_INTEGRATIONS_70 := \
 TEST_WEB_70 := \
 	test_metrics \
 	test_web_cakephp_28 \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_laravel_42 \
@@ -557,6 +558,7 @@ TEST_INTEGRATIONS_71 := \
 TEST_WEB_71 := \
 	test_metrics \
 	test_web_cakephp_28 \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_laravel_42 \
@@ -610,6 +612,7 @@ TEST_INTEGRATIONS_72 := \
 
 TEST_WEB_72 := \
 	test_metrics \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
@@ -669,6 +672,7 @@ TEST_INTEGRATIONS_73 :=\
 
 TEST_WEB_73 := \
 	test_metrics \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
@@ -730,6 +734,7 @@ TEST_INTEGRATIONS_74 := \
 
 TEST_WEB_74 := \
 	test_metrics \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
@@ -1230,6 +1235,9 @@ test_integrations_swoole_5: global_test_run_dependencies
 test_web_cakephp_28: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_2_8,)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
+test_web_cakephp_310: global_test_run_dependencies
+	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_3_10,)
+	$(call run_tests_debug,--testsuite=cakephp-310-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
 test_web_codeigniter_31: global_test_run_dependencies

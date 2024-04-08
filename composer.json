@@ -36,7 +36,8 @@
         "sort-packages": true,
         "allow-plugins": {
             "g1a/composer-test-scenarios": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "cakephp/plugin-installer": true
         }
     },
     "autoload": {
