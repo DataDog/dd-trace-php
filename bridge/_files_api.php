@@ -12,4 +12,6 @@ return [
     __DIR__ . '/../src/api/Log/NullLogger.php',
     __DIR__ . '/../src/api/Log/LoggingTrait.php',
     __DIR__ . '/../src/api/Http/Urls.php',
+    __DIR__ . '/../src/php-dogstatsd/src/DogStatsd.php',
+    __DIR__ . '/../src/php-dogstatsd/src/BatchedDogStatsd.php',
 ];
