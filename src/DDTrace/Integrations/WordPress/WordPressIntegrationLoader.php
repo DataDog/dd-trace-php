@@ -2,8 +2,10 @@
 
 namespace DDTrace\Integrations\WordPress;
 
+use DataDog\DogStatsd;
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -196,8 +198,64 @@ class WordPressIntegrationLoader
         ini_set('datadog.trace.spans_limit', $spansLimit);
     }
 
+    public static function sendMetrics(
+        WordPressIntegration $integration,
+        DogStatsd $statsd,
+        float $duration,
+        string $hookName,
+        bool $topLevel,
+        string $pluginOrThemeName,
+        bool $error
+    ) {
+        //if (!dd_trace_env_config('DD_WORDPRESS_METRICS_ENABLED')) {
+        //    return;
+        //}
+
+        if (empty($pluginOrThemeName)) {
+            return;
+        }
+
+        if ($duration < 0.001) { // Don't send duration < 1ms
+            return;
+        }
+
+        $tags = [
+            'env' => $integration->getEnv(),
+            'service' => $integration->getServiceName(),
+            'version' => $integration->getVersion(),
+            'wordpress.hook.name' => $hookName,
+        ];
+
+        if ($error) {
+            $statsd->increment(
+                'wordpress.hook.error',
+                1.0,
+                $tags
+            );
+        }
+
+        if (!empty($pluginOrThemeName)) {
+            $tags['wordpress.plugin.name'] = $pluginOrThemeName;
+        }
+
+        $tags['wordpress.top_level']= $topLevel ? 1 : 0;
+
+        Logger::get()->debug("Send metric wordpress.hook.duration $duration with tags " . json_encode($tags, JSON_PRETTY_PRINT));
+
+        $statsd->distribution(
+            'wordpress.hook.duration',
+            $duration,
+            1.0,
+            $tags
+        );
+    }
+
     public function load(WordPressIntegration $integration)
     {
+        $statsd = new DogStatsd([
+            'datadog_host' => 'https://app.datadoghq.eu'
+        ]);
+
         // File loading
         hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
             WordPressIntegrationLoader::allowQueryParamsInResourceName();
@@ -621,6 +679,135 @@ class WordPressIntegrationLoader
                     }
                 }
             );
+        }
+
+        foreach (['apply_filters', 'apply_filters_ref_array'] as $function) {
+            install_hook(
+                $function,
+                function (HookData $hook) use (
+                    $integration,
+                    &$actionHookToPlugin,
+                    &$actionHookToTheme,
+                    $interestingActions
+                ) {
+                    $args = $hook->args;
+
+                    if (isset($args[0]) && isset($interestingActions[$args[0]])) {
+                        $span = $hook->span();
+                        WordPressIntegrationLoader::setCommonTags($integration, $span, 'action');
+
+                        $hookName = isset($args[0]) ? $args[0] : '?';
+
+                        if ($hookName === '?') {
+                            return;
+                        }
+
+                        $span->resource = "$hookName (hook)";
+                        $span->meta['wordpress.hook'] = $hookName;
+
+                        if (isset($actionHookToPlugin[$hookName])) { // Don't waste time if it gave null before
+                            if ($actionHookToPlugin[$hookName]) {
+                                $span->meta['wordpress.plugin'] = $actionHookToPlugin[$hookName];
+                            }
+                        } else {
+                            $file = $hook->getSourceFile();
+                            if (
+                                $plugin = WordPressIntegrationLoader::extractAndSavePluginNameFromSpan(
+                                    $file,
+                                    $hookName,
+                                    $actionHookToPlugin
+                                )
+                            ) {
+                                $span->meta['wordpress.plugin'] = $plugin;
+                            } elseif (
+                                $theme = WordPressIntegrationLoader::extractAndSaveThemeNameFromSpan(
+                                    $file,
+                                    $hookName,
+                                    $actionHookToTheme
+                                )
+                            ) {
+                                $span->meta['wordpress.theme'] = $theme;
+                            }
+                        }
+                    }
+                }
+            );
+        }
+
+        $inTopLevelHook = false;
+        foreach (['apply_filters', 'apply_filters_ref_array'] as $function) {
+            \DDTrace\install_hook(
+                $function,
+                function (HookData $hook) use (&$inTopLevelHook, &$actionHookToPlugin, &$actionHookToTheme) {
+                    $args = $hook->args;
+                    if (empty($args[0])) {
+                        return;
+                    }
+
+                    $hookName = $args[0];
+
+                    if (!empty($actionHookToPlugin[$hookName])) {
+                        $pluginOrThemeName = $actionHookToPlugin[$hookName];
+                    } else {
+                        $file = $hook->getSourceFile();
+                        if (
+                            $plugin = WordPressIntegrationLoader::extractAndSavePluginNameFromSpan(
+                                $file,
+                                $hookName,
+                                $actionHookToPlugin
+                            )
+                        ) {
+                            $pluginOrThemeName = $plugin;
+                        } elseif (
+                            $theme = WordPressIntegrationLoader::extractAndSaveThemeNameFromSpan(
+                                $file,
+                                $hookName,
+                                $actionHookToTheme
+                            )
+                        ) {
+                            $pluginOrThemeName = $theme;
+                        } else {
+                            $pluginOrThemeName = "";
+                        }
+                    }
+
+                    $hook->data['pluginOrThemeName'] = $pluginOrThemeName;
+
+                    if (!empty($pluginOrThemeName)) {
+                        if (!$inTopLevelHook) {
+                            //Logger::get()->debug("Is Top Level: {$args[0]}");
+                            $hook->data['topLevelHook'] = $hookName;
+                            $inTopLevelHook = true;
+                        }
+                        $hook->data['startTime'] = microtime(true);
+                    }
+
+                    $hook->allowNestedHook();
+                },
+                function (HookData $hook) use ($integration, $statsd, &$actionHookToPlugin, &$actionHookToTheme, &$inTopLevelHook, &$topLevelHookName) {
+                    $args = $hook->args;
+                    if (empty($args[0])) {
+                        return;
+                    }
+
+                    $hookName = $args[0];
+                    $topLevel = isset($hook->data['topLevelHook']) && $hook->data['topLevelHook'] === $hookName;
+
+                    $pluginOrThemeName = $hook->data['pluginOrThemeName'];
+                    if (!empty($pluginOrThemeName)) {
+                        WordPressIntegrationLoader::sendMetrics(
+                            $integration,
+                            $statsd,
+                            (microtime(true) - $hook->data['startTime']) * 1000,
+                            $hookName,
+                            $topLevel,
+                            $pluginOrThemeName,
+                            (bool)$hook->exception
+                        );
+                        $inTopLevelHook = false;
+                    }
+
+            });
         }
 
         static $plugin_loading_funcs = [

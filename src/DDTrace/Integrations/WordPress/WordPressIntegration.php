@@ -11,7 +11,28 @@ class WordPressIntegration extends Integration
     /**
      * @var string
      */
+    private $env;
+
+    /**
+     * @var string
+     */
     private $serviceName;
+
+    /**
+     * @var string
+     */
+    private $version;
+
+    public function getEnv()
+    {
+        if (!empty($this->env)) {
+            return $this->env;
+        }
+
+        $this->env = \dd_trace_env_config('DD_ENV');
+
+        return $this->env;
+    }
 
     public function getServiceName()
     {
@@ -22,6 +43,17 @@ class WordPressIntegration extends Integration
         $this->serviceName = \ddtrace_config_app_name(WordPressIntegration::NAME);
 
         return $this->serviceName;
+    }
+
+    public function getVersion()
+    {
+        if (!empty($this->version)) {
+            return $this->version;
+        }
+
+        $this->version = \dd_trace_env_config('DD_VERSION');
+
+        return $this->version;
     }
 
     /**
