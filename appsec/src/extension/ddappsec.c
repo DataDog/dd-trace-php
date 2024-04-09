@@ -354,7 +354,8 @@ __thread void *unspecnull TSRMLS_CACHE = NULL;
 static void _check_enabled()
 {
     if ((!get_global_DD_APPSEC_TESTING() && !dd_trace_enabled()) ||
-        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text)) {
+        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text) ||
+        (strcmp(sapi_module.name, "frankenphp") == 0)) {
         DDAPPSEC_G(enabled) = APPSEC_FULLY_DISABLED;
         DDAPPSEC_G(active) = false;
         DDAPPSEC_G(to_be_configured) = false;
