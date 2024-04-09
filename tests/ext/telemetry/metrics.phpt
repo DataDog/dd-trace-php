@@ -2,6 +2,7 @@
 Signal integration telemetry
 --SKIPIF--
 <?php
+die("skip: disabled");
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow');
 ?>

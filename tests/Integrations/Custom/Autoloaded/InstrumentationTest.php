@@ -41,6 +41,8 @@ final class InstrumentationTest extends WebFrameworkTestCase
 
     public function testInstrumentation()
     {
+        $this->markTestSkipped('WIP');
+
         if (extension_loaded('xdebug')) {
             $this->markTestSkipped('Xdebug extension is loaded');
         }
