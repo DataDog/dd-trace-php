@@ -733,8 +733,8 @@ TEST_INTEGRATIONS_74 := \
 
 TEST_WEB_74 := \
 	test_metrics \
-	test_web_cakephp_45 \
 	test_web_cakephp_310 \
+	test_web_cakephp_45 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
@@ -847,6 +847,7 @@ TEST_INTEGRATIONS_81 := \
 TEST_WEB_81 := \
 	test_metrics \
 	test_web_cakephp_45 \
+	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
@@ -899,6 +900,7 @@ TEST_INTEGRATIONS_82 := \
 TEST_WEB_82 := \
 	test_metrics \
 	test_web_cakephp_45 \
+	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
@@ -955,6 +957,7 @@ TEST_INTEGRATIONS_83 := \
 TEST_WEB_83 := \
 	test_metrics \
 	test_web_cakephp_45 \
+	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
@@ -1245,6 +1248,9 @@ test_web_cakephp_310: global_test_run_dependencies
 test_web_cakephp_45: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_4_5,)
 	$(call run_tests_debug,--testsuite=cakephp-45-test)
+test_web_cakephp_50: global_test_run_dependencies
+	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_5_0,)
+	$(call run_tests_debug,--testsuite=cakephp-50-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
 test_web_codeigniter_31: global_test_run_dependencies

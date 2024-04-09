@@ -157,7 +157,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/parameterized/paramValue',
                         'http.status_code' => '200',
-                        'http.route' => '/parameterized/:param',
+                        'http.route' => '/parameterized/{param}',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withChildren([
