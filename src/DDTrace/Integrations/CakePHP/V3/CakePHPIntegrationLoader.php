@@ -4,7 +4,9 @@ namespace DDTrace\Integrations\CakePHP\V3;
 
 use Cake\Http\ServerRequest;
 use Cake\Routing\Router;
+use DDTrace\HookData;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -92,15 +94,46 @@ class CakePHPIntegrationLoader
         ]);
 
         // Create a trace span for every template rendered
-        \DDTrace\trace_method('Cake\View\View', 'render', function (SpanData $span) use ($integration) {
-            $span->name = 'cakephp.view';
-            $span->type = Type::WEB_SERVLET;
-            /** @var \Cake\View\View $this */
-            $file = $this->getTemplatePath() . '/' . $this->getTemplate();
-            $span->resource = $file;
-            $span->meta = ['cakephp.view' => $file];
-            $span->service = $integration->appName;
-            $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
+        \DDTrace\install_hook(
+            'Cake\View\View::render',
+            function (HookData $renderHook) {
+                $renderHook->span();
+
+                // The next Cake\View\View::_getViewFileName call will happen from render and will return the filename
+                // of the given action template file with the extension (e.g., .ctp, .twig)
+                \DDTrace\install_hook(
+                    'Cake\View\View::_getViewFileName',
+                    null,
+                    function (HookData $hook) use ($renderHook) {
+                        $renderHook->data['viewFileName'] = $hook->returned;
+
+                        \DDTrace\remove_hook($hook->id);
+                    }
+                );
+            }, function (HookData $renderHook) use ($integration) {
+                $span = $renderHook->span();
+                $span->name = 'cakephp.view';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $integration->appName;
+                $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
+
+                $absoluteFilePath = $renderHook->data['viewFileName'] ?? '';
+                $fileExtension = pathinfo($absoluteFilePath, PATHINFO_EXTENSION);
+                $fileExtension = $fileExtension ? '.' . $fileExtension : '';
+                /** @var \Cake\View\View $this */
+                $file = $this->getTemplatePath() . '/' . $this->getTemplate() . $fileExtension;
+                $span->resource = $file;
+                $span->meta['cakephp.view'] = $file;
+
+                $plugin = $this->getPlugin();
+                if ($plugin) {
+                    $span->meta['cakephp.plugin'] = $plugin;
+                }
+
+                $theme = $this->getTheme();
+                if ($theme) {
+                    $span->meta['cakephp.theme'] = $theme;
+                }
         });
 
         \DDTrace\hook_method(
@@ -115,5 +148,7 @@ class CakePHPIntegrationLoader
                 $integration->rootSpan->meta[Tag::HTTP_ROUTE] = $app->template;
             }
         );
+
+        return Integration::LOADED;
     }
 }

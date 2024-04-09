@@ -95,9 +95,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp.view',
                             'cakephp_test_app',
                             'web',
-                            'Simple_view/index'
+                            'Simple_view/index.ctp'
                         )->withExactTags([
-                            'cakephp.view' => 'Simple_view/index',
+                            'cakephp.view' => 'Simple_view/index.ctp',
                             Tag::COMPONENT => 'cakephp',
                         ]),
                     ]),
@@ -137,9 +137,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp.view',
                             'cakephp_test_app',
                             'web',
-                            'Error/index'
+                            'Error/index.ctp'
                         )->withExactTags([
-                            'cakephp.view' => 'Error/index',
+                            'cakephp.view' => 'Error/index.ctp',
                             Tag::COMPONENT => 'cakephp',
                         ]),
                     ]),

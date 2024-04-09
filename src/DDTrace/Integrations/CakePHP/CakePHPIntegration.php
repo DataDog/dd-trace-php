@@ -21,23 +21,13 @@ class CakePHPIntegration extends Integration
         return self::NAME;
     }
 
-    // CakePHP v2.x - we don't need to check for v3 since it does not have \Dispatcher or \ShellDispatcher
     public function init(): int
     {
         $integration = $this;
 
-        // Since "Dispatcher" and "App" are common names, check for a CakePHP signature before loading
-        /*
-        if (!defined('CAKE_CORE_INCLUDE_PATH')) {
-            return self::NOT_AVAILABLE;
-        }
-        */
-
         $loader = class_exists('Cake\Http\Server') // Only exists in V3+
             ? new CakePHPIntegrationLoaderV3()
             : new CakePHPIntegrationLoaderV2();
-        $loader->load($integration);
-
-        return Integration::LOADED;
+        return $loader->load($integration);
     }
 }

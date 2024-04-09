@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\CakePHP\V2;
 
 use CakeRequest;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -15,6 +16,10 @@ class CakePHPIntegrationLoader
     // CakePHP v2.x - we don't need to check for v3 since it does not have \Dispatcher or \ShellDispatcher
     public function load($integration)
     {
+        if (!defined('CAKE_CORE_INCLUDE_PATH')) {
+            return Integration::NOT_AVAILABLE;
+        }
+
         $integration->rootSpan = null;
 
         $setRootSpanInfoFn = function () use ($integration) {
@@ -120,5 +125,7 @@ class CakePHPIntegrationLoader
                 $integration->rootSpan->meta[Tag::HTTP_ROUTE] = $app->template;
             }
         );
+
+        return Integration::LOADED;
     }
 }
