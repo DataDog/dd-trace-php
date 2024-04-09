@@ -12,6 +12,7 @@
 #include <components/log/log.h>
 #include "random.h"
 #include "serializer.h"
+#include "telemetry.h"
 #include "ext/standard/php_string.h"
 #include <hook/hook.h>
 #include "user_request.h"
@@ -552,6 +553,10 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     if (span->stack != DDTRACE_G(active_stack)) {
         ddtrace_switch_span_stack(span->stack);
     }
+
+    // Telemetry: increment the spans_created counter
+    // Must be done at closing because we need to read the "component" span's meta which is not available at creation
+    ddtrace_telemetry_inc_spans_created(span);
 
     ddtrace_close_stack_userland_spans_until(span);
 
