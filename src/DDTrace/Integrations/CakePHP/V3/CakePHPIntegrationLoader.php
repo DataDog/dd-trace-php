@@ -99,14 +99,16 @@ class CakePHPIntegrationLoader
             function (HookData $renderHook) {
                 $renderHook->span();
 
-                // The next Cake\View\View::_getViewFileName call will happen from render and will return the filename
-                // of the given action template file with the extension (e.g., .ctp, .twig)
+                // The next Cake\View\View::_getViewFileName (v3) or Cake\View\View::_getTemplateFileName (v4+) call
+                // will happen from render and will return the filename of the given action template file with the
+                // extension (e.g., .ctp, .twig)
+                $methodName = version_compare(\Cake\Core\Configure::version(), '4.0.0', '>=') ?
+                    'Cake\View\View::_getTemplateFileName' : 'Cake\View\View::_getViewFileName';
                 \DDTrace\install_hook(
-                    'Cake\View\View::_getViewFileName',
+                    $methodName,
                     null,
                     function (HookData $hook) use ($renderHook) {
                         $renderHook->data['viewFileName'] = $hook->returned;
-
                         \DDTrace\remove_hook($hook->id);
                     }
                 );
