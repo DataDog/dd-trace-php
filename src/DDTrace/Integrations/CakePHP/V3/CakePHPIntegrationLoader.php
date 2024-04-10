@@ -11,35 +11,13 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
-use function DDTrace\hook_method;
 
 class CakePHPIntegrationLoader
 {
     public function load($integration)
     {
-        $setRootSpanInfoFn = function () use ($integration) {
-            $rootSpan = \DDTrace\root_span();
-            if ($rootSpan === null) {
-                return;
-            }
-
-            $integration->appName = \ddtrace_config_app_name(CakePHPIntegration::NAME);
-            $integration->addTraceAnalyticsIfEnabled($rootSpan);
-            $rootSpan->service = $integration->appName;
-            if ('cli' === PHP_SAPI) {
-                $rootSpan->name = 'cakephp.console';
-                $rootSpan->resource = !empty($_SERVER['argv'][1])
-                    ? 'cake_console ' . $_SERVER['argv'][1]
-                    : 'cake_console';
-            } else {
-                $rootSpan->name = 'cakephp.request';
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-            }
-            $rootSpan->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
-        };
-
-        \DDTrace\hook_method('App\Application', '__construct', $setRootSpanInfoFn);
-        \DDTrace\hook_method('Cake\Http\Server', '__construct', $setRootSpanInfoFn);
+        \DDTrace\hook_method('App\Application', '__construct', $integration->setRootSpanInfoFn);
+        \DDTrace\hook_method('Cake\Http\Server', '__construct', $integration->setRootSpanInfoFn);
 
         \DDTrace\trace_method(
             'Cake\Controller\Controller',
@@ -79,23 +57,14 @@ class CakePHPIntegrationLoader
         \DDTrace\hook_method(
             'Cake\Error\Middleware\ErrorHandlerMiddleware',
             'handleException',
-            function ($This, $scope, $args) use ($integration) {
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan !== null) {
-                    $integration->setError($rootSpan, $args[0]);
-                }
-        });
+            $integration->handleExceptionFn
+        );
 
         \DDTrace\hook_method(
             'Cake\Http\Response',
             'getStatusCode',
             null,
-            function ($This, $scope, $args, $retval) use ($integration) {
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan) {
-                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $retval;
-                }
-            }
+            $integration->setStatusCodeFn
         );
 
         // Create a trace span for every template rendered
@@ -147,16 +116,7 @@ class CakePHPIntegrationLoader
             'Cake\Routing\Route\Route',
             'parseRequest',
             null,
-            function ($app, $appClass, $args, $retval) use ($integration) {
-                if (!$retval) {
-                    return;
-                }
-
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $app->template;
-                }
-            }
+            $integration->parseRouteFn
         );
 
         return Integration::LOADED;
