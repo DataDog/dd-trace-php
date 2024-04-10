@@ -162,9 +162,6 @@ void ddtrace_telemetry_finalize(void) {
                     ddog_sidecar_telemetry_flushServiceData(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name, env_name));
 
     ddog_sidecar_runtimeMeta_drop(meta);
-
-    ddtrace_ffi_try("Failed signaling lifecycle end",
-                    ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id)));
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {

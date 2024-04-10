@@ -36,9 +36,6 @@ static void ddtrace_set_resettable_sidecar_globals(void) {
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
 }
 
-const enum ddog_RemoteConfigProduct remote_config_products[1] = { DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING };
-const enum ddog_RemoteConfigCapabilities remote_config_capabilities[1] = { DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLED };
-
 ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
     // Should not happen
     if (!ddtrace_endpoint) {
@@ -85,14 +82,10 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
                                     get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                     get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                                     (ddog_CharSlice){ .ptr = logpath, .len = strlen(logpath) },
-
-                                    // Not used yet
-                                    NULL,
-                                    remote_config_products,
-                                    0,
-                                    remote_config_capabilities,
-                                    0
-                                    );
+                                    DDTRACE_REMOTE_CONFIG_PRODUCTS,
+                                    sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS) / sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS[0]),
+                                    DDTRACE_REMOTE_CONFIG_CAPABILITIES,
+                                    sizeof(DDTRACE_REMOTE_CONFIG_CAPABILITIES) / sizeof(DDTRACE_REMOTE_CONFIG_CAPABILITIES[0]));
 
     ddog_endpoint_drop(dogstatsd_endpoint);
 
@@ -318,14 +311,26 @@ void ddtrace_sidecar_submit_root_span_data(void) {
             }
 
             zval *env = zend_hash_str_find(ddtrace_property_array(&root->property_meta), ZEND_STRL("env"));
+            if (!env) {
+                env = &root->property_env;
+            }
             ddog_CharSlice env_slice = DDOG_CHARSLICE_C("none");
             if (env && Z_TYPE_P(env) == IS_STRING && Z_STRLEN_P(env) > 0) {
                 env_slice = dd_zend_string_to_CharSlice(Z_STR_P(env));
             }
 
-            ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, service_slice, env_slice, DDOG_CHARSLICE_C(""));
+            zval *version = zend_hash_str_find(ddtrace_property_array(&root->property_meta), ZEND_STRL("version"));
+            if (!version) {
+                version = &root->property_version;
+            }
+            ddog_CharSlice version_slice = DDOG_CHARSLICE_C("none");
+            if (version && Z_TYPE_P(version) == IS_STRING && Z_STRLEN_P(version) > 0) {
+                version_slice = dd_zend_string_to_CharSlice(Z_STR_P(version));
+            }
+
+            ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), service_slice, env_slice, version_slice);
             if (DDTRACE_G(remote_config_state)) {
-                ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice);
+                ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice);
             }
         }
     }

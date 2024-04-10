@@ -12,6 +12,12 @@
 #include "common.h"
 
 /**
+ * `QueueId` is a struct that represents a unique identifier for a queue.
+ * It contains a single field, `inner`, which is a 64-bit unsigned integer.
+ */
+typedef uint64_t ddog_QueueId;
+
+/**
  * This creates Rust PlatformHandle<File> from supplied C std FILE object.
  * This method takes the ownership of the underlying filedescriptor.
  *
@@ -56,7 +62,14 @@ void ddog_agent_remote_config_writer_drop(struct ddog_AgentRemoteConfigWriter_Sh
 
 struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_endpoint(const ddog_CharSlice *language,
                                                                        const ddog_CharSlice *tracer_version,
-                                                                       const struct ddog_Endpoint *endpoint);
+                                                                       const struct ddog_Endpoint *endpoint,
+                                                                       ddog_CharSlice service_name,
+                                                                       ddog_CharSlice env_name,
+                                                                       ddog_CharSlice app_version,
+                                                                       const enum ddog_RemoteConfigProduct *remote_config_products,
+                                                                       uintptr_t remote_config_products_count,
+                                                                       const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
+                                                                       uintptr_t remote_config_capabilities_count);
 
 bool ddog_remote_config_read(struct ddog_RemoteConfigReader *reader, ddog_CharSlice *data);
 
@@ -114,7 +127,7 @@ ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(ddog_SidecarTransport **
                                                         ddog_CharSlice service_name,
                                                         ddog_CharSlice env_name);
 
-ddog_MaybeError ddog_sidecar_telemetry_end(ddog_SidecarTransport **transport,
+ddog_MaybeError ddog_sidecar_lifecycle_end(ddog_SidecarTransport **transport,
                                            const struct ddog_InstanceId *instance_id,
                                            const ddog_QueueId *queue_id);
 
@@ -130,7 +143,11 @@ ddog_MaybeError ddog_sidecar_session_set_config(ddog_SidecarTransport **transpor
                                                 uintptr_t force_flush_size,
                                                 uintptr_t force_drop_size,
                                                 ddog_CharSlice log_level,
-                                                ddog_CharSlice log_path);
+                                                ddog_CharSlice log_path,
+                                                const enum ddog_RemoteConfigProduct *remote_config_products,
+                                                uintptr_t remote_config_products_count,
+                                                const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
+                                                uintptr_t remote_config_capabilities_count);
 
 ddog_MaybeError ddog_sidecar_send_trace_v04_shm(ddog_SidecarTransport **transport,
                                                 const struct ddog_InstanceId *instance_id,

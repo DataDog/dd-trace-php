@@ -158,8 +158,8 @@ DDTRACE_PUBLIC void ddtrace_set_all_thread_vm_interrupt(void) {
 }
 
 #ifndef _WIN32
-static void dd_sigprof_handler(int signal) {
-    UNUSED(signal);
+static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
+    UNUSED(signal, siginfo, ctx);
     ddtrace_set_all_thread_vm_interrupt();
 }
 #endif
@@ -176,7 +176,10 @@ void ddtrace_minit_remote_config(void) {
     zend_interrupt_function = dd_vm_interrupt;
 
 #ifndef _WIN32
-    zend_signal(SIGPROF, dd_sigprof_handler);
+    struct sigaction act = {0};
+    act.sa_flags = SA_RESTART;
+    act.sa_sigaction = dd_sigvtalarm_handler;
+    sigaction(SIGVTALRM, &act, NULL);
 #endif
 }
 

@@ -1059,6 +1059,18 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
             };
             value = &span->property_id;
         }
+    } else if (zend_string_equals_literal(prop_name, "service")) {
+        if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_service, value)) {
+            ddtrace_sidecar_submit_root_span_data();
+        }
+    } else if (zend_string_equals_literal(prop_name, "env")) {
+        if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_env, value)) {
+            ddtrace_sidecar_submit_root_span_data();
+        }
+    } else if (zend_string_equals_literal(prop_name, "version")) {
+        if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_version, value)) {
+            ddtrace_sidecar_submit_root_span_data();
+        }
     } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
         span->explicit_sampling_priority = zval_get_long(value) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     }
@@ -1588,9 +1600,13 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = false;
 }
 
-static void dd_finalize_telemetry(void) {
+static void dd_finalize_sidecar_lifecycle(void) {
     if (DDTRACE_G(telemetry_queue_id)) {
         ddtrace_telemetry_finalize();
+        if (ddtrace_sidecar) {
+            ddtrace_ffi_try("Failed signaling lifecycle end",
+                ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id)));
+        }
         DDTRACE_G(telemetry_queue_id) = 0;
     }
 }
@@ -1621,7 +1637,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         DDTRACE_G(active_stack) = NULL;
     }
 
-    dd_finalize_telemetry();
+    dd_finalize_sidecar_lifecycle();
     ddtrace_telemetry_rshutdown();
 
     if (DDTRACE_G(last_flushed_root_service_name)) {
@@ -2356,7 +2372,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (ZSTR_LEN(function_val) > 0) {
         if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
-            dd_finalize_telemetry();
+            dd_finalize_sidecar_lifecycle();
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));

@@ -1,11 +1,10 @@
 use datadog_live_debugger::{LiveDebuggingData, ProbeType, SpanProbe};
 use datadog_live_debugger_ffi::data::ProbeTarget;
 use datadog_live_debugger_ffi::evaluator::{register_expr_evaluator, Evaluator};
-use datadog_remote_config::dynamic_configuration::data::Configs;
-use datadog_remote_config::{RemoteConfigData, RemoteConfigProduct, Target};
-use datadog_sidecar::remote_config::{
-    RemoteConfigIdentifier, RemoteConfigManager, RemoteConfigUpdate,
-};
+use datadog_remote_config::dynamic_configuration::data::{Configs, TracingSamplingRuleProvenance};
+use datadog_remote_config::{RemoteConfigCapabilities, RemoteConfigData, RemoteConfigProduct, Target};
+use datadog_remote_config::fetch::ConfigInvariants;
+use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use ddcommon::Endpoint;
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::CharSlice;
@@ -13,16 +12,34 @@ use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_char;
 use std::mem;
+use std::sync::Arc;
+use serde::Serialize;
 
 type DynamicConfigUpdate = for <'a> extern "C" fn(config: CharSlice, value: CharSlice, return_old: bool) -> *mut Vec<c_char>;
 
 static mut LIVE_DEBUGGER_CALLBACKS: Option<LiveDebuggerCallbacks> = None;
 static mut DYNAMIC_CONFIG_UPDATE: Option<DynamicConfigUpdate> = None;
 
+#[no_mangle]
+pub static DDTRACE_REMOTE_CONFIG_PRODUCTS: [RemoteConfigProduct; 2] = [
+    RemoteConfigProduct::ApmTracing,
+    RemoteConfigProduct::LiveDebugger,
+];
+
+#[no_mangle]
+pub static DDTRACE_REMOTE_CONFIG_CAPABILITIES: [RemoteConfigCapabilities; 6] = [
+    RemoteConfigCapabilities::ApmTracingCustomTags,
+    RemoteConfigCapabilities::ApmTracingEnabled,
+    RemoteConfigCapabilities::ApmTracingHttpHeaderTags,
+    RemoteConfigCapabilities::ApmTracingLogsInjection,
+    RemoteConfigCapabilities::ApmTracingSampleRate,
+    RemoteConfigCapabilities::ApmTracingSampleRules,
+];
+
 #[derive(Default)]
 struct DynamicConfig {
-    path_map: HashMap<String, Target>,
-    configs: HashMap<Target, Vec<Configs>>,
+    active_config_path: Option<String>,
+    configs: Vec<Configs>,
     old_config_values: HashMap<String, Vec<c_char>>,
 }
 
@@ -30,7 +47,6 @@ pub struct RemoteConfigState {
     manager: RemoteConfigManager,
     live_debugger: LiveDebuggerState,
     dynamic_config: DynamicConfig,
-    active_target: Option<Target>,
 }
 
 #[repr(C)]
@@ -59,15 +75,29 @@ pub unsafe extern "C" fn ddog_init_remote_config(
     endpoint: &Endpoint,
 ) -> Box<RemoteConfigState> {
     Box::new(RemoteConfigState {
-        manager: RemoteConfigManager::new(RemoteConfigIdentifier {
+        manager: RemoteConfigManager::new(ConfigInvariants {
             language: "php".to_string(),
             tracer_version: tracer_version.to_utf8_lossy().into(),
             endpoint: endpoint.clone(),
+            products: DDTRACE_REMOTE_CONFIG_PRODUCTS.to_vec(),
+            capabilities: DDTRACE_REMOTE_CONFIG_CAPABILITIES.to_vec(),
         }),
         live_debugger: LiveDebuggerState::default(),
         dynamic_config: Default::default(),
-        active_target: Default::default(),
     })
+}
+
+#[derive(Serialize)]
+struct SampleRule<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<&'a str>,
+    service: &'a str,
+    resource: &'a str,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    tags: HashMap<&'a str, &'a str>,
+    #[serde(rename = "_provenance")]
+    provenance: TracingSamplingRuleProvenance,
+    sample_rate: f64,
 }
 
 fn map_config(config: &Configs) -> (&'static str, String) {
@@ -81,6 +111,23 @@ fn map_config(config: &Configs) -> (&'static str, String) {
         Configs::LogInjectionEnabled(enabled) => {
             ("datadog.logs_injection", (if *enabled { "1" } else { "0" }).to_string())
         }
+        Configs::TracingTags(tags) => {
+            ("datadog.tags", tags.join(","))
+        }
+        Configs::TracingEnabled(enabled) => {
+            ("datadog.trace.enabled", (if *enabled { "1" } else { "0" }).to_string())
+        }
+        Configs::TracingSamplingRules(rules) => {
+            let map: Vec<_> = rules.iter().map(|r| SampleRule {
+                name: r.name.as_deref(),
+                service: r.service.as_str(),
+                resource: r.resource.as_str(),
+                tags: r.tags.iter().map(|t| (t.key.as_str(), t.value_glob.as_str())).collect(),
+                provenance: r.provenance,
+                sample_rate: r.sample_rate,
+            }).collect();
+            ("datadog.trace.sampling_rules", serde_json::to_string(&map).unwrap())
+        }
     }
 }
 
@@ -89,12 +136,13 @@ fn remove_old_configs(remote_config: &mut RemoteConfigState) {
         unsafe { DYNAMIC_CONFIG_UPDATE }.unwrap()(name.as_str().into(), (&val).into(), false);
     }
     remote_config.dynamic_config.old_config_values.clear();
+    remote_config.dynamic_config.active_config_path = None;
 }
 
-fn insert_new_configs(old_config_values: &mut HashMap<String, Vec<c_char>>, old_configs: Option<&Vec<Configs>>, new_configs: &Vec<Configs>) {
+fn insert_new_configs(old_config_values: &mut HashMap<String, Vec<c_char>>, old_configs: &mut Vec<Configs>, new_configs: Vec<Configs>) {
     let mut found_configs = HashSet::new();
-    for config in new_configs {
-        let (name, val) = map_config(&config);
+    for config in new_configs.iter() {
+        let (name, val) = map_config(config);
         let is_update = old_config_values.contains_key(name);
         let original = unsafe { DYNAMIC_CONFIG_UPDATE }.unwrap()(name.into(), val.as_str().into(), !is_update);
         if !original.is_null() {
@@ -102,16 +150,15 @@ fn insert_new_configs(old_config_values: &mut HashMap<String, Vec<c_char>>, old_
         }
         found_configs.insert(mem::discriminant(config));
     }
-    if let Some(old) = old_configs {
-        for config in old {
-            if !found_configs.contains(&mem::discriminant(config)) {
-                let (name, _) = map_config(config);
-                if let Some(val) = old_config_values.remove(name) {
-                    unsafe { DYNAMIC_CONFIG_UPDATE }.unwrap()(name.into(), (&val).into(), false);
-                }
+    for config in old_configs.iter() {
+        if !found_configs.contains(&mem::discriminant(config)) {
+            let (name, _) = map_config(config);
+            if let Some(val) = old_config_values.remove(name) {
+                unsafe { DYNAMIC_CONFIG_UPDATE }.unwrap()(name.into(), (&val).into(), false);
             }
         }
     }
+    *old_configs = new_configs;
 }
 
 #[no_mangle]
@@ -119,7 +166,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
     loop {
         match remote_config.manager.fetch_update() {
             RemoteConfigUpdate::None => break,
-            RemoteConfigUpdate::Update(update, target) => match update.data {
+            RemoteConfigUpdate::Add(update) => match update.data {
                 RemoteConfigData::LiveDebugger(debugger) => {
                     apply_config(remote_config, &debugger);
                     remote_config
@@ -128,13 +175,11 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         .insert(update.config_id, debugger);
                 },
                 RemoteConfigData::DynamicConfig(config_data) => {
-                    let target = target.unwrap();
-                    let configs = config_data.lib_config.into();
-                    if remote_config.active_target.as_ref().map_or(false, |t| *t == target) {
-                        insert_new_configs(&mut remote_config.dynamic_config.old_config_values, remote_config.dynamic_config.configs.get(&target), &configs)
+                    let configs: Vec<Configs> = config_data.lib_config.into();
+                    if !configs.is_empty() {
+                        insert_new_configs(&mut remote_config.dynamic_config.old_config_values, &mut remote_config.dynamic_config.configs, configs);
+                        remote_config.dynamic_config.active_config_path = Some(update.config_id);
                     }
-                    remote_config.dynamic_config.path_map.insert(update.config_id, target.clone());
-                    remote_config.dynamic_config.configs.insert(target, configs);
                 },
             },
             RemoteConfigUpdate::Remove(path) => match path.product {
@@ -144,10 +189,8 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     }
                 },
                 RemoteConfigProduct::ApmTracing => {
-                    if let Some(target) = remote_config.dynamic_config.path_map.remove(&path.config_id) {
-                        if remote_config.active_target == Some(target) {
-                            remove_old_configs(remote_config);
-                        }
+                    if Some(path.config_id) == remote_config.dynamic_config.active_config_path {
+                        remove_old_configs(remote_config);
                     }
                 },
             },
@@ -202,24 +245,21 @@ pub unsafe extern "C" fn ddog_CharSlice_to_owned(str: CharSlice) -> *mut Vec<c_c
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_remote_configs_service_env_change(remote_config: &mut RemoteConfigState, service: CharSlice, env: CharSlice) {
+pub extern "C" fn ddog_remote_configs_service_env_change(remote_config: &mut RemoteConfigState, service: CharSlice, env: CharSlice, version: CharSlice) {
     let new_target = Target {
         service: service.to_utf8_lossy().to_string(),
         env: env.to_utf8_lossy().to_string(),
+        app_version: version.to_utf8_lossy().to_string(),
     };
 
-    if Some(&new_target) == remote_config.active_target.as_ref() {
-        return;
+    if let Some(target) = remote_config.manager.get_target() {
+        if **target == new_target {
+            return;
+        }
     }
 
-    if let Some(configs) = remote_config.dynamic_config.configs.get(&new_target) {
-        let current_config = remote_config.active_target.as_ref().and_then(|t| remote_config.dynamic_config.configs.get(&t));
-        insert_new_configs(&mut remote_config.dynamic_config.old_config_values, current_config, configs);
-    } else {
-        remove_old_configs(remote_config);
-    }
-
-    remote_config.active_target = Some(new_target);
+    remote_config.manager.track_target(&Arc::new(new_target));
+    ddog_process_remote_configs(remote_config);
 }
 
 #[no_mangle]
@@ -252,7 +292,7 @@ pub extern "C" fn ddog_rinit_remote_config(remote_config: &mut RemoteConfigState
 pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigState) {
     remote_config.live_debugger.spans_map.clear();
     remote_config.dynamic_config.old_config_values.clear();
-    remote_config.active_target = None;
+    remote_config.manager.reset();
 }
 
 #[no_mangle]
