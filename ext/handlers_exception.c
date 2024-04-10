@@ -418,7 +418,7 @@ static zend_object *ddtrace_exception_new(zend_class_entry *class_type, zend_obj
         zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_LINE), &tmp);
     }
 
-    if (ex->func && ZEND_USER_CODE(ex->func->type)) {
+    if (ex && ex->func && ZEND_USER_CODE(ex->func->type)) {
         ddtrace_call_get_locals(ex, &tmp, !EG(exception_ignore_args));
         zend_string *key_locals = zend_string_init(ZEND_STRL("locals"), 0);
         Z_SET_REFCOUNT(tmp, 0);

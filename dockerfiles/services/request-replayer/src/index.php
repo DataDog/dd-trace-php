@@ -15,6 +15,7 @@ if ('cli-server' !== PHP_SAPI) {
 define('REQUEST_LATEST_DUMP_FILE', getenv('REQUEST_LATEST_DUMP_FILE') ?: (sys_get_temp_dir() . '/dump.json'));
 define('REQUEST_NEXT_RESPONSE_FILE', getenv('REQUEST_NEXT_RESPONSE_FILE') ?: (sys_get_temp_dir() . '/response.json'));
 define('REQUEST_LOG_FILE', getenv('REQUEST_LOG_FILE') ?: (sys_get_temp_dir() . '/requests-log.txt'));
+define('REQUEST_RC_CONFIGS_FILE', getenv('REQUEST_RC_CONFIGS_FILE') ?: (sys_get_temp_dir() . '/rc_configs.json'));
 
 function logRequest($message, $data = '')
 {
@@ -31,7 +32,9 @@ set_error_handler(function ($number, $message, $errfile, $errline) {
     trigger_error($message, $number);
 });
 
-switch ($_SERVER['REQUEST_URI']) {
+$rc_configs = file_exists(REQUEST_RC_CONFIGS_FILE) ? json_decode(file_get_contents(REQUEST_RC_CONFIGS_FILE), true) : [];
+
+switch (explode("?", $_SERVER['REQUEST_URI'])[0]) {
     case '/replay':
         if (!file_exists(REQUEST_LATEST_DUMP_FILE)) {
             logRequest('Cannot replay last request; request log does not exist');
@@ -44,20 +47,72 @@ switch ($_SERVER['REQUEST_URI']) {
         logRequest('Returned last request and deleted request log', $request);
         break;
     case '/clear-dumped-data':
-        if (!file_exists(REQUEST_LATEST_DUMP_FILE)) {
+        if (!file_exists(REQUEST_LATEST_DUMP_FILE) && !file_exists(REQUEST_RC_CONFIGS_FILE)) {
             logRequest('Cannot delete request log; request log does not exist');
             break;
         }
-        unlink(REQUEST_LATEST_DUMP_FILE);
-        unlink(REQUEST_LOG_FILE);
-		if (file_exists(REQUEST_NEXT_RESPONSE_FILE)) {
-			unlink(REQUEST_NEXT_RESPONSE_FILE);
-		}
+        if (file_exists(REQUEST_RC_CONFIGS_FILE)) {
+            unlink(REQUEST_RC_CONFIGS_FILE);
+        }
+        if (file_exists(REQUEST_LATEST_DUMP_FILE)) {
+            unlink(REQUEST_LATEST_DUMP_FILE);
+            unlink(REQUEST_LOG_FILE);
+        }
+        if (file_exists(REQUEST_NEXT_RESPONSE_FILE)) {
+            unlink(REQUEST_NEXT_RESPONSE_FILE);
+        }
         logRequest('Deleted request log');
         break;
     case '/next-response':
         $raw = file_get_contents('php://input');
         file_put_contents(REQUEST_NEXT_RESPONSE_FILE, $raw);
+        break;
+    case '/add-rc-config-file':
+        $rc_configs[$_GET["path"]] = file_get_contents('php://input');
+        file_put_contents(REQUEST_RC_CONFIGS_FILE, json_encode($rc_configs, JSON_UNESCAPED_SLASHES));
+        break;
+    case '/del-rc-config-file':
+        unset($rc_configs[$_GET["path"]]);
+        file_put_contents(REQUEST_RC_CONFIGS_FILE, json_encode($rc_configs, JSON_UNESCAPED_SLASHES));
+        break;
+    case '/v0.7/config':
+        $request = file_get_contents('php://input');
+        logRequest("Requested remote config", $request);
+        $recentUpdate = @filemtime(REQUEST_RC_CONFIGS_FILE) > time() - 2;
+        $response = [
+            "roots" => [],
+            "targets" => [
+                "signatures" => [],
+                "signed" => [
+                    "_type" => "targets",
+                    "custom" => [
+                        "opaque_backend_state" => "foobarbaz",
+                        "agent_refresh_interval" => ($recentUpdate ? 10 : 10000) * 1000000, // in ns
+                    ],
+                    "expires" => "9999-12-31T23:59:59Z",
+                    "spec_version" => "1.0.0",
+                    "targets" => new \StdClass,
+                    "version" => 1,
+                ],
+            ],
+            "target_files" => [],
+            "client_configs" => [],
+        ];
+        foreach ($rc_configs as $path => $content) {
+            $response["targets"]["signed"]["targets"]->$path = [
+                "custom" => ["v" => strlen($path)],
+                "hashes" => ["sha256" => hash("sha256", $content)],
+                "length" => strlen($content),
+            ];
+            $response["target_files"][] = [
+                "path" => $path,
+                "raw" => base64_encode($content),
+            ];
+            $response["client_configs"][] = $path;
+        }
+        logRequest("Returned remote config", json_encode($response, JSON_UNESCAPED_SLASHES));
+        $response["targets"] = base64_encode(json_encode($response["targets"], JSON_UNESCAPED_SLASHES));
+        echo json_encode($response, JSON_UNESCAPED_SLASHES);
         break;
     default:
         $headers = getallheaders();

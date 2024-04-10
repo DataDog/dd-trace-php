@@ -9,6 +9,7 @@
 #include "compatibility.h"
 #include "ddtrace.h"
 #include "ddtrace_export.h"
+#include "priority_sampling/priority_sampling.h"
 
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
@@ -28,6 +29,7 @@ enum ddtrace_span_dataype {
 typedef struct {
     double sampling_rate;
     int rule;
+    enum dd_sampling_mechanism mechanism;
 } ddtrace_rule_result;
 
 enum ddtrace_trace_limited {

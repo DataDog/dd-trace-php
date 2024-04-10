@@ -1,5 +1,6 @@
 #include <components-rs/common.h>
 #include <components/log/log.h>
+#include <zai_string/string.h>
 
 extern ddog_SidecarTransport *ddtrace_sidecar;
 extern ddog_Endpoint *ddtrace_endpoint;

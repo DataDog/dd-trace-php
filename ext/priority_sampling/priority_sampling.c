@@ -106,19 +106,20 @@ static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, bool eval_roo
     int index = -3;
 
     if (++index >= skip_at) {
-        return (ddtrace_rule_result){ .sampling_rate = 0, .rule = INT32_MAX };
+        return (ddtrace_rule_result){ .sampling_rate = 0, .rule = INT32_MAX, .mechanism = DD_MECHANISM_RULE };
     }
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
     if (zend_hash_str_exists(meta, ZEND_STRL("manual.keep"))) {
-        return (ddtrace_rule_result){ .sampling_rate = 1, .rule = -2 };
+        // manual.keep and manual.drop count as manual
+        return (ddtrace_rule_result){ .sampling_rate = 1, .rule = -2, .mechanism = DD_MECHANISM_MANUAL };
     }
 
     if (++index >= skip_at) {
-        return (ddtrace_rule_result){ .sampling_rate = 0, .rule = INT32_MAX };
+        return (ddtrace_rule_result){ .sampling_rate = 0, .rule = INT32_MAX, .mechanism = DD_MECHANISM_RULE };
     }
     if (zend_hash_str_exists(meta, ZEND_STRL("manual.drop"))) {
-        return (ddtrace_rule_result){ .sampling_rate = 0, .rule = -1 };
+        return (ddtrace_rule_result){ .sampling_rate = 0, .rule = -1, .mechanism = DD_MECHANISM_MANUAL };
     }
 
     zval *rule;
@@ -140,11 +141,20 @@ static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, bool eval_roo
 
         if (dd_check_sampling_rule(Z_ARR_P(rule), span)) {
             zval *sample_rate_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("sample_rate"));
-            return (ddtrace_rule_result){ .sampling_rate = sample_rate_zv ? zval_get_double(sample_rate_zv) : 1, .rule = index };
+            zval *provenance_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("_provenance"));
+            enum dd_sampling_mechanism mechanism = DD_MECHANISM_RULE;
+            if (provenance_zv && Z_TYPE_P(provenance_zv) == IS_STRING) {
+                if (zend_string_equals_literal(Z_STR_P(provenance_zv), "customer")) {
+                    mechanism = DD_MECHANISM_REMOTE_USER_RULE;
+                } else if (zend_string_equals_literal(Z_STR_P(provenance_zv), "dynamic")) {
+                    mechanism = DD_MECHANISM_REMOTE_DYNAMIC_RULE;
+                }
+            }
+            return (ddtrace_rule_result){ .sampling_rate = sample_rate_zv ? zval_get_double(sample_rate_zv) : 1, .rule = index, .mechanism = mechanism };
         }
     } ZEND_HASH_FOREACH_END();
 
-    return (ddtrace_rule_result){ .sampling_rate = 0, .rule = INT32_MAX };
+    return (ddtrace_rule_result){ .sampling_rate = 0, .rule = INT32_MAX, .mechanism = DD_MECHANISM_RULE };
 }
 
 void ddtrace_decide_on_closed_span_sampling(ddtrace_span_data *span) {
@@ -212,7 +222,9 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
         if (result.rule != INT32_MAX) {
             sample_rate = result.sampling_rate;
-        } else if (default_sample_rate < 0) {
+        } else if (default_sample_rate >= 0) {
+            result.mechanism = DD_MECHANISM_RULE;
+        } else {
             explicit_rule = false;
 
             ddtrace_try_read_agent_rate();
@@ -262,7 +274,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     // this must be stable on re-evaluation
     bool sampling = (double)span->trace_id.low < sample_rate * (double)~0ULL;
     bool limited = false;
-    if (result.rule >= 0 && ddtrace_limiter_active() && sampling) {
+    if (result.mechanism != DD_MECHANISM_MANUAL && ddtrace_limiter_active() && sampling) {
         if (span->trace_is_limited == DD_TRACE_LIMIT_UNCHECKED) {
             span->trace_is_limited = ddtrace_limiter_allow() ? DD_TRACE_UNLIMITED : DD_TRACE_LIMITED;
         }
@@ -274,8 +286,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
     zend_array *metrics = ddtrace_property_array(&span->property_metrics);
     if (explicit_rule) {
-        // manual.keep and manual.drop count as manual
-        mechanism = result.rule < 0 ? DD_MECHANISM_MANUAL : DD_MECHANISM_RULE;
+        mechanism = result.mechanism;
         priority = sampling && !limited ? PRIORITY_SAMPLING_USER_KEEP : PRIORITY_SAMPLING_USER_REJECT;
 
         if (mechanism == DD_MECHANISM_MANUAL) {
