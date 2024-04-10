@@ -198,6 +198,29 @@ class WordPressIntegrationLoader
         ini_set('datadog.trace.spans_limit', $spansLimit);
     }
 
+    public static function normalizeHookName(string $hookName): string
+    {
+        $granularity = 2;
+
+        // Basically, this function will normalize the hook name to a certain granularity
+        // For instance, with a granularity of 2, the hook name only shows the first 2 parts
+        // e.g., 'action_scheduler_lock_class' -> 'action_scheduler_*'
+        // e.g., 'astra_add_fonts' -> 'astra_add_*'
+        // e.g., 'is_bbpress' -> 'is_bbpress'
+
+        $hookName = preg_replace('/[\/\\-.]/', '_', $hookName);
+        $hookName = explode('_', $hookName);
+        $numParts = count($hookName);
+        $hookName = array_slice($hookName, 0, $granularity);
+        $hookName = implode('_', $hookName);
+
+        if ($numParts > $granularity) {
+            $hookName .= '_*';
+        }
+
+        return $hookName;
+    }
+
     public static function sendMetrics(
         WordPressIntegration $integration,
         DogStatsd $statsd,
@@ -215,15 +238,19 @@ class WordPressIntegrationLoader
             return;
         }
 
-        if ($duration < 0.001) { // Don't send duration < 1ms
+        if ($duration < 1) { // Don't send duration < 1us
             return;
         }
+
+        //if (!$topLevel) {
+        //    return;
+        //}
 
         $tags = [
             'env' => $integration->getEnv(),
             'service' => $integration->getServiceName(),
             'version' => $integration->getVersion(),
-            'wordpress.hook.name' => $hookName,
+            'wordpress.hook.name' => WordPressIntegrationLoader::normalizeHookName($hookName),
         ];
 
         if ($error) {
@@ -240,7 +267,7 @@ class WordPressIntegrationLoader
 
         $tags['wordpress.top_level']= $topLevel ? 1 : 0;
 
-        Logger::get()->debug("Send metric wordpress.hook.duration $duration with tags " . json_encode($tags, JSON_PRETTY_PRINT));
+        //Logger::get()->debug("Send metric wordpress.hook.duration $duration with tags " . json_encode($tags, JSON_PRETTY_PRINT));
 
         $statsd->distribution(
             'wordpress.hook.duration',
@@ -734,17 +761,21 @@ class WordPressIntegrationLoader
             );
         }
 
-        $inTopLevelHook = false;
+        $topLevelHook = ['name' => '', 'count' => 0];
         foreach (['apply_filters', 'apply_filters_ref_array'] as $function) {
             \DDTrace\install_hook(
                 $function,
-                function (HookData $hook) use (&$inTopLevelHook, &$actionHookToPlugin, &$actionHookToTheme) {
+                function (HookData $hook) use (&$topLevelHook, &$actionHookToPlugin, &$actionHookToTheme) {
                     $args = $hook->args;
                     if (empty($args[0])) {
                         return;
                     }
 
                     $hookName = $args[0];
+
+                    //if (strpos($hookName, 'option') !== false) {
+                    //    return;
+                    //}
 
                     if (!empty($actionHookToPlugin[$hookName])) {
                         $pluginOrThemeName = $actionHookToPlugin[$hookName];
@@ -774,39 +805,60 @@ class WordPressIntegrationLoader
                     $hook->data['pluginOrThemeName'] = $pluginOrThemeName;
 
                     if (!empty($pluginOrThemeName)) {
-                        if (!$inTopLevelHook) {
-                            //Logger::get()->debug("Is Top Level: {$args[0]}");
-                            $hook->data['topLevelHook'] = $hookName;
-                            $inTopLevelHook = true;
+                        if (empty($topLevelHook['name'])) {
+                            $topLevelHook['name'] = $hookName;
+                            $topLevelHook['count'] = 1;
+                        } elseif ($topLevelHook['name'] === $hookName) {
+                            $topLevelHook['count']++;
                         }
                         $hook->data['startTime'] = microtime(true);
                     }
 
                     $hook->allowNestedHook();
                 },
-                function (HookData $hook) use ($integration, $statsd, &$actionHookToPlugin, &$actionHookToTheme, &$inTopLevelHook, &$topLevelHookName) {
+                function (HookData $hook) use ($integration, $statsd, &$actionHookToPlugin, &$actionHookToTheme, &$topLevelHook) {
                     $args = $hook->args;
                     if (empty($args[0])) {
                         return;
                     }
 
                     $hookName = $args[0];
-                    $topLevel = isset($hook->data['topLevelHook']) && $hook->data['topLevelHook'] === $hookName;
+                    //if (strpos($hookName, 'option') !== false) {
+                    //    return;
+                    //}
 
-                    $pluginOrThemeName = $hook->data['pluginOrThemeName'];
+                    $topLevel = $topLevelHook['name'] === $hookName && $topLevelHook['count'] === 1;
+
+                    $pluginOrThemeName = $hook->data['pluginOrThemeName'] ?? '';
                     if (!empty($pluginOrThemeName)) {
+                        //$t = $topLevel ? '1' : '0';
+                        //Logger::get()->debug("Hook: $hookName - TopLevelHookName: {$topLevelHook['name']} - Top Level: $t - Plugin/Theme: $pluginOrThemeName");
+
+                        /*
+                        $activeSpan = \DDTrace\active_span();
+                        if ($activeSpan && isset($activeSpan->meta['wordpress.hook']) && $activeSpan->meta['wordpress.hook'] === $hookName) {
+                            $activeSpan->meta['wordpress.top_level'] = $t;
+                            $activeSpan->meta['wordpress.top_level_hook'] = $topLevelHook['name'];
+                        }
+                        */
+
                         WordPressIntegrationLoader::sendMetrics(
                             $integration,
                             $statsd,
-                            (microtime(true) - $hook->data['startTime']) * 1000,
+                            (microtime(true) - $hook->data['startTime']) * 1e6,
                             $hookName,
                             $topLevel,
                             $pluginOrThemeName,
                             (bool)$hook->exception
                         );
-                        $inTopLevelHook = false;
-                    }
 
+                        if ($topLevelHook['name'] === $hookName) {
+                            $topLevelHook['count']--;
+                            if ($topLevelHook['count'] === 0) {
+                                $topLevelHook['name'] = "";
+                            }
+                        }
+                    }
             });
         }
 
