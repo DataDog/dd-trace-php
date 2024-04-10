@@ -21,8 +21,6 @@ class CakePHPIntegrationLoader
             return Integration::NOT_AVAILABLE;
         }
 
-        $integration->rootSpan = null;
-
         $setRootSpanInfoFn = function () use ($integration) {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan === null) {
@@ -30,18 +28,18 @@ class CakePHPIntegrationLoader
             }
 
             $integration->appName = \ddtrace_config_app_name(CakePHPIntegration::NAME);
-            $integration->rootSpan = $rootSpan;
-            $integration->addTraceAnalyticsIfEnabled($integration->rootSpan);
-            $integration->rootSpan->service = $integration->appName;
+            $integration->addTraceAnalyticsIfEnabled($rootSpan);
+            $rootSpan->service = $integration->appName;
             if ('cli' === PHP_SAPI) {
-                $integration->rootSpan->name = 'cakephp.console';
-                $integration->rootSpan->resource =
-                    !empty($_SERVER['argv'][1]) ? 'cake_console ' . $_SERVER['argv'][1] : 'cake_console';
+                $rootSpan->name = 'cakephp.console';
+                $rootSpan->resource = !empty($_SERVER['argv'][1])
+                    ? 'cake_console ' . $_SERVER['argv'][1]
+                    : 'cake_console';
             } else {
-                $integration->rootSpan->name = 'cakephp.request';
-                $integration->rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->name = 'cakephp.request';
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
-            $integration->rootSpan->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
+            $rootSpan->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
         };
 
         \DDTrace\hook_method('App', 'init', $setRootSpanInfoFn);
@@ -61,19 +59,21 @@ class CakePHPIntegrationLoader
                     return;
                 }
 
+                $rootSpan = \DDTrace\root_span();
+
                 if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                    $integration->rootSpan->resource =
+                    $rootSpan->resource =
                         $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action'];
                 }
 
-                if (!array_key_exists(Tag::HTTP_URL, $integration->rootSpan->meta)) {
-                    $integration->rootSpan->meta[Tag::HTTP_URL] = Router::url($request->here, true)
+                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                    $rootSpan->meta[Tag::HTTP_URL] = Router::url($request->here, true)
                         . Normalizer::sanitizedQueryString();
                 }
-                $integration->rootSpan->meta['cakephp.route.controller'] = $request->params['controller'];
-                $integration->rootSpan->meta['cakephp.route.action'] = $request->params['action'];
+                $rootSpan->meta['cakephp.route.controller'] = $request->params['controller'];
+                $rootSpan->meta['cakephp.route.action'] = $request->params['action'];
                 if (isset($request->params['plugin'])) {
-                    $integration->rootSpan->meta['cakephp.plugin'] = $request->params['plugin'];
+                    $rootSpan->meta['cakephp.plugin'] = $request->params['plugin'];
                 }
             }
         );
@@ -89,8 +89,9 @@ class CakePHPIntegrationLoader
             'ExceptionRenderer',
             '__construct',
             function ($This, $scope, $args) use ($integration) {
-                if ($integration->rootSpan) {
-                    $integration->setError($integration->rootSpan, $args[0]);
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan !== null) {
+                    $integration->setError($rootSpan, $args[0]);
                 }
             }
         );
@@ -100,8 +101,9 @@ class CakePHPIntegrationLoader
             'statusCode',
             null,
             function ($This, $scope, $args, $retval) use ($integration) {
-                if ($integration->rootSpan) {
-                    $integration->rootSpan->meta[Tag::HTTP_STATUS_CODE] = $retval;
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan !== null) {
+                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $retval;
                 }
             }
         );
@@ -126,7 +128,10 @@ class CakePHPIntegrationLoader
                     return;
                 }
 
-                $integration->rootSpan->meta[Tag::HTTP_ROUTE] = $app->template;
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan !== null) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $app->template;
+                }
             }
         );
 
