@@ -10,6 +10,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 use Router;
+use function DDTrace\hook_method;
 
 class CakePHPIntegrationLoader
 {
@@ -84,23 +85,26 @@ class CakePHPIntegrationLoader
         // - Controller::appError()
         // - Exception.handler
         // - Exception.renderer
-        \DDTrace\trace_method('ExceptionRenderer', '__construct', [
-            'instrument_when_limited' => 1,
-            'posthook' => function (SpanData $span, array $args) use ($integration) {
-                $integration->setError($integration->rootSpan, $args[0]);
-                $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
-                return false;
-            },
-        ]);
+        \DDTrace\hook_method(
+            'ExceptionRenderer',
+            '__construct',
+            function ($This, $scope, $args) use ($integration) {
+                if ($integration->rootSpan) {
+                    $integration->setError($integration->rootSpan, $args[0]);
+                }
+            }
+        );
 
-        \DDTrace\trace_method('CakeResponse', 'statusCode', [
-            'instrument_when_limited' => 1,
-            'posthook' => function (SpanData $span, $args, $return) use ($integration) {
-                $integration->rootSpan->meta[Tag::HTTP_STATUS_CODE] = $return;
-                $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
-                return false;
-            },
-        ]);
+        \DDTrace\hook_method(
+            'CakeResponse',
+            'statusCode',
+            null,
+            function ($This, $scope, $args, $retval) use ($integration) {
+                if ($integration->rootSpan) {
+                    $integration->rootSpan->meta[Tag::HTTP_STATUS_CODE] = $retval;
+                }
+            }
+        );
 
         // Create a trace span for every template rendered
         \DDTrace\trace_method('View', 'render', function (SpanData $span) use ($integration) {
