@@ -164,6 +164,10 @@ fetch_setup_for_version() (
     cd -
 )
 
+parse_appsec_version() {
+    grep -oP 'VERSION \K\d+\.\d+\.\d+' appsec/CMakeLists.txt
+}
+
 dashed_print() {
     echo "---"
     for line in "$@" ; do

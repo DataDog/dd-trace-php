@@ -651,21 +651,35 @@ function install($options)
                     '(ddtrace\.request_init_hook)' => 'datadog.trace.sources_path',
                     '(datadog\.trace\.request_init_hook)' => 'datadog.trace.sources_path',
                     '((datadog\.trace\.sources_path)\s*=\s*.*)' => "$1 = $installDirSrcDir",
-                    /* In order to support upgrading from legacy installation method to new installation method, we
-                     * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
-                     * `;`, hence not automatically re-activating the extension if the user had commented it out.
-                     */
-                    '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
-                    // Support upgrading from the C based zend_extension.
-                    '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
                 ];
+
+                if (isset($options[OPT_EXTENSION_DIR])) {
+                    $replacements += [
+                        '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = $extensionDestination",
+                    ];
+                } else {
+                    $replacements += [
+                        /* In order to support upgrading from legacy installation method to new installation method, we
+                         * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
+                         * `;`, hence not automatically re-activating the extension if the user had commented it out.
+                         */
+                        '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
+                        // Support upgrading from the C based zend_extension.
+                        '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
+                    ];
+                }
             }
 
             // Enabling profiling
             if (is_truthy($options[OPT_ENABLE_PROFILING])) {
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 if ($shouldInstallProfiling) {
-                    $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
+                    if (isset($options[OPT_EXTENSION_DIR])) {
+                        $replacements['(zend_extension\s*=\s*.*datadog-profiling.*)'] = "extension = $profilingExtensionDestination";
+                        $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = $profilingExtensionDestination";
+                    } else {
+                        $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
+                    }
                 } else {
                     $enableProfiling = OPT_ENABLE_PROFILING;
                     print_error_and_exit(
@@ -680,8 +694,11 @@ function install($options)
             // phpcs:disable Generic.Files.LineLength.TooLong
             if ($shouldInstallAppsec) {
                 $rulesPathRegex = preg_quote($options[OPT_INSTALL_DIR]) . "/[0-9\.]*/etc/recommended.json";
+                $iniAppsecExtension = isset($options[OPT_EXTENSION_DIR])
+                    ? $appsecExtensionDestination
+                    : ("ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX));
                 $replacements += [
-                    '(^\s*;\s*extension\s*=\s*.*ddappsec.*)m' => "extension = ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
+                    '(^\s*;\s*extension\s*=\s*.*ddappsec.*)m' => "extension = $iniAppsecExtension",
                     // Update helper path
                     '(datadog.appsec.helper_path\s*=.*)' => "datadog.appsec.helper_path = $appSecHelperPath",
                     // Update and comment rules path
@@ -806,7 +823,6 @@ function find_all_ini_files(array $phpProperties)
  */
 function find_main_ini_files(array $phpProperties)
 {
-    $iniFilePaths = [];
     if (isset($phpProperties[INI_SCANDIR])) {
         $iniFileName = '98-ddtrace.ini';
         // Search for pre-existing files with extension = ddtrace.so to avoid conflicts
