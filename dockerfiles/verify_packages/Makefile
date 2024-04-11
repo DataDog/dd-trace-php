@@ -79,6 +79,7 @@ test_install_without_scan_dir.sh \
 test_install_add_missing_ini_settings.sh \
 test_install_custom_ini_name.sh \
 test_install_custom_ini_file.sh \
+test_install_custom_ext_dir_and_ini.sh \
 test_install_custom_installation_directory.sh \
 test_install_custom_extension_directory.sh \
 test_install_custom_installation_root.sh \
