@@ -582,7 +582,7 @@ function install($options)
             $extensionSuffix .= '-zts';
         }
 
-        $extDir = $options[OPT_EXTENSION_DIR] ?? $phpProperties[EXTENSION_DIR];
+        $extDir = isset($options[OPT_EXTENSION_DIR]) ? $options[OPT_EXTENSION_DIR] : $phpProperties[EXTENSION_DIR];
         echo "Installing extension to $extDir\n";
 
         // Trace
@@ -902,7 +902,7 @@ function uninstall($options)
         echo "Uninstalling from binary: $binaryForLog\n";
 
         $phpProperties = ini_values($fullPath);
-        $extensionDir = $options[OPT_EXTENSION_DIR] ?? $phpProperties[EXTENSION_DIR];
+        $extensionDir = isset($options[OPT_EXTENSION_DIR]) ? $options[OPT_EXTENSION_DIR] : $phpProperties[EXTENSION_DIR];
 
         $extensionDestinations = [
             $extensionDir . '/' . EXTENSION_PREFIX . 'ddtrace.' . EXTENSION_SUFFIX,
