@@ -583,6 +583,7 @@ function install($options)
         }
 
         $extDir = $options[OPT_EXTENSION_DIR] ?? $phpProperties[EXTENSION_DIR];
+        echo "Installing extension to $extDir\n";
 
         // Trace
         $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/"
@@ -652,22 +653,24 @@ function install($options)
                     '(datadog\.trace\.request_init_hook)' => 'datadog.trace.sources_path',
                     '((datadog\.trace\.sources_path)\s*=\s*.*)' => "$1 = $installDirSrcDir",
                 ];
+            }
 
-                if (isset($options[OPT_EXTENSION_DIR])) {
-                    $replacements += [
-                        '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = $extensionDestination",
-                    ];
-                } else {
-                    $replacements += [
-                        /* In order to support upgrading from legacy installation method to new installation method, we
-                         * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
-                         * `;`, hence not automatically re-activating the extension if the user had commented it out.
-                         */
-                        '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
-                        // Support upgrading from the C based zend_extension.
-                        '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
-                    ];
-                }
+            if (isset($options[OPT_EXTENSION_DIR])) {
+                echo "Updating extension path in INI file to '$extensionDestination'\n";
+                $replacements += [
+                    '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = $extensionDestination",
+                ];
+            } else {
+                echo "Updating extension path in INI file to 'ddtrace." . EXTENSION_SUFFIX . "'\n";
+                $replacements += [
+                    /* In order to support upgrading from legacy installation method to new installation method, we
+                     * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
+                     * `;`, hence not automatically re-activating the extension if the user had commented it out.
+                     */
+                    '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = ddtrace" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
+                    // Support upgrading from the C based zend_extension.
+                    '(zend_extension\s*=\s*.*datadog-profiling.*)' => "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
+                ];
             }
 
             // Enabling profiling
@@ -675,9 +678,11 @@ function install($options)
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 if ($shouldInstallProfiling) {
                     if (isset($options[OPT_EXTENSION_DIR])) {
+                        echo "Updating profiling extension path in INI file to '$profilingExtensionDestination'\n";
                         $replacements['(zend_extension\s*=\s*.*datadog-profiling.*)'] = "extension = $profilingExtensionDestination";
                         $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = $profilingExtensionDestination";
                     } else {
+                        echo "Updating profiling extension path in INI file to 'datadog-profiling." . EXTENSION_SUFFIX . "'\n";
                         $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
                     }
                 } else {
@@ -697,8 +702,9 @@ function install($options)
                 $iniAppsecExtension = isset($options[OPT_EXTENSION_DIR])
                     ? $appsecExtensionDestination
                     : ("ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX));
+                echo "iniAppsecExtension: $iniAppsecExtension\n";
                 $replacements += [
-                    '(^\s*;\s*extension\s*=\s*.*ddappsec.*)m' => "extension = $iniAppsecExtension",
+                    '(^\s*;?\s*extension\s*=\s*.*ddappsec.*)m' => "extension = $iniAppsecExtension",
                     // Update helper path
                     '(datadog.appsec.helper_path\s*=.*)' => "datadog.appsec.helper_path = $appSecHelperPath",
                     // Update and comment rules path
@@ -708,6 +714,7 @@ function install($options)
                     $replacements += ['(^[\s;]*datadog.appsec.enabled\s*=.*)m' => 'datadog.appsec.enabled = On'];
                 }
             } else {
+                echo "Ensure AppSec isn't loaded if not compatible\n";
                 // Ensure AppSec isn't loaded if not compatible
                 $replacements['(^[\s;]*extension\s*=\s*.*ddappsec.*)m'] = "; extension = ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
 
@@ -718,6 +725,8 @@ function install($options)
                     );
                 }
             }
+
+            var_dump($replacements);
 
             add_missing_ini_settings(
                 $iniFilePath,
@@ -877,6 +886,15 @@ function safe_copy_extension($source, $destination)
         // We have to blackhole it in tempdir because it is likely currently loaded and may not be replaced in place.
         rename($destination, getenv("TEMP") . "\\" . time() . "-" . basename($destination));
     }
+
+    $destinationDir = dirname($destination);
+    if (!file_exists($destinationDir)) {
+        execute_or_exit(
+            "Cannot create directory '$destinationDir'",
+            "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($destinationDir)
+        );
+    }
+
     $tmpName = $destination . '.tmp';
     copy($source, $tmpName);
     rename($tmpName, $destination);
