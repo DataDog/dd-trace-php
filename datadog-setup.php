@@ -95,8 +95,10 @@ Options:
                                 option can be provided multiple times.
     --install-dir <path>        Install to a specific directory. Default: '$installdir'
     --uninstall                 Uninstall the library from the specified binaries.
+    --extension-dir <path>      Specify the extension directory. Default: PHP's extension directory.
+    --ini <path>                Specify the INI file to use. Default: <ini-dir>/98-ddtrace.ini
     --enable-appsec             Enable the application security monitoring module.
-    --enable-profiling          Enable the profiling module.
+    --enable-profiling           Enable the profiling module.
     -d setting[=value]          Used in conjunction with `config <set|get>`
                                 command to specify the INI setting to get or set.
 
