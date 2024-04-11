@@ -8,7 +8,6 @@ set -e
 assert_no_ddtrace
 
 # Install using the php installer
-#trace_version=$(parse_trace_version)
 trace_version="0.99.0"
 generate_installers "${trace_version}"
 custom_ini_file="$(get_php_conf_dir)/40-ddtrace.ini"
