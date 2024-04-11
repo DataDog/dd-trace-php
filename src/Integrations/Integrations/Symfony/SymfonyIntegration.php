@@ -154,6 +154,19 @@ class SymfonyIntegration extends Integration
             }
         );
 
+         \DDTrace\hook_method(
+             'Symfony\Component\Routing\Route',
+             '__construct',
+             null,
+             function ($This) use ($integration) {
+                $defaults = $This->getDefaults();
+                $path = $This->getPath();
+                $defaults['_path'] = $path;
+
+                $This->setDefaults($defaults);
+             }
+         );
+
         //Symfony < 5
         \DDTrace\hook_method(
             'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
@@ -407,6 +420,11 @@ class SymfonyIntegration extends Integration
                     }
                     $rootSpan->meta['symfony.route.name'] = $route;
                 }
+
+                $path = $request->get('_path');
+//                 if ($path) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
+//                 }
             }
         );
 
