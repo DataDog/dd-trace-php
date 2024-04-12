@@ -1,9 +1,10 @@
 <?php
 
-namespace DDTrace\Integrations\Swoole;
+namespace DDTrace\Integrations\OpenSwoole;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanStack;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -11,9 +12,9 @@ use DDTrace\Util\Normalizer;
 use function DDTrace\consume_distributed_tracing_headers;
 use function DDTrace\extract_ip_from_headers;
 
-class SwooleIntegration extends Integration
+class OpenSwooleIntegration extends Integration
 {
-    const NAME = 'swoole';
+    const NAME = 'openswoole';
 
     public function getName()
     {
@@ -28,23 +29,26 @@ class SwooleIntegration extends Integration
         return false;
     }
 
-    public function instrumentRequestStart(callable $callback, SwooleIntegration $integration, \Swoole\Http\Server $server)
+    public function instrumentRequestStart(callable $callback, OpenSwooleIntegration $integration, \OpenSwoole\Http\Server $server)
     {
-        $scheme = $server->ssl ? 'https://' : 'http://';
+        Logger::get()->debug('Instrumenting OpenSwoole request start');
+        //$scheme = $server->ssl ? 'https://' : 'http://';
+        $scheme = 'http://';
 
-        \DDTrace\install_hook(
+        $id = \DDTrace\install_hook(
             $callback,
             function (HookData $hook) use ($integration, $server, $scheme) {
+                Logger::get()->debug('OpenSwoole hooking request start');
                 $rootSpan = $hook->span(new SpanStack());
                 $rootSpan->name = "web.request";
-                $rootSpan->service = \ddtrace_config_app_name('swoole');
+                $rootSpan->service = \ddtrace_config_app_name('openswoole');
                 $rootSpan->type = Type::WEB_SERVLET;
-                $rootSpan->meta[Tag::COMPONENT] = SwooleIntegration::NAME;
+                $rootSpan->meta[Tag::COMPONENT] = OpenSwooleIntegration::NAME;
                 $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
 
                 $args = $hook->args;
-                /** @var \Swoole\Http\Request $request */
+                /** @var \OpenSwoole\Http\Request $request */
                 $request = $args[0];
 
                 $headers = [];
@@ -105,42 +109,51 @@ class SwooleIntegration extends Integration
                 unset($rootSpan->meta['closure.declaration']);
             }
         );
+
+        Logger::get()->debug("Hook installed: $id");
+
+        Logger::get()->debug('OpenSwoole request start instrumented');
     }
 
     public function init()
     {
-        if (!function_exists('swoole_version') || version_compare(swoole_version(), '5.0.2', '<')) {
-            return Integration::NOT_LOADED;
-        }
+        //if (version_compare(\OpenSwoole\Util::getVersion(), '22.', '<')) {
+        //    return Integration::NOT_LOADED;
+        //}
 
         $integration = $this;
+        Logger::get()->debug('Initializing OpenSwoole integration');
 
         ini_set("datadog.trace.auto_flush_enabled", 1);
         ini_set("datadog.trace.generate_root_span", 0);
 
         \DDTrace\hook_method(
-            'Swoole\Http\Server',
+            'OpenSwoole\Http\Server',
             'on',
             null,
             function ($server, $scope, $args, $retval) use ($integration) {
                 if ($retval === false) {
+                    Logger::get()->debug('OpenSwoole hook failed');
                     return; // Callback wasn't set
                 }
 
                 list($eventName, $callback) = $args;
 
                 if ($eventName === 'request') {
+                    Logger::get()->debug('OpenSwoole hooking request');
                     $integration->instrumentRequestStart($callback, $integration, $server);
                 }
             }
         );
 
         \DDTrace\hook_method(
-            'Swoole\Http\Response',
+            'OpenSwoole\Http\Response',
             'end',
-            function ($response, $scope, $args) use ($integration) {
+            function () use ($integration) {
+                Logger::get()->debug('OpenSwoole hooking response end');
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
+                    Logger::get()->debug('OpenSwoole root span not found');
                     return;
                 }
 
@@ -156,7 +169,7 @@ class SwooleIntegration extends Integration
         );
 
         \DDTrace\hook_method(
-            'Swoole\Http\Response',
+            'OpenSwoole\Http\Response',
             'header',
             function ($response, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
@@ -176,7 +189,7 @@ class SwooleIntegration extends Integration
         );
 
         \DDTrace\hook_method(
-            'Swoole\Http\Response',
+            'OpenSwoole\Http\Response',
             'status',
             function ($response, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();

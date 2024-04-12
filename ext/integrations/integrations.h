@@ -31,6 +31,7 @@
     INTEGRATION(MYSQLI, "mysqli")               \
     INTEGRATION(NETTE, "nette")                 \
     INTEGRATION(PCNTL, "pcntl")                 \
+    INTEGRATION(OPENSWOOLE, "openswoole")       \
     INTEGRATION(PDO, "pdo")                     \
     INTEGRATION(PHPREDIS, "phpredis")           \
     INTEGRATION(PREDIS, "predis")               \

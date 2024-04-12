@@ -1213,6 +1213,9 @@ test_integrations_mongo: global_test_run_dependencies
 test_integrations_mongodb1:
 	$(MAKE) test_scenario_mongodb1
 	$(call run_tests_debug,tests/Integrations/MongoDB)
+test_integrations_openswoole_22: global_test_run_dependencies
+	$(MAKE) test_scenario_openswoole22
+	$(call run_tests_debug,--testsuite=openswoole-test)
 test_integrations_pcntl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PCNTL)
 test_integrations_pdo: global_test_run_dependencies

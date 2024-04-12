@@ -203,6 +203,17 @@
                     ]
                 }
             },
+            "openswoole22": {
+                "scenario-options": {
+                    "create-lockfile": false
+                },
+                "scripts": {
+                    "pre-autoload-dump": [
+                        "sudo pecl uninstall openswoole",
+                        "printf 'no' | sudo pecl install -f openswoole-22.1.2"
+                    ]
+                }
+            },
             "amqp2": {
                 "require": {
                     "php-amqplib/php-amqplib": "^v2.6.2"

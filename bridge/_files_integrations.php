@@ -29,6 +29,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/Mysqli/MysqliIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Mongo/MongoIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/MongoDB/MongoDBIntegration.php',
+    __DIR__ . '/../src/Integrations/Integrations/OpenSwoole/OpenSwooleIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Slim/SlimIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Frankenphp/FrankenphpIntegration.php',
     __DIR__ . '/../src/Integrations/Integrations/Swoole/SwooleIntegration.php',
