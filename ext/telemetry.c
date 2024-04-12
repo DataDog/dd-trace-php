@@ -80,12 +80,33 @@ void ddtrace_telemetry_finalize(void) {
 
     // Telemetry metrics
     ddog_CharSlice metric_name = DDOG_CHARSLICE_C("spans_created");
-    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name, DDOG_METRIC_NAMESPACE_TRACERS);
     zend_string *integration_name;
     zval *metric_value;
     ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(telemetry_spans_created_per_integration), integration_name, metric_value) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, Z_DVAL_P(metric_value), dd_zend_string_to_CharSlice(integration_name));
+        zai_string tags = zai_string_concat3((zai_str)ZAI_STRL("integration_name:"), (zai_str)ZAI_STR_FROM_ZSTR(integration_name), (zai_str)ZAI_STRING_EMPTY);
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, Z_DVAL_P(metric_value), dd_zai_string_to_CharSlice(tags));
+        zai_string_destroy(&tags);
     } ZEND_HASH_FOREACH_END();
+
+    metric_name = DDOG_CHARSLICE_C("logs_created");
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name, DDOG_METRIC_NAMESPACE_GENERAL);
+    static struct {
+        ddog_CharSlice level;
+        ddog_CharSlice tags;
+    } log_levels[] = {
+        {DDOG_CHARSLICE_C_BARE("trace"), DDOG_CHARSLICE_C_BARE("level:trace")},
+        {DDOG_CHARSLICE_C_BARE("debug"), DDOG_CHARSLICE_C_BARE("level:debug")},
+        {DDOG_CHARSLICE_C_BARE("info"), DDOG_CHARSLICE_C_BARE("level:info")},
+        {DDOG_CHARSLICE_C_BARE("warn"), DDOG_CHARSLICE_C_BARE("level:warn")},
+        {DDOG_CHARSLICE_C_BARE("error"), DDOG_CHARSLICE_C_BARE("level:error")},
+    };
+    uint32_t count;
+    for (size_t i = 0; i < sizeof(log_levels) / sizeof(log_levels[0]); ++i) {
+        if ((count = ddog_get_logs_count(log_levels[i].level)) > 0) {
+            ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)count, log_levels[i].tags);
+        }
+    }
 
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 

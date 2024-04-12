@@ -2,8 +2,9 @@ use datadog_sidecar::interface::blocking::SidecarTransport;
 use datadog_sidecar::interface::{blocking, InstanceId, QueueId, SidecarAction};
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::CharSlice;
-use ddcommon::tag::Tag;
+use ddcommon::tag::parse_tags;
 use ddtelemetry::data;
+use ddtelemetry::data::metrics::MetricNamespace;
 use ddtelemetry::data::{Dependency, Integration};
 use ddtelemetry::metrics::MetricContext;
 use ddtelemetry::worker::TelemetryActions;
@@ -134,14 +135,15 @@ pub extern "C" fn ddog_sidecar_telemetry_buffer_flush(
 pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
     buffer: &mut SidecarActionsBuffer,
     metric_name: CharSlice,
+    namespace: MetricNamespace,
 ) {
 
     buffer.buffer.push(SidecarAction::RegisterTelemetryMetric(MetricContext {
         name: metric_name.to_utf8_lossy().into_owned(),
-        namespace: data::metrics::MetricNamespace::Tracers,
+        namespace,
         metric_type: data::metrics::MetricType::Count,
         tags: Vec::default(),
-        common: false,
+        common: true,
     }));
 }
 
@@ -150,12 +152,9 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_span_metric_point_buffer(
     buffer: &mut SidecarActionsBuffer,
     metric_name: CharSlice,
     metric_value: f64,
-    integration_name: CharSlice,
+    tags: CharSlice,
 ) {
-    let mut tags: Vec<Tag> = Vec::default();
-    if integration_name.len() > 0 {
-        tags.push(Tag::new("integration_name", integration_name.to_utf8_lossy().into_owned()).unwrap())
-    }
+    let (tags, _) = parse_tags(&tags.to_utf8_lossy());
 
     buffer.buffer.push(SidecarAction::AddTelemetryMetricPoint((
         metric_name.to_utf8_lossy().into_owned(),

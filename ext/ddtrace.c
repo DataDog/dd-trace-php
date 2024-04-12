@@ -413,7 +413,7 @@ static void dd_activate_once(void) {
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 
 static void ddtrace_activate(void) {
-    ddog_reset_log_once();
+    ddog_reset_logger();
 
     zai_hook_rinit();
     zai_interceptor_activate();
@@ -2045,6 +2045,11 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddtrace_coms_synchronous_flush(timeout);
             RETVAL_TRUE;
 #endif
+        } else if (FUNCTION_NAME_MATCHES("test_logs")) {
+            ddog_logf(DDOG_LOG_WARN, false, "foo");
+            ddog_logf(DDOG_LOG_WARN, false, "bar");
+            ddog_logf(DDOG_LOG_ERROR, false, "Boum");
+            RETVAL_TRUE;
         }
     }
 }

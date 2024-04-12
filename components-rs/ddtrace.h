@@ -143,7 +143,9 @@ void ddog_set_log_level(ddog_CharSlice level, bool once);
 
 void ddog_log(enum ddog_Log category, bool once, ddog_CharSlice msg);
 
-void ddog_reset_log_once(void);
+void ddog_reset_logger(void);
+
+uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
 bool ddtrace_detect_composer_installed_json(ddog_SidecarTransport **transport,
                                             const struct ddog_InstanceId *instance_id,
@@ -172,12 +174,13 @@ ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(ddog_SidecarTransport **tran
                                                     struct ddog_SidecarActionsBuffer *buffer);
 
 void ddog_sidecar_telemetry_register_metric_buffer(struct ddog_SidecarActionsBuffer *buffer,
-                                                   ddog_CharSlice metric_name);
+                                                   ddog_CharSlice metric_name,
+                                                   enum ddog_MetricNamespace namespace_);
 
 void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                          ddog_CharSlice metric_name,
                                                          double metric_value,
-                                                         ddog_CharSlice integration_name);
+                                                         ddog_CharSlice tags);
 
 ddog_MaybeError ddog_sidecar_connect_php(ddog_SidecarTransport **connection,
                                          const char *error_path,

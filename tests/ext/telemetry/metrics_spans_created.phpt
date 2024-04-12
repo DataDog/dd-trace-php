@@ -1,5 +1,5 @@
 --TEST--
-Signal integration telemetry
+'spans_created' internal metric
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
@@ -10,7 +10,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 --INI--
-datadog.trace.agent_url="file://{PWD}/integration-telemetry.out"
+datadog.trace.agent_url="file://{PWD}/metrics-spans_created-telemetry.out"
 zend.assertions=1
 --FILE--
 <?php
@@ -80,8 +80,8 @@ namespace
 
     for ($i = 0; $i < 100; ++$i) {
         usleep(100000);
-        if (file_exists(__DIR__ . '/integration-telemetry.out')) {      
-            foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
+        if (file_exists(__DIR__ . '/metrics-spans_created-telemetry.out')) {
+            foreach (file(__DIR__ . '/metrics-spans_created-telemetry.out') as $l) {
                 if ($l) {
                     $json = json_decode($l, true);
                     $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
@@ -89,12 +89,15 @@ namespace
                         if ($json["request_type"] == "generate-metrics") {
                             $series = [];
                             foreach ($json['payload']['series'] as $serie) {
+                                if ($serie['metric'] !== 'spans_created') {
+                                  continue;
+                                }
                                 $key = $serie['namespace'].$serie['metric'].implode(',', $serie['tags']);
                                 $series[$key] = $serie;
                             };
                             ksort($series);
                             var_dump(array_values($series));
-                            
+
                             break 3;
                         }
                     }
@@ -137,7 +140,7 @@ array(4) {
       string(24) "integration_name:datadog"
     }
     ["common"]=>
-    bool(false)
+    bool(true)
     ["type"]=>
     string(5) "count"
     ["interval"]=>
@@ -165,7 +168,7 @@ array(4) {
       string(20) "integration_name:foo"
     }
     ["common"]=>
-    bool(false)
+    bool(true)
     ["type"]=>
     string(5) "count"
     ["interval"]=>
@@ -193,7 +196,7 @@ array(4) {
       string(21) "integration_name:otel"
     }
     ["common"]=>
-    bool(false)
+    bool(true)
     ["type"]=>
     string(5) "count"
     ["interval"]=>
@@ -221,7 +224,7 @@ array(4) {
       string(32) "integration_name:testintegration"
     }
     ["common"]=>
-    bool(false)
+    bool(true)
     ["type"]=>
     string(5) "count"
     ["interval"]=>
@@ -231,4 +234,4 @@ array(4) {
 --CLEAN--
 <?php
 
-@unlink(__DIR__ . '/integration-telemetry.out');
+@unlink(__DIR__ . '/metrics-spans_created-telemetry.out');

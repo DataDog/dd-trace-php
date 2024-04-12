@@ -1,7 +1,8 @@
 use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::ffi::c_char;
 use std::fmt::Debug;
+use std::str::FromStr;
 use tracing::Level;
 use tracing_core::{Event, Field, LevelFilter, Subscriber};
 use tracing_subscriber::EnvFilter;
@@ -39,6 +40,7 @@ pub static mut ddog_log_callback: Option<extern "C" fn(CharSlice)> = None;
 std::thread_local! {
     static LOGGED_MSGS: RefCell<BTreeSet<String>> = RefCell::default();
     static TRACING_GUARDS: RefCell<Option<tracing_core::dispatcher::DefaultGuard>> = RefCell::default();
+    static COUNTERS: RefCell<HashMap<Level, u32>> = RefCell::default();
 }
 
 macro_rules! with_target {
@@ -144,6 +146,12 @@ impl<S, N> FormatEvent<S, N> for LogFormatter
                 } else {
                     fmt_msg(event, &msg, "")
                 };
+
+                COUNTERS.with(|counter| {
+                    let mut counter = counter.borrow_mut();
+                    *counter.entry(event.metadata().level().to_owned()).or_default() += 1;
+                });
+
                 cb(unsafe { CharSlice::from_raw_parts(msg.as_ptr() as *const c_char, msg.len() - 1) });
             }
         }
@@ -182,9 +190,24 @@ pub unsafe extern "C" fn ddog_log(category: Log, once: bool, msg: CharSlice) {
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_reset_log_once() {
+pub extern "C" fn ddog_reset_logger() {
     LOGGED_MSGS.with(|logged| {
         let mut logged = logged.borrow_mut();
         logged.clear();
+    });
+
+    COUNTERS.with(|counter| {
+        let mut counter = counter.borrow_mut();
+        counter.clear();
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_get_logs_count(level: CharSlice) -> u32 {
+    return COUNTERS.with(|counter| {
+        let level = Level::from_str(&level.to_utf8_lossy()).unwrap();
+
+        let mut counter = counter.borrow_mut();
+        *counter.entry(level).or_default()
     });
 }
