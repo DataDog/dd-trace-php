@@ -9,7 +9,6 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_smart_str.h>
-#include <components/sapi/sapi.h>
 #include <headers/headers.h>
 #include <hook/hook.h>
 #include <json/json.h>
@@ -117,7 +116,7 @@ static bool dd_has_other_observers;
 static int dd_observer_extension_backup = -1;
 #endif
 
-static datadog_php_sapi ddtrace_active_sapi = DATADOG_PHP_SAPI_UNKNOWN;
+datadog_php_sapi ddtrace_active_sapi = DATADOG_PHP_SAPI_UNKNOWN;
 
 _Atomic(int64_t) ddtrace_warn_legacy_api;
 
@@ -419,6 +418,7 @@ static void ddtrace_activate(void) {
     zai_hook_rinit();
     zai_interceptor_activate();
     zai_uhook_rinit();
+    ddtrace_telemetry_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
 
@@ -1401,6 +1401,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     dd_finalize_telemetry();
+    ddtrace_telemetry_rshutdown();
+
     if (DDTRACE_G(last_flushed_root_service_name)) {
         zend_string_release(DDTRACE_G(last_flushed_root_service_name));
         DDTRACE_G(last_flushed_root_service_name) = NULL;
@@ -1894,6 +1896,21 @@ PHP_FUNCTION(DDTrace_Testing_trigger_error) {
             LOG_LINE(WARN, "Invalid error type specified: %i", level);
             break;
     }
+}
+
+PHP_FUNCTION(DDTrace_Internal_add_span_flag) {
+    zend_object *span;
+    zend_long flag;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_OBJ_OF_CLASS_EX(span, ddtrace_ce_span_data, 0, 1)
+        Z_PARAM_LONG(flag)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_span_data *span_data = OBJ_SPANDATA(span);
+    span_data->flags |= (uint8_t)flag;
+
+    RETURN_NULL();
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
@@ -2523,11 +2540,14 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
     UNUSED(return_value);
 
     dd_fci_fcc_pair func;
+    bool use_server_headers = false;
     zend_array *array = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         DD_PARAM_PROLOGUE(0, 0);
-        if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error, true))) {
+        if (Z_TYPE_P(_arg) == IS_NULL) {
+            use_server_headers = true;
+        } else if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error, true))) {
             if (!_error) {
                 zend_argument_type_error(1, "must be a valid callback or of type array, %s given", zend_zval_value_name(_arg));
                 _error_code = ZPP_ERROR_FAILURE;
@@ -2559,6 +2579,8 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
 
     if (array) {
         return ddtrace_read_distributed_tracing_ids(dd_read_array_header, array);
+    } else if (use_server_headers) {
+        return ddtrace_read_distributed_tracing_ids(ddtrace_read_zai_header, &func);
     } else {
         return ddtrace_read_distributed_tracing_ids(dd_read_userspace_header, &func);
     }

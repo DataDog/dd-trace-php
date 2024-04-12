@@ -1,0 +1,24 @@
+[[
+  {
+    "name": "codeigniter.request",
+    "service": "codeigniter_test_app",
+    "resource": "GET /does_not_exist",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 2162643876065918024,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "660beb1600000000",
+      "component": "codeigniter",
+      "http.method": "GET",
+      "http.route": "does_not_exist",
+      "http.status_code": "200",
+      "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
+      "runtime-id": "0caac976-2232-42e0-a186-9f73b4c27f50",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  }]]

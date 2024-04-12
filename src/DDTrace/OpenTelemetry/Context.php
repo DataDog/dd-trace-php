@@ -198,7 +198,7 @@ final class Context implements ContextInterface
             $parentContext, // $parentContext
             NoopSpanProcessor::getInstance(), // $spanProcessor
             ResourceInfoFactory::emptyResource(), // $resource
-            (new AttributesFactory())->builder(), // $attributesBuilder
+            [], // $attributesBuilder
             $links, // $links
             count($links), // $totalRecordedLinks
             false // The span was created using the DD Api

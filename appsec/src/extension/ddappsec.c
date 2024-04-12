@@ -354,7 +354,8 @@ __thread void *unspecnull TSRMLS_CACHE = NULL;
 static void _check_enabled()
 {
     if ((!get_global_DD_APPSEC_TESTING() && !dd_trace_enabled()) ||
-        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text)) {
+        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text) ||
+        (strcmp(sapi_module.name, "frankenphp") == 0)) {
         DDAPPSEC_G(enabled) = APPSEC_FULLY_DISABLED;
         DDAPPSEC_G(active) = false;
         DDAPPSEC_G(to_be_configured) = false;
@@ -456,6 +457,50 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
     RETURN_TRUE;
 }
 
+static PHP_FUNCTION(datadog_appsec_push_address)
+{
+    UNUSED(return_value);
+    if (!DDAPPSEC_G(active)) {
+        mlog(dd_log_debug, "Trying to access to push_address "
+                           "function while appsec is disabled");
+        return;
+    }
+
+    zend_string *key = NULL;
+    zval *value = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sz", &key, &value) == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    zval parameters_zv;
+    zend_array *parameters_arr = zend_new_array(1);
+    ZVAL_ARR(&parameters_zv, parameters_arr);
+    zend_hash_add(Z_ARRVAL(parameters_zv), key, value);
+    Z_TRY_ADDREF_P(value);
+
+    dd_conn *conn = dd_helper_mgr_cur_conn();
+    if (conn == NULL) {
+        zval_ptr_dtor(&parameters_zv);
+        mlog_g(dd_log_debug, "No connection; skipping push_address");
+        return;
+    }
+
+    dd_result res = dd_request_exec(conn, &parameters_zv);
+    zval_ptr_dtor(&parameters_zv);
+
+    if (dd_req_is_user_req()) {
+        if (res == dd_should_block || res == dd_should_redirect) {
+            dd_req_call_blocking_function(res);
+        }
+    } else {
+        if (res == dd_should_block) {
+            dd_request_abort_static_page();
+        } else if (res == dd_should_redirect) {
+            dd_request_abort_redirect();
+        }
+    }
+}
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
     void_ret_bool_arginfo, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -464,9 +509,15 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(request_exec_arginfo, 0, 1, _IS_BOOL, 0)
 ZEND_ARG_INFO(0, "data")
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(push_address_arginfo, 0, 0, IS_VOID, 1)
+ZEND_ARG_INFO(0, key)
+ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
 // clang-format off
 static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_address", PHP_FN(datadog_appsec_push_address), push_address_arginfo, 0)
     PHP_FE_END
 };
 static const zend_function_entry testing_functions[] = {

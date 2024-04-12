@@ -514,10 +514,11 @@ namespace DDTrace {
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
      * if there is one, as well as the future ones if it isn't overwritten
      *
-     * @param array|callable(string):mixed $headersOrCallback Either an array with a lowercase header to value mapping,
-     * or a callback, which given a header name for distributed tracing, returns the value it should be updated to.
+     * @param null|array|callable(string):mixed $headersOrCallback Either an array with a lowercase header to value mapping,
+     * or a callback, which given a header name for distributed tracing, returns the value it should be updated to. If null,
+     * this reads the headers directly from the $_SERVER superglobal.
      */
-    function consume_distributed_tracing_headers(array|callable $headersOrCallback): void {}
+    function consume_distributed_tracing_headers(null|array|callable $headersOrCallback): void {}
 
     /**
      * Get information on the key-value pairs of the datadog headers for distributed tracing
@@ -694,6 +695,30 @@ namespace DDTrace\Testing {
      * E_DEPRECATED, E_USER_DEPRECATED
      */
     function trigger_error(string $message, int $errorType): void {}
+}
+
+namespace DDTrace\Internal {
+    /**
+     * @var int
+     * @cvalue DDTRACE_SPAN_FLAG_OPENTELEMETRY
+     */
+    const SPAN_FLAG_OPENTELEMETRY = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_SPAN_FLAG_OPENTRACING
+     */
+    const SPAN_FLAG_OPENTRACING = UNKNOWN;
+
+    /**
+     * Adds a flag to a span.
+     *
+     * @internal
+     *
+     * @param \DDTrace\SpanData $span the span to flag
+     * @param int $flag the flag to add to the span
+     */
+    function add_span_flag(\DDTrace\SpanData $span, int $flag): void {}
 }
 
 namespace {

@@ -61,6 +61,19 @@ class WordPressIntegration extends Integration
             return true;
         });
 
+        \DDTrace\hook_method('WP', 'main',  null, function ($This, $scope, $args) {
+            if (\property_exists($This, 'did_permalink') && $This->did_permalink === true) {
+                if (function_exists('\datadog\appsec\push_address') &&
+                    \property_exists($This, 'query_vars') &&
+                    function_exists('is_404') && is_404() === false) {
+                    $parameters = $This->query_vars;
+                    if (count($parameters) > 0) {
+                        \datadog\appsec\push_address("server.request.path_params", $parameters);
+                    }
+                }
+            }
+        });
+
         \DDTrace\hook_function(
             'wp_authenticate',
             null,

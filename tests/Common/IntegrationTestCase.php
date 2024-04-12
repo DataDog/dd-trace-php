@@ -35,17 +35,17 @@ abstract class IntegrationTestCase extends BaseTestCase
             mkdir($artifactsDir, 0777, true);
         }
 
-        file_put_contents($artifactsDir . "/extension_versions.csv", $csv);
+        file_put_contents($artifactsDir . "/extension_versions.csv", $csv, FILE_APPEND);
 
         $csv = '';
-        $output = shell_exec('DD_TRACE_ENABLED=0 composer show -f json -D');
+        $output = shell_exec('DD_TRACE_ENABLED=0 composer --working-dir=./tests show -f json');
         $data = json_decode($output, true);
 
         foreach ($data['installed'] as $package) {
             $csv = $csv . $package['name'] . ";" . $package['version'] . "\n";
         }
 
-        file_put_contents($artifactsDir . "/composer_versions.csv", $csv);
+        file_put_contents($artifactsDir . "/composer_versions.csv", $csv, FILE_APPEND);
     }
 
     public static function ddTearDownAfterClass()

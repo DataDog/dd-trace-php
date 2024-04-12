@@ -36,7 +36,7 @@ class CodeIgniterIntegration extends Integration
             return Integration::NOT_LOADED;
         }
         $majorVersion = \substr(\CI_VERSION, 0, 2);
-        if ('2.' === $majorVersion) {
+        if ('2.' === $majorVersion || '3.' === $majorVersion) {
             /* After _set_routing has been called the class and method
              * are known, so now we can set up tracing on CodeIgniter.
              */
@@ -70,7 +70,7 @@ class CodeIgniterIntegration extends Integration
 
                 // We took the assumption that all controllers will extend CI_Controller.
                 // But we've at least seen one healthcheck controller not extending it.
-                if ($this->load && \method_exists($this->load, 'helper')) {
+                if (property_exists($this, 'load') && $this->load && \method_exists($this->load, 'helper')) {
                     $this->load->helper('url');
 
                     if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {

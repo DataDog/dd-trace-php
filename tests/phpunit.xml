@@ -32,6 +32,9 @@
         <testsuite name="codeigniter-22-test">
             <directory>./Integrations/CodeIgniter/V2_2</directory>
         </testsuite>
+        <testsuite name="codeigniter-31-test">
+            <directory>./Integrations/CodeIgniter/V3_1</directory>
+        </testsuite>
         <testsuite name="composer-tests">
             <directory>./Composer</directory>
         </testsuite>
@@ -51,6 +54,10 @@
             <directory>./Integrations/Laravel/V10_x</directory>
             <directory>./Integrations/CLI/Laravel/V10_X</directory>
         </testsuite>
+        <testsuite name="laravel-11x-test">
+            <directory>./Integrations/Laravel/V11_x</directory>
+            <directory>./Integrations/CLI/Laravel/V11_X</directory>
+        </testsuite>
         <testsuite name="opentelemetry1">
             <directory>./OpenTelemetry/Unit/API</directory>
             <directory>./OpenTelemetry/Unit/Context</directory>
@@ -60,12 +67,19 @@
             <directory>./OpenTelemetry/Integration/Logs</directory>
             <directory>./OpenTelemetry/Integration/SDK</directory>
             <file>./OpenTelemetry/Integration/InteroperabilityTest.php</file>
+            <file>./OpenTelemetry/Integration/InternalTelemetryTest.php</file>
         </testsuite>
         <testsuite name="slim-312-test">
             <directory>./Integrations/Slim/V3_12</directory>
         </testsuite>
         <testsuite name="slim-4-test">
             <directory>./Integrations/Slim/V4</directory>
+        </testsuite>
+        <testsuite name="frankenphp-test">
+            <directory>./Integrations/Frankenphp</directory>
+        </testsuite>
+        <testsuite name="swoole-test">
+            <directory>./Integrations/Swoole</directory>
         </testsuite>
         <testsuite name="symfony-44-test">
             <directory>./Integrations/Symfony/V4_4</directory>

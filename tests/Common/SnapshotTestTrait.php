@@ -136,7 +136,7 @@ trait SnapshotTestTrait
 
     public function tracesFromWebRequestSnapshot(
         $fn,
-        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid', 'start', 'duration'],
         $numExpectedTraces = 1,
         $tracer = null
     ) {

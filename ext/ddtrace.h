@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <components-rs/ddtrace.h>
+#include <components/sapi/sapi.h>
 
 #ifndef _WIN32
 #include <dogstatsd_client/client.h>
@@ -25,6 +26,8 @@ typedef struct ddtrace_span_data ddtrace_span_data;
 typedef struct ddtrace_root_span_data ddtrace_root_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 typedef struct ddtrace_span_link ddtrace_span_link;
+
+extern datadog_php_sapi ddtrace_active_sapi;
 
 static inline zend_array *ddtrace_property_array(zval *zv) {
     ZVAL_DEREF(zv);
@@ -107,6 +110,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable *agent_rate_by_service;
     zend_string *last_flushed_root_service_name;
     zend_string *last_flushed_root_env_name;
+
+    HashTable telemetry_spans_created_per_integration;
 
     HashTable uhook_active_hooks;
     HashTable uhook_closure_hooks;

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 7fec613751ec101cba339b6dfa3a72fbaf38074f */
+ * Stub hash: 1271064f2b0fcdc3d20e2f3d6c780607b300c5f9 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -90,7 +90,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_get_sanitized_exception_
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_consume_distributed_tracing_headers, 0, 1, IS_VOID, 0)
-	ZEND_ARG_TYPE_MASK(0, headersOrCallback, MAY_BE_ARRAY|MAY_BE_CALLABLE, NULL)
+	ZEND_ARG_TYPE_MASK(0, headersOrCallback, MAY_BE_NULL|MAY_BE_ARRAY|MAY_BE_CALLABLE, NULL)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_generate_distributed_tracing_headers, 0, 0, IS_ARRAY, 0)
@@ -163,6 +163,11 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Testing_trigger_error, 0, 2, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, message, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, errorType, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_add_span_flag, 0, 2, IS_VOID, 0)
+	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 0)
+	ZEND_ARG_TYPE_INFO(0, flag, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_env_config, 0, 1, IS_MIXED, 0)
@@ -304,6 +309,7 @@ ZEND_FUNCTION(DDTrace_UserRequest_notify_start);
 ZEND_FUNCTION(DDTrace_UserRequest_notify_commit);
 ZEND_FUNCTION(DDTrace_UserRequest_set_blocking_function);
 ZEND_FUNCTION(DDTrace_Testing_trigger_error);
+ZEND_FUNCTION(DDTrace_Internal_add_span_flag);
 ZEND_FUNCTION(dd_trace_env_config);
 ZEND_FUNCTION(dd_trace_disable_in_request);
 ZEND_FUNCTION(dd_trace_reset);
@@ -378,6 +384,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace\\UserRequest", notify_commit, DDTrace_UserRequest_notify_commit, arginfo_DDTrace_UserRequest_notify_commit)
 	ZEND_NS_FALIAS("DDTrace\\UserRequest", set_blocking_function, DDTrace_UserRequest_set_blocking_function, arginfo_DDTrace_UserRequest_set_blocking_function)
 	ZEND_NS_FALIAS("DDTrace\\Testing", trigger_error, DDTrace_Testing_trigger_error, arginfo_DDTrace_Testing_trigger_error)
+	ZEND_NS_FALIAS("DDTrace\\Internal", add_span_flag, DDTrace_Internal_add_span_flag, arginfo_DDTrace_Internal_add_span_flag)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
 	ZEND_FE(dd_trace_disable_in_request, arginfo_dd_trace_disable_in_request)
 	ZEND_FE(dd_trace_reset, arginfo_dd_trace_reset)
@@ -444,6 +451,8 @@ static void register_ddtrace_symbols(int module_number)
 	REGISTER_LONG_CONSTANT("DDTrace\\DBM_PROPAGATION_DISABLED", DD_TRACE_DBM_PROPAGATION_DISABLED, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DDTrace\\DBM_PROPAGATION_SERVICE", DD_TRACE_DBM_PROPAGATION_SERVICE, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DDTrace\\DBM_PROPAGATION_FULL", DD_TRACE_DBM_PROPAGATION_FULL, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DDTrace\\Internal\\SPAN_FLAG_OPENTELEMETRY", DDTRACE_SPAN_FLAG_OPENTELEMETRY, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DDTrace\\Internal\\SPAN_FLAG_OPENTRACING", DDTRACE_SPAN_FLAG_OPENTRACING, CONST_PERSISTENT);
 	REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP", PRIORITY_SAMPLING_AUTO_KEEP, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT", PRIORITY_SAMPLING_AUTO_REJECT, CONST_PERSISTENT);

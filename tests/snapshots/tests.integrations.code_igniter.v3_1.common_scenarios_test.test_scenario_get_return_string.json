@@ -1,0 +1,37 @@
+[[
+  {
+    "name": "codeigniter.request",
+    "service": "codeigniter_test_app",
+    "resource": "GET /simple",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 5041262405164109530,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "660bca2700000000",
+      "app.endpoint": "Simple::index",
+      "component": "codeigniter",
+      "http.method": "GET",
+      "http.route": "simple",
+      "http.status_code": "200",
+      "http.url": "http://localhost:9999/simple?key=value&<redacted>",
+      "runtime-id": "26ab24e6-051f-4e1f-9adf-3d609bef6946",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "Simple.index",
+       "service": "codeigniter_test_app",
+       "resource": "Simple.index",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "codeigniter"
+       }
+     }]]

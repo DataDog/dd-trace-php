@@ -513,6 +513,7 @@ TEST_WEB_70 := \
 	test_metrics \
 	test_web_cakephp_28 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_laravel_42 \
 	test_web_lumen_52 \
 	test_web_nette_24 \
@@ -557,6 +558,7 @@ TEST_WEB_71 := \
 	test_metrics \
 	test_web_cakephp_28 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_laravel_42 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
@@ -609,6 +611,7 @@ TEST_INTEGRATIONS_72 := \
 TEST_WEB_72 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_laravel_42 \
 	test_web_laravel_57 \
@@ -667,6 +670,7 @@ TEST_INTEGRATIONS_73 :=\
 TEST_WEB_73 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_laminas_14 \
 	test_web_laravel_57 \
@@ -727,6 +731,7 @@ TEST_INTEGRATIONS_74 := \
 TEST_WEB_74 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_drupal_95 \
 	test_web_laminas_14 \
@@ -782,11 +787,13 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_pcntl \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_80 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_laminas_rest_19 \
 	test_web_laminas_14 \
@@ -828,11 +835,13 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_81 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
 	test_web_laminas_rest_19 \
@@ -874,13 +883,16 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
 	test_integrations_predis1 \
+	test_integrations_frankenphp \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_82 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
 	test_web_laminas_rest_19 \
@@ -888,6 +900,7 @@ TEST_WEB_82 := \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
+	test_web_laravel_11x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
@@ -925,17 +938,21 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
 	test_integrations_predis1 \
+	test_integrations_frankenphp \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
 	test_opentracing_10
 
 TEST_WEB_83 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
+	test_web_laravel_11x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
@@ -962,7 +979,7 @@ define run_composer_with_retry
 	done \
 
 	mkdir -p /tmp/artifacts
-	$(COMPOSER) --working-dir=$1 show -f json -D | grep -o '"name": "[^"]*\|"version": "[^"]*' | paste -d';' - - | sed 's/"name": //; s/"version": //' | tr -d '"' >> "/tmp/artifacts/web_versions.csv"
+	$(COMPOSER) --working-dir=$1 show -f json | grep -o '"name": "[^"]*\|"version": "[^"]*' | paste -d';' - - | sed 's/"name": //; s/"version": //' | tr -d '"' >> "/tmp/artifacts/web_versions.csv"
 endef
 
 define run_tests_without_coverage
@@ -1098,6 +1115,7 @@ benchmarks_opcache: benchmarks_run_dependencies call_benchmarks_opcache
 test_opentelemetry_1: global_test_run_dependencies
 	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
 	$(MAKE) test_scenario_opentelemetry1
+	$(call run_composer_with_retry,tests/Frameworks/Custom/OpenTelemetry,)
 	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0)
 	$(call run_tests,--testsuite=opentelemetry1 $(TESTS))
 	$(eval TEST_EXTRA_ENV=)
@@ -1112,7 +1130,9 @@ test_opentracing_beta6: global_test_run_dependencies
 
 test_opentracing_10: global_test_run_dependencies
 	$(MAKE) test_scenario_opentracing10
+	$(call run_composer_with_retry,tests/Frameworks/Custom/OpenTracing,)
 	$(call run_tests,tests/OpenTracer1Unit)
+	$(call run_tests,tests/OpenTracing)
 
 test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
 test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))
@@ -1195,17 +1215,26 @@ test_integrations_phpredis5: global_test_run_dependencies
 test_integrations_predis1: global_test_run_dependencies
 	$(MAKE) test_scenario_predis1
 	$(call run_tests_debug,tests/Integrations/Predis)
+test_integrations_frankenphp: global_test_run_dependencies
+	$(MAKE) test_scenario_default
+	$(call run_tests_debug,--testsuite=frankenphp-test)
 test_integrations_roadrunner: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Roadrunner/Version_2,)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
+test_integrations_swoole_5: global_test_run_dependencies
+	$(MAKE) test_scenario_swoole5
+	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_cakephp_28: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_2_8,)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
+test_web_codeigniter_31: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/CodeIgniter/Version_3_1 update
+	$(call run_tests_debug,--testsuite=codeigniter-31-test)
 test_web_drupal_89: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_8_9/core,--ignore-platform-reqs)
 	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_8_9,--ignore-platform-reqs)
@@ -1246,6 +1275,9 @@ test_web_laravel_9x: global_test_run_dependencies
 test_web_laravel_10x: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_10_x,)
 	$(call run_tests_debug,--testsuite=laravel-10x-test)
+test_web_laravel_11x: global_test_run_dependencies
+	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_11_x,)
+	$(call run_tests_debug,--testsuite=laravel-11x-test)
 test_web_lumen_52: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_5_2,)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_2)

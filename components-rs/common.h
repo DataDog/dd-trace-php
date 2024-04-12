@@ -84,6 +84,16 @@ typedef struct ddog_Slice_CChar {
 typedef struct ddog_Slice_CChar ddog_CharSlice;
 
 /**
+ * A wrapper for returning owned strings from FFI
+ */
+typedef struct ddog_StringWrapper {
+  /**
+   * This is a String stuffed into the vec.
+   */
+  struct ddog_Vec_U8 message;
+} ddog_StringWrapper;
+
+/**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
  */
@@ -299,6 +309,20 @@ struct ddog_Error *ddog_endpoint_from_api_key_and_site(ddog_CharSlice api_key,
                                                        struct ddog_Endpoint **endpoint);
 
 void ddog_endpoint_drop(struct ddog_Endpoint*);
+
+/**
+ * # Safety
+ * Only pass null or a valid reference to a `ddog_StringWrapper`.
+ */
+void ddog_StringWrapper_drop(struct ddog_StringWrapper *s);
+
+/**
+ * Returns a CharSlice of the message that is valid until the StringWrapper
+ * is dropped.
+ * # Safety
+ * Only pass null or a valid reference to a `ddog_StringWrapper`.
+ */
+ddog_CharSlice ddog_StringWrapper_message(const struct ddog_StringWrapper *s);
 
 DDOG_CHECK_RETURN struct ddog_Vec_Tag ddog_Vec_Tag_new(void);
 
