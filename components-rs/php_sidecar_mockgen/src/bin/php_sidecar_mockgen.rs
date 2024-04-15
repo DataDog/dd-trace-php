@@ -44,7 +44,22 @@ fn main() {
     if fs::metadata("mock_php.shared_lib").map_or(true, |m| m.modified().unwrap() < source_modified) {
         env::set_var("OPT_LEVEL", "2");
 
+        let mut cc_build = cc::Build::new();
+
+        // The 'host' and 'target' options are required to compile.
+        // They can be provided using the HOST and TARGET environment variables.
+        // On Linux, these environment variables can be empty strings, but it's not the case on macOS.
+        let host = std::env::var("HOST").unwrap_or("".to_string());
+        if host == "" {
+            cc_build.host(current_platform::CURRENT_PLATFORM);
+        }
+        let target = std::env::var("TARGET").unwrap_or("".to_string());
+        if target == "" {
+            cc_build.target(current_platform::CURRENT_PLATFORM);
+        }
+
         cc_utils::ImprovedBuild::new()
+            .set_cc_builder(cc_build)
             .file("mock_php_syms.c")
             .link_dynamically("dl")
             .warnings(true)

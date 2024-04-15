@@ -42,6 +42,13 @@ INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' 
 M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(BUILD_DIR)/config.m4
 XDEBUG_SO_FILE = $(shell find $(shell php-config --extension-dir) -type f -name "xdebug*.so" -exec basename {} \; | tail -n 1)
 
+# Make 'sed -i' portable
+ifeq ($(shell uname),Darwin)
+	SED_I = sed -i ''
+else
+	SED_I = sed -i
+endif
+
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
 # The following differentiation exists so we can build only (but always) the relevant files while executing tests
@@ -67,13 +74,13 @@ $(BUILD_DIR)/%Cargo.toml: %Cargo.toml
 	$(Q) echo Copying $*Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $*Cargo.toml $@
-	sed -i -E 's/"\.\.\/([^"]*)"/"..\/..\/..\/\1"/' $@
+	$(SED_I) -E 's/"\.\.\/([^"]*)"/"..\/..\/..\/\1"/' $@
 
 $(BUILD_DIR)/Cargo.toml: Cargo.toml
 	$(Q) echo Copying Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a Cargo.toml $@
-	sed -i -E 's/, "profiling",?//' $@
+	$(SED_I) -E 's/, "profiling",?//' $@
 
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to $@
@@ -86,7 +93,7 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
 $(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSION
-	$(Q) (cd $(BUILD_DIR); phpize && sed -i 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
+	$(Q) (cd $(BUILD_DIR); phpize && $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug)
@@ -289,7 +296,7 @@ test_coverage_collect:
 		--exclude "$(BUILD_DIR)/src/dogstatsd/*" \
 		--exclude "$(BUILD_DIR)/src/dogstatsd/dogstatsd_client/*" \
 		--output-file $(PROJECT_ROOT)/tmp/coverage.info
-	$(Q) sed -i 's+tmp/build_extension/ext+ext+g' $(PROJECT_ROOT)/tmp/coverage.info
+	$(Q) $(SED_I) 's+tmp/build_extension/ext+ext+g' $(PROJECT_ROOT)/tmp/coverage.info
 
 test_coverage_output:
 	$(Q) genhtml \
