@@ -301,6 +301,7 @@ final class Tracer implements TracerInterface
         }
 
         $this->transport->send($this);
+        $this->scopeManager->close();
     }
 
     /**

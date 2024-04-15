@@ -151,5 +151,6 @@ final class ScopeManager implements ScopeManagerInterface
         foreach ($this->hostRootScopes as $scope) {
             $scope->close();
         }
+        $this->hostRootScopes = [];
     }
 }
