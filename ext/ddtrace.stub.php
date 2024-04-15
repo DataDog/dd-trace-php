@@ -439,6 +439,9 @@ namespace DDTrace {
     /**
      * Update the duration of an already closed span
      *
+     * Note that this API won't cause an update of a closed span if it's already sent. Its usage, particularly on
+     * root spans with datadog.trace.auto_flush_enabled may not yield the expected results.
+     *
      * @param SpanData $span The span to update.
      * @param float $finishTime Finish time in seconds. Defaults to now if zero.
      * @return false|null 'false' if unexpected parameters were given, else 'null'
