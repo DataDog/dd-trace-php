@@ -219,6 +219,19 @@
                     "create-lockfile": false
                 }
             },
+            "kafka": {
+                "scenario-options": {
+                    "create-lockfile": false
+                },
+                "scripts": {
+                    "pre-autoload-dump": [
+                        "sudo apt -y install librdkafka-dev",
+                        "sudo pecl uninstall rdkafka",
+                        "printf 'autodetect' | sudo pecl install rdkafka-6.0.3",
+                        "sudo echo \"extension=rdkafka.so\" > $(php -i | awk -F\"=> \" '/Scan this dir for additional .ini files/ {print $2}')/rdkafka.ini"
+                    ]
+                }
+            },
             "benchmarks": {
                 "require": {
                     "monolog/monolog": "~2.0",

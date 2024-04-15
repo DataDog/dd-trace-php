@@ -117,6 +117,8 @@ else
   # Redis 6.0.0 dropped support for PHP 7.1 and below
   pecl install redis$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -5.3.7; fi); echo "extension=redis.so" >> ${iniDir}/redis.ini;
   pecl install sqlsrv$SQLSRV_VERSION; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
+  apt -y install librdkafka-dev;
+  printf 'autodetect' | pecl install rdkafka-6.0.3; echo "extension=rdkafka.so" >> ${iniDir}/rdkafka.ini;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do
     pecl install xdebug$VERSION;

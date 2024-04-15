@@ -96,6 +96,43 @@ aliases:
       - MSSQL_SA_PASSWORD=Password12!
       - MSSQL_PID=Developer
 
+  - &IMAGE_DOCKER_ZOOKEPER
+    image: confluentinc/cp-zookeeper:7.5.4
+    name: zookeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  - &IMAGE_DOCKER_SCHEMA_REGISTRY
+    image: confluentinc/cp-schema-registry:7.5.4
+    name: schema-registry
+    depends_on:
+      - kafka_integration
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: 'zookeeper:2181'
+      SCHEMA_REGISTRY_LISTENERS: http://schema-registry:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-broker-1:9092,PLAINTEXT_INTERNAL://localhost:19092
+      SCHEMA_REGISTRY_DEBUG: 'true'
+
+  - &IMAGE_DOCKER_KAFKA
+    image: confluentinc/cp-kafka:7.5.4
+    name: kafka_integration
+    ports:
+      - "19092:19092"
+    depends_on:
+      - zookeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:9092,PLAINTEXT_INTERNAL://localhost:19092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
       at: ~/datadog
@@ -472,6 +509,10 @@ commands:
                 -e MSSQL_SA_PASSWORD=Password12! \
                 -e MSSQL_PID=Developer \
                 --name sqlsrv_integration mcr.microsoft.com/mssql/server:2022-latest
+              retry_docker run --detach --rm --net net \
+                -e MONGO_INITDB_ROOT_USERNAME=test \
+                -e MONGO_INITDB_ROOT_PASSWORD=test \
+                --name mongodb_integration circleci/mongo:4.0
             fi
       - when:
           condition:
@@ -636,6 +677,9 @@ executors:
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_RABBITMQ
       - <<: *IMAGE_DOCKER_MONGO
+      - <<: *IMAGE_DOCKER_ZOOKEPER
+      - <<: *IMAGE_DOCKER_SCHEMA_REGISTRY
+      - <<: *IMAGE_DOCKER_KAFKA
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
       - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_SQLSRV

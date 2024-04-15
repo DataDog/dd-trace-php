@@ -1242,6 +1242,9 @@ test_integrations_sqlsrv: global_test_run_dependencies
 test_integrations_swoole_5: global_test_run_dependencies
 	$(MAKE) test_scenario_swoole5
 	$(call run_tests_debug,--testsuite=swoole-test)
+test_integrations_kafka: global_test_run_dependencies
+	$(MAKE) test_scenario_kafka
+	$(call run_tests_debug,tests/Integrations/RdKafka)
 test_web_cakephp_28: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_2_8,)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)

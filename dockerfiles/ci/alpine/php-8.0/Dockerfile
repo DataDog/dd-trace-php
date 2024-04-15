@@ -76,6 +76,8 @@ RUN set -eux; \
         #yes 'no' | pecl install memcached; \ # TODO Does not support PHP 8 yet
         pecl install mongodb; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
         pecl install redis-5.3.2; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
+        apk add librdkafka-dev; \
+        printf 'autodetect' | pecl install rdkafka-6.0.3; echo "extension=rdkafka.so" >> ${iniDir}/rdkafka.ini; \
         # Xdebug is disabled by default
         pecl install xdebug-3.0.0; \
         cd $(php-config --extension-dir); \
