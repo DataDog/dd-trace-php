@@ -319,7 +319,7 @@ class WordPressIntegrationLoader
         });
 
 
-        hook_function('wp_templating_constants', null, function () use ($integration) {
+        hook_function('wp_templating_constants', null, function () use ($integration, $statsd) {
             foreach (wp_get_active_and_valid_themes() as $theme) {
                 if (file_exists($theme . '/functions.php')) {
                     install_hook(
@@ -335,8 +335,25 @@ class WordPressIntegrationLoader
                                 "$themeName (theme)"
                             );
                             $span->meta['wordpress.theme'] = $themeName;
+                            $hook->data['themeName'] = $theme;
 
                             remove_hook($hook->id);
+                        },
+                        function (HookData $hook) use ($integration, $statsd) {
+                            $span = $hook->span();
+                            $duration = (microtime(true) * 1e6) - ($span->getStartTime() / 1e3); // ms - ms := ms
+                            $tags = [
+                                'env' => $integration->getEnv(),
+                                'service' => $integration->getServiceName(),
+                                'version' => $integration->getVersion(),
+                                'wordpress.plugin.name' => $hook->data['themeName'],
+                            ];
+                            $statsd->distribution(
+                                'wordpress.plugin.loading_duration',
+                                $duration,
+                                1.0,
+                                $tags
+                            );
                         }
                     );
                 }
@@ -888,7 +905,7 @@ class WordPressIntegrationLoader
 
                         \DDTrace\install_hook(
                             $plugin,
-                            function (HookData $hook) use (&$plugins, $plugin, $integration, $getPrettyPluginNameFn) {
+                            function (HookData $hook) use (&$plugins, $plugin, $integration, $getPrettyPluginNameFn, $statsd) {
                                 $pluginName = $getPrettyPluginNameFn($plugin);
                                 $plugins[] = $hook->data = $pluginName;
 
@@ -900,8 +917,24 @@ class WordPressIntegrationLoader
                                     "$pluginName (plugin)"
                                 );
                                 $span->meta['wordpress.plugin'] = $pluginName;
+                                $hook->data['pluginName'] = $pluginName;
                             },
-                            function ($hook) use (&$plugins) {
+                            function ($hook) use (&$plugins, $integration, $statsd) {
+                                $span = $hook->span();
+                                $duration = (microtime(true) * 1e6) - ($span->getStartTime() / 1e3); // ms - ms := ms
+                                $tags = [
+                                    'env' => $integration->getEnv(),
+                                    'service' => $integration->getServiceName(),
+                                    'version' => $integration->getVersion(),
+                                    'wordpress.plugin.name' => $hook->data['pluginName'],
+                                ];
+                                $statsd->distribution(
+                                    'wordpress.plugin.loading_duration',
+                                    $duration,
+                                    1.0,
+                                    $tags
+                                );
+
                                 $top = \array_pop($plugins);
                                 // Integrity check; should be stackful.
                                 assert($top === $hook->data);
