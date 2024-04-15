@@ -22,14 +22,6 @@ class AMQPIntegration extends Integration
     const SYSTEM = 'rabbitmq';
     protected $protocolVersion;
 
-    /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
     public static function largeBaseConvert($numString, $fromBase, $toBase)
     {
@@ -454,7 +446,7 @@ class AMQPIntegration extends Integration
         $span->meta[Tag::MQ_PROTOCOL_VERSION] = $this->protocolVersion;
 
         if ($exception) {
-            $this->setError($span, $exception);
+            $span->exception = $exception;
         }
     }
 

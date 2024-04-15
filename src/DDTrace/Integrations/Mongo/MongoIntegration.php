@@ -18,14 +18,6 @@ class MongoIntegration extends Integration
     const NAME = 'mongo';
     const SYSTEM = 'mongodb';
 
-    /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     public function init(): int
     {
         if (!extension_loaded('mongo')) {

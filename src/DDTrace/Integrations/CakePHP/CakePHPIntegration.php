@@ -19,11 +19,11 @@ class CakePHPIntegration extends Integration
     public $parseRouteFn;
 
     /**
-     * @return string The integration name.
+     * {@inheritdoc}
      */
-    public function getName()
+    public function requiresExplicitTraceAnalyticsEnabling(): bool
     {
-        return self::NAME;
+        return false;
     }
 
     public function init(): int
@@ -54,7 +54,7 @@ class CakePHPIntegration extends Integration
         $integration->handleExceptionFn = function ($This, $scope, $args) use ($integration) {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan !== null) {
-                $integration->setError($rootSpan, $args[0]);
+                $rootSpan->exception = $args[0];
             }
         };
 

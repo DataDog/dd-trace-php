@@ -3,13 +3,10 @@
 namespace DDTrace\Integrations\Predis;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\RootSpanData;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Common;
 use DDTrace\Util\ObjectKVStore;
-use DDTrace\Util\Versions;
 use Predis\Configuration\OptionsInterface;
 use Predis\Connection\NodeConnectionInterface;
 
@@ -26,14 +23,6 @@ class PredisIntegration extends Integration
     const DEFAULT_SERVICE_NAME = 'redis';
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * Add instrumentation to PDO requests
      */
     public function init(): int
@@ -41,7 +30,7 @@ class PredisIntegration extends Integration
         $integration = $this;
 
         \DDTrace\trace_method('Predis\Client', '__construct', function (SpanData $span, $args) {
-            Common::handleOrphan($span);
+            Integration::handleOrphan($span);
 
             $span->name = 'Predis.Client.__construct';
             $span->type = Type::REDIS;
@@ -51,7 +40,7 @@ class PredisIntegration extends Integration
         });
 
         \DDTrace\trace_method('Predis\Client', 'connect', function (SpanData $span, $args) {
-            Common::handleOrphan($span);
+            Integration::handleOrphan($span);
 
             $span->name = 'Predis.Client.connect';
             $span->type = Type::REDIS;
@@ -60,7 +49,7 @@ class PredisIntegration extends Integration
         });
 
         \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) use ($integration) {
-            Common::handleOrphan($span);
+            Integration::handleOrphan($span);
 
             $span->name = 'Predis.Client.executeCommand';
             $span->type = Type::REDIS;
@@ -85,7 +74,7 @@ class PredisIntegration extends Integration
         });
 
         \DDTrace\trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) use ($integration) {
-            Common::handleOrphan($span);
+            Integration::handleOrphan($span);
 
             $span->name = 'Predis.Client.executeRaw';
             $span->type = Type::REDIS;
@@ -111,7 +100,7 @@ class PredisIntegration extends Integration
             'executePipeline',
             [
                 'prehook' => function (SpanData $span, $args) {
-                    Common::handleOrphan($span);
+                    Integration::handleOrphan($span);
 
                     $span->name = 'Predis.Pipeline.executePipeline';
                     $span->resource = $span->name;
