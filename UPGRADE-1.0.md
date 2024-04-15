@@ -27,6 +27,7 @@ To ensure a smooth transition to version 1.0, follow these migration steps:
 - **Update Deprecated APIs and Configuration Keys**: Replace deprecated functions, interfaces, classes, and configuration keys with their respective replacements as detailed in the document.
 - **Test Thoroughly**: Test your application thoroughly after the upgrade to ensure that all functionalities are working as expected.
 
+**Note**: To ensure a smoother transition and identify potential issues, you may enable debug logs (`DD_TRACE_DEBUG=1`) to see deprecations before migrating.
 ---
 
 ## PHP 5 EOL
