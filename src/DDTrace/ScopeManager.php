@@ -82,6 +82,8 @@ final class ScopeManager implements ScopeManagerInterface
         if ($span instanceof Span && ObjectKVStore::get($span->internalSpan, 'ddtrace_scope_activated') !== null) {
             ObjectKVStore::put($span->internalSpan, 'ddtrace_scope_activated', false);
         }
+
+        array_splice($this->hostRootScopes, array_search($scope, $this->hostRootScopes, true), 1);
     }
 
     /** @internal */
@@ -151,6 +153,5 @@ final class ScopeManager implements ScopeManagerInterface
         foreach ($this->hostRootScopes as $scope) {
             $scope->close();
         }
-        $this->hostRootScopes = [];
     }
 }
