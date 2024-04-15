@@ -68,6 +68,14 @@ final class ScopeManager implements ScopeManagerInterface
         return null;
     }
 
+    private function deactivateHostRoot(Scope $scope)
+    {
+        $i = array_search($scope, $this->hostRootScopes, true);
+        if (false !== $i) {
+            array_splice($this->hostRootScopes, $i, 1);
+        }
+    }
+
     public function deactivate(Scope $scope)
     {
         $i = array_search($scope, $this->scopes, true);
@@ -83,7 +91,9 @@ final class ScopeManager implements ScopeManagerInterface
             ObjectKVStore::put($span->internalSpan, 'ddtrace_scope_activated', false);
         }
 
-        array_splice($this->hostRootScopes, array_search($scope, $this->hostRootScopes, true), 1);
+        if ($span->getContext()->isHostRoot()) {
+            $this->deactivateHostRoot($scope);
+        }
     }
 
     /** @internal */
