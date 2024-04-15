@@ -1005,6 +1005,23 @@ class WordPressIntegrationLoader
             }
         });
 
+        \DDTrace\hook_function('file_get_contents', null, function ($args, $retval) use ($integration, $statsd) {
+            if (strpos($args[0], 'cache') !== false) {
+                // Hypothesis: If the queried file contains 'cache', it's a cache-retrieval operation
+                $tags = [
+                    'env' => $integration->getEnv(),
+                    'service' => $integration->getServiceName(),
+                    'version' => $integration->getVersion(),
+                ];
+                $statsd->distribution(
+                    'wordpress.cache',
+                    $retval ? 1 : 0,
+                    1.0,
+                    $tags
+                );
+            }
+        });
+
         return Integration::LOADED;
     }
 }
