@@ -557,6 +557,7 @@ TEST_INTEGRATIONS_71 := \
 TEST_WEB_71 := \
 	test_metrics \
 	test_web_cakephp_28 \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_laravel_42 \
@@ -610,6 +611,7 @@ TEST_INTEGRATIONS_72 := \
 
 TEST_WEB_72 := \
 	test_metrics \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
@@ -669,6 +671,7 @@ TEST_INTEGRATIONS_73 :=\
 
 TEST_WEB_73 := \
 	test_metrics \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
@@ -730,6 +733,8 @@ TEST_INTEGRATIONS_74 := \
 
 TEST_WEB_74 := \
 	test_metrics \
+	test_web_cakephp_310 \
+	test_web_cakephp_45 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
@@ -792,6 +797,7 @@ TEST_INTEGRATIONS_80 := \
 
 TEST_WEB_80 := \
 	test_metrics \
+	test_web_cakephp_45 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
@@ -840,6 +846,8 @@ TEST_INTEGRATIONS_81 := \
 
 TEST_WEB_81 := \
 	test_metrics \
+	test_web_cakephp_45 \
+	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
@@ -891,6 +899,8 @@ TEST_INTEGRATIONS_82 := \
 
 TEST_WEB_82 := \
 	test_metrics \
+	test_web_cakephp_45 \
+	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
@@ -946,6 +956,8 @@ TEST_INTEGRATIONS_83 := \
 
 TEST_WEB_83 := \
 	test_metrics \
+	test_web_cakephp_45 \
+	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
@@ -1230,6 +1242,15 @@ test_integrations_swoole_5: global_test_run_dependencies
 test_web_cakephp_28: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_2_8,)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
+test_web_cakephp_310: global_test_run_dependencies
+	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_3_10,)
+	$(call run_tests_debug,--testsuite=cakephp-310-test)
+test_web_cakephp_45: global_test_run_dependencies
+	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_4_5,)
+	$(call run_tests_debug,--testsuite=cakephp-45-test)
+test_web_cakephp_50: global_test_run_dependencies
+	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_5_0,)
+	$(call run_tests_debug,--testsuite=cakephp-50-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
 test_web_codeigniter_31: global_test_run_dependencies

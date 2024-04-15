@@ -227,6 +227,10 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "Dispatcher", "__construct",
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "App\\Application", "__construct",
+                                         "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "Cake\\Http\\Server", "__construct",
+                                         "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "exec",
                                          "DDTrace\\Integrations\\Exec\\ExecIntegration");
