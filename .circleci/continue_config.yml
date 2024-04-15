@@ -508,8 +508,8 @@ commands:
           command: |
             touch /tmp/docker.out
             mkdir /tmp/bashenv
-            sudo mkdir /rust
-            sudo chmod 777 /rust
+            sudo mkdir -p /rust/cargo/{git,registry}
+            sudo chmod -R 777 /rust
             mkdir /tmp/artifacts
             sudo chmod 777 /tmp/artifacts
             image=<< parameters.docker_image >>
@@ -530,7 +530,8 @@ commands:
                   -e CIRCLE_PROJECT_REPONAME \
                   -v $(pwd):/home/circleci/datadog \
                   -v /tmp/bashenv:/home/circleci/bashenv \
-                  -v /rust:/rust \
+                  -v /rust/cargo/git:/rust/cargo/git \
+                  -v /rust/cargo/registry:/rust/cargo/registry \
                   -v /tmp/artifacts:/tmp/artifacts \
                   $(if [ -n "${CARGO_TARGET_DIR:-}" ]; then echo -v ${CARGO_TARGET_DIR}:${CARGO_TARGET_DIR} -e CARGO_TARGET_DIR=${CARGO_TARGET_DIR}; fi) \
                   $image \
