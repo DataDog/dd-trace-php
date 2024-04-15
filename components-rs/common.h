@@ -226,7 +226,7 @@ typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
  *
  * The worker won't send data to the agent until you call `TelemetryWorkerHandle::send_start`
  *
- * To stop the worker, call `TelemetryWorkerHandle::send_stop` which trigger flush aynchronously
+ * To stop the worker, call `TelemetryWorkerHandle::send_stop` which trigger flush asynchronously
  * then `TelemetryWorkerHandle::wait_for_shutdown`
  */
 typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
