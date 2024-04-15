@@ -45,7 +45,6 @@ An opt-in improvement to the WordPress integration was released as a public-beta
 |-------------------------------------------|------------------------------|-------------------------|
 | `DD_TRACE_WORDPRESS_ENHANCED_INTEGRATION` | `false`                      | **Removed** (`true`)    |
 | `DD_TRACE_WORDPRESS_CALLBACKS`            | `false`                      | `true`                  |
-| `DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS`    | `""`                         | `""`                    |
 
 ### Breaking Changes
 
