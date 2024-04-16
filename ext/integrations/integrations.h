@@ -35,6 +35,7 @@
     INTEGRATION(PHPREDIS, "phpredis")           \
     INTEGRATION(PREDIS, "predis")               \
     INTEGRATION(PSR18, "psr18")                 \
+    INTEGRATION(RDKAFKA, "rdkafka")             \
     INTEGRATION(ROADRUNNER, "roadrunner")       \
     INTEGRATION(SQLSRV, "sqlsrv")               \
     INTEGRATION(SLIM, "slim")                   \

@@ -50,6 +50,7 @@ return [
     __DIR__ . '/../src/Integrations/Integrations/WordPress/V1/WordPressIntegrationLoader.php',
     __DIR__ . '/../src/Integrations/Integrations/WordPress/V2/WordPressIntegrationLoader.php',
     __DIR__ . '/../src/Integrations/Integrations/ZendFramework/ZendFrameworkIntegration.php',
+    __DIR__ . '/../src/Integrations/Integrations/PHPRdKafka/RdKafkaIntegration.php',
     __DIR__ . '/../src/Integrations/Util/Common.php',
     __DIR__ . '/../src/Integrations/Util/Convention.php',
     __DIR__ . '/../src/Integrations/Util/Runtime.php',

@@ -1,0 +1,100 @@
+<?php
+
+namespace DDTrace\Integrations\PHPRdKafka;
+
+use DDTrace\Integrations\Integration;
+use DDTrace\Propagator;
+use DDTrace\SpanData;
+use DDTrace\SpanLink;
+use DDTrace\Tag;
+use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Wire\AMQPTable;
+
+use function DDTrace\active_span;
+use function DDTrace\close_span;
+use function DDTrace\hook_method;
+use function DDTrace\start_trace_span;
+use function DDTrace\trace_method;
+
+class RdKafkaIntegration extends Integration
+{
+    const NAME = 'kafka';
+
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
+
+    /**
+     * Add instrumentation to AMQP requests
+     */
+    public function init()
+    {
+        $integration = $this;
+        trace_method(
+            "RdKafka\ProducerTopic",
+            "producev",
+            [
+                'prehook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
+                    $integration->setGenericTags(
+                        $span,
+                        'producev',
+                        'client'
+                    );
+                }
+            ]
+        );
+
+        trace_method(
+            "RdKafka\ConsumerTopic",
+            "Consume",
+            [
+                'prehook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
+                    $integration->setGenericTags(
+                        $span,
+                        'consume',
+                        'client'
+                    );
+                }
+            ]
+        );
+
+        return Integration::LOADED;
+    }
+
+    /*public function injectContext(AMQPMessage $message)
+    {
+        if (\ddtrace_config_distributed_tracing_enabled() === false) {
+            return;
+        }
+
+        $distributedHeaders = \DDTrace\generate_distributed_tracing_headers();
+        if ($message->has('application_headers')) {
+            // If the message already has application headers, we need to merge them so user headers are not overwritten
+
+            $headersObj = $message->get('application_headers');
+            $headers = $headersObj->getNativeData();
+            $headers = array_merge($headers, $distributedHeaders);
+            $newHeaders = new AMQPTable($headers);
+        } else {
+            $newHeaders = new AMQPTable($distributedHeaders);
+        }
+        $message->set('application_headers', $newHeaders);
+    }*/
+
+    public function setGenericTags(
+        SpanData $span,
+        string $name,
+        string $spanKind
+    ) {
+        $span->name = "kafka.$name";
+        $span->resource = "$name";
+        $span->meta[Tag::SPAN_KIND] = $spanKind;
+        $span->type = 'queue';
+        $span->service = 'kafka';
+        $span->meta[Tag::COMPONENT] = RdKafkaIntegration::NAME;
+    }
+}

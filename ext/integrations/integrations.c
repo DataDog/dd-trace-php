@@ -296,6 +296,12 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "__construct",
                                          "DDTrace\\Integrations\\PDO\\PDOIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_RDKAFKA, "RdKafka\\Producer", "__construct",
+                                         "DDTrace\\Integrations\\PHPRdKafka\\RdKafkaIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_RDKAFKA, "RdKafka\\Consumer", "__construct",
+                                             "DDTrace\\Integrations\\PHPRdKafka\\RdKafkaIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PHPREDIS, "Redis", "__construct",
                                          "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
 

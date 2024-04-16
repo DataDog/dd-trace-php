@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\RdKafkaTest;
+namespace DDTrace\Tests\Integrations\PHPRdKafkaTest;
 
 use DDTrace\Tag;
 use DDTrace\Integrations\PHPRedis\PHPRedisIntegration;
@@ -10,11 +10,6 @@ use Exception;
 
 class RdKafkaTest extends IntegrationTestCase
 {
-    const A_STRING = 'A_STRING';
-
-    private $host = 'redis_integration';
-    /** Redis */
-    private $redis;
     /** \RdKafka\Producer */
     private $producer;
     /** \RdKafka\Consumer */
@@ -22,6 +17,7 @@ class RdKafkaTest extends IntegrationTestCase
 
     private function produceAndWaitForConsume($nMessages) {
         $conf = new \RdKafka\Conf();
+
         $this->producer = new \RdKafka\Producer($conf);
         $this->producer->addBrokers("kafka_integration:9092");
         $producerTopic = $this->producer->newTopic("test");
@@ -60,7 +56,35 @@ class RdKafkaTest extends IntegrationTestCase
 
     public function testKafkaNoIntegration()
     {
-        $this->produceAndWaitForConsume(3);
+        $traces = $this->isolateTracer(function () {
+            try {
+                $this->produceAndWaitForConsume(1);
+            } catch (\Exception $e) {
+                // Ignore exception
+            }
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build(
+                'kafka.produce',
+                'kafka',
+                'queue',
+                'produce'
+            )->withExactTags([
+                Tag::SPAN_KIND                  => 'client',
+                Tag::COMPONENT                  => 'kafka',
+            ]),
+            SpanAssertion::build(
+                'kafka.consume',
+                'kafka',
+                'queue',
+                'consume'
+            )->withExactTags([
+                Tag::SPAN_KIND                  => 'client',
+                Tag::COMPONENT                  => 'kafka',
+            ]),
+        ]);
+
         $this->assertTrue(true);
     }
     public function ddTearDown()
