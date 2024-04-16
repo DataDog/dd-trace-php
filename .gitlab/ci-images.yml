@@ -16,6 +16,11 @@ CentOS:
   tags: ["arch:amd64"]
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_CPU_LIMIT: 8
+    KUBERNETES_MEMORY_LIMIT: 20Gi
+    KUBERNETES_MEMORY_REQUEST: 20Gi
   parallel:
     matrix:
       - PHP_VERSION:
@@ -67,6 +72,11 @@ Ubuntu Bookworm:
   tags: ["arch:amd64"]
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_CPU_LIMIT: 8
+    KUBERNETES_MEMORY_LIMIT: 20Gi
+    KUBERNETES_MEMORY_REQUEST: 20Gi
   parallel:
     matrix:
       - PHP_VERSION:
@@ -95,6 +105,11 @@ Ubuntu Buster:
   tags: ["arch:amd64"]
   timeout: 1h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_CPU_LIMIT: 8
+    KUBERNETES_MEMORY_LIMIT: 20Gi
+    KUBERNETES_MEMORY_REQUEST: 20Gi
   parallel:
     matrix:
       - PHP_VERSION:
