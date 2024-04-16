@@ -214,6 +214,9 @@ RUN set -eux; \
     chown -R circleci:circleci /opt;
 
 ARG RUST_VERSION="1.71.1"
+# rustup-init sha256sum can be found by appending .sha256 to the download url
+ARG RUST_SHA256_ARM="76cd420cb8a82e540025c5f97bda3c65ceb0b0661d5843e6ef177479813b0367"
+ARG RUST_SHA256_X86="a3d541a5484c8fa2f1c21478a6f6c505a778d473c21d60a18a4df5185d320ef8"
 # Nightly version which kinda matches v1.71.1
 ARG RUST_NIGHTLY_VERSION="-2023-05-03"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
@@ -221,13 +224,23 @@ ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
 RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && chmod -R 777 "${CARGO_HOME}" "${RUSTUP_HOME}" \
+    && RUSTUP_VERSION="1.27.0" \
     && MARCH=$(uname -m) \
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain $RUST_VERSION -c "rustc,cargo,clippy-preview,rustfmt-preview,rust-std" \
+    && triplet="$MARCH-unknown-linux-gnu" \
+    && RUST_SHA256=$(if [ "$MARCH" = "x86_64" ]; then echo ${RUST_SHA256_X86}; \
+      elif [ "$MARCH" = "aarch64" ]; then echo ${RUST_SHA256_ARM}; fi) \
+    && curl -L --write-out '%{http_code}' -O https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${triplet}/rustup-init \
+    && printf '%s  rustup-init' "$RUST_SHA256" | sha256sum --check --status \
+    && printf '%s  rustup-init' "$RUST_SHA256" | sha256sum --check --status \
+    && chmod +x "rustup-init" \
+    && ./rustup-init -y --default-toolchain "$RUST_VERSION" -c "rustc,cargo,clippy,rustfmt,rust-std,rust-src" \
+    && rm -fr "rustup-init" \
     && export PATH="/rust/cargo/bin:$PATH" \
     && rustup install nightly${RUST_NIGHTLY_VERSION} \
     && rustup component add rust-src --toolchain nightly${RUST_NIGHTLY_VERSION}-$MARCH-unknown-linux-gnu
 
-ENV PATH="/rust/cargo/bin:${PATH}"
+# Install Rust toolchains for CircleCI user too
+RUN echo ". ${CARGO_HOME?}/env" >> /home/circleci/.bashrc
 
 # Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
 # be changed without an appropriate code review.
