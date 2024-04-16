@@ -240,7 +240,7 @@ RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && rustup component add rust-src --toolchain nightly${RUST_NIGHTLY_VERSION}-$MARCH-unknown-linux-gnu
 
 # Install Rust toolchains for CircleCI user too
-RUN echo ". ${CARGO_HOME?}/env" >> /home/circleci/.bashrc
+RUN echo ". ${CARGO_HOME?}/env" | tee -a /home/circleci/.bashrc
 
 # Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
 # be changed without an appropriate code review.

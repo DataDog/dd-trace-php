@@ -282,7 +282,7 @@ RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && rm -rfv /tmp/*
 
 # Install Rust toolchains for CircleCI user too
-RUN echo ". ${CARGO_HOME?}/env" >> /home/circleci/.bashrc
+RUN echo ". ${CARGO_HOME?}/env" | tee -a /home/circleci/.bashrc
 
 ARG GO_VERSION="1.22.1"
 ARG GO_SHA256_ARM="e56685a245b6a0c592fc4a55f0b7803af5b3f827aaa29feab1f40e491acf35b8"
