@@ -140,4 +140,14 @@ ddog_CharSlice ddog_sidecar_dump(ddog_SidecarTransport **transport);
 
 ddog_CharSlice ddog_sidecar_stats(ddog_SidecarTransport **transport);
 
+ddog_MaybeError ddog_sidecar_dogstatsd_count(ddog_SidecarTransport **transport,
+                                             const struct ddog_InstanceId *instance_id,
+                                             ddog_CharSlice metric,
+                                             double value);
+
+ddog_MaybeError ddog_sidecar_dogstatsd_gauge(ddog_SidecarTransport **transport,
+                                             const struct ddog_InstanceId *instance_id,
+                                             ddog_CharSlice metric,
+                                             double value);
+
 #endif /* DDOG_SIDECAR_H */

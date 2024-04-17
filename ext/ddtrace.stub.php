@@ -632,6 +632,16 @@ namespace DDTrace {
      * @param list{\CurlHandle, SpanData}[] $array An array which will be populated with curl handles and spans.
      */
     function curl_multi_exec_get_request_spans(&$array): void {}
+
+    /**
+     * Update a DogStatsD counter
+     */
+    function dogstatsd_count(string $metric, float $value): void {}
+
+    /**
+     * Update a DogStatsD gauge
+     */
+    function dogstatsd_gauge(string $metric, float $value): void {}
 }
 
 namespace DDTrace\System {

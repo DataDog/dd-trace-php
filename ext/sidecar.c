@@ -108,3 +108,17 @@ void ddtrace_reset_sidecar_globals(void) {
         ddtrace_set_sidecar_globals();
     }
 }
+
+void ddtrace_sidecar_dogstatsd_count(zend_string *metric, double value) {
+    if (!ddtrace_sidecar) {
+        return;
+    }
+    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value);
+}
+
+void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value) {
+    if (!ddtrace_sidecar) {
+        return;
+    }
+    ddog_sidecar_dogstatsd_gauge(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value);
+}
