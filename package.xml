@@ -56,64 +56,50 @@
         <api>${version}</api>
     </version>
     <stability>
-        <release>stable</release>
+        <release>beta</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
+This beta release contains all breaking changes planned for dd-trace-php 1.0. An upgrade guide can be found at https://github.com/DataDog/dd-trace-php/blob/1.0.0beta1/UPGRADE-1.0.md.
+
 ## Tracer
 
-Windows x64 support is officially GA (generally available).
-
-Some performance work has been undertaken to primarily reduce the overhead of telemetry reporting.
-The next release will be version 1.0 and remove deprecated and some unused code and APIs.
-
 ### Added
-- Support the [FrankenPHP](https://frankenphp.dev/) SAPIs #2602
-- Add zts support for alpine #2564
-- Swoole Integration #2595
+- Add --ini and --extension-dir installation option #2620
+- CodeIgniter 3 Compatibility #2515
+- Add CakePHP 3+ Support #2618
 
 ### Changed
-- w3c phase 2: add last parent_id to tracestate #2549
+- Cleanup deferred loader and remove some PHP 5 compat code #2527
+- Change DD_TRACE_SAMPLING_RULES_FORMAT default from regex to glob #2534
+- Raise API errors instead of debug logs when wrong arguments are passed #2542
+- Change WordPress Default Behavior #2525
+- [OTel] Only set resource info on root spans #2558
+- Remove early code execution and use an autoloader instead #2530
+- Remove deprecated configuration keys or APIs #2574
+- Drop Configuration classes from API #2596
 
 ### Fixed
-- Handle relative ext/ paths and test the windows installer #2559
-- Fix exec integration build on PHP 8.4 #2543
-- Fix Orphans not being sampled-out #2550
-- Fix fibers with tracer disabled #2576
-- Update update_span_duration return type #2586
-- Fix #2563: ddtrace overrides php error log permissions #2583
-- Allow hooking an inherited internal constructor #2591
-- Distinguish architectures on windows #2593
-- Fix the ExecIntegration name #2597
+- Elasticsearch: Hook not being removed #2616
+- Fix shared compilation on macOS
+- Fix host Scopes not being removed #2624
+- Add note about update_span_duration semantics #2622
 
 ### Internal
-- Get rid of some bitwise checking in ddog_shall_log #2539
-- Use faster bincode for ipc #2544
-- Update to use DDOG_CHARSLICE_C and new DDOG_CHARSLICE_C_BARE helpers #2565
-- Slightly Improve OTel Performances #2561
-- Send spans_created telemetry metric #2577
-
-## Profiler
-### Added
-- add [FrankenPHP](https://frankenphp.dev/) to the list of recognised SAPIs #2523
-- enabled allocation profiling for PHP ZTS #2506
-- report PHP build (`nts-ndebug` vs `zts-ndebug`) #2536
-
-### Internal
-- add tests for exception profiling in ZTS builds #2562
-- update to libdatadog v7 #2605
+- Use a global version and change installer tests to use the version #2537
+- Clean PHP 5 checks #2584
+- Collect 'logs_created' internal metric #2604
+- Make the root Makefile macOS compatible #2614
+- Add stats reporting for sidecar and telemetry #2621
+- Clean Integration configuration #2598
+- Re-added spans_created telemetry metric Datadog/libdatadog#391
 
 ## Application Security Management
-### Added
-- Add DD_API_SECURITY_ENABLED flag #2532
-- Add DD_APPSEC_SCA_ENABLED new configuration variable #2557
 
 ### Fixed
-- Make Laravel appsec login success event more accurate #2600
-- Enable appsec by ini only when enable-appsec present #2567
-- Provide path params to appsec #2395
+- Disable Appsec when FrankenPHP SAPI is detected #2617
 ]]></notes>
     <contents>
         <dir name="/">

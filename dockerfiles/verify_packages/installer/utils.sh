@@ -81,6 +81,39 @@ assert_profiler_version() {
     fi
 }
 
+assert_tracer_installed() {
+    php_bin=${1:-php}
+    output="$($php_bin -v)"
+    if [ -z "${output##*with ddtrace*}" ]; then
+        echo "---\nOk: Tracer is installed\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Tracer should be installed\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
+assert_profiler_installed() {
+    php_bin=${1:-php}
+    output="$($php_bin -v)"
+    if [ -z "${output##*with datadog-profiling*}" ]; then
+        echo "---\nOk: Profiler is installed\n---\n${output}\n---\n"
+    else
+        echo "---\nError: Profiler should be installed\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
+assert_appsec_installed() {
+    php_bin=${1:-php}
+    output="$($php_bin -m)"
+    if [ -z "${output##*ddappsec*}" ]; then
+        echo "---\nOk: AppSec is installed\n---\n${output}\n---\n"
+    else
+        echo "---\nError: AppSec should be installed\n---\n${output}\n---\n"
+        exit 1
+    fi
+}
+
 assert_appsec_enabled() {
     output="$(php --ri ddappsec)"
     if [ -z "${output##*datadog.appsec.enabled => On*}" ]; then
@@ -163,6 +196,10 @@ fetch_setup_for_version() (
     curl -OL https://github.com/DataDog/dd-trace-php/releases/download/${version}/datadog-setup.php
     cd -
 )
+
+parse_appsec_version() {
+    grep -oP 'VERSION \K\d+\.\d+\.\d+' appsec/CMakeLists.txt
+}
 
 dashed_print() {
     echo "---"
