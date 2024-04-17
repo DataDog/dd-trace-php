@@ -18,7 +18,7 @@ public:
         : dds::sampler(service_config)
     {}
     void set_request(unsigned int i) { request_ = i; }
-    auto get_request() { return request_; }
+    unsigned get_request() { return request_; }
 };
 
 } // namespace mock
@@ -265,7 +265,7 @@ TEST(SamplerTest, TestOverflow)
     mock::sampler s(service_config);
     s.set_request(UINT_MAX);
     s.get();
-    EXPECT_EQ(1, s.get_request());
+    EXPECT_EQ(0, s.get_request());
 }
 
 TEST(SamplerTest, ModifySamplerRate)
@@ -276,10 +276,10 @@ TEST(SamplerTest, ModifySamplerRate)
         service_config->set_request_sample_rate(0.1);
         mock::sampler s(service_config);
         s.get();
-        EXPECT_EQ(2, s.get_request());
+        EXPECT_EQ(1, s.get_request());
         service_config->set_request_sample_rate(0.2);
         s.get();
-        EXPECT_EQ(2, s.get_request());
+        EXPECT_EQ(1, s.get_request());
     }
     { // Setting same sampler rate does do anything
         auto service_config = std::make_shared<dds::service_config>();
@@ -287,10 +287,10 @@ TEST(SamplerTest, ModifySamplerRate)
         service_config->set_request_sample_rate(0.1);
         mock::sampler s(service_config);
         s.get();
-        EXPECT_EQ(2, s.get_request());
+        EXPECT_EQ(1, s.get_request());
         service_config->set_request_sample_rate(0.1);
         s.get();
-        EXPECT_EQ(3, s.get_request());
+        EXPECT_EQ(2, s.get_request());
     }
     { // Over Zero: If given rate is invalid and gets defaulted to a value which
       // is same as before, it does not change anything
@@ -299,10 +299,10 @@ TEST(SamplerTest, ModifySamplerRate)
         service_config->set_request_sample_rate(3);
         mock::sampler s(service_config);
         s.get();
-        EXPECT_EQ(2, s.get_request());
+        EXPECT_EQ(1, s.get_request());
         service_config->set_request_sample_rate(4);
         s.get();
-        EXPECT_EQ(3, s.get_request());
+        EXPECT_EQ(2, s.get_request());
     }
     { // Below zero: If given rate is invalid and gets defaulted to a value
       // which is same as before, it does not change anything
@@ -311,10 +311,10 @@ TEST(SamplerTest, ModifySamplerRate)
         service_config->set_request_sample_rate(-3);
         mock::sampler s(service_config);
         s.get();
-        EXPECT_EQ(2, s.get_request());
+        EXPECT_EQ(1, s.get_request());
         service_config->set_request_sample_rate(-4);
         s.get();
-        EXPECT_EQ(3, s.get_request());
+        EXPECT_EQ(2, s.get_request());
     }
     { // Below min: If given rate is invalid and gets defaulted to a value which
       // is same as before, it does not change anything
@@ -323,10 +323,10 @@ TEST(SamplerTest, ModifySamplerRate)
         service_config->set_request_sample_rate(0.000001);
         mock::sampler s(service_config);
         s.get();
-        EXPECT_EQ(2, s.get_request());
+        EXPECT_EQ(1, s.get_request());
         service_config->set_request_sample_rate(0.000002);
         s.get();
-        EXPECT_EQ(3, s.get_request());
+        EXPECT_EQ(2, s.get_request());
     }
 }
 

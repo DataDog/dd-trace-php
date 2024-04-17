@@ -73,11 +73,7 @@ public:
             result = {scope{concurrent_}};
         }
 
-        if (request_ < std::numeric_limits<unsigned>::max()) {
-            request_++;
-        } else {
-            request_ = 1;
-        }
+        request_++;
 
         return result;
     }
@@ -106,10 +102,10 @@ protected:
             return;
         }
 
-        request_ = 1;
+        request_ = 0;
         sample_rate_ = sampler_rate;
     }
-    unsigned request_{1};
+    unsigned request_{0};
     double sample_rate_{0};
     std::atomic<bool> concurrent_{false};
     std::mutex mtx_;
