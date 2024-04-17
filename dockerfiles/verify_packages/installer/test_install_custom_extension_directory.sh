@@ -8,8 +8,7 @@ set -e
 assert_no_ddtrace
 
 # Install using the php installer
-trace_version="0.99.0"
-generate_installers "${trace_version}"
+trace_version=$(cat VERSION)
 php ./build/packages/datadog-setup.php --php-bin php --extension-dir /custom-ext-dir --enable-profiling
 
 assert_file_exists /custom-ext-dir/ddtrace.so
