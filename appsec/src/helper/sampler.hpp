@@ -59,11 +59,6 @@ public:
 
     std::optional<scope> get()
     {
-        if (service_config_->get_asm_enabled_status() ==
-            enable_asm_status::DISABLED) {
-            return std::nullopt;
-        }
-
         const std::lock_guard<std::mutex> lock_guard(mtx_);
 
         std::optional<scope> result = std::nullopt;
@@ -87,6 +82,7 @@ public:
         return result;
     }
 
+protected:
     static double valid_sample_rate(double sampler_rate)
     {
         // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
@@ -113,8 +109,6 @@ public:
         request_ = 1;
         sample_rate_ = sampler_rate;
     }
-
-protected:
     unsigned request_{1};
     double sample_rate_{0};
     std::atomic<bool> concurrent_{false};
