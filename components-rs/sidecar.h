@@ -118,7 +118,8 @@ bool ddog_sidecar_is_closed(ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_session_set_config(ddog_SidecarTransport **transport,
                                                 ddog_CharSlice session_id,
-                                                const struct ddog_Endpoint *endpoint,
+                                                const struct ddog_Endpoint *agent_endpoint,
+                                                const struct ddog_Endpoint *dogstatsd_endpoint,
                                                 uint64_t flush_interval_milliseconds,
                                                 uintptr_t force_flush_size,
                                                 uintptr_t force_drop_size,

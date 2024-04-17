@@ -1,6 +1,7 @@
 #include "ddtrace.h"
 #include "auto_flush.h"
 #include "configuration.h"
+#include "dogstatsd_client.h"
 #include "logging.h"
 #include <components-rs/ddtrace.h>
 #include "sidecar.h"
@@ -20,12 +21,18 @@ static void ddtrace_set_sidecar_globals(void) {
 }
 
 static bool dd_sidecar_connection_init(void) {
+    ddog_Endpoint *dogstatsd_endpoint;
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
         ddtrace_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
+        dogstatsd_endpoint = ddog_endpoint_empty();
     } else {
         char *agent_url = ddtrace_agent_url();
         ddtrace_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
         free(agent_url);
+
+        char *dogstatsd_url = ddtrace_dogstatsd_url();
+        dogstatsd_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = dogstatsd_url, .len = strlen(dogstatsd_url)});
+        free(dogstatsd_url);
     }
 
     if (!ddtrace_endpoint) {
@@ -60,7 +67,7 @@ static bool dd_sidecar_connection_init(void) {
     }
 
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
-    ddog_sidecar_session_set_config(&ddtrace_sidecar, session_id, ddtrace_endpoint,
+    ddog_sidecar_session_set_config(&ddtrace_sidecar, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     get_global_DD_TRACE_AGENT_FLUSH_INTERVAL(),
                                     get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
                                     get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
