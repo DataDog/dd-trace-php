@@ -17,4 +17,4 @@ assert_ddtrace_version "${trace_version}"
 assert_profiler_installed
 assert_appsec_installed
 
-assert_request_init_hook_exists
+assert_sources_path_exists
