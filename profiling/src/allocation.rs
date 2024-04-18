@@ -186,7 +186,7 @@ pub fn alloc_prof_rinit() {
         let zend_mm_state = cell.get();
 
         // Safety: `zend_mm_get_heap()` always returns a non-null pointer to a valid heap structure
-        let heap = unsafe { Some(zend::zend_mm_get_heap()).unwrap() };
+        let heap = unsafe { zend::zend_mm_get_heap() };
 
         unsafe { ptr::addr_of_mut!((*zend_mm_state).heap).write(Some(heap)) };
 
