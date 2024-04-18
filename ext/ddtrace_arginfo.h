@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5c5d1b6292a4bab984b12fe56f14060930c864dc */
+ * Stub hash: 4945b217365745e20d4e1ae062acbd6d6b01585f */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -131,6 +131,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_dogstatsd_count, 0, 2, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, metric, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, value, IS_DOUBLE, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, tags, IS_ARRAY, 0, "[]")
 ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_dogstatsd_gauge arginfo_DDTrace_dogstatsd_count

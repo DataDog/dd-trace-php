@@ -1,5 +1,6 @@
 #include "ddtrace.h"
 #include "auto_flush.h"
+#include "compat_string.h"
 #include "configuration.h"
 #include "dogstatsd_client.h"
 #include "logging.h"
@@ -109,16 +110,51 @@ void ddtrace_reset_sidecar_globals(void) {
     }
 }
 
-void ddtrace_sidecar_dogstatsd_count(zend_string *metric, double value) {
-    if (!ddtrace_sidecar) {
-        return;
+// Serialize an array of tags to a string like "key1:val1,key2:val2,..."
+static zend_string *ddtrace_sidecar_serialize_tags(zval *tags) {
+    smart_str tags_str = {0};
+
+    zend_string *key;
+    zval *value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(tags), key, value) {
+        if (!key) {
+            continue;
+        }
+
+        // FIXME: limit string length
+
+        if (tags_str.s) {
+            smart_str_appends(&tags_str, ",");
+        }
+        smart_str_append(&tags_str, key);
+        smart_str_appends(&tags_str, "=");
+
+        zval value_str;
+        ddtrace_convert_to_string(&value_str, value);
+        smart_str_append(&tags_str, Z_STR(value_str));
+        zend_string_release(Z_STR(value_str));
     }
-    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value);
+    ZEND_HASH_FOREACH_END();
+
+    return smart_str_extract(&tags_str);
 }
 
-void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value) {
+void ddtrace_sidecar_dogstatsd_count(zend_string *metric, double value, zval *tags) {
     if (!ddtrace_sidecar) {
         return;
     }
-    ddog_sidecar_dogstatsd_gauge(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value);
+
+    zend_string *serialized_tags = tags ? ddtrace_sidecar_serialize_tags(tags) : ZSTR_EMPTY_ALLOC();
+    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, dd_zend_string_to_CharSlice(serialized_tags));
+    zend_string_release(serialized_tags);
+}
+
+void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *tags) {
+    if (!ddtrace_sidecar) {
+        return;
+    }
+
+    zend_string *serialized_tags = tags ? ddtrace_sidecar_serialize_tags(tags) : ZSTR_EMPTY_ALLOC();
+    ddog_sidecar_dogstatsd_gauge(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, dd_zend_string_to_CharSlice(serialized_tags));
+    zend_string_release(serialized_tags);
 }

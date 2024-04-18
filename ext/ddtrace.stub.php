@@ -636,12 +636,12 @@ namespace DDTrace {
     /**
      * Update a DogStatsD counter
      */
-    function dogstatsd_count(string $metric, float $value): void {}
+    function dogstatsd_count(string $metric, float $value, array $tags = []): void {}
 
     /**
      * Update a DogStatsD gauge
      */
-    function dogstatsd_gauge(string $metric, float $value): void {}
+    function dogstatsd_gauge(string $metric, float $value, array $tags = []): void {}
 }
 
 namespace DDTrace\System {
