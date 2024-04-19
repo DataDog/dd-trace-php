@@ -11,8 +11,6 @@
 #include <stdio.h>
 #include "common.h"
 
-void ddog_MaybeError_drop(ddog_MaybeError);
-
 /**
  * # Safety
  * * builder should be a non null pointer to a null pointer to a builder

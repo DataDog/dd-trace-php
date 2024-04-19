@@ -1,14 +1,14 @@
 use datadog_sidecar::interface::blocking::SidecarTransport;
 use datadog_sidecar::interface::{blocking, InstanceId, QueueId, SidecarAction};
 use ddcommon_ffi::slice::AsBytes;
-use ddcommon_ffi::CharSlice;
+use ddcommon_ffi::{CharSlice, MaybeError, self as ffi};
 use ddcommon::tag::parse_tags;
 use ddtelemetry::data;
 use ddtelemetry::data::metrics::MetricNamespace;
 use ddtelemetry::data::{Dependency, Integration};
 use ddtelemetry::metrics::MetricContext;
 use ddtelemetry::worker::TelemetryActions;
-use ddtelemetry_ffi::{try_c, MaybeError};
+use ddtelemetry_ffi::try_c;
 use std::error::Error;
 use std::path::PathBuf;
 use std::str::FromStr;

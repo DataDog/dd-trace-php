@@ -68,7 +68,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                         };
                         ddog_MaybeError send_error = ddog_sidecar_send_trace_v04_shm(&ddtrace_sidecar, ddtrace_sidecar_instance_id, shm, &tags);
                         do {
-                            if (send_error.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
+                            if (send_error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
                                 // retry sending it directly through the socket as last resort. May block though with large traces.
                                 ptr = emalloc(written);
                                 // write the same thing again
@@ -79,8 +79,11 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                 efree(ptr);
 
                                 if (ddtrace_ffi_try("Failed sending traces to the sidecar", retry_error)) {
-                                    LOG(DEBUG, "Failed sending traces via shm to sidecar: %.*s", (int) send_error.some.len, send_error.some.ptr);
+                                    ddog_CharSlice error_msg = ddog_Error_message(&send_error.some);
+                                    LOG(DEBUG, "Failed sending traces via shm to sidecar: %.*s", (int) error_msg.len, error_msg.ptr);
+                                    ddog_MaybeError_drop(send_error);
                                 } else {
+                                    ddog_MaybeError_drop(send_error);
                                     break;
                                 }
                             }
