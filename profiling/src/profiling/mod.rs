@@ -597,17 +597,22 @@ impl Profiler {
         self.fork_barrier.wait();
     }
 
-    pub fn send_sample(&self, message: SampleMessage) -> Result<(), TrySendError<ProfilerMessage>> {
+    pub fn send_sample(
+        &self,
+        message: SampleMessage,
+    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         self.message_sender
             .try_send(ProfilerMessage::Sample(message))
+            .map_err(Box::new)
     }
 
     pub fn send_local_root_span_resource(
         &self,
         message: LocalRootSpanResourceMessage,
-    ) -> Result<(), TrySendError<ProfilerMessage>> {
+    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         self.message_sender
             .try_send(ProfilerMessage::LocalRootSpanResource(message))
+            .map_err(Box::new)
     }
 
     /// Begins the shutdown process. To complete it, call [Profiler::shutdown].
