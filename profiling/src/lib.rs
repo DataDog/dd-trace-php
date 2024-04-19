@@ -166,8 +166,8 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         ..Default::default()
     });
 
-    // SAFETY: well, it's as least as safe as what every single C extension does.
-    unsafe { &mut MODULE }
+    // SAFETY: well, it's at least as safe as what every single C extension does.
+    unsafe { &mut *ptr::addr_of_mut!(MODULE) }
 }
 
 /* Important note on the PHP lifecycle:
@@ -398,7 +398,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     trace!("RINIT({_type}, {_module_number})");
 
     // SAFETY: not being mutated during rinit.
-    unsafe { &ZAI_CONFIG_ONCE }.call_once(|| unsafe {
+    let once = unsafe { &*ptr::addr_of!(ZAI_CONFIG_ONCE) };
+    once.call_once(|| unsafe {
         bindings::zai_config_first_time_rinit(true);
         config::first_rinit();
     });
@@ -436,12 +437,14 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // SAFETY: still safe to access in rinit after first_rinit.
     let system_settings = unsafe { system_settings.as_ref() };
 
-    unsafe { &RINIT_ONCE }.call_once(|| {
+    // SAFETY: the once control is not mutable during request.
+    let once = unsafe { &*ptr::addr_of!(RINIT_ONCE) };
+    once.call_once(|| {
         if system_settings.profiling_enabled {
             /* Safety: sapi_module is initialized by rinit and shouldn't be
              * modified at this point (safe to read values).
              */
-            let sapi_module = unsafe { &zend::sapi_module };
+            let sapi_module = unsafe { &*ptr::addr_of!(zend::sapi_module) };
             if sapi_module.pretty_name.is_null() {
                 // Safety: I'm willing to bet the module name is less than `isize::MAX`.
                 let name = unsafe { CStr::from_ptr(sapi_module.name) }.to_string_lossy();

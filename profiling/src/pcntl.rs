@@ -7,6 +7,7 @@ use crate::{config, Profiler, PROFILER};
 use log::{error, warn};
 use std::ffi::CStr;
 use std::mem::{forget, swap};
+use std::ptr;
 
 static mut PCNTL_FORK_HANDLER: InternalFunctionHandler = None;
 static mut PCNTL_RFORK_HANDLER: InternalFunctionHandler = None;
@@ -136,9 +137,21 @@ pub(crate) unsafe fn startup() {
      * Safety: we can modify our own globals in the startup context.
      */
     let handlers = [
-        datadog_php_zif_handler::new(PCNTL_FORK, &mut PCNTL_FORK_HANDLER, Some(pcntl_fork)),
-        datadog_php_zif_handler::new(PCNTL_RFORK, &mut PCNTL_RFORK_HANDLER, Some(pcntl_rfork)),
-        datadog_php_zif_handler::new(PCNTL_FORKX, &mut PCNTL_FORKX_HANDLER, Some(pcntl_forkx)),
+        datadog_php_zif_handler::new(
+            PCNTL_FORK,
+            ptr::addr_of_mut!(PCNTL_FORK_HANDLER),
+            Some(pcntl_fork),
+        ),
+        datadog_php_zif_handler::new(
+            PCNTL_RFORK,
+            ptr::addr_of_mut!(PCNTL_RFORK_HANDLER),
+            Some(pcntl_rfork),
+        ),
+        datadog_php_zif_handler::new(
+            PCNTL_FORKX,
+            ptr::addr_of_mut!(PCNTL_FORKX_HANDLER),
+            Some(pcntl_forkx),
+        ),
     ];
 
     for handler in handlers.into_iter() {
