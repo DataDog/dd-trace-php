@@ -246,12 +246,12 @@ impl TimeCollector {
         let end_time = wall_export.systemtime;
 
         for (index, profile) in profiles.drain() {
-            let message = UploadMessage::Upload(UploadRequest {
+            let message = UploadMessage::Upload(Box::new(UploadRequest {
                 index,
                 profile,
                 end_time,
                 duration,
-            });
+            }));
             if let Err(err) = self.upload_sender.try_send(message) {
                 warn!("Failed to upload profile: {err}");
             }
@@ -505,7 +505,7 @@ pub struct UploadRequest {
 
 pub enum UploadMessage {
     Pause,
-    Upload(UploadRequest),
+    Upload(Box<UploadRequest>),
 }
 
 impl Profiler {
