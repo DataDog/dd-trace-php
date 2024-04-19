@@ -1965,12 +1965,12 @@ PHP_FUNCTION(DDTrace_Internal_handle_fork) {
 
 PHP_FUNCTION(DDTrace_dogstatsd_count) {
     zend_string *metric;
-    double value;
+    zend_long value;
     zval *tags;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
     Z_PARAM_STR(metric)
-    Z_PARAM_DOUBLE(value)
+    Z_PARAM_LONG(value)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY(tags)
     ZEND_PARSE_PARAMETERS_END();

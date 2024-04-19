@@ -143,7 +143,7 @@ ddog_CharSlice ddog_sidecar_stats(ddog_SidecarTransport **transport);
 ddog_MaybeError ddog_sidecar_dogstatsd_count(ddog_SidecarTransport **transport,
                                              const struct ddog_InstanceId *instance_id,
                                              ddog_CharSlice metric,
-                                             double value,
+                                             uint64_t value,
                                              ddog_CharSlice tags);
 
 ddog_MaybeError ddog_sidecar_dogstatsd_gauge(ddog_SidecarTransport **transport,

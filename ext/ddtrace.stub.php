@@ -636,7 +636,7 @@ namespace DDTrace {
     /**
      * Update a DogStatsD counter
      */
-    function dogstatsd_count(string $metric, float $value, array $tags = []): void {}
+    function dogstatsd_count(string $metric, int $value, array $tags = []): void {}
 
     /**
      * Update a DogStatsD gauge

@@ -10,7 +10,7 @@ void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_shutdown(void);
 void ddtrace_reset_sidecar_globals(void);
 
-void ddtrace_sidecar_dogstatsd_count(zend_string *metric, double value, zval *tags);
+void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags);
 void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *tags);
 
 static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {

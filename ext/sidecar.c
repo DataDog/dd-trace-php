@@ -139,13 +139,13 @@ static zend_string *ddtrace_sidecar_serialize_tags(zval *tags) {
     return smart_str_extract(&tags_str);
 }
 
-void ddtrace_sidecar_dogstatsd_count(zend_string *metric, double value, zval *tags) {
+void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags) {
     if (!ddtrace_sidecar) {
         return;
     }
 
     zend_string *serialized_tags = tags ? ddtrace_sidecar_serialize_tags(tags) : ZSTR_EMPTY_ALLOC();
-    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, dd_zend_string_to_CharSlice(serialized_tags));
+    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), (uint64_t)value, dd_zend_string_to_CharSlice(serialized_tags));
     zend_string_release(serialized_tags);
 }
 
