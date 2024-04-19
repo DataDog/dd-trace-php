@@ -771,10 +771,10 @@ impl Profiler {
                     value: LabelValue::Str(exception.clone().into()),
                 });
 
-                if message.is_some() {
+                if let Some(message) = message {
                     labels.push(Label {
                         key: "exception message",
-                        value: LabelValue::Str(message.unwrap().into()),
+                        value: LabelValue::Str(message.into()),
                     });
                 }
 
