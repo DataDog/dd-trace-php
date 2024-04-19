@@ -83,6 +83,22 @@ typedef struct ddog_Slice_CChar {
  */
 typedef struct ddog_Slice_CChar ddog_CharSlice;
 
+typedef enum ddog_Option_Error_Tag {
+  DDOG_OPTION_ERROR_SOME_ERROR,
+  DDOG_OPTION_ERROR_NONE_ERROR,
+} ddog_Option_Error_Tag;
+
+typedef struct ddog_Option_Error {
+  ddog_Option_Error_Tag tag;
+  union {
+    struct {
+      struct ddog_Error some;
+    };
+  };
+} ddog_Option_Error;
+
+typedef struct ddog_Option_Error ddog_MaybeError;
+
 /**
  * A wrapper for returning owned strings from FFI
  */
@@ -167,22 +183,6 @@ typedef struct ddog_InstanceId ddog_InstanceId;
 typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
 typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_SidecarTransport;
-
-typedef enum ddog_Option_VecU8_Tag {
-  DDOG_OPTION_VEC_U8_SOME_VEC_U8,
-  DDOG_OPTION_VEC_U8_NONE_VEC_U8,
-} ddog_Option_VecU8_Tag;
-
-typedef struct ddog_Option_VecU8 {
-  ddog_Option_VecU8_Tag tag;
-  union {
-    struct {
-      struct ddog_Vec_U8 some;
-    };
-  };
-} ddog_Option_VecU8;
-
-typedef struct ddog_Option_VecU8 ddog_MaybeError;
 
 typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_ERROR,
@@ -298,6 +298,8 @@ void ddog_Error_drop(struct ddog_Error *error);
  * Only pass null or a valid reference to a `ddog_Error`.
  */
 ddog_CharSlice ddog_Error_message(const struct ddog_Error *error);
+
+void ddog_MaybeError_drop(ddog_MaybeError);
 
 DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_url(ddog_CharSlice url);
 
