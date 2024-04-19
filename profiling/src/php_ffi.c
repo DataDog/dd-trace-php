@@ -319,7 +319,8 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
      */
 }
 
-#if CFG_RUN_TIME_CACHE // defined by build.rs
+// defined by build.rs
+#if CFG_RUN_TIME_CACHE && !CFG_STACK_WALKING_TESTS
 static bool has_invalid_run_time_cache(zend_function const *func) {
     if (UNEXPECTED(_ignore_run_time_cache) || UNEXPECTED(ddog_php_prof_run_time_cache_handle < 0))
         return true;
