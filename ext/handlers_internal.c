@@ -30,6 +30,7 @@ void ddtrace_free_unregistered_class(zend_class_entry *ce) {
 void ddtrace_curl_handlers_startup(void);
 void ddtrace_exception_handlers_startup(void);
 void ddtrace_pcntl_handlers_startup(void);
+void ddtrace_rdkafka_handlers_startup(void);
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
 #include <hook/hook.h>
@@ -82,7 +83,7 @@ static inline void dd_install_internal_class(const char *class) {
 }
 
 static void dd_install_internal_handlers(void) {
-    zend_hash_init(&dd_orig_internal_funcs, 32, NULL, NULL, true);
+    zend_hash_init(&dd_orig_internal_funcs, 33, NULL, NULL, true);
     dd_install_internal_class("memcached");
     dd_install_internal_class("redis");
     dd_install_internal_class("rediscluster");
@@ -99,6 +100,7 @@ static void dd_install_internal_handlers(void) {
     dd_install_internal_method("PDO", "prepare");
     dd_install_internal_method("PDO", "commit");
     dd_install_internal_method("PDOStatement", "execute");
+    dd_install_internal_method("RdKafka\\ProducerTopic", "produce");
     dd_install_internal_function("mysqli_connect");
     dd_install_internal_function("mysqli_real_connect");
     dd_install_internal_function("mysqli_query");
@@ -145,6 +147,8 @@ void ddtrace_internal_handlers_startup() {
     ddtrace_pcntl_handlers_startup();
     // exception handlers have to run otherwise wrapping will fail horribly
     ddtrace_exception_handlers_startup();
+    // rdkafka handlers have to run even if tracing of rdkafka extension is not enabled.
+    ddtrace_rdkafka_handlers_startup();
 
     ddtrace_exec_handlers_startup();
 }
