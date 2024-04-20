@@ -6,6 +6,8 @@ mod logging;
 mod pcntl;
 pub mod profiling;
 mod sapi;
+
+#[cfg(php_run_time_cache)]
 mod string_table;
 
 #[cfg(feature = "allocation_profiling")]
