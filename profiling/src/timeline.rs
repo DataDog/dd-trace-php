@@ -7,7 +7,6 @@ use libc::c_char;
 use log::{error, trace, warn};
 use std::cell::RefCell;
 use std::ffi::CStr;
-use std::mem::MaybeUninit;
 use std::ptr;
 use std::time::Instant;
 use std::time::SystemTime;
@@ -471,7 +470,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         }
 
         #[cfg(php_gc_status)]
-        let mut status = MaybeUninit::<zend::zend_gc_status>::uninit();
+        let mut status = core::mem::MaybeUninit::<zend::zend_gc_status>::uninit();
 
         let start = Instant::now();
         let collected = prev();
