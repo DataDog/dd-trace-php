@@ -399,6 +399,7 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
     return *non_const_func->common.run_time_cache__ptr;
 #endif
 #else
+    (void)func;
     return NULL;
 #endif
 }
