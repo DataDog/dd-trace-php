@@ -246,12 +246,12 @@ impl TimeCollector {
         let end_time = wall_export.systemtime;
 
         for (index, profile) in profiles.drain() {
-            let message = UploadMessage::Upload(UploadRequest {
+            let message = UploadMessage::Upload(Box::new(UploadRequest {
                 index,
                 profile,
                 end_time,
                 duration,
-            });
+            }));
             if let Err(err) = self.upload_sender.try_send(message) {
                 warn!("Failed to upload profile: {err}");
             }
@@ -505,7 +505,7 @@ pub struct UploadRequest {
 
 pub enum UploadMessage {
     Pause,
-    Upload(UploadRequest),
+    Upload(Box<UploadRequest>),
 }
 
 impl Profiler {
@@ -597,17 +597,22 @@ impl Profiler {
         self.fork_barrier.wait();
     }
 
-    pub fn send_sample(&self, message: SampleMessage) -> Result<(), TrySendError<ProfilerMessage>> {
+    pub fn send_sample(
+        &self,
+        message: SampleMessage,
+    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         self.message_sender
             .try_send(ProfilerMessage::Sample(message))
+            .map_err(Box::new)
     }
 
     pub fn send_local_root_span_resource(
         &self,
         message: LocalRootSpanResourceMessage,
-    ) -> Result<(), TrySendError<ProfilerMessage>> {
+    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         self.message_sender
             .try_send(ProfilerMessage::LocalRootSpanResource(message))
+            .map_err(Box::new)
     }
 
     /// Begins the shutdown process. To complete it, call [Profiler::shutdown].

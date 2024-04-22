@@ -317,7 +317,7 @@ pub fn alloc_prof_startup() {
     unsafe {
         let handle = datadog_php_zif_handler::new(
             ffi::CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0"),
-            &mut GC_MEM_CACHES_HANDLER,
+            ptr::addr_of_mut!(GC_MEM_CACHES_HANDLER),
             Some(alloc_prof_gc_mem_caches),
         );
         datadog_php_install_handler(handle);

@@ -143,7 +143,7 @@ fn build_zend_php_ffis(
     let stack_walking_tests = "0";
 
     cc::Build::new()
-        .files(files.into_iter().chain(zai_c_files.into_iter()))
+        .files(files.into_iter().chain(zai_c_files))
         .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
         .define("CFG_FIBERS", fibers)

@@ -2927,6 +2927,20 @@ jobs:
             export TEST_PHP_EXECUTABLE=$(which php)
             php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt"
 
+      - run:
+          name: clippy NTS (for select platforms)
+          command: |
+            if [[ "x86_64-unknown-linux-gnu" != "<< parameters.triplet >>" ]] ; then
+              exit 0
+            fi
+            set -u
+            command -v switch-php && switch-php "${PHP_VERSION}"
+            set -e
+            cd profiling
+            touch build.rs
+            sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
+            cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
+
   compile_extension_centos:
     working_directory: ~/datadog
     parameters:
