@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use datadog_php_profiling::bindings as zend;
-use datadog_php_profiling::profiling::stalk_walking::collect_stack_sample;
+use datadog_php_profiling::profiling::stack_walking::collect_stack_sample;
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use criterion_perf_events::Perf;
