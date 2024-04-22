@@ -58,8 +58,14 @@ remote_config::config get_disabled_config(bool as_string = true)
 class RemoteConfigAsmFeaturesListenerTest : public ::testing::Test {
 public:
     std::shared_ptr<dds::service_config> service_config;
+    double rate_;
 
-    void SetUp() { service_config = std::make_shared<dds::service_config>(); }
+    void SetUp()
+    {
+        service_config = std::make_shared<dds::service_config>();
+        service_config->set_request_sampler_listener(
+            [this](double rate) { rate_ = rate; });
+    }
 };
 
 TEST_F(RemoteConfigAsmFeaturesListenerTest, ByDefaultListenerIsNotSet)
@@ -334,7 +340,7 @@ TEST_F(RemoteConfigAsmFeaturesListenerTest, RequestSampleRateIsParsed)
         } catch (remote_config::error_applying_config &error) {
             std::cout << error.what() << std::endl;
         }
-        EXPECT_EQ(sample_rate, service_config->get_request_sample_rate());
+        EXPECT_EQ(sample_rate, rate_);
     }
 
     { // It parses integers
@@ -344,7 +350,7 @@ TEST_F(RemoteConfigAsmFeaturesListenerTest, RequestSampleRateIsParsed)
         } catch (remote_config::error_applying_config &error) {
             std::cout << error.what() << std::endl;
         }
-        EXPECT_EQ(sample_rate, service_config->get_request_sample_rate());
+        EXPECT_EQ(sample_rate, rate_);
     }
 }
 
@@ -357,7 +363,7 @@ TEST_F(RemoteConfigAsmFeaturesListenerTest, DynamicEnablementIsDisabled)
     } catch (remote_config::error_applying_config &error) {
         std::cout << error.what() << std::endl;
     }
-    EXPECT_EQ(0.2, service_config->get_request_sample_rate());
+    EXPECT_EQ(0.2, rate_);
     EXPECT_EQ(
         enable_asm_status::NOT_SET, service_config->get_asm_enabled_status());
 }
@@ -375,7 +381,7 @@ TEST_F(RemoteConfigAsmFeaturesListenerTest, ApiSecurityIsDisabled)
         } catch (remote_config::error_applying_config &error) {
             std::cout << error.what() << std::endl;
         }
-        EXPECT_EQ(some_rate, service_config->get_request_sample_rate());
+        EXPECT_EQ(some_rate, rate_);
         EXPECT_EQ(enable_asm_status::ENABLED,
             service_config->get_asm_enabled_status());
     }
@@ -389,7 +395,7 @@ TEST_F(RemoteConfigAsmFeaturesListenerTest, ApiSecurityIsDisabled)
             std::cout << error.what() << std::endl;
         }
         EXPECT_EQ(some_rate,
-            service_config->get_request_sample_rate()); // same as before
+            rate_); // same as before
         EXPECT_EQ(enable_asm_status::ENABLED,
             service_config->get_asm_enabled_status());
     }

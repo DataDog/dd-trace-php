@@ -75,6 +75,11 @@ public:
         return schema_sampler_;
     }
 
+    void set_sampler_rate(double rate)
+    {
+        schema_sampler_ = std::make_shared<sampler>(rate);
+    }
+
 protected:
     std::shared_ptr<engine> engine_{};
     std::shared_ptr<service_config> service_config_{};
