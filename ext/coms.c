@@ -831,6 +831,10 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
             curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long) get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
             curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_curl_writefunc);
             curl_easy_setopt(writer->curl, CURLOPT_WRITEDATA, &response);
+            zend_string *debug_file = get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL_FILE();
+            if (get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL() && debug_file && ZSTR_LEN(debug_file) > 0) {
+                curl_easy_setopt(writer->curl, CURLOPT_STDERR, fopen(ZSTR_VAL(debug_file), "a"));
+            }
             res = curl_easy_perform(writer->curl);
 
             if (res != CURLE_OK) {
