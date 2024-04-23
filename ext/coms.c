@@ -14,6 +14,7 @@
 // For reasons it doesn't find asprintf() if this isn't included later...
 #include "coms.h"
 #include <components-rs/ddtrace.h>
+#include <components/log/log.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -835,7 +836,11 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
             if (get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL() && debug_file && ZSTR_LEN(debug_file) > 0) {
                 curl_easy_setopt(writer->curl, CURLOPT_STDERR, fopen(ZSTR_VAL(debug_file), "a"));
             }
+            LOG(INFO, "Performing curl...");
             res = curl_easy_perform(writer->curl);
+            LOG(INFO, "Performed curl");
+            LOG(INFO, "Curl response code: %s", res);
+
 
             if (res != CURLE_OK) {
                 ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
@@ -1206,6 +1211,7 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
                 /* if this is not a fork, and timeout has been reached,
                     the thread needs to be cancelled and joined as this
                     is the last opportunity to join */
+                LOG(ERROR, "BGS Writer Timeout");
                 if (!_dd_has_pid_changed()) {
                     pthread_cancel(writer->thread->self);
 
@@ -1221,6 +1227,7 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
     if (should_join && !_dd_has_pid_changed()) {
         // when timeout was not reached and we haven't forked (without restarting thread)
         // this ensures situation when join is safe from being deadlocked
+        LOG(WARN, "Should join and dd pid has not changed");
         pthread_join(writer->thread->self, NULL);
         free(writer->thread);
         writer->thread = NULL;
