@@ -1966,7 +1966,7 @@ PHP_FUNCTION(DDTrace_Internal_handle_fork) {
 PHP_FUNCTION(DDTrace_dogstatsd_count) {
     zend_string *metric;
     zend_long value;
-    zval *tags;
+    zval *tags = NULL;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
     Z_PARAM_STR(metric)
@@ -1983,7 +1983,7 @@ PHP_FUNCTION(DDTrace_dogstatsd_count) {
 PHP_FUNCTION(DDTrace_dogstatsd_distribution) {
     zend_string *metric;
     double value;
-    zval *tags;
+    zval *tags = NULL;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
     Z_PARAM_STR(metric)
@@ -2000,7 +2000,7 @@ PHP_FUNCTION(DDTrace_dogstatsd_distribution) {
 PHP_FUNCTION(DDTrace_dogstatsd_gauge) {
     zend_string *metric;
     double value;
-    zval *tags;
+    zval *tags = NULL;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
     Z_PARAM_STR(metric)
@@ -2017,7 +2017,7 @@ PHP_FUNCTION(DDTrace_dogstatsd_gauge) {
 PHP_FUNCTION(DDTrace_dogstatsd_histogram) {
     zend_string *metric;
     double value;
-    zval *tags;
+    zval *tags = NULL;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
     Z_PARAM_STR(metric)
