@@ -34,15 +34,8 @@ public:
 
     bool get()
     {
-        bool result = false;
-        if (floor(request_ * sample_rate_) !=
-            floor((request_ + 1) * sample_rate_)) {
-            result = true;
-        }
-
-        request_.fetch_add(1, std::memory_order_relaxed);
-
-        return result;
+        unsigned prev = request_.fetch_add(1, std::memory_order_relaxed);
+        return floor(prev * sample_rate_) != floor((prev + 1) * sample_rate_);
     }
 
     double get_sample_rate() { return sample_rate_; }

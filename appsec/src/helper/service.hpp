@@ -72,12 +72,13 @@ public:
 
     [[nodiscard]] std::shared_ptr<sampler> get_schema_sampler()
     {
-        return schema_sampler_;
+        return std::atomic_load(&schema_sampler_);
     }
 
     void set_sampler_rate(double rate)
     {
-        schema_sampler_ = std::make_shared<sampler>(rate);
+        auto new_sampler = std::make_shared<sampler>(rate);
+        std::atomic_store(&schema_sampler_, new_sampler);
     }
 
 protected:
