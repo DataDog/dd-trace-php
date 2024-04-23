@@ -1980,6 +1980,23 @@ PHP_FUNCTION(DDTrace_dogstatsd_count) {
     RETURN_NULL();
 }
 
+PHP_FUNCTION(DDTrace_dogstatsd_distribution) {
+    zend_string *metric;
+    double value;
+    zval *tags;
+
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+    Z_PARAM_STR(metric)
+    Z_PARAM_DOUBLE(value)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ARRAY(tags)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_sidecar_dogstatsd_distribution(metric, value, tags);
+
+    RETURN_NULL();
+}
+
 PHP_FUNCTION(DDTrace_dogstatsd_gauge) {
     zend_string *metric;
     double value;
@@ -1993,6 +2010,23 @@ PHP_FUNCTION(DDTrace_dogstatsd_gauge) {
     ZEND_PARSE_PARAMETERS_END();
 
     ddtrace_sidecar_dogstatsd_gauge(metric, value, tags);
+
+    RETURN_NULL();
+}
+
+PHP_FUNCTION(DDTrace_dogstatsd_histogram) {
+    zend_string *metric;
+    double value;
+    zval *tags;
+
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+    Z_PARAM_STR(metric)
+    Z_PARAM_DOUBLE(value)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ARRAY(tags)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_sidecar_dogstatsd_histogram(metric, value, tags);
 
     RETURN_NULL();
 }

@@ -639,9 +639,19 @@ namespace DDTrace {
     function dogstatsd_count(string $metric, int $value, array $tags = []): void {}
 
     /**
+     * Update a DogStatsD distribution
+     */
+    function dogstatsd_distribution(string $metric, float $value, array $tags = []): void {}
+
+    /**
      * Update a DogStatsD gauge
      */
     function dogstatsd_gauge(string $metric, float $value, array $tags = []): void {}
+
+    /**
+     * Update a DogStatsD distribution
+     */
+    function dogstatsd_histogram(string $metric, float $value, array $tags = []): void {}
 }
 
 namespace DDTrace\System {
