@@ -4,6 +4,7 @@
 #include "configuration.h"
 #include "dogstatsd_client.h"
 #include "logging.h"
+#include <components-rs/common.h>
 #include <components-rs/ddtrace.h>
 #include "sidecar.h"
 #include "telemetry.h"
@@ -110,33 +111,26 @@ void ddtrace_reset_sidecar_globals(void) {
     }
 }
 
-// Serialize an array of tags to a string like "key1:val1,key2:val2,..."
-static zend_string *ddtrace_sidecar_serialize_tags(zval *tags) {
-    smart_str tags_str = {0};
+static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
+    if (!tags || Z_TYPE_P(tags) != IS_ARRAY) {
+        return;
+    }
 
     zend_string *key;
-    zval *value;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(tags), key, value) {
+    zval *tag_val;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(tags), key, tag_val) {
         if (!key) {
             continue;
         }
-
-        // FIXME: limit string length
-
-        if (tags_str.s) {
-            smart_str_appends(&tags_str, ",");
-        }
-        smart_str_append(&tags_str, key);
-        smart_str_appends(&tags_str, "=");
-
         zval value_str;
-        ddtrace_convert_to_string(&value_str, value);
-        smart_str_append(&tags_str, Z_STR(value_str));
+        ddtrace_convert_to_string(&value_str, tag_val);
+        ddog_Vec_Tag_PushResult tag_result = ddog_Vec_Tag_push(vec, dd_zend_string_to_CharSlice(key), dd_zend_string_to_CharSlice(Z_STR(value_str)));
+        if (tag_result.tag == DDOG_VEC_TAG_PUSH_RESULT_ERR) {
+            LOG(WARN, "Failed to push DogStatsD tag: %s", tag_result.err);
+        }
         zend_string_release(Z_STR(value_str));
     }
     ZEND_HASH_FOREACH_END();
-
-    return smart_str_extract(&tags_str);
 }
 
 void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags) {
@@ -144,9 +138,10 @@ void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
         return;
     }
 
-    zend_string *serialized_tags = tags ? ddtrace_sidecar_serialize_tags(tags) : ZSTR_EMPTY_ALLOC();
-    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), (uint64_t)value, dd_zend_string_to_CharSlice(serialized_tags));
-    zend_string_release(serialized_tags);
+    ddog_Vec_Tag vec = ddog_Vec_Tag_new();
+    ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
+    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), (uint64_t)value, &vec);
+    ddog_Vec_Tag_drop(vec);
 }
 
 void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *tags) {
@@ -154,7 +149,8 @@ void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *ta
         return;
     }
 
-    zend_string *serialized_tags = tags ? ddtrace_sidecar_serialize_tags(tags) : ZSTR_EMPTY_ALLOC();
-    ddog_sidecar_dogstatsd_gauge(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, dd_zend_string_to_CharSlice(serialized_tags));
-    zend_string_release(serialized_tags);
+    ddog_Vec_Tag vec = ddog_Vec_Tag_new();
+    ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
+    ddog_sidecar_dogstatsd_gauge(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
+    ddog_Vec_Tag_drop(vec);
 }
