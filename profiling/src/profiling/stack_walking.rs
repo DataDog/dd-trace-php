@@ -75,41 +75,6 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
     }
 }
 
-fn collect_stack_sample_helper<F>(
-    top_execute_data: *mut zend_execute_data,
-    mut collect_call_frame: F,
-) -> Result<Vec<ZendFrame>, Utf8Error>
-where
-    F: FnMut(&zend_execute_data) -> Option<ZendFrame>,
-{
-    let max_depth = 512;
-    let mut samples = Vec::with_capacity(max_depth >> 3);
-    let mut execute_data_ptr = top_execute_data;
-
-    while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-        let maybe_frame = collect_call_frame(execute_data);
-        if let Some(frame) = maybe_frame {
-            samples.push(frame);
-
-            /* -1 to reserve room for the [truncated] message. In case the
-             * backend and/or frontend have the same limit, without the -1
-             * then ironically the [truncated] message would be truncated.
-             */
-            if samples.len() == max_depth - 1 {
-                samples.push(ZendFrame {
-                    function: COW_TRUNCATED,
-                    file: None,
-                    line: 0,
-                });
-                break;
-            }
-        }
-
-        execute_data_ptr = execute_data.prev_execute_data;
-    }
-    Ok(samples)
-}
-
 #[cfg(php_run_time_cache)]
 mod detail {
     use super::*;
@@ -161,9 +126,32 @@ mod detail {
     ) -> Result<Vec<ZendFrame>, Utf8Error> {
         CACHED_STRINGS.with(|cell| {
             let string_table: &mut StringTable = &mut cell.borrow_mut();
-            collect_stack_sample_helper(top_execute_data, |execute_data| unsafe {
-                collect_call_frame(execute_data, string_table)
-            })
+            let max_depth = 512;
+            let mut samples = Vec::with_capacity(max_depth >> 3);
+            let mut execute_data_ptr = top_execute_data;
+
+            while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+                let maybe_frame = unsafe { collect_call_frame(execute_data, string_table) };
+                if let Some(frame) = maybe_frame {
+                    samples.push(frame);
+
+                    /* -1 to reserve room for the [truncated] message. In case the
+                     * backend and/or frontend have the same limit, without the -1
+                     * then ironically the [truncated] message would be truncated.
+                     */
+                    if samples.len() == max_depth - 1 {
+                        samples.push(ZendFrame {
+                            function: COW_TRUNCATED,
+                            file: None,
+                            line: 0,
+                        });
+                        break;
+                    }
+                }
+
+                execute_data_ptr = execute_data.prev_execute_data;
+            }
+            Ok(samples)
         })
     }
 
@@ -293,9 +281,32 @@ mod detail {
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
     ) -> Result<Vec<ZendFrame>, Utf8Error> {
-        collect_stack_sample_helper(top_execute_data, |execute_data| unsafe {
-            collect_call_frame(execute_data)
-        })
+        let max_depth = 512;
+        let mut samples = Vec::with_capacity(max_depth >> 3);
+        let mut execute_data_ptr = top_execute_data;
+
+        while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+            let maybe_frame = unsafe { collect_call_frame(execute_data) };
+            if let Some(frame) = maybe_frame {
+                samples.push(frame);
+
+                /* -1 to reserve room for the [truncated] message. In case the
+                 * backend and/or frontend have the same limit, without the -1
+                 * then ironically the [truncated] message would be truncated.
+                 */
+                if samples.len() == max_depth - 1 {
+                    samples.push(ZendFrame {
+                        function: COW_TRUNCATED,
+                        file: None,
+                        line: 0,
+                    });
+                    break;
+                }
+            }
+
+            execute_data_ptr = execute_data.prev_execute_data;
+        }
+        Ok(samples)
     }
 
     unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
