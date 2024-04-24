@@ -379,10 +379,12 @@ bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) 
     uint32_t store_result = _dd_store_data(group_id, data, size);
 
     if (_dd_is_memory_pressure_high()) {
+        LOG(DEBUG, "Memory pressure is high");
         ddtrace_coms_trigger_writer_flush();
     }
 
     if (store_result == ENOMEM) {
+        LOG(DEBUG, "Writer flush");
         size_t padding = 2;
         ddtrace_coms_threadsafe_rotate_stack(true, size + padding);
         ddtrace_coms_trigger_writer_flush();
@@ -808,16 +810,19 @@ static size_t _dd_curl_writefunc(char *ptr, size_t size, size_t nmemb, void *s) 
 }
 
 static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
+    LOG(DEBUG, "cURL send stack");
     if (!writer->curl) {
         ddtrace_bgs_logf("[bgs] no curl session - dropping the current stack.\n", NULL);
     }
 
     if (writer->curl) {
+        LOG(DEBUG, "there is a cURL writer");
         void *read_data = _dd_init_read_userdata(stack);
         struct _grouped_stack_t *kData = read_data;
 
         int retries = MAX(get_global_DD_TRACE_AGENT_RETRIES(), 0) + 1;
         for (int retry = 0; retry < retries; retry++) {
+            LOG(DEBUG, "Retry %d", retry);
             CURLcode res;
 
             _dd_curl_set_headers(writer, kData->total_groups);
@@ -878,6 +883,8 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
 
             break;
         }
+
+        LOG(DEBUG, "End cURL");
 
         _dd_deinit_read_userdata(read_data);
         _dd_curl_reset_headers(writer);
@@ -997,6 +1004,7 @@ static void *_dd_writer_loop(void *_) {
         }
 
         // initializing a curl client only for this iteration
+        LOG(DEBUG, "Initializing a cURL client only for this iteration");
         writer->curl = curl_easy_init();
         curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, _dd_coms_read_callback);
         curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_dummy_write_callback);
@@ -1008,6 +1016,7 @@ static void *_dd_writer_loop(void *_) {
         while (*stack) {
             processed_stacks++;
             if (atomic_load(&writer->sending)) {
+                LOG(DEBUG, "Send stack");
                 _dd_curl_send_stack(writer, *stack);
             }
 

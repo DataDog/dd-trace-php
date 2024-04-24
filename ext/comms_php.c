@@ -15,6 +15,7 @@ bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t pay
         LOG(WARN, "Traces are dropped by PID %ld because tracing is disabled.", getpid());
         return true;
     }
+    LOG(DEBUG, "ddtrace_send_traces_via_thread");
 
     if (num_traces != 1) {
         // The background sender is capable of sending exactly one trace atm
@@ -41,6 +42,7 @@ bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t pay
         size_t data_len = mpack_reader_remaining(&reader, &data);
 
         if (ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), data, data_len)) {
+            LOG(DEBUG, "send to background sender");
             sent_to_background_sender = true;
         } else {
             LOG(WARN, "Unable to send payload to background sender's buffer");
