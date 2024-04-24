@@ -377,14 +377,14 @@ bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) 
     }
 
     uint32_t store_result = _dd_store_data(group_id, data, size);
-    ddtrace_bgs_logf("store data");
+    ddtrace_bgs_logf("store data\n", NULL);
     if (_dd_is_memory_pressure_high()) {
-        ddtrace_bgs_logf("Memory pressure is high");
+        ddtrace_bgs_logf("Memory pressure is high\n", NULL);
         ddtrace_coms_trigger_writer_flush();
     }
 
     if (store_result == ENOMEM) {
-        ddtrace_bgs_logf("Writer flush");
+        ddtrace_bgs_logf("Writer flush\n", NULL);
         size_t padding = 2;
         ddtrace_coms_threadsafe_rotate_stack(true, size + padding);
         ddtrace_coms_trigger_writer_flush();
@@ -810,19 +810,19 @@ static size_t _dd_curl_writefunc(char *ptr, size_t size, size_t nmemb, void *s) 
 }
 
 static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
-    ddtrace_bgs_logf("curl send stack");
+    ddtrace_bgs_logf("curl send stack\n", NULL);
     if (!writer->curl) {
         ddtrace_bgs_logf("[bgs] no curl session - dropping the current stack.\n", NULL);
     }
 
     if (writer->curl) {
-        ddtrace_bgs_logf("There is a curl writer");
+        ddtrace_bgs_logf("There is a curl writer\n", NULL);
         void *read_data = _dd_init_read_userdata(stack);
         struct _grouped_stack_t *kData = read_data;
 
         int retries = MAX(get_global_DD_TRACE_AGENT_RETRIES(), 0) + 1;
         for (int retry = 0; retry < retries; retry++) {
-            ddtrace_bgs_logf("Retry %d", retry);
+            ddtrace_bgs_logf("Retry %d\n", retry);
             CURLcode res;
 
             _dd_curl_set_headers(writer, kData->total_groups);
@@ -841,10 +841,10 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
             if (get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL() && debug_file && ZSTR_LEN(debug_file) > 0) {
                 curl_easy_setopt(writer->curl, CURLOPT_STDERR, fopen(ZSTR_VAL(debug_file), "a"));
             }
-            ddtrace_bgs_logf("Performing curl...");
+            ddtrace_bgs_logf("Performing curl...\n", NULL);
             res = curl_easy_perform(writer->curl);
-            ddtrace_bgs_logf("Performed curl");
-            ddtrace_bgs_logf("Response code: %d", res);
+            ddtrace_bgs_logf("Performed curl\n", NULL);
+            ddtrace_bgs_logf("Response code: %d\n", res);
 
             if (res != CURLE_OK) {
                 ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
@@ -883,7 +883,7 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
             break;
         }
 
-        ddtrace_bgs_logf("end curl");
+        ddtrace_bgs_logf("end curl\n", NULL);
 
         _dd_deinit_read_userdata(read_data);
         _dd_curl_reset_headers(writer);
@@ -1003,7 +1003,7 @@ static void *_dd_writer_loop(void *_) {
         }
 
         // initializing a curl client only for this iteration
-        ddtrace_bgs_logf("Initializing a curl client only for this iteration");
+        ddtrace_bgs_logf("Initializing a curl client only for this iteration\n", NULL);
         writer->curl = curl_easy_init();
         curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, _dd_coms_read_callback);
         curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_dummy_write_callback);
@@ -1015,7 +1015,7 @@ static void *_dd_writer_loop(void *_) {
         while (*stack) {
             processed_stacks++;
             if (atomic_load(&writer->sending)) {
-                ddtrace_bgs_logf("send stack");
+                ddtrace_bgs_logf("send stack\n", NULL);
                 _dd_curl_send_stack(writer, *stack);
             }
 
@@ -1219,7 +1219,7 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
                 /* if this is not a fork, and timeout has been reached,
                     the thread needs to be cancelled and joined as this
                     is the last opportunity to join */
-                ddtrace_bgs_logf("BGS writer timeout");
+                ddtrace_bgs_logf("BGS writer timeout\n", NULL);
                 if (!_dd_has_pid_changed()) {
                     pthread_cancel(writer->thread->self);
 
