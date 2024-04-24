@@ -322,14 +322,14 @@ extern "C" fn prshutdown() -> ZendResult {
 }
 
 pub struct RequestLocals {
-    pub env: Option<Cow<'static, str>>,
-    pub service: Option<Cow<'static, str>>,
-    pub version: Option<Cow<'static, str>>,
+    pub env: Option<String>,
+    pub service: Option<String>,
+    pub version: Option<String>,
 
     /// SystemSettings are global. Note that if this is being read in fringe
     /// conditions such as in mshutdown when there were no requests served,
-    /// then the settings are still memory safe but they may not have the real
-    /// configuration. Instead they have a best-effort values such as
+    /// then the settings are still memory safe, but they may not have the
+    /// real configuration. Instead, they have a best-effort values such as
     /// INITIAL_SYSTEM_SETTINGS, or possibly the values which were available
     /// in MINIT.
     pub system_settings: ptr::NonNull<SystemSettings>,
@@ -426,9 +426,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                     Sapi::Cli => {
                         // Safety: sapi globals are safe to access during rinit
                         SAPI.request_script_name(datadog_sapi_globals_request_info())
-                            .or(Some(Cow::Borrowed("cli.command")))
+                            .map(Cow::into_owned)
+                            .or(Some(String::from("cli.command")))
                     }
-                    _ => Some(Cow::Borrowed("web.request")),
+                    _ => Some(String::from("web.request")),
                 }
             });
             locals.version = config::version();
@@ -779,7 +780,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
         for (key, value) in vars {
             let mut value = match value {
-                Some(cowstr) => cowstr.clone().into_owned(),
+                Some(string) => string.clone(),
                 None => String::new(),
             };
             value.push('\0');
