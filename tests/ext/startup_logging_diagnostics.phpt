@@ -7,34 +7,34 @@ Startup logging diagnostics
 include_once 'startup_logging.inc';
 $args = [
     '-dopen_basedir=' . __DIR__ . '/sandbox',
-    '-dddtrace.request_init_hook=' . __DIR__ . '/includes/request_init_hook.inc',
+    '-ddatadog.trace.sources_path=' . __DIR__ . '/includes/',
 ];
 $env = [
     'DD_TRACE_DEBUG' => '1',
     'DD_AGENT_HOST' => 'invalid_host',
-    'DD_SERVICE_NAME' => 'foo_service',
-    'DD_TRACE_GLOBAL_TAGS' => 'foo:tag',
+    'DD_SERVICE' => 'foo_service',
+    'DD_TAGS' => 'foo:tag',
 ];
 $logs = dd_get_startup_logs($args, $env);
 
 dd_dump_startup_logs($logs, [
-    'open_basedir_init_hook_allowed',
+    'open_basedir_sources_allowed',
     'open_basedir_container_tagging_allowed',
-    'DD_SERVICE_NAME',
-    'DD_TRACE_GLOBAL_TAGS',
+    'service',
+    'tags',
     'agent_url',
-    'datadog.trace.request_init_hook',
+    'datadog.trace.sources_path',
     'open_basedir_configured',
 ]);
 // Sidecar tracing doesn't support agent_error ... yet.
 var_dump(strncasecmp(PHP_OS, "WIN", 3) == 0 || isset($logs["agent_error"]));
 ?>
 --EXPECTF--
-open_basedir_init_hook_allowed: false
+open_basedir_sources_allowed: false
 open_basedir_container_tagging_allowed: false
-DD_SERVICE_NAME: "'DD_SERVICE_NAME=foo_service' is deprecated, use DD_SERVICE instead."
-DD_TRACE_GLOBAL_TAGS: "'DD_TRACE_GLOBAL_TAGS=foo:tag' is deprecated, use DD_TAGS instead."
+service: "foo_service"
 agent_url: "http://invalid_host:8126"
-d%s.request_init_hook: "%s/includes/request_init_hook.inc"
+tags: {"foo":"tag"}
+d%s.sources_path: "%s/includes/"
 open_basedir_configured: true
 bool(true)

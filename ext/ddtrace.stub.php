@@ -223,6 +223,34 @@ namespace DDTrace {
         public SpanData|null $active = null;
     }
 
+    interface Integration {
+        // Possible statuses for the concrete:
+        /**
+         * It has not been loaded yet
+         *
+         * @cvalue DD_TRACE_INTEGRATION_NOT_LOADED
+         * @var int
+         */
+        const NOT_LOADED = UNKNOWN;
+        /**
+         * It has been loaded, no more work required
+         *
+         * @cvalue DD_TRACE_INTEGRATION_LOADED
+         * @var int
+         */
+        const LOADED = UNKNOWN;
+        /**
+         * Prerequisites are not matched and won't be matched in the future.
+         *
+         * @cvalue DD_TRACE_INTEGRATION_NOT_AVAILABLE
+         * @var int
+         */
+        const NOT_AVAILABLE = UNKNOWN;
+
+        /** Load the integration */
+        public function init(): int;
+    }
+
     // phpcs:disable Generic.Files.LineLength.TooLong
 
     /**
@@ -410,6 +438,9 @@ namespace DDTrace {
 
     /**
      * Update the duration of an already closed span
+     *
+     * Note that this API won't cause an update of a closed span if it's already sent. Its usage, particularly on
+     * root spans with datadog.trace.auto_flush_enabled may not yield the expected results.
      *
      * @param SpanData $span The span to update.
      * @param float $finishTime Finish time in seconds. Defaults to now if zero.
@@ -793,48 +824,6 @@ namespace {
     function dd_trace_check_memory_under_limit(): bool {}
 
     /**
-     * Register a failure into the circuit breaker
-     *
-     * @return true
-     */
-    function dd_tracer_circuit_breaker_register_error(): bool {}
-
-    /**
-     * Reset the number of consecutive failures of the circuit breaker to zero, and close it
-     *
-     * In other words, calling this function will close the circuit breaker, hence allowing protected calls to be made
-     *
-     * @return bool true
-     */
-    function dd_tracer_circuit_breaker_register_success(): bool {}
-
-    /**
-     * Check whether the circuit breaker is closed or half-opened.
-     *
-     * The circuit breaker avoids making protected call when the circuit is opened (i.e., once the failures reach
-     * the set threshold 'DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES', all further calls to the circuit
-     * will raise an error). While in this opened state, the circuit will self-reset to a half-opened state after the
-     * interval set by 'DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC', and will be ready to make a trial call to see if the
-     * problem is fixed.
-     *
-     * @return bool 'true' if a protected call can be made, else 'false'
-     */
-    function dd_tracer_circuit_breaker_can_try(): bool {}
-
-    /**
-     * Get information about the circuit breaker status
-     *
-     * @return array{
-     *     closed: bool,
-     *     total_failures: int,
-     *     consecutive_failures: int,
-     *     opened_timestamp: int,
-     *     last_failure_timestamp: int
-     * }
-     */
-    function dd_tracer_circuit_breaker_info(): array {}
-
-    /**
      * Get the name of the app (DD_SERVICE)
      *
      * @param string|null $fallbackName Fallback name if the app's name wasn't set
@@ -864,15 +853,6 @@ namespace {
      * @return bool The status of the integration, or 'false' if tracing isn't enabled.
      */
     function ddtrace_config_integration_enabled(string $integrationName): bool {}
-
-    /**
-     * Initialize the tracer and executes the dd_init.php in the sandbox
-     *
-     * @internal
-     * @param string $dir Directory where 'dd_init.php' is located
-     * @return bool 'true' if the initialization was successful, else 'false'
-     */
-    function ddtrace_init(string $dir): bool {}
 
     /**
      * Send payload to background sender's buffer
@@ -997,39 +977,4 @@ namespace {
      * @param int $timeout Timeout in milliseconds to wait for the flush to complete
      */
     function dd_trace_synchronous_flush(int $timeout): void {}
-
-    /**
-     * @deprecated
-     * @return bool
-     */
-    function dd_trace_forward_call(): bool {}
-
-    /**
-     * Alias to dd_trace_push_span_id
-     *
-     * @alias dd_trace_push_span_id
-     * @deprecated
-     * @param string $existingID
-     * @return string
-     */
-    function dd_trace_generate_id(string $existingID): string {}
-
-    /**
-     * @deprecated
-     * @param string $existingID
-     * @return string
-     */
-    function dd_trace_push_span_id(string $existingID): string {}
-
-    /**
-     * @deprecated
-     * @return string
-     */
-    function dd_trace_pop_span_id(): string {}
-
-    /**
-     * @deprecated
-     * @return array
-     */
-    function additional_trace_meta(): array {}
 }

@@ -3,22 +3,17 @@ deferred loading only happens once, even if dispatch is not overwritten
 --ENV--
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_TRACE_LOG_LEVEL=info,startup=off
---INI--
-ddtrace.request_init_hook={PWD}/deferred_loading_helper.php
-zend.assertions=1
 --FILE--
 <?php
 
 namespace DDTrace\Test
 {
-    use DDTrace\Integrations\Integration;
-
-    class TestSandboxedIntegration extends Integration
+    class TestSandboxedIntegration implements \DDTrace\Integration
     {
-        function init()
+        function init(): int
         {
             echo "autoload_attempted" . PHP_EOL;
-            return Integration::LOADED;
+            return self::LOADED;
         }
     }
 }

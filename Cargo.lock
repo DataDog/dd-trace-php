@@ -656,6 +656,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "current_platform"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a74858bcfe44b22016cb49337d7b6f04618c58e5dbfdef61b06b8c434324a0bc"
+
+[[package]]
 name = "darling"
 version = "0.20.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -731,7 +737,7 @@ dependencies = [
 
 [[package]]
 name = "datadog-php-profiling"
-version = "0.99.0"
+version = "0.0.0"
 dependencies = [
  "ahash 0.8.6",
  "anyhow",
@@ -2308,6 +2314,7 @@ name = "php_sidecar_mockgen"
 version = "0.1.0"
 dependencies = [
  "cc_utils",
+ "current_platform",
  "sidecar_mockgen",
 ]
 

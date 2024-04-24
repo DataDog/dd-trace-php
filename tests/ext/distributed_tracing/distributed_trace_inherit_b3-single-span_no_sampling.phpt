@@ -2,7 +2,7 @@
 Transmit distributed header information to spans via single B3 header without sampling decision
 --ENV--
 HTTP_B3=12345678901234567890-12345678901234567890123456789012
-DD_PROPAGATION_STYLE_EXTRACT=B3 single header
+DD_TRACE_PROPAGATION_STYLE_EXTRACT=B3 single header
 --FILE--
 <?php
 

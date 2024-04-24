@@ -6,6 +6,8 @@ mod logging;
 mod pcntl;
 pub mod profiling;
 mod sapi;
+
+#[cfg(php_run_time_cache)]
 mod string_table;
 
 #[cfg(feature = "allocation_profiling")]
@@ -58,7 +60,7 @@ static PROFILER_NAME_CSTR: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(
 
 /// Version of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
-static PROFILER_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
+static PROFILER_VERSION: &[u8] = concat!(include_str!("../../VERSION"), "\0").as_bytes();
 
 /// Version ID of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit.
@@ -71,7 +73,7 @@ lazy_static! {
             // Safety: calling getpid() is safe.
             Tag::new("process_id", unsafe { libc::getpid() }.to_string())
                 .expect("process_id tag to be valid"),
-            Tag::from_value(concat!("profiler_version:", env!("CARGO_PKG_VERSION")))
+            Tag::from_value(concat!("profiler_version:", include_str!("../../VERSION")))
                 .expect("profiler_version tag to be valid"),
             Tag::new("runtime-id", &runtime_id().to_string()).expect("runtime-id tag to be valid"),
         ]
@@ -166,8 +168,8 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         ..Default::default()
     });
 
-    // SAFETY: well, it's as least as safe as what every single C extension does.
-    unsafe { &mut MODULE }
+    // SAFETY: well, it's at least as safe as what every single C extension does.
+    unsafe { &mut *ptr::addr_of_mut!(MODULE) }
 }
 
 /* Important note on the PHP lifecycle:
@@ -398,7 +400,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     trace!("RINIT({_type}, {_module_number})");
 
     // SAFETY: not being mutated during rinit.
-    unsafe { &ZAI_CONFIG_ONCE }.call_once(|| unsafe {
+    let once = unsafe { &*ptr::addr_of!(ZAI_CONFIG_ONCE) };
+    once.call_once(|| unsafe {
         bindings::zai_config_first_time_rinit(true);
         config::first_rinit();
     });
@@ -436,12 +439,14 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // SAFETY: still safe to access in rinit after first_rinit.
     let system_settings = unsafe { system_settings.as_ref() };
 
-    unsafe { &RINIT_ONCE }.call_once(|| {
+    // SAFETY: the once control is not mutable during request.
+    let once = unsafe { &*ptr::addr_of!(RINIT_ONCE) };
+    once.call_once(|| {
         if system_settings.profiling_enabled {
             /* Safety: sapi_module is initialized by rinit and shouldn't be
              * modified at this point (safe to read values).
              */
-            let sapi_module = unsafe { &zend::sapi_module };
+            let sapi_module = unsafe { &*ptr::addr_of!(zend::sapi_module) };
             if sapi_module.pretty_name.is_null() {
                 // Safety: I'm willing to bet the module name is less than `isize::MAX`.
                 let name = unsafe { CStr::from_ptr(sapi_module.name) }.to_string_lossy();

@@ -36,8 +36,11 @@ static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *
     } else {
         ZVAL_NULL(&exception_zv);
     }
-    zai_sandbox sandbox;
+
     bool success;
+    zai_sandbox sandbox;
+    zai_sandbox_open(&sandbox);
+
     if (tracing) {
         zval span_zv;
         ZVAL_OBJ(&span_zv, &dyn->span->std);
@@ -306,36 +309,27 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     zval *prehook = NULL, *posthook = NULL, *config_array = NULL;
     bool run_when_limited = false, allow_recursion = false;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1 + method, 2 + method + !tracing)
+    ZEND_PARSE_PARAMETERS_START(1 + method, 2 + method + !tracing)
         // clang-format off
         if (method) {
             Z_PARAM_STR(class_name)
         }
         Z_PARAM_STR(method_name)
         Z_PARAM_OPTIONAL
-        if (!tracing) {
+
+        if (ZEND_NUM_ARGS() <= (uint32_t)(1 + method)) {
+            break;
+        }
+
+        zval *_current_arg = _arg + 1;
+        if (Z_TYPE_P(_current_arg) == IS_ARRAY) {
+            Z_PARAM_ARRAY(config_array)
+        } else if (!tracing) {
             Z_PARAM_OBJECT_OF_CLASS_EX(prehook, zend_ce_closure, 1, 0)
         }
-        Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0)
+        Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0) // Will get overwritten if config_array is set
         // clang-format on
-    ZEND_PARSE_PARAMETERS_END_EX({
-        ZEND_PARSE_PARAMETERS_START_EX(ddtrace_quiet_zpp(), 2 + method, 2 + method)
-            // clang-format off
-            if (method) {
-                Z_PARAM_STR(class_name)
-            }
-            Z_PARAM_STR(method_name)
-            Z_PARAM_ARRAY(config_array)
-        ZEND_PARSE_PARAMETERS_END_EX({
-            if (ddtrace_quiet_zpp()) {
-                LOG_LINE_ONCE(ERROR,
-                        "Unable to parse parameters for DDTrace\\%s_%s; expected "
-                        "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)",
-                        tracing ? "trace" : "hook", method ? "method" : "function");
-                RETURN_FALSE;
-            }
-        });
-    });
+    ZEND_PARSE_PARAMETERS_END();
 
     if (config_array) {
         if (_parse_config_array(config_array, &prehook, &posthook, &run_when_limited, &allow_recursion) == false) {
@@ -410,14 +404,11 @@ PHP_FUNCTION(DDTrace_trace_method) { dd_uhook(INTERNAL_FUNCTION_PARAM_PASSTHRU, 
 PHP_FUNCTION(dd_untrace) {
     zend_string *class_name = NULL, *method_name = NULL;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ddtrace_quiet_zpp(), 1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STR(method_name)
         Z_PARAM_OPTIONAL
         Z_PARAM_STR(class_name)
-    ZEND_PARSE_PARAMETERS_END_EX({
-         LOG_LINE_ONCE(ERROR, "unexpected parameter for dd_untrace, the function name must be provided");
-         RETURN_FALSE;
-    });
+    ZEND_PARSE_PARAMETERS_END();
 
     zai_str class_str = ZAI_STR_EMPTY;
     if (class_name) {

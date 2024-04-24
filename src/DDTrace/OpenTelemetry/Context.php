@@ -197,7 +197,7 @@ final class Context implements ContextInterface
             API\Span::fromContext($parentContext), // $parentSpan (TODO: Handle null parent span) ?
             $parentContext, // $parentContext
             NoopSpanProcessor::getInstance(), // $spanProcessor
-            ResourceInfoFactory::defaultResource(), // $resource
+            ResourceInfoFactory::emptyResource(), // $resource
             [], // $attributesBuilder
             $links, // $links
             count($links), // $totalRecordedLinks

@@ -60,7 +60,7 @@ impl Uploader {
         Some(metadata)
     }
 
-    fn upload(&self, message: UploadRequest) -> anyhow::Result<u16> {
+    fn upload(&self, message: Box<UploadRequest>) -> anyhow::Result<u16> {
         let index = message.index;
         let profile = message.profile;
 

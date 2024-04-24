@@ -2,31 +2,14 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Encoders\MessagePack;
-use DDTrace\Encoders\SpanEncoder;
 use DDTrace\GlobalTracer;
-use DDTrace\Span;
-use DDTrace\SpanContext;
-use DDTrace\SpanData;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use DDTrace\Tests\WebServer;
 use DDTrace\Tracer;
-use DDTrace\Transport\Http;
 use Exception;
 use PHPUnit\Framework\TestCase;
-
-class FakeSpan extends Span
-{
-    public $startTime;
-    public $duration;
-
-    public function __destruct()
-    {
-        // Silence destructor warning about unclosed spans for fake spans
-    }
-}
 
 trait TracerTestTrait
 {
@@ -175,42 +158,6 @@ trait TracerTestTrait
     }
 
     /**
-     * This method can be used to request data to a real request dumper and to rebuild the traces
-     * based on the dumped data.
-     *
-     * @param $fn
-     * @param null $tracer
-     * @return array[]
-     * @throws \Exception
-     */
-    public function simulateAgent($fn, $tracer = null)
-    {
-        // Clearing existing dumped file
-        $this->resetRequestDumper();
-
-        // Reset the current C-level array of generated spans
-        dd_trace_serialize_closed_spans();
-
-        $transport = new Http(new MessagePack(), ['endpoint' => self::$testAgentUrl . "/v0.4/traces"]);
-
-        /* Disable Expect: 100-Continue that automatically gets added by curl,
-         * as it adds a 1s delay, causing tests to sometimes fail.
-         */
-        $transport->setHeader('Expect', '');
-
-        $tracer = $tracer ?: new Tracer($transport);
-        GlobalTracer::set($tracer);
-
-        $fn($tracer);
-        /** @var Tracer $tracer */
-        $tracer = GlobalTracer::get();
-        /** @var DebugTransport $transport */
-        $tracer->flush();
-
-        return $this->parseTracesFromDumpedData();
-    }
-
-    /**
      * This method executes a request into an ad-hoc web server configured with the provided envs and inis that is
      * created and destroyed with the scope of this test.
      */
@@ -298,7 +245,7 @@ trait TracerTestTrait
 
         $inis = (string) new IniSerializer(array_merge(
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+                'datadog.trace.sources_path' => __DIR__ . '/../../src',
             ],
             $customInis
         ));
@@ -360,12 +307,6 @@ trait TracerTestTrait
         foreach ($rawTraces as $spansInTrace) {
             $spans = [];
             foreach ($spansInTrace as $rawSpan) {
-                $spanContext = new SpanContext(
-                    (string) $rawSpan['trace_id'],
-                    (string) $rawSpan['span_id'],
-                    isset($rawSpan['parent_id']) ? (string) $rawSpan['parent_id'] : null
-                );
-
                 if (empty($rawSpan['resource'])) {
                     TestCase::fail(sprintf("Span '%s' has empty resource name", $rawSpan['name']));
                     return;
@@ -376,26 +317,7 @@ trait TracerTestTrait
                     return;
                 }
 
-                $rawSpan["duration"] = (int)($rawSpan["duration"] / 1000);
-                $rawSpan["start"] = (int)($rawSpan["start"] / 1000);
-
-                $internalSpan = new SpanData();
-                $internalSpan->name = $rawSpan["name"];
-                $internalSpan->service = isset($rawSpan['service']) ? $rawSpan['service'] : null;
-                $internalSpan->resource = $rawSpan['resource'];
-                if (isset($rawSpan['type'])) {
-                    $internalSpan->type = $rawSpan['type'];
-                }
-                $internalSpan->meta = isset($rawSpan['meta']) ? $rawSpan['meta'] : [];
-                $internalSpan->metrics = isset($rawSpan['metrics']) ? $rawSpan['metrics'] : [];
-                $span = new FakeSpan($internalSpan, $spanContext);
-                $span->duration = $rawSpan["duration"];
-                $span->startTime = $rawSpan["start"];
-                $this->setRawPropertyFromArray($span, $rawSpan, 'hasError', 'error', function ($value) {
-                    return $value == 1 || $value == true;
-                });
-
-                $spans[] = SpanEncoder::encode($span);
+                $spans[] = $rawSpan;
             }
             $traces[] = $spans;
         }

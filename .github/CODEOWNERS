@@ -7,10 +7,11 @@
 # ASM Team
 /appsec/ @DataDog/asm-php
 
+# APM libdatadog
+/components-rs/ @Datadog/libdatadog-apm
+compile_rust.sh @Datadog/libdatadog-apm
+
 # Release files
-Cargo.lock @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
+Cargo.lock @DataDog/apm-php @DataDog/profiling-php @Datadog/libdatadog-apm
 package.xml @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
-profiling/Cargo.toml @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
-src/DDTrace/Tracer.php @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
-appsec/CMakeLists.txt @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
-ext/version.h @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
+VERSION @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php

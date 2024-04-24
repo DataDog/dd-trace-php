@@ -100,7 +100,7 @@ final class WebServer
         $this->indexFile = realpath($indexFile);
         $this->defaultInis['error_log'] = dirname($this->indexFile) .  '/' . self::ERROR_LOG_NAME;
         // Enable auto-instrumentation
-        $this->defaultInis['ddtrace.request_init_hook'] = realpath(__DIR__ .  '/../bridge/dd_wrap_autoloader.php');
+        $this->defaultInis['datadog.trace.sources_path'] = realpath(__DIR__ .  '/../src');
         $this->host = $host;
         $this->port = $port;
     }
@@ -225,12 +225,9 @@ final class WebServer
     public function stop()
     {
         if ($this->sapi) {
-            $shouldWaitForBgs = !isset($this->envs['DD_TRACE_BGS_ENABLED']) || !$this->envs['DD_TRACE_BGS_ENABLED'];
-            if ($shouldWaitForBgs) {
-                // If we don't before stopping the server the main process might die before traces
-                // are actually sent to the agent via the BGS.
-                \usleep($this->envs['DD_TRACE_AGENT_FLUSH_INTERVAL'] * 2 * 1000);
-            }
+            // If we don't before stopping the server the main process might die before traces
+            // are actually sent to the agent via the BGS.
+            \usleep($this->envs['DD_TRACE_AGENT_FLUSH_INTERVAL'] * 2 * 1000);
             if ($this->sapi !== self::$apache) {
                 $this->sapi->stop();
             }

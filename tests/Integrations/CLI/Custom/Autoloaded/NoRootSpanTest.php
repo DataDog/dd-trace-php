@@ -10,9 +10,6 @@ final class NoRootSpanTest extends CLITestCase
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        if (PHP_MAJOR_VERSION === 5) {
-            $this->markTestSkipped('Auto flushing not supported on PHP 5');
-        }
     }
 
     protected function getScriptLocation()

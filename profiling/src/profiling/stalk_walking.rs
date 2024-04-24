@@ -1,8 +1,11 @@
 use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function, ZEND_USER_FUNCTION};
-use crate::string_table::StringTable;
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::str::Utf8Error;
+
+#[cfg(php_run_time_cache)]
+use crate::string_table::StringTable;
+#[cfg(php_run_time_cache)]
+use std::cell::RefCell;
 
 /// Used to help track the function run_time_cache hit rate. It glosses over
 /// the fact that there are two cache slots used, and they don't have to be in
@@ -296,13 +299,12 @@ pub fn collect_stack_sample(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, stack_walking_tests))]
 mod tests {
     use super::*;
     use crate::bindings as zend;
 
     #[test]
-    #[cfg(feature = "stack_walking_tests")]
     fn test_collect_stack_sample() {
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);

@@ -378,7 +378,7 @@ pub type InternalFunctionHandler =
 impl datadog_php_zif_handler {
     pub fn new(
         name: &'static CStr,
-        old_handler: &'static mut InternalFunctionHandler,
+        old_handler: *mut InternalFunctionHandler,
         new_handler: InternalFunctionHandler,
     ) -> Self {
         let name = name.to_bytes();

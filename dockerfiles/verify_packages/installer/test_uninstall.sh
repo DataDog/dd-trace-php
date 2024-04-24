@@ -14,9 +14,8 @@ appsec=$(is_appsec_installable && echo 1 || true)
 
 # Install using the php installer
 version="0.79.0"
-sha256sum="35532a2b78fae131f61f89271e951b8c050a459e7d10fd579665c2669be8fdad"
 destdir="/tmp"
-fetch_setup_for_version "$version" "$sha256sum" "$destdir"
+fetch_setup_for_version "$version" "$destdir"
 php "$destdir/datadog-setup.php" --php-bin php --enable-profiling $([ -n "$appsec" ] && echo --enable-appsec)
 rm -v "$destdir/datadog-setup.php"
 assert_ddtrace_version "${version}"

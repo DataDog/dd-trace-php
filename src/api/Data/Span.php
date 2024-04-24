@@ -2,7 +2,6 @@
 
 namespace DDTrace\Data;
 
-use DDTrace\Time;
 use DDTrace\Data\SpanContext as SpanContextData;
 use DDTrace\Contracts\Span as SpanInterface;
 

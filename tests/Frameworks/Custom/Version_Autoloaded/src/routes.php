@@ -6,6 +6,5 @@ return function(FastRoute\RouteCollector $r) {
     $r->addRoute('GET', '/error', '\App\ErrorController');
 
     $r->addRoute('GET', '/pdo', '\App\PDOController');
-    $r->addRoute('GET', '/circuit_breaker', '\App\CircuitBreakerController');
     $r->addRoute('GET', '/fatal', '\App\FatalErrorController');
 };

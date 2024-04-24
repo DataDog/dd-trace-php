@@ -96,7 +96,7 @@ static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size
 
 /* Allocates a new stack of the minimum possible size. Only if `min_size` (which is the size required by the user to
  * fit in a given payload) is larger than the currently active stack size, then new sizes are attempted attemptiong
- * to double at each iteration, up to `DDTRACE_COMS_STACK_MAX_SIZE`.
+ * to double at each iteration, up to `DD_TRACE_AGENT_MAX_PAYLOAD_SIZE`.
  * The rationale behind this is that once we know that at least one single trace can be larger than X bytes, then
  * all the subsequent stacks are allocated at least as large as that size.
  */
@@ -299,7 +299,7 @@ static bool _dd_coms_unsafe_rotate_stack(bool attempt_allocate_new, size_t min_s
     }
 
     /* In this case it wasn't possible to reuse an existing stack, for one of two reasons:
-     *   1. All the N currently allocated stacks (with N <= `DDTRACE_COMS_STACKS_BACKLOG_SIZE`) are filled and waiting
+     *   1. All the N currently allocated stacks (with N <= `DD_TRACE_AGENT_MAX_BACKLOG_SIZE`) are filled and waiting
      *      to be sent by the writer; or
      *   2. None of the available stacks in the global `stacks` array that could be reused has size >= `min_size`.
      */

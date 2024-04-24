@@ -11,7 +11,7 @@ server {
     location ~ \.php$ {
         fastcgi_split_path_info ^(.+?\.php)(/.*)$;
         fastcgi_param HTTP_PROXY "";
-        fastcgi_param DD_SERVICE_NAME "some-name";
+        fastcgi_param DD_SERVICE "some-name";
         fastcgi_pass 127.0.0.1:9000;
         fastcgi_index index.php;
         include fastcgi.conf;

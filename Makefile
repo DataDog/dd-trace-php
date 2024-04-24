@@ -1,6 +1,6 @@
 Q := @
 PROJECT_ROOT := ${PWD}
-REQUEST_INIT_HOOK_PATH := $(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
+TRACER_SOURCE_DIR := $(PROJECT_ROOT)/src/
 ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q libasan && echo 1)
 SHELL = /bin/bash
 BUILD_SUFFIX = extension
@@ -25,8 +25,7 @@ ARCHITECTURE = $(shell uname -m)
 QUIET_TESTS := ${CIRCLE_SHA1}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 
-VERSION := $(shell awk -F\' '/const VERSION/ {print $$2}' < src/DDTrace/Tracer.php)
-PROFILING_RELEASE_URL := https://github.com/DataDog/dd-prof-php/releases/download/v0.7.2/datadog-profiling.tar.gz
+VERSION := $(shell cat VERSION)
 
 INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
@@ -42,6 +41,13 @@ TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(BUILD_DIR)/config.m4
 XDEBUG_SO_FILE = $(shell find $(shell php-config --extension-dir) -type f -name "xdebug*.so" -exec basename {} \; | tail -n 1)
+
+# Make 'sed -i' portable
+ifeq ($(shell uname),Darwin)
+	SED_I = sed -i ''
+else
+	SED_I = sed -i
+endif
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
@@ -68,13 +74,13 @@ $(BUILD_DIR)/%Cargo.toml: %Cargo.toml
 	$(Q) echo Copying $*Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $*Cargo.toml $@
-	sed -i -E 's/"\.\.\/([^"]*)"/"..\/..\/..\/\1"/' $@
+	$(SED_I) -E 's/"\.\.\/([^"]*)"/"..\/..\/..\/\1"/' $@
 
 $(BUILD_DIR)/Cargo.toml: Cargo.toml
 	$(Q) echo Copying Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a Cargo.toml $@
-	sed -i -E 's/, "profiling",?//' $@
+	$(SED_I) -E 's/, "profiling",?//' $@
 
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to $@
@@ -86,8 +92,8 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
-$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym
-	$(Q) (cd $(BUILD_DIR); phpize && sed -i 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
+$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSION
+	$(Q) (cd $(BUILD_DIR); phpize && $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug)
@@ -139,11 +145,11 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
 	export USE_ZEND_ALLOC=0; \
 	export ZEND_DONT_UNLOAD_MODULES=1; \
 	export USE_TRACKED_ALLOC=1; \
-	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access php -n -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php $(INIT_HOOK_TEST_FILES); \
+	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access php -n -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES); \
 	)
 
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php $(INIT_HOOK_TEST_FILES);
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
 
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
@@ -290,7 +296,7 @@ test_coverage_collect:
 		--exclude "$(BUILD_DIR)/src/dogstatsd/*" \
 		--exclude "$(BUILD_DIR)/src/dogstatsd/dogstatsd_client/*" \
 		--output-file $(PROJECT_ROOT)/tmp/coverage.info
-	$(Q) sed -i 's+tmp/build_extension/ext+ext+g' $(PROJECT_ROOT)/tmp/coverage.info
+	$(Q) $(SED_I) 's+tmp/build_extension/ext+ext+g' $(PROJECT_ROOT)/tmp/coverage.info
 
 test_coverage_output:
 	$(Q) genhtml \
@@ -413,8 +419,7 @@ define FPM_FILES
 	extensions_$(shell test $(1) = arm64 && echo aarch64 || echo $(1))/=$(EXT_DIR)/extensions \
 		$(shell test $(1) = windows || echo package/post-install.sh=$(EXT_DIR)/bin/post-install.sh) package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
 		docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md \
-		src=$(EXT_DIR)/dd-trace-sources \
-		bridge=$(EXT_DIR)/dd-trace-sources
+		src=$(EXT_DIR)/dd-trace-sources
 endef
 define FPM_OPTS
 	-a $(1) -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
@@ -444,8 +449,7 @@ $(PACKAGES_BUILD_DIR):
 bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
-		$(PACKAGES_BUILD_DIR) \
-		$(PROFILING_RELEASE_URL)
+		$(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-installers.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)
@@ -461,19 +465,7 @@ dbgsym.tar.gz:
 packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
 	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
-verify_version:
-	@grep -q "#define PHP_DDTRACE_VERSION \"$(VERSION)" ext/version.h || (echo ext/version.h Version missmatch && exit 1)
-	@grep -q "const VERSION = '$(VERSION)" src/DDTrace/Tracer.php || (echo src/DDTrace/Tracer.php Version missmatch && exit 1)
-	@echo "All version files match"
-
-verify_all: verify_version
-
-# Generates the bridge/_generated_api and _generate_internal.php files. Note it only works on PHP < 8.0 because:
-#  - we need classpreloader: 1.4.* because otherwise the generated file is not compatible with 5.4
-#  - classpreloader: 1.4.* does not work on PHP 8 (even from a dedicated composer.json file), showing an incompatibility
-#    with nikic/php-parser lexer's.
-#  - even if we leave classpreloader: 1.4.* and not use it for PHP 8, this is not enough because it would force
-#    phpunit version down to 5 (nikic common dependency) which is not compatible with PHP 8.
+# Generates the src/bridge/_generated_*.php files.
 generate:
 	@composer -dtooling/generation update
 	@composer -dtooling/generation generate
@@ -486,7 +478,7 @@ cores:
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
-REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(REQUEST_INIT_HOOK_PATH)
+TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
 ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true) DD_TRACE_CLI_ENABLED=true
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
@@ -528,6 +520,7 @@ TEST_WEB_70 := \
 	test_metrics \
 	test_web_cakephp_28 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_laravel_42 \
 	test_web_lumen_52 \
 	test_web_nette_24 \
@@ -571,7 +564,9 @@ TEST_INTEGRATIONS_71 := \
 TEST_WEB_71 := \
 	test_metrics \
 	test_web_cakephp_28 \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_laravel_42 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
@@ -623,7 +618,9 @@ TEST_INTEGRATIONS_72 := \
 
 TEST_WEB_72 := \
 	test_metrics \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_laravel_42 \
 	test_web_laravel_57 \
@@ -681,7 +678,9 @@ TEST_INTEGRATIONS_73 :=\
 
 TEST_WEB_73 := \
 	test_metrics \
+	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_laminas_14 \
 	test_web_laravel_57 \
@@ -741,7 +740,10 @@ TEST_INTEGRATIONS_74 := \
 
 TEST_WEB_74 := \
 	test_metrics \
+	test_web_cakephp_310 \
+	test_web_cakephp_45 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_drupal_95 \
 	test_web_laminas_14 \
@@ -802,7 +804,9 @@ TEST_INTEGRATIONS_80 := \
 
 TEST_WEB_80 := \
 	test_metrics \
+	test_web_cakephp_45 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_laminas_rest_19 \
 	test_web_laminas_14 \
@@ -849,7 +853,10 @@ TEST_INTEGRATIONS_81 := \
 
 TEST_WEB_81 := \
 	test_metrics \
+	test_web_cakephp_45 \
+	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
 	test_web_laminas_rest_19 \
@@ -899,7 +906,10 @@ TEST_INTEGRATIONS_82 := \
 
 TEST_WEB_82 := \
 	test_metrics \
+	test_web_cakephp_45 \
+	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
 	test_web_laminas_rest_19 \
@@ -953,7 +963,10 @@ TEST_INTEGRATIONS_83 := \
 
 TEST_WEB_83 := \
 	test_metrics \
+	test_web_cakephp_45 \
+	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
@@ -989,11 +1002,11 @@ define run_composer_with_retry
 endef
 
 define run_tests_without_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 define run_tests_with_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)
 endef
 
 # Note: The condition below only checks for existence - i.e., whether PHPUNIT_COVERAGE is set to anything.
@@ -1013,7 +1026,7 @@ endef
 
 
 define run_benchmarks
-	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
 endef
 
 define run_benchmarks_with_ddprof
@@ -1236,8 +1249,20 @@ test_integrations_swoole_5: global_test_run_dependencies
 test_web_cakephp_28: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_2_8,)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
+test_web_cakephp_310: global_test_run_dependencies
+	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_3_10,)
+	$(call run_tests_debug,--testsuite=cakephp-310-test)
+test_web_cakephp_45: global_test_run_dependencies
+	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_4_5,)
+	$(call run_tests_debug,--testsuite=cakephp-45-test)
+test_web_cakephp_50: global_test_run_dependencies
+	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_5_0,)
+	$(call run_tests_debug,--testsuite=cakephp-50-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
+test_web_codeigniter_31: global_test_run_dependencies
+	$(COMPOSER) --working-dir=tests/Frameworks/CodeIgniter/Version_3_1 update
+	$(call run_tests_debug,--testsuite=codeigniter-31-test)
 test_web_drupal_89: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_8_9/core,--ignore-platform-reqs)
 	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_8_9,--ignore-platform-reqs)
@@ -1398,7 +1423,7 @@ merge_coverage_reports:
 API_TESTS_ROOT := ./tests/api
 
 test_api_unit: composer.lock global_test_run_dependencies
-	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
+	$(ENV_OVERRIDE) php $(TRACER_SOURCES_INI) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
 
 # Just test it does not crash, i.e. the exit code
 test_internal_api_randomized: $(SO_FILE)
@@ -1408,4 +1433,4 @@ composer.lock: composer.json
 	$(Q) $(COMPOSER) update
 
 .PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
-	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all cbindgen
+	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen

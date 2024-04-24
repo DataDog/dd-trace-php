@@ -3,7 +3,6 @@
 namespace DDTrace\Tests\Integrations\Mysqli;
 
 use DDTrace\Tag;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -18,7 +17,6 @@ class MysqliTest extends IntegrationTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        IntegrationsLoader::load();
     }
 
     protected function ddSetUp()
@@ -119,7 +117,6 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags(true, false))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
@@ -141,7 +138,6 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
@@ -166,7 +162,6 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_execute_query', 'mysqli', 'sql', 'SELECT * from tests WHERE 1 = ?')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
         ]);
     }
@@ -188,7 +183,6 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_execute_query', 'mysqli', 'sql', 'SELECT * from tests WHERE 1 = ?')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags(true, true)),
         ]);
     }
@@ -204,10 +198,8 @@ class MysqliTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_real_connect', 'mysqli', 'sql', 'mysqli_real_connect')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
@@ -230,10 +222,8 @@ class MysqliTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_real_connect', 'mysqli', 'sql', 'mysqli_real_connect')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
@@ -254,7 +244,6 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
@@ -277,7 +266,6 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
@@ -299,10 +287,8 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.real_connect', 'mysqli', 'sql', 'mysqli.real_connect')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
@@ -326,10 +312,8 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.real_connect', 'mysqli', 'sql', 'mysqli.real_connect')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags(true, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
@@ -377,7 +361,6 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags())
-                ->setTraceAnalyticsCandidate(),
         ]);
     }
 
@@ -402,7 +385,6 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags(true, true))
-                ->setTraceAnalyticsCandidate(),
         ]);
     }
 
@@ -420,7 +402,6 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from columns limit 1')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(
                     self::baseTags(true, true),
                     [
@@ -450,7 +431,6 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from columns limit 1')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(
                     self::baseTags(true, true),
                     [
@@ -599,7 +579,6 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'configured_service', 'sql', 'SELECT * from tests')
-                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,

@@ -89,10 +89,6 @@ final class CurrentContextAccessTest extends IntegrationTestCase
 
     public function testInLongRunningCliScript()
     {
-        if (\PHP_MAJOR_VERSION === 5) {
-            return $this->markTestSkipped('Long running processes are currently not supported on PHP 5');
-        }
-
         list($traces) = $this->inCli(
             __DIR__ . '/long-running.php',
             [

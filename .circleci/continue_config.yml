@@ -112,9 +112,7 @@ aliases:
         if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
           echo "Release branch detected; not adding git sha1 to version number."
         else
-          sed -E -i "s/const\s+VERSION\s*=\s*'(.*)'/const VERSION = '\1+$githash'/g" "src/DDTrace/Tracer.php"
-          sed -E -i "s/define\s+PHP_DDTRACE_VERSION\s*\"(.*)\"/define PHP_DDTRACE_VERSION \"\1+$githash\"/g" "ext/version.h"
-          sed -E -i "s/^version\s*=\s*\"(.*)\"/version = \"\1+$githash\"/g" "profiling/Cargo.toml"
+          echo -n "+$githash" >>VERSION
           echo "Appended +$githash to version number."
         fi
 
@@ -655,32 +653,6 @@ executors:
 
 
 jobs:
-  "Lint PHP 5":
-    parameters:
-      resource_class:
-        type: string
-        default: small
-    <<: *BARE_DOCKER_MACHINE
-    steps:
-      - restore_cache:
-          keys:
-            - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          command: |
-            docker run --rm -v "$HOME/datadog:/src" -i php:5.4-cli bash \<<'CMD'
-              set -eu
-              cd /src
-              php -l datadog-setup.php
-              cd /src/bridge
-              for file in *.php; do
-                if [ "$file" != "_generated_integrations.php" ]; then
-                  php -l "$file"
-                fi
-              done
-            CMD
-
   static_analysis:
     parameters:
       docker_image:
@@ -964,7 +936,7 @@ jobs:
             cd /root
             php ./build/packages/datadog-setup.php --php-bin all --file $(ls build/packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
             rm /etc/php/8.1/cli/conf.d/10-opcache.ini
-            sed -i 's/datadog.trace.request_init_hook/\;datadog.trace.request_init_hook/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
+            sed -i 's/datadog.trace.sources_path/\;datadog.trace.sources_path/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
             pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" \$(find tests/ext -type d)
             COMMANDS
 
@@ -1082,7 +1054,7 @@ jobs:
 #          name: Run some integration tests
 #          shell: powershell.exe
 #          command: |
-#            docker exec php powershell.exe 'cd app; php -d ddtrace.request_init_hook=$pwd\bridge\dd_wrap_autoloader.php'
+#            docker exec php powershell.exe 'cd app; php -d datadog.trace.sources_path=$pwd\src'
       - run:
           when: always
           command: |
@@ -1762,7 +1734,7 @@ jobs:
               -p /usr/local/bin/php \
               --show-diff \
               -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php \
+              -d datadog.trace.sources_path=/home/circleci/datadog/src \
               $(if [[ "<<parameters.parallel_workers>>" == "true" ]]; then echo -j5; fi)
       - run:
           command: |
@@ -2217,8 +2189,6 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
-          # In order to hard-code the proper version required in tests, we need to regenerate the 'released' installer
-          # scripts which are saved to build/packages
           name: Let testing images to write to build/packages dir
           command: chmod a+w build/packages
       - run:
@@ -2372,7 +2342,7 @@ jobs:
             HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME} \
             DATADOG_HAVE_DEV_ENV=1 \
             DD_TRACE_CLI_ENABLED=1 \
-            pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
+            pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d datadog.trace.sources_path=" -p datadog_trace
       - run:
           name: Gather .diff files for artifacts
           command: |
@@ -2957,6 +2927,20 @@ jobs:
             export TEST_PHP_EXECUTABLE=$(which php)
             php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt"
 
+      - run:
+          name: clippy NTS (for select platforms)
+          command: |
+            if [[ "x86_64-unknown-linux-gnu" != "<< parameters.triplet >>" ]] ; then
+              exit 0
+            fi
+            set -u
+            command -v switch-php && switch-php "${PHP_VERSION}"
+            set -e
+            cd profiling
+            touch build.rs
+            sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
+            cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
+
   compile_extension_centos:
     working_directory: ~/datadog
     parameters:
@@ -3222,15 +3206,12 @@ jobs:
       - <<: *STEP_COMPOSER_GENERATE
       - run:
           name: Showing folder containing generated files
-          command: ls -al ~/datadog/bridge
+          command: ls -al ~/datadog/src/bridge
       - persist_to_workspace:
           root: '.'
           paths:
-            - './bridge/_generated*.php'
-            # Persist files below because we generate a new version number.
-            - './src/DDTrace/Tracer.php'
-            - './ext/version.h'
-            - './profiling/Cargo.toml'
+            - './src/bridge/_generated*.php'
+            - './VERSION' # we generate a new version number
 
   "package extension":
     working_directory: ~/datadog
@@ -3249,16 +3230,6 @@ jobs:
       - unless:
           condition: << parameters.asan_build >>
           steps:
-            - run:
-                name: Fetch PHP 5 packages
-                command: |
-                  set -eu
-                  PIPELINE_ID=$(curl 'https://circleci.com/api/v2/project/gh/DataDog/dd-trace-php/pipeline?branch=PHP-5' | jq -r '.items[0].id')
-                  WORKFLOW_ID=$(curl "https://circleci.com/api/v2/pipeline/$PIPELINE_ID/workflow" | jq -r '.items[]|select(.name == "build_packages").id' | head -1)
-                  JOB_ID=$(curl "https://circleci.com/api/v2/workflow/$WORKFLOW_ID/job" | jq -r '.items[]|select(.name == "package extension").id')
-                  curl -Lo php5.tar.gz "https://output.circle-artifacts.com/output/job/$JOB_ID/artifacts/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz"
-                  tar xzf php5.tar.gz
-                  mv opt/datadog-php/extensions/* extensions_x86_64/
             - run:
                 name: Package Profiler
                 command: |
@@ -3284,7 +3255,7 @@ jobs:
       - run:
           name: Spot-check shape of library name
           command: |
-            version=$(awk -F\' '/const VERSION/ { print $2 }' < src/DDTrace/Tracer.php)
+            version=$(cat VERSION)
             filename="dd-library-php-${version}-x86_64-linux-gnu.tar.gz"
             if ! [[ -f "build/packages/$filename" ]] ; then
               echo "Expected file 'build/packages/$filename' to exist!"
@@ -3380,12 +3351,6 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          # TODO: removes this step once host-in-runner is merged on system tests
-          name: Install good version of docker-compose
-          command: |
-            sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
 
       - run:
           name: Install python 3.9
@@ -4837,8 +4802,6 @@ workflows:
           name: "PHP 80 curl integration tests a shared lib"
           ext_name: "curl"
           docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
-      - "Lint PHP 5":
-          requires: [ 'Prepare Code' ]
       - static_analysis:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 71"

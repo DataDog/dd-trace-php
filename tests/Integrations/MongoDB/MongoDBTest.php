@@ -36,10 +36,6 @@ class MongoDBTest extends IntegrationTestCase
     {
         parent::ddSetUp();
 
-        if (\PHP_VERSION_ID < 70000) {
-            $this->markTestSkipped('Mongodb Integration only enabled on 7+');
-        }
-
         $this->client()->test_db->cars->drop();
         $this->client()->test_db->my_collection->drop();
 

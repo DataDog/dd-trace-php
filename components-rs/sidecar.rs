@@ -4,8 +4,8 @@ use std::os::unix::ffi::OsStrExt;
 use datadog_sidecar::config::{self, LogMethod};
 use datadog_sidecar::interface::blocking::SidecarTransport;
 use ddcommon_ffi::slice::AsBytes;
-use ddcommon_ffi::CharSlice;
-use ddtelemetry_ffi::{MaybeError, try_c};
+use ddcommon_ffi::{CharSlice, self as ffi, MaybeError};
+use ddtelemetry_ffi::try_c;
 #[cfg(any(windows, php_shared_build))]
 use spawn_worker::LibDependency;
 #[cfg(windows)]

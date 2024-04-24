@@ -20,7 +20,7 @@
         }
     ],
     "require": {
-        "php": "^5.4 || ^7.0 || ^8.0.0",
+        "php": "^7.0 || ^8.0.0",
         "ext-curl": "*",
         "ext-json": "*"
     },
@@ -36,16 +36,14 @@
         "sort-packages": true,
         "allow-plugins": {
             "g1a/composer-test-scenarios": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "cakephp/plugin-installer": true
         }
     },
     "autoload": {
         "psr-4": {
             "DDTrace\\": "./src/api/"
-        },
-        "files": [
-            "./src/api/ComposerBootstrap.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {
@@ -56,11 +54,6 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": {
-        "compile": [
-            "classpreloader.php compile --config=./bridge/_files.php --output=./bridge/_generated.php --strip_comments=1",
-            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g\" ./bridge/_generated.php"
-        ],
-        "compile-verify": "php ./bridge/autoload.php",
         "fix-lint": "phpcbf",
         "lint": "phpcs -s --ignore=src/Integrations/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/,tests/xdebug/",
         "static-analyze": [

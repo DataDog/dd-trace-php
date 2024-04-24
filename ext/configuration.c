@@ -2,7 +2,6 @@
 
 #include <assert.h>
 
-#include "circuit_breaker.h"
 #include "ip_extraction.h"
 #include "logging.h"
 #include <components/log/log.h>
@@ -135,12 +134,7 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
         return;
     }
 
-    if (env_name.ptr == strstr(env_name.ptr, "DDTRACE_")) {
-        // legacy names
-        dd_copy_tolower(ini_name->ptr, env_name.ptr);
-        ini_name->len = env_name.len;
-        ini_name->ptr[sizeof("ddtrace") - 1] = '.';
-    } else if (env_name.ptr == strstr(env_name.ptr, "DD_")) {
+    if (env_name.ptr == strstr(env_name.ptr, "DD_")) {
         dd_copy_tolower(ini_name->ptr + DD_TO_DATADOG_INC, env_name.ptr);
         memcpy(ini_name->ptr, "datadog.", sizeof("datadog.") - 1);
         ini_name->len = env_name.len + DD_TO_DATADOG_INC;
@@ -209,11 +203,5 @@ void ddtrace_config_first_rinit() {
 bool ddtrace_config_integration_enabled(ddtrace_integration_name integration_name) {
     ddtrace_integration *integration = &ddtrace_integrations[integration_name];
 
-    if (zend_hash_str_find(get_DD_INTEGRATIONS_DISABLED(), ZEND_STRL("default"))) {
-        return integration->is_enabled();
-    } else {
-        // Deprecated as of 0.47.1
-        return zend_hash_str_find(get_DD_INTEGRATIONS_DISABLED(), integration->name_lcase, integration->name_len) ==
-               NULL;
-    }
+    return integration->is_enabled();
 }

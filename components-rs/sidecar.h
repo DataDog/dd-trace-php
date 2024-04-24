@@ -133,4 +133,6 @@ ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(ddog_SidecarTransport **transp
 
 ddog_CharSlice ddog_sidecar_dump(ddog_SidecarTransport **transport);
 
+ddog_CharSlice ddog_sidecar_stats(ddog_SidecarTransport **transport);
+
 #endif /* DDOG_SIDECAR_H */

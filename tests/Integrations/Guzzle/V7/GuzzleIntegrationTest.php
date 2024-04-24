@@ -29,7 +29,6 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
                 ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
-                        ->setTraceAnalyticsCandidate()
                         ->withExactTags([
                             'http.method' => 'PUT',
                             'http.url' => 'http://example.com',
