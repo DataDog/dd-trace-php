@@ -350,7 +350,7 @@ class LaravelIntegration extends Integration
 
         // Used by Laravel >= 5.0
         \DDTrace\hook_method(
-            'Illuminate\Auth\Events\Authenticated',
+            'Illuminate\Auth\Events\Login',
             '__construct',
             function ($This, $scope, $args) use ($integration) {
                 $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
