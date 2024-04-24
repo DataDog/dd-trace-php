@@ -1,12 +1,12 @@
 mod interrupts;
 mod sample_type_filter;
-pub mod stalk_walking;
+pub mod stack_walking;
 mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
 pub use sample_type_filter::*;
-pub use stalk_walking::*;
+pub use stack_walking::*;
 use uploader::*;
 
 #[cfg(all(php_has_fibers, not(test)))]

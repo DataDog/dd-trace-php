@@ -384,7 +384,7 @@ fn runtime_id() -> &'static Uuid {
 
 extern "C" fn activate() {
     // Safety: calling in activate as required.
-    unsafe { profiling::activate_run_time_cache() };
+    unsafe { profiling::stack_walking::activate() };
 }
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.
@@ -585,14 +585,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RSHUTDOWN({_type}, {_module_number})");
 
-    #[cfg(php_run_time_cache)]
-    {
-        profiling::FUNCTION_CACHE_STATS.with(|cell| {
-            let stats = cell.borrow();
-            let hit_rate = stats.hit_rate();
-            debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
-        });
-    }
+    profiling::stack_walking::rshutdown();
 
     REQUEST_LOCALS.with(|cell| {
         let locals = cell.borrow();
