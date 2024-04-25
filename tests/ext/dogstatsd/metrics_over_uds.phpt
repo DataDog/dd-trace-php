@@ -45,14 +45,20 @@ $server = new UDSServer('/tmp/ddtrace-test-metrics_over_uds.socket');
 
 \DDTrace\dogstatsd_count("simple-counter", 42, ['foo' => 'bar', 'bar' => true]);
 \DDTrace\dogstatsd_gauge("gogogadget", 21.4);
+\DDTrace\dogstatsd_histogram("my_histo", 22.22, ['histo' => 'gram']);
+\DDTrace\dogstatsd_distribution("my_disti", 22.22, ['distri' => 'bution']);
+\DDTrace\dogstatsd_set("set", 7, ['set' => '7']);
 
 $server->dump();
 $server->close();
 
 ?>
 --EXPECT--
-simple-counter:42|c|#foo=bar,bar=true
+simple-counter:42|c|#foo:bar,bar:true
 gogogadget:21.4|g
+my_histo:22.22|h|#histo:gram
+my_disti:22.22|d|#distri:bution
+set:7|s|#set:7
 --CLEAN--
 <?php
 @unlink("/tmp/ddtrace-test-metrics_over_uds.socket");

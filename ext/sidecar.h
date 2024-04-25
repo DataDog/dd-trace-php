@@ -14,6 +14,7 @@ void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
 void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags);
 void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *tags);
 void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval *tags);
+void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *tags);
 
 static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
     return (ddog_CharSlice){ .len = str->len, .ptr = str->val };

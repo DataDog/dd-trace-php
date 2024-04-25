@@ -26,7 +26,7 @@ static bool dd_sidecar_connection_init(void) {
     ddog_Endpoint *dogstatsd_endpoint;
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
         ddtrace_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
-        dogstatsd_endpoint = ddog_endpoint_empty();
+        dogstatsd_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));;
     } else {
         char *agent_url = ddtrace_agent_url();
         ddtrace_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
@@ -39,6 +39,7 @@ static bool dd_sidecar_connection_init(void) {
 
     if (!ddtrace_endpoint) {
         ddtrace_sidecar = NULL;
+        ddog_endpoint_drop(dogstatsd_endpoint);
         return false;
     }
 
@@ -53,6 +54,7 @@ static bool dd_sidecar_connection_init(void) {
     }
 
     if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&ddtrace_sidecar, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()))) {
+        ddog_endpoint_drop(dogstatsd_endpoint);
         ddog_endpoint_drop(ddtrace_endpoint);
         ddtrace_endpoint = NULL;
         ddtrace_sidecar = NULL;
@@ -75,6 +77,8 @@ static bool dd_sidecar_connection_init(void) {
                                     get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                     get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                                     (ddog_CharSlice){ .ptr = logpath, .len = strlen(logpath) });
+
+    ddog_endpoint_drop(dogstatsd_endpoint);
 
     return true;
 }
@@ -174,5 +178,16 @@ void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
     ddog_sidecar_dogstatsd_histogram(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
+    ddog_Vec_Tag_drop(vec);
+}
+
+void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *tags) {
+    if (!ddtrace_sidecar) {
+        return;
+    }
+
+    ddog_Vec_Tag vec = ddog_Vec_Tag_new();
+    ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
+    ddog_sidecar_dogstatsd_set(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
     ddog_Vec_Tag_drop(vec);
 }

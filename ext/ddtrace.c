@@ -2031,6 +2031,23 @@ PHP_FUNCTION(DDTrace_dogstatsd_histogram) {
     RETURN_NULL();
 }
 
+PHP_FUNCTION(DDTrace_dogstatsd_set) {
+    zend_string *metric;
+    zend_long value;
+    zval *tags = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+    Z_PARAM_STR(metric)
+    Z_PARAM_LONG(value)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ARRAY(tags)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_sidecar_dogstatsd_set(metric, value, tags);
+
+    RETURN_NULL();
+}
+
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     char *payload = NULL;
     ddtrace_zpplong_t num_traces = 0;

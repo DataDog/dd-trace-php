@@ -123,7 +123,6 @@ void ddtrace_dogstatsd_client_rinit(void) {
     _set_dogstatsd_client_globals(client);
 }
 
-// FIXME: use in ddtrace_dogstatsd_client_rinit?
 char *ddtrace_dogstatsd_url(void) {
     zend_string *url = get_DD_DOGSTATSD_URL();
     if (ZSTR_LEN(url) > 0) {

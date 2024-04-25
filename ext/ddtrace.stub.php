@@ -652,6 +652,11 @@ namespace DDTrace {
      * Update a DogStatsD distribution
      */
     function dogstatsd_histogram(string $metric, float $value, array $tags = []): void {}
+
+    /**
+     * Update a DogStatsD set
+     */
+    function dogstatsd_set(string $metric, int $value, array $tags = []): void {}
 }
 
 namespace DDTrace\System {

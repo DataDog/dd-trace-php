@@ -1,21 +1,23 @@
 --TEST--
-Send DogStatsD metrics over a UDP socket
+DogStatsD is disabled in agentlessmode
 --ENV--
-DD_DOGSTATSD_URL=http://127.0.0.1:9876
+DD_TRACE_AGENTLESS=true
+DD_API_KEY=1234
+DD_DOGSTATSD_URL=unix:///tmp/ddtrace-test-disabled_if_agentless.socket
 --FILE--
 <?php
 
-class UDPServer {
+class UDSServer {
     private $socket;
 
-    public function __construct($addr, $port) {
-        if (!($this->socket = socket_create(AF_INET, SOCK_DGRAM, 0))) {
+    public function __construct($path) {
+        if (!($this->socket = socket_create(AF_UNIX, SOCK_DGRAM, 0))) {
             $errorcode = socket_last_error();
             $errormsg = socket_strerror($errorcode);
             die("Couldn't create socket: [$errorcode] $errormsg\n");
         }
 
-        if (!socket_bind($this->socket, $addr, $port)) {
+        if (!socket_bind($this->socket, $path)) {
             $errorcode = socket_last_error();
             $errormsg = socket_strerror($errorcode);
             die("Could not bind socket : [$errorcode] $errormsg\n");
@@ -39,7 +41,7 @@ class UDPServer {
     }
 }
 
-$server = new UDPServer('127.0.0.1', 9876);
+$server = new UDSServer('/tmp/ddtrace-test-disabled_if_agentless.socket');
 
 \DDTrace\dogstatsd_count("simple-counter", 42, ['foo' => 'bar', 'bar' => true]);
 \DDTrace\dogstatsd_gauge("gogogadget", 21.4);
@@ -50,10 +52,12 @@ $server = new UDPServer('127.0.0.1', 9876);
 $server->dump();
 $server->close();
 
+echo "end\n";
+
 ?>
 --EXPECT--
-simple-counter:42|c|#foo:bar,bar:true
-gogogadget:21.4|g
-my_histo:22.22|h|#histo:gram
-my_disti:22.22|d|#distri:bution
-set:7|s|#set:7
+end
+--CLEAN--
+<?php
+@unlink("/tmp/ddtrace-test-disabled_if_agentless.socket");
+?>

@@ -325,8 +325,6 @@ struct ddog_Error *ddog_endpoint_from_api_key_and_site(ddog_CharSlice api_key,
                                                        ddog_CharSlice site,
                                                        struct ddog_Endpoint **endpoint);
 
-DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_empty(void);
-
 void ddog_endpoint_drop(struct ddog_Endpoint*);
 
 /**
