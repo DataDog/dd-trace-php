@@ -22,6 +22,10 @@ class UDSServer {
             $errormsg = socket_strerror($errorcode);
             die("Could not bind socket : [$errorcode] $errormsg\n");
         }
+
+        // On the CI, when this test is ran using "pecl run-tests" with sudo
+        // the Unix socket is owned by root while the sidecar process is ran as another user
+        chmod($path, 0777);
     }
 
     public function dump($iter = 100, $usleep = 100) {
