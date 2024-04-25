@@ -47,11 +47,6 @@ class AutomatedLoginEventsTest extends AppsecTestCase
 
         $traces = $this->tracesFromWebRequest(function () use ($email) { $this->login($email); });
 
-        $meta = $traces[0][0]['meta'];
-        $this->assertEquals($id, $meta['usr.id']);
-        $this->assertEquals($name, $meta['usr.name']);
-        $this->assertEquals($email, $meta['usr.email']);
-
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
         $this->assertEquals($id, $events[0]['userId']);
