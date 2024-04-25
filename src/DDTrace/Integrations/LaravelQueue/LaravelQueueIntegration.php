@@ -168,7 +168,7 @@ class LaravelQueueIntegration extends Integration
                         $span = $hook->span();
                         $span->name = 'laravel.queue.action';
                         $span->type = 'queue';
-                        $span->service = $integration->getName();
+                        $span->service = $integration->getAppName();
                         $span->resource = $class . '@' . $method;
                         $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
 
