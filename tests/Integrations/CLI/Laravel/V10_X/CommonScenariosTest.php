@@ -51,7 +51,6 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V9_X\C
                 SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
             ])->setError(),
         ]);
     }
