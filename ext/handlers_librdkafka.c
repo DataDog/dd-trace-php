@@ -9,6 +9,8 @@
 #include "random.h"
 #include "sidecar.h"
 #include "handlers_internal.h"  // For 'ddtrace_replace_internal_function'
+#include <zend_types.h>
+#include <zend_portability.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -21,7 +23,7 @@ static void dd_handle_produce(zval *return_value) {
 static inline void dd_install_internal_func_name(HashTable *baseTable, const char *name) {
     zend_function *func;
     if ((func = zend_hash_str_find_ptr(baseTable, name, strlen(name)))) {
-        printf("!!!!!!!! Found func\n");
+        dd_install_internal_func(func);
     }
 }
 
@@ -62,31 +64,15 @@ void ddtrace_rdkafka_handlers_startup(void) {
         printf("!!!!!!!! zend_debug: %d\n", rdkafka_me->zend_debug);
         printf("!!!!!!!! name: %s\n", rdkafka_me->name);
 
-        zend_class_entry **producertopic_ce_ptr = (zend_class_entry **)DL_FETCH_SYMBOL(rdkafka_me->handle, "ProducerTopic");
+        zend_class_entry **producertopic_ce_ptr = (zend_class_entry **)DL_FETCH_SYMBOL(rdkafka_me->handle, "_rd_kafka_produce");
 
         if(producertopic_ce_ptr == NULL) {
-            printf("!!!!!!!! Could not retrieve ProducerTopic\n");
-            producertopic_ce_ptr = (zend_class_entry **)DL_FETCH_SYMBOL(rdkafka_me->handle, "ProducerTopic_produce");
+            printf("!!!!!!!! Could not retrieve _rd_kafka_produce\n");
+            producertopic_ce_ptr = (zend_class_entry **)DL_FETCH_SYMBOL(rdkafka_me->handle, "topic_produce");
         }
-
         if(producertopic_ce_ptr == NULL) {
-            printf("!!!!!!!! Could not retrieve ProducerTopic_produce\n");
-            producertopic_ce_ptr = (zend_class_entry **)DL_FETCH_SYMBOL(rdkafka_me->handle, "ProducerTopic_producev");
-        }
-
-        if(producertopic_ce_ptr == NULL) {
-            printf("!!!!!!!! Could not retrieve ProducerTopic_producev\n");
-            producertopic_ce_ptr = (zend_class_entry **)DL_FETCH_SYMBOL(rdkafka_me->handle, "Topic");
-        }
-
-        if(producertopic_ce_ptr == NULL) {
-            printf("!!!!!!!! Could not retrieve Topic\n");
-            producertopic_ce_ptr = (zend_class_entry **)DL_FETCH_SYMBOL(rdkafka_me->handle, "Topic_produce");
-        }
-
-        if(producertopic_ce_ptr == NULL) {
-            printf("!!!!!!!! Could not retrieve Topic_produce\n");
-            producertopic_ce_ptr = (zend_class_entry **)DL_FETCH_SYMBOL(rdkafka_me->handle, "produce");
+            printf("!!!!!!!! Could not retrieve topic_produce\n");
+            producertopic_ce_ptr = (zend_class_entry **)DL_FETCH_SYMBOL(rdkafka_me->handle, "topic_produce");
         }
 
         zend_class_entry *producertopic_ce = *producertopic_ce_ptr;
