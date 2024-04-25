@@ -2,7 +2,7 @@
 #include "auto_flush.h"
 #include "compat_string.h"
 #include "configuration.h"
-#include "dogstatsd_client.h"
+#include "dogstatsd.h"
 #include "logging.h"
 #include <components-rs/common.h>
 #include <components-rs/ddtrace.h>
