@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 1271064f2b0fcdc3d20e2f3d6c780607b300c5f9 */
+ * Stub hash: e3aae0a14c816df228a915cf422a2f79fe458eb1 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -251,6 +251,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_synchronous_flush, 0, 1
 	ZEND_ARG_TYPE_INFO(0, timeout, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
+#define arginfo_dd_handle_fork arginfo_DDTrace_flush
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_SpanLink_jsonSerialize, 0, 0, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
@@ -336,6 +338,7 @@ ZEND_FUNCTION(DDTrace_trace_function);
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(dd_untrace);
 ZEND_FUNCTION(dd_trace_synchronous_flush);
+ZEND_FUNCTION(dd_handle_fork);
 ZEND_METHOD(DDTrace_SpanLink, jsonSerialize);
 ZEND_METHOD(DDTrace_SpanLink, fromHeaders);
 ZEND_METHOD(DDTrace_SpanData, getDuration);
@@ -411,6 +414,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FALIAS(dd_trace_method, DDTrace_trace_method, arginfo_dd_trace_method)
 	ZEND_FE(dd_untrace, arginfo_dd_untrace)
 	ZEND_FE(dd_trace_synchronous_flush, arginfo_dd_trace_synchronous_flush)
+	ZEND_FE(dd_handle_fork, arginfo_dd_handle_fork)
 	ZEND_FE_END
 };
 

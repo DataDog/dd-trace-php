@@ -105,6 +105,27 @@ class SwooleIntegration extends Integration
         );
     }
 
+    public function instrumentWorkerStart(callable $callback, SwooleIntegration $integration, Server $server)
+    {
+        \DDTrace\install_hook(
+            $callback,
+            function (HookData $hook) use ($integration, $server) {
+                dd_handle_fork();
+            }
+        );
+    }
+
+    public function instrumentWorkerStop(callable $callback, SwooleIntegration $integration, Server $server)
+    {
+        \DDTrace\install_hook(
+            $callback,
+            null,
+            function (HookData $hook) use ($integration, $server) {
+                dd_handle_fork();
+            }
+        );
+    }
+
     public function init(): int
     {
         if (version_compare(swoole_version(), '5.0.2', '<')) {
@@ -128,7 +149,14 @@ class SwooleIntegration extends Integration
                 list($eventName, $callback) = $args;
 
                 if ($eventName === 'request') {
+                    // Handle Incoming Requests - Create new trace
                     $integration->instrumentRequestStart($callback, $integration, $server);
+                } elseif ($eventName === 'workerstart') {
+                    // Handle Worker Start - Initialize and start writer
+                    $integration->instrumentWorkerStart($callback, $integration, $server);
+                } elseif ($eventName === 'workerstop') {
+                    // Handle Worker & Server Shutdown - Clean Background sender after fork
+                    $integration->instrumentWorkerStop($callback, $integration, $server);
                 }
             }
         );

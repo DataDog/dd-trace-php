@@ -977,4 +977,9 @@ namespace {
      * @param int $timeout Timeout in milliseconds to wait for the flush to complete
      */
     function dd_trace_synchronous_flush(int $timeout): void {}
+
+    /**
+     * @internal
+     */
+    function dd_handle_fork(): void {}
 }

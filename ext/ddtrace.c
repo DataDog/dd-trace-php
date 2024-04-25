@@ -2136,6 +2136,53 @@ static void dd_ensure_root_span(void) {
     }
 }
 
+/* {{{ proto void dd_handle_fork(): void */
+PHP_FUNCTION(dd_handle_fork) {
+    UNUSED(execute_data);
+    UNUSED(return_value);
+    // CHILD PROCESS
+#ifndef _WIN32
+        if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+            ddtrace_coms_curl_shutdown();
+            ddtrace_coms_clean_background_sender_after_fork();
+        }
+#endif
+        if (DDTRACE_G(remote_config_reader)) {
+            ddog_agent_remote_config_reader_drop(DDTRACE_G(remote_config_reader));
+            DDTRACE_G(remote_config_reader) = NULL;
+        }
+        ddtrace_seed_prng();
+        ddtrace_generate_runtime_id();
+        ddtrace_reset_sidecar_globals();
+        if (!get_DD_TRACE_FORKED_PROCESS()) {
+            ddtrace_disable_tracing_in_current_request();
+        }
+        if (get_DD_TRACE_ENABLED()) {
+            if (get_DD_DISTRIBUTED_TRACING()) {
+                DDTRACE_G(distributed_parent_trace_id) = ddtrace_peek_span_id();
+                DDTRACE_G(distributed_trace_id) = ddtrace_peek_trace_id();
+            } else {
+                DDTRACE_G(distributed_parent_trace_id) = 0;
+                DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){ 0 };
+            }
+            ddtrace_free_span_stacks(true);
+            ddtrace_init_span_stacks();
+            if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
+                ddtrace_push_root_span();
+            }
+        }
+
+#ifndef _WIN32
+        if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+            ddtrace_coms_init_and_start_writer();
+
+            if (ddtrace_coms_agent_config_handle) {
+                ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(remote_config_reader));
+            }
+        }
+#endif
+}
+
 /* {{{ proto string DDTrace\active_span() */
 PHP_FUNCTION(DDTrace_active_span) {
     if (zend_parse_parameters_none() == FAILURE) {
