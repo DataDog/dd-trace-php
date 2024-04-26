@@ -5,6 +5,7 @@ namespace DDTrace\Tests;
 use DDTrace\Tests\Nginx\NginxServer;
 use DDTrace\Tests\Sapi\CliServer\CliServer;
 use DDTrace\Tests\Sapi\Frankenphp\FrankenphpServer;
+use DDTrace\Tests\Sapi\OctaneServer\OctaneServer;
 use DDTrace\Tests\Sapi\PhpApache\PhpApache;
 use DDTrace\Tests\Sapi\PhpCgi\PhpCgi;
 use DDTrace\Tests\Sapi\PhpFpm\PhpFpm;
@@ -71,8 +72,8 @@ final class WebServer
     private $inis = [];
 
     private $roadrunnerVersion = null;
+    private $isOctane = false;
     private $isFrankenphp = false;
-
     private $isSwoole = false;
 
     private $defaultInis = [
@@ -110,6 +111,11 @@ final class WebServer
         $this->roadrunnerVersion = $version;
     }
 
+    public function setOctane()
+    {
+        $this->isOctane = true;
+    }
+
     public function setSwoole()
     {
         $this->isSwoole = true;
@@ -132,6 +138,14 @@ final class WebServer
                 $this->port,
                 $this->envs,
                 $this->inis
+            );
+        } elseif ($this->isOctane) {
+            $this->sapi = new OctaneServer(
+                $this->indexFile,
+                $this->host,
+                $this->port,
+                $this->envs,
+                $this->inis,
             );
         } elseif ($this->isSwoole) {
             $this->sapi = new SwooleServer(

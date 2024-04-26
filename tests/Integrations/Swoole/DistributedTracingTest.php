@@ -25,6 +25,7 @@ class DistributedTracingTest extends WebFrameworkTestCase
             'DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED' => 'foo.password, bar',
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED' => '*',
+            'DD_TRACE_DEBUG' => 'true',
         ]);
     }
 
@@ -75,6 +76,8 @@ class DistributedTracingTest extends WebFrameworkTestCase
             ]);
             $this->call($spec);
         });
+
+        echo json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL;
 
         $trace = $traces[0][0];
         $this->assertSame($traceId, $trace["trace_id"]);
