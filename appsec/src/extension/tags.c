@@ -112,6 +112,7 @@ static zend_string *_id_zstr;
 static zend_string *_server_zstr;
 static HashTable _relevant_headers;       // headers for requests with attacks
 static HashTable _relevant_basic_headers; // headers for all requests
+static THREAD_LOCAL_ON_ZTS bool _user_event_triggered;
 static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
@@ -291,6 +292,7 @@ void dd_tags_shutdown()
 void dd_tags_rinit()
 {
     bool init_list = false;
+    _user_event_triggered = false;
     if (UNEXPECTED(!_appsec_json_frags_inited)) {
         init_list = true;
         _appsec_json_frags_inited = true;
@@ -314,6 +316,8 @@ void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
 {
     zend_llist_add_element(&_appsec_json_frags, &zstr);
 }
+
+void dd_tags_set_user_event_triggered() { _user_event_triggered = true; }
 
 void dd_tags_set_event_user_id(zend_string *nonnull zstr)
 {
@@ -490,7 +494,12 @@ static void _add_basic_tags_to_meta(
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     _dd_http_client_ip(meta_ht);
-    _dd_request_headers(meta_ht, _server, &_relevant_basic_headers);
+
+    HashTable *headers = &_relevant_basic_headers;
+    if (_user_event_triggered) {
+        headers = &_relevant_headers;
+    }
+    _dd_request_headers(meta_ht, _server, headers);
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -942,6 +951,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
         return;
     }
 
+    dd_tags_set_user_event_triggered();
+
     zend_array *meta_ht = Z_ARRVAL_P(meta);
     bool override = !automated;
 
@@ -1018,6 +1029,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
         return;
     }
 
+    dd_tags_set_user_event_triggered();
+
     zend_array *meta_ht = Z_ARRVAL_P(meta);
     bool override = !automated;
 
@@ -1093,6 +1106,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
         return;
     }
 
+    dd_tags_set_user_event_triggered();
+
     zend_array *meta_ht = Z_ARRVAL_P(meta);
     bool override = !automated;
 
@@ -1157,6 +1172,8 @@ static PHP_FUNCTION(datadog_appsec_track_custom_event)
     if (!meta) {
         return;
     }
+
+    dd_tags_set_user_event_triggered();
 
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
