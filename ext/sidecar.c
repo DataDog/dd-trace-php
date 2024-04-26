@@ -118,7 +118,10 @@ void ddtrace_reset_sidecar_globals(void) {
 static inline void ddtrace_sidecar_dogstatsd_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value) {
     ddog_Vec_Tag_PushResult tag_result = ddog_Vec_Tag_push(vec, key, value);
     if (tag_result.tag == DDOG_VEC_TAG_PUSH_RESULT_ERR) {
-        LOG(WARN, "Failed to push DogStatsD tag: %s", tag_result.err);
+        zend_string *msg = dd_CharSlice_to_zend_string(ddog_Error_message(&tag_result.err));
+        LOG(WARN, "Failed to push DogStatsD tag: %s", ZSTR_VAL(msg));
+        ddog_Error_drop(&tag_result.err);
+        zend_string_release(msg);
     }
 }
 
