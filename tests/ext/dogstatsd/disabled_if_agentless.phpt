@@ -1,5 +1,7 @@
 --TEST--
 DogStatsD is disabled in agentlessmode
+--SKIPIF--
+<?php if (!extension_loaded('sockets')) die('skip: the sockets extension is required for this test'); ?>
 --ENV--
 DD_TRACE_AGENTLESS=true
 DD_API_KEY=1234

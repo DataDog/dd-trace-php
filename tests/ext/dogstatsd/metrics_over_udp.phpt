@@ -1,5 +1,7 @@
 --TEST--
 Send DogStatsD metrics over a UDP socket
+--SKIPIF--
+<?php if (!extension_loaded('sockets')) die('skip: the sockets extension is required for this test'); ?>
 --ENV--
 DD_DOGSTATSD_URL=http://127.0.0.1:9876
 --FILE--

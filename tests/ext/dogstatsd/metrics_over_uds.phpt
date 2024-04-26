@@ -1,9 +1,15 @@
 --TEST--
 Send DogStatsD metrics over an Unix Domain Socket
 --SKIPIF--
-<?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There are no unix sockets on Windows'); ?>
+<?php
+if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There are no unix sockets on Windows');
+if (!extension_loaded('sockets')) die('skip: the sockets extension is required for this test');
+?>
 --ENV--
 DD_DOGSTATSD_URL=unix:///tmp/ddtrace-test-metrics_over_uds.socket
+DD_SERVICE=test-app
+DD_ENV=test
+DD_VERSION=1.12
 --FILE--
 <?php
 
@@ -58,11 +64,11 @@ $server->close();
 
 ?>
 --EXPECT--
-simple-counter:42|c|#foo:bar,bar:true
-gogogadget:21.4|g
-my_histo:22.22|h|#histo:gram
-my_disti:22.22|d|#distri:bution
-set:7|s|#set:7
+simple-counter:42|c|#env:test,service:test-app,version:1.12,foo:bar,bar:true
+gogogadget:21.4|g|#env:test,service:test-app,version:1.12
+my_histo:22.22|h|#env:test,service:test-app,version:1.12,histo:gram
+my_disti:22.22|d|#env:test,service:test-app,version:1.12,distri:bution
+set:7|s|#env:test,service:test-app,version:1.12,set:7
 --CLEAN--
 <?php
 @unlink("/tmp/ddtrace-test-metrics_over_uds.socket");

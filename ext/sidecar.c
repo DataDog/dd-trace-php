@@ -115,7 +115,29 @@ void ddtrace_reset_sidecar_globals(void) {
     }
 }
 
+static inline void ddtrace_sidecar_dogstatsd_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value) {
+    ddog_Vec_Tag_PushResult tag_result = ddog_Vec_Tag_push(vec, key, value);
+    if (tag_result.tag == DDOG_VEC_TAG_PUSH_RESULT_ERR) {
+        LOG(WARN, "Failed to push DogStatsD tag: %s", tag_result.err);
+    }
+}
+
 static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
+    // Global tags (https://github.com/DataDog/php-datadogstatsd/blob/0efdd1c38f6d3dd407efbb899ad1fd2e5cd18085/src/DogStatsd.php#L113-L125)
+    zend_string *env = get_DD_ENV();
+    if (ZSTR_LEN(env) > 0) {
+        ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("env"), dd_zend_string_to_CharSlice(env));
+    }
+    zend_string *service = get_DD_SERVICE();
+    if (ZSTR_LEN(service) > 0) {
+        ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("service"), dd_zend_string_to_CharSlice(service));
+    }
+    zend_string *version = get_DD_VERSION();
+    if (ZSTR_LEN(version) > 0) {
+        ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("version"), dd_zend_string_to_CharSlice(version));
+    }
+
+    // Specific tags
     if (!tags || Z_TYPE_P(tags) != IS_ARRAY) {
         return;
     }
@@ -128,10 +150,7 @@ static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
         }
         zval value_str;
         ddtrace_convert_to_string(&value_str, tag_val);
-        ddog_Vec_Tag_PushResult tag_result = ddog_Vec_Tag_push(vec, dd_zend_string_to_CharSlice(key), dd_zend_string_to_CharSlice(Z_STR(value_str)));
-        if (tag_result.tag == DDOG_VEC_TAG_PUSH_RESULT_ERR) {
-            LOG(WARN, "Failed to push DogStatsD tag: %s", tag_result.err);
-        }
+        ddtrace_sidecar_dogstatsd_push_tag(vec, dd_zend_string_to_CharSlice(key), dd_zend_string_to_CharSlice(Z_STR(value_str)));
         zend_string_release(Z_STR(value_str));
     }
     ZEND_HASH_FOREACH_END();
