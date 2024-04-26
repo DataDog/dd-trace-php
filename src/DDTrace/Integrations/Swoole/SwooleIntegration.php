@@ -13,6 +13,7 @@ use Swoole\Http\Response;
 use Swoole\Http\Server;
 use function DDTrace\consume_distributed_tracing_headers;
 use function DDTrace\extract_ip_from_headers;
+use function DDTrace\hook_method;
 
 class SwooleIntegration extends Integration
 {
@@ -139,6 +140,16 @@ class SwooleIntegration extends Integration
 
         \DDTrace\hook_method(
             'Swoole\Http\Server',
+            '__construct',
+            function ($server) use ($integration) {
+                foreach (['workerstart', 'workerstop', 'workerexit', 'workererror'] as $serverEvent) {
+                    $server->on($serverEvent, function () { });
+                }
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Swoole\Http\Server',
             'on',
             null,
             function ($server, $scope, $args, $retval) use ($integration) {
@@ -148,16 +159,21 @@ class SwooleIntegration extends Integration
 
                 list($eventName, $callback) = $args;
 
-                if ($eventName === 'request') {
-                    // Handle Incoming Requests - Create new trace
-                    $integration->instrumentRequestStart($callback, $integration, $server);
-                } elseif ($eventName === 'workerstart') {
-                    // Handle Worker Start - Initialize and start writer
-                    $integration->instrumentWorkerStart($callback, $integration, $server);
-                } elseif ($eventName === 'workerstop') {
-                    // Handle Worker & Server Shutdown - Clean Background sender after fork
-                    $integration->instrumentWorkerStop($callback, $integration, $server);
+                $eventName = strtolower($eventName);
+                switch ($eventName) {
+                    case 'request':
+                        $integration->instrumentRequestStart($callback, $integration, $server);
+                        break;
+                    case 'workerstart':
+                        $integration->instrumentWorkerStart($callback, $integration, $server);
+                        break;
+                    case 'workerstop':
+                    case 'workerexit':
+                    case 'workererror':
+                        $integration->instrumentWorkerStop($callback, $integration, $server);
+                        break;
                 }
+
             }
         );
 

@@ -2155,6 +2155,7 @@ PHP_FUNCTION(dd_handle_fork) {
         ddtrace_generate_runtime_id();
         ddtrace_reset_sidecar_globals();
         ddtrace_compile_time_reset();
+        dd_prepare_for_new_trace();
         if (!get_DD_TRACE_FORKED_PROCESS()) {
             ddtrace_disable_tracing_in_current_request();
         }
