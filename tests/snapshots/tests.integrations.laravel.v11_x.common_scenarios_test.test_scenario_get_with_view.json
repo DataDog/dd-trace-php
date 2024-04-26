@@ -216,18 +216,6 @@
          "component": "laravel"
        }
      },
-        {
-          "name": "laravel.event.handle",
-          "service": "my_service",
-          "resource": "creating: simple_view",
-          "trace_id": 0,
-          "span_id": 24,
-          "parent_id": 17,
-          "type": "web",
-          "meta": {
-            "component": "laravel"
-          }
-        },
      {
        "name": "laravel.event.handle",
        "service": "my_service",
@@ -253,23 +241,11 @@
        }
      },
         {
-          "name": "laravel.event.handle",
-          "service": "my_service",
-          "resource": "composing: simple_view",
-          "trace_id": 0,
-          "span_id": 25,
-          "parent_id": 19,
-          "type": "web",
-          "meta": {
-            "component": "laravel"
-          }
-        },
-        {
           "name": "laravel.view",
           "service": "my_service",
-          "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_11_x/resources/views/simple_view.blade.php",
+          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_11_x/resources/views/simple_view.blade.php",
           "trace_id": 0,
-          "span_id": 26,
+          "span_id": 24,
           "parent_id": 19,
           "type": "web",
           "meta": {

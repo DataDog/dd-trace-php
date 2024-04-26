@@ -189,9 +189,9 @@
        }
      },
      {
-       "name": "laravel.event.handle",
+       "name": "laravel.view.render",
        "service": "my_service",
-       "resource": "creating: errors::404",
+       "resource": "errors::404",
        "trace_id": 0,
        "span_id": 16,
        "parent_id": 1,
@@ -200,72 +200,24 @@
          "component": "laravel"
        }
      },
-     {
-       "name": "laravel.view.render",
-       "service": "my_service",
-       "resource": "errors::404",
-       "trace_id": 0,
-       "span_id": 17,
-       "parent_id": 1,
-       "type": "web",
-       "meta": {
-         "component": "laravel"
-       }
-     },
-        {
-          "name": "laravel.event.handle",
-          "service": "my_service",
-          "resource": "composing: errors::404",
-          "trace_id": 0,
-          "span_id": 19,
-          "parent_id": 17,
-          "type": "web",
-          "meta": {
-            "component": "laravel"
-          }
-        },
         {
           "name": "laravel.view",
           "service": "my_service",
-          "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_11_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
+          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_11_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
           "trace_id": 0,
-          "span_id": 20,
-          "parent_id": 17,
+          "span_id": 18,
+          "parent_id": 16,
           "type": "web",
           "meta": {
             "component": "laravel"
           }
         },
-           {
-             "name": "laravel.event.handle",
-             "service": "my_service",
-             "resource": "creating: errors::minimal",
-             "trace_id": 0,
-             "span_id": 21,
-             "parent_id": 20,
-             "type": "web",
-             "meta": {
-               "component": "laravel"
-             }
-           },
-           {
-             "name": "laravel.event.handle",
-             "service": "my_service",
-             "resource": "composing: errors::minimal",
-             "trace_id": 0,
-             "span_id": 22,
-             "parent_id": 20,
-             "type": "web",
-             "meta": {
-               "component": "laravel"
-             }
-           },
      {
        "name": "laravel.event.handle",
        "service": "my_service",
        "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
        "trace_id": 0,
-       "span_id": 18,
+       "span_id": 17,
        "parent_id": 1,
        "type": "web",
        "meta": {
