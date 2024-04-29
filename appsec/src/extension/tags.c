@@ -243,6 +243,16 @@ static void _init_relevant_headers()
     ADD_RELEVANT_HEADER(str)
 
     ADD_RELEVANT_BASIC_HEADER("x-amzn-trace-id");
+    ADD_RELEVANT_BASIC_HEADER("cloudfront-viewer-ja3-fingerprint");
+    ADD_RELEVANT_BASIC_HEADER("cf-ray");
+    ADD_RELEVANT_BASIC_HEADER("x-cloud-trace-context");
+    ADD_RELEVANT_BASIC_HEADER("x-appgw-trace-id");
+    ADD_RELEVANT_BASIC_HEADER("x-sigsci-requestid");
+    ADD_RELEVANT_BASIC_HEADER("x-sigsci-tags");
+    ADD_RELEVANT_BASIC_HEADER("akamai-user-risk");
+    ADD_RELEVANT_BASIC_HEADER("content-type");
+    ADD_RELEVANT_BASIC_HEADER("user-agent");
+    ADD_RELEVANT_BASIC_HEADER("accept");
 
     ADD_RELEVANT_HEADER("x-forwarded-for");
     ADD_RELEVANT_HEADER("x-client-ip");
@@ -257,12 +267,9 @@ static void _init_relevant_headers()
     ADD_RELEVANT_HEADER("cf-connecting-ip");
     ADD_RELEVANT_HEADER("cf-connecting-ipv6");
     ADD_RELEVANT_HEADER("content-length");
-    ADD_RELEVANT_HEADER("content-type");
     ADD_RELEVANT_HEADER("content-encoding");
     ADD_RELEVANT_HEADER("content-language");
     ADD_RELEVANT_HEADER("host");
-    ADD_RELEVANT_HEADER("user-agent");
-    ADD_RELEVANT_HEADER("accept");
     ADD_RELEVANT_HEADER("accept-encoding");
     ADD_RELEVANT_HEADER("accept-language");
 

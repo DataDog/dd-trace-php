@@ -31,6 +31,13 @@ HTTP_MY_HEADER=my header value
 HTTP_MY_OTHER_HEADER=my other header value
 HTTP_X_AMZN_TRACE_ID=amazontraceid
 HTTP_IGNORED_HEADER=ignored header
+HTTP_CLOUDFRONT_VIEWER_JA3_FINGERPRINT=cloudfrontviewer
+HTTP_CF_RAY=cfray
+HTTP_X_CLOUD_TRACE_CONTEXT=cloudtracecontext
+HTTP_X_APPGW_TRACE_ID=appgvtraceid
+HTTP_X_SIGSCI_REQUESTID=sigscirequestid
+HTTP_X_SIGSCI_TAGS=sigscitags
+HTTP_AKAMAI_USER_RISK=akamaiuserisk
 REMOTE_ADDR=7.7.7.12
 HTTPS=on
 --GET--
@@ -72,6 +79,9 @@ Array
     [http.request.headers.accept] => */*
     [http.request.headers.accept-encoding] => gzip
     [http.request.headers.accept-language] => pt-PT
+    [http.request.headers.akamai-user-risk] => akamaiuserisk
+    [http.request.headers.cf-ray] => cfray
+    [http.request.headers.cloudfront-viewer-ja3-fingerprint] => cloudfrontviewer
     [http.request.headers.content-encoding] => utf-8
     [http.request.headers.content-length] => 0
     [http.request.headers.content-type] => text/plain
@@ -84,11 +94,15 @@ Array
     [http.request.headers.user-agent] => my user agent
     [http.request.headers.via] => HTTP/1.1 GWA
     [http.request.headers.x-amzn-trace-id] => amazontraceid
+    [http.request.headers.x-appgw-trace-id] => appgvtraceid
     [http.request.headers.x-client-ip] => 7.7.7.7
+    [http.request.headers.x-cloud-trace-context] => cloudtracecontext
     [http.request.headers.x-cluster-client-ip] => 7.7.7.9
     [http.request.headers.x-forwarded] => for="foo"
     [http.request.headers.x-forwarded-for] => 7.7.7.6,10.0.0.1
     [http.request.headers.x-real-ip] => 7.7.7.8
+    [http.request.headers.x-sigsci-requestid] => sigscirequestid
+    [http.request.headers.x-sigsci-tags] => sigscitags
     [http.response.headers.content-encoding] => foobar
     [http.response.headers.content-language] => pt_PT
     [http.response.headers.content-length] => 42
@@ -101,5 +115,15 @@ Array
 Array
 (
     [http.client_ip] => 7.7.7.6
+    [http.request.headers.accept] => */*
+    [http.request.headers.akamai-user-risk] => akamaiuserisk
+    [http.request.headers.cf-ray] => cfray
+    [http.request.headers.cloudfront-viewer-ja3-fingerprint] => cloudfrontviewer
+    [http.request.headers.content-type] => text/plain
+    [http.request.headers.user-agent] => my user agent
     [http.request.headers.x-amzn-trace-id] => amazontraceid
+    [http.request.headers.x-appgw-trace-id] => appgvtraceid
+    [http.request.headers.x-cloud-trace-context] => cloudtracecontext
+    [http.request.headers.x-sigsci-requestid] => sigscirequestid
+    [http.request.headers.x-sigsci-tags] => sigscitags
 )
