@@ -27,7 +27,15 @@ class CommonScenariosTest extends WebFrameworkTestCase
         $iniFile = explode(',', $iniFiles)[0];
         $iniDir = dirname($iniFile);
         self::$iniPath = $iniDir . '/swoole.ini';
-        copy(__DIR__ . '/swoole.ini', self::$iniPath);
+
+        if (false !== getenv('CI') || false !== getenv('CIRCLECI')) {
+            copy(__DIR__ . '/swoole.ini', self::$iniPath);
+        } else {
+            $swooleIni = file_get_contents(__DIR__ . '/swoole.ini');
+            $swooleIni = str_replace('/home/circle/app', '/home/circleci/datadog', $swooleIni);
+            file_put_contents(self::$iniPath, $swooleIni);
+        }
+
         parent::ddSetUpBeforeClass();
     }
 
