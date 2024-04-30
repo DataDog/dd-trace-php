@@ -4,6 +4,7 @@ Send DogStatsD metrics over an Unix Domain Socket
 <?php
 if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There are no unix sockets on Windows');
 if (!extension_loaded('sockets')) die('skip: the sockets extension is required for this test');
+if (PHP_VERSION_ID < 70200) die('skip: this test triggers a bug in PHP < 7.2 (See https://github.com/php/php-src/pull/3408)');
 ?>
 --ENV--
 DD_DOGSTATSD_URL=unix:///tmp/ddtrace-test-metrics_over_uds.socket
