@@ -722,6 +722,13 @@ namespace DDTrace\Internal {
      * @param int $flag the flag to add to the span
      */
     function add_span_flag(\DDTrace\SpanData $span, int $flag): void {}
+
+    /**
+     * To be called when a fork is performed.
+     *
+     * @internal
+     */
+    function handle_fork(): void {}
 }
 
 namespace {
@@ -977,9 +984,4 @@ namespace {
      * @param int $timeout Timeout in milliseconds to wait for the flush to complete
      */
     function dd_trace_synchronous_flush(int $timeout): void {}
-
-    /**
-     * @internal
-     */
-    function dd_handle_fork(): void {}
 }

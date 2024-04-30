@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: e3aae0a14c816df228a915cf422a2f79fe458eb1 */
+ * Stub hash: 206c9d9eefe4af1076007627bb6d5651e23202ce */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -170,6 +170,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_add_span_flag, 
 	ZEND_ARG_TYPE_INFO(0, flag, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
+#define arginfo_DDTrace_Internal_handle_fork arginfo_DDTrace_flush
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_env_config, 0, 1, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO(0, envName, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -251,8 +253,6 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_synchronous_flush, 0, 1
 	ZEND_ARG_TYPE_INFO(0, timeout, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_dd_handle_fork arginfo_DDTrace_flush
-
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_SpanLink_jsonSerialize, 0, 0, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
@@ -312,6 +312,7 @@ ZEND_FUNCTION(DDTrace_UserRequest_notify_commit);
 ZEND_FUNCTION(DDTrace_UserRequest_set_blocking_function);
 ZEND_FUNCTION(DDTrace_Testing_trigger_error);
 ZEND_FUNCTION(DDTrace_Internal_add_span_flag);
+ZEND_FUNCTION(DDTrace_Internal_handle_fork);
 ZEND_FUNCTION(dd_trace_env_config);
 ZEND_FUNCTION(dd_trace_disable_in_request);
 ZEND_FUNCTION(dd_trace_reset);
@@ -338,7 +339,6 @@ ZEND_FUNCTION(DDTrace_trace_function);
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(dd_untrace);
 ZEND_FUNCTION(dd_trace_synchronous_flush);
-ZEND_FUNCTION(dd_handle_fork);
 ZEND_METHOD(DDTrace_SpanLink, jsonSerialize);
 ZEND_METHOD(DDTrace_SpanLink, fromHeaders);
 ZEND_METHOD(DDTrace_SpanData, getDuration);
@@ -388,6 +388,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_NS_FALIAS("DDTrace\\UserRequest", set_blocking_function, DDTrace_UserRequest_set_blocking_function, arginfo_DDTrace_UserRequest_set_blocking_function)
 	ZEND_NS_FALIAS("DDTrace\\Testing", trigger_error, DDTrace_Testing_trigger_error, arginfo_DDTrace_Testing_trigger_error)
 	ZEND_NS_FALIAS("DDTrace\\Internal", add_span_flag, DDTrace_Internal_add_span_flag, arginfo_DDTrace_Internal_add_span_flag)
+	ZEND_NS_FALIAS("DDTrace\\Internal", handle_fork, DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
 	ZEND_FE(dd_trace_disable_in_request, arginfo_dd_trace_disable_in_request)
 	ZEND_FE(dd_trace_reset, arginfo_dd_trace_reset)
@@ -414,7 +415,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FALIAS(dd_trace_method, DDTrace_trace_method, arginfo_dd_trace_method)
 	ZEND_FE(dd_untrace, arginfo_dd_untrace)
 	ZEND_FE(dd_trace_synchronous_flush, arginfo_dd_trace_synchronous_flush)
-	ZEND_FE(dd_handle_fork, arginfo_dd_handle_fork)
 	ZEND_FE_END
 };
 

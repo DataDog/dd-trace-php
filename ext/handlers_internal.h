@@ -16,4 +16,6 @@ void ddtrace_internal_handlers_shutdown(void);
 void ddtrace_internal_handlers_rinit(void);
 void ddtrace_internal_handlers_rshutdown(void);
 
+static void dd_internal_handle_fork(void);
+
 #endif  // DDTRACE_HANDLERS_INTERNAL_H
