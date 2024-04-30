@@ -56,6 +56,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'swoole_test_app',
             'DD_TRACE_CLI_ENABLED' => 'true',
+            'DD_TRACE_DEBUG' => 'true'
         ]);
     }
 

@@ -13,7 +13,7 @@ use Swoole\Http\Response;
 use Swoole\Http\Server;
 use function DDTrace\consume_distributed_tracing_headers;
 use function DDTrace\extract_ip_from_headers;
-use function DDTrace\hook_method;
+use function DDTrace\Internal\handle_fork;
 
 class SwooleIntegration extends Integration
 {
@@ -111,7 +111,7 @@ class SwooleIntegration extends Integration
         \DDTrace\install_hook(
             $callback,
             function (HookData $hook) use ($integration, $server) {
-                dd_handle_fork();
+                handle_fork();
             }
         );
     }
@@ -122,7 +122,7 @@ class SwooleIntegration extends Integration
             $callback,
             null,
             function (HookData $hook) use ($integration, $server) {
-                dd_handle_fork();
+                handle_fork();
             }
         );
     }
