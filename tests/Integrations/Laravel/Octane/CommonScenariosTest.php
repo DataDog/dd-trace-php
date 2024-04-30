@@ -28,13 +28,19 @@ class CommonScenariosTest extends WebFrameworkTestCase
         $iniDir = dirname($iniFile);
         self::$iniPath = $iniDir . '/swoole.ini';
 
-        if (false === getenv('CI') && false === getenv('CIRCLECI')) {
-            copy(__DIR__ . '/swoole.ini', self::$iniPath);
-        } else {
-            $swooleIni = file_get_contents(__DIR__ . '/swoole.ini');
+        $swooleIni = file_get_contents(__DIR__ . '/swoole.ini');
+
+        $currentDir = getcwd();
+        $isLocalDevEnv = strpos($currentDir, 'datadog') === false;
+        $replacement = $isLocalDevEnv ? '/home/circleci/app' : '/home/circleci/datadog';
+        $swooleIni = str_replace('{{path}}', $replacement, $swooleIni);
+
+        $autoloadNoCompile = getenv('DD_AUTOLOAD_NO_COMPILE');
+        if (!$autoloadNoCompile || !filter_var($autoloadNoCompile, FILTER_VALIDATE_BOOLEAN)) {
             $swooleIni = str_replace('datadog.autoload_no_compile=true', 'datadog.autoload_no_compile=false', $swooleIni);
-            file_put_contents(self::$iniPath, $swooleIni);
         }
+
+        file_put_contents(self::$iniPath, $swooleIni);
 
         parent::ddSetUpBeforeClass();
     }
