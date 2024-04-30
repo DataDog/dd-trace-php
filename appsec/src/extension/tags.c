@@ -64,6 +64,11 @@ typedef enum _automated_user_events_tracking_mode {
     SAFE,
     EXTENDED
 } automated_user_events_tracking_mode;
+typedef enum _user_event_triggered_mode {
+    NONE = 0,
+    AUTOMATED,
+    USER
+} user_event_triggered_mode;
 static THREAD_LOCAL_ON_ZTS automated_user_events_tracking_mode
     automated_user_events_tracking = SAFE;
 static zend_string *_mode_safe_cstr;
@@ -112,8 +117,8 @@ static zend_string *_id_zstr;
 static zend_string *_server_zstr;
 static HashTable _relevant_headers;       // headers for requests with attacks
 static HashTable _relevant_basic_headers; // headers for all requests
-static THREAD_LOCAL_ON_ZTS bool _user_event_triggered;
-static THREAD_LOCAL_ON_ZTS bool _user_event_triggered_by_user;
+static THREAD_LOCAL_ON_ZTS user_event_triggered_mode
+    _user_event_triggered_mode = NONE;
 static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
@@ -293,8 +298,7 @@ void dd_tags_shutdown()
 void dd_tags_rinit()
 {
     bool init_list = false;
-    _user_event_triggered = false;
-    _user_event_triggered_by_user = false;
+    _user_event_triggered_mode = NONE;
     if (UNEXPECTED(!_appsec_json_frags_inited)) {
         init_list = true;
         _appsec_json_frags_inited = true;
@@ -321,8 +325,10 @@ void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
 
 void dd_tags_set_user_event_triggered(bool trigger_by_user)
 {
-    _user_event_triggered = true;
-    _user_event_triggered_by_user = trigger_by_user;
+    if (_user_event_triggered_mode == USER) {
+        return;
+    }
+    _user_event_triggered_mode = trigger_by_user ? USER : AUTOMATED;
 }
 
 void dd_tags_set_event_user_id(zend_string *nonnull zstr)
@@ -343,8 +349,8 @@ void dd_tags_rshutdown()
 bool should_collect_all_headers()
 {
     return zend_llist_count(&_appsec_json_frags) > 0 ||
-           _user_event_triggered_by_user ||
-           (_user_event_triggered &&
+           _user_event_triggered_mode == USER ||
+           (_user_event_triggered_mode == AUTOMATED &&
                automated_user_events_tracking == EXTENDED);
 }
 
