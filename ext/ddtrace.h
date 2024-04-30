@@ -51,6 +51,7 @@ bool ddtrace_alter_default_propagation_style(zval *old_value, zval *new_value);
 bool ddtrace_alter_dd_env(zval *old_value, zval *new_value);
 bool ddtrace_alter_dd_version(zval *old_value, zval *new_value);
 void dd_force_shutdown_tracing(void);
+void dd_internal_handle_fork(void);
 
 typedef struct {
     int type;
