@@ -864,7 +864,6 @@ TEST_WEB_81 := \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
-	test_web_laravel_octane \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_magento_24 \
