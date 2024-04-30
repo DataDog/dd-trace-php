@@ -149,7 +149,7 @@ function runOneIteration()
             && !strpos($f->name, "Testing")
             && $f->name != "dd_trace_disable_in_request"
             && (PHP_VERSION_ID >= 70100 || $f->name != 'DDTrace\curl_multi_exec_get_request_spans')
-            && $f->name != "dd_handle_fork";
+            && $f->name != "DDTrace\Internal\handle_fork";
     });
 
     $props = array_filter(
