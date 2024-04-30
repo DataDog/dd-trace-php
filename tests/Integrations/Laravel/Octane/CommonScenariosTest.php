@@ -32,7 +32,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
             copy(__DIR__ . '/swoole.ini', self::$iniPath);
         } else {
             $swooleIni = file_get_contents(__DIR__ . '/swoole.ini');
-            $swooleIni = str_replace('/home/circleci/app', '/home/circleci/datadog', $swooleIni);
             $swooleIni = str_replace('datadog.autoload_no_compile=true', 'datadog.autoload_no_compile=false', $swooleIni);
             file_put_contents(self::$iniPath, $swooleIni);
         }
