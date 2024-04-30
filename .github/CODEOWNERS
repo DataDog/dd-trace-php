@@ -13,7 +13,6 @@ compile_rust.sh @Datadog/libdatadog-apm
 
 # APM IDM Team
 /src/ @DataDog/apm-idm-php
-/tests/ @DataDog/apm-idm-php
 
 # Release files
 Cargo.lock @DataDog/apm-php @DataDog/profiling-php @Datadog/libdatadog-apm
