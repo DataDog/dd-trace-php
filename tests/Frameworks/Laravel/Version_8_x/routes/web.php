@@ -39,6 +39,7 @@ Route::get('queue/jobFailure', [QueueTestController::class, 'jobFailure']);
 Route::get('queue/workOn', [QueueTestController::class, 'workOn']);
 Route::get('login/auth', [LoginTestController::class, 'auth']);
 Route::get('login/signup', [LoginTestController::class, 'register']);
+Route::get('/behind_auth', [LoginTestController::class, 'behind_auth'])->name('behind_auth')->middleware('auth');
 
 // This route has to remain unnamed so we test both route cached and not cached.
 Route::get('/unnamed-route', [RouteCachingController::class, 'unnamed']);

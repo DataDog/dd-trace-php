@@ -23,3 +23,7 @@ Route::get('/eloquent/destroy', 'EloquentTestController@destroy');
 Route::get('/eloquent/refresh', 'EloquentTestController@refresh');
 Route::get('/login/auth', 'LoginTestController@auth');
 Route::get('/login/signup', 'LoginTestController@register');
+Route::group(array('before' => 'auth'), function()
+{
+   Route::get('/behind_auth', 'LoginTestController@behind_auth');
+});

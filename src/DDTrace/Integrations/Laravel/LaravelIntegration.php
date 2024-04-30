@@ -400,11 +400,40 @@ class LaravelIntegration extends Integration
                     $metadata['email'] = $args[0]['email'];
                 }
 
+                \DDTrace\set_user($args[0]->getAuthIdentifier(), $metadata);
                 \datadog\appsec\track_user_login_success_event(
                     \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
                     $metadata,
                     true
                 );
+            }
+        );
+
+        // Used by Laravel < 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Guard',
+            'user',
+            null,
+            function ($This, $scope, $args, $user) use ($integration) {
+                $authClass = 'Illuminate\Auth\UserInterface';
+                if (
+                    !isset($user) ||
+                    !$user ||
+                    !($user instanceof $authClass) ||
+                    !\method_exists($user, 'getAuthIdentifier')
+                ) {
+                    return;
+                }
+
+                $metadata = [];
+                if (isset($user['name'])) {
+                    $metadata['name'] = $user['name'];
+                }
+                if (isset($user['email'])) {
+                    $metadata['email'] = $user['email'];
+                }
+
+                \DDTrace\set_user($user->getAuthIdentifier(), $metadata);
             }
         );
 
@@ -440,6 +469,36 @@ class LaravelIntegration extends Integration
                     [],
                     true
                 );
+            }
+        );
+
+        // Used by Laravel >= 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Events\Authenticated',
+            '__construct',
+            null,
+            function ($This, $scope, $args) use ($integration) {
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
+                if (
+                    !isset($args[1]) ||
+                    !$args[1] ||
+                    !($args[1] instanceof $authClass)
+                ) {
+                    return;
+                }
+
+                $meta = [];
+                $user = $args[1];
+                if (isset($user->name)) {
+                    $meta['name'] = $user->name;
+                }
+                if (isset($user->email)) {
+                    $meta['email'] = $user->email;
+                }
+
+                if (\method_exists($user, 'getAuthIdentifier')) {
+                    \DDTrace\set_user($user->getAuthIdentifier(), $meta);
+                }
             }
         );
 
