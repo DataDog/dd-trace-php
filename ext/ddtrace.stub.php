@@ -635,26 +635,46 @@ namespace DDTrace {
 
     /**
      * Update a DogStatsD counter
+     *
+     * @param string $metric The metric name
+     * @param int $value The metric value
+     * @param array $tags A list of tags associated to the metric
      */
     function dogstatsd_count(string $metric, int $value, array $tags = []): void {}
 
     /**
      * Update a DogStatsD distribution
+     *
+     * @param string $metric The metric name
+     * @param float $value The metric value
+     * @param array $tags A list of tags associated to the metric
      */
     function dogstatsd_distribution(string $metric, float $value, array $tags = []): void {}
 
     /**
      * Update a DogStatsD gauge
+     *
+     * @param string $metric The metric name
+     * @param float $value The metric value
+     * @param array $tags A list of tags associated to the metric
      */
     function dogstatsd_gauge(string $metric, float $value, array $tags = []): void {}
 
     /**
-     * Update a DogStatsD distribution
+     * Update a DogStatsD histogram
+     *
+     * @param string $metric The metric name
+     * @param float $value The metric value
+     * @param array $tags A list of tags associated to the metric
      */
     function dogstatsd_histogram(string $metric, float $value, array $tags = []): void {}
 
     /**
      * Update a DogStatsD set
+     *
+     * @param string $metric The metric name
+     * @param int $value The metric value
+     * @param array $tags A list of tags associated to the metric
      */
     function dogstatsd_set(string $metric, int $value, array $tags = []): void {}
 }
