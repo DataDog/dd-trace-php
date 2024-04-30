@@ -1,5 +1,5 @@
 --TEST--
-All headers are collected when track_user_signup_event is triggered by automation and extended mode is set
+All headers are collected when track_user_login_success_event is triggered by automation and extended mode is set
 --INI--
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
@@ -44,7 +44,7 @@ key=val
 <?php
 use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,rshutdown,mlog};
 use const datadog\appsec\testing\log_level\DEBUG;
-use function datadog\appsec\track_user_signup_event;
+use function datadog\appsec\track_user_login_success_event;
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
@@ -60,7 +60,7 @@ $helper = Helper::createInitedRun([
 rinit();
 $helper->get_commands(); //ignore
 
-track_user_signup_event("1234", [], true);
+track_user_login_success_event("1234", [], true);
 
 rshutdown();
 $helper->get_commands(); //ignore

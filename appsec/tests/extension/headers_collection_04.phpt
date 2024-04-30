@@ -1,5 +1,5 @@
 --TEST--
-All headers are collected when track_user_login_success_event is triggered
+All headers are collected when track_user_login_success_event is triggered by user
 --INI--
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
@@ -59,7 +59,7 @@ $helper = Helper::createInitedRun([
 rinit();
 $helper->get_commands(); //ignore
 
-track_user_login_success_event("1234", [], true);
+track_user_login_success_event("1234", [], false);
 
 rshutdown();
 $helper->get_commands(); //ignore
