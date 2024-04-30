@@ -1,19 +1,24 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laravel\V4;
+namespace DDTrace\Tests\Integrations\Laravel\V10_x;
 
 use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
-/**
- * @group appsec
- */
 class AutomatedLoginEventsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_10_x/public/index.php';
+    }
+
+    protected static function getEnvs()
+    {
+        return array_merge(parent::getEnvs(), [
+            'APP_NAME' => 'laravel_test_app',
+            'DD_SERVICE' => 'my_service'
+        ]);
     }
 
     protected function ddSetUp()
@@ -25,9 +30,7 @@ class AutomatedLoginEventsTest extends AppsecTestCase
 
     protected function login($email)
     {
-        $this->call(
-            GetSpec::create('Login success event', '/login/auth?email='.$email)
-        );
+        return $this->call(GetSpec::create('Login success event', '/login/auth?email='.$email));
     }
 
     protected function createUser($id, $name, $email) {
@@ -42,7 +45,7 @@ class AutomatedLoginEventsTest extends AppsecTestCase
         $email = 'test-user@email.com';
         $this->createUser($id, $name, $email);
 
-        $this->login($email);
+        $traces = $this->tracesFromWebRequest(function () use ($email) { $this->login($email); });
 
         $events = AppsecStatus::getInstance()->getEvents();
         $this->assertEquals(1, count($events));
@@ -51,6 +54,26 @@ class AutomatedLoginEventsTest extends AppsecTestCase
         $this->assertEquals($email, $events[0]['metadata']['email']);
         $this->assertTrue($events[0]['automated']);
         $this->assertEquals('track_user_login_success_event', $events[0]['eventName']);
+    }
+
+    public function testLoggedInCalls()
+    {
+        $this->enableSession();
+        $id = 1234;
+        $name = 'someName';
+        $email = 'test-user@email.com';
+        $this->createUser($id, $name, $email);
+
+        //First log in
+        $this->login($email);
+
+        //Now we are logged in lets do another call
+        AppsecStatus::getInstance()->setDefaults(); //Remove all events
+        $this->call(GetSpec::create('Behind auth', '/behind_auth'));
+
+        $events = AppsecStatus::getInstance()->getEvents();
+        $this->assertEquals(0, count($events)); //Auth does not generate appsec events
+        $this->disableSession();
     }
 
     public function testUserLoginFailureEvent()
@@ -89,25 +112,5 @@ class AutomatedLoginEventsTest extends AppsecTestCase
 
         $this->assertTrue($signUpEvent['automated']);
         $this->assertEquals($users[0]['id'], $signUpEvent['userId']);
-    }
-
-    public function testLoggedInCalls()
-    {
-        $this->enableSession();
-        $id = 1234;
-        $name = 'someName';
-        $email = 'test-user@email.com';
-        $this->createUser($id, $name, $email);
-
-        //First log in
-        $this->login($email);
-
-        //Now we are logged in lets do another call
-        AppsecStatus::getInstance()->setDefaults(); //Remove all events
-        $this->call(GetSpec::create('Behind auth', '/behind_auth'));
-
-        $events = AppsecStatus::getInstance()->getEvents();
-        $this->assertEquals(0, count($events)); //Auth does not generate appsec events
-        $this->disableSession();
     }
 }

@@ -30,13 +30,17 @@ class AutomatedLoginEventsTest extends AppsecTestCase
         );
     }
 
+    protected function createUser($id, $name, $email) {
+        //Password is password
+        $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
+    }
+
     public function testUserLoginSuccessEvent()
     {
         $id = 1234;
         $name = 'someName';
         $email = 'test-user@email.com';
-        //Password is password
-        $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
+        $this->createUser($id, $name, $email);
 
         $this->login($email);
 
@@ -85,5 +89,25 @@ class AutomatedLoginEventsTest extends AppsecTestCase
 
         $this->assertTrue($signUpEvent['automated']);
         $this->assertEquals($users[0]['id'], $signUpEvent['userId']);
+    }
+
+    public function testLoggedInCalls()
+    {
+        $this->enableSession();
+        $id = 1234;
+        $name = 'someName';
+        $email = 'test-user@email.com';
+        $this->createUser($id, $name, $email);
+
+        //First log in
+        $this->login($email);
+
+        //Now we are logged in lets do another call
+        AppsecStatus::getInstance()->setDefaults(); //Remove all events
+        $this->call(GetSpec::create('Behind auth', '/behind_auth'));
+
+        $events = AppsecStatus::getInstance()->getEvents();
+        $this->assertEquals(0, count($events)); //Auth does not generate appsec events
+        $this->disableSession();
     }
 }
