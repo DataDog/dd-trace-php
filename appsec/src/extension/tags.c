@@ -112,6 +112,7 @@ static zend_string *_id_zstr;
 static zend_string *_server_zstr;
 static HashTable _relevant_headers;       // headers for requests with attacks
 static HashTable _relevant_basic_headers; // headers for all requests
+static THREAD_LOCAL_ON_ZTS bool _extended_user_event_triggered;
 static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
@@ -121,8 +122,8 @@ static THREAD_LOCAL_ON_ZTS bool _force_keep;
 static void _init_relevant_headers(void);
 static zend_string *_concat_json_fragments(void);
 static void _zend_string_release_indirect(void *s);
-static void _add_basic_ancillary_tags(
-    zend_object *nonnull span, const zend_array *nonnull server);
+static void _add_basic_ancillary_tags(zend_object *nonnull span,
+    const zend_array *nonnull server, HashTable *headers);
 static bool _add_all_ancillary_tags(
     zend_object *nonnull span, const zend_array *nonnull server);
 void _set_runtime_family(zend_object *nonnull span);
@@ -291,6 +292,7 @@ void dd_tags_shutdown()
 void dd_tags_rinit()
 {
     bool init_list = false;
+    _extended_user_event_triggered = false;
     if (UNEXPECTED(!_appsec_json_frags_inited)) {
         init_list = true;
         _appsec_json_frags_inited = true;
@@ -356,9 +358,13 @@ void dd_tags_add_tags(
     }
 
     if (zend_llist_count(&_appsec_json_frags) == 0) {
-        if (server) {
-            _add_basic_ancillary_tags(span, server);
+        if (!server) {
+            return;
         }
+
+        _add_basic_ancillary_tags(span, server,
+            _extended_user_event_triggered ? &_relevant_headers
+                                           : &_relevant_basic_headers);
         return;
     }
 
@@ -442,7 +448,7 @@ static zend_string *_concat_json_fragments()
 }
 
 static void _add_basic_tags_to_meta(
-    zval *nonnull meta, const zend_array *nonnull server);
+    zval *nonnull meta, const zend_array *nonnull server, HashTable *headers);
 static void _add_all_tags_to_meta(
     zval *nonnull meta, const zend_array *nonnull server);
 static void _dd_http_method(zend_array *meta_ht);
@@ -460,15 +466,15 @@ static void _dd_response_headers(zend_array *meta_ht);
 static void _dd_event_user_id(zend_array *meta_ht);
 static void _dd_appsec_blocked(zend_array *meta_ht);
 
-static void _add_basic_ancillary_tags(
-    zend_object *nonnull span, const zend_array *nonnull server)
+static void _add_basic_ancillary_tags(zend_object *nonnull span,
+    const zend_array *nonnull server, HashTable *headers)
 {
     zval *nullable meta = dd_trace_span_get_meta(span);
     if (!meta) {
         return;
     }
 
-    _add_basic_tags_to_meta(meta, server);
+    _add_basic_tags_to_meta(meta, server, headers);
 }
 
 static bool _add_all_ancillary_tags(
@@ -485,12 +491,13 @@ static bool _add_all_ancillary_tags(
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static void _add_basic_tags_to_meta(
-    zval *nonnull meta, const zend_array *nonnull _server)
+    zval *nonnull meta, const zend_array *nonnull _server, HashTable *headers)
 {
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     _dd_http_client_ip(meta_ht);
-    _dd_request_headers(meta_ht, _server, &_relevant_basic_headers);
+
+    _dd_request_headers(meta_ht, _server, headers);
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -898,6 +905,14 @@ static zval *nullable _root_span_get_meta()
     return meta;
 }
 
+static void _set_extended_user_event_triggered(bool automated)
+{
+    if (automated && automated_user_events_tracking != EXTENDED) {
+        return;
+    }
+    _extended_user_event_triggered = true;
+}
+
 static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
 {
     UNUSED(return_value);
@@ -941,6 +956,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
     if (!meta) {
         return;
     }
+
+    _set_extended_user_event_triggered(automated);
 
     zend_array *meta_ht = Z_ARRVAL_P(meta);
     bool override = !automated;
@@ -1018,6 +1035,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
         return;
     }
 
+    _set_extended_user_event_triggered(automated);
+
     zend_array *meta_ht = Z_ARRVAL_P(meta);
     bool override = !automated;
 
@@ -1092,6 +1111,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
     if (!meta) {
         return;
     }
+
+    _set_extended_user_event_triggered(automated);
 
     zend_array *meta_ht = Z_ARRVAL_P(meta);
     bool override = !automated;
@@ -1259,7 +1280,7 @@ static PHP_FUNCTION(datadog_appsec_testing_add_basic_ancillary_tags)
         mlog(dd_log_warning, "Could not retrieve _SERVER");
         return;
     }
-    _add_basic_tags_to_meta(arr, Z_ARRVAL_P(server));
+    _add_basic_tags_to_meta(arr, Z_ARRVAL_P(server), &_relevant_basic_headers);
 }
 
 // clang-format off
