@@ -352,7 +352,8 @@ void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, ze
 
     if (priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         dd_update_decision_maker_tag(root_span, mechanism);
-        root_span->explicit_sampling_priority = true;
+        // Default is never explicit - e.g. distributed tracing.
+        root_span->explicit_sampling_priority = mechanism != DD_MECHANISM_DEFAULT;
     }
 }
 
