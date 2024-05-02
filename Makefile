@@ -479,7 +479,7 @@ cores:
 # TESTS
 ########################################################################################################################
 TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
-ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true) DD_TRACE_CLI_ENABLED=true
+ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_TRACE_CLI_ENABLED=true
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
 
