@@ -43,6 +43,7 @@ static ddtrace_profiling_context noop_get_profiling_context(void) {
 }
 
 #if PHP_VERSION_ID >= 80300
+const char *php_version(void);
 unsigned int php_version_id(void);
 #else
 // Forward declare zend_get_constant_str which will be used to polyfill the
@@ -80,6 +81,23 @@ sapi_request_info datadog_sapi_globals_request_info() {
  * extension was built against at compile-time.
  */
 uint32_t ddog_php_prof_php_version_id(void) { return php_version_id(); }
+
+/**
+ * Returns the PHP_VERSION of the engine at run-time, not the version the
+ * extension was built against at compile-time.
+ */
+const char *ddog_php_prof_php_version(void) {
+#if PHP_VERSION_ID >= 80300
+    return php_version();
+#else
+    // Reflection uses the PHP_VERSION as its version, see:
+    // https://github.com/php/php-src/blob/PHP-8.1.4/ext/reflection/php_reflection.h#L25
+    // https://github.com/php/php-src/blob/PHP-8.1.4/ext/reflection/php_reflection.c#L7157
+    // It goes back to at least PHP 7.1:
+    // https://github.com/php/php-src/blob/PHP-7.1/ext/reflection/php_reflection.h
+    return zend_get_module_version("Reflection");
+#endif
+}
 
 #if CFG_POST_STARTUP_CB // defined by build.rs
 static bool _is_post_startup = false;
