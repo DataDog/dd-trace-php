@@ -220,6 +220,13 @@ class LaravelIntegration extends Integration
                     $span->service = $integration->getServiceName();
                     $span->resource = is_object($args[0]) ? get_class($args[0]) : $args[0];
                     $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+
+                    if ($span->resource === 'Laravel\Octane\Events\RequestReceived') {
+                        $rootSpan = \DDTrace\root_span();
+                        $rootSpan->name = 'laravel.request';
+                        $rootSpan->service = $integration->getServiceName();
+                        $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                    }
                 },
                 'recurse' => true,
             ]

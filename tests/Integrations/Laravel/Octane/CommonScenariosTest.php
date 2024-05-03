@@ -68,7 +68,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
             foreach ($traces as $trace) {
                 foreach ($trace as $span) {
-                    if ($span && isset($span["name"]) && $span["name"] === "web.request") {
+                    if ($span
+                        && isset($span["name"])
+                        && $span["name"] === "laravel.request"
+                        && (str_contains($span["resource"], 'App\\Http\\Controllers') || $span["resource"] === 'GET /does_not_exist')
+                    ) {
                         return true;
                     }
                 }
@@ -88,14 +92,14 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "web.request") {
+            if ($trace[0]["name"] === "laravel.request") {
                 $webRequestTrace = $trace;
             }
         }
 
         $this->assertFlameGraph([$webRequestTrace], [
             SpanAssertion::build(
-                'web.request',
+                'laravel.request',
                 'swoole_test_app',
                 'web',
                 'App\Http\Controllers\CommonSpecsController@simple simple_route'
@@ -105,7 +109,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 Tag::HTTP_ROUTE => 'simple',
                 Tag::HTTP_STATUS_CODE => '200',
                 Tag::SPAN_KIND => 'server',
-                Tag::COMPONENT => 'swoole',
+                Tag::COMPONENT => 'laravel',
                 'laravel.route.name' => 'simple_route',
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple',
             ])->withChildren([
@@ -134,7 +138,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
             foreach ($traces as $trace) {
                 foreach ($trace as $span) {
-                    if ($span && isset($span["name"]) && $span["name"] === "web.request") {
+                    if ($span && isset($span["name"]) && $span["name"] === "laravel.request") {
                         return true;
                     }
                 }
@@ -154,14 +158,14 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "web.request") {
+            if ($trace[0]["name"] === "laravel.request") {
                 $webRequestTrace = $trace;
             }
         }
 
         $this->assertFlameGraph([$webRequestTrace], [
             SpanAssertion::build(
-                'web.request',
+                'laravel.request',
                 'swoole_test_app',
                 'web',
                 'App\Http\Controllers\CommonSpecsController@simple_view unnamed_route'
@@ -171,7 +175,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 Tag::HTTP_ROUTE => 'simple_view',
                 Tag::HTTP_STATUS_CODE => '200',
                 Tag::SPAN_KIND => 'server',
-                Tag::COMPONENT => 'swoole',
+                Tag::COMPONENT => 'laravel',
                 'laravel.route.name' => 'unnamed_route',
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple_view',
             ])->withChildren([
@@ -217,7 +221,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
             foreach ($traces as $trace) {
                 foreach ($trace as $span) {
-                    if ($span && isset($span["name"]) && $span["name"] === "web.request") {
+                    if ($span && isset($span["name"]) && $span["name"] === "laravel.request") {
                         return true;
                     }
                 }
@@ -237,14 +241,14 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "web.request") {
+            if ($trace[0]["name"] === "laravel.request") {
                 $webRequestTrace = $trace;
             }
         }
 
         $this->assertFlameGraph([$webRequestTrace], [
             SpanAssertion::build(
-                'web.request',
+                'laravel.request',
                 'swoole_test_app',
                 'web',
                 'App\Http\Controllers\CommonSpecsController@error unnamed_route'
@@ -254,7 +258,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 Tag::HTTP_ROUTE => 'error',
                 Tag::HTTP_STATUS_CODE => '500',
                 Tag::SPAN_KIND => 'server',
-                Tag::COMPONENT => 'swoole',
+                Tag::COMPONENT => 'laravel',
                 'laravel.route.name' => 'unnamed_route',
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@error',
             ])->setError('Exception', 'Controller error', true)->withChildren([
@@ -282,7 +286,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
             foreach ($traces as $trace) {
                 foreach ($trace as $span) {
-                    if ($span && isset($span["name"]) && $span["name"] === "web.request") {
+                    if ($span && isset($span["name"]) && $span["name"] === "laravel.request") {
                         return true;
                     }
                 }
@@ -302,14 +306,14 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "web.request") {
+            if ($trace[0]["name"] === "laravel.request") {
                 $webRequestTrace = $trace;
             }
         }
 
         $this->assertFlameGraph([$webRequestTrace], [
             SpanAssertion::build(
-                'web.request',
+                'laravel.request',
                 'swoole_test_app',
                 'web',
                 'GET /does_not_exist'
@@ -318,7 +322,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 Tag::HTTP_URL => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
                 Tag::HTTP_STATUS_CODE => '404',
                 Tag::SPAN_KIND => 'server',
-                Tag::COMPONENT => 'swoole',
+                Tag::COMPONENT => 'laravel',
             ])->withChildren([
                 SpanAssertion::build(
                     'laravel.view.render',

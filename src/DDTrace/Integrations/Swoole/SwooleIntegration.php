@@ -141,6 +141,7 @@ class SwooleIntegration extends Integration
         \DDTrace\hook_method(
             'Swoole\Http\Server',
             '__construct',
+            null,
             function ($server) use ($integration) {
                 foreach (['workerstart', 'workerstop', 'workerexit', 'workererror'] as $serverEvent) {
                     $server->on($serverEvent, function () { });
