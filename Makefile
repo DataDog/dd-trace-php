@@ -363,11 +363,23 @@ clang_format_fix:
 cbindgen: remove_cbindgen generate_cbindgen
 
 remove_cbindgen:
-	for h in components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h; do if [ -f "$$h" ]; then rm "$$h"; fi; done
+	rm -f components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h
 
-generate_cbindgen: components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h
+generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h
 	( \
+		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
+			--config cbindgen.toml \
+			--output $(PROJECT_ROOT)/components-rs/ddtrace.h; \
 		cd libdatadog; \
+		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
+			--config ddcommon-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/components-rs/common.h; \
+		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
+			--config ddtelemetry-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/components-rs/telemetry.h; \
+		$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
+			--config sidecar-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/components-rs/sidecar.h; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
 			mkdir -pv "$(BUILD_DIR)"; \
 			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
@@ -375,41 +387,9 @@ generate_cbindgen: components-rs/ddtrace.h components-rs/telemetry.h components-
 		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h  \
 	)
 
-components-rs/common.h:
-	( \
-		if command -v cbindgen &> /dev/null; then \
-			cd libdatadog; \
-			$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
-				--config ddcommon-ffi/cbindgen.toml \
-				--output $(PROJECT_ROOT)/$@; \
-		fi \
-	)
-
-components-rs/telemetry.h:
-	( \
-		if command -v cbindgen &> /dev/null; then \
-			cd libdatadog; \
-			$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
-				--config ddtelemetry-ffi/cbindgen.toml \
-				--output $(PROJECT_ROOT)/$@; \
-		fi \
-	)
-
-components-rs/sidecar.h:
-	( \
-		if command -v cbindgen &> /dev/null; then \
-			cd libdatadog; \
-			$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
-				--config sidecar-ffi/cbindgen.toml \
-				--output $(PROJECT_ROOT)/$@; \
-		fi \
-	)
-
-components-rs/ddtrace.h:
-	if command -v cbindgen &> /dev/null; then \
-		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
-			--config cbindgen.toml \
-			--output $(PROJECT_ROOT)/$@; \
+cbindgen_binary:
+	if ! command -v cbindgen &> /dev/null; then \
+		cargo install cbindgen; \
 	fi
 
 EXT_DIR:=/opt/datadog-php
@@ -1439,4 +1419,4 @@ composer.lock: composer.json
 	$(Q) $(COMPOSER) update
 
 .PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
-	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen
+	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen cbindgen_binary

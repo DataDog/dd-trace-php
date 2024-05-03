@@ -37,9 +37,10 @@ $ composer fix-lint
 #### Start your container
 
 While tests in CI run on all php versions, you typically develop on one version locally. Currently the latest local
-dev environment we support is `8.0`.
+dev environment we support is `8.3`.
 
-Ensure that docker has at least 4 GB of RAM available, otherwise composer may run out of memory.
+Ensure that docker has at least 12 GB of RAM available, otherwise composer may run out of memory or the tmpfs volume
+used to build the extension may run out of space.
 
 Execute one the following commands from your command line, this will bring up all required services:
 
@@ -60,6 +61,8 @@ $ docker-compose run --rm 8.0-buster bash
 $ docker-compose run --rm 8.1-buster bash
 # For 8.2
 $ docker-compose run --rm 8.2-buster bash
+# For 8.3
+$ docker-compose run --rm 8.3-buster bash
 ```
 
 > :memo: **Note:** To run the container in debug mode, pass `docker-compose` an environment variable: `DD_TRACE_DOCKER_DEBUG=1`, eg:
@@ -156,7 +159,7 @@ In order to run the `phpt` tests for the php extension:
 $ composer test-ext
 ```
 
-#### Treardown the environment
+#### Teardown the environment
 
 When you're done with development, you can stop and remove the containers with the following:
 
