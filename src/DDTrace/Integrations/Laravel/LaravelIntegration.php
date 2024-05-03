@@ -443,6 +443,22 @@ class LaravelIntegration extends Integration
             }
         );
 
+        // Laravel Octane
+        \DDTrace\hook_method(
+            'Laravel\Octane\Worker',
+            'handle',
+            function () use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
+                $rootSpan->name = 'laravel.request';
+                $rootSpan->service = $integration->getServiceName();
+                $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+            }
+        );
+
         return Integration::LOADED;
     }
 
