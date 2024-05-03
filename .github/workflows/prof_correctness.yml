@@ -150,3 +150,10 @@ jobs:
         with:
           expected_json: profiling/tests/correctness/exceptions.json
           pprof_path: profiling/tests/correctness/exceptions/
+
+      - name: Notify Slack
+        if: failure() && github.ref == 'refs/heads/master'
+        run: |
+          curl -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "{'scenarios': 'PHP', 'failed_run_url': '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'}"
