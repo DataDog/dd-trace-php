@@ -13,6 +13,7 @@ use Swoole\Http\Response;
 use Swoole\Http\Server;
 use function DDTrace\consume_distributed_tracing_headers;
 use function DDTrace\extract_ip_from_headers;
+use function DDTrace\Internal\handle_fork;
 
 class SwooleIntegration extends Integration
 {
@@ -105,6 +106,27 @@ class SwooleIntegration extends Integration
         );
     }
 
+    public function instrumentWorkerStart(callable $callback, SwooleIntegration $integration, Server $server)
+    {
+        \DDTrace\install_hook(
+            $callback,
+            function (HookData $hook) use ($integration, $server) {
+                handle_fork();
+            }
+        );
+    }
+
+    public function instrumentWorkerStop(callable $callback, SwooleIntegration $integration, Server $server)
+    {
+        \DDTrace\install_hook(
+            $callback,
+            null,
+            function (HookData $hook) use ($integration, $server) {
+                handle_fork();
+            }
+        );
+    }
+
     public function init(): int
     {
         if (version_compare(swoole_version(), '5.0.2', '<')) {
@@ -118,6 +140,16 @@ class SwooleIntegration extends Integration
 
         \DDTrace\hook_method(
             'Swoole\Http\Server',
+            '__construct',
+            function ($server) use ($integration) {
+                foreach (['workerstart', 'workerstop', 'workerexit', 'workererror'] as $serverEvent) {
+                    $server->on($serverEvent, function () { });
+                }
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Swoole\Http\Server',
             'on',
             null,
             function ($server, $scope, $args, $retval) use ($integration) {
@@ -127,9 +159,21 @@ class SwooleIntegration extends Integration
 
                 list($eventName, $callback) = $args;
 
-                if ($eventName === 'request') {
-                    $integration->instrumentRequestStart($callback, $integration, $server);
+                $eventName = strtolower($eventName);
+                switch ($eventName) {
+                    case 'request':
+                        $integration->instrumentRequestStart($callback, $integration, $server);
+                        break;
+                    case 'workerstart':
+                        $integration->instrumentWorkerStart($callback, $integration, $server);
+                        break;
+                    case 'workerstop':
+                    case 'workerexit':
+                    case 'workererror':
+                        $integration->instrumentWorkerStop($callback, $integration, $server);
+                        break;
                 }
+
             }
         );
 

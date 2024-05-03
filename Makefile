@@ -918,6 +918,7 @@ TEST_WEB_82 := \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
 	test_web_laravel_11x \
+	test_web_laravel_octane \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
@@ -972,6 +973,7 @@ TEST_WEB_83 := \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
 	test_web_laravel_11x \
+	test_web_laravel_octane \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
@@ -1306,6 +1308,10 @@ test_web_laravel_10x: global_test_run_dependencies
 test_web_laravel_11x: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_11_x,)
 	$(call run_tests_debug,--testsuite=laravel-11x-test)
+test_web_laravel_octane: global_test_run_dependencies
+	$(MAKE) test_scenario_swoole5
+	$(call run_composer_with_retry,tests/Frameworks/Laravel/Octane,)
+	$(call run_tests_debug,--testsuite=laravel-octane-test)
 test_web_lumen_52: global_test_run_dependencies
 	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_5_2,)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_2)

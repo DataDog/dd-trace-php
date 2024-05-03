@@ -722,6 +722,13 @@ namespace DDTrace\Internal {
      * @param int $flag the flag to add to the span
      */
     function add_span_flag(\DDTrace\SpanData $span, int $flag): void {}
+
+    /**
+     * To be called when a fork is performed.
+     *
+     * @internal
+     */
+    function handle_fork(): void {}
 }
 
 namespace {

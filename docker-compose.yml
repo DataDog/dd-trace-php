@@ -44,7 +44,7 @@ x-aliases:
         - seccomp:unconfined
       # Privileged is required to run some pcntl tests locally as well as native profiler.
       privileged: true
-      
+
   - &windows_php_service
       volumes:
         - .:C:\Users\ContainerAdministrator\app
@@ -223,7 +223,6 @@ services:
       - SNAPSHOTS_DIR=/snapshots
       - SNAPSHOT_CI=0
       - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.process_id
-      - SNAPSHOT_IGNORED_ATTRS=meta._dd.parent_id,meta.tracestate
       - ENABLED_CHECKS=trace_stall,trace_peer_service,trace_dd_service
 
 

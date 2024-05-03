@@ -96,6 +96,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         return false;
     }
 
+    protected static function isOctane()
+    {
+        return false;
+    }
+
     protected static function isFrankenphp()
     {
         return false;
@@ -164,8 +169,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             if ($version = static::getRoadrunnerVersion()) {
                 self::$appServer->setRoadrunner($version);
             }
-            if ($version = static::isSwoole()) {
-                self::$appServer->setSwoole($version);
+            if (static::isOctane()) {
+                self::$appServer->setOctane();
+            }
+            if (static::isSwoole()) {
+                self::$appServer->setSwoole();
             }
             if (static::isFrankenphp()) {
                 if (!ZEND_THREAD_SAFE) {
