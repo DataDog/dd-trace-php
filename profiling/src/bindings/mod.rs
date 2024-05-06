@@ -327,6 +327,10 @@ extern "C" {
     /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
     /// the extension was built against at compile-time.
     pub fn ddog_php_prof_php_version_id() -> u32;
+
+    /// Returns the PHP_VERSION of the engine at run-time, not the version the
+    /// extension was built against at compile-time.
+    pub fn ddog_php_prof_php_version() -> *const c_char;
 }
 
 #[cfg(php_post_startup_cb)]
