@@ -1,5 +1,5 @@
 # Libdatadog
-Common components are integrated in dd-tracer-php by importing the source code from libdatadog repository. As stated in
+Common components are integrated in dd-trace-php by importing the source code from the libdatadog repository. As stated in
 the [contributing file](https://github.com/DataDog/dd-trace-php/CONTRIBUTING.md) the code is imported by using git
 submodules which downloads the sources into libdatadog folder located at the project’s root directory.
 ## Integration
@@ -12,7 +12,7 @@ functionality to:
 The compilation process is handled by a [compile script](https://github.com/DataDog/dd-trace-php/compile_rust.sh) which
 is instantiated from the main Makefile.
 Once the library is assembled its contents are linked in ddtrace.so which is the main objective in the Makefile. This
-library is the extension which the PHP engine will load on runtime in order to provide all tracing functionality.
+library is the extension which the PHP engine will load at runtime in order to provide all tracing functionality.
 
 ## Adding new features
 Upon adding new modules in the libdatadog repository there is the need to create the neccessary glue code in the php

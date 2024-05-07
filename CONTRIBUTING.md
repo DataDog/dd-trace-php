@@ -11,7 +11,7 @@ git submodule init
 git submodule update
 ```
 
-To integrate new features from datadog shared library please refer to this [guide](https://github.com/DataDog/dd-trace-php/LIBDATADOG.md).
+To integrate new tracing and profiling features from the datadog shared library please refer to this [guide](https://github.com/DataDog/dd-trace-php/LIBDATADOG.md).
 
 ## Getting set up with Docker
 
