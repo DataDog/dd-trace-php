@@ -58,7 +58,7 @@ TEST(EngineTest, SingleSubscriptor)
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {"block"}}));
+        .WillRepeatedly(Return(subscriber::event{{}, {{"block_request", {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -91,7 +91,7 @@ TEST(EngineTest, MultipleSubscriptors)
                                    -> std::optional<dds::subscriber::event> {
             std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
             if (subs.find(data[0].parameterName) != subs.end()) {
-                return subscriber::event{{"some event"}, {"block"}};
+                return subscriber::event{{"some event"}, {{"block_request", {}}}};
             }
             return std::nullopt;
         }));
@@ -197,10 +197,10 @@ TEST(EngineTest, StatefulSubscriptor)
         .Times(6)
         .WillOnce(Return(std::nullopt))
         .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(subscriber::event{{}, {"block"}}))
+        .WillOnce(Return(subscriber::event{{}, {{"block_request", {}}}}))
         .WillOnce(Return(std::nullopt))
         .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(subscriber::event{{}, {"block"}}));
+        .WillOnce(Return(subscriber::event{{}, {{"block_request", {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -246,13 +246,11 @@ TEST(EngineTest, StatefulSubscriptor)
 
 TEST(EngineTest, CustomActions)
 {
-    auto e{engine::create(engine_settings::default_trace_rate_limit,
-        {{"redirect",
-            {engine::action_type::redirect, {{"url", "datadoghq.com"}}}}})};
+    auto e{engine::create(engine_settings::default_trace_rate_limit)};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {"redirect"}}));
+        .WillRepeatedly(Return(subscriber::event{{}, {{"redirect_request", {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -347,7 +345,7 @@ TEST(EngineTest, ActionsParserBlockRequest)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 1);
     EXPECT_NE(parsed_actions.find("cabbage"), parsed_actions.end());
 
@@ -373,7 +371,7 @@ TEST(EngineTest, ActionsParserRedirectRequest)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 1);
     EXPECT_NE(parsed_actions.find("cabbage"), parsed_actions.end());
 
@@ -393,7 +391,7 @@ TEST(EngineTest, ActionsParseInvalidActionsType)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 0);
 }
 
@@ -405,7 +403,7 @@ TEST(EngineTest, ActionsParseInvalidActionType)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 0);
 }
 
@@ -419,7 +417,7 @@ TEST(EngineTest, ActionsParserNoId)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 0);
 }
 
@@ -433,7 +431,7 @@ TEST(EngineTest, ActionsParserWrongIdType)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 0);
 }
 
@@ -447,7 +445,7 @@ TEST(EngineTest, ActionsParserNoType)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 0);
 }
 
@@ -461,7 +459,7 @@ TEST(EngineTest, ActionsParserWrongTypeType)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 0);
 }
 
@@ -475,7 +473,7 @@ TEST(EngineTest, ActionsParserInvalidType)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 0);
 }
 
@@ -489,7 +487,7 @@ TEST(EngineTest, ActionsParserNoParameters)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 0);
 }
 
@@ -503,7 +501,7 @@ TEST(EngineTest, ActionsParserWrongParametersType)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 0);
 }
 
@@ -517,7 +515,7 @@ TEST(EngineTest, ActionsParserMultiple)
     EXPECT_NE(result, nullptr);
     EXPECT_TRUE(doc.IsObject());
 
-    auto parsed_actions = engine::parse_actions(doc, {});
+    auto parsed_actions = engine::parse_actions(doc);
     EXPECT_EQ(parsed_actions.size(), 2);
 }
 
@@ -984,13 +982,11 @@ TEST(EngineTest, RateLimiterForceKeep)
 {
     // Rate limit 0 allows all calls
     int rate_limit = 0;
-    auto e{engine::create(rate_limit,
-        {{"redirect",
-            {engine::action_type::redirect, {{"url", "datadoghq.com"}}}}})};
+    auto e{engine::create(rate_limit)};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {"redirect"}}));
+        .WillRepeatedly(Return(subscriber::event{{}, {{"redirect", {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -1007,13 +1003,11 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
 {
     // Lets set max 1 per second and do two calls
     int rate_limit = 1;
-    auto e{engine::create(rate_limit,
-        {{"redirect",
-            {engine::action_type::redirect, {{"url", "datadoghq.com"}}}}})};
+    auto e{engine::create(rate_limit)};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {"redirect"}}));
+        .WillRepeatedly(Return(subscriber::event{{}, {{"redirect", {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));

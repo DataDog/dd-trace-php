@@ -48,7 +48,7 @@ TEST(WafTest, InitWithInvalidRules)
         waf::instance::from_settings(cs, ruleset, meta, metrics)};
 
     EXPECT_EQ(meta.size(), 2);
-    EXPECT_STREQ(meta[std::string(tag::waf_version)].c_str(), "1.16.0");
+    EXPECT_STREQ(meta[std::string(tag::waf_version)].c_str(), "1.17.0");
 
     rapidjson::Document doc;
     doc.Parse(meta[std::string(tag::event_rules_errors)]);
@@ -271,7 +271,7 @@ TEST(WafTest, UpdateRuleData)
             "192.168.1.1");
 
         EXPECT_EQ(res->actions.size(), 1);
-        EXPECT_STREQ(res->actions.begin()->c_str(), "block");
+        EXPECT_STREQ(res->actions.begin()->type.c_str(), "block_request");
     }
 }
 

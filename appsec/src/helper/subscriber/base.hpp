@@ -18,9 +18,14 @@ class subscriber {
 public:
     using ptr = std::shared_ptr<subscriber>;
 
+    struct action {
+        std::string type;
+        std::unordered_map<std::string, std::string> parameters;
+    };
+
     struct event {
         std::vector<std::string> data;
-        std::unordered_set<std::string> actions;
+        std::vector<subscriber::action> actions;
     };
 
     class listener {

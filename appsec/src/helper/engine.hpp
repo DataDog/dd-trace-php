@@ -37,7 +37,12 @@ public:
     using subscription_map =
         std::map<std::string_view, std::vector<subscriber::ptr>>;
 
-    enum class action_type : uint8_t { record = 1, redirect = 2, block = 3 };
+    enum class action_type : uint8_t {
+        invalid = 0,
+        record = 1,
+        redirect = 2,
+        block = 3
+    };
 
     struct action {
         action_type type;
@@ -98,11 +103,9 @@ public:
         std::map<std::string_view, double> &metrics);
 
     static auto create(
-        uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit,
-        action_map actions = default_actions)
+        uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit)
     {
-        return std::shared_ptr<engine>(
-            new engine(trace_rate_limit, std::move(actions)));
+        return std::shared_ptr<engine>(new engine(trace_rate_limit));
     }
 
     context get_context() { return context{*this}; }
@@ -114,22 +117,21 @@ public:
         std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics);
 
+    static engine::action_type string_to_action_type(
+        const std::string &action_type);
     // Only exposed for testing purposes
     template <typename T,
         typename = std::enable_if_t<std::disjunction_v<
             std::is_same<rapidjson::Document,
                 std::remove_cv_t<std::decay_t<T>>>,
             std::is_same<rapidjson::Value, std::remove_cv_t<std::decay_t<T>>>>>>
-    static action_map parse_actions(
-        const T &doc, const action_map &default_actions);
+    static action_map parse_actions(const T &doc);
 
 protected:
     explicit engine(uint32_t trace_rate_limit, action_map &&actions = {})
         : limiter_(trace_rate_limit),
           common_(new shared_state{{}, std::move(actions)})
     {}
-
-    static const action_map default_actions;
 
     std::shared_ptr<shared_state> common_;
     rate_limiter<dds::timer> limiter_;

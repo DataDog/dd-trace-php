@@ -29,8 +29,7 @@ void engine::update(engine_ruleset &ruleset,
     std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
-    auto new_actions =
-        parse_actions(ruleset.get_document(), engine::default_actions);
+    auto new_actions = parse_actions(ruleset.get_document());
     if (new_actions.empty()) {
         new_actions = common_->actions;
     }
@@ -74,7 +73,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
     }
 
     std::vector<std::string> event_data;
-    std::unordered_set<std::string> event_actions;
+    std::vector<subscriber::action> event_actions;
 
     for (auto &sub : common_->subscribers) {
         auto it = listeners_.find(sub);
@@ -87,7 +86,9 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
                 event_data.insert(event_data.end(),
                     std::make_move_iterator(event->data.begin()),
                     std::make_move_iterator(event->data.end()));
-                event_actions.merge(event->actions);
+                event_actions.insert(event_actions.end(),
+                    std::make_move_iterator(event->actions.begin()),
+                    std::make_move_iterator(event->actions.end()));
             }
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
@@ -103,14 +104,8 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
     if (!event_actions.empty()) {
         // The extension can only handle one action, so we pick the first one
         // available in the list of actions.
-        for (const auto &action_str : event_actions) {
-            auto it = common_->actions.find(action_str);
-            if (it != common_->actions.end()) {
-                res.type = it->second.type;
-                res.parameters = it->second.parameters;
-                break;
-            }
-        }
+        res.type = engine::string_to_action_type(event_actions[0].type);
+        res.parameters = event_actions[0].parameters;
     }
 
     res.force_keep = limiter_.allow();
@@ -127,6 +122,17 @@ void engine::context::get_meta_and_metrics(
     }
 }
 
+engine::action_type engine::string_to_action_type(const std::string &action)
+{
+    if (action == "block_request") {
+        return engine::action_type::block;
+    } else if (action == "redirect_request") {
+        return engine::action_type::redirect;
+    }
+
+    return engine::action_type::invalid;
+}
+
 template <typename T> engine::action parse_action(T &action_object)
 {
     auto it = action_object.FindMember("type");
@@ -136,11 +142,8 @@ template <typename T> engine::action parse_action(T &action_object)
     std::string const type = action_object["type"].GetString();
 
     engine::action action;
-    if (type == "block_request") {
-        action.type = engine::action_type::block;
-    } else if (type == "redirect_request") {
-        action.type = engine::action_type::redirect;
-    } else {
+    action.type = engine::string_to_action_type(type);
+    if (action.type == engine::action_type::invalid) {
         throw parsing_error(
             "unknown action.type " + type + " only block_request supported");
     }
@@ -190,10 +193,9 @@ template <typename T> engine::action parse_action(T &action_object)
 }
 
 template <typename T, typename>
-engine::action_map engine::parse_actions(
-    const T &doc, const engine::action_map &default_actions)
+engine::action_map engine::parse_actions(const T &doc)
 {
-    engine::action_map actions = default_actions;
+    engine::action_map actions = {};
 
     auto it = doc.FindMember("actions");
     if (it == doc.MemberEnd()) {
@@ -237,10 +239,7 @@ engine::ptr engine::from_settings(const dds::engine_settings &eng_settings,
 {
     auto &&rules_path = eng_settings.rules_file_or_default();
     auto ruleset = engine_ruleset::from_path(rules_path);
-    auto actions =
-        parse_actions(ruleset.get_document(), engine::default_actions);
-    std::shared_ptr engine_ptr{
-        engine::create(eng_settings.trace_rate_limit, std::move(actions))};
+    std::shared_ptr engine_ptr{engine::create(eng_settings.trace_rate_limit)};
 
     try {
         SPDLOG_DEBUG("Will load WAF rules from {}", rules_path);
@@ -255,11 +254,5 @@ engine::ptr engine::from_settings(const dds::engine_settings &eng_settings,
 
     return engine_ptr;
 }
-
-// NOLINTNEXTLINE
-const engine::action_map engine::default_actions = {
-    {"block", {engine::action_type::block,
-                  {{"status_code", "403"}, {"type", "auto"}}}},
-};
 
 } // namespace dds

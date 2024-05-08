@@ -33,7 +33,11 @@ dds::subscriber::event format_waf_result(ddwaf_result &res)
     try {
         const parameter_view actions{res.actions};
         for (const auto &action : actions) {
-            output.actions.emplace(std::string{action});
+            subscriber::action a{std::string(action.key()), {}};
+            for (const auto &parameter : action) {
+                a.parameters.emplace(parameter.key(), parameter);
+            }
+            output.actions.emplace_back(std::move(a));
         }
 
         const parameter_view events{res.events};
