@@ -108,6 +108,10 @@ class SwooleIntegration extends Integration
 
     public function instrumentWorkerStart(callable $callback, SwooleIntegration $integration, Server $server)
     {
+        if ($server->mode === SWOOLE_BASE) {
+            return;
+        }
+
         \DDTrace\install_hook(
             $callback,
             function (HookData $hook) use ($integration, $server) {
@@ -118,6 +122,10 @@ class SwooleIntegration extends Integration
 
     public function instrumentWorkerStop(callable $callback, SwooleIntegration $integration, Server $server)
     {
+        if ($server->mode === SWOOLE_BASE) {
+            return;
+        }
+
         \DDTrace\install_hook(
             $callback,
             null,
@@ -141,6 +149,7 @@ class SwooleIntegration extends Integration
         \DDTrace\hook_method(
             'Swoole\Http\Server',
             '__construct',
+            null,
             function ($server) use ($integration) {
                 foreach (['workerstart', 'workerstop', 'workerexit', 'workererror'] as $serverEvent) {
                     $server->on($serverEvent, function () { });
