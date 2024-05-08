@@ -169,6 +169,62 @@ class AMQPIntegration extends Integration
 
         trace_method(
             "PhpAmqpLib\Channel\AMQPChannel",
+            "batch_basic_publish",
+            [
+                'prehook' => function (SpanData $span, $args) use ($integration) {
+                    /** @var AMQPMessage $message */
+                    $message = $args[0];
+                    if (!is_null($message)) {
+                        $integration->injectContext($message);
+                    }
+                },
+                'posthook' => function (SpanData $span, $args, $exception) use ($integration) {
+                    /** @var AMQPMessage $message */
+                    $message = $args[0];
+                    /** @var string $exchange */
+                    $exchange = $args[1];
+                    /** @var string $routing_key */
+                    $routingKey = $args[2] ?? '';
+
+                    $exchangeDisplayName = $integration->formatExchangeName($exchange);
+                    $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
+
+                    $integration->setGenericTags(
+                        $span,
+                        'batch_basic.add',
+                        'producer',
+                        "$exchangeDisplayName -> $routingKeyDisplayName",
+                        $exception
+                    );
+
+                    $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                    $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+
+                    if (!is_null($message)) {
+                        $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->getBody());
+                        $integration->setOptionalMessageTags($span, $message);
+                    }
+                }
+            ]
+        );
+
+        trace_method(
+            "PhpAmqpLib\Channel\AMQPChannel",
+            "publish_batch",
+            function (SpanData $span, $args, $exception) use ($integration) {
+                $integration->setGenericTags(
+                    $span,
+                    'publish_batch',
+                    'producer',
+                    null,
+                    $exception
+                );
+                $span->meta[Tag::MQ_OPERATION] = 'send';
+            }
+        );
+
+        trace_method(
+            "PhpAmqpLib\Channel\AMQPChannel",
             "basic_consume",
             function (SpanData $span, $args, $retval, $exception) use ($integration) {
                 /** @var string $queue */
