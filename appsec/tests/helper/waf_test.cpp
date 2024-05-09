@@ -327,4 +327,165 @@ TEST(WafTest, SchemasAreAdded)
     EXPECT_FALSE(meta.empty());
     EXPECT_STREQ(meta["_dd.appsec.s.arg2"].c_str(), "[8]");
 }
+
+TEST(WafTest, ActionsAreSentAndParsed)
+{
+    std::map<std::string, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    auto p = parameter::map();
+    p.add("http.client_ip", parameter::string("192.168.1.1"sv));
+    parameter_view pv(p);
+
+    { // Standard actions types with custom parameters
+        std::string rules_with_actions =
+            R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["custom"]}],"actions":[{"id":"custom","type":"block_request","parameters":{"status_code":123,"grpc_status_code":321,"type":"json","custom_param":"foo"}}],"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
+
+        subscriber::ptr wi{
+            waf::instance::from_string(rules_with_actions, meta, metrics)};
+        ASSERT_TRUE(wi);
+
+        auto addresses = wi->get_subscriptions();
+        EXPECT_EQ(addresses.size(), 1);
+        EXPECT_STREQ(addresses.begin()->c_str(), "http.client_ip");
+
+        auto ctx = wi->get_listener();
+
+        auto res = ctx->call(pv);
+        EXPECT_TRUE(res);
+
+        EXPECT_EQ(res->data.size(), 1);
+        rapidjson::Document doc;
+        doc.Parse(res->data[0]);
+        EXPECT_FALSE(doc.HasParseError());
+        EXPECT_TRUE(doc.IsObject());
+
+        EXPECT_STREQ(
+            doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
+            "192.168.1.1");
+
+        auto action = res->actions.begin();
+        EXPECT_EQ(res->actions.size(), 1);
+        EXPECT_STREQ(action->type.c_str(), "block_request");
+        EXPECT_STREQ(
+            action->parameters.find("status_code")->second.c_str(), "123");
+        EXPECT_STREQ(
+            action->parameters.find("grpc_status_code")->second.c_str(), "321");
+        EXPECT_STREQ(action->parameters.find("type")->second.c_str(), "json");
+        EXPECT_STREQ(
+            action->parameters.find("custom_param")->second.c_str(), "foo");
+    }
+
+    { // Standard actions types with no parameters
+        std::string rules_with_actions =
+            R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["custom"]}],"actions":[{"id":"custom","type":"block_request","parameters":{}}],"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
+
+        subscriber::ptr wi{
+            waf::instance::from_string(rules_with_actions, meta, metrics)};
+        ASSERT_TRUE(wi);
+
+        auto addresses = wi->get_subscriptions();
+        EXPECT_EQ(addresses.size(), 1);
+        EXPECT_STREQ(addresses.begin()->c_str(), "http.client_ip");
+
+        auto ctx = wi->get_listener();
+
+        auto res = ctx->call(pv);
+        EXPECT_TRUE(res);
+
+        EXPECT_EQ(res->data.size(), 1);
+        rapidjson::Document doc;
+        doc.Parse(res->data[0]);
+        EXPECT_FALSE(doc.HasParseError());
+        EXPECT_TRUE(doc.IsObject());
+
+        EXPECT_STREQ(
+            doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
+            "192.168.1.1");
+
+        auto action = res->actions.begin();
+        EXPECT_EQ(res->actions.size(), 1);
+        EXPECT_STREQ(action->type.c_str(), "block_request");
+        EXPECT_STREQ(action->parameters.find("status_code")->second.c_str(),
+            "403"); // Default value
+        EXPECT_STREQ(
+            action->parameters.find("grpc_status_code")->second.c_str(),
+            "10"); // Default value
+        EXPECT_STREQ(action->parameters.find("type")->second.c_str(),
+            "auto"); // Default value
+    }
+
+    { // Custom action types
+        std::string rules_with_actions =
+            R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["custom"]}],"actions":[{"id":"custom","type":"custom_type","parameters":{"some":"parameter"}}],"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
+
+        subscriber::ptr wi{
+            waf::instance::from_string(rules_with_actions, meta, metrics)};
+        ASSERT_TRUE(wi);
+
+        auto addresses = wi->get_subscriptions();
+        EXPECT_EQ(addresses.size(), 1);
+        EXPECT_STREQ(addresses.begin()->c_str(), "http.client_ip");
+
+        auto ctx = wi->get_listener();
+
+        auto res = ctx->call(pv);
+        EXPECT_TRUE(res);
+
+        EXPECT_EQ(res->data.size(), 1);
+        rapidjson::Document doc;
+        doc.Parse(res->data[0]);
+        EXPECT_FALSE(doc.HasParseError());
+        EXPECT_TRUE(doc.IsObject());
+
+        EXPECT_STREQ(
+            doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
+            "192.168.1.1");
+
+        auto action = res->actions.begin();
+        EXPECT_EQ(res->actions.size(), 1);
+        EXPECT_STREQ(action->type.c_str(), "custom_type");
+        EXPECT_STREQ(
+            action->parameters.find("some")->second.c_str(), "parameter");
+    }
+
+    { // Using default action on waf
+        std::string rules_with_actions =
+            R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}], "rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
+
+        subscriber::ptr wi{
+            waf::instance::from_string(rules_with_actions, meta, metrics)};
+        ASSERT_TRUE(wi);
+
+        auto addresses = wi->get_subscriptions();
+        EXPECT_EQ(addresses.size(), 1);
+        EXPECT_STREQ(addresses.begin()->c_str(), "http.client_ip");
+
+        auto ctx = wi->get_listener();
+
+        auto res = ctx->call(pv);
+        EXPECT_TRUE(res);
+
+        EXPECT_EQ(res->data.size(), 1);
+        rapidjson::Document doc;
+        doc.Parse(res->data[0]);
+        EXPECT_FALSE(doc.HasParseError());
+        EXPECT_TRUE(doc.IsObject());
+
+        EXPECT_STREQ(
+            doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
+            "192.168.1.1");
+
+        auto action = res->actions.begin();
+        EXPECT_EQ(res->actions.size(), 1);
+        EXPECT_STREQ(action->type.c_str(), "block_request");
+        EXPECT_STREQ(action->parameters.find("status_code")->second.c_str(),
+            "403"); // Default value
+        EXPECT_STREQ(
+            action->parameters.find("grpc_status_code")->second.c_str(),
+            "10"); // Default value
+        EXPECT_STREQ(action->parameters.find("type")->second.c_str(),
+            "auto"); // Default value
+    }
+}
 } // namespace dds
