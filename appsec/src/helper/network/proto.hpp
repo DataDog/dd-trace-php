@@ -241,6 +241,7 @@ struct config_features {
         {
             return config_features::name;
         };
+        std::string verdict;
         bool enabled;
 
         MSGPACK_DEFINE(enabled);
