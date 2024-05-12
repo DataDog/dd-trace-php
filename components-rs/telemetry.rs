@@ -1,5 +1,5 @@
-use datadog_sidecar::interface::blocking::SidecarTransport;
-use datadog_sidecar::interface::{blocking, InstanceId, QueueId, SidecarAction};
+use datadog_sidecar::service::blocking::SidecarTransport;
+use datadog_sidecar::service::{blocking, InstanceId, QueueId, SidecarAction};
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{CharSlice, MaybeError, self as ffi};
 use ddcommon::tag::parse_tags;
