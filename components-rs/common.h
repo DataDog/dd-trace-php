@@ -178,10 +178,22 @@ typedef enum ddog_MetricNamespace {
 
 typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest;
 
+/**
+ * `InstanceId` is a structure that holds session and runtime identifiers.
+ */
 typedef struct ddog_InstanceId ddog_InstanceId;
 
 typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
+/**
+ * `SidecarTransport` is a type alias for the `BlockingTransport` struct from the `datadog_ipc`
+ * crate. It is used for sending `SidecarInterfaceRequest` and receiving
+ * `SidecarInterfaceResponse`.
+ *
+ * This transport is used for communication between different parts of the sidecar service.
+ * It is a blocking transport, meaning that it will block the current thread until the operation is
+ * complete.
+ */
 typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_SidecarTransport;
 
 typedef enum ddog_LogLevel {
@@ -262,7 +274,10 @@ typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
  */
 typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
 
-typedef struct ddog_RuntimeMeta ddog_RuntimeMeta;
+/**
+ * `RuntimeMetadata` is a struct that represents the runtime metadata of a language.
+ */
+typedef struct ddog_RuntimeMetadata ddog_RuntimeMetadata;
 
 typedef struct ddog_ShmHandle ddog_ShmHandle;
 

@@ -8,6 +8,10 @@
 #include "telemetry.h"
 #include "sidecar.h"
 
+/**
+ * `QueueId` is a struct that represents a unique identifier for a queue.
+ * It contains a single field, `inner`, which is a 64-bit unsigned integer.
+ */
 typedef uint64_t ddog_QueueId;
 
 /**

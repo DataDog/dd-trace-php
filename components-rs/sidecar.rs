@@ -2,7 +2,7 @@ use std::ffi::{c_char, CStr, OsStr};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 use datadog_sidecar::config::{self, LogMethod};
-use datadog_sidecar::interface::blocking::SidecarTransport;
+use datadog_sidecar::service::blocking::SidecarTransport;
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{CharSlice, self as ffi, MaybeError};
 use ddtelemetry_ffi::try_c;

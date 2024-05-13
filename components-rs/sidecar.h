@@ -11,6 +11,10 @@
 #include <stdio.h>
 #include "common.h"
 
+/**
+ * `QueueId` is a struct that represents a unique identifier for a queue.
+ * It contains a single field, `inner`, which is a 64-bit unsigned integer.
+ */
 typedef uint64_t ddog_QueueId;
 
 /**
@@ -73,11 +77,11 @@ void ddog_sidecar_instanceId_drop(struct ddog_InstanceId *instance_id);
 
 ddog_QueueId ddog_sidecar_queueId_generate(void);
 
-struct ddog_RuntimeMeta *ddog_sidecar_runtimeMeta_build(ddog_CharSlice language_name,
-                                                        ddog_CharSlice language_version,
-                                                        ddog_CharSlice tracer_version);
+struct ddog_RuntimeMetadata *ddog_sidecar_runtimeMeta_build(ddog_CharSlice language_name,
+                                                            ddog_CharSlice language_version,
+                                                            ddog_CharSlice tracer_version);
 
-void ddog_sidecar_runtimeMeta_drop(struct ddog_RuntimeMeta *meta);
+void ddog_sidecar_runtimeMeta_drop(struct ddog_RuntimeMetadata *meta);
 
 ddog_MaybeError ddog_sidecar_telemetry_enqueueConfig(ddog_SidecarTransport **transport,
                                                      const struct ddog_InstanceId *instance_id,
@@ -102,7 +106,7 @@ ddog_MaybeError ddog_sidecar_telemetry_addIntegration(ddog_SidecarTransport **tr
 ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(ddog_SidecarTransport **transport,
                                                         const struct ddog_InstanceId *instance_id,
                                                         const ddog_QueueId *queue_id,
-                                                        const struct ddog_RuntimeMeta *runtime_meta,
+                                                        const struct ddog_RuntimeMetadata *runtime_meta,
                                                         ddog_CharSlice service_name,
                                                         ddog_CharSlice env_name);
 
