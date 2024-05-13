@@ -121,7 +121,7 @@ void request_init(mock::broker *broker, client &c)
 
     EXPECT_TRUE(c.run_request());
     auto msg_res = dynamic_cast<network::request_init::response *>(res.get());
-    EXPECT_STREQ(msg_res->verdict.c_str(), "ok");
+    EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
     EXPECT_EQ(msg_res->triggers.size(), 0);
 }
 
@@ -523,7 +523,7 @@ TEST(ClientTest, RequestInit)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_init::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "record");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_EQ(msg_res->triggers.size(), 1);
         EXPECT_TRUE(msg_res->force_keep);
     }
@@ -616,9 +616,10 @@ TEST(ClientTest, RequestInitBlock)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_init::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "block");
-        EXPECT_STREQ(msg_res->parameters["type"].c_str(), "auto");
-        EXPECT_STREQ(msg_res->parameters["status_code"].c_str(), "403");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].parameters["type"].c_str(), "auto");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
     }
 }
@@ -773,7 +774,7 @@ TEST(ClientTest, RequestShutdown)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "record");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_EQ(msg_res->triggers.size(), 1);
 
         EXPECT_EQ(msg_res->metrics.size(), 1);
@@ -814,9 +815,10 @@ TEST(ClientTest, RequestShutdownBlock)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "block");
-        EXPECT_STREQ(msg_res->parameters["type"].c_str(), "auto");
-        EXPECT_STREQ(msg_res->parameters["status_code"].c_str(), "403");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].parameters["type"].c_str(), "auto");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
 
         EXPECT_EQ(msg_res->metrics.size(), 1);
@@ -1657,9 +1659,10 @@ TEST(ClientTest, RequestExecAfterRequestInit)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_exec::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "block");
-        EXPECT_STREQ(msg_res->parameters["type"].c_str(), "auto");
-        EXPECT_STREQ(msg_res->parameters["status_code"].c_str(), "403");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].parameters["type"].c_str(), "auto");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
     }
 }
@@ -1692,8 +1695,8 @@ TEST(ClientTest, RequestExecWithoutAttack)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_exec::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "ok");
-        EXPECT_EQ(msg_res->parameters.size(), 0);
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
+        EXPECT_EQ(msg_res->actions[0].parameters.size(), 0);
         EXPECT_EQ(msg_res->triggers.size(), 0);
     }
 }
@@ -1727,9 +1730,10 @@ TEST(ClientTest, RequestExecWithAttack)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_exec::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "block");
-        EXPECT_STREQ(msg_res->parameters["type"].c_str(), "auto");
-        EXPECT_STREQ(msg_res->parameters["status_code"].c_str(), "403");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].parameters["type"].c_str(), "auto");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
     }
 }
@@ -1874,9 +1878,10 @@ TEST(ClientTest, RequestCallsWorkIfRequestInitWasEnabled)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_exec::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "block");
-        EXPECT_STREQ(msg_res->parameters["type"].c_str(), "auto");
-        EXPECT_STREQ(msg_res->parameters["status_code"].c_str(), "403");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].parameters["type"].c_str(), "auto");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
     }
 
@@ -2111,7 +2116,7 @@ TEST(ClientTest, RequestShutdownLimiter)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "record");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_TRUE(msg_res->force_keep);
     }
 
@@ -2158,7 +2163,7 @@ TEST(ClientTest, RequestShutdownLimiter)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "record");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_FALSE(msg_res->force_keep);
     }
 }

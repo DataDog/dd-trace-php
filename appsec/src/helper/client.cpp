@@ -243,28 +243,33 @@ std::shared_ptr<typename T::response> client::publish(
     try {
         auto res = context_->publish(std::move(command.data));
         if (res) {
-            switch (res->type) {
-            case engine::action_type::block:
-                response->verdict = network::verdict::block;
-                response->parameters = std::move(res->parameters);
-                break;
-            case engine::action_type::redirect:
-                response->verdict = network::verdict::redirect;
-                response->parameters = std::move(res->parameters);
-                break;
-            case engine::action_type::record:
-            default:
-                response->verdict = network::verdict::record;
-                response->parameters = {};
-                break;
+            for (auto &act : res->actions) {
+                dds::network::action new_action;
+                switch (act.type) {
+                case engine::action_type::block:
+                    new_action.verdict = network::verdict::block;
+                    new_action.parameters = std::move(act.parameters);
+                    break;
+                case engine::action_type::redirect:
+                    new_action.verdict = network::verdict::redirect;
+                    new_action.parameters = std::move(act.parameters);
+                    break;
+                case engine::action_type::record:
+                default:
+                    new_action.verdict = network::verdict::record;
+                    new_action.parameters = {};
+                    break;
+                }
+                response->actions.push_back(new_action);
             }
-
             response->triggers = std::move(res->events);
             response->force_keep = res->force_keep;
 
             DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
         } else {
-            response->verdict = network::verdict::ok;
+            dds::network::action new_action;
+            new_action.verdict = network::verdict::ok;
+            response->actions.push_back(new_action);
         }
     } catch (const invalid_object &e) {
         // This error indicates some issue in either the communication with
@@ -372,8 +377,14 @@ bool client::message_broker(
         return false;
     }
 
-    SPDLOG_DEBUG("sending response to {}, verdict: {}", message->get_type(),
-        message->verdict);
+    if (spdlog::should_log(spdlog::level::debug)) {
+        std::ostringstream all_verdicts;
+        for (const auto &action : message->actions) {
+            all_verdicts << action.verdict << " ";
+        }
+        SPDLOG_DEBUG("sending response to {}, verdicts: {}",
+            message->get_type(), all_verdicts.str());
+    }
     try {
         return broker_->send(message);
     } catch (std::exception &e) {

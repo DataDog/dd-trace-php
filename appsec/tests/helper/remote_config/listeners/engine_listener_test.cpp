@@ -808,7 +808,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdate)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, engine::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
     }
 }
@@ -834,7 +834,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, engine::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
     }
 
@@ -921,7 +921,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, engine::action_type::record);
     }
 
     const std::string rule_override =
@@ -936,7 +936,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, engine::action_type::record);
     }
 
     listener.commit();
@@ -948,7 +948,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, engine::action_type::block);
     }
 }
 
@@ -972,7 +972,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, engine::action_type::record);
     }
     const std::string update =
         R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters":
@@ -989,7 +989,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, engine::action_type::record);
     }
 
     listener.commit();
@@ -1001,7 +1001,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::redirect);
+        EXPECT_EQ(res->actions[0].type, engine::action_type::redirect);
     }
 }
 
@@ -1206,7 +1206,7 @@ TEST(RemoteConfigEngineListener, EngineRuleDataUpdate)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, engine::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
     }
 }

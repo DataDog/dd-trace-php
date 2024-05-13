@@ -99,13 +99,20 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
         return std::nullopt;
     }
 
-    dds::engine::result res{action_type::record, {}, std::move(event_data)};
+    dds::engine::result res{{}, std::move(event_data)};
     // Currently the only action the extension can perform is block
-    if (!event_actions.empty()) {
-        // The extension can only handle one action, so we pick the first one
-        // available in the list of actions.
-        res.type = engine::string_to_action_type(event_actions[0].type);
-        res.parameters = event_actions[0].parameters;
+    if (event_actions.empty()) {
+        res.actions.push_back({action_type::record});
+    }
+
+    for (auto const &action : event_actions) {
+        engine::action new_action;
+        new_action.type = string_to_action_type(action.type);
+        new_action.parameters.insert(
+            action.parameters.begin(), action.parameters.end());
+        if (new_action.type != action_type::invalid) {
+            res.actions.push_back(new_action);
+        }
     }
 
     res.force_keep = limiter_.allow();

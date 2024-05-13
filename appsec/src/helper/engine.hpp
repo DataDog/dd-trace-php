@@ -52,8 +52,7 @@ public:
     using action_map = std::unordered_map<std::string /*id*/, action>;
 
     struct result {
-        action_type type;
-        std::unordered_map<std::string, std::string> parameters;
+        std::vector<action> actions;
         std::vector<std::string> events;
         bool force_keep;
     };

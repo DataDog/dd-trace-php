@@ -133,6 +133,13 @@ struct client_init {
     };
 };
 
+struct action {
+    std::string verdict;
+    std::unordered_map<std::string, std::string> parameters;
+
+    MSGPACK_DEFINE(verdict, parameters);
+};
+
 struct request_init {
     static constexpr const char *name = "request_init";
 
@@ -159,13 +166,12 @@ struct request_init {
         {
             return request_init::name;
         };
-        std::string verdict;
-        std::unordered_map<std::string, std::string> parameters;
+        std::vector<action> actions;
         std::vector<std::string> triggers;
 
         bool force_keep;
 
-        MSGPACK_DEFINE(verdict, parameters, triggers, force_keep);
+        MSGPACK_DEFINE(actions, triggers, force_keep);
     };
 };
 
@@ -195,13 +201,12 @@ struct request_exec {
         {
             return request_exec::name;
         };
-        std::string verdict;
-        std::unordered_map<std::string, std::string> parameters;
+        std::vector<action> actions;
         std::vector<std::string> triggers;
 
         bool force_keep;
 
-        MSGPACK_DEFINE(verdict, parameters, triggers, force_keep);
+        MSGPACK_DEFINE(actions, triggers, force_keep);
     };
 };
 
@@ -241,7 +246,7 @@ struct config_features {
         {
             return config_features::name;
         };
-        std::string verdict;
+        std::vector<action> actions;
         bool enabled;
 
         MSGPACK_DEFINE(enabled);
@@ -273,8 +278,7 @@ struct request_shutdown {
         {
             return request_shutdown::name;
         };
-        std::string verdict;
-        std::unordered_map<std::string, std::string> parameters;
+        std::vector<action> actions;
         std::vector<std::string> triggers;
 
         bool force_keep;
@@ -282,8 +286,7 @@ struct request_shutdown {
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
 
-        MSGPACK_DEFINE(
-            verdict, parameters, triggers, force_keep, meta, metrics);
+        MSGPACK_DEFINE(actions, triggers, force_keep, meta, metrics);
     };
 };
 
