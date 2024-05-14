@@ -442,16 +442,19 @@ dd_result _command_process_actions(mpack_node_t root, struct req_info *ctx)
         }
 
         // Parse parameters
-        if (dd_mpack_node_lstr_eq(verdict, "block")) {
+        if (dd_mpack_node_lstr_eq(verdict, "block") && res != dd_should_block &&
+            res != dd_should_redirect) { // Redirect take over block
             res = dd_should_block;
             _command_process_block_parameters(mpack_node_array_at(action, 1));
             dd_tags_add_blocked();
-        } else if (dd_mpack_node_lstr_eq(verdict, "redirect")) {
+        } else if (dd_mpack_node_lstr_eq(verdict, "redirect") &&
+                   res != dd_should_redirect) {
             res = dd_should_redirect;
             _command_process_redirect_parameters(
                 mpack_node_array_at(action, 1));
             dd_tags_add_blocked();
-        } else if (dd_mpack_node_lstr_eq(verdict, "record")) {
+        } else if (dd_mpack_node_lstr_eq(verdict, "record") &&
+                   res == dd_success) {
             res = dd_should_record;
         }
     }
