@@ -133,7 +133,7 @@ struct client_init {
     };
 };
 
-struct action {
+struct action_struct {
     std::string verdict;
     std::unordered_map<std::string, std::string> parameters;
 
@@ -166,7 +166,7 @@ struct request_init {
         {
             return request_init::name;
         };
-        std::vector<action> actions;
+        std::vector<action_struct> actions;
         std::vector<std::string> triggers;
 
         bool force_keep;
@@ -201,7 +201,7 @@ struct request_exec {
         {
             return request_exec::name;
         };
-        std::vector<action> actions;
+        std::vector<action_struct> actions;
         std::vector<std::string> triggers;
 
         bool force_keep;
@@ -246,7 +246,7 @@ struct config_features {
         {
             return config_features::name;
         };
-        std::vector<action> actions;
+        std::vector<action_struct> actions;
         bool enabled;
 
         MSGPACK_DEFINE(enabled);
@@ -278,7 +278,7 @@ struct request_shutdown {
         {
             return request_shutdown::name;
         };
-        std::vector<action> actions;
+        std::vector<action_struct> actions;
         std::vector<std::string> triggers;
 
         bool force_keep;

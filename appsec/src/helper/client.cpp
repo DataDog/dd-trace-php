@@ -248,7 +248,7 @@ std::shared_ptr<typename T::response> client::publish(
         auto res = context_->publish(std::move(command.data));
         if (res) {
             for (auto &act : res->actions) {
-                dds::network::action new_action;
+                dds::network::action_struct new_action;
                 switch (act.type) {
                 case engine::action_type::block:
                     new_action.verdict = network::verdict::block;
@@ -271,7 +271,7 @@ std::shared_ptr<typename T::response> client::publish(
 
             DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
         } else {
-            dds::network::action new_action;
+            dds::network::action_struct new_action;
             new_action.verdict = network::verdict::ok;
             response->actions.push_back(new_action);
         }
