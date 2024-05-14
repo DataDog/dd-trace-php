@@ -224,6 +224,10 @@ bool client::emplace_service(const std::string &name)
         }
 
         context_.emplace(*service_->get_engine());
+
+        if (!context_) {
+            return false;
+        }
     }
 
     return true;
@@ -233,7 +237,7 @@ template <typename T>
 std::shared_ptr<typename T::response> client::publish(
     typename T::request &command)
 {
-    if (!emplace_service(command.name)) {
+    if (!emplace_service(T::name)) {
         return nullptr;
     }
 
@@ -289,7 +293,7 @@ std::shared_ptr<typename T::response> client::publish(
 
 bool client::handle_command(network::request_init::request &command)
 {
-    if (!emplace_service(command.name)) {
+    if (!emplace_service(network::request_init::name)) {
         return false;
     }
 
@@ -382,6 +386,9 @@ bool client::message_broker(
         for (const auto &action : message->actions) {
             all_verdicts << action.verdict << " ";
         }
+        if (message->actions.empty()) {
+            all_verdicts << "no verdicts";
+        }
         SPDLOG_DEBUG("sending response to {}, verdicts: {}",
             message->get_type(), all_verdicts.str());
     }
@@ -395,7 +402,7 @@ bool client::message_broker(
 
 bool client::handle_command(network::request_shutdown::request &command)
 {
-    if (!emplace_service(command.name)) {
+    if (!emplace_service(network::request_shutdown::name)) {
         return false;
     }
 
