@@ -8,7 +8,7 @@ pub mod profiling;
 mod sapi;
 
 #[cfg(php_run_time_cache)]
-mod string_table;
+mod string_set;
 
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
