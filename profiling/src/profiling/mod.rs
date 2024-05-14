@@ -349,8 +349,16 @@ impl TimeCollector {
         let local_root_span_id = message.local_root_span_id;
         for (_, profile) in profiles.iter_mut() {
             let endpoint = Cow::Borrowed(message.resource.as_str());
-            profile.add_endpoint(local_root_span_id, endpoint.clone());
-            profile.add_endpoint_count(endpoint, 1);
+            // In libdatadog v9, these endpoint operations won't fail. It may
+            // in newer versions, which is why it's fallible now.
+            if let Err(err) = profile.add_endpoint(local_root_span_id, endpoint.clone()) {
+                warn!("failed to add endpoint info to local root span {local_root_span_id}: {err}");
+            }
+            if let Err(err) = profile.add_endpoint_count(endpoint, 1) {
+                warn!(
+                    "failed to add endpoint count to local root span {local_root_span_id}: {err}"
+                );
+            }
         }
     }
 
