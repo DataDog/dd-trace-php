@@ -1122,7 +1122,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "timeline")]
+    #[cfg(all(feature = "timeline", not(miri)))]
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
         let frames = get_frames();
         let samples = get_samples();
