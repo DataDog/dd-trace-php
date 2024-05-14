@@ -29,7 +29,7 @@ ddtrace_version_at_least('0.79.0');
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['ok', []]))
+    response_list(response_request_init([[['ok', []]]]))
 ], ['continuous' => true]);
 
 var_dump(rinit());
