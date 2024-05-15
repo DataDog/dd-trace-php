@@ -184,6 +184,8 @@ class DatabaseMonitoringTest extends IntegrationTestCase
                 $hook->span()->service = "testdb";
                 $hook->span()->name = "instrumented";
                 $hook->span()->meta["peer.service"] = 'dbinstance';
+                $hook->span()->meta["db.name"] = 'myDatabase';
+                $hook->span()->meta["out.host"] = '127.0.0.1';
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             });
             self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
@@ -199,7 +201,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         }
 
         // phpcs:disable Generic.Files.LineLength.TooLong
-        $this->assertRegularExpression('/^\/\*dddbs=\'dbinstance\',ddps=\'mapped-service\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-01\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertRegularExpression('/^\/\*dddb=\'myDatabase\',dddbs=\'testdb\',ddh=\'127.0.0.1\',ddprs=\'dbinstance\',ddps=\'mapped-service\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-01\'\*\/ SELECT 1$/', $commentedQuery);
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists("phpunit")->withChildren([
@@ -210,6 +212,39 @@ class DatabaseMonitoringTest extends IntegrationTestCase
                 ])
             ])
         ]);
+    }
+
+    public function testOrdering()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                $hook->span()->meta["peer.service"] = 'dbinstance';
+                $hook->span()->meta["db.instance"] = 'myDatabase';
+                $hook->span()->meta["out.host"] = 'mysql';
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            self::putEnv("DD_SERVICE_MAPPING=phpunit:mapped-service");
+            self::putEnv("DD_ENV=prod");
+            self::putEnv("DD_VERSION=v6");
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        $dbmComment = preg_replace('/^.*\/\*(.*)\*\/.*$/', '$1', $commentedQuery);
+        $dbmCommentParts = explode(',', $dbmComment);
+        $keys = array_map(function ($part) {
+            return explode('=', $part)[0];
+        }, $dbmCommentParts);
+        $this->assertSame(['dddb', 'dddbs', 'dde', 'ddh', 'ddprs', 'ddps', 'ddpv', 'traceparent'], $keys);
     }
 
     public function testEnvPropagation()
