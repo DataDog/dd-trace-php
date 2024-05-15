@@ -245,14 +245,15 @@ TEST(EngineTest, StatefulSubscriptor)
     EXPECT_EQ(res->actions[0].type, engine::action_type::block);
 }
 
-TEST(EngineTest, CustomActions)
+TEST(EngineTest, WafDefaultActions)
 {
     auto e{engine::create(engine_settings::default_trace_rate_limit)};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(
-            Return(subscriber::event{{}, {{"redirect_request", {}}}}));
+        .WillRepeatedly(Return(subscriber::event{
+            {}, {{"redirect_request", {}}, {"block_request", {}},
+                    {"generate_stack", {}}, {"generate_schema", {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -265,13 +266,52 @@ TEST(EngineTest, CustomActions)
     p.add("a", parameter::string("value"sv));
     auto res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
+    EXPECT_EQ(4, res->actions.size());
     EXPECT_EQ(res->actions[0].type, engine::action_type::redirect);
+    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
+    EXPECT_EQ(4, res->actions.size());
     EXPECT_EQ(res->actions[0].type, engine::action_type::redirect);
+    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
+}
+
+TEST(EngineTest, InvalidActionsAreDiscarded)
+{
+    auto e{engine::create(engine_settings::default_trace_rate_limit)};
+
+    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
+    EXPECT_CALL(*listener, call(_))
+        .WillRepeatedly(Return(subscriber::event{
+            {}, {{"invalid_action", {}}, {"block_request", {}}}}));
+
+    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
+    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
+
+    e->subscribe(sub);
+
+    auto ctx = e->get_context();
+
+    parameter p = parameter::map();
+    p.add("a", parameter::string("value"sv));
+    auto res = ctx.publish(std::move(p));
+    EXPECT_TRUE(res);
+    EXPECT_EQ(1, res->actions.size());
+    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+
+    p = parameter::map();
+    p.add("b", parameter::string("value"sv));
+    res = ctx.publish(std::move(p));
+    EXPECT_TRUE(res);
+    EXPECT_EQ(1, res->actions.size());
+    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
 }
 
 TEST(EngineTest, WafSubscriptorBasic)

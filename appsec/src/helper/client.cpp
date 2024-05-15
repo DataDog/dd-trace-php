@@ -258,6 +258,10 @@ std::shared_ptr<typename T::response> client::publish(
                     new_action.verdict = network::verdict::redirect;
                     new_action.parameters = std::move(act.parameters);
                     break;
+                case engine::action_type::stack_trace:
+                    new_action.verdict = network::verdict::stack_trace;
+                    new_action.parameters = std::move(act.parameters);
+                    break;
                 case engine::action_type::record:
                 default:
                     new_action.verdict = network::verdict::record;

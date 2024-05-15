@@ -112,8 +112,8 @@ TEST(RemoteConfigEngineListener, RuleUpdateFallback)
         EXPECT_GT(it->value.Size(), 0);
     }
 
-    std::array<std::string_view, 5> keys = {"rules_override", "exclusions",
-        "actions", "custom_rules", "rules_data"};
+    std::array<std::string_view, 4> keys = {
+        "rules_override", "exclusions", "custom_rules", "rules_data"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
         ASSERT_EQ(it, doc.MemberEnd());

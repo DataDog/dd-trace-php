@@ -24,6 +24,7 @@ struct verdict {
     static constexpr std::string_view record = "record";
     static constexpr std::string_view block = "block";
     static constexpr std::string_view redirect = "redirect";
+    static constexpr std::string_view stack_trace = "stack_trace";
 };
 
 using header_t = struct __attribute__((__packed__)) header {

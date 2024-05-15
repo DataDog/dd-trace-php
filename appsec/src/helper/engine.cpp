@@ -140,6 +140,14 @@ engine::action_type engine::string_to_action_type(const std::string &action)
         return engine::action_type::redirect;
     }
 
+    if (action == "generate_stack") {
+        return engine::action_type::stack_trace;
+    }
+
+    if (action == "generate_schema") {
+        return engine::action_type::extract_schema;
+    }
+
     return engine::action_type::invalid;
 }
 

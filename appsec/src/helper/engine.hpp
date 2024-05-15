@@ -41,7 +41,9 @@ public:
         invalid = 0,
         record = 1,
         redirect = 2,
-        block = 3
+        block = 3,
+        stack_trace = 4,
+        extract_schema = 5
     };
 
     struct action {
