@@ -245,6 +245,7 @@ std::shared_ptr<typename T::response> client::publish(
 
     auto response = std::make_shared<typename T::response>();
     try {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto res = context_->publish(std::move(command.data));
         if (res) {
             for (auto &act : res->actions) {
@@ -431,6 +432,7 @@ bool client::handle_command(network::request_shutdown::request &command)
         return false;
     }
 
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     context_->get_meta_and_metrics(response->meta, response->metrics);
 
     return message_broker<network::request_shutdown>(response);
