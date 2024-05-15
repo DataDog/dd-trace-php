@@ -367,29 +367,28 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
-static inline bool dd_alter_meta_var(const char *tag, zval *old_value, zval *new_value) {
+static inline bool dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value) {
     UNUSED(old_value);
 
     ddtrace_span_properties *pspan = ddtrace_active_span_props();
     while (pspan) {
-        zend_array *meta = ddtrace_property_array(&pspan->property_meta);
-        if (Z_STRLEN_P(new_value) == 0) {
-            zend_hash_str_del(meta, tag, strlen(tag));
-        } else {
-            Z_TRY_ADDREF_P(new_value);
-            zend_hash_str_update(meta, tag, strlen(tag), new_value);
-        }
+        zval *property = (zval*)(prop_offset + (char*)pspan), garbage = *property;
+        ZVAL_COPY(property, new_value);
+        zval_ptr_dtor(&garbage);
         pspan = pspan->parent;
     }
 
     return true;
 }
 
+bool ddtrace_alter_dd_service(zval *old_value, zval *new_value) {
+    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value);
+}
 bool ddtrace_alter_dd_env(zval *old_value, zval *new_value) {
-    return dd_alter_meta_var("env", old_value, new_value);
+    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value);
 }
 bool ddtrace_alter_dd_version(zval *old_value, zval *new_value) {
-    return dd_alter_meta_var("version", old_value, new_value);
+    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value);
 }
 
 static void dd_activate_once(void) {

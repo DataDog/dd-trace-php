@@ -219,6 +219,9 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
             if (DDTRACE_G(agent_rate_by_service)) {
                 zval *env = zend_hash_str_find(ddtrace_property_array(&span->property_meta), ZEND_STRL("env"));
+                if (!env) {
+                    env = &span->property_env;
+                }
                 zval *sample_rate_zv = NULL;
                 zval *service = &span->property_service;
                 if (Z_TYPE_P(service) == IS_STRING && env && Z_TYPE_P(env) == IS_STRING) {

@@ -24,8 +24,8 @@ var_dump(array_intersect_key(dd_trace_serialize_closed_spans()[1]["meta"], [
 ?>
 --EXPECT--
 array(2) {
-  ["version"]=>
-  string(11) "goodversion"
   ["env"]=>
   string(7) "goodenv"
+  ["version"]=>
+  string(11) "goodversion"
 }
