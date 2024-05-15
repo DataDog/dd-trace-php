@@ -102,7 +102,8 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
     dds::engine::result res{{}, std::move(event_data)};
     // Currently the only action the extension can perform is block
     if (event_actions.empty()) {
-        res.actions.push_back({action_type::record});
+        action record = {action_type::record, {}};
+        res.actions.emplace_back(std::move(record));
     }
 
     for (auto const &action : event_actions) {
@@ -133,7 +134,9 @@ engine::action_type engine::string_to_action_type(const std::string &action)
 {
     if (action == "block_request") {
         return engine::action_type::block;
-    } else if (action == "redirect_request") {
+    }
+
+    if (action == "redirect_request") {
         return engine::action_type::redirect;
     }
 
