@@ -40,7 +40,7 @@ echo "Generic sampling: {$get_sampling()}\n";
 
 $s = \DDTrace\start_span();
 $s->service = "foo";
-$s->meta["env"] = "none";
+$s->env = "none";
 \DDTrace\close_span();
 
 $rr->waitForFlush();

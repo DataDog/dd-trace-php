@@ -12,6 +12,7 @@ void ddtrace_save_active_error_to_metadata(void);
 void ddtrace_set_global_span_properties(ddtrace_span_data *span);
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span);
 void ddtrace_update_root_id_properties(ddtrace_root_span_data *span);
+void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data *parent);
 
 void ddtrace_initialize_span_sampling_limiter(void);
 void ddtrace_shutdown_span_sampling_limiter(void);

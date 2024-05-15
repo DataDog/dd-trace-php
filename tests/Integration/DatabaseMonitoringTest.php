@@ -228,7 +228,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         $rootSpan = \DDTrace\root_span();
         $rootSpan->service = "";
         $rootSpan->meta["version"] = "0";
-        $rootSpan->meta["env"] = "0";
+        $rootSpan->env = "0";
         $commented = DatabaseIntegrationHelper::propagateViaSqlComments("q", "", \DDTrace\DBM_PROPAGATION_SERVICE);
         $this->assertSame("/*dde='0',ddpv='0'*/ q", $commented);
 
