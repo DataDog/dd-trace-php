@@ -83,6 +83,18 @@ namespace DDTrace {
         public string|null $service = "";
 
         /**
+         * @var string The environment you are tracing. Defaults to active environment at the time of span creation
+         * (i.e., the parent span), or datadog.env initialization settings if no parent exists
+         */
+        public string $env = "";
+
+        /**
+         * @var string The version of the application you are tracing. Defaults to active version at the time of
+         * span creation (i.e., the parent span), or datadog.version initialization settings if no parent exists
+         */
+        public string $version = "";
+
+        /**
          * @var string|null The type of request which can be set to: web, db, cache, or custom (Optional). Inherited
          * from parent.
          */

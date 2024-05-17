@@ -94,7 +94,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_AUTOFINISH_SPANS, "false")                                                                 \
     CONFIG(BOOL, DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED, "true")                                               \
     CONFIG(BOOL, DD_HTTP_SERVER_ROUTE_BASED_NAMING, "true")                                                    \
-    CONFIG(STRING, DD_SERVICE, "")                                                                             \
+    CONFIG(STRING, DD_SERVICE, "", .ini_change = ddtrace_alter_dd_service)                                     \
     CONFIG(MAP, DD_SERVICE_MAPPING, "")                                                                        \
     CONFIG(MAP, DD_TAGS, "")                                                                                   \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0", .ini_change = zai_config_system_ini_change)                          \

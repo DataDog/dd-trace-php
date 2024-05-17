@@ -206,6 +206,10 @@ class Span extends DataSpan
     {
         if (isset($this->internalSpan->meta) && array_key_exists($key, $this->internalSpan->meta)) {
             return $this->internalSpan->meta[$key];
+        } elseif ($key === "env") {
+            return $this->internalSpan->env;
+        } elseif ($key === "version") {
+            return $this->internalSpan->version;
         }
 
         return null;
