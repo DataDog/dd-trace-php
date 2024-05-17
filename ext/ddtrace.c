@@ -1041,7 +1041,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     zai_jit_minit();
 #endif
 
-#if PHP_VERSION_ID < 70300 || (defined(_WIN32) && PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400)
+#if PHP_VERSION_ID < 70300 || ((defined(_WIN32) || defined(__APPLE__)) && PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400)
     ddtrace_startup_hrtime();
 #endif
 

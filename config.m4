@@ -111,6 +111,13 @@ if test "$PHP_DDTRACE" != "no"; then
         ext/handlers_curl.c \
         ext/hook/uhook_attributes.c \
     "
+
+    case $host_os in
+     darwin*)
+      EXTRA_PHP_SOURCES="$EXTRA_PHP_SOURCES \
+        ext/zend_hrtime.c"
+    esac
+
     ZAI_RESOLVER_SUFFIX=""
 
     if test $PHP_VERSION_ID -lt 80200; then
