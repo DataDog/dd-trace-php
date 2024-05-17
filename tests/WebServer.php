@@ -79,6 +79,7 @@ final class WebServer
     private $defaultInis = [
         'log_errors' => 'on',
         'datadog.trace.client_ip_header_disabled' => 'true',
+        'datadog.trace.debug' => 'true',
     ];
 
     private $errorLogSize = 0;
@@ -279,7 +280,7 @@ final class WebServer
         $diff = @file_get_contents($this->defaultInis['error_log'], false, null, $this->errorLogSize);
         $out = "";
         foreach (explode("\n", $diff) as $line) {
-            if (preg_match("(\[ddtrace] \[(error|warn|deprecated)])", $line)) {
+            if (preg_match("(\[ddtrace] \[(error|warn|deprecated|warning)])", $line)) {
                 $out .= $line;
             }
         }
