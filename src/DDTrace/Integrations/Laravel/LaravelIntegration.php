@@ -468,8 +468,12 @@ class LaravelIntegration extends Integration
             return $this->serviceName;
         }
         $this->serviceName = \ddtrace_config_app_name();
-        if (empty($this->serviceName) && is_callable('config')) {
-            $this->serviceName = config('app.name');
+        try {
+            if (empty($this->serviceName) && is_callable('config')) {
+                $this->serviceName = config('app.name');
+            }
+        } catch (\Throwable $e) {
+            return 'laravel';
         }
         return $this->serviceName ?: 'laravel';
     }
