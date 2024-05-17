@@ -81,7 +81,7 @@
           "service": "wordpress_test_app",
           "resource": "wp_maybe_load_widgets",
           "trace_id": 0,
-          "span_id": 13,
+          "span_id": 14,
           "parent_id": 5,
           "type": "web",
           "meta": {
@@ -93,7 +93,7 @@
           "service": "wordpress_test_app",
           "resource": "wp_maybe_load_embeds",
           "trace_id": 0,
-          "span_id": 14,
+          "span_id": 15,
           "parent_id": 5,
           "type": "web",
           "meta": {
@@ -105,7 +105,7 @@
           "service": "wordpress_test_app",
           "resource": "_wp_customize_include",
           "trace_id": 0,
-          "span_id": 15,
+          "span_id": 16,
           "parent_id": 5,
           "type": "web",
           "meta": {
@@ -126,11 +126,24 @@
        }
      },
      {
+       "name": "load_theme",
+       "service": "wordpress_test_app",
+       "resource": "Twentyseventeen (theme)",
+       "trace_id": 0,
+       "span_id": 7,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wordpress.theme": "Twentyseventeen"
+       }
+     },
+     {
        "name": "action",
        "service": "wordpress_test_app",
        "resource": "after_setup_theme (hook)",
        "trace_id": 0,
-       "span_id": 7,
+       "span_id": 8,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -143,7 +156,7 @@
        "service": "wordpress_test_app",
        "resource": "WP.init",
        "trace_id": 0,
-       "span_id": 8,
+       "span_id": 9,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -155,7 +168,7 @@
        "service": "wordpress_test_app",
        "resource": "init (hook)",
        "trace_id": 0,
-       "span_id": 9,
+       "span_id": 10,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -168,8 +181,8 @@
           "service": "wordpress_test_app",
           "resource": "create_initial_post_types",
           "trace_id": 0,
-          "span_id": 16,
-          "parent_id": 9,
+          "span_id": 17,
+          "parent_id": 10,
           "type": "web",
           "meta": {
             "component": "wordpress"
@@ -180,8 +193,8 @@
           "service": "wordpress_test_app",
           "resource": "create_initial_taxonomies",
           "trace_id": 0,
-          "span_id": 17,
-          "parent_id": 9,
+          "span_id": 18,
+          "parent_id": 10,
           "type": "web",
           "meta": {
             "component": "wordpress"
@@ -192,8 +205,8 @@
           "service": "wordpress_test_app",
           "resource": "wp_widgets_init",
           "trace_id": 0,
-          "span_id": 18,
-          "parent_id": 9,
+          "span_id": 19,
+          "parent_id": 10,
           "type": "web",
           "meta": {
             "component": "wordpress"
@@ -204,8 +217,8 @@
              "service": "wordpress_test_app",
              "resource": "WP_Widget_Factory._register_widgets",
              "trace_id": 0,
-             "span_id": 21,
-             "parent_id": 18,
+             "span_id": 22,
+             "parent_id": 19,
              "type": "web",
              "meta": {
                "component": "wordpress"
@@ -216,7 +229,7 @@
        "service": "wordpress_test_app",
        "resource": "wp_loaded (hook)",
        "trace_id": 0,
-       "span_id": 10,
+       "span_id": 11,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -229,7 +242,7 @@
        "service": "wordpress_test_app",
        "resource": "WP.main",
        "trace_id": 0,
-       "span_id": 11,
+       "span_id": 12,
        "parent_id": 1,
        "type": "web",
        "error": 1,
@@ -245,8 +258,8 @@
           "service": "wordpress_test_app",
           "resource": "WP.init",
           "trace_id": 0,
-          "span_id": 19,
-          "parent_id": 11,
+          "span_id": 20,
+          "parent_id": 12,
           "type": "web",
           "meta": {
             "component": "wordpress"
@@ -257,8 +270,8 @@
           "service": "wordpress_test_app",
           "resource": "WP.parse_request",
           "trace_id": 0,
-          "span_id": 20,
-          "parent_id": 11,
+          "span_id": 21,
+          "parent_id": 12,
           "type": "web",
           "error": 1,
           "meta": {
@@ -273,7 +286,7 @@
        "service": "wordpress_test_app",
        "resource": "shutdown (hook)",
        "trace_id": 0,
-       "span_id": 12,
+       "span_id": 13,
        "parent_id": 1,
        "type": "web",
        "meta": {
