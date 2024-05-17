@@ -176,8 +176,6 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_SIDECAR,
 } ddog_MetricNamespace;
 
-typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest;
-
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
  */
@@ -186,15 +184,15 @@ typedef struct ddog_InstanceId ddog_InstanceId;
 typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
 /**
- * `SidecarTransport` is a type alias for the `BlockingTransport` struct from the `datadog_ipc`
- * crate. It is used for sending `SidecarInterfaceRequest` and receiving
- * `SidecarInterfaceResponse`.
+ * `SidecarTransport` is a wrapper around a BlockingTransport struct from the `datadog_ipc` crate
+ * that handles transparent reconnection.
+ * It is used for sending `SidecarInterfaceRequest` and receiving `SidecarInterfaceResponse`.
  *
  * This transport is used for communication between different parts of the sidecar service.
  * It is a blocking transport, meaning that it will block the current thread until the operation is
  * complete.
  */
-typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_SidecarTransport;
+typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
 typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_ERROR,
