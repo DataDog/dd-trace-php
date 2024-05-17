@@ -557,9 +557,13 @@ commands:
     parameters:
       prefix:
         type: string
+      triplet:
+        type: string
+      flavour:
+        type: string
     steps:
       - run:
-          name: Build Profiler NTS
+          name: Build Profiler << parameters.flavour >>
           command: |
             if [ -d '/opt/rh/devtoolset-7' ] ; then
                 set +eo pipefail
@@ -568,33 +572,17 @@ commands:
             fi
             set -u
             prefix="<< parameters.prefix >>"
+            triplet="<< parameters.triplet >>"
+            flavour="<< parameters.flavour >>"
             mkdir -vp "${prefix}"
-            command -v switch-php && switch-php "${PHP_VERSION}"
+            command -v switch-php && switch-php "${PHP_VERSION}${flavour}"
             cd profiling
             echo "${CARGO_TARGET_DIR}"
-            cargo build --release
+            touch build.rs # make sure `build.rs` gets executed after `switch-php` call
+            RUSTC_BOOTSTRAP=1 cargo rustc -p datadog-php-profiling --release --target "${triplet}" -Z build-std=panic_abort,core,std,alloc
             cd -
-            cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${prefix}/datadog-profiling.so"
-            objcopy --compress-debug-sections "${prefix}/datadog-profiling.so"
-      - run:
-          name: Build Profiler ZTS
-          command: |
-            if [ -d '/opt/rh/devtoolset-7' ] ; then
-                set +eo pipefail
-                source scl_source enable devtoolset-7
-                set -eo pipefail
-            fi
-            set -u
-            prefix="<< parameters.prefix >>"
-            mkdir -vp "${prefix}"
-            command -v switch-php && switch-php "${PHP_VERSION}-zts"
-            cd profiling
-            echo "${CARGO_TARGET_DIR}"
-            touch build.rs #make sure `build.rs` gets executed after `switch-php` call
-            cargo build --release
-            cd -
-            cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${prefix}/datadog-profiling-zts.so"
-            objcopy --compress-debug-sections "${prefix}/datadog-profiling-zts.so"
+            cp -v "${CARGO_TARGET_DIR}/${triplet}/release/libdatadog_php_profiling.so" "${prefix}/datadog-profiling${flavour}.so"
+            objcopy --compress-debug-sections "${prefix}/datadog-profiling${flavour}.so"
 
 executors:
   with_agent:
@@ -2853,6 +2841,12 @@ jobs:
       - <<: *STEP_APPEND_BUILD_ID
       - build_profiler:
           prefix: datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
+          triplet: << parameters.triplet >>
+          flavour: ""
+      - build_profiler:
+          prefix: datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
+          triplet: << parameters.triplet >>
+          flavour: "-zts"
       - persist_to_workspace:
           root: .
           paths:

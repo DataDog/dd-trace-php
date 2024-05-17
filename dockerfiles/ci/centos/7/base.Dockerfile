@@ -85,14 +85,22 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     ../configure && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
-# Required: CMake >= 3.0.2 (default version is 2.8.12.2)
+# Required: CMake >= 3.0.2 (default version is 2.8.12.2).
+# LLVM warns about wanting 3.20 or newer.
 # Required to build libzip from source (has to be a separate RUN layer)
 RUN source scl_source enable devtoolset-7; set -eux; \
-    /root/download-src.sh cmake https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4.tar.gz; \
-    cd "${SRC_DIR}/cmake"; \
-    mkdir -v 'build' && cd 'build'; \
-    ../bootstrap && make -j $(nproc) && make install; \
-    cd - && rm -fr build
+    version="3.24.4"; \
+    arch=$(uname -m); \
+    filename="cmake-${version}-linux-$arch.tar.gz"; \
+    sha256_x86_64="cac77d28fb8668c179ac02c283b058aeb846fe2133a57d40b503711281ed9f19"; \
+    sha256_aarch64="86f823f2636bf715af89da10e04daa476755a799d451baee66247846e95d7bee"; \
+    sha256=$(if [[ $arch == "x86_64" ]]; then echo ${sha256_x86_64}; \
+     elif [[ $arch == "aarch64" ]]; then echo ${sha256_aarch64}; fi); \
+    curl -OL https://github.com/Kitware/CMake/releases/download/v${version}/${filename}; \
+    echo "$sha256  cmake-${version}-linux-$arch.tar.gz" | sha256sum -c; \
+    tar -xf "../${filename}" -C /usr/local --strip-components=1; \
+    command -v cmake; \
+    rm -fv "${filename}"
 
 # Required: libzip >= 0.11 (default version is 0.9)
 RUN source scl_source enable devtoolset-7; set -eux; \
@@ -103,6 +111,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
 
 ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig"
 
+# LLVM, and Ninja to build LLVM
 # Caution, takes a very long time! Since we have to build one from source,
 # I picked LLVM 16, which matches Rust 1.71.
 # Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
@@ -111,8 +120,8 @@ ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib6
 # version.
 RUN source scl_source enable devtoolset-7 \
   && yum install -y python3 \
-  && /root/download-src.sh ninja https://github.com/ninja-build/ninja/archive/refs/tags/v1.11.0.tar.gz \
-  && mkdir -vp "${SRC_DIR}/ninja/build" \
+  && /root/download-src.sh ninja https://github.com/ninja-build/ninja/archive/refs/tags/v1.12.0.tar.gz \
+  && mkdir vp "${SRC_DIR}/ninja/build" \
   && cd "${SRC_DIR}/ninja/build" \
   && ../configure.py --bootstrap --verbose \
   && strip ninja \
@@ -131,46 +140,26 @@ RUN source scl_source enable devtoolset-7 \
   && yum remove -y python3 \
   && yum clean all
 
-ARG PROTOBUF_VERSION="3.19.4"
-ARG PROTOBUF_SHA256="89ac31a93832e204db6d73b1e80f39f142d5747b290f17340adce5be5b122f94"
-RUN source scl_source enable devtoolset-7 \
-  && FILENAME=protobuf-cpp-${PROTOBUF_VERSION}.tar.gz \
-  && cd /usr/local/src \
-  && curl -L -O "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/${FILENAME}" \
-  && tar --no-same-owner -xf "$FILENAME" \
-  && cd protobuf-${PROTOBUF_VERSION} \
-  && ./configure \
-    --prefix=/usr/local \
-    --libdir=/usr/local/lib64 \
-    --with-pic \
-    --disable-shared \
-    --enable-static \
-  && make -j $(nproc) \
-  && make install \
-  && cd - \
-  && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" "protobuf-${PROTOBUF_VERSION}"
-
-# rust sha256sum generated locally after verifying it with sha256
+# rustup-init sha256sum can be found by appending .sha256 to the download url
 ARG RUST_VERSION="1.71.1"
-ARG RUST_SHA256_ARM="c7cf230c740a62ea1ca6a4304d955c286aea44e3c6fc960b986a8c2eeea4ec3f"
-ARG RUST_SHA256_X86="34778d1cda674990dfc0537bc600066046ae9cb5d65a07809f7e7da31d4689c4"
+ARG RUST_SHA256_ARM="76cd420cb8a82e540025c5f97bda3c65ceb0b0661d5843e6ef177479813b0367"
+ARG RUST_SHA256_X86="a3d541a5484c8fa2f1c21478a6f6c505a778d473c21d60a18a4df5185d320ef8"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
 RUN source scl_source enable devtoolset-7 \
     && mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && chown -R 777 "${CARGO_HOME}" "${RUSTUP_HOME}" \
+    && RUSTUP_VERSION="1.27.0" \
     && MARCH=$(uname -m) \
-    && if [[ $MARCH == "x86_64" ]]; then RUST_SHA256=${RUST_SHA256_X86};\
-     elif [[ $MARCH == "aarch64" ]];then RUST_SHA256=${RUST_SHA256_ARM}; fi && \
-    FILENAME=rust-${RUST_VERSION}-${MARCH}-unknown-linux-gnu.tar.gz && \
-    curl -L --write-out '%{http_code}' -O https://static.rust-lang.org/dist/${FILENAME} && \
-    printf '%s  %s' "$RUST_SHA256" "$FILENAME" | sha256sum --check --status && \
-    tar -xf "$FILENAME" \
-    && cd ${FILENAME%.tar.gz} \
-    && ./install.sh --components="rustc,cargo,clippy-preview,rustfmt-preview,rust-std-${MARCH}-unknown-linux-gnu" \
-    && cd - \
-    && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
+    && triplet="$MARCH-unknown-linux-gnu" \
+    && RUST_SHA256=$(if [[ $MARCH == "x86_64" ]]; then echo ${RUST_SHA256_X86}; \
+     elif [[ $MARCH == "aarch64" ]]; then echo ${RUST_SHA256_ARM}; fi) \
+    && curl -L --write-out '%{http_code}' -O https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${triplet}/rustup-init \
+    && printf '%s  rustup-init' "$RUST_SHA256" | sha256sum --check --status \
+    && chmod +x "rustup-init" \
+    && ./rustup-init -y --default-toolchain "$RUST_VERSION" -c "rustc,cargo,clippy,rustfmt,rust-std,rust-src" \
+    && rm -fr "rustup-init"
 
 # now install PHP specific dependencies
 RUN set -eux; \
