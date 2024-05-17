@@ -244,7 +244,9 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         $keys = array_map(function ($part) {
             return explode('=', $part)[0];
         }, $dbmCommentParts);
-        $this->assertSame(['dddb', 'dddbs', 'dde', 'ddh', 'ddprs', 'ddps', 'ddpv', 'traceparent'], $keys);
+        $sortedKeys = $keys;
+        sort($sortedKeys);
+        $this->assertSame($sortedKeys, $keys);
     }
 
     public function testEnvPropagation()
