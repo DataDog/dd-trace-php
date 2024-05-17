@@ -297,6 +297,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cadence"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f338b979d9ebfff4bb9801ae8f3af0dc3615f7f1ca963f2e4782bcf9acb3753"
+dependencies = [
+ "crossbeam-channel",
+]
+
+[[package]]
 name = "cast"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -813,6 +822,7 @@ dependencies = [
  "arrayref",
  "bincode",
  "bytes",
+ "cadence",
  "chrono",
  "console-subscriber",
  "datadog-ipc",
