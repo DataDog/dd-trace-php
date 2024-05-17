@@ -143,7 +143,7 @@ ddog_CharSlice ddog_sidecar_stats(ddog_SidecarTransport **transport);
 ddog_MaybeError ddog_sidecar_dogstatsd_count(ddog_SidecarTransport **transport,
                                              const struct ddog_InstanceId *instance_id,
                                              ddog_CharSlice metric,
-                                             uint64_t value,
+                                             int64_t value,
                                              const struct ddog_Vec_Tag *tags);
 
 ddog_MaybeError ddog_sidecar_dogstatsd_distribution(ddog_SidecarTransport **transport,
@@ -167,7 +167,7 @@ ddog_MaybeError ddog_sidecar_dogstatsd_histogram(ddog_SidecarTransport **transpo
 ddog_MaybeError ddog_sidecar_dogstatsd_set(ddog_SidecarTransport **transport,
                                            const struct ddog_InstanceId *instance_id,
                                            ddog_CharSlice metric,
-                                           uint64_t value,
+                                           int64_t value,
                                            const struct ddog_Vec_Tag *tags);
 
 #endif /* DDOG_SIDECAR_H */

@@ -166,7 +166,7 @@ void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
-    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), (uint64_t)value, &vec);
+    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
     ddog_Vec_Tag_drop(vec);
 }
 
