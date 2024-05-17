@@ -44,9 +44,18 @@ class DatabaseIntegrationHelper
             }
 
             $span = $hook->span();
-            $databaseService = $span->meta['peer.service'] ?? $span->service;
+            $targetHost = $span->meta[Tag::TARGET_HOST] ?? '';
+            $dbName = $span->meta[Tag::DB_NAME] ?? $span->meta[Tag::DB_INSTANCE] ?? '';
+            $peerService = $span->meta['peer.service'] ?? '';
 
-            $query = self::propagateViaSqlComments($hook->args[$argNum], $databaseService, $propagationMode);
+            $query = self::propagateViaSqlComments(
+                $hook->args[$argNum],
+                $span->service,
+                $propagationMode,
+                $targetHost,
+                $dbName,
+                $peerService
+            );
             $hook->args[$argNum] = $query;
             $hook->overrideArguments($hook->args);
             if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL) {
@@ -55,12 +64,22 @@ class DatabaseIntegrationHelper
         }
     }
 
-    public static function propagateViaSqlComments($query, $databaseService, $mode = \DDTrace\DBM_PROPAGATION_FULL)
-    {
+    public static function propagateViaSqlComments(
+        $query,
+        $databaseService,
+        $mode = \DDTrace\DBM_PROPAGATION_FULL,
+        $targetHost = '',
+        $dbName = '',
+        $peerService = ''
+    ) {
         $rootSpan = \DDTrace\root_span();
 
         // Note: the order of the tags is relevant, they must be passed ordered alphabetically
         $tags = [];
+
+        if ($dbName != "") {
+            $tags["dddb"] = $dbName;
+        }
 
         if ($databaseService != "") {
             $tags["dddbs"] = $databaseService;
@@ -72,6 +91,14 @@ class DatabaseIntegrationHelper
         }
         if ($env != "") {
             $tags["dde"] = $env;
+        }
+
+        if ($targetHost != "") {
+            $tags["ddh"] = $targetHost; // peer hostname
+        }
+
+        if ($peerService != "") {
+            $tags["ddprs"] = $peerService;
         }
 
         $service = $rootSpan->service ?? "";
