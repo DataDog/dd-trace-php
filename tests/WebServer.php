@@ -79,7 +79,6 @@ final class WebServer
     private $defaultInis = [
         'log_errors' => 'on',
         'datadog.trace.client_ip_header_disabled' => 'true',
-        'datadog.trace.debug' => 'true',
     ];
 
     private $errorLogSize = 0;
@@ -129,6 +128,10 @@ final class WebServer
 
     public function start()
     {
+        if (!isset($this->envs['DD_TRACE_DEBUG'])) {
+            $this->inis['datadog.trace.debug'] = 'true';
+        }
+
         $this->errorLogSize = (int)@filesize($this->defaultInis['error_log']);
 
         if ($this->roadrunnerVersion) {
