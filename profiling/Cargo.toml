@@ -12,9 +12,8 @@ bench = false # disables cargo build in libtest bench
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# with ahash 0.8.7 we run into https://github.com/tkaitchuck/aHash/issues/195
-# should be fixed with updating Rust to 1.72
-ahash = { version = "=0.8.11" }
+# Avoid ahash 0.8.7 we run into https://github.com/tkaitchuck/aHash/issues/195.
+ahash = { version = "0.8.11" }
 anyhow = { version = "1.0" }
 # v3.15 bumps MSRV to Rust 1.73
 bumpalo = { version = "=3.14.0", features = ["collections"] }
