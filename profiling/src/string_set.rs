@@ -6,6 +6,9 @@ use datadog_alloc::{AllocError, Allocator, ChainAllocator, VirtualAllocator};
 use std::alloc::Layout;
 use std::borrow::Borrow;
 
+trait ArenaAllocator: Allocator {}
+impl<A: Allocator + Clone> ArenaAllocator for ChainAllocator<A> {}
+
 type Hasher = hash::BuildHasherDefault<rustc_hash::FxHasher>;
 type HashSet<K> = std::collections::HashSet<K, Hasher>;
 
@@ -57,7 +60,9 @@ impl ThinStr<'static> {
 }
 
 impl<'a> ThinStr<'a> {
-    pub fn new_in(str: &str, arena: &'a impl Allocator) -> Result<Self, AllocError> {
+    // todo: move ArenaAllocator trait to `datadog_alloc` as a marker trait
+    //       (meaning, remove the associated method and leave that in prof)?
+    fn new_in(str: &str, arena: &'a impl ArenaAllocator) -> Result<Self, AllocError> {
         let inline_size = str.len() + USIZE_WIDTH;
 
         let layout = match Layout::from_size_align(inline_size, 1) {
@@ -247,6 +252,9 @@ mod tests {
     use super::*;
     use datadog_alloc::Global;
     use datadog_profiling::collections::string_table::wordpress_test_data;
+
+    // Not really, please manually de-allocate strings when done with them.
+    impl ArenaAllocator for Global {}
 
     #[test]
     fn test_allocation_and_deallocation() {
