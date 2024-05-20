@@ -396,6 +396,18 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
                     result.tracestate_unknown_dd_keys = new_result.tracestate_unknown_dd_keys;
                     zend_hash_init(&new_result.tracestate_unknown_dd_keys, 0, NULL, NULL, 0);
+                    if (result.parent_id != new_result.parent_id) {
+                        // The span id from tracecontext takes precendence over all other headers
+                        result.parent_id = new_result.parent_id;
+                        // set last datadog span_id tag
+                        ddtrace_distributed_tracing_result result_dd;
+                        zval *lp_id = zend_hash_str_find(&new_result->propagated_tags, ZEND_STRL("_dd.parent_id"));
+                        if (lp_id && lp_id != ZEND_STRL("0000000000000000")) {
+                            zend_hash_str_update(result.propagated_tags, ZEND_STRL("_dd.parent_id"), lp_id);
+                        } else if (result_dd = ddtrace_read_distributed_tracing_ids_datadog(read_header, data) && result_dd.parent_id != 0) {
+                            zend_hash_str_update(result.propagated_tags, ZEND_STRL("_dd.parent_id"), ZEND_STRL(sprintf("%016" PRIx64, result_dd.parent_id)));
+                        }
+                    }
                 }
             }
 
