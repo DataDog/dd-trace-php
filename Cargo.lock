@@ -51,10 +51,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "aliasable"
-version = "0.1.3"
+name = "allocator-api2"
+version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "250f629c0161ad8107cf89319e990051fae62832fd343083bea452d93e2205fd"
+checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 
 [[package]]
 name = "android-tzdata"
@@ -706,6 +706,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "datadog-alloc"
+version = "9.0.0"
+source = "git+https://github.com/DataDog/libdatadog?rev=9b531d525b4cb37cd4439445612f283b646d4338#9b531d525b4cb37cd4439445612f283b646d4338"
+dependencies = [
+ "allocator-api2",
+ "libc 0.2.154",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "datadog-ipc"
 version = "0.1.0"
 dependencies = [
@@ -751,7 +761,6 @@ dependencies = [
  "ahash 0.8.11",
  "anyhow",
  "bindgen",
- "bumpalo",
  "cc",
  "cfg-if",
  "chrono",
@@ -759,6 +768,7 @@ dependencies = [
  "criterion",
  "criterion-perf-events",
  "crossbeam-channel",
+ "datadog-alloc",
  "datadog-profiling",
  "ddcommon 9.0.0",
  "env_logger 0.11.3",
@@ -767,10 +777,10 @@ dependencies = [
  "libc 0.2.154",
  "log",
  "once_cell",
- "ouroboros",
  "perfcnt",
  "rand 0.8.5",
  "rand_distr",
+ "rustc-hash",
  "serde_json",
  "uuid",
 ]
@@ -778,18 +788,20 @@ dependencies = [
 [[package]]
 name = "datadog-profiling"
 version = "9.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v9.0.0#68c5099e9d6265d19c3cb7e0ffc916d85cb966b3"
+source = "git+https://github.com/DataDog/libdatadog?rev=9b531d525b4cb37cd4439445612f283b646d4338#9b531d525b4cb37cd4439445612f283b646d4338"
 dependencies = [
  "anyhow",
  "bitmaps",
  "byteorder",
  "bytes",
  "chrono",
+ "datadog-alloc",
  "ddcommon 9.0.0",
  "derivative",
  "futures",
  "futures-core",
  "futures-util",
+ "hashbrown 0.14.3",
  "http",
  "http-body",
  "hyper",
@@ -957,7 +969,7 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "9.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v9.0.0#68c5099e9d6265d19c3cb7e0ffc916d85cb966b3"
+source = "git+https://github.com/DataDog/libdatadog?rev=9b531d525b4cb37cd4439445612f283b646d4338#9b531d525b4cb37cd4439445612f283b646d4338"
 dependencies = [
  "anyhow",
  "futures",
@@ -1414,6 +1426,9 @@ name = "hashbrown"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
+dependencies = [
+ "allocator-api2",
+]
 
 [[package]]
 name = "hdrhistogram"
@@ -1660,15 +1675,6 @@ name = "itertools"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
 dependencies = [
  "either",
 ]
@@ -2186,31 +2192,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 
 [[package]]
-name = "ouroboros"
-version = "0.18.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97b7be5a8a3462b752f4be3ff2b2bf2f7f1d00834902e46be2a4d68b87b0573c"
-dependencies = [
- "aliasable",
- "ouroboros_macro",
- "static_assertions",
-]
-
-[[package]]
-name = "ouroboros_macro"
-version = "0.18.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b645dcde5f119c2c454a92d0dfa271a2a3b205da92e4292a68ead4bdbfde1f33"
-dependencies = [
- "heck",
- "itertools 0.12.1",
- "proc-macro2",
- "proc-macro2-diagnostics",
- "quote",
- "syn 2.0.49",
-]
-
-[[package]]
 name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2426,7 +2407,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af7cee1a6c8a5b9208b3cb1061f10c0cb689087b3d8ce85fb9d2dd7a29b6ba66"
 dependencies = [
  "diff",
- "yansi 0.5.1",
+ "yansi",
 ]
 
 [[package]]
@@ -2490,19 +2471,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2422ad645d89c99f8f3e6b88a9fdeca7fabeac836b1002371c4367c8f984aae"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "proc-macro2-diagnostics"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af066a9c399a26e020ada66a034357a868728e72cd426f3adcd35f80d88d88c8"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.49",
- "version_check 0.9.4",
- "yansi 1.0.1",
 ]
 
 [[package]]
@@ -4194,12 +4162,6 @@ name = "yansi"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
-
-[[package]]
-name = "yansi"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "zerocopy"
