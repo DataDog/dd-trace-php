@@ -270,6 +270,12 @@ mod tests {
             })
             .collect();
 
+        // This could detect out-of-bounds writes.
+        for (thin_str, str) in thin_strs.iter().zip(wordpress_test_data::WORDPRESS_STRINGS) {
+            let actual = thin_str.deref();
+            assert_eq!(str, actual);
+        }
+
         for thin_str in thin_strs.drain(..) {
             unsafe { alloc.deallocate(thin_str.inline_ptr, thin_str.layout()) };
         }
