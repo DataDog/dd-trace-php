@@ -7,7 +7,7 @@ jobs:
   prof-asan:
     runs-on: ubuntu-latest
     container:
-      image: datadog/dd-trace-ci:php-8.3_bookworm-1
+      image: datadog/dd-trace-ci:php-8.3_bookworm-2
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
       options: --user root --privileged
 
@@ -40,7 +40,8 @@ jobs:
           export LDFLAGS='-fsanitize=address'
           export RUSTC_LINKER=lld-16
           triplet=$(uname -m)-unknown-linux-gnu
-          RUSTFLAGS='-Zsanitizer=address' cargo +nightly-2023-05-03 build -Zbuild-std --target $triplet --release
+          RUST_NIGHTLY_VERSION="-2024-02-27"
+          RUSTFLAGS='-Zsanitizer=address' cargo +nightly${RUST_NIGHTLY_VERSION} build -Zbuild-std --target $triplet --release
           cp -v "$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Cache build dependencies
