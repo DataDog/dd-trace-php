@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Laravel;
 
 use DDTrace\Integrations\Lumen\LumenIntegration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
