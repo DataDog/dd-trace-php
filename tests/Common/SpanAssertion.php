@@ -51,8 +51,16 @@ final class SpanAssertion
      * @param null|string $service
      * @return SpanAssertion
      */
-    public static function exists($name, $resource = null, $error = false, $service = null)
+    public static function exists($name, $resource = SpanAssertion::NOT_TESTED, $error = false, $service = SpanAssertion::NOT_TESTED)
     {
+        if ($error === null) {
+            $error = false;
+        }
+
+        if ($resource === null) {
+            $resource = SpanAssertion::NOT_TESTED;
+        }
+
         return SpanAssertion::forOperation($name, $error, true)
             ->resource($resource)
             ->service($service);
