@@ -400,12 +400,20 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                         // The span id from tracecontext takes precendence over all other headers
                         result.parent_id = new_result.parent_id;
                         // set last datadog span_id tag
-                        ddtrace_distributed_tracing_result result_dd;
-                        zval *lp_id = zend_hash_str_find(&new_result->propagated_tags, ZEND_STRL("_dd.parent_id"));
-                        if (lp_id && lp_id != ZEND_STRL("0000000000000000")) {
-                            zend_hash_str_update(result.propagated_tags, ZEND_STRL("_dd.parent_id"), lp_id);
-                        } else if (result_dd = ddtrace_read_distributed_tracing_ids_datadog(read_header, data) && result_dd.parent_id != 0) {
-                            zend_hash_str_update(result.propagated_tags, ZEND_STRL("_dd.parent_id"), ZEND_STRL(sprintf("%016" PRIx64, result_dd.parent_id)));
+                        zval *lp_id = zend_hash_str_find(&new_result.propagated_tags, ZEND_STRL("_dd.parent_id"));
+                        zval *defaul_lp_id;
+                        ZVAL_STRING(defaul_lp_id, "0000000000000000");
+                        if (lp_id && lp_id != defaul_lp_id) {
+                            zend_hash_str_update(&result.propagated_tags, ZEND_STRL("_dd.parent_id"), lp_id);
+                        } else{
+                            ddtrace_distributed_tracing_result result_dd = ddtrace_read_distributed_tracing_ids_datadog(read_header, data);
+                            if (result_dd.parent_id != 0) {
+                                char parent_id_hex[16];
+                                sprintf(parent_id_hex, "%016lx", result_dd.parent_id);
+                                zval *parent_id_zval;
+                                ZVAL_STRING(parent_id_zval, parent_id_hex);
+                                zend_hash_str_update(&result.propagated_tags, ZEND_STRL("_dd.parent_id"), parent_id_zval);
+                            }
                         }
                     }
                 }
