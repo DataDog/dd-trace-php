@@ -2,7 +2,7 @@
 
 set -e
 
-apt-get update && apt-get install -y php
+plesk installer --select-release-current --install-component php8.1
 
 . "$(dirname ${0})/utils.sh"
 
