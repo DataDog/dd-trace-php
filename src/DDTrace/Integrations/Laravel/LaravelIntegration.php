@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Laravel;
 
 use DDTrace\Integrations\Lumen\LumenIntegration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
@@ -86,7 +87,7 @@ class LaravelIntegration extends Integration
             'bootstrapWith',
             function ($app) use ($integration) {
                 $integration->serviceName = ddtrace_config_app_name();
-                if (empty($integration->serviceName)) {
+                if (empty($integration->serviceName) && file_exists($app->environmentPath() . '/' . $app->environmentFile())) {
                     $app->make('Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables')->bootstrap($app);
                     $configPath = realpath($app->configPath());
                     if (file_exists($configPath . '/app.php')) {
