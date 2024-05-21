@@ -2,6 +2,8 @@
 
 set -e
 
+apt-get update && apt-get install -y php
+
 . "$(dirname ${0})/utils.sh"
 
 # Install using the php installer
