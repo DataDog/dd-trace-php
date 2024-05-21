@@ -424,19 +424,21 @@ final class SpanChecker
             isset($span['name']) ? $span['name'] : '',
             $namePrefix . "Wrong value for 'operation name': " . print_r($span, true)
         );
-        TestCase::assertSame(
-            $exp->hasError(),
-            isset($span['error']) && 1 === $span['error'],
-            $namePrefix . "Wrong value for 'error': " . print_r($span, true)
-        );
-        if ($exp->getService() != SpanAssertion::NOT_TESTED) {
+        if ($exp->hasError() !== SpanAssertion::NOT_TESTED) {
+            TestCase::assertSame(
+                $exp->hasError(),
+                isset($span['error']) && 1 === $span['error'],
+                $namePrefix . "Wrong value for 'error': " . print_r($span, true)
+            );
+        }
+        if ($exp->getService() !== SpanAssertion::NOT_TESTED) {
             TestCase::assertSame(
                 $exp->getService(),
                 isset($span['service']) ? $span['service'] : '',
                 $namePrefix . "Wrong value for 'service' " . print_r($span, true)
             );
         }
-        if ($exp->getResource() != SpanAssertion::NOT_TESTED) {
+        if ($exp->getResource() !== SpanAssertion::NOT_TESTED) {
             $expectedResource = $exp->getResource();
             $actualResource = isset($span['resource']) ? $span['resource'] : '';
             TestCase::assertTrue(
