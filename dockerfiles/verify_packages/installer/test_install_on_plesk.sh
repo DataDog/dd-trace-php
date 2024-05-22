@@ -2,6 +2,8 @@
 
 set -e
 
+service mysql start
+
 plesk installer --select-release-current --install-component php8.1
 
 . "$(dirname ${0})/utils.sh"
