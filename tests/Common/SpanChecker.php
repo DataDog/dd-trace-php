@@ -448,6 +448,10 @@ final class SpanChecker
             );
         }
 
+        foreach ($exp->getExistingTagNames(true) as $key) {
+            TestCase::assertArrayHasKey($key, $spanMeta);
+        }
+
         if ($exp->isOnlyCheckExistence()) {
             return;
         }
