@@ -9,6 +9,8 @@ $logs = json_decode(\DDTrace\startup_logs(), true);
 
 // Ignore any Agent connection errors for now
 unset($logs['agent_error']);
+// Ignore sidecar config as it depends on specific versions of PHP for now
+unset($logs['sidecar_trace_sender']);
 
 dd_dump_startup_logs($logs);
 ?>
@@ -33,6 +35,7 @@ service_mapping: []
 distributed_tracing_enabled: true
 dd_version: null
 architecture: "%s"
+instrumentation_telemetry_enabled: true
 sapi: "cli"
 datadog.trace.sources_path: null
 open_basedir_configured: false

@@ -397,7 +397,15 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
+
 #ifndef _WIN32
+        if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()){
+            // We enabled sending traces through the sidecar by default
+            // That said a few customers have explicitly disabled telemetry to disable the sidecar
+            // So if telemetry is disabled, we will disable the sidecar and send a one shot telemetry call
+            disable_sidecar_sending();
+            // TODO: report the fallback in telemetry
+        }
         if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())
 #endif
         {
@@ -408,6 +416,15 @@ static void dd_activate_once(void) {
         }
     }
 }
+
+#ifndef _WIN32
+void disable_sidecar_sending(void){
+    zend_string *zero = zend_string_init("0", 1, 0);
+    zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].ini_entries[0]->name, zero,
+                    ZEND_INI_SYSTEM, ZEND_INI_STAGE_RUNTIME);
+    zend_string_release(zero);
+}
+#endif
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 
