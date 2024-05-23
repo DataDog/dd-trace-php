@@ -114,6 +114,10 @@ ddog_MaybeError ddog_sidecar_telemetry_end(struct ddog_SidecarTransport **transp
                                            const struct ddog_InstanceId *instance_id,
                                            const ddog_QueueId *queue_id);
 
+ddog_MaybeError ddog_sidecar_telemetry_flush(struct ddog_SidecarTransport **transport,
+                                             const struct ddog_InstanceId *instance_id,
+                                             const ddog_QueueId *queue_id);
+
 bool ddog_sidecar_is_closed(struct ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **transport,

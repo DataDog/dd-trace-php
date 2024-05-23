@@ -77,6 +77,10 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
 
     ddog_endpoint_drop(dogstatsd_endpoint);
 
+    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+        ddtrace_telemetry_register_services(sidecar_transport);
+    }
+
     return sidecar_transport;
 }
 

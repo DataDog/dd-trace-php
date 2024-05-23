@@ -13,6 +13,7 @@
 
 // For reasons it doesn't find asprintf() if this isn't included later...
 #include "coms.h"
+#include "telemetry.h"
 #include <components-rs/ddtrace.h>
 
 #ifdef HAVE_CONFIG_H
@@ -590,10 +591,8 @@ static void _dd_msgpack_group_stack_by_id(ddtrace_coms_stack_t *stack, struct _g
         size_t elements_in_group = 0;
         size_t bytes_in_group = 0;
         group_dest_position += sizeof(size_t) * 2;  // leave place for group meta data
-        size_t i = 0;
         while (current_src_position < bytes_written) {
             struct _entry_t entry = _dd_create_entry(stack, current_src_position);
-            i++;
             if (entry.size == 0) {
                 break;
             }
@@ -810,74 +809,99 @@ static size_t _dd_curl_writefunc(char *ptr, size_t size, size_t nmemb, void *s) 
     return size * nmemb;
 }
 
-static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
+static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack, trace_api_metrics *metrics) {
     if (!writer->curl) {
         ddtrace_bgs_logf("[bgs] no curl session - dropping the current stack.\n", NULL);
+        return;
     }
 
-    if (writer->curl) {
-        void *read_data = _dd_init_read_userdata(stack);
-        struct _grouped_stack_t *kData = read_data;
+    void *read_data = _dd_init_read_userdata(stack);
+    struct _grouped_stack_t *kData = read_data;
 
-        int retries = MAX(get_global_DD_TRACE_AGENT_RETRIES(), 0) + 1;
-        for (int retry = 0; retry < retries; retry++) {
-            CURLcode res;
+    int retries = MAX(get_global_DD_TRACE_AGENT_RETRIES(), 0) + 1;
+    CURLcode res = CURLE_UNSUPPORTED_PROTOCOL; // Set a default value to avoid compiler warning
+    for (int retry = 0; retry < retries; retry++) {
+        _dd_curl_set_headers(writer, kData->total_groups);
+        curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
+        ddtrace_curl_set_hostname(writer->curl);
+        ddtrace_curl_set_timeout(writer->curl);
+        ddtrace_curl_set_connect_timeout(writer->curl);
 
-            _dd_curl_set_headers(writer, kData->total_groups);
-            curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
-            ddtrace_curl_set_hostname(writer->curl);
-            ddtrace_curl_set_timeout(writer->curl);
-            ddtrace_curl_set_connect_timeout(writer->curl);
+        smart_str response = {0};
 
-            smart_str response = {0};
+        curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
+        curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long) get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
+        curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_curl_writefunc);
+        curl_easy_setopt(writer->curl, CURLOPT_WRITEDATA, &response);
+        res = curl_easy_perform(writer->curl);
 
-            curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
-            curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, (long) get_global_DD_TRACE_AGENT_DEBUG_VERBOSE_CURL());
-            curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_curl_writefunc);
-            curl_easy_setopt(writer->curl, CURLOPT_WRITEDATA, &response);
-            res = curl_easy_perform(writer->curl);
+        if (res != CURLE_OK) {
+            ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
 
-            if (res != CURLE_OK) {
-                ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            CURL *curl = writer->curl;
+            writer->curl = NULL;
+            curl_easy_cleanup(curl);
 
-                CURL *curl = writer->curl;
-                writer->curl = NULL;
-                curl_easy_cleanup(curl);
+            writer->curl = curl_easy_init();
+            curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, _dd_coms_read_callback);
+            curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_dummy_write_callback);
+            // as per https://curl.se/libcurl/c/threadsafe.html
+            // Also note that the docs mention potential SIGPIPEs, which may occur with OpenSSL:
+            // We can ignore that for now as we don't do TLS traffic to the agent currently
+            curl_easy_setopt(writer->curl, CURLOPT_NOSIGNAL, 1);
 
-                writer->curl = curl_easy_init();
-                curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, _dd_coms_read_callback);
-                curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_dummy_write_callback);
-                // as per https://curl.se/libcurl/c/threadsafe.html
-                // Also note that the docs mention potential SIGPIPEs, which may occur with OpenSSL:
-                // We can ignore that for now as we don't do TLS traffic to the agent currently
-                curl_easy_setopt(writer->curl, CURLOPT_NOSIGNAL, 1);
-
-                continue;
-            } else {
-                if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
-                    double uploaded;
+            continue;
+        } else {
+            if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
+                double uploaded;
 // only deprecated on relatively new libcurl versions
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-                    curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
+                curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
 #pragma GCC diagnostic pop
-                    ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
-                }
-
-                // No response happens with test agents for example
-                if (response.s) {
-                    ddog_agent_remote_config_write(dd_agent_config_writer, dd_zend_string_to_CharSlice(response.s));
-                    smart_str_free_ex(&response, true);
-                }
+                ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
             }
 
-            break;
+            // No response happens with test agents for example
+            if (response.s) {
+                ddog_agent_remote_config_write(dd_agent_config_writer, dd_zend_string_to_CharSlice(response.s));
+                smart_str_free_ex(&response, true);
+            }
         }
 
-        _dd_deinit_read_userdata(read_data);
-        _dd_curl_reset_headers(writer);
+        break;
     }
+
+    // Collect metrics for the last performed HTTP query
+    metrics->requests++;
+    if (res == CURLE_OK) {
+        long response_code = 0;
+        curl_easy_getinfo(writer->curl, CURLINFO_RESPONSE_CODE, &response_code);
+        if (response_code >= 500) {
+            metrics->responses_5xx++;
+            metrics->errors_status_code++;
+        } else if (response_code >= 400) {
+            metrics->responses_4xx++;
+            metrics->errors_status_code++;
+        } else if (response_code >= 300) {
+            metrics->responses_3xx++;
+            metrics->errors_status_code++;
+        } else if (response_code >= 200) {
+            metrics->responses_2xx++;
+        } else if (response_code >= 100) {
+            metrics->responses_1xx++;
+            metrics->errors_status_code++;
+        }
+    } else if (res == CURLE_OPERATION_TIMEDOUT) {
+        metrics->errors_timeout++;
+    } else {
+        metrics->errors_network++;
+    }
+
+    _dd_deinit_read_userdata(read_data);
+    _dd_curl_reset_headers(writer);
 }
+
 static void _dd_signal_writer_started(struct _writer_loop_data_t *writer) {
     if (writer->thread) {
         // at the moment no actual signal is sent but we will set a threadsafe state variable
@@ -1000,10 +1024,11 @@ static void *_dd_writer_loop(void *_) {
         // We can ignore that for now as we don't do TLS traffic to the agent currently
         curl_easy_setopt(writer->curl, CURLOPT_NOSIGNAL, 1);
 
+        trace_api_metrics metrics = {0};
         while (*stack) {
             processed_stacks++;
             if (atomic_load(&writer->sending)) {
-                _dd_curl_send_stack(writer, *stack);
+                _dd_curl_send_stack(writer, *stack, &metrics);
             }
 
             ddtrace_coms_stack_t *to_free = *stack;
@@ -1025,6 +1050,7 @@ static void *_dd_writer_loop(void *_) {
             running = false;
         }
 
+        ddtrace_telemetry_send_trace_api_metrics(metrics);
         _dd_signal_data_processed(writer);
     } while (running);
 
