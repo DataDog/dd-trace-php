@@ -182,10 +182,10 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_TRACE_LOG_FILE, "", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(STRING, DD_TRACE_LOG_LEVEL, "error", .ini_change = ddtrace_alter_dd_trace_log_level)                \
     CONFIG(BOOL, DD_APPSEC_SCA_ENABLED, "false", .ini_change = zai_config_system_ini_change)                   \
-    CONFIG(BOOL, DD_WORDPRESS_HOOKS_ENABLED, "true")                                                            \
+    CONFIG(BOOL, DD_WORDPRESS_HOOKS_ENABLED, "false")                                                            \
     CONFIG(BOOL, DD_WORDPRESS_LOGS_ENABLED, "true")                                                             \
     CONFIG(DOUBLE, DD_WORDPRESS_LOGS_SAMPLE_RATE, "0.1")                                                        \
-    CONFIG(BOOL, DD_WORDPRESS_METRICS_ENABLED, "false")                                                          \
+    CONFIG(BOOL, DD_WORDPRESS_METRICS_ENABLED, "true")                                                          \
     DD_INTEGRATIONS
 
 #ifndef _WIN32
