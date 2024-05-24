@@ -13,7 +13,7 @@ static inline bool dd_is_hex_char(char chr) {
 
 static ddtrace_distributed_tracing_result dd_init_empty_result(void) {
     ddtrace_distributed_tracing_result result = {0};
-    result.priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+    result.priority_sampling = PRIORITY_SAMPLING_USER_KEEP;
     zend_hash_init(&result.tracestate_unknown_dd_keys, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.propagated_tags, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.meta_tags, 8, unused, ZVAL_PTR_DTOR, 0);
