@@ -24,6 +24,13 @@ final class DatadogLogger
     {
         if (is_null($stream)) {
             $stream = \dd_trace_env_config('DD_TRACE_LOG_FILE') ?: ini_get('error_log') ?: 'php://stderr';
+
+            // The current fork may not have the necessary permissions to write to /dev/stderr or /dev/stdout
+            if ($stream === '/dev/stderr') {
+                $stream = 'php://stderr';
+            } elseif ($stream === '/dev/stdout') {
+                $stream = 'php://stdout';
+            }
         }
 
        if (is_resource($stream)) {

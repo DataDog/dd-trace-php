@@ -337,7 +337,7 @@ class WordPressIntegrationLoader
                             $duration = (microtime(true) * 1e6) - ($span->getStartTime() / 1e3); // ms - ms := ms
                             WordPressIntegrationLoader::sendMetric(
                                 $integration,
-                                'dogstatsd_distribution',
+                                '\DDTrace\dogstatsd_distribution',
                                 'wordpress.plugin.loading_duration',
                                 $duration,
                                 ['wordpress.plugin.name' => $hook->data['themeName']]
@@ -824,7 +824,7 @@ class WordPressIntegrationLoader
                         if ($integration->hooksEnabled) {
                             WordPressIntegrationLoader::sendMetric(
                                 $integration,
-                                'dogstatsd_distribution',
+                                '\DDTrace\dogstatsd_distribution',
                                 'wordpress.hook.duration',
                                 $msDuration,
                                 [
@@ -860,7 +860,7 @@ class WordPressIntegrationLoader
            foreach ($pluginTimes->total as $pluginName => $totalDuration) {
                WordPressIntegrationLoader::sendMetric(
                    $integration,
-                   'dogstatsd_distribution',
+                   '\DDTrace\dogstatsd_distribution',
                    'wordpress.plugin.total_duration',
                    $totalDuration,
                    $USTTags + ['wordpress.plugin.name' => $pluginName]
@@ -870,7 +870,7 @@ class WordPressIntegrationLoader
             foreach ($pluginTimes->cumulative as $pluginName => $cumulativeDuration) {
                 WordPressIntegrationLoader::sendMetric(
                     $integration,
-                    'dogstatsd_distribution',
+                    '\DDTrace\dogstatsd_distribution',
                     'wordpress.plugin.cumulative_duration',
                     $cumulativeDuration,
                     $USTTags + ['wordpress.plugin.name' => $pluginName]
@@ -880,7 +880,7 @@ class WordPressIntegrationLoader
             foreach ($pluginTimes->calls as $pluginName => $nCalls) {
                 WordPressIntegrationLoader::sendMetric(
                     $integration,
-                    'dogstatsd_count',
+                    '\DDTrace\dogstatsd_count',
                     'wordpress.plugin.calls',
                     $nCalls,
                     $USTTags + ['wordpress.plugin.name' => $pluginName]
@@ -942,7 +942,7 @@ class WordPressIntegrationLoader
                                 }
                                 WordPressIntegrationLoader::sendMetric(
                                     $integration,
-                                    'dogstatsd_distribution',
+                                    '\DDTrace\dogstatsd_distribution',
                                     'wordpress.plugin.loading_duration',
                                     $duration,
                                     ['wordpress.plugin.name' => $top]
@@ -1020,7 +1020,7 @@ class WordPressIntegrationLoader
                 // Hypothesis: If the queried file contains 'cache', it's a cache-retrieval operation
                 WordPressIntegrationLoader::sendMetric(
                     $integration,
-                    'dogstatsd_distribution',
+                    '\DDTrace\dogstatsd_distribution',
                     'wordpress.cache',
                     $retval ? 1 : 0
                 );
