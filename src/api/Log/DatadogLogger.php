@@ -145,10 +145,14 @@ final class DatadogLogger
     private static function format(string $level, $message, array $context = []): string {
         $message = self::interpolate($message, $context);
 
+        $now = microtime(true);
+        $micro = sprintf("%06d", ($now - floor($now)) * 1000000);
+        $date = new \DateTime(date('Y-m-d H:i:s.'.$micro, $now));
+
         $record = array_merge([
             'message' => $message,
-            'level_name' => $level,
-            'timestamp' => date(\DateTime::ATOM),
+            'status' => $level,
+            'timestamp' => $date->format('Y-m-d\TH:i:s.uP'),
         ], $context);
 
         return json_encode(array_merge($record, self::handleLogInjection()), self::DEFAULT_JSON_FLAGS) . PHP_EOL;

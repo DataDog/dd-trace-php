@@ -819,7 +819,7 @@ class WordPressIntegrationLoader
                     $hookName = $args[0];
                     $pluginOrThemeName = $hook->data['pluginOrThemeName'] ?? '';
                     if (!empty($pluginOrThemeName)) {
-                        $msDuration = (microtime(true) - $hook->data['startTime']) * 1e6;
+                        $msDuration = (microtime(true) - $hook->data['startTime']) * 1e3;
                         $pluginTimes->closeSpan($msDuration);
                         if ($integration->hooksEnabled) {
                             WordPressIntegrationLoader::sendMetric(
@@ -886,9 +886,6 @@ class WordPressIntegrationLoader
                     $USTTags + ['wordpress.plugin.name' => $pluginName]
                 );
             }
-
-            Logger::get()->debug('PluginTimes::stack: ' . json_encode($pluginTimes->stack));
-            Logger::get()->debug('PluginTimes::activePlugins: ' . json_encode($pluginTimes->activePlugins));
         });
 
         static $plugin_loading_funcs = [
@@ -1016,7 +1013,6 @@ class WordPressIntegrationLoader
 
         \DDTrace\hook_function('file_get_contents', null, function ($args, $retval) use ($integration) {
             if (strpos($args[0], 'cache') !== false) {
-                Logger::get()->debug("Caching-retrieval Operation");
                 // Hypothesis: If the queried file contains 'cache', it's a cache-retrieval operation
                 WordPressIntegrationLoader::sendMetric(
                     $integration,
@@ -1024,8 +1020,6 @@ class WordPressIntegrationLoader
                     'wordpress.cache',
                     $retval ? 1 : 0
                 );
-            } else {
-                Logger::get()->debug("file_get_contents on {$args[0]}");
             }
         });
 
