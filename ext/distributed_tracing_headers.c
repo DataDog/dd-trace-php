@@ -397,25 +397,24 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                     result.tracestate_unknown_dd_keys = new_result.tracestate_unknown_dd_keys;
                     zend_hash_init(&new_result.tracestate_unknown_dd_keys, 0, NULL, NULL, 0);
                     if (result.parent_id != new_result.parent_id) {
-                        // The span id from tracecontext takes precendence over all other headers
                         result.parent_id = new_result.parent_id;
                         // set last datadog span_id tag
                         zval *lp_id = zend_hash_str_find(&new_result.propagated_tags, ZEND_STRL("_dd.parent_id"));
-                        zval *defaul_lp_id;
-                        ZVAL_STRING(defaul_lp_id, "0000000000000000");
-                        if (lp_id && lp_id != defaul_lp_id) {
+                        zval *default_lp_id;
+                        ZVAL_STRING(default_lp_id, "0000000000000000");
+                        if (lp_id && Z_TYPE_P(lp_id) == IS_STRING && strcmp(Z_STRVAL_P(lp_id), Z_STRVAL_P(default_lp_id)) != 0) {
                             zend_hash_str_update(&result.propagated_tags, ZEND_STRL("_dd.parent_id"), lp_id);
-                        } else{
+                        } else {
                             ddtrace_distributed_tracing_result result_dd = ddtrace_read_distributed_tracing_ids_datadog(read_header, data);
                             if (result_dd.parent_id != 0) {
-                                char parent_id_hex[16];
+                                char parent_id_hex[17];
                                 sprintf(parent_id_hex, "%016lx", result_dd.parent_id);
-                                zval *parent_id_zval;
-                                ZVAL_STRING(parent_id_zval, parent_id_hex);
-                                zend_hash_str_update(&result.propagated_tags, ZEND_STRL("_dd.parent_id"), parent_id_zval);
+                                zval parent_id_zval;
+                                ZVAL_STRING(&parent_id_zval, parent_id_hex);
+                                zend_hash_str_update(&result.propagated_tags, ZEND_STRL("_dd.parent_id"), &parent_id_zval);
                             }
                         }
-                    }
+                     }
                 }
             }
 
