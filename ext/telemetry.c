@@ -202,32 +202,32 @@ void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics) {
     }
 
     ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.requests"), metrics.requests, DDOG_CHARSLICE_C(""));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.requests"), (double)metrics.requests, DDOG_CHARSLICE_C(""));
 
     if (metrics.responses_1xx) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), metrics.responses_1xx, DDOG_CHARSLICE_C("status_code:1xx"));
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), (double)metrics.responses_1xx, DDOG_CHARSLICE_C("status_code:1xx"));
     }
     if (metrics.responses_2xx) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), metrics.responses_2xx, DDOG_CHARSLICE_C("status_code:2xx"));
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), (double)metrics.responses_2xx, DDOG_CHARSLICE_C("status_code:2xx"));
     }
     if (metrics.responses_3xx) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), metrics.responses_3xx, DDOG_CHARSLICE_C("status_code:3xx"));
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), (double)metrics.responses_3xx, DDOG_CHARSLICE_C("status_code:3xx"));
     }
     if (metrics.responses_4xx) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), metrics.responses_4xx, DDOG_CHARSLICE_C("status_code:4xx"));
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), (double)metrics.responses_4xx, DDOG_CHARSLICE_C("status_code:4xx"));
     }
     if (metrics.responses_5xx) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), metrics.responses_5xx, DDOG_CHARSLICE_C("status_code:5xx"));
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), (double)metrics.responses_5xx, DDOG_CHARSLICE_C("status_code:5xx"));
     }
 
     if (metrics.errors_timeout) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), metrics.errors_timeout, DDOG_CHARSLICE_C("type:timeout"));
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), (double)metrics.errors_timeout, DDOG_CHARSLICE_C("type:timeout"));
     }
     if (metrics.errors_network) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), metrics.errors_network, DDOG_CHARSLICE_C("type:network"));
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), (double)metrics.errors_network, DDOG_CHARSLICE_C("type:network"));
     }
     if (metrics.errors_status_code) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), metrics.errors_status_code, DDOG_CHARSLICE_C("type:status_code"));
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), (double)metrics.errors_status_code, DDOG_CHARSLICE_C("type:status_code"));
     }
 
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer);

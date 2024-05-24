@@ -60,6 +60,10 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $isMetric = function (array $payload) {
             return 'generate-metrics' === $payload['request_type'];
         };
+
+        // Filter the payloads from the trace background sender
+        $payloads = array_values(array_filter($payloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
+
         $metrics = array_values(array_filter($payloads, $isMetric));
         $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
 
@@ -78,11 +82,16 @@ final class InstrumentationTest extends WebFrameworkTestCase
         }));
         // Not asserting app-closing, this is not expected to happen until shutdown
 
-        $this->assertCount(1, $metrics);
-        $series = array_values(array_filter($metrics[0]["payload"]["series"], function ($p) { return $p['metric'] === 'spans_created'; }));
-        $this->assertEquals("tracers", $series[0]["namespace"]);
-        $this->assertEquals("spans_created", $series[0]["metric"]);
-        $this->assertEquals(["integration_name:datadog"], $series[0]["tags"]);
+        $allMetrics = [];
+        foreach ($metrics as $m) {
+            foreach ($m["payload"]["series"] as $s) {
+                $allMetrics[$s["metric"]] = $s;
+            }
+        }
+        $this->assertArrayHasKey("spans_created", $allMetrics);
+        $this->assertEquals("tracers", $allMetrics["spans_created"]["namespace"]);
+        $this->assertEquals("spans_created", $allMetrics["spans_created"]["metric"]);
+        $this->assertEquals(["integration_name:datadog"], $allMetrics["spans_created"]["tags"]);
 
         $this->call(GetSpec::create("autoloaded", "/pdo"));
 
@@ -94,6 +103,9 @@ final class InstrumentationTest extends WebFrameworkTestCase
 
         $this->assertGreaterThanOrEqual(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
+
+        // Filter the payloads from the trace background sender
+        $payloads = array_values(array_filter($payloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
 
         $metrics = array_values(array_filter($payloads, $isMetric));
         $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
@@ -125,10 +137,15 @@ final class InstrumentationTest extends WebFrameworkTestCase
             ]
         ], $payloads[2]["payload"]["integrations"]);
 
-        $this->assertCount(1, $metrics);
-        $series = array_values(array_filter($metrics[0]["payload"]["series"], function ($p) { return $p['metric'] === 'spans_created'; }));
-        $this->assertEquals("tracers", $series[0]["namespace"]);
-        $this->assertEquals("spans_created", $series[0]["metric"]);
-        $this->assertEquals(["integration_name:pdo"], $series[0]["tags"]);
+        $allMetrics = [];
+        foreach ($metrics as $m) {
+            foreach ($m["payload"]["series"] as $s) {
+                $allMetrics[$s["metric"]] = $s;
+            }
+        }
+        $this->assertArrayHasKey("spans_created", $allMetrics);
+        $this->assertEquals("tracers", $allMetrics["spans_created"]["namespace"]);
+        $this->assertEquals("spans_created", $allMetrics["spans_created"]["metric"]);
+        $this->assertEquals(["integration_name:pdo"], $allMetrics["spans_created"]["tags"]);
     }
 }
