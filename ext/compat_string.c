@@ -78,9 +78,5 @@ try_again:
 
 void ddtrace_convert_to_string(zval *dst, zval *src) {
     zend_string *str = ddtrace_convert_to_str(src);
-    if (str) {
-        ZVAL_STR(dst, str);
-    } else {
-        ZVAL_NULL(dst);
-    }
+    ZVAL_STR(dst, str);
 }

@@ -6,6 +6,8 @@ mod logging;
 mod pcntl;
 pub mod profiling;
 mod sapi;
+
+#[cfg(php_run_time_cache)]
 mod string_table;
 
 #[cfg(feature = "allocation_profiling")]
@@ -20,8 +22,10 @@ mod timeline;
 mod wall_time;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
-use bindings as zend;
-use bindings::{ddog_php_prof_php_version_id, ZendExtension, ZendResult};
+use bindings::{
+    self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
+    ZendResult,
+};
 use clocks::*;
 use core::ptr;
 use datadog_profiling::exporter::Tag;
@@ -62,7 +66,21 @@ static PROFILER_VERSION: &[u8] = concat!(include_str!("../../VERSION"), "\0").as
 
 /// Version ID of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit.
-static mut PHP_VERSION_ID: u32 = zend::PHP_VERSION_ID;
+static mut RUNTIME_PHP_VERSION_ID: u32 = zend::PHP_VERSION_ID;
+
+/// Version str of PHP at run-time, not the version it was built against at
+/// compile-time. Its value is overwritten during minit, unless there are
+/// errors at run-time, and then the compile-time value will still remain.
+static mut RUNTIME_PHP_VERSION: &str = {
+    // This takes a weird path in order to be const.
+    let ptr: *const u8 = zend::PHP_VERSION.as_ptr();
+    let len = zend::PHP_VERSION.len() - 1;
+    let bytes = unsafe { core::slice::from_raw_parts(ptr, len) };
+    match core::str::from_utf8(bytes) {
+        Ok(str) => str,
+        Err(_) => panic!("PHP_VERSION string was not valid UTF-8"),
+    }
+};
 
 lazy_static! {
     static ref LAZY_STATICS_TAGS: Vec<Tag> = {
@@ -75,21 +93,6 @@ lazy_static! {
                 .expect("profiler_version tag to be valid"),
             Tag::new("runtime-id", &runtime_id().to_string()).expect("runtime-id tag to be valid"),
         ]
-    };
-
-    /// The version of PHP at runtime, not the version compiled against. Sent
-    /// as a profile tag.
-    static ref PHP_VERSION: String = {
-        // Reflection uses the PHP_VERSION as its version, see:
-        // https://github.com/php/php-src/blob/PHP-8.1.4/ext/reflection/php_reflection.h#L25
-        // https://github.com/php/php-src/blob/PHP-8.1.4/ext/reflection/php_reflection.c#L7157
-        // It goes back to at least PHP 7.1:
-        // https://github.com/php/php-src/blob/PHP-7.1/ext/reflection/php_reflection.h
-
-        // Safety: CStr string is null-terminated without any interior null bytes.
-        let module_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"Reflection\0") };
-        get_module_version(module_name)
-            .expect("Reflection's zend_module_entry to be found and contain a valid string")
     };
 
     /// The Server API the profiler is running under.
@@ -166,8 +169,8 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         ..Default::default()
     });
 
-    // SAFETY: well, it's as least as safe as what every single C extension does.
-    unsafe { &mut MODULE }
+    // SAFETY: well, it's at least as safe as what every single C extension does.
+    unsafe { &mut *ptr::addr_of_mut!(MODULE) }
 }
 
 /* Important note on the PHP lifecycle:
@@ -211,8 +214,21 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
          */
     }
 
-    // SAFETY: setting global mutable value in MINIT.
-    unsafe { PHP_VERSION_ID = ddog_php_prof_php_version_id() };
+    // Update the runtime PHP_VERSION and PHP_VERSION_ID.
+    {
+        // SAFETY: These are safe to call and mutate in minit.
+        unsafe { RUNTIME_PHP_VERSION_ID = ddog_php_prof_php_version_id() };
+
+        // SAFETY: calling zero-arg fn that is safe to call in minit.
+        let ptr = unsafe { ddog_php_prof_php_version() };
+        // SAFETY: the version str is always in static memory, either
+        // PHP_VERSION or the Reflection module version.
+        let cstr: &'static CStr = unsafe { CStr::from_ptr(ptr) };
+        match cstr.to_str() {
+            Ok(str) => unsafe { RUNTIME_PHP_VERSION = str },
+            Err(err) => warn!("failed to detect PHP_VERSION at runtime: {err}"),
+        };
+    }
 
     config::minit(module_number);
 
@@ -320,14 +336,14 @@ extern "C" fn prshutdown() -> ZendResult {
 }
 
 pub struct RequestLocals {
-    pub env: Option<Cow<'static, str>>,
-    pub service: Option<Cow<'static, str>>,
-    pub version: Option<Cow<'static, str>>,
+    pub env: Option<String>,
+    pub service: Option<String>,
+    pub version: Option<String>,
 
     /// SystemSettings are global. Note that if this is being read in fringe
     /// conditions such as in mshutdown when there were no requests served,
-    /// then the settings are still memory safe but they may not have the real
-    /// configuration. Instead they have a best-effort values such as
+    /// then the settings are still memory safe, but they may not have the
+    /// real configuration. Instead, they have a best-effort values such as
     /// INITIAL_SYSTEM_SETTINGS, or possibly the values which were available
     /// in MINIT.
     pub system_settings: ptr::NonNull<SystemSettings>,
@@ -382,7 +398,7 @@ fn runtime_id() -> &'static Uuid {
 
 extern "C" fn activate() {
     // Safety: calling in activate as required.
-    unsafe { profiling::activate_run_time_cache() };
+    unsafe { profiling::stack_walking::activate() };
 }
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.
@@ -398,7 +414,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     trace!("RINIT({_type}, {_module_number})");
 
     // SAFETY: not being mutated during rinit.
-    unsafe { &ZAI_CONFIG_ONCE }.call_once(|| unsafe {
+    let once = unsafe { &*ptr::addr_of!(ZAI_CONFIG_ONCE) };
+    once.call_once(|| unsafe {
         bindings::zai_config_first_time_rinit(true);
         config::first_rinit();
     });
@@ -423,9 +440,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                     Sapi::Cli => {
                         // Safety: sapi globals are safe to access during rinit
                         SAPI.request_script_name(datadog_sapi_globals_request_info())
-                            .or(Some(Cow::Borrowed("cli.command")))
+                            .map(Cow::into_owned)
+                            .or(Some(String::from("cli.command")))
                     }
-                    _ => Some(Cow::Borrowed("web.request")),
+                    _ => Some(String::from("web.request")),
                 }
             });
             locals.version = config::version();
@@ -436,12 +454,14 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // SAFETY: still safe to access in rinit after first_rinit.
     let system_settings = unsafe { system_settings.as_ref() };
 
-    unsafe { &RINIT_ONCE }.call_once(|| {
+    // SAFETY: the once control is not mutable during request.
+    let once = unsafe { &*ptr::addr_of!(RINIT_ONCE) };
+    once.call_once(|| {
         if system_settings.profiling_enabled {
             /* Safety: sapi_module is initialized by rinit and shouldn't be
              * modified at this point (safe to read values).
              */
-            let sapi_module = unsafe { &zend::sapi_module };
+            let sapi_module = unsafe { &*ptr::addr_of!(zend::sapi_module) };
             if sapi_module.pretty_name.is_null() {
                 // Safety: I'm willing to bet the module name is less than `isize::MAX`.
                 let name = unsafe { CStr::from_ptr(sapi_module.name) }.to_string_lossy();
@@ -515,7 +535,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 add_optional_tag(&mut tags, "version", &locals.version);
                 // This should probably be "language_version", but this is the
                 // standardized tag name.
-                add_tag(&mut tags, "runtime_version", PHP_VERSION.as_str());
+                // SAFETY: PHP_VERSION is safe to access in rinit (only
+                // mutated during minit).
+                add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
                 add_tag(&mut tags, "php.sapi", SAPI.as_ref());
                 // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
                 // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
@@ -580,14 +602,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RSHUTDOWN({_type}, {_module_number})");
 
-    #[cfg(php_run_time_cache)]
-    {
-        profiling::FUNCTION_CACHE_STATS.with(|cell| {
-            let stats = cell.borrow();
-            let hit_rate = stats.hit_rate();
-            debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
-        });
-    }
+    profiling::stack_walking::rshutdown();
 
     REQUEST_LOCALS.with(|cell| {
         let locals = cell.borrow();
@@ -781,7 +796,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
         for (key, value) in vars {
             let mut value = match value {
-                Some(cowstr) => cowstr.clone().into_owned(),
+                Some(string) => string.clone(),
                 None => String::new(),
             };
             value.push('\0');
@@ -813,23 +828,6 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     }
 
     ZendResult::Success
-}
-
-fn get_module_version(module_name: &CStr) -> Option<String> {
-    // Safety: passing a CStr.as_ptr() will be a valid *const char.
-    let module_version = unsafe { zend::zend_get_module_version(module_name.as_ptr()) };
-    // It shouldn't be NULL as the engine calls `strlen` on it when it's
-    // registered; just being defensive.
-    if module_version.is_null() {
-        return None;
-    }
-
-    // Safety: module_version isn't null (checked above). It's also incredibly
-    // unlikely that the version string is longer than i64::MAX, so this isn't
-    // worth our time to check.
-    let cstr = unsafe { CStr::from_ptr(module_version) };
-    let version = cstr.to_string_lossy().to_string();
-    Some(version)
 }
 
 extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {

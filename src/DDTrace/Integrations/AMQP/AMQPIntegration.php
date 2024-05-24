@@ -22,14 +22,6 @@ class AMQPIntegration extends Integration
     const SYSTEM = 'rabbitmq';
     protected $protocolVersion;
 
-    /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
     public static function largeBaseConvert($numString, $fromBase, $toBase)
     {
@@ -173,6 +165,62 @@ class AMQPIntegration extends Integration
                     }
                 }
             ]
+        );
+
+        trace_method(
+            "PhpAmqpLib\Channel\AMQPChannel",
+            "batch_basic_publish",
+            [
+                'prehook' => function (SpanData $span, $args) use ($integration) {
+                    /** @var AMQPMessage $message */
+                    $message = $args[0];
+                    if (!is_null($message)) {
+                        $integration->injectContext($message);
+                    }
+                },
+                'posthook' => function (SpanData $span, $args, $exception) use ($integration) {
+                    /** @var AMQPMessage $message */
+                    $message = $args[0];
+                    /** @var string $exchange */
+                    $exchange = $args[1];
+                    /** @var string $routing_key */
+                    $routingKey = $args[2] ?? '';
+
+                    $exchangeDisplayName = $integration->formatExchangeName($exchange);
+                    $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
+
+                    $integration->setGenericTags(
+                        $span,
+                        'batch_basic.add',
+                        'producer',
+                        "$exchangeDisplayName -> $routingKeyDisplayName",
+                        $exception
+                    );
+
+                    $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
+                    $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
+
+                    if (!is_null($message)) {
+                        $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->getBody());
+                        $integration->setOptionalMessageTags($span, $message);
+                    }
+                }
+            ]
+        );
+
+        trace_method(
+            "PhpAmqpLib\Channel\AMQPChannel",
+            "publish_batch",
+            function (SpanData $span, $args, $exception) use ($integration) {
+                $integration->setGenericTags(
+                    $span,
+                    'publish_batch',
+                    'producer',
+                    null,
+                    $exception
+                );
+                $span->meta[Tag::MQ_OPERATION] = 'send';
+            }
         );
 
         trace_method(
@@ -454,7 +502,7 @@ class AMQPIntegration extends Integration
         $span->meta[Tag::MQ_PROTOCOL_VERSION] = $this->protocolVersion;
 
         if ($exception) {
-            $this->setError($span, $exception);
+            $span->exception = $exception;
         }
     }
 

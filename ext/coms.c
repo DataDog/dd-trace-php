@@ -652,6 +652,10 @@ static void _dd_deinit_read_userdata(void *userdata) {
 static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
     ddtrace_coms_stack_t *stack = NULL;
 
+    if (!ddtrace_coms_globals.stacks) {
+        return NULL;
+    }
+
     for (size_t i = 0; i < ddtrace_coms_globals.max_backlog_size; i++) {
         ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
         if (stack_tmp && atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) > 0) {

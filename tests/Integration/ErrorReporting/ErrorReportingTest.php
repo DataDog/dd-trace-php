@@ -30,7 +30,6 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('', '/unhandled-user-error-index'));
         });
-        echo json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL;
         $this->assertError($traces[0][0], "Index message", [['index.php', '{main}']]);
         // open task: depends on internal status code tracking (separate PR)
         // $this->assertSame('500', $traces[0][0]['meta']['http.status_code']);

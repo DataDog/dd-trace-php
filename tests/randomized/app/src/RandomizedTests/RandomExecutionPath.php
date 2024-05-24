@@ -262,7 +262,7 @@ class RandomExecutionPath
     {
         $this->logEnter(__FUNCTION__);
         $this->logLeave(__FUNCTION__);
-        trigger_error('triggering a user errror', \E_USER_ERROR);
+        trigger_error('triggering a user error', \E_USER_ERROR);
     }
 
     public function handleException($ex)

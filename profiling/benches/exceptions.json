@@ -1,0 +1,28 @@
+{
+    "name": "php-profiler-exceptions",
+    "run": "php -d extension=../target/release/libdatadog_php_profiling.so benches/exceptions.php",
+    "timeout": 20,
+    "iterations": 5,
+    "env": {
+        "DD_PROFILING_LOG_LEVEL": "off"
+    },
+    "variants": {
+        "control": {
+            "env": {
+                "DD_PROFILING_ENABLED": "false"
+            }
+        },
+        "with-profiler": {
+            "env": {
+                "DD_PROFILING_ENABLED": "true",
+                "DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED": "false"
+            }
+        },
+        "with-profiler-and-timeline": {
+            "env": {
+                "DD_PROFILING_ENABLED": "true",
+                "DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED": "true"
+            }
+        }
+    }
+}

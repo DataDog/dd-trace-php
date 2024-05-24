@@ -54,9 +54,7 @@ typedef struct {
 } dd_integration_aux;
 
 void dd_integration_aux_free(void *auxiliary) {
-    dd_integration_aux *aux = auxiliary;
-    zend_string_release(aux->classname);
-    free(aux);
+    free(auxiliary);
 }
 
 #if PHP_VERSION_ID < 80000
@@ -176,7 +174,7 @@ static bool dd_invoke_integration_loader_and_unhook_prehook(zend_ulong invocatio
 static void dd_hook_method_and_unhook_on_first_call(zai_str Class, zai_str method, zai_str callback, ddtrace_integration_name name, bool posthook) {
     dd_integration_aux *aux = malloc(sizeof(*aux));
     aux->name = name;
-    aux->classname = zend_string_init(callback.ptr, callback.len, 1);
+    aux->classname = zend_string_init_interned(callback.ptr, callback.len, 1);
     aux->id = zai_hook_install(Class, method,
             posthook ? NULL : dd_invoke_integration_loader_and_unhook_prehook,
             posthook ? dd_invoke_integration_loader_and_unhook_posthook : NULL,
@@ -229,6 +227,10 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "Dispatcher", "__construct",
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "App\\Application", "__construct",
+                                         "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "Cake\\Http\\Server", "__construct",
+                                         "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "exec",
                                          "DDTrace\\Integrations\\Exec\\ExecIntegration");
@@ -265,6 +267,11 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Eloquent\\EloquentIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELOQUENT, "Illuminate\\Database\\Eloquent\\Model", "destroy",
                                          "DDTrace\\Integrations\\Eloquent\\EloquentIntegration");
+
+#if PHP_VERSION_ID >= 80200
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FRANKENPHP, "frankenphp_handle_request",
+                                          "DDTrace\\Integrations\\Frankenphp\\FrankenphpIntegration");
+#endif
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GUZZLE, "GuzzleHttp\\Client", "__construct",
                                          "DDTrace\\Integrations\\Guzzle\\GuzzleIntegration");
@@ -382,6 +389,9 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SLIM, "Slim\\App", "__construct",
                                          "DDTrace\\Integrations\\Slim\\SlimIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SWOOLE, "Swoole\\Http\\Server", "__construct",
+                                         "DDTrace\\Integrations\\Swoole\\SwooleIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LARAVELQUEUE, "Illuminate\\Queue\\Worker", "__construct",
                                          "DDTrace\\Integrations\\LaravelQueue\\LaravelQueueIntegration");

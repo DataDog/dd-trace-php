@@ -22,14 +22,6 @@ class MysqliIntegration extends Integration
     const KEY_MYSQLI_INSTANCE = 'mysqli_instance';
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * Load the integration
      *
      * @return int
@@ -52,7 +44,7 @@ class MysqliIntegration extends Integration
                 $span->meta[Tag::DB_NAME] = $args[3];
             }
             $integration->setDefaultAttributes($span, 'mysqli_connect', 'mysqli_connect');
-            $integration->mergeMeta($span, MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST));
+            $span->meta += MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST);
 
             if ($result === false) {
                 $integration->trackPotentialError($span);
@@ -92,7 +84,7 @@ class MysqliIntegration extends Integration
             }
             $integration->setDefaultAttributes($span, 'mysqli_real_connect', 'mysqli_real_connect');
             if ($host) {
-                $integration->mergeMeta($span, MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST));
+                $span->meta += MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST);
             }
             $integration->trackPotentialError($span);
 
@@ -384,7 +376,7 @@ class MysqliIntegration extends Integration
     {
         $errorCode = mysqli_connect_errno();
         if ($errorCode > 0) {
-            $this->setError($span, new \Exception(mysqli_connect_error()));
+            $span->exception = new \Exception(mysqli_connect_error());
         }
     }
 }

@@ -154,7 +154,7 @@ pub fn alloc_prof_minit() {
 
 pub fn first_rinit_should_disable_due_to_jit() -> bool {
     if NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
-        && alloc_prof_needs_disabled_for_jit(unsafe { crate::PHP_VERSION_ID })
+        && alloc_prof_needs_disabled_for_jit(unsafe { crate::RUNTIME_PHP_VERSION_ID })
         && *JIT_ENABLED
     {
         error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
@@ -186,7 +186,7 @@ pub fn alloc_prof_rinit() {
         let zend_mm_state = cell.get();
 
         // Safety: `zend_mm_get_heap()` always returns a non-null pointer to a valid heap structure
-        let heap = unsafe { Some(zend::zend_mm_get_heap()).unwrap() };
+        let heap = unsafe { zend::zend_mm_get_heap() };
 
         unsafe { ptr::addr_of_mut!((*zend_mm_state).heap).write(Some(heap)) };
 
@@ -317,7 +317,7 @@ pub fn alloc_prof_startup() {
     unsafe {
         let handle = datadog_php_zif_handler::new(
             ffi::CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0"),
-            &mut GC_MEM_CACHES_HANDLER,
+            ptr::addr_of_mut!(GC_MEM_CACHES_HANDLER),
             Some(alloc_prof_gc_mem_caches),
         );
         datadog_php_install_handler(handle);

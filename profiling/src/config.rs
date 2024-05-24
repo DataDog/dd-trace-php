@@ -168,7 +168,7 @@ impl Default for AgentEndpoint {
     }
 }
 
-impl TryFrom<AgentEndpoint> for datadog_profiling::exporter::Endpoint {
+impl TryFrom<AgentEndpoint> for ddcommon::Endpoint {
     type Error = anyhow::Error;
 
     fn try_from(value: AgentEndpoint) -> Result<Self, Self::Error> {
@@ -179,7 +179,7 @@ impl TryFrom<AgentEndpoint> for datadog_profiling::exporter::Endpoint {
     }
 }
 
-impl TryFrom<&AgentEndpoint> for datadog_profiling::exporter::Endpoint {
+impl TryFrom<&AgentEndpoint> for ddcommon::Endpoint {
     type Error = anyhow::Error;
 
     fn try_from(value: &AgentEndpoint) -> Result<Self, Self::Error> {
@@ -570,14 +570,14 @@ unsafe fn get_system_str(config_id: ConfigId) -> Option<Cow<'static, str>> {
     }
 }
 
-unsafe fn get_str(id: ConfigId) -> Option<Cow<'static, str>> {
+unsafe fn get_str(id: ConfigId) -> Option<String> {
     let value = get_value(id);
     match String::try_from(value) {
         Ok(value) => {
             if value.is_empty() {
                 None
             } else {
-                Some(Cow::Owned(value))
+                Some(value)
             }
         }
         Err(_err) => None,
@@ -602,21 +602,21 @@ unsafe fn agent_host() -> Option<Cow<'static, str>> {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn env() -> Option<Cow<'static, str>> {
+pub(crate) unsafe fn env() -> Option<String> {
     get_str(Env)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn service() -> Option<Cow<'static, str>> {
+pub(crate) unsafe fn service() -> Option<String> {
     get_str(Service)
 }
 
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn version() -> Option<Cow<'static, str>> {
+pub(crate) unsafe fn version() -> Option<String> {
     get_str(Version)
 }
 

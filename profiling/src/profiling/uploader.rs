@@ -3,8 +3,10 @@ use crate::config::AgentEndpoint;
 use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
+use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
-use datadog_profiling::exporter::{Endpoint, File};
+use datadog_profiling::exporter::File;
+use ddcommon::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
@@ -18,6 +20,7 @@ pub struct Uploader {
     receiver: Receiver<UploadMessage>,
     output_pprof: Option<Cow<'static, str>>,
     endpoint: AgentEndpoint,
+    start_time: String,
 }
 
 impl Uploader {
@@ -26,12 +29,14 @@ impl Uploader {
         receiver: Receiver<UploadMessage>,
         output_pprof: Option<Cow<'static, str>>,
         endpoint: AgentEndpoint,
+        start_time: DateTime<Utc>,
     ) -> Self {
         Self {
             fork_barrier,
             receiver,
             output_pprof,
             endpoint,
+            start_time: start_time.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
         }
     }
 
@@ -46,7 +51,16 @@ impl Uploader {
         Some(metadata)
     }
 
-    fn upload(&self, message: UploadRequest) -> anyhow::Result<u16> {
+    fn create_profiler_info(&self) -> Option<serde_json::Value> {
+        let metadata = json!({
+            "application": {
+                "start_time": self.start_time,
+            }
+        });
+        Some(metadata)
+    }
+
+    fn upload(&self, message: Box<UploadRequest>) -> anyhow::Result<u16> {
         let index = message.index;
         let profile = message.profile;
 
@@ -83,7 +97,7 @@ impl Uploader {
             None,
             endpoint_counts,
             Self::create_internal_metadata(),
-            None,
+            self.create_profiler_info(),
             timeout,
         )?;
         debug!("Sending profile to: {agent_endpoint}");

@@ -4,11 +4,14 @@ namespace DDTrace\Tests;
 
 use DDTrace\Tests\Nginx\NginxServer;
 use DDTrace\Tests\Sapi\CliServer\CliServer;
+use DDTrace\Tests\Sapi\Frankenphp\FrankenphpServer;
+use DDTrace\Tests\Sapi\OctaneServer\OctaneServer;
 use DDTrace\Tests\Sapi\PhpApache\PhpApache;
 use DDTrace\Tests\Sapi\PhpCgi\PhpCgi;
 use DDTrace\Tests\Sapi\PhpFpm\PhpFpm;
 use DDTrace\Tests\Sapi\Roadrunner\RoadrunnerServer;
 use DDTrace\Tests\Sapi\Sapi;
+use DDTrace\Tests\Sapi\SwooleServer\SwooleServer;
 use PHPUnit\Framework\Assert;
 
 /**
@@ -69,6 +72,9 @@ final class WebServer
     private $inis = [];
 
     private $roadrunnerVersion = null;
+    private $isOctane = false;
+    private $isFrankenphp = false;
+    private $isSwoole = false;
 
     private $defaultInis = [
         'log_errors' => 'on',
@@ -105,6 +111,21 @@ final class WebServer
         $this->roadrunnerVersion = $version;
     }
 
+    public function setOctane()
+    {
+        $this->isOctane = true;
+    }
+
+    public function setSwoole()
+    {
+        $this->isSwoole = true;
+    }
+
+    public function setFrankenphp()
+    {
+        $this->isFrankenphp = true;
+    }
+
     public function start()
     {
         $this->errorLogSize = (int)@filesize($this->defaultInis['error_log']);
@@ -112,6 +133,28 @@ final class WebServer
         if ($this->roadrunnerVersion) {
             $this->sapi = new RoadrunnerServer(
                 $this->roadrunnerVersion,
+                $this->indexFile,
+                $this->host,
+                $this->port,
+                $this->envs,
+                $this->inis
+            );
+        } elseif ($this->isOctane) {
+            $this->sapi = new OctaneServer(
+                $this->indexFile,
+                $this->host,
+                $this->port,
+                $this->envs,
+                $this->inis
+            );
+        } elseif ($this->isSwoole) {
+            $this->sapi = new SwooleServer(
+                $this->indexFile,
+                $this->envs,
+                $this->inis
+            );
+        } elseif ($this->isFrankenphp) {
+            $this->sapi = new FrankenphpServer(
                 $this->indexFile,
                 $this->host,
                 $this->port,

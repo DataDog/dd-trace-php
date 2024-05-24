@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Laravel;
 
 use DDTrace\Integrations\Lumen\LumenIntegration;
-use DDTrace\RootSpanData;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
@@ -25,17 +24,9 @@ class LaravelIntegration extends Integration
     public $serviceName;
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling()
+    public function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -140,6 +131,12 @@ class LaravelIntegration extends Integration
                 if (\method_exists($route, 'uri')) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $route->uri();
                 }
+                if (\method_exists($route, 'parameters') && function_exists('\datadog\appsec\push_address')) {
+                    $parameters = $route->parameters();
+                    if (count($parameters) > 0) {
+                        \datadog\appsec\push_address("server.request.path_params", $parameters);
+                    }
+                }
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
             }
@@ -168,7 +165,7 @@ class LaravelIntegration extends Integration
 
                 $ignoreError = isset($rootSpan->meta['error.ignored']) && $rootSpan->meta['error.ignored'];
                 if (isset($This->exception) && $This->getStatusCode() >= 500 && !$ignoreError) {
-                    $integration->setError($rootSpan, $This->exception);
+                    $rootSpan->exception = $This->exception;
                 }
             }
         );
@@ -179,7 +176,7 @@ class LaravelIntegration extends Integration
             'fire',
             [
                 'prehook' => function (SpanData $span, $args) use ($integration) {
-                    Common::handleOrphan($span);
+                    Integration::handleOrphan($span);
 
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
@@ -216,7 +213,7 @@ class LaravelIntegration extends Integration
             'dispatch',
             [
                 'prehook' => function (SpanData $span, $args) use ($integration) {
-                    Common::handleOrphan($span);
+                    Integration::handleOrphan($span);
 
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
@@ -268,7 +265,7 @@ class LaravelIntegration extends Integration
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
 
-                Common::handleOrphan($span);
+                Integration::handleOrphan($span);
 
                 $rootSpan = \DDTrace\root_span();
                 $rootSpan->name = 'laravel.request';
@@ -301,7 +298,7 @@ class LaravelIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
-                    $integration->setError($rootSpan, $args[0]);
+                    $rootSpan->exception = $args[0];
                 }
             }
         );
@@ -314,7 +311,7 @@ class LaravelIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
-                    $integration->setError($rootSpan, $args[0]);
+                    $rootSpan->exception = $args[0];
                 }
             }
         );
@@ -330,7 +327,7 @@ class LaravelIntegration extends Integration
                 }
 
                 if ($args[0] && $exceptionHandler->shouldReport($args[0])) {
-                    $integration->setError($rootSpan, $args[0]);
+                    $rootSpan->exception = $args[0];
                     $rootSpan->meta['error.ignored'] = 0;
                 } elseif ($args[0] && !$exceptionHandler->shouldReport($args[0])) {
                     $rootSpan->meta['error.ignored'] = 1;
@@ -353,27 +350,27 @@ class LaravelIntegration extends Integration
 
         // Used by Laravel >= 5.0
         \DDTrace\hook_method(
-            'Illuminate\Auth\SessionGuard',
-            'setUser',
+            'Illuminate\Auth\Events\Login',
+            '__construct',
             function ($This, $scope, $args) use ($integration) {
                 $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
                     !function_exists('\datadog\appsec\track_user_login_success_event') ||
-                    !isset($args[0]) ||
-                    !$args[0] ||
-                    !($args[0] instanceof $authClass)
+                    !isset($args[1]) ||
+                    !$args[1] ||
+                    !($args[1] instanceof $authClass)
                 ) {
                     return;
                 }
                 $metadata = [];
-                if (isset($args[0]['name'])) {
-                    $metadata['name'] = $args[0]['name'];
+                if (isset($args[1]['name'])) {
+                    $metadata['name'] = $args[1]['name'];
                 }
-                if (isset($args[0]['email'])) {
-                    $metadata['email'] = $args[0]['email'];
+                if (isset($args[1]['email'])) {
+                    $metadata['email'] = $args[1]['email'];
                 }
                 \datadog\appsec\track_user_login_success_event(
-                    \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
+                    \method_exists($args[1], 'getAuthIdentifier') ? $args[1]->getAuthIdentifier() : '',
                     $metadata,
                     true
                 );
@@ -383,7 +380,7 @@ class LaravelIntegration extends Integration
         // Used by Laravel < 5.0
         \DDTrace\hook_method(
             'Illuminate\Auth\Guard',
-            'setUser',
+            'login',
             function ($This, $scope, $args) use ($integration) {
                 $authClass = 'Illuminate\Auth\UserInterface';
                 if (
@@ -443,6 +440,22 @@ class LaravelIntegration extends Integration
                     [],
                     true
                 );
+            }
+        );
+
+        // Laravel Octane
+        \DDTrace\hook_method(
+            'Laravel\Octane\Worker',
+            'handle',
+            function () use ($integration) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan === null) {
+                    return;
+                }
+
+                $rootSpan->name = 'laravel.request';
+                $rootSpan->service = $integration->getServiceName();
+                $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
         );
 

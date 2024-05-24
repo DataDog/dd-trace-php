@@ -20,11 +20,6 @@ class MagentoIntegration extends Integration
 {
     const NAME = 'magento';
 
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     public function calculateEntropy(string $value)
     {
         $h = 0.0;
@@ -609,7 +604,7 @@ class MagentoIntegration extends Integration
             function ($http, $scope, $args) use ($integration) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
-                    $integration->setError($rootSpan, $args[1]);
+                    $rootSpan->exception = $args[1];
                 }
 
             }

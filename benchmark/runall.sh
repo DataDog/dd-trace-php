@@ -10,6 +10,8 @@ if [ "$SCENARIO" = "profiler" ]; then
 
   sirun benches/timeline.json > "$ARTIFACTS_DIR/sirun_timeline.ndjson"
 
+  sirun benches/exceptions.json > "$ARTIFACTS_DIR/sirun_exceptions.ndjson"
+
   sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
 
   cargo bench --features stack_walking_tests -- --noplot

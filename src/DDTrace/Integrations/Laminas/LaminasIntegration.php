@@ -51,11 +51,6 @@ class LaminasIntegration extends Integration
         'update'
     ];
 
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     public function init(): int
     {
         if (self::shouldLoad(LogsIntegration::NAME)) {
@@ -322,7 +317,7 @@ class LaminasIntegration extends Integration
 
                 $exception = $event->getParam('exception');
                 if ($exception) {
-                    $integration->setError($rootSpan, $exception);
+                    $rootSpan->exception = $exception;
                 }
             }
         );
@@ -407,7 +402,7 @@ class LaminasIntegration extends Integration
 
                 $exception = $event->getParam('exception');
                 if ($exception) {
-                    $integration->setError(root_span(), $exception);
+                    root_span()->exception = $exception;
                 }
             }
         );
@@ -427,7 +422,7 @@ class LaminasIntegration extends Integration
 
                 $exception = $event->getParam('exception');
                 if ($exception) {
-                    $integration->setError(root_span(), $exception);
+                    root_span()->exception = $exception;
                 }
             }
         );
@@ -453,7 +448,7 @@ class LaminasIntegration extends Integration
 
                 $exception = $event->getParam('exception');
                 if ($exception) {
-                    $integration->setError(root_span(), $exception);
+                    root_span()->exception = $exception;
                 }
             }
         );
@@ -532,7 +527,7 @@ class LaminasIntegration extends Integration
                 $activeSpan = active_span();
                 if ($detail instanceof \Throwable || $detail instanceof \Exception) {
                     if ($activeSpan !== null && !isset($activeSpan->meta[Tag::ERROR_TYPE])) {
-                        $integration->setError($activeSpan, $detail);
+                        $activeSpan->exception = $detail;
                     }
                 } elseif (is_string($detail)) {
                     // Removes the first two frames, which are the constructor and the hook
@@ -574,7 +569,7 @@ class LaminasIntegration extends Integration
                     }
 
                     if ($detail instanceof \Throwable || $detail instanceof \Exception) {
-                        $integration->setError($rootSpan, $detail);
+                        $rootSpan->exception = $detail;
                     } elseif (is_string($detail)) {
                         $title = $apiProblem->title; // __get
                         $rootSpan->meta[Tag::ERROR_TYPE] = $title ?: 'ApiProblem';

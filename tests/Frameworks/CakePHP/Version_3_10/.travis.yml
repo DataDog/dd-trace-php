@@ -1,0 +1,33 @@
+language: php
+
+php:
+  - 5.6
+  - 7.4
+
+env:
+  global:
+    - DEFAULT=1
+
+matrix:
+  include:
+    - php: 7.3
+      env: CHECKS=1 DEFAULT=0
+
+before_script:
+  - composer install --no-interaction
+  - if [[ $DEFAULT == 1 ]]; then composer run-script post-install-cmd --no-interaction; fi
+
+  - if [[ $CHECKS == 1 ]]; then composer stan-setup; fi
+
+script:
+  - if [[ $DEFAULT == 1 ]]; then composer test; fi
+
+  - if [[ $CHECKS == 1 ]]; then composer cs-check; fi
+  - if [[ $CHECKS == 1 ]]; then composer stan; fi
+
+cache:
+  directories:
+    - $HOME/.composer/cache
+
+notifications:
+  email: false

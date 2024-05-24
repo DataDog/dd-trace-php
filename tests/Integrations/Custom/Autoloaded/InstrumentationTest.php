@@ -48,13 +48,21 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->resetRequestDumper();
 
         $this->call(GetSpec::create("autoloaded", "/simple"));
-        $response = $this->retrieveDumpedData();
-        if (!$response) {
-            $this->fail("Go no response from request-dumper");
-        }
+        $response = $this->retrieveDumpedData(function ($request) {
+            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
+                && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+            ;
+        }, true);
 
-        $this->assertCount(3, $response);
+        $this->assertGreaterThanOrEqual(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
+
+        $isMetric = function (array $payload) {
+            return 'generate-metrics' === $payload['request_type'];
+        };
+        $metrics = array_values(array_filter($payloads, $isMetric));
+        $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
+
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertContains([
             "name" => "agent_host",
@@ -70,15 +78,26 @@ final class InstrumentationTest extends WebFrameworkTestCase
         }));
         // Not asserting app-closing, this is not expected to happen until shutdown
 
+        $this->assertCount(1, $metrics);
+        $series = array_values(array_filter($metrics[0]["payload"]["series"], function ($p) { return $p['metric'] === 'spans_created'; }));
+        $this->assertEquals("tracers", $series[0]["namespace"]);
+        $this->assertEquals("spans_created", $series[0]["metric"]);
+        $this->assertEquals(["integration_name:datadog"], $series[0]["tags"]);
+
         $this->call(GetSpec::create("autoloaded", "/pdo"));
 
-        $response = $this->retrieveDumpedData();
-        if (!$response) {
-            $this->fail("Go no response from request-dumper");
-        }
+        $response = $this->retrieveDumpedData(function ($request) {
+            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
+                && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+            ;
+        }, true);
 
-        $this->assertCount(3, $response);
+        $this->assertGreaterThanOrEqual(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
+
+        $metrics = array_values(array_filter($payloads, $isMetric));
+        $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
+
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
         $this->assertEquals("app-integrations-change", $payloads[2]["request_type"]);
@@ -105,5 +124,11 @@ final class InstrumentationTest extends WebFrameworkTestCase
                 'auto_enabled' => null,
             ]
         ], $payloads[2]["payload"]["integrations"]);
+
+        $this->assertCount(1, $metrics);
+        $series = array_values(array_filter($metrics[0]["payload"]["series"], function ($p) { return $p['metric'] === 'spans_created'; }));
+        $this->assertEquals("tracers", $series[0]["namespace"]);
+        $this->assertEquals("spans_created", $series[0]["metric"]);
+        $this->assertEquals(["integration_name:pdo"], $series[0]["tags"]);
     }
 }

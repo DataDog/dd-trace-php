@@ -24,15 +24,10 @@ class SymfonyIntegration extends Integration
     /** @var string */
     public $frameworkPrefix = SymfonyIntegration::NAME;
 
-    public function getName()
-    {
-        return static::NAME;
-    }
-
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling()
+    public function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -286,7 +281,7 @@ class SymfonyIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
-                    $integration->setError($rootSpan, $args[0]);
+                    $rootSpan->exception = $args[0];
                 }
             }
         );
@@ -297,7 +292,7 @@ class SymfonyIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
-                    $integration->setError($rootSpan, $args[0]);
+                    $rootSpan->exception = $args[0];
                 }
             }
         );
@@ -391,6 +386,13 @@ class SymfonyIntegration extends Integration
                 }
                 if (isset($response)) {
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                }
+
+                $parameters = $request->get('_route_params');
+                if (!empty($parameters) &&
+                    is_array($parameters) &&
+                    function_exists('\datadog\appsec\push_address')) {
+                    \datadog\appsec\push_address("server.request.path_params", $parameters);
                 }
 
                 $route = $request->get('_route');
@@ -506,7 +508,7 @@ class SymfonyIntegration extends Integration
             $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
             $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
             if (!(isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500)) {
-                $integration->setError(\DDTrace\root_span(), $args[0]);
+                \DDTrace\root_span()->exception = $args[0];
             }
         };
         // Symfony 4.3-

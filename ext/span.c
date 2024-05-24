@@ -12,6 +12,7 @@
 #include <components/log/log.h>
 #include "random.h"
 #include "serializer.h"
+#include "telemetry.h"
 #include "ext/standard/php_string.h"
 #include <hook/hook.h>
 #include "user_request.h"
@@ -201,25 +202,7 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     } else {
         // do not copy the parent, it was active span before, just transfer that reference
         ZVAL_OBJ(&span->property_parent, &parent_span->std);
-        zval *prop_service = &span->property_service;
-        zval_ptr_dtor(prop_service);
-        ZVAL_COPY(prop_service, &parent_span->property_service);
-        zval *prop_type = &span->property_type;
-        zval_ptr_dtor(prop_type);
-        ZVAL_COPY(prop_type, &parent_span->property_type);
-
-        zend_array *meta = ddtrace_property_array(&span->property_meta), *parent_meta = ddtrace_property_array(&parent_span->property_meta);
-        zval *version;
-        if ((version = zend_hash_str_find(parent_meta, ZEND_STRL("version")))) {
-            Z_TRY_ADDREF_P(version);
-            zend_hash_str_add_new(meta, ZEND_STRL("version"), version);
-        }
-
-        zval *env;
-        if ((env = zend_hash_str_find(parent_meta, ZEND_STRL("env")))) {
-            Z_TRY_ADDREF_P(env);
-            zend_hash_str_add_new(meta, ZEND_STRL("env"), env);
-        }
+        ddtrace_inherit_span_properties(span, parent_span);
     }
 
     span->root = DDTRACE_G(active_stack)->root_span;
@@ -552,6 +535,10 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     if (span->stack != DDTRACE_G(active_stack)) {
         ddtrace_switch_span_stack(span->stack);
     }
+
+    // Telemetry: increment the spans_created counter
+    // Must be done at closing because we need to read the "component" span's meta which is not available at creation
+    ddtrace_telemetry_inc_spans_created(span);
 
     ddtrace_close_stack_userland_spans_until(span);
 

@@ -21,12 +21,36 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     const PORT = 9999;
 
     const ERROR_LOG_NAME = 'phpunit_error.log';
+    const COOKIE_JAR = 'cookies.txt';
 
     /**
      * @var WebServer|null
      */
     private static $appServer;
     protected $checkWebserverErrors = true;
+    protected $cookiesFile;
+    protected $maintainSession = false;
+
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+    }
+
+    protected function enableSession()
+    {
+        $this->maintainSession = true;
+        $this->cookiesFile = realpath(dirname(static::getAppIndexScript())) . '/' . static::COOKIE_JAR;
+        $f = @fopen($this->cookiesFile, "r+");
+        if ($f !== false) {
+            ftruncate($f, 0);
+            fclose($f);
+        }
+    }
+
+    protected function disableSession()
+    {
+        $this->maintainSession = false;
+    }
 
     public static function ddSetUpBeforeClass()
     {
@@ -65,6 +89,21 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     protected static function getRoadrunnerVersion()
     {
         return null;
+    }
+
+    protected static function isSwoole()
+    {
+        return false;
+    }
+
+    protected static function isOctane()
+    {
+        return false;
+    }
+
+    protected static function isFrankenphp()
+    {
+        return false;
     }
 
     /**
@@ -129,6 +168,18 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             self::$appServer->mergeInis($inis);
             if ($version = static::getRoadrunnerVersion()) {
                 self::$appServer->setRoadrunner($version);
+            }
+            if (static::isOctane()) {
+                self::$appServer->setOctane();
+            }
+            if (static::isSwoole()) {
+                self::$appServer->setSwoole();
+            }
+            if (static::isFrankenphp()) {
+                if (!ZEND_THREAD_SAFE) {
+                    self::markTestSkipped("The Frankenphp testsuite needs ZTS");
+                }
+                self::$appServer->setFrankenphp();
             }
             self::$appServer->start();
         }
@@ -196,6 +247,12 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, $options[CURLOPT_RETURNTRANSFER]);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $options[CURLOPT_FOLLOWLOCATION]);
+            if ($this->maintainSession) {
+                curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookiesFile);
+                curl_setopt ($ch, CURLOPT_COOKIEFILE, $this->cookiesFile);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                curl_setopt($ch, CURLOPT_HEADER, 1);
+            }
             if ($method === 'POST') {
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, is_array($body) ? json_encode($body) : $body);

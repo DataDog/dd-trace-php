@@ -34,14 +34,6 @@ class LaravelQueueIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function init(): int
     {
         $integration = $this;
@@ -138,7 +130,7 @@ class LaravelQueueIntegration extends Integration
             null,
             function ($worker, $scope, $args, $retval) use ($integration) {
                 if (($rootSpan = \DDTrace\root_span()) !== null) {
-                    $integration->setError($rootSpan, $retval);
+                    $rootSpan->exception = $retval;
                 }
             }
         );
@@ -152,7 +144,7 @@ class LaravelQueueIntegration extends Integration
                 },
                 'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration) {
                     if ($exception) {
-                        $integration->setError($span, $exception);
+                        $span->exception = $exception;
                     }
                 }
             ]
@@ -176,7 +168,7 @@ class LaravelQueueIntegration extends Integration
                         $span = $hook->span();
                         $span->name = 'laravel.queue.action';
                         $span->type = 'queue';
-                        $span->service = $integration->getName();
+                        $span->service = $integration->getAppName();
                         $span->resource = $class . '@' . $method;
                         $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
 
@@ -341,7 +333,7 @@ class LaravelQueueIntegration extends Integration
         }
 
         if ($exception) {
-            $this->setError($span, $exception);
+            $span->exception = $exception;
         }
     }
 

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <components-rs/ddtrace.h>
+#include <components/sapi/sapi.h>
 
 #ifndef _WIN32
 #include <dogstatsd_client/client.h>
@@ -26,6 +27,8 @@ typedef struct ddtrace_root_span_data ddtrace_root_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 typedef struct ddtrace_span_link ddtrace_span_link;
 
+extern datadog_php_sapi ddtrace_active_sapi;
+
 static inline zend_array *ddtrace_property_array(zval *zv) {
     ZVAL_DEREF(zv);
     if (Z_TYPE_P(zv) != IS_ARRAY) {
@@ -45,9 +48,11 @@ void ddtrace_disable_tracing_in_current_request(void);
 bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value);
 bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value);
 bool ddtrace_alter_default_propagation_style(zval *old_value, zval *new_value);
+bool ddtrace_alter_dd_service(zval *old_value, zval *new_value);
 bool ddtrace_alter_dd_env(zval *old_value, zval *new_value);
 bool ddtrace_alter_dd_version(zval *old_value, zval *new_value);
 void dd_force_shutdown_tracing(void);
+void dd_internal_handle_fork(void);
 
 typedef struct {
     int type;
@@ -108,6 +113,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_string *last_flushed_root_service_name;
     zend_string *last_flushed_root_env_name;
 
+    HashTable telemetry_spans_created_per_integration;
+
     HashTable uhook_active_hooks;
     HashTable uhook_closure_hooks;
 ZEND_END_MODULE_GLOBALS(ddtrace)
@@ -151,5 +158,8 @@ extern TSRM_TLS void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
 #define DDTRACE_FE_END ZEND_FE_END
 
 #include "random.h"
+
+#define HOST_V6_FORMAT_STR "http://[%s]:%u"
+#define HOST_V4_FORMAT_STR "http://%s:%u"
 
 #endif  // DDTRACE_H

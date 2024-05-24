@@ -586,7 +586,8 @@ static zend_string *dd_build_req_url(zend_array *_server) {
         return ZSTR_EMPTY_ALLOC();
     }
 
-    zend_bool is_https = zend_hash_str_exists(_server, ZEND_STRL("HTTPS"));
+    zval *https = zend_hash_str_find(_server, ZEND_STRL("HTTPS"));
+    bool is_https = https && i_zend_is_true(https);
 
     zval *host_zv;
     if ((!(host_zv = zend_hash_str_find(_server, ZEND_STRL("HTTP_HOST"))) &&
@@ -760,12 +761,48 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
     }
 }
 
+void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data *parent) {
+    zval *prop_service = &span->property_service;
+    zval_ptr_dtor(prop_service);
+    ZVAL_COPY(prop_service, &parent->property_service);
+    zval *prop_type = &span->property_type;
+    zval_ptr_dtor(prop_type);
+    ZVAL_COPY(prop_type, &parent->property_type);
+
+    zend_array *parent_meta = ddtrace_property_array(&parent->property_meta);
+
+    zval *prop_version = &span->property_version;
+    zval_ptr_dtor(prop_version);
+    zval *version;
+    if ((version = zend_hash_str_find(parent_meta, ZEND_STRL("version")))) {
+        zval old = *version;
+        ddtrace_convert_to_string(version, version);
+        zval_ptr_dtor(&old);
+    } else {
+        version = &parent->property_version;
+    }
+    ZVAL_COPY(prop_version, version);
+
+    zval *prop_env = &span->property_env;
+    zval_ptr_dtor(prop_env);
+    zval *env;
+    if ((env = zend_hash_str_find(parent_meta, ZEND_STRL("env")))) {
+        zval old = *env;
+        ddtrace_convert_to_string(env, env);
+        zval_ptr_dtor(&old);
+    } else {
+        env = &parent->property_env;
+    }
+    ZVAL_COPY(prop_env, env);
+}
+
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 
     span->sampling_rule.rule = INT32_MAX;
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
+    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
 
     zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
 
@@ -815,35 +852,17 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         }
     }
 
-    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
-    zval *prop_type = &span->property_type;
-    zval *prop_name = &span->property_name;
-    zval *prop_service = &span->property_service;
-    zval value;
-
     ddtrace_root_span_data *parent_root = span->stack->parent_stack->root_span;
     if (parent_root) {
-        zval_ptr_dtor(prop_type);
-        ZVAL_COPY(prop_type, &parent_root->property_type);
-        zval_ptr_dtor(prop_service);
-        ZVAL_COPY(prop_service, &parent_root->property_service);
-
-        zend_array *parent_meta = ddtrace_property_array(&parent_root->property_meta);
-
-        zval *version = zend_hash_str_find(parent_meta, ZEND_STRL("version"));
-        if (version) {
-            Z_TRY_ADDREF_P(version);
-            zend_hash_str_add_new(meta, ZEND_STRL("version"), version);
-        }
-
-        zval *env = zend_hash_str_find(parent_meta, ZEND_STRL("env"));
-        if (env) {
-            Z_TRY_ADDREF_P(env);
-            zend_hash_str_add_new(meta, ZEND_STRL("env"), env);
-        }
-
+        ddtrace_inherit_span_properties(&span->span, &parent_root->span);
         ZVAL_COPY(&span->property_origin, &parent_root->property_origin);
     } else {
+        zval *prop_type = &span->property_type;
+        zval *prop_name = &span->property_name;
+        zval *prop_service = &span->property_service;
+        zval *prop_env = &span->property_env;
+        zval *prop_version = &span->property_version;
+
         if (strcmp(sapi_module.name, "cli") == 0) {
             zval_ptr_dtor(prop_type);
             ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("cli"), 0));
@@ -862,16 +881,17 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         zval_ptr_dtor(prop_service);
         ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
 
+
         zend_string *version = get_DD_VERSION();
         if (ZSTR_LEN(version) > 0) {  // non-empty
-            ZVAL_STR_COPY(&value, version);
-            zend_hash_str_add_new(meta, ZEND_STRL("version"), &value);
+            zval_ptr_dtor(prop_version);
+            ZVAL_STR_COPY(prop_version, version);
         }
 
         zend_string *env = get_DD_ENV();
         if (ZSTR_LEN(env) > 0) {  // non-empty
-            ZVAL_STR_COPY(&value, env);
-            zend_hash_str_add_new(meta, ZEND_STRL("env"), &value);
+            zval_ptr_dtor(prop_env);
+            ZVAL_STR_COPY(prop_env, env);
         }
 
         if (DDTRACE_G(dd_origin)) {
@@ -1151,13 +1171,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
                     continue;
                 }
 
-                if (!span->parent && zend_string_equals_literal_ci(str_key, "env")) {
-                    if (DDTRACE_G(last_flushed_root_env_name)) {
-                        zend_string_release(DDTRACE_G(last_flushed_root_env_name));
-                    }
-                    DDTRACE_G(last_flushed_root_env_name) = zend_string_copy(Z_STR_P(orig_val));
-                }
-
                 dd_serialize_array_meta_recursively(Z_ARRVAL(meta_zv), str_key, orig_val);
             }
         }
@@ -1165,8 +1178,41 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     }
     meta = &meta_zv;
 
+    zval *existing_env, new_env;
+    if ((existing_env = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("env")))) {
+        LOG(DEPRECATED, "Using \"env\" in meta is deprecated. Instead specify the env property directly on the span.");
+    } else {
+        ddtrace_convert_to_string(&new_env, &span->property_env);
+        if (Z_STRLEN(new_env)) {
+            existing_env = zend_hash_str_add_new(Z_ARRVAL_P(meta), ZEND_STRL("env"), &new_env);
+        } else {
+            zval_ptr_dtor(&new_env);
+            ZVAL_EMPTY_STRING(&new_env);
+            existing_env = &new_env;
+        }
+    }
+    if (!span->parent) {
+        if (DDTRACE_G(last_flushed_root_env_name)) {
+            zend_string_release(DDTRACE_G(last_flushed_root_env_name));
+        }
+        DDTRACE_G(last_flushed_root_env_name) = zend_string_copy(Z_STR_P(existing_env));
+    }
+
+    zval new_version;
+    if (zend_hash_str_exists(Z_ARRVAL_P(meta), ZEND_STRL("version"))) {
+        LOG(DEPRECATED, "Using \"version\" in meta is deprecated. Instead specify the version property directly on the span.");
+    } else {
+        ddtrace_convert_to_string(&new_version, &span->property_version);
+        if (Z_STRLEN(new_version)) {
+            zend_hash_str_add_new(Z_ARRVAL_P(meta), ZEND_STRL("version"), &new_version);
+        } else {
+            zval_ptr_dtor(&new_version);
+        }
+    }
+
     zval *exception_zv = &span->property_exception;
-    if (Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable)) {
+    bool has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
+    if (has_exception) {
         ignore_error = false;
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
         if (is_root_span) {
@@ -1224,6 +1270,9 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     if (ddtrace_span_is_entrypoint_root(span)) {
         int status = SG(sapi_headers).http_response_code;
+        if (ddtrace_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP && !status) {
+            status = has_exception ? 500 : 200;
+        }
         struct iter *headers = dd_iterate_sapi_headers();
         dd_set_entrypoint_root_span_props_end(Z_ARR_P(meta), status, headers, ignore_error);
         efree(headers);

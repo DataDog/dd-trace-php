@@ -1,11 +1,14 @@
-use datadog_sidecar::interface::blocking::SidecarTransport;
-use datadog_sidecar::interface::{blocking, InstanceId, QueueId, SidecarAction};
+use datadog_sidecar::service::blocking::SidecarTransport;
+use datadog_sidecar::service::{blocking, InstanceId, QueueId, SidecarAction};
 use ddcommon_ffi::slice::AsBytes;
-use ddcommon_ffi::CharSlice;
+use ddcommon_ffi::{CharSlice, MaybeError, self as ffi};
+use ddcommon::tag::parse_tags;
 use ddtelemetry::data;
+use ddtelemetry::data::metrics::MetricNamespace;
 use ddtelemetry::data::{Dependency, Integration};
+use ddtelemetry::metrics::MetricContext;
 use ddtelemetry::worker::TelemetryActions;
-use ddtelemetry_ffi::{try_c, MaybeError};
+use ddtelemetry_ffi::try_c;
 use std::error::Error;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -126,4 +129,36 @@ pub extern "C" fn ddog_sidecar_telemetry_buffer_flush(
     ));
 
     MaybeError::None
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
+    buffer: &mut SidecarActionsBuffer,
+    metric_name: CharSlice,
+    namespace: MetricNamespace,
+) {
+
+    buffer.buffer.push(SidecarAction::RegisterTelemetryMetric(MetricContext {
+        name: metric_name.to_utf8_lossy().into_owned(),
+        namespace,
+        metric_type: data::metrics::MetricType::Count,
+        tags: Vec::default(),
+        common: true,
+    }));
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_add_span_metric_point_buffer(
+    buffer: &mut SidecarActionsBuffer,
+    metric_name: CharSlice,
+    metric_value: f64,
+    tags: CharSlice,
+) {
+    let (tags, _) = parse_tags(&tags.to_utf8_lossy());
+
+    buffer.buffer.push(SidecarAction::AddTelemetryMetricPoint((
+        metric_name.to_utf8_lossy().into_owned(),
+        metric_value,
+        tags,
+    )));
 }

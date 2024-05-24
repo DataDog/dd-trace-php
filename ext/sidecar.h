@@ -10,13 +10,28 @@ void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_shutdown(void);
 void ddtrace_reset_sidecar_globals(void);
 
+void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags);
+void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags);
+void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *tags);
+void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval *tags);
+void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *tags);
+
 static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
     return (ddog_CharSlice){ .len = str->len, .ptr = str->val };
 }
 
-static inline bool ddtrace_ffi_try(const char *msg, ddog_Option_VecU8 maybe_error) {
-    if (maybe_error.tag == DDOG_OPTION_VEC_U8_SOME_VEC_U8) {
-        LOG(ERROR, "%s: %.*s", msg, (int) maybe_error.some.len, maybe_error.some.ptr);
+static inline ddog_CharSlice dd_zai_string_to_CharSlice(zai_string str) {
+    return (ddog_CharSlice){ .len = str.len, .ptr = str.ptr };
+}
+
+static inline zend_string *dd_CharSlice_to_zend_string(ddog_CharSlice str) {
+    return zend_string_init(str.ptr, str.len, 0);
+}
+
+static inline bool ddtrace_ffi_try(const char *msg, ddog_MaybeError maybe_error) {
+    if (maybe_error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+        ddog_CharSlice error = ddog_Error_message(&maybe_error.some);
+        LOG(ERROR, "%s: %.*s", msg, (int) error.len, error.ptr);
         ddog_MaybeError_drop(maybe_error);
         return false;
     }

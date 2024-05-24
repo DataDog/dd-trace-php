@@ -1,12 +1,12 @@
 mod interrupts;
 mod sample_type_filter;
-pub mod stalk_walking;
+pub mod stack_walking;
 mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
 pub use sample_type_filter::*;
-pub use stalk_walking::*;
+pub use stack_walking::*;
 use uploader::*;
 
 #[cfg(all(php_has_fibers, not(test)))]
@@ -17,6 +17,7 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
 use crate::{CLOCKS, TAGS};
+use chrono::Utc;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::api::{
@@ -246,12 +247,12 @@ impl TimeCollector {
         let end_time = wall_export.systemtime;
 
         for (index, profile) in profiles.drain() {
-            let message = UploadMessage::Upload(UploadRequest {
+            let message = UploadMessage::Upload(Box::new(UploadRequest {
                 index,
                 profile,
                 end_time,
                 duration,
-            });
+            }));
             if let Err(err) = self.upload_sender.try_send(message) {
                 warn!("Failed to upload profile: {err}");
             }
@@ -505,7 +506,7 @@ pub struct UploadRequest {
 
 pub enum UploadMessage {
     Pause,
-    Upload(UploadRequest),
+    Upload(Box<UploadRequest>),
 }
 
 impl Profiler {
@@ -527,6 +528,7 @@ impl Profiler {
             upload_receiver,
             system_settings.output_pprof.clone(),
             system_settings.uri.clone(),
+            Utc::now(),
         );
 
         let ddprof_time = "ddprof_time";
@@ -597,17 +599,22 @@ impl Profiler {
         self.fork_barrier.wait();
     }
 
-    pub fn send_sample(&self, message: SampleMessage) -> Result<(), TrySendError<ProfilerMessage>> {
+    pub fn send_sample(
+        &self,
+        message: SampleMessage,
+    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         self.message_sender
             .try_send(ProfilerMessage::Sample(message))
+            .map_err(Box::new)
     }
 
     pub fn send_local_root_span_resource(
         &self,
         message: LocalRootSpanResourceMessage,
-    ) -> Result<(), TrySendError<ProfilerMessage>> {
+    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         self.message_sender
             .try_send(ProfilerMessage::LocalRootSpanResource(message))
+            .map_err(Box::new)
     }
 
     /// Begins the shutdown process. To complete it, call [Profiler::shutdown].
@@ -771,10 +778,10 @@ impl Profiler {
                     value: LabelValue::Str(exception.clone().into()),
                 });
 
-                if message.is_some() {
+                if let Some(message) = message {
                     labels.push(Label {
                         key: "exception message",
-                        value: LabelValue::Str(message.unwrap().into()),
+                        value: LabelValue::Str(message.into()),
                     });
                 }
 

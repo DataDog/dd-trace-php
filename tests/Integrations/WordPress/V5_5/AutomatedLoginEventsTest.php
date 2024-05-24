@@ -2,40 +2,29 @@
 
 namespace DDTrace\Tests\Integrations\WordPress\V5_5;
 
-use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 use datadog\appsec\AppsecStatus;
 
-class AutomatedLoginEventsTest extends WebFrameworkTestCase
+ /**
+ * @group appsec
+ */
+class AutomatedLoginEventsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_5_5/index.php';
     }
 
-    protected function connection()
-    {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+    protected function databaseDump() {
+        return file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_5_5/wp_2020-10-21.sql');
     }
 
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        $this->connection()->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_5_5/wp_2020-10-21.sql'));
         $this->connection()->exec("DELETE from users where email LIKE 'test-user%'");
         AppsecStatus::getInstance()->setDefaults();
-    }
-
-    public static function ddSetUpBeforeClass()
-    {
-        parent::ddSetUpBeforeClass();
-        AppsecStatus::getInstance()->init();
-    }
-
-    public static function ddTearDownAfterClass()
-    {
-        AppsecStatus::getInstance()->destroy();
-        parent::ddTearDownAfterClass();
     }
 
     public function testUserLoginSuccessEvent()

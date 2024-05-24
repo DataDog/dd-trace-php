@@ -2,26 +2,18 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V5_8;
 
-use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
-class AutomatedLoginEventsTest extends WebFrameworkTestCase
+/**
+ * @group appsec
+ */
+class AutomatedLoginEventsTest extends AppsecTestCase
 {
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_8/public/index.php';
-    }
-
-    protected function connection()
-    {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
-    }
-
-    public static function ddSetUpBeforeClass()
-    {
-        parent::ddSetUpBeforeClass();
-        AppsecStatus::getInstance()->init();
     }
 
     protected function ddSetUp()
@@ -31,12 +23,6 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         AppsecStatus::getInstance()->setDefaults();
     }
 
-    public static function ddTearDownAfterClass()
-    {
-        AppsecStatus::getInstance()->destroy();
-        parent::ddTearDownAfterClass();
-    }
-
     protected function login($email)
     {
         $this->call(
@@ -44,13 +30,17 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
         );
     }
 
+    protected function createUser($id, $name, $email) {
+        //Password is password
+        $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
+    }
+
     public function testUserLoginSuccessEvent()
     {
         $id = 1234;
         $name = 'someName';
         $email = 'test-user@email.com';
-        //Password is password
-        $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
+        $this->createUser($id, $name, $email);
 
         $this->login($email);
 
@@ -99,5 +89,25 @@ class AutomatedLoginEventsTest extends WebFrameworkTestCase
 
         $this->assertTrue($signUpEvent['automated']);
         $this->assertEquals($users[0]['id'], $signUpEvent['userId']);
+    }
+
+    public function testLoggedInCalls()
+    {
+        $this->enableSession();
+        $id = 1234;
+        $name = 'someName';
+        $email = 'test-user@email.com';
+        $this->createUser($id, $name, $email);
+
+        //First log in
+        $this->login($email);
+
+        //Now we are logged in lets do another call
+        AppsecStatus::getInstance()->setDefaults(); //Remove all events
+        $this->call(GetSpec::create('Behind auth', '/behind_auth'));
+
+        $events = AppsecStatus::getInstance()->getEvents();
+        $this->assertEquals(0, count($events)); //Auth does not generate appsec events
+        $this->disableSession();
     }
 }

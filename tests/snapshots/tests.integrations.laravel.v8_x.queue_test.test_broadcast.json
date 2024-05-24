@@ -289,14 +289,13 @@
                  },
                  {
                    "name": "laravel.queue.action",
-                   "service": "laravelqueue",
+                   "service": "laravel_queue_test",
                    "resource": "Illuminate\\Broadcasting\\BroadcastEvent@handle",
                    "trace_id": 0,
                    "span_id": 24,
                    "parent_id": 21,
                    "type": "queue",
                    "meta": {
-                     "_dd.base_service": "laravel_queue_test",
                      "component": "laravelqueue"
                    }
                  },

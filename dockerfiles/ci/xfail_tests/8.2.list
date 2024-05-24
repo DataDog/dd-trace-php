@@ -43,6 +43,7 @@ ext/curl/tests/curl_int_cast.phpt
 ext/curl/tests/curl_postfields_array.phpt
 ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt
 ext/date/tests/bug52113.phpt
+ext/ffi/tests/gh12905.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
 ext/mbstring/tests/zend_multibyte-01.phpt
 ext/mbstring/tests/zend_multibyte-02.phpt

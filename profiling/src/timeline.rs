@@ -7,7 +7,6 @@ use libc::c_char;
 use log::{error, trace, warn};
 use std::cell::RefCell;
 use std::ffi::CStr;
-use std::mem::MaybeUninit;
 use std::ptr;
 use std::time::Instant;
 use std::time::SystemTime;
@@ -184,27 +183,27 @@ pub unsafe fn timeline_startup() {
     let handlers = [
         zend::datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"sleep\0"),
-            &mut SLEEP_HANDLER,
+            ptr::addr_of_mut!(SLEEP_HANDLER),
             Some(ddog_php_prof_sleep),
         ),
         zend::datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"usleep\0"),
-            &mut USLEEP_HANDLER,
+            ptr::addr_of_mut!(USLEEP_HANDLER),
             Some(ddog_php_prof_usleep),
         ),
         zend::datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"time_nanosleep\0"),
-            &mut TIME_NANOSLEEP_HANDLER,
+            ptr::addr_of_mut!(TIME_NANOSLEEP_HANDLER),
             Some(ddog_php_prof_time_nanosleep),
         ),
         zend::datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"time_sleep_until\0"),
-            &mut TIME_SLEEP_UNTIL_HANDLER,
+            ptr::addr_of_mut!(TIME_SLEEP_UNTIL_HANDLER),
             Some(ddog_php_prof_time_sleep_until),
         ),
         zend::datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"frankenphp_handle_request\0"),
-            &mut FRANKENPHP_HANDLE_REQUEST_HANDLER,
+            ptr::addr_of_mut!(FRANKENPHP_HANDLE_REQUEST_HANDLER),
             Some(ddog_php_prof_frankenphp_handle_request),
         ),
     ];
@@ -471,7 +470,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         }
 
         #[cfg(php_gc_status)]
-        let mut status = MaybeUninit::<zend::zend_gc_status>::uninit();
+        let mut status = core::mem::MaybeUninit::<zend::zend_gc_status>::uninit();
 
         let start = Instant::now();
         let collected = prev();

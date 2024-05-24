@@ -13,7 +13,7 @@ trait CommonScenariosDataProviderTrait
      * @param array $definedExpectations
      * @return array
      */
-    public function buildDataProvider($definedExpectations)
+    public function buildDataProvider($definedExpectations, $skipExpectations = false)
     {
         $scenarios = TestScenarios::all();
 
@@ -51,7 +51,7 @@ trait CommonScenariosDataProviderTrait
         if ($i !== false) {
             unset($unexpectedRequest[$i]);
         }
-        if ($unexpectedRequest) {
+        if ($unexpectedRequest && !$skipExpectations) {
             throw new \Exception(
                 'Found the following scenarios not having any expectation defined: '
                 . implode(', ', $unexpectedRequest)
@@ -62,7 +62,9 @@ trait CommonScenariosDataProviderTrait
         foreach ($scenarios as $request) {
             $key = $request->getName();
             if (!isset($definedExpectations[$key])) {
-                error_log('This framework is missing the following scenario test: ' . $key);
+                if (!$skipExpectations) {
+                    error_log('This framework is missing the following scenario test: ' . $key);
+                }
                 continue;
             }
             $dataProvider[$key] = [

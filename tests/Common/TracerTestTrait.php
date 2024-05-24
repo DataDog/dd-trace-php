@@ -275,10 +275,11 @@ trait TracerTestTrait
      *
      * @param $fn
      * @param null $tracer
+     * @param callable|null $until
      * @return array[]
-     * @throws \Exception
+     * @throws Exception
      */
-    public function tracesFromWebRequest($fn, $tracer = null)
+    public function tracesFromWebRequest($fn, $tracer = null, callable $until = null)
     {
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
         self::putEnv('DD_TRACE_AGENT_RETRIES=3');
@@ -297,7 +298,7 @@ trait TracerTestTrait
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
         self::putEnv('DD_TRACE_AGENT_RETRIES');
 
-        return $this->parseTracesFromDumpedData();
+        return $this->parseTracesFromDumpedData($until);
     }
 
     private function parseRawDumpedTraces($rawTraces)
@@ -331,9 +332,9 @@ trait TracerTestTrait
      * @return array
      * @throws \Exception
      */
-    private function parseTracesFromDumpedData()
+    private function parseTracesFromDumpedData(callable $until = null)
     {
-        $loaded = $this->retrieveDumpedTraceData();
+        $loaded = $this->retrieveDumpedTraceData($until);
         if (!$loaded) {
             return [];
         }
@@ -385,8 +386,14 @@ trait TracerTestTrait
     /**
      * Returns the raw response body, if any, or null otherwise.
      */
-    public function retrieveDumpedData()
+    public function retrieveDumpedData(callable $until = null, $throw = false)
     {
+        if (!$until) {
+            $until = function ($request) {
+                return (strpos($request["uri"] ?? "", "/telemetry/") !== 0);
+            };
+        }
+
         $allResponses = [];
 
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
@@ -410,20 +417,32 @@ trait TracerTestTrait
                 $loaded = json_decode($response, true);
                 array_push($allResponses, ...$loaded);
                 foreach ($loaded as $request) {
-                    if (strpos($request["uri"] ?? "", "/telemetry/") !== 0) {
-                        break 2;
+                    if ($until($request)) {
+                        return $allResponses;
                     }
                 }
+                \usleep(1000);
             }
         }
+
+        if ($throw) {
+            throw new \LogicException('The expected request was not found');
+        }
+
         return $allResponses;
     }
 
-    public function retrieveDumpedTraceData()
+    public function retrieveDumpedTraceData(callable $until = null)
     {
-        return array_values(array_filter($this->retrieveDumpedData(), function ($request) {
-            return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
-        }));
+        if ($until) {
+            return array_values(array_filter($this->retrieveDumpedData($until), function ($request) use ($until) {
+                return $until($request);
+            }));
+        } else {
+            return array_values(array_filter($this->retrieveDumpedData(), function ($request) {
+                return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
+            }));
+        }
     }
 
     /**

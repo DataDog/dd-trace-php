@@ -83,6 +83,18 @@ namespace DDTrace {
         public string|null $service = "";
 
         /**
+         * @var string The environment you are tracing. Defaults to active environment at the time of span creation
+         * (i.e., the parent span), or datadog.env initialization settings if no parent exists
+         */
+        public string $env = "";
+
+        /**
+         * @var string The version of the application you are tracing. Defaults to active version at the time of
+         * span creation (i.e., the parent span), or datadog.version initialization settings if no parent exists
+         */
+        public string $version = "";
+
+        /**
          * @var string|null The type of request which can be set to: web, db, cache, or custom (Optional). Inherited
          * from parent.
          */
@@ -439,6 +451,9 @@ namespace DDTrace {
     /**
      * Update the duration of an already closed span
      *
+     * Note that this API won't cause an update of a closed span if it's already sent. Its usage, particularly on
+     * root spans with datadog.trace.auto_flush_enabled may not yield the expected results.
+     *
      * @param SpanData $span The span to update.
      * @param float $finishTime Finish time in seconds. Defaults to now if zero.
      * @return false|null 'false' if unexpected parameters were given, else 'null'
@@ -514,10 +529,11 @@ namespace DDTrace {
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
      * if there is one, as well as the future ones if it isn't overwritten
      *
-     * @param array|callable(string):mixed $headersOrCallback Either an array with a lowercase header to value mapping,
-     * or a callback, which given a header name for distributed tracing, returns the value it should be updated to.
+     * @param null|array|callable(string):mixed $headersOrCallback Either an array with a lowercase header to value mapping,
+     * or a callback, which given a header name for distributed tracing, returns the value it should be updated to. If null,
+     * this reads the headers directly from the $_SERVER superglobal.
      */
-    function consume_distributed_tracing_headers(array|callable $headersOrCallback): void {}
+    function consume_distributed_tracing_headers(null|array|callable $headersOrCallback): void {}
 
     /**
      * Get information on the key-value pairs of the datadog headers for distributed tracing
@@ -616,6 +632,51 @@ namespace DDTrace {
      * @param list{\CurlHandle, SpanData}[] $array An array which will be populated with curl handles and spans.
      */
     function curl_multi_exec_get_request_spans(&$array): void {}
+
+    /**
+     * Update a DogStatsD counter
+     *
+     * @param string $metric The metric name
+     * @param int $value The metric value
+     * @param array $tags A list of tags associated to the metric
+     */
+    function dogstatsd_count(string $metric, int $value, array $tags = []): void {}
+
+    /**
+     * Update a DogStatsD distribution
+     *
+     * @param string $metric The metric name
+     * @param float $value The metric value
+     * @param array $tags A list of tags associated to the metric
+     */
+    function dogstatsd_distribution(string $metric, float $value, array $tags = []): void {}
+
+    /**
+     * Update a DogStatsD gauge
+     *
+     * @param string $metric The metric name
+     * @param float $value The metric value
+     * @param array $tags A list of tags associated to the metric
+     */
+    function dogstatsd_gauge(string $metric, float $value, array $tags = []): void {}
+
+    /**
+     * Update a DogStatsD histogram
+     *
+     * @param string $metric The metric name
+     * @param float $value The metric value
+     * @param array $tags A list of tags associated to the metric
+     */
+    function dogstatsd_histogram(string $metric, float $value, array $tags = []): void {}
+
+    /**
+     * Update a DogStatsD set
+     *
+     * @param string $metric The metric name
+     * @param int $value The metric value
+     * @param array $tags A list of tags associated to the metric
+     */
+    function dogstatsd_set(string $metric, int $value, array $tags = []): void {}
 }
 
 namespace DDTrace\System {
@@ -694,6 +755,37 @@ namespace DDTrace\Testing {
      * E_DEPRECATED, E_USER_DEPRECATED
      */
     function trigger_error(string $message, int $errorType): void {}
+}
+
+namespace DDTrace\Internal {
+    /**
+     * @var int
+     * @cvalue DDTRACE_SPAN_FLAG_OPENTELEMETRY
+     */
+    const SPAN_FLAG_OPENTELEMETRY = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_SPAN_FLAG_OPENTRACING
+     */
+    const SPAN_FLAG_OPENTRACING = UNKNOWN;
+
+    /**
+     * Adds a flag to a span.
+     *
+     * @internal
+     *
+     * @param \DDTrace\SpanData $span the span to flag
+     * @param int $flag the flag to add to the span
+     */
+    function add_span_flag(\DDTrace\SpanData $span, int $flag): void {}
+
+    /**
+     * To be called when a fork is performed.
+     *
+     * @internal
+     */
+    function handle_fork(): void {}
 }
 
 namespace {

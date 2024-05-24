@@ -219,6 +219,9 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
             if (DDTRACE_G(agent_rate_by_service)) {
                 zval *env = zend_hash_str_find(ddtrace_property_array(&span->property_meta), ZEND_STRL("env"));
+                if (!env) {
+                    env = &span->property_env;
+                }
                 zval *sample_rate_zv = NULL;
                 zval *service = &span->property_service;
                 if (Z_TYPE_P(service) == IS_STRING && env && Z_TYPE_P(env) == IS_STRING) {
@@ -352,7 +355,8 @@ void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, ze
 
     if (priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         dd_update_decision_maker_tag(root_span, mechanism);
-        root_span->explicit_sampling_priority = true;
+        // Default is never explicit - e.g. distributed tracing.
+        root_span->explicit_sampling_priority = mechanism != DD_MECHANISM_DEFAULT;
     }
 }
 

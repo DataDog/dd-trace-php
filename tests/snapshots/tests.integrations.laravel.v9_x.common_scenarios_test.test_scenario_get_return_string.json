@@ -5,10 +5,11 @@
     "resource": "App\\Http\\Controllers\\CommonSpecsController@simple simple_route",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 9564156679057338630,
+    "parent_id": 14668225065343956357,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
+      "_dd.p.tid": "662b873200000000",
       "component": "laravel",
       "http.method": "GET",
       "http.route": "simple",
@@ -16,7 +17,7 @@
       "http.url": "http://localhost:9999/simple?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple",
       "laravel.route.name": "simple_route",
-      "runtime-id": "ff050755-64ee-442b-a76a-231b8625c5e3",
+      "runtime-id": "614cba3e-708f-4797-8da5-40fa71e9c272",
       "span.kind": "server"
     },
     "metrics": {
@@ -170,7 +171,7 @@
      {
        "name": "laravel.event.handle",
        "service": "my_service",
-       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\BootProviders",
+       "resource": "Illuminate\\Database\\Events\\ConnectionEstablished",
        "trace_id": 0,
        "span_id": 14,
        "parent_id": 1,
@@ -182,7 +183,7 @@
      {
        "name": "laravel.event.handle",
        "service": "my_service",
-       "resource": "Illuminate\\Routing\\Events\\Routing",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\BootProviders",
        "trace_id": 0,
        "span_id": 15,
        "parent_id": 1,
@@ -194,9 +195,21 @@
      {
        "name": "laravel.event.handle",
        "service": "my_service",
-       "resource": "Illuminate\\Routing\\Events\\RouteMatched",
+       "resource": "Illuminate\\Routing\\Events\\Routing",
        "trace_id": 0,
        "span_id": 16,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Routing\\Events\\RouteMatched",
+       "trace_id": 0,
+       "span_id": 17,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -208,7 +221,7 @@
        "service": "my_service",
        "resource": "simple",
        "trace_id": 0,
-       "span_id": 17,
+       "span_id": 18,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -220,7 +233,7 @@
        "service": "my_service",
        "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
        "trace_id": 0,
-       "span_id": 18,
+       "span_id": 19,
        "parent_id": 1,
        "type": "web",
        "meta": {

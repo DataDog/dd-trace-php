@@ -955,4 +955,114 @@ final class AMQPTest extends IntegrationTestCase
         $this->assertNotSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
         $this->assertArrayNotHasKey('parent_id', $basicDeliverSpan);
     }
+
+    public function testBatchedPublishing()
+    {
+        $traces = $this->isolateTracer(function () {
+            $producerConnection = $this->connectionToServer();
+            $producerChannel = $producerConnection->channel();
+            $producerChannel->queue_declare('hello-1', false, false, false, false);
+            $producerChannel->queue_declare('hello-2', false, false, false, false);
+            $producerChannel->batch_basic_publish(new AMQPMessage('hello there'), '', 'hello-1');
+            $producerChannel->batch_basic_publish(new AMQPMessage('world'), '', 'hello-2');
+            $producerChannel->publish_batch();
+
+            // Wait for the server to ack the messages, but no more than 3 seconds
+            // Note: Blocking call
+            $producerChannel->wait_for_pending_acks(3);
+
+            $producerChannel->close();
+            $producerConnection->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'amqp.connect',
+                'amqp',
+                'queue',
+                'connect'
+            )->withExactTags([
+                Tag::SPAN_KIND                  => 'client',
+                Tag::COMPONENT                  => 'amqp',
+                Tag::MQ_SYSTEM                  => 'rabbitmq',
+                Tag::MQ_DESTINATION_KIND        => 'queue',
+                Tag::MQ_PROTOCOL                => 'AMQP',
+                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+            ]),
+            SpanAssertion::build(
+                'amqp.queue.declare',
+                'amqp',
+                'queue',
+                'queue.declare hello-1'
+            )->withExactTags([
+                Tag::SPAN_KIND                  => 'client',
+                Tag::COMPONENT                  => 'amqp',
+                Tag::MQ_SYSTEM                  => 'rabbitmq',
+                Tag::MQ_DESTINATION_KIND        => 'queue',
+                Tag::MQ_PROTOCOL                => 'AMQP',
+                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                Tag::MQ_DESTINATION             => 'hello-1',
+            ]),
+            SpanAssertion::build(
+                'amqp.queue.declare',
+                'amqp',
+                'queue',
+                'queue.declare hello-2'
+            )->withExactTags([
+                Tag::SPAN_KIND                  => 'client',
+                Tag::COMPONENT                  => 'amqp',
+                Tag::MQ_SYSTEM                  => 'rabbitmq',
+                Tag::MQ_DESTINATION_KIND        => 'queue',
+                Tag::MQ_PROTOCOL                => 'AMQP',
+                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                Tag::MQ_DESTINATION             => 'hello-2',
+            ]),
+            SpanAssertion::build(
+                'amqp.batch_basic.add',
+                'amqp',
+                'queue',
+                'batch_basic.add <default> -> hello-1'
+            )->withExactTags([
+                Tag::SPAN_KIND                  => 'producer',
+                Tag::COMPONENT                  => 'amqp',
+                Tag::MQ_SYSTEM                  => 'rabbitmq',
+                Tag::RABBITMQ_ROUTING_KEY       => 'hello-1',
+                Tag::MQ_DESTINATION_KIND        => 'queue',
+                Tag::MQ_PROTOCOL                => 'AMQP',
+                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 11,
+                Tag::RABBITMQ_EXCHANGE          => '<default>',
+            ]),
+            SpanAssertion::build(
+                'amqp.batch_basic.add',
+                'amqp',
+                'queue',
+                'batch_basic.add <default> -> hello-2'
+            )->withExactTags([
+                Tag::SPAN_KIND                  => 'producer',
+                Tag::COMPONENT                  => 'amqp',
+                Tag::MQ_SYSTEM                  => 'rabbitmq',
+                Tag::RABBITMQ_ROUTING_KEY       => 'hello-2',
+                Tag::MQ_DESTINATION_KIND        => 'queue',
+                Tag::MQ_PROTOCOL                => 'AMQP',
+                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                Tag::MQ_MESSAGE_PAYLOAD_SIZE    => 5,
+                Tag::RABBITMQ_EXCHANGE          => '<default>',
+            ]),
+            SpanAssertion::build(
+                'amqp.publish_batch',
+                'amqp',
+                'queue',
+                'publish_batch'
+            )->withExactTags([
+                Tag::SPAN_KIND                  => 'producer',
+                Tag::COMPONENT                  => 'amqp',
+                Tag::MQ_SYSTEM                  => 'rabbitmq',
+                Tag::MQ_DESTINATION_KIND        => 'queue',
+                Tag::MQ_PROTOCOL                => 'AMQP',
+                Tag::MQ_PROTOCOL_VERSION        => AMQPChannel::getProtocolVersion(),
+                Tag::MQ_OPERATION               => 'send',
+            ])
+        ]);
+    }
 }

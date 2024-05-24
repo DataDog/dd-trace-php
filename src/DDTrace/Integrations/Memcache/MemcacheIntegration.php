@@ -33,14 +33,6 @@ class MemcacheIntegration extends Integration
         return self::$instance;
     }
 
-    /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
     public function init(): int
     {
         if (!extension_loaded('memcache')) {

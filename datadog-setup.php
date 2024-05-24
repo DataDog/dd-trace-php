@@ -18,7 +18,9 @@ const CMD_CONFIG_LIST = 'config list';
 // Options
 const OPT_HELP = 'help';
 const OPT_INSTALL_DIR = 'install-dir';
+const OPT_EXTENSION_DIR = 'extension-dir';
 const OPT_PHP_BIN = 'php-bin';
+const OPT_PHP_INI = 'ini';
 const OPT_FILE = 'file';
 const OPT_UNINSTALL = 'uninstall';
 const OPT_ENABLE_APPSEC = 'enable-appsec';
@@ -93,8 +95,10 @@ Options:
                                 option can be provided multiple times.
     --install-dir <path>        Install to a specific directory. Default: '$installdir'
     --uninstall                 Uninstall the library from the specified binaries.
+    --extension-dir <path>      Specify the extension directory. Default: PHP's extension directory.
+    --ini <path>                Specify the INI file to use. Default: <ini-dir>/98-ddtrace.ini
     --enable-appsec             Enable the application security monitoring module.
-    --enable-profiling          Enable the profiling module.
+    --enable-profiling           Enable the profiling module.
     -d setting[=value]          Used in conjunction with `config <set|get>`
                                 command to specify the INI setting to get or set.
 
@@ -580,7 +584,8 @@ function install($options)
             $extensionSuffix .= '-zts';
         }
 
-        $extDir = $phpProperties[EXTENSION_DIR];
+        $extDir = isset($options[OPT_EXTENSION_DIR]) ? $options[OPT_EXTENSION_DIR] : $phpProperties[EXTENSION_DIR];
+        echo "Installing extension to $extDir\n";
 
         // Trace
         $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/"
@@ -614,7 +619,11 @@ function install($options)
         }
         $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
 
-        $iniFilePaths = find_main_ini_files($phpProperties);
+        if (isset($options[OPT_PHP_INI])) {
+            $iniFilePaths = $options[OPT_PHP_INI];
+        } else {
+            $iniFilePaths = find_main_ini_files($phpProperties);
+        }
 
         foreach ($iniFilePaths as $iniFilePath) {
             $replacements = [];
@@ -645,6 +654,15 @@ function install($options)
                     '(ddtrace\.request_init_hook)' => 'datadog.trace.sources_path',
                     '(datadog\.trace\.request_init_hook)' => 'datadog.trace.sources_path',
                     '((datadog\.trace\.sources_path)\s*=\s*.*)' => "$1 = $installDirSrcDir",
+                ];
+            }
+
+            if (isset($options[OPT_EXTENSION_DIR])) {
+                $replacements += [
+                    '(^\s*;?\s*extension\s*=\s*.*ddtrace.*)m' => "extension = $extensionDestination",
+                ];
+            } else {
+                $replacements += [
                     /* In order to support upgrading from legacy installation method to new installation method, we
                      * replace "extension = /opt/datadog-php/xyz.so" with "extension =  ddtrace.so" honoring trailing
                      * `;`, hence not automatically re-activating the extension if the user had commented it out.
@@ -659,7 +677,12 @@ function install($options)
             if (is_truthy($options[OPT_ENABLE_PROFILING])) {
                 // phpcs:disable Generic.Files.LineLength.TooLong
                 if ($shouldInstallProfiling) {
-                    $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
+                    if (isset($options[OPT_EXTENSION_DIR])) {
+                        $replacements['(zend_extension\s*=\s*.*datadog-profiling.*)'] = "extension = $profilingExtensionDestination";
+                        $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = $profilingExtensionDestination";
+                    } else {
+                        $replacements['(^\s*;?\s*extension\s*=\s*.*datadog-profiling.*)m'] = "extension = datadog-profiling" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX);
+                    }
                 } else {
                     $enableProfiling = OPT_ENABLE_PROFILING;
                     print_error_and_exit(
@@ -674,8 +697,11 @@ function install($options)
             // phpcs:disable Generic.Files.LineLength.TooLong
             if ($shouldInstallAppsec) {
                 $rulesPathRegex = preg_quote($options[OPT_INSTALL_DIR]) . "/[0-9\.]*/etc/recommended.json";
+                $iniAppsecExtension = isset($options[OPT_EXTENSION_DIR])
+                    ? $appsecExtensionDestination
+                    : ("ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX));
                 $replacements += [
-                    '(^\s*;\s*extension\s*=\s*.*ddappsec.*)m' => "extension = ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX),
+                    '(^\s*;?\s*extension\s*=\s*.*ddappsec.*)m' => "extension = $iniAppsecExtension",
                     // Update helper path
                     '(datadog.appsec.helper_path\s*=.*)' => "datadog.appsec.helper_path = $appSecHelperPath",
                     // Update and comment rules path
@@ -800,7 +826,6 @@ function find_all_ini_files(array $phpProperties)
  */
 function find_main_ini_files(array $phpProperties)
 {
-    $iniFilePaths = [];
     if (isset($phpProperties[INI_SCANDIR])) {
         $iniFileName = '98-ddtrace.ini';
         // Search for pre-existing files with extension = ddtrace.so to avoid conflicts
@@ -855,6 +880,15 @@ function safe_copy_extension($source, $destination)
         // We have to blackhole it in tempdir because it is likely currently loaded and may not be replaced in place.
         rename($destination, getenv("TEMP") . "\\" . time() . "-" . basename($destination));
     }
+
+    $destinationDir = dirname($destination);
+    if (!file_exists($destinationDir)) {
+        execute_or_exit(
+            "Cannot create directory '$destinationDir'",
+            "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($destinationDir)
+        );
+    }
+
     $tmpName = $destination . '.tmp';
     copy($source, $tmpName);
     rename($tmpName, $destination);
@@ -870,11 +904,12 @@ function uninstall($options)
         echo "Uninstalling from binary: $binaryForLog\n";
 
         $phpProperties = ini_values($fullPath);
+        $extensionDir = isset($options[OPT_EXTENSION_DIR]) ? $options[OPT_EXTENSION_DIR] : $phpProperties[EXTENSION_DIR];
 
         $extensionDestinations = [
-            $phpProperties[EXTENSION_DIR] . '/' . EXTENSION_PREFIX . 'ddtrace.' . EXTENSION_SUFFIX,
-            $phpProperties[EXTENSION_DIR] . '/' . EXTENSION_PREFIX . 'datadog-profiling.' . EXTENSION_SUFFIX,
-            $phpProperties[EXTENSION_DIR] . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX,
+            $extensionDir . '/' . EXTENSION_PREFIX . 'ddtrace.' . EXTENSION_SUFFIX,
+            $extensionDir . '/' . EXTENSION_PREFIX . 'datadog-profiling.' . EXTENSION_SUFFIX,
+            $extensionDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX,
         ];
 
         $iniFileName = '98-ddtrace.ini';
@@ -1098,7 +1133,16 @@ function is_alpine()
 function get_architecture()
 {
     if (IS_WINDOWS) {
-        return "x86_64";
+        if (PHP_INT_SIZE === 4) {
+            // we don't support that one, but we include it so that the installer can properly fail
+            return "x86";
+        } else {
+            if ($env = getenv("PROCESSOR_ARCHITECTURE")) {
+                return $env === "AMD64" ? "x86_64" : strtolower($env);
+            }
+            // fallback
+            return "x86_64";
+        }
     }
 
     return execute_or_exit(
@@ -1245,10 +1289,20 @@ function parse_validate_user_options()
             : [$options[OPT_PHP_BIN]];
     }
 
+    if (isset($options[OPT_PHP_INI])) {
+        $normalizedOptions[OPT_PHP_INI] = is_array($options[OPT_PHP_INI])
+            ? $options[OPT_PHP_INI]
+            : [$options[OPT_PHP_INI]];
+    }
+
     $normalizedOptions[OPT_INSTALL_DIR] = isset($options[OPT_INSTALL_DIR])
         ? rtrim($options[OPT_INSTALL_DIR], '/')
         : DEFAULT_INSTALL_DIR;
     $normalizedOptions[OPT_INSTALL_DIR] = $normalizedOptions[OPT_INSTALL_DIR] . '/dd-library';
+
+    $normalizedOptions[OPT_EXTENSION_DIR] = isset($options[OPT_EXTENSION_DIR])
+        ? rtrim($options[OPT_EXTENSION_DIR], '/')
+        : null;
 
     $normalizedOptions[OPT_ENABLE_APPSEC] = isset($options[OPT_ENABLE_APPSEC]);
     $normalizedOptions[OPT_ENABLE_PROFILING] = isset($options[OPT_ENABLE_PROFILING]);

@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use datadog_php_profiling::bindings as zend;
-use datadog_php_profiling::profiling::stalk_walking::collect_stack_sample;
+use datadog_php_profiling::profiling::stack_walking::collect_stack_sample;
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use criterion_perf_events::Perf;
@@ -30,7 +30,7 @@ fn benchmark_instructions(c: &mut Criterion<Perf>) {
         let stack = unsafe { zend::ddog_php_test_create_fake_zend_execute_data(99) };
         group.throughput(criterion::Throughput::Elements(*depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), depth, |b, &_depth| {
-            b.iter(|| unsafe { collect_stack_sample(black_box(stack)) })
+            b.iter(|| collect_stack_sample(black_box(stack)))
         });
     }
     group.finish();
