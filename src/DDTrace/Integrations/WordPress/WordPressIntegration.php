@@ -3,25 +3,30 @@
 namespace DDTrace\Integrations\WordPress;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\DatadogLogger;
 
 class WordPressIntegration extends Integration
 {
     const NAME = 'wordpress';
 
-    /**
-     * @var string
-     */
+    /** @var string */
     private $env;
-
-    /**
-     * @var string
-     */
+    /** @var string */
     private $serviceName;
-
-    /**
-     * @var string
-     */
+    /** @var string */
     private $version;
+    /** @var null|DatadogLogger */
+
+    public $logger;
+    /** @var float */
+    public $logsSampleRate;
+    /** @var bool */
+    public $hooksEnabled;
+    /** @var bool */
+    public $logsEnabled;
+    /** @var bool */
+    public $metricsEnabled;
+
 
     public function getEnv()
     {

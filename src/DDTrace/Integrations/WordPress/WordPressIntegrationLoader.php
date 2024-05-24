@@ -2,15 +2,17 @@
 
 namespace DDTrace\Integrations\WordPress;
 
-use DataDog\DogStatsd;
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\DatadogLogger;
 use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 use DDTrace\Util\PluginTimes;
+use function DDTrace\dogstatsd_count;
+use function DDTrace\dogstatsd_distribution;
 use function DDTrace\hook_function;
 use function DDTrace\install_hook;
 use function DDTrace\remove_hook;
@@ -222,21 +224,16 @@ class WordPressIntegrationLoader
         return $hookName;
     }
 
-    public static function sendMetrics(
+    public static function sendLog(
         WordPressIntegration $integration,
-        DogStatsd $statsd,
         float $duration,
-        string $pluginOrThemeName
+        string $pluginOrThemeName,
+        string $hookName
     ) {
-        //if (!dd_trace_env_config('DD_WORDPRESS_METRICS_ENABLED')) {
-        //    return;
-        //}
-
-        if (empty($pluginOrThemeName)) {
-            return;
-        }
-
-        if ($duration < 1) { // Don't send duration < 1us
+        if (empty($pluginOrThemeName)
+            || !$integration->logger
+            || mt_rand() / mt_getrandmax() > $integration->logsSampleRate
+        ) {
             return;
         }
 
@@ -245,23 +242,39 @@ class WordPressIntegrationLoader
             'service' => $integration->getServiceName(),
             'version' => $integration->getVersion(),
             'wordpress.plugin.name' => $pluginOrThemeName,
+            'wordpress.hook.name' => $hookName,
+            'wordpress.hook.duration' => $duration, // ms
         ];
 
-        $statsd->distribution(
-            'wordpress.hook.duration',
-            $duration,
-            1.0,
-            $tags
-        );
+        $integration->logger->info("WordPress Hook $hookName", $tags);
+    }
+
+    public static function sendMetric(
+        WordPressIntegration $integration,
+        string $dogstatsd,
+        string $metric,
+        float $value,
+        array $tags = []
+    ) {
+        if ($integration->metricsEnabled) {
+            $tags += [
+                'env' => $integration->getEnv(),
+                'service' => $integration->getServiceName(),
+                'version' => $integration->getVersion(),
+            ];
+            call_user_func($dogstatsd, $metric, $value, $tags);
+        }
     }
 
     public function load(WordPressIntegration $integration)
     {
-        $statsd = new DogStatsd([
-            'datadog_host' => 'https://app.datadoghq.eu'
-        ]);
-
         $pluginTimes = new PluginTimes();
+
+        $integration->logsEnabled = dd_trace_env_config('DD_WORDPRESS_LOGS_ENABLED');
+        $integration->logger = $integration->logsEnabled ? new DatadogLogger() : null;
+        $integration->logsSampleRate = dd_trace_env_config('DD_WORDPRESS_LOGS_SAMPLE_RATE');
+        $integration->metricsEnabled = dd_trace_env_config('DD_WORDPRESS_METRICS_ENABLED');
+        $integration->hooksEnabled = dd_trace_env_config('DD_WORDPRESS_HOOKS_ENABLED');
 
         // File loading
         hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
@@ -299,7 +312,7 @@ class WordPressIntegrationLoader
         });
 
 
-        hook_function('wp_templating_constants', null, function () use ($integration, $statsd) {
+        hook_function('wp_templating_constants', null, function () use ($integration) {
             foreach (wp_get_active_and_valid_themes() as $theme) {
                 if (file_exists($theme . '/functions.php')) {
                     install_hook(
@@ -319,20 +332,15 @@ class WordPressIntegrationLoader
 
                             remove_hook($hook->id);
                         },
-                        function (HookData $hook) use ($integration, $statsd) {
+                        function (HookData $hook) use ($integration) {
                             $span = $hook->span();
                             $duration = (microtime(true) * 1e6) - ($span->getStartTime() / 1e3); // ms - ms := ms
-                            $tags = [
-                                'env' => $integration->getEnv(),
-                                'service' => $integration->getServiceName(),
-                                'version' => $integration->getVersion(),
-                                'wordpress.plugin.name' => $hook->data['themeName'],
-                            ];
-                            $statsd->distribution(
+                            WordPressIntegrationLoader::sendMetric(
+                                $integration,
+                                'dogstatsd_distribution',
                                 'wordpress.plugin.loading_duration',
                                 $duration,
-                                1.0,
-                                $tags
+                                ['wordpress.plugin.name' => $hook->data['themeName']]
                             );
                         }
                     );
@@ -802,31 +810,46 @@ class WordPressIntegrationLoader
 
                     $hook->allowNestedHook();
                 },
-                function (HookData $hook) use ($integration, $statsd, &$actionHookToPlugin, &$actionHookToTheme, $pluginTimes) {
+                function (HookData $hook) use ($integration, &$actionHookToPlugin, &$actionHookToTheme, $pluginTimes) {
                     $args = $hook->args;
                     if (empty($args[0])) {
                         return;
                     }
 
+                    $hookName = $args[0];
                     $pluginOrThemeName = $hook->data['pluginOrThemeName'] ?? '';
                     if (!empty($pluginOrThemeName)) {
-                        $pluginTimes->closeSpan((microtime(true) - $hook->data['startTime']) * 1e6);
-                        /*
-                        WordPressIntegrationLoader::sendMetrics(
-                            $integration,
-                            $statsd,
-                            (microtime(true) - $hook->data['startTime']) * 1e6,
-                            $pluginOrThemeName
-                        );
-                        */
+                        $msDuration = (microtime(true) - $hook->data['startTime']) * 1e6;
+                        $pluginTimes->closeSpan($msDuration);
+                        if ($integration->hooksEnabled) {
+                            WordPressIntegrationLoader::sendMetric(
+                                $integration,
+                                'dogstatsd_distribution',
+                                'wordpress.hook.duration',
+                                $msDuration,
+                                [
+                                    'wordpress.plugin.name' => $pluginOrThemeName,
+                                    'wordpress.hook.name' => $hookName,
+                                ]
+                            );
+                        }
+
+                        if ($msDuration > 1) {
+                            WordPressIntegrationLoader::sendLog(
+                                $integration,
+                                $msDuration,
+                                $pluginOrThemeName,
+                                $hookName
+                            );
+                        }
                     }
             });
         }
 
-        \DDTrace\hook_function('shutdown_action_hook', null, function () use ($integration, $statsd, $pluginTimes) {
-            //if (!dd_trace_env_config('DD_WORDPRESS_METRICS_ENABLED')) {
-            //    return;
-            //}
+        \DDTrace\hook_function('shutdown_action_hook', null, function () use ($integration, $pluginTimes) {
+            if (!$integration->metricsEnabled) {
+                return;
+            }
 
            $USTTags = [
                'env' => $integration->getEnv(),
@@ -835,29 +858,32 @@ class WordPressIntegrationLoader
            ];
 
            foreach ($pluginTimes->total as $pluginName => $totalDuration) {
-               $statsd->distribution(
+               WordPressIntegrationLoader::sendMetric(
+                   $integration,
+                   'dogstatsd_distribution',
                    'wordpress.plugin.total_duration',
                    $totalDuration,
-                   1.0,
                    $USTTags + ['wordpress.plugin.name' => $pluginName]
                );
            }
 
             foreach ($pluginTimes->cumulative as $pluginName => $cumulativeDuration) {
-                $statsd->distribution(
+                WordPressIntegrationLoader::sendMetric(
+                    $integration,
+                    'dogstatsd_distribution',
                     'wordpress.plugin.cumulative_duration',
                     $cumulativeDuration,
-                    1.0,
                     $USTTags + ['wordpress.plugin.name' => $pluginName]
                 );
             }
 
             foreach ($pluginTimes->calls as $pluginName => $nCalls) {
-                $statsd->increment(
+                WordPressIntegrationLoader::sendMetric(
+                    $integration,
+                    'dogstatsd_count',
                     'wordpress.plugin.calls',
-                    1.0,
-                    $USTTags + ['wordpress.plugin.name' => $pluginName],
-                    $nCalls
+                    $nCalls,
+                    $USTTags + ['wordpress.plugin.name' => $pluginName]
                 );
             }
 
@@ -875,7 +901,7 @@ class WordPressIntegrationLoader
             \DDTrace\install_hook(
                 $plugin_loading_func,
                 null,
-                function (HookData $hook) use (&$plugins, $plugin_loading_func, $integration, $statsd) {
+                function (HookData $hook) use (&$plugins, $plugin_loading_func, $integration) {
                     foreach ($hook->returned as $plugin) {
                         if (is_link($plugin)) {
                             $plugin = \readlink($plugin);
@@ -904,7 +930,7 @@ class WordPressIntegrationLoader
                                 );
                                 $span->meta['wordpress.plugin'] = $pluginName;
                             },
-                            function ($hook) use (&$plugins, $integration, $statsd) {
+                            function ($hook) use (&$plugins, $integration) {
                                 $span = $hook->span();
                                 $top = \array_pop($plugins);
                                 // Integrity check; should be stackful.
@@ -914,17 +940,12 @@ class WordPressIntegrationLoader
                                 if (substr($top, -4) === '.php') {
                                     $top = substr($top, 0, -4);
                                 }
-                                $tags = [
-                                    'env' => $integration->getEnv(),
-                                    'service' => $integration->getServiceName(),
-                                    'version' => $integration->getVersion(),
-                                    'wordpress.plugin.name' => $top,
-                                ];
-                                $statsd->distribution(
+                                WordPressIntegrationLoader::sendMetric(
+                                    $integration,
+                                    'dogstatsd_distribution',
                                     'wordpress.plugin.loading_duration',
                                     $duration,
-                                    1.0,
-                                    $tags
+                                    ['wordpress.plugin.name' => $top]
                                 );
                             }
                         );
@@ -993,20 +1014,15 @@ class WordPressIntegrationLoader
             }
         });
 
-        \DDTrace\hook_function('file_get_contents', null, function ($args, $retval) use ($integration, $statsd) {
+        \DDTrace\hook_function('file_get_contents', null, function ($args, $retval) use ($integration) {
             if (strpos($args[0], 'cache') !== false) {
                 Logger::get()->debug("Caching-retrieval Operation");
                 // Hypothesis: If the queried file contains 'cache', it's a cache-retrieval operation
-                $tags = [
-                    'env' => $integration->getEnv(),
-                    'service' => $integration->getServiceName(),
-                    'version' => $integration->getVersion(),
-                ];
-                $statsd->distribution(
+                WordPressIntegrationLoader::sendMetric(
+                    $integration,
+                    'dogstatsd_distribution',
                     'wordpress.cache',
-                    $retval ? 1 : 0,
-                    1.0,
-                    $tags
+                    $retval ? 1 : 0
                 );
             } else {
                 Logger::get()->debug("file_get_contents on {$args[0]}");

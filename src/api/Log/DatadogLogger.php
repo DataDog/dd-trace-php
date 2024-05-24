@@ -138,12 +138,11 @@ final class DatadogLogger
     private static function format(string $level, $message, array $context = []): string {
         $message = self::interpolate($message, $context);
 
-        $record = [
+        $record = array_merge([
             'message' => $message,
-            'context' => $context,
             'level_name' => $level,
             'timestamp' => date(\DateTime::ATOM),
-        ];
+        ], $context);
 
         return json_encode(array_merge($record, self::handleLogInjection()), self::DEFAULT_JSON_FLAGS) . PHP_EOL;
     }
