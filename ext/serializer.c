@@ -501,7 +501,7 @@ static void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *val
     }
 }
 
-static const int uuid_len = 36;
+#define uuid_len 36
 
 static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_id, int frame_num, zval *locals, zend_string *service_name, const ddog_Capture *capture_config, uint64_t time, void *context, add_tag_fn_t add_meta) {
         char *snapshot_id = zend_arena_alloc(&DDTRACE_G(exception_debugger_arena), uuid_len);
@@ -557,7 +557,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
     add_meta(context, DDTRACE_STRING_LITERAL("_dd.debug.error.exception_id"), (ddtrace_string){exception_id, uuid_len});
 
     zval *frame;
-    int frame_num;
+    int frame_num = 0;
     ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARR_P(trace), frame_num, frame) {
         if (Z_TYPE_P(frame) != IS_ARRAY) {
             continue;
@@ -567,7 +567,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
         locals = zend_hash_find(Z_ARR_P(frame), key_locals);
 
         zend_class_entry *ce = NULL;
-        zend_function *func;
+        zend_function *func = NULL;
         zval *class_name = zend_hash_find(Z_ARR_P(frame), ZSTR_KNOWN(ZEND_STR_FUNCTION));
         if (class_name && Z_TYPE_P(class_name) == IS_STRING) {
             ce = zai_symbol_lookup_class_global(zai_str_from_zstr(Z_STR_P(class_name)));

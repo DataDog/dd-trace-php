@@ -1,6 +1,7 @@
 #include "threads.h"
 #include <Zend/zend.h>
 #include <Zend/zend_signal.h>
+#include "ddtrace.h"
 
 #if ZTS
 
@@ -32,14 +33,16 @@ void ddtrace_thread_ginit() {
 }
 
 void ddtrace_thread_gshutdown() {
-    // avoid deadlocks due to signal handlers accessing this
-    ZEND_SIGNAL_BLOCK_INTERRUPTIONS();
-    tsrm_mutex_lock(ddtrace_threads_mutex);
+    if (ddtrace_threads_mutex) {
+        // avoid deadlocks due to signal handlers accessing this
+        ZEND_SIGNAL_BLOCK_INTERRUPTIONS();
+        tsrm_mutex_lock(ddtrace_threads_mutex);
 
-    zend_hash_index_del(&ddtrace_tls_bases, (zend_ulong)(uintptr_t)tsrm_thread_id());
+        zend_hash_index_del(&ddtrace_tls_bases, (zend_ulong)(uintptr_t)tsrm_thread_id());
 
-    tsrm_mutex_unlock(ddtrace_threads_mutex);
-    ZEND_SIGNAL_UNBLOCK_INTERRUPTIONS();
+        tsrm_mutex_unlock(ddtrace_threads_mutex);
+        ZEND_SIGNAL_UNBLOCK_INTERRUPTIONS();
+    }
 }
 
 #endif

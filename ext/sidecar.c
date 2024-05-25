@@ -10,6 +10,7 @@
 #include "sidecar.h"
 #include "telemetry.h"
 #include "serializer.h"
+#include "remote_config.h"
 #ifndef _WIN32
 #include "coms.h"
 #endif
@@ -82,6 +83,7 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
                                     get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                     get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                                     (ddog_CharSlice){ .ptr = logpath, .len = strlen(logpath) },
+                                    ddtrace_set_all_thread_vm_interrupt,
                                     DDTRACE_REMOTE_CONFIG_PRODUCTS,
                                     sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS) / sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS[0]),
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES,

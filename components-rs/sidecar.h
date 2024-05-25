@@ -144,6 +144,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(ddog_SidecarTransport **transpor
                                                 uintptr_t force_drop_size,
                                                 ddog_CharSlice log_level,
                                                 ddog_CharSlice log_path,
+                                                void *remote_config_notify_function,
                                                 const enum ddog_RemoteConfigProduct *remote_config_products,
                                                 uintptr_t remote_config_products_count,
                                                 const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
