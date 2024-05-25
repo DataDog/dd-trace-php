@@ -106,7 +106,16 @@ void dd_remove_span_probe(int64_t id) {
 }
 
 const ddog_Evaluator dd_evaluator = {
-
+    .equals = NULL,
+    .greater_than = NULL,
+    .greater_or_equals = NULL,
+    .fetch_identifier = NULL,
+    .fetch_index = NULL,
+    .fetch_nested = NULL,
+    .length = NULL,
+    .try_enumerate = NULL,
+    .stringify = NULL,
+    .convert_index = NULL,
 };
 
 static struct ddog_Vec_CChar *dd_dynamic_instrumentation_update(ddog_CharSlice config, ddog_CharSlice value, bool return_old) {

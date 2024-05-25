@@ -107,21 +107,22 @@ INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_SAMPLE_RATE, "datadog.trace.sample_rate")
 INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_LOGS_ENABLED, "datadog.logs_injection")
 
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
+#define EXPAND_CALL(macro, args) macro args // I hate the "traditional" MSVC preprocessor
+#define EXPAND_IDENTITY(...) __VA_ARGS__
 
 #ifndef _WIN32
 // Allow for partially defined struct initialization here
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #else
 #define CONFIG(...)
-#define CALIASES(...) {APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)}
-#define CALIAS(type, name, default, aliases, ...) const zai_str dd_config_aliases_##name[] = aliases;
+#define CALIASES(...) ({APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
+#define CALIAS(type, name, default, aliases, ...) const zai_str dd_config_aliases_##name[] = EXPAND_CALL(EXPAND_IDENTITY, aliases);
 DD_CONFIGURATION
 #undef CALIAS
 #undef CONFIG
 #endif
 
 #define CUSTOM(...) CUSTOM
-#define EXPAND_CALL(macro, args) macro args // I hate the "traditional" MSVC preprocessor
 #define CONFIG(type, name, ...) EXPAND_CALL(ZAI_CONFIG_ENTRY, (DDTRACE_CONFIG_##name, name, type, __VA_ARGS__)),
 #ifndef _WIN32
 #define CALIASES(...) ((zai_str[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
