@@ -23,7 +23,9 @@ final class InternalTelemetryTest extends CLITestCase
                 }
             }
         }
-        return $telemetryPayloads;
+
+        // Filter the payloads from the trace background sender
+        return array_values(array_filter($telemetryPayloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
     }
 
     public function testInternalMetricWithOpenTracing()
@@ -35,6 +37,7 @@ final class InternalTelemetryTest extends CLITestCase
         $requests = $this->retrieveDumpedData(function ($request) {
             return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
                 && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+                && (strpos($request["body"] ?? "", "background_sender-php-service") === false)
             ;
         }, true);
 

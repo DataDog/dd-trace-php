@@ -36,7 +36,9 @@ final class InstrumentationTest extends WebFrameworkTestCase
                 }
             }
         }
-        return $telemetryPayloads;
+
+        // Filter the payloads from the trace background sender
+        return array_values(array_filter($telemetryPayloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
     }
 
     public function testInstrumentation()
@@ -51,6 +53,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $response = $this->retrieveDumpedData(function ($request) {
             return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
                 && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+                && (strpos($request["body"] ?? "", "background_sender-php-service") === false)
             ;
         }, true);
 
@@ -60,10 +63,6 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $isMetric = function (array $payload) {
             return 'generate-metrics' === $payload['request_type'];
         };
-
-        // Filter the payloads from the trace background sender
-        $payloads = array_values(array_filter($payloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
-
         $metrics = array_values(array_filter($payloads, $isMetric));
         $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
 
@@ -98,14 +97,12 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $response = $this->retrieveDumpedData(function ($request) {
             return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
                 && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+                && (strpos($request["body"] ?? "", "background_sender-php-service") === false)
             ;
         }, true);
 
         $this->assertGreaterThanOrEqual(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
-
-        // Filter the payloads from the trace background sender
-        $payloads = array_values(array_filter($payloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
 
         $metrics = array_values(array_filter($payloads, $isMetric));
         $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
