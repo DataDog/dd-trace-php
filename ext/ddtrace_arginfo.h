@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: cbd454866b5b3f34bee057c9a35d7807c6e718ca */
+ * Stub hash: 3a83516da1c795bbe41abd106fcc3e069bf3d946 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -127,6 +127,24 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_curl_multi_exec_get_request_spans, 0, 1, IS_VOID, 0)
 	ZEND_ARG_INFO(1, array)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_dogstatsd_count, 0, 2, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, metric, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, value, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, tags, IS_ARRAY, 0, "[]")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_dogstatsd_distribution, 0, 2, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, metric, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, value, IS_DOUBLE, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, tags, IS_ARRAY, 0, "[]")
+ZEND_END_ARG_INFO()
+
+#define arginfo_DDTrace_dogstatsd_gauge arginfo_DDTrace_dogstatsd_distribution
+
+#define arginfo_DDTrace_dogstatsd_histogram arginfo_DDTrace_dogstatsd_distribution
+
+#define arginfo_DDTrace_dogstatsd_set arginfo_DDTrace_dogstatsd_count
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
 ZEND_END_ARG_INFO()
@@ -302,6 +320,11 @@ ZEND_FUNCTION(DDTrace_current_context);
 ZEND_FUNCTION(DDTrace_set_distributed_tracing_context);
 ZEND_FUNCTION(DDTrace_flush);
 ZEND_FUNCTION(DDTrace_curl_multi_exec_get_request_spans);
+ZEND_FUNCTION(DDTrace_dogstatsd_count);
+ZEND_FUNCTION(DDTrace_dogstatsd_distribution);
+ZEND_FUNCTION(DDTrace_dogstatsd_gauge);
+ZEND_FUNCTION(DDTrace_dogstatsd_histogram);
+ZEND_FUNCTION(DDTrace_dogstatsd_set);
 ZEND_FUNCTION(DDTrace_System_container_id);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_sample_rate);
@@ -377,6 +400,11 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "set_distributed_tracing_context"), zif_DDTrace_set_distributed_tracing_context, arginfo_DDTrace_set_distributed_tracing_context, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "flush"), zif_DDTrace_flush, arginfo_DDTrace_flush, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "curl_multi_exec_get_request_spans"), zif_DDTrace_curl_multi_exec_get_request_spans, arginfo_DDTrace_curl_multi_exec_get_request_spans, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_count"), zif_DDTrace_dogstatsd_count, arginfo_DDTrace_dogstatsd_count, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_distribution"), zif_DDTrace_dogstatsd_distribution, arginfo_DDTrace_dogstatsd_distribution, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_gauge"), zif_DDTrace_dogstatsd_gauge, arginfo_DDTrace_dogstatsd_gauge, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_histogram"), zif_DDTrace_dogstatsd_histogram, arginfo_DDTrace_dogstatsd_histogram, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_set"), zif_DDTrace_dogstatsd_set, arginfo_DDTrace_dogstatsd_set, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "container_id"), zif_DDTrace_System_container_id, arginfo_DDTrace_System_container_id, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_enabled"), zif_DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_sample_rate"), zif_DDTrace_Config_integration_analytics_sample_rate, arginfo_DDTrace_Config_integration_analytics_sample_rate, 0, NULL, NULL)

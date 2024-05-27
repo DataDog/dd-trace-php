@@ -159,4 +159,7 @@ extern TSRM_TLS void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
 
 #include "random.h"
 
+#define HOST_V6_FORMAT_STR "http://[%s]:%u"
+#define HOST_V4_FORMAT_STR "http://%s:%u"
+
 #endif  // DDTRACE_H

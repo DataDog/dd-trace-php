@@ -140,8 +140,6 @@ DDTRACE_PUBLIC void ddtrace_close_all_spans_and_flush()
     ddtrace_flush_tracer(true, true);
 }
 
-#define HOST_V6_FORMAT_STR "http://[%s]:%u"
-#define HOST_V4_FORMAT_STR "http://%s:%u"
 #define DEFAULT_UDS_PATH "/var/run/datadog/apm.socket"
 
 char *ddtrace_agent_url(void) {

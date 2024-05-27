@@ -118,7 +118,8 @@ bool ddog_sidecar_is_closed(ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_session_set_config(ddog_SidecarTransport **transport,
                                                 ddog_CharSlice session_id,
-                                                const struct ddog_Endpoint *endpoint,
+                                                const struct ddog_Endpoint *agent_endpoint,
+                                                const struct ddog_Endpoint *dogstatsd_endpoint,
                                                 uint64_t flush_interval_milliseconds,
                                                 uintptr_t force_flush_size,
                                                 uintptr_t force_drop_size,
@@ -138,5 +139,35 @@ ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(ddog_SidecarTransport **transp
 ddog_CharSlice ddog_sidecar_dump(ddog_SidecarTransport **transport);
 
 ddog_CharSlice ddog_sidecar_stats(ddog_SidecarTransport **transport);
+
+ddog_MaybeError ddog_sidecar_dogstatsd_count(ddog_SidecarTransport **transport,
+                                             const struct ddog_InstanceId *instance_id,
+                                             ddog_CharSlice metric,
+                                             int64_t value,
+                                             const struct ddog_Vec_Tag *tags);
+
+ddog_MaybeError ddog_sidecar_dogstatsd_distribution(ddog_SidecarTransport **transport,
+                                                    const struct ddog_InstanceId *instance_id,
+                                                    ddog_CharSlice metric,
+                                                    double value,
+                                                    const struct ddog_Vec_Tag *tags);
+
+ddog_MaybeError ddog_sidecar_dogstatsd_gauge(ddog_SidecarTransport **transport,
+                                             const struct ddog_InstanceId *instance_id,
+                                             ddog_CharSlice metric,
+                                             double value,
+                                             const struct ddog_Vec_Tag *tags);
+
+ddog_MaybeError ddog_sidecar_dogstatsd_histogram(ddog_SidecarTransport **transport,
+                                                 const struct ddog_InstanceId *instance_id,
+                                                 ddog_CharSlice metric,
+                                                 double value,
+                                                 const struct ddog_Vec_Tag *tags);
+
+ddog_MaybeError ddog_sidecar_dogstatsd_set(ddog_SidecarTransport **transport,
+                                           const struct ddog_InstanceId *instance_id,
+                                           ddog_CharSlice metric,
+                                           int64_t value,
+                                           const struct ddog_Vec_Tag *tags);
 
 #endif /* DDOG_SIDECAR_H */
