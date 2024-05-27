@@ -276,6 +276,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             || \is_int($value)
             || (\is_array($value) && \count($value) > 0 && \is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
             $span->metrics[$key] = $value;
+        } elseif ($key === 'service.name') {
+            $span->service = $value;
         } else {
             $span->meta[$key] = $value;
         }

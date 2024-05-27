@@ -389,6 +389,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             ],
         ]);
         $traces = $this->isolateTracer(function () use ($client, $docs) {
+            $root = \DDTrace\start_trace_span();
+            $root->name = "root";
             // Now we loop until the scroll "cursors" are exhausted
             $scroll_id = $docs['_scroll_id'];
             while (\true) {
@@ -412,31 +414,40 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                     break;
                 }
             }
+            \DDTrace\close_span();
         });
 
-        $this->assertSpans($traces, [
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::build(
-                'Elasticsearch.Client.scroll',
-                'elasticsearch',
-                'elasticsearch',
-                'scroll'
-            )->withExactTags([
-                Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'elasticsearch'
-            ]),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::build(
-                'Elasticsearch.Client.scroll',
-                'elasticsearch',
-                'elasticsearch',
-                'scroll'
-            )->withExactTags([
-                Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'elasticsearch'
-            ]),
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('root')->withChildren([
+                SpanAssertion::build(
+                    'Elasticsearch.Client.scroll',
+                    'elasticsearch',
+                    'elasticsearch',
+                    'scroll'
+                )->withExactTags([
+                    Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'elasticsearch',
+                    '_dd.base_service' => 'phpunit',
+                ])->withChildren([
+                    SpanAssertion::exists('Elasticsearch.Endpoint.performRequest')->withChildren([
+                        SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+                    ]),
+                ]),
+                SpanAssertion::build(
+                    'Elasticsearch.Client.scroll',
+                    'elasticsearch',
+                    'elasticsearch',
+                    'scroll'
+                )->withExactTags([
+                    Tag::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'elasticsearch',
+                    '_dd.base_service' => 'phpunit',
+                ])->withChildren([
+                    SpanAssertion::exists('Elasticsearch.Endpoint.performRequest')->withChildren([
+                        SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+                    ]),
+                ]),
+            ])
         ]);
     }
 
