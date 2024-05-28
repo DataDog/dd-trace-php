@@ -9,6 +9,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 zend_long dd_composer_hook_id;
+ddog_QueueId dd_bgs_queued_id;
 
 static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     UNUSED(invocation, auxiliary, dynamic);
@@ -31,6 +32,29 @@ void ddtrace_telemetry_rinit(void) {
 
 void ddtrace_telemetry_rshutdown(void) {
     zend_hash_destroy(&DDTRACE_G(telemetry_spans_created_per_integration));
+}
+
+// Register in the sidecar services not bound to the request lifetime
+void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar) {
+    if (!dd_bgs_queued_id) {
+        dd_bgs_queued_id = ddog_sidecar_queueId_generate();
+    }
+
+    ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.requests"), DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), DDOG_METRIC_NAMESPACE_TRACERS);
+
+    // FIXME: it seems we must call "enqueue_actions" (even with an empty list of actions) for things to work properly
+    ddog_sidecar_telemetry_buffer_flush(&sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer);
+
+    ddog_CharSlice php_version = dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION"))));
+    struct ddog_RuntimeMetadata *meta = ddog_sidecar_runtimeMeta_build(DDOG_CHARSLICE_C("php"), php_version, DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
+    ddog_sidecar_telemetry_flushServiceData(
+        &sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, meta,
+        DDOG_CHARSLICE_C("background_sender-php-service"), DDOG_CHARSLICE_C("none")
+    );
+    ddog_sidecar_runtimeMeta_drop(meta);
 }
 
 void ddtrace_telemetry_finalize(void) {
@@ -166,4 +190,45 @@ void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span) {
     }
 
     zend_string_release(integration);
+}
+
+void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics) {
+    if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+        return;
+    }
+
+    if (!metrics.requests) {
+        return;
+    }
+
+    ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.requests"), (double)metrics.requests, DDOG_CHARSLICE_C(""));
+
+    if (metrics.responses_1xx) {
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), (double)metrics.responses_1xx, DDOG_CHARSLICE_C("status_code:1xx"));
+    }
+    if (metrics.responses_2xx) {
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), (double)metrics.responses_2xx, DDOG_CHARSLICE_C("status_code:2xx"));
+    }
+    if (metrics.responses_3xx) {
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), (double)metrics.responses_3xx, DDOG_CHARSLICE_C("status_code:3xx"));
+    }
+    if (metrics.responses_4xx) {
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), (double)metrics.responses_4xx, DDOG_CHARSLICE_C("status_code:4xx"));
+    }
+    if (metrics.responses_5xx) {
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), (double)metrics.responses_5xx, DDOG_CHARSLICE_C("status_code:5xx"));
+    }
+
+    if (metrics.errors_timeout) {
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), (double)metrics.errors_timeout, DDOG_CHARSLICE_C("type:timeout"));
+    }
+    if (metrics.errors_network) {
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), (double)metrics.errors_network, DDOG_CHARSLICE_C("type:network"));
+    }
+    if (metrics.errors_status_code) {
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), (double)metrics.errors_status_code, DDOG_CHARSLICE_C("type:status_code"));
+    }
+
+    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer);
 }

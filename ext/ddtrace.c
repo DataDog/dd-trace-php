@@ -506,9 +506,6 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 // This prevents us from a) having the weak symbols updated to the new locations and b) having ddtrace updates going live without hard restart.
 // Thus, we need to intercept it: define it ourselves so that the linker will force the rust code to call our code here.
 // Then we can collect the callbacks and invoke them ourselves right at thread shutdown, i.e. GSHUTDOWN.
-#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
-#define CXA_THREAD_ATEXIT_WRAPPER 1
-#endif
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
 #define CXA_THREAD_ATEXIT_PHP ((void *)0)
 #define CXA_THREAD_ATEXIT_UNINITIALIZED ((void *)1)
@@ -526,7 +523,7 @@ struct dd_rust_thread_destructor {
 static __thread struct dd_rust_thread_destructor *dd_rust_thread_destructors = NULL;
 ZEND_TLS bool dd_is_main_thread = false;
 
-static void dd_run_rust_thread_destructors(void *unused) {
+void dd_run_rust_thread_destructors(void *unused) {
     UNUSED(unused);
     struct dd_rust_thread_destructor *entry = dd_rust_thread_destructors;
     dd_rust_thread_destructors = NULL; // destructors _may_ be invoked multiple times. We need to reset thus.

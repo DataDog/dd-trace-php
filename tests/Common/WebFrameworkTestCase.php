@@ -121,7 +121,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'DD_TRACE_DEBUG' => ini_get("datadog.trace.debug"),
             'DD_TRACE_EXEC_ENABLED' => 'false',
             'DD_TRACE_SHUTDOWN_TIMEOUT' => '666666', // Arbitrarily high value to avoid flakiness
-            'DD_TRACE_AGENT_RETRIES' => '3'
+            'DD_TRACE_AGENT_RETRIES' => '3',
+            'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
         ];
 
         return $envs;
