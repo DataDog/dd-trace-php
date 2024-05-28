@@ -15,7 +15,7 @@ trait InterpolateTrait
      * @param array $context
      * @return string
      */
-    public function interpolate($message, array $context = [])
+    public static function interpolate($message, array $context = [])
     {
         // build a replacement array with braces around the context keys
         $replace = array();
