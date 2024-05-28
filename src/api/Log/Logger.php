@@ -24,14 +24,14 @@ final class Logger
 
     /**
      * Retrieves the global logger instance. If not set, it falls back to a NullLogger.
-     * @param bool $json If set to true, a logger using JSON format will be returned.
+     *
      * @return LoggerInterface
      */
-    public static function get($json = false, $errorLog = false)
+    public static function get()
     {
         if (self::$logger === null) {
-            self::$logger = $errorLog || (\function_exists("dd_trace_env_config") && \dd_trace_env_config("DD_TRACE_DEBUG"))
-                ? new ErrorLogLogger(LogLevel::DEBUG, $json)
+            self::$logger = \function_exists("dd_trace_env_config") && \dd_trace_env_config("DD_TRACE_DEBUG")
+                ? new ErrorLogLogger(LogLevel::DEBUG)
                 : new NullLogger(LogLevel::EMERGENCY);
         }
         return self::$logger;

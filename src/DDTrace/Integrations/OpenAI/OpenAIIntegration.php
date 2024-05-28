@@ -2,20 +2,15 @@
 
 namespace DDTrace\Integrations\OpenAI;
 
-use DataDog\DogStatsd;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
+use DDTrace\Log\DatadogLogger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
-use OpenAI\Contracts\ResponseContract;
-use OpenAI\Contracts\ResponseHasMetaInformationContract;
-use OpenAI\Exceptions\ErrorException;
-use OpenAI\Transporters\HttpTransporter;
-use OpenAI\ValueObjects\Transporter\BaseUri;
-use OpenAI\ValueObjects\Transporter\Headers;
-use OpenAI\ValueObjects\Transporter\Response;
+use function DDTrace\dogstatsd_count;
+use function DDTrace\dogstatsd_distribution;
+use function DDTrace\dogstatsd_gauge;
 
 class OpenAIIntegration extends Integration
 {
@@ -46,23 +41,6 @@ class OpenAIIntegration extends Integration
         return self::NAME;
     }
 
-    public static function processPrompt(string $prompt): string
-    {
-        if (empty($prompt)) {
-            return $prompt;
-        }
-
-        $prompt = \str_replace("\n", "\\n", $prompt);
-        $prompt = \str_replace("\t", "\\t", $prompt);
-
-        $spanCharLimit = 128;//\dd_trace_env_config('DD_OPENAI_SPAN_CHAR_LIMIT');
-        if (\strlen($prompt) > $spanCharLimit) {
-            return \substr($prompt, 0, $spanCharLimit) . '...';
-        }
-
-        return $prompt;
-    }
-
     /**
      * @param string $apiKey The OpenAI API key to format
      * @return string The formatted API key 'XXX...YYYY', where XXX and YYYY are respectively the first three and last
@@ -84,9 +62,7 @@ class OpenAIIntegration extends Integration
      */
     public function init(): int
     {
-        $statsd = new DogStatsd([
-            'datadog_host' => 'https://app.datadoghq.eu'
-        ]);
+        $logger = dd_trace_env_config('DD_OPENAI_LOGS_ENABLED') ? new DatadogLogger() : null;
 
         $errorStorage = [];
 
@@ -119,9 +95,9 @@ class OpenAIIntegration extends Integration
             'OpenAI\Transporters\HttpTransporter',
             '__construct',
             function ($This, $scope, $args) {
-                /** @var BaseUri $baseUri */
+                /** @var \OpenAI\ValueObjects\Transporter\BaseUri $baseUri */
                 $baseUri = $args[1];
-                /** @var Headers $headers */
+                /** @var \OpenAI\ValueObjects\Transporter\Headers $headers */
                 $headers = $args[2];
                 /** @var array<string, string> $data */
                 $headers = $headers->toArray();
@@ -173,12 +149,12 @@ class OpenAIIntegration extends Integration
                         apiKey: $clientData['apiKey'],
                     );
                 },
-                function (\DDTrace\HookData $hook) use ($statsd, $httpMethod, $endpoint, $errorStorage) {
-                    /** @var ResponseContract&ResponseHasMetaInformationContract $returned */
+                function (\DDTrace\HookData $hook) use ($logger, $httpMethod, $endpoint, $errorStorage) {
+                    /** @var \OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract $returned */
                     $span = $hook->span();
                     $response = $hook->returned;
                     OpenAIIntegration::handleResponse(
-                        statsd: $statsd,
+                        logger: $logger,
                         headers: $response ? $response->meta()->toArray() : [],
                         response: $response ? $response->toArray() : [],
                         httpMethod: $httpMethod,
@@ -194,7 +170,7 @@ class OpenAIIntegration extends Integration
             'from',
             null,
             function ($This, $scope, $args) use (&$errorStorage) {
-                /** @var Response $response */
+                /** @var \OpenAI\ValueObjects\Transporter\Response $response */
                 $data = $args[0];
 
 
@@ -209,7 +185,7 @@ class OpenAIIntegration extends Integration
                 }
 
                 if ($openAISpan) {
-                    $openAISpan->exception = new ErrorException($error);
+                    $openAISpan->exception = new \OpenAI\Exceptions\ErrorException($error);
                     $openAISpan->meta[Tag::ERROR_TYPE] = $error['type'];
                 }
             }
@@ -494,7 +470,7 @@ class OpenAIIntegration extends Integration
     }
 
     public static function handleResponse(
-        DogStatsd $statsd,
+        ?DatadogLogger $logger,
         array     $headers,
         array     $response,
         string    $httpMethod,
@@ -596,20 +572,22 @@ class OpenAIIntegration extends Integration
 
         OpenAIIntegration::sendMetrics(
             span: $span,
-            statsd: $statsd,
             headers: $headers,
             response: $response,
             duration: $span->getDuration()
         );
+        /*
         OpenAIIntegration::setLLMTags(
             span: $span,
             recordType: $methodName === 'createCompletion' ? 'completion' : ($methodName === 'createChatCompletion' ? 'chat' : ''),
             arguments: $args[0],
             responseAttributes: $response
         );
+        */
         OpenAIIntegration::sendLog(
+            logger: $logger,
             span: $span,
-            methodName: $methodName,
+            methodName: $methodName
         );
     }
 
@@ -677,6 +655,7 @@ class OpenAIIntegration extends Integration
     }
 
     public static function sendLog(
+        ?DatadogLogger $logger,
         SpanData $span,
         string   $methodName,
         bool     $error = false
@@ -691,7 +670,6 @@ class OpenAIIntegration extends Integration
         $sampling = \DDTrace\get_priority_sampling();
         if ($sampling === DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT
             || $sampling === DD_TRACE_PRIORITY_SAMPLING_USER_REJECT
-            || floatval($span->id) > OpenAIIntegration::SAMPLING_THRESHOLD // 10% of 2^64, knowing that all span IDs are 64-bit unsigned integers
         ) {
             return;
         }
@@ -701,16 +679,14 @@ class OpenAIIntegration extends Integration
             methodName: $methodName
         );
 
-        $logger = Logger::get(true, true);
+
         $logMethod = $error ? 'error' : 'info';
         $logMessage = "sampled $methodName";
         $logger->$logMethod($logMessage, $tags);
     }
 
-    public
-    static function sendMetrics(
+    public static function sendMetrics(
         SpanData  $span,
-        DogStatsd $statsd,
         array     $headers,
         array     $response,
         int       $duration,
@@ -737,79 +713,70 @@ class OpenAIIntegration extends Integration
 
         $tags = array_filter($tags, fn($v) => !\is_null($v));
 
-        $statsd->distribution(
-            stat: 'openai.request.duration',
-            value: $duration,  // Duration is in ns
-            tags: $tags
-        );
-        $statsd->distribution(
-            stat: 'trace.openai.request.duration',
-            value: $duration / 1e9, // Duration in seconds
-            tags: $tags
+        dogstatsd_distribution(
+            'openai.request.duration',
+            $duration, // Duration is in ns
+            $tags
         );
         if ($span->exception) {
-            $statsd->increment(
-                stats: 'openai.request.error',
-                tags: $tags
-            );
+            dogstatsd_count('openai.request.error', 1, $tags);
         }
 
         $usage = $response['usage'] ?? null;
         if ($usage) {
             $promptTokens = (int)$usage['prompt_tokens'];
             $completionTokens = (int)$usage['completion_tokens'];
-            $statsd->distribution(
-                stat: 'openai.tokens.prompt',
-                value: $promptTokens,
-                tags: $tags
+            dogstatsd_distribution(
+                'openai.tokens.prompt',
+                $promptTokens,
+                $tags
             );
-            $statsd->distribution(
-                stat: 'openai.tokens.completion',
-                value: $completionTokens,
-                tags: $tags
+            dogstatsd_distribution(
+                'openai.tokens.completion',
+                $completionTokens,
+                $tags
             );
-            $statsd->distribution(
-                stat: 'openai.tokens.total',
-                value: $promptTokens + $completionTokens,
-                tags: $tags
+            dogstatsd_distribution(
+                'openai.tokens.total',
+                $promptTokens + $completionTokens,
+                $tags
             );
         }
 
         if (isset($headers['x-ratelimit-limit-requests'])) {
-            $statsd->gauge(
-                stat: 'openai.ratelimit.requests',
-                value: (int)$headers['x-ratelimit-limit-requests'],
-                tags: $tags
+            dogstatsd_gauge(
+                'openai.ratelimit.requests',
+                (int)$headers['x-ratelimit-limit-requests'],
+                $tags
             );
         }
 
         if (isset($headers['x-ratelimit-limit-tokens'])) {
-            $statsd->gauge(
-                stat: 'openai.ratelimit.tokens',
-                value: (int)$headers['x-ratelimit-limit-tokens'],
-                tags: $tags
+            dogstatsd_gauge(
+                'openai.ratelimit.tokens',
+                (int)$headers['x-ratelimit-limit-tokens'],
+                $tags
             );
         }
 
         if (isset($headers['x-ratelimit-remaining-requests'])) {
-            $statsd->gauge(
-                stat: 'openai.ratelimit.remaining.requests',
-                value: (int)$headers['x-ratelimit-remaining-requests'],
-                tags: $tags
+            dogstatsd_gauge(
+                'openai.ratelimit.remaining.requests',
+                (int)$headers['x-ratelimit-remaining-requests'],
+                $tags
             );
         }
 
         if (isset($headers['x-ratelimit-remaining-tokens'])) {
-            $statsd->gauge(
-                stat: 'openai.ratelimit.remaining.tokens',
-                value: (int)$headers['x-ratelimit-remaining-tokens'],
-                tags: $tags
+            dogstatsd_gauge(
+                'openai.ratelimit.remaining.tokens',
+                (int)$headers['x-ratelimit-remaining-tokens'],
+                $tags
             );
         }
     }
 
-    public
-    static function createFineTuneRequestExtraction(array $payload): array
+    public static function createFineTuneRequestExtraction(array $payload): array
     {
         return [
             'openai.request.training_file' => $payload['training_file'] ?? null,
@@ -820,8 +787,7 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public
-    static function commonCreateImageRequestExtraction(array $payload): array
+    public static function commonCreateImageRequestExtraction(array $payload): array
     {
         return [
             'openai.request.image' => $payload['image'] ?? null,
@@ -832,8 +798,7 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public
-    static function createChatCompletionRequestExtraction(array $payload): array
+    public static function createChatCompletionRequestExtraction(array $payload): array
     {
         $messages = $payload['messages'] ?? [];
 
@@ -848,8 +813,7 @@ class OpenAIIntegration extends Integration
         return $tags;
     }
 
-    public
-    static function commonFileRequestExtraction(array $payload): array
+    public static function commonFileRequestExtraction(array $payload): array
     {
         return [
             'openai.request.purpose' => $payload['purpose'] ?? null,
@@ -857,8 +821,7 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public
-    static function commonCreateAudioRequestExtraction(array $payload): array
+    public static function commonCreateAudioRequestExtraction(array $payload): array
     {
         return [
             'openai.request.response_format' => $payload['response_format'] ?? null,
@@ -867,16 +830,14 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public
-    static function retrieveModelRequestExtraction(array $payload): array
+    public static function retrieveModelRequestExtraction(array $payload): array
     {
         return [
             'openai.request.id' => $payload['id'] ?? null,
         ];
     }
 
-    public
-    static function commonLookupFineTuneRequestExtraction(array $payload): array
+    public static function commonLookupFineTuneRequestExtraction(array $payload): array
     {
         return [
             'openai.request.fine_tune_id' => $payload['fine_tune_id'] ?? null,
@@ -884,16 +845,14 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public
-    static function createEditRequestExtraction(array $payload): array
+    public static function createEditRequestExtraction(array $payload): array
     {
         return [
             'openai.request.instruction' => $payload['instruction'] ?? null,
         ];
     }
 
-    public
-    static function createModerationResponseExtraction(array $payload): array
+    public static function createModerationResponseExtraction(array $payload): array
     {
         $tags = [
             'openai.response.id' => $payload['id'] ?? null,
@@ -916,8 +875,7 @@ class OpenAIIntegration extends Integration
         return $tags;
     }
 
-    public
-    static function commonCreateResponseExtraction(array $payload): array
+    public static function commonCreateResponseExtraction(array $payload): array
     {
         $tags = OpenAIIntegration::usageExtraction($payload);
 
@@ -944,16 +902,14 @@ class OpenAIIntegration extends Integration
         return $tags;
     }
 
-    public
-    static function commonListCountResponseExtraction(array $payload): array
+    public static function commonListCountResponseExtraction(array $payload): array
     {
         return [
             'openai.response.count' => \count($payload['data'] ?? [])
         ];
     }
 
-    public
-    static function createEmbeddingResponseExtraction(array $payload): array
+    public static function createEmbeddingResponseExtraction(array $payload): array
     {
         $tags = OpenAIIntegration::usageExtraction($payload);
 
@@ -970,8 +926,7 @@ class OpenAIIntegration extends Integration
         return $tags;
     }
 
-    public
-    static function createRetrieveFileResponseExtraction(array $payload): array
+    public static function createRetrieveFileResponseExtraction(array $payload): array
     {
         return [
             'openai.response.filename' => $payload['filename'] ?? null,
@@ -982,24 +937,21 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public
-    static function deleteFileResponseExtraction(array $payload): array
+    public static function deleteFileResponseExtraction(array $payload): array
     {
         return [
             'openai.response.id' => $payload['id'] ?? null,
         ];
     }
 
-    public
-    static function downloadFileResponseExtraction(array $payload): array
+    public static function downloadFileResponseExtraction(array $payload): array
     {
         return [
             'openai.response.total_bytes' => $payload['bytes'] ?? null,
         ];
     }
 
-    public
-    static function commonFineTuneResponseExtraction(array $payload): array
+    public static function commonFineTuneResponseExtraction(array $payload): array
     {
         return [
             //'openai.response.events_count' => isset($payload['events']) ? \count($payload['events']) : null,
@@ -1014,8 +966,7 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public
-    static function createAudioResponseExtraction(array $payload): array
+    public static function createAudioResponseExtraction(array $payload): array
     {
         return [
             'openai.response.text' => $payload['text'] ?? null,
@@ -1025,8 +976,7 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public
-    static function commonImageResponseExtraction(array $payload): array
+    public static function commonImageResponseExtraction(array $payload): array
     {
         $data = $payload['data'];
         if (empty($data)) {
@@ -1045,8 +995,7 @@ class OpenAIIntegration extends Integration
         return $tags;
     }
 
-    public
-    static function listModelsResponseExtraction(array $payload): array
+    public static function listModelsResponseExtraction(array $payload): array
     {
         $data = $payload['data'];
         if (empty($data)) {
@@ -1058,8 +1007,7 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public
-    static function retrieveModelResponseExtraction(array $payload): array
+    public static function retrieveModelResponseExtraction(array $payload): array
     {
         return [
             'openai.response.owned_by' => $payload['owned_by'] ?? null,
@@ -1068,8 +1016,7 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public
-    static function usageExtraction(array $payload): array
+    public static function usageExtraction(array $payload): array
     {
         return [
             'openai.response.usage.prompt_tokens' => $payload['usage']['prompt_tokens'] ?? null,
@@ -1082,8 +1029,7 @@ class OpenAIIntegration extends Integration
      * @param string|array $input
      * @return string
      */
-    public
-    static function normalizeStringOrTokenArray(string|array $input): string
+    public static function normalizeStringOrTokenArray(string|array $input): string
     {
         if (empty($input)) {
             return "";

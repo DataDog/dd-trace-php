@@ -12,13 +12,10 @@ abstract class AbstractLogger implements LoggerInterface
      */
     private $enabledLevels = [];
 
-    /** @var bool Whether to use JSON Formatting */
-    private $json;
-
     /**
      * @param string $level
      */
-    public function __construct($level, $json = false)
+    public function __construct($level)
     {
         $level = trim(strtolower($level));
 
@@ -29,8 +26,6 @@ abstract class AbstractLogger implements LoggerInterface
             $enabled = $enabled || ($level === $knownLevel);
             $this->enabledLevels[$knownLevel] = $enabled;
         }
-
-        $this->json = $json;
     }
 
     /**
@@ -40,10 +35,5 @@ abstract class AbstractLogger implements LoggerInterface
     public function isLevelActive($level)
     {
         return (bool)$this->enabledLevels[$level];
-    }
-
-    public function isJSON(): bool
-    {
-        return $this->json;
     }
 }
