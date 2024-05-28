@@ -39,7 +39,7 @@ final class InternalTelemetryTest extends CLITestCase
 
         $requests = $this->retrieveDumpedData(function ($request) {
             return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
-                && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+                && (strpos($request["body"] ?? "", "spans_created") !== false)
             ;
         }, true);
 

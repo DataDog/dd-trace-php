@@ -984,11 +984,11 @@ define run_composer_with_retry
 endef
 
 define run_tests_without_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=0 $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 define run_tests_with_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=0 $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)
 endef
 
 # Note: The condition below only checks for existence - i.e., whether PHPUNIT_COVERAGE is set to anything.
