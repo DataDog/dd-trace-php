@@ -24,69 +24,24 @@ final class InstrumentationTest extends WebFrameworkTestCase
         ]);
     }
 
-    private function mapMetrics(array $telemetryMetrics)
+    private function readTelemetryPayloads($response)
     {
-        $map = [];
-        foreach ($telemetryMetrics as $m) {
-            foreach ($m["payload"]["series"] as $s) {
-                $map[$s["metric"]] = $s;
+        $telemetryPayloads = [];
+        foreach ($response as $request) {
+            if (strpos($request["uri"], "/telemetry/") === 0) {
+                $json = json_decode($request["body"], true);
+                $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
+                foreach ($batch as $innerJson) {
+                    if (isset($json["application"])) {
+                        $innerJson["application"] = $json["application"];
+                    }
+                    $telemetryPayloads[] = $innerJson;
+                }
             }
         }
 
-        return $map;
-    }
-
-    private function retrieveTelemetryDataForService(string $serviceName)
-    {
-        $telemetryEvents = [];
-        $telemetryMetrics = [];
-        $this->retrieveDumpedData(function ($request) use ($serviceName, &$telemetryEvents, &$telemetryMetrics) {
-            static $received;
-            if (!is_array($received)) {
-                $received = [];
-            }
-
-            $body = json_decode($request["body"], true);
-            $request["body"] = $body;
-
-            if (strpos($request["uri"], "/telemetry/") !== 0) {
-                return false;
-            }
-            if ($body["application"]["service_name"] !== $serviceName) {
-                return false;
-            }
-
-            if ($body["request_type"] === "message-batch") {
-                foreach ($body["payload"] as $payload) {
-                    if ($payload["request_type"] === "generate-metrics") {
-                        $telemetryMetrics[] = $payload;
-                    } else {
-                        $telemetryEvents[] = $payload;
-                    }
-                    $received[$payload["request_type"]] = true;
-                }
-            } else {
-                if ($body["request_type"] === "generate-metrics") {
-                    $telemetryMetrics[] = [
-                        "request_type" => $body["request_type"],
-                        "payload" => $body["payload"] ?? null,
-                    ];
-                } else {
-                    $telemetryEvents[] = [
-                        "request_type" => $body["request_type"],
-                        "payload" => $body["payload"] ?? null,
-                    ];
-                }
-                $received[$body["request_type"]] = true;
-            }
-
-            // Stop condition
-            return isset($received["app-dependencies-loaded"])
-                && isset($received["generate-metrics"])
-            ;
-        }, true);
-
-        return [$telemetryEvents, $telemetryMetrics];
+        // Filter the payloads from the trace background sender
+        return array_values(array_filter($telemetryPayloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
     }
 
     public function testInstrumentation()
@@ -98,26 +53,42 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->resetRequestDumper();
 
         $this->call(GetSpec::create("autoloaded", "/simple"));
+        $response = $this->retrieveDumpedData(function ($request) {
+            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
+                && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+            ;
+        }, true);
 
-        list($telemetryEvents, $telemetryMetrics) = $this->retrieveTelemetryDataForService("web.request");
-        $this->assertGreaterThanOrEqual(3, $telemetryEvents);
+        $this->assertGreaterThanOrEqual(3, $response);
+        $payloads = $this->readTelemetryPayloads($response);
 
-        $this->assertEquals("app-started", $telemetryEvents[0]["request_type"]);
+        $isMetric = function (array $payload) {
+            return 'generate-metrics' === $payload['request_type'];
+        };
+        $metrics = array_values(array_filter($payloads, $isMetric));
+        $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
+
+        $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertContains([
             "name" => "agent_host",
             "value" => "request-replayer",
             "origin" => "EnvVar",
-        ], $telemetryEvents[0]["payload"]["configuration"]);
-        $this->assertEquals("app-dependencies-loaded", $telemetryEvents[1]["request_type"]);
+        ], $payloads[0]["payload"]["configuration"]);
+        $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
         $this->assertEquals([[
             "name" => "nikic/fast-route",
             "version" => "v1.3.0",
-        ]], array_filter($telemetryEvents[1]["payload"]["dependencies"], function ($i) {
+        ]], array_filter($payloads[1]["payload"]["dependencies"], function ($i) {
             return strpos($i["name"], "ext-") !== 0;
         }));
         // Not asserting app-closing, this is not expected to happen until shutdown
 
-        $allMetrics = $this->mapMetrics($telemetryMetrics);
+        $allMetrics = [];
+        foreach ($metrics as $m) {
+            foreach ($m["payload"]["series"] as $s) {
+                $allMetrics[$s["metric"]] = $s;
+            }
+        }
         $this->assertArrayHasKey("spans_created", $allMetrics);
         $this->assertEquals("tracers", $allMetrics["spans_created"]["namespace"]);
         $this->assertEquals("spans_created", $allMetrics["spans_created"]["metric"]);
@@ -125,12 +96,21 @@ final class InstrumentationTest extends WebFrameworkTestCase
 
         $this->call(GetSpec::create("autoloaded", "/pdo"));
 
-        list($telemetryEvents, $telemetryMetrics) = $this->retrieveTelemetryDataForService("unnamed-php-service");
-        $this->assertGreaterThanOrEqual(3, $telemetryEvents);
+        $response = $this->retrieveDumpedData(function ($request) {
+            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
+                && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+            ;
+        }, true);
 
-        $this->assertEquals("app-started", $telemetryEvents[0]["request_type"]);
-        $this->assertEquals("app-dependencies-loaded", $telemetryEvents[1]["request_type"]);
-        $this->assertEquals("app-integrations-change", $telemetryEvents[2]["request_type"]);
+        $this->assertGreaterThanOrEqual(3, $response);
+        $payloads = $this->readTelemetryPayloads($response);
+
+        $metrics = array_values(array_filter($payloads, $isMetric));
+        $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
+
+        $this->assertEquals("app-started", $payloads[0]["request_type"]);
+        $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
+        $this->assertEquals("app-integrations-change", $payloads[2]["request_type"]);
         $this->assertEquals([
             [
                 "name" => "pdo",
@@ -153,9 +133,14 @@ final class InstrumentationTest extends WebFrameworkTestCase
                 'compatible' => null,
                 'auto_enabled' => null,
             ]
-        ], $telemetryEvents[2]["payload"]["integrations"]);
+        ], $payloads[2]["payload"]["integrations"]);
 
-        $allMetrics = $this->mapMetrics($telemetryMetrics);
+        $allMetrics = [];
+        foreach ($metrics as $m) {
+            foreach ($m["payload"]["series"] as $s) {
+                $allMetrics[$s["metric"]] = $s;
+            }
+        }
         $this->assertArrayHasKey("spans_created", $allMetrics);
         $this->assertEquals("tracers", $allMetrics["spans_created"]["namespace"]);
         $this->assertEquals("spans_created", $allMetrics["spans_created"]["metric"]);

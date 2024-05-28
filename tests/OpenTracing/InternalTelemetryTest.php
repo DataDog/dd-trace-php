@@ -18,8 +18,11 @@ final class InternalTelemetryTest extends CLITestCase
             if (strpos($request["uri"], "/telemetry/") === 0) {
                 $json = json_decode($request["body"], true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                foreach ($batch as $json) {
-                    $telemetryPayloads[] = $json;
+                foreach ($batch as $innerJson) {
+                    if (isset($json["application"])) {
+                        $innerJson["application"] = $json["application"];
+                    }
+                    $telemetryPayloads[] = $innerJson;
                 }
             }
         }
@@ -37,7 +40,6 @@ final class InternalTelemetryTest extends CLITestCase
         $requests = $this->retrieveDumpedData(function ($request) {
             return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
                 && (strpos($request["body"] ?? "", "generate-metrics") !== false)
-                && (strpos($request["body"] ?? "", "background_sender-php-service") === false)
             ;
         }, true);
 
