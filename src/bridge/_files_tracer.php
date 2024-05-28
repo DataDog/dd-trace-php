@@ -25,6 +25,7 @@ return [
     __DIR__ . '/../api/Log/LogLevel.php',
     __DIR__ . '/../api/Log/Logger.php',
     __DIR__ . '/../api/Log/AbstractLogger.php',
+    __DIR__ . '/../api/Log/DatadogLogger.php',
     __DIR__ . '/../api/Log/ErrorLogLogger.php',
     __DIR__ . '/../api/Log/NullLogger.php',
     __DIR__ . '/../api/Log/LoggingTrait.php',
