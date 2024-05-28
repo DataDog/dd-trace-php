@@ -56,6 +56,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $response = $this->retrieveDumpedData(function ($request) {
             return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
                 && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+                && (strpos($request["body"] ?? "", "background_sender-php-service") !== false)
             ;
         }, true);
 
@@ -99,6 +100,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $response = $this->retrieveDumpedData(function ($request) {
             return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
                 && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+                && (strpos($request["body"] ?? "", "background_sender-php-service") !== false)
             ;
         }, true);
 
