@@ -231,5 +231,4 @@ void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics) {
     }
 
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer);
-    ddog_sidecar_telemetry_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id);
 }
