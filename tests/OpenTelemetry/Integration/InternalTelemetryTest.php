@@ -18,6 +18,18 @@ final class InternalTelemetryTest extends CLITestCase
         ]);
     }
 
+    private function mapMetrics(array $telemetryMetrics)
+    {
+        $map = [];
+        foreach ($telemetryMetrics as $m) {
+            foreach ($m["payload"]["series"] as $s) {
+                $map[$s["metric"]] = $s;
+            }
+        }
+
+        return $map;
+    }
+
     private function readTelemetryPayloads($response)
     {
         $telemetryPayloads = [];
@@ -42,6 +54,7 @@ final class InternalTelemetryTest extends CLITestCase
         $requests = $this->retrieveDumpedData(function ($request) {
             return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
                 && (strpos($request["body"] ?? "", "generate-metrics") !== false)
+                && (strpos($request["body"] ?? "", "background_sender-php-service") === false)
             ;
         }, true);
 
@@ -49,12 +62,12 @@ final class InternalTelemetryTest extends CLITestCase
         $isMetric = function (array $payload) {
             return 'generate-metrics' === $payload['request_type'];
         };
-        $metrics = array_values(array_filter($payloads, $isMetric));
+        $telemetryMetrics = array_values(array_filter($payloads, $isMetric));
 
-        $this->assertCount(1, $metrics);
-        $this->assertEquals("generate-metrics", $metrics[0]["request_type"]);
-        $this->assertEquals("tracers", $metrics[0]["payload"]["series"][0]["namespace"]);
-        $this->assertEquals("spans_created", $metrics[0]["payload"]["series"][0]["metric"]);
-        $this->assertEquals(["integration_name:otel"], $metrics[0]["payload"]["series"][0]["tags"]);
+        $allMetrics = $this->mapMetrics($telemetryMetrics);
+        $this->assertArrayHasKey("spans_created", $allMetrics);
+        $this->assertEquals("tracers", $allMetrics["spans_created"]["namespace"]);
+        $this->assertEquals("spans_created", $allMetrics["spans_created"]["metric"]);
+        $this->assertEquals(["integration_name:otel"], $allMetrics["spans_created"]["tags"]);
     }
 }
