@@ -98,6 +98,7 @@ This changeset is on top of 1.0.0beta1.
 ### Internal
 - Update to maintain compatibility with libdatadog #2634, #2661
 - Minor cbindgen improvements #2651
+- Compile tracer version into sidecar #2678
 
 ## Profiling
 
