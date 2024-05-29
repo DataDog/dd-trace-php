@@ -34,14 +34,6 @@ class OpenAIIntegration extends Integration
     ];
 
     /**
-     * @return string The integration name.
-     */
-    public function getName()
-    {
-        return self::NAME;
-    }
-
-    /**
      * @param string $apiKey The OpenAI API key to format
      * @return string The formatted API key 'XXX...YYYY', where XXX and YYYY are respectively the first three and last
      * four characters of the provided OpenAI API Key
@@ -62,33 +54,33 @@ class OpenAIIntegration extends Integration
      */
     public function init(): int
     {
-        $logger = dd_trace_env_config('DD_OPENAI_LOGS_ENABLED') ? new DatadogLogger() : null;
+        $logger = \dd_trace_env_config('DD_OPENAI_LOGS_ENABLED') ? new DatadogLogger() : null;
 
         $errorStorage = [];
 
         $targets = [
-            'OpenAI\Resources\Completions::create' => ['createCompletion', 'POST', '/v1/completions'],
-            'OpenAI\Resources\Chat::create' => ['createChatCompletion', 'POST', '/v1/chat/completions'],
-            'OpenAI\Resources\Embeddings::create' => ['createEmbedding', 'POST', '/v1/embeddings'],
-            'OpenAI\Resources\Models::list' => ['listModels', 'GET', '/v1/models'],
-            'OpenAI\Resources\Files::list' => ['listFiles', 'GET', '/v1/files'],
-            'OpenAI\Resources\FineTuning::listJobs' => ['listFineTunes', 'GET', '/v1/fine-tunes'],
-            'OpenAI\Resources\Models::retrieve' => ['retrieveModel', 'GET', '/v1/models/*'],
-            'OpenAI\Resources\Files::retrieve' => ['retrieveFile', 'GET', '/v1/files/*'],
-            'OpenAI\Resources\FineTuning::retrieve' => ['retrieveFineTune', 'GET', '/v1/fine-tunes/*'],
-            'OpenAI\Resources\Models::delete' => ['deleteModel', 'DELETE', '/v1/models/*'],
-            'OpenAI\Resources\Files::delete' => ['deleteFile', 'DELETE', '/v1/files/*'],
-            'OpenAI\Resources\Images::create' => ['createImage', 'POST', '/v1/images/generations'],
-            'OpenAI\Resources\Images::edit' => ['createImageEdit', 'POST', '/v1/images/edits'],
-            'OpenAI\Resources\Images::variation' => ['createImageVariation', 'POST', '/v1/images/variations'],
-            'OpenAI\Resources\Audio::transcribe' => ['createTranscription', 'POST', '/v1/audio/transcriptions'],
-            'OpenAI\Resources\Audio::translate' => ['createTranslation', 'POST', '/v1/audio/translations'],
-            'OpenAI\Resources\Moderations::create' => ['createModeration', 'POST', '/v1/moderations'],
-            'OpenAI\Resources\Files::upload' => ['createFile', 'POST', '/v1/files'],
-            'OpenAI\Resources\Files::download' => ['downloadFile', 'GET', '/v1/files/*/content'],
-            'OpenAI\Resources\FineTuning::createJob' => ['createFineTune', 'POST', '/v1/fine-tunes'],
-            'OpenAI\Resources\FineTunes::cancelJob' => ['cancelFineTune', 'POST', '/v1/fine-tunes/*/cancel'],
-            'OpenAI\Resources\FineTunes::listJobEvents' => ['listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events'],
+            ['OpenAI\Resources\Completions', 'create', 'createCompletion', 'POST', '/v1/completions'],
+            ['OpenAI\Resources\Chat', 'create', 'createChatCompletion', 'POST', '/v1/chat/completions'],
+            ['OpenAI\Resources\Embeddings', 'create', 'createEmbedding', 'POST', '/v1/embeddings'],
+            ['OpenAI\Resources\Models', 'list', 'listModels', 'GET', '/v1/models'],
+            ['OpenAI\Resources\Files', 'list', 'listFiles', 'GET', '/v1/files'],
+            ['OpenAI\Resources\FineTuning', 'listJobs', 'listFineTunes', 'GET', '/v1/fine-tunes'],
+            ['OpenAI\Resources\Models', 'retrieve', 'retrieveModel', 'GET', '/v1/models/*'],
+            ['OpenAI\Resources\Files', 'retrieve', 'retrieveFile', 'GET', '/v1/files/*'],
+            ['OpenAI\Resources\FineTuning', 'retrieve', 'retrieveFineTune', 'GET', '/v1/fine-tunes/*'],
+            ['OpenAI\Resources\Models', 'delete', 'deleteModel', 'DELETE', '/v1/models/*'],
+            ['OpenAI\Resources\Files', 'delete', 'deleteFile', 'DELETE', '/v1/files/*'],
+            ['OpenAI\Resources\Images', 'create', 'createImage', 'POST', '/v1/images/generations'],
+            ['OpenAI\Resources\Images', 'edit', 'createImageEdit', 'POST', '/v1/images/edits'],
+            ['OpenAI\Resources\Images', 'variation', 'createImageVariation', 'POST', '/v1/images/variations'],
+            ['OpenAI\Resources\Audio', 'transcribe', 'createTranscription', 'POST', '/v1/audio/transcriptions'],
+            ['OpenAI\Resources\Audio', 'translate', 'createTranslation', 'POST', '/v1/audio/translations'],
+            ['OpenAI\Resources\Moderations', 'create', 'createModeration', 'POST', '/v1/moderations'],
+            ['OpenAI\Resources\Files', 'upload', 'createFile', 'POST', '/v1/files'],
+            ['OpenAI\Resources\Files', 'download', 'downloadFile', 'GET', '/v1/files/*/content'],
+            ['OpenAI\Resources\FineTuning', 'createJob', 'createFineTune', 'POST', '/v1/fine-tunes'],
+            ['OpenAI\Resources\FineTunes', 'cancelJob', 'cancelFineTune', 'POST', '/v1/fine-tunes/*/cancel'],
+            ['OpenAI\Resources\FineTunes', 'listJobEvents', 'listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events'],
         ];
 
         \DDTrace\hook_method(
@@ -127,41 +119,39 @@ class OpenAIIntegration extends Integration
             }
         );
 
-        foreach ($targets as $target => [$methodName, $httpMethod, $endpoint]) {
-            \DDTrace\install_hook(
-                $target,
-                function (\DDTrace\HookData $hook) use ($methodName) {
-                    $span = $hook->span();
-                    $args = $hook->args;
-
-                    $clientData = ObjectKVStore::get($this, 'client_data');
-                    if (\is_null($clientData)) {
-                        $transporter = ObjectKVStore::get($this, 'transporter');
-                        $clientData = ObjectKVStore::get($transporter, 'client_data');
-                        ObjectKVStore::put($this, 'client_data', $clientData);
+        foreach ($targets as [$class, $method, $methodName, $httpMethod, $endpoint]) {
+            \DDTrace\trace_method(
+                $class,
+                $method,
+                [
+                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($methodName) {
+                        $clientData = ObjectKVStore::get($this, 'client_data');
+                        if (\is_null($clientData)) {
+                            $transporter = ObjectKVStore::get($this, 'transporter');
+                            $clientData = ObjectKVStore::get($transporter, 'client_data');
+                            ObjectKVStore::put($this, 'client_data', $clientData);
+                        }
+                        /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
+                        OpenAIIntegration::handleRequest(
+                            span: $span,
+                            methodName: $methodName,
+                            args: $args,
+                            basePath: $clientData['baseUri'],
+                            apiKey: $clientData['apiKey'],
+                        );
+                    },
+                    'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $errorStorage) {
+                        /** @var \OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract $response */
+                        OpenAIIntegration::handleResponse(
+                            logger: $logger,
+                            headers: $response ? $response->meta()->toArray() : [],
+                            response: $response ? $response->toArray() : [],
+                            httpMethod: $httpMethod,
+                            endpoint: $endpoint,
+                            args: $args,
+                        );
                     }
-                    /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
-                    OpenAIIntegration::handleRequest(
-                        span: $span,
-                        methodName: $methodName,
-                        args: $args,
-                        basePath: $clientData['baseUri'],
-                        apiKey: $clientData['apiKey'],
-                    );
-                },
-                function (\DDTrace\HookData $hook) use ($logger, $httpMethod, $endpoint, $errorStorage) {
-                    /** @var \OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract $returned */
-                    $span = $hook->span();
-                    $response = $hook->returned;
-                    OpenAIIntegration::handleResponse(
-                        logger: $logger,
-                        headers: $response ? $response->meta()->toArray() : [],
-                        response: $response ? $response->toArray() : [],
-                        httpMethod: $httpMethod,
-                        endpoint: $endpoint,
-                        args: $hook->args,
-                    );
-                }
+                ]
             );
         }
 
@@ -377,7 +367,7 @@ class OpenAIIntegration extends Integration
         $span->name = 'openai.request';
         $span->resource = isset($payload['model']) ? $methodName . '/' . $payload['model'] : $methodName;
         $span->type = Type::OPENAI;
-        $span->kind = Tag::SPAN_KIND_VALUE_CLIENT;
+        $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
         $span->meta['openai.user.api_key'] = $apiKey;
         $span->meta['openai.api_base'] = $basePath;
         $span->metrics['_dd.measured'] = 1;
@@ -568,8 +558,6 @@ class OpenAIIntegration extends Integration
             }
         }
 
-        \DDTrace\close_span();
-
         OpenAIIntegration::sendMetrics(
             span: $span,
             headers: $headers,
@@ -651,7 +639,7 @@ class OpenAIIntegration extends Integration
 
         }
 
-        return \array_filter($tags, fn($v) => !\is_null($v));
+        return \array_filter($tags, fn($v) => !empty($v));
     }
 
     public static function sendLog(
@@ -711,7 +699,7 @@ class OpenAIIntegration extends Integration
             'error_type' => $span->meta[Tag::ERROR_TYPE] ?? null,
         ];
 
-        $tags = array_filter($tags, fn($v) => !\is_null($v));
+        $tags = array_filter($tags, fn($v) => !empty($v));
 
         dogstatsd_distribution(
             'openai.request.duration',
