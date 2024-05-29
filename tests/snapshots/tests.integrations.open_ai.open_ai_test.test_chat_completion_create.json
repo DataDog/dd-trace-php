@@ -1,0 +1,55 @@
+[[
+  {
+    "name": "openai.request",
+    "service": "phpunit",
+    "resource": "createCompletion/da-vince",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "openai",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "665714da00000000",
+      "openai.api_base": "https://api.openai.com/v1/",
+      "openai.organization.name": "org-1234",
+      "openai.request.endpoint": "/v1/completions",
+      "openai.request.method": "POST",
+      "openai.request.model": "da-vince",
+      "openai.request.prompt": "hi",
+      "openai.response.choices.0.finish_reason": "length",
+      "openai.response.choices.0.text": "el, she elaborates more on the Corruptor's role, suggesting K",
+      "openai.response.choices_count": "1",
+      "openai.response.created": "1664136088",
+      "openai.response.id": "42",
+      "openai.response.model": "gpt-3.5-turbo-instruct",
+      "openai.response.usage.completion_tokens": "16",
+      "openai.response.usage.prompt_tokens": "1",
+      "openai.response.usage.total_tokens": "17",
+      "openai.user.api_key": "sk-...9d5d",
+      "runtime-id": "af74748d-f2e7-4cdd-af1c-09db3c6ac2af",
+      "span.kind": "client"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_dd.measured": 1,
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "Psr\\Http\\Client\\ClientInterface.sendRequest",
+       "service": "psr18",
+       "resource": "sendRequest",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "http",
+       "meta": {
+         "_dd.base_service": "phpunit",
+         "component": "psr18",
+         "http.method": "POST",
+         "http.status_code": "200",
+         "http.url": "https://api.openai.com/v1/completions?foo=bar",
+         "network.destination.name": "api.openai.com",
+         "span.kind": "client"
+       }
+     }]]

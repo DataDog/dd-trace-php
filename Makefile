@@ -1204,7 +1204,9 @@ test_integrations_mongodb1:
 	$(call run_tests_debug,tests/Integrations/MongoDB)
 test_integrations_openai:
 	$(MAKE) test_scenario_openai
+	$(eval TEST_EXTRA_ENV=DD_DOGSTATSD_URL=http://127.0.0.1:9876)
 	$(call run_tests_debug,tests/Integrations/OpenAI)
+ 	$(eval TEST_EXTRA_ENV=)
 test_integrations_pcntl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PCNTL)
 test_integrations_pdo: global_test_run_dependencies
