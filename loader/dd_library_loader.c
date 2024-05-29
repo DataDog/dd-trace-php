@@ -20,38 +20,6 @@ static inline void ddloader_log(const char *log) {
     php_printf("[dd_library_loader][error] %s\n", log);
 }
 
-static int ddloader_api_no_check(int api_no) {
-    // Enable logs as soon as possible
-    if (getenv("DD_LOADER_ENABLE_LOGS")) {
-        debug_logs = true;
-    }
-
-    switch (api_no) {
-        case 320151012:  // 7.0
-        case 320160303:  // 7.1
-        case 320170718:  // 7.2
-        case 320180731:  // 7.3
-        case 320190902:  // 7.4
-        case 420200930:  // 8.0
-        case 420210902:  // 8.1
-        case 420220829:  // 8.2
-        case 420230831:  // 8.3
-            break;
-
-        default:
-            LOG("Unknown Zend API");
-            if (!getenv("DD_LOADER_FORCE")) {
-                return FAILURE;
-            }
-            LOG("Force load anyway");
-            break;
-    }
-
-    return SUCCESS;
-}
-
-static int ddloader_build_id_check(const char *build_id) { return SUCCESS; }
-
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {
     char *pkg_path = getenv("DD_LOADER_PACKAGE_PATH");
     if (!pkg_path) {
@@ -70,9 +38,7 @@ static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, i
     return full_path;
 }
 
-// Try to load the ddtrace extension
-// We always exit with "SUCCESS" to avoid logs
-static int ddloader_zend_extension_startup(zend_extension *ext) {
+static int ddloader_load_ddtrace(void) {
     // The "json" extension is required by ddtrace
     // We check the extension is loaded, and use it as reference for zend_api and build_id
     zend_module_entry *json_ext = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("json"));
@@ -137,27 +103,27 @@ static int ddloader_zend_extension_startup(zend_extension *ext) {
         goto abort_and_unload;
     }
 
-    module_entry->handle = handle;
-    if (zend_startup_module_ex(module_entry) == FAILURE) {
-        LOG("Cannot start the module");
-        goto abort;
-    }
+    // module_entry->handle = handle;
+    // if (zend_startup_module_ex(module_entry) == FAILURE) {
+    //     LOG("Cannot start the module");
+    //     goto abort;
+    // }
 
-    // The ddtrace Zend Extension should have been loaded by the ddtrace module.
-    zend_extension *ddtrace = zend_get_extension("ddtrace");
-    if (!ddtrace) {
-        LOG("The ddtrace Zend extension cannot be found");
-        goto abort;
-    }
+    // // The ddtrace Zend Extension should have been loaded by the ddtrace module.
+    // zend_extension *ddtrace = zend_get_extension("ddtrace");
+    // if (!ddtrace) {
+    //     LOG("The ddtrace Zend extension cannot be found");
+    //     goto abort;
+    // }
 
-    // Copy of private function zend_extension_startup();
-    if (ddtrace->startup) {
-        if (ddtrace->startup(ddtrace) != SUCCESS) {
-            LOG("An error occurred during the startup of ddtrace Zend extension");
-            goto abort;
-        }
-        zend_append_version_info(ddtrace);
-    }
+    // // Copy of private function zend_extension_startup();
+    // if (ddtrace->startup) {
+    //     if (ddtrace->startup(ddtrace) != SUCCESS) {
+    //         LOG("An error occurred during the startup of ddtrace Zend extension");
+    //         goto abort;
+    //     }
+    //     zend_append_version_info(ddtrace);
+    // }
 
     return SUCCESS;
 
@@ -168,6 +134,44 @@ abort:
     LOG("Abort the loader");
     free(ext_path);
 
+    return SUCCESS;
+}
+
+static int ddloader_api_no_check(int api_no) {
+    // Enable logs as soon as possible
+    if (getenv("DD_LOADER_ENABLE_LOGS")) {
+        debug_logs = true;
+    }
+
+    switch (api_no) {
+        case 320151012:  // 7.0
+        case 320160303:  // 7.1
+        case 320170718:  // 7.2
+        case 320180731:  // 7.3
+        case 320190902:  // 7.4
+        case 420200930:  // 8.0
+        case 420210902:  // 8.1
+        case 420220829:  // 8.2
+        case 420230831:  // 8.3
+            break;
+
+        default:
+            LOG("Unknown Zend API");
+            if (!getenv("DD_LOADER_FORCE")) {
+                return FAILURE;
+            }
+            LOG("Force load anyway");
+            break;
+    }
+
+    ddloader_load_ddtrace();
+
+    return SUCCESS;
+}
+
+static int ddloader_build_id_check(const char *build_id) { return SUCCESS; }
+
+static int ddloader_zend_extension_startup(zend_extension *ext) {
     return SUCCESS;
 }
 
