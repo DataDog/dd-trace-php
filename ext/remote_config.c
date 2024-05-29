@@ -9,6 +9,12 @@
 #include <hook/hook.h>
 #include "threads.h"
 
+#if PHP_VERSION_ID < 70100
+#include <interceptor/php7/interceptor.h>
+#define zend_interrupt_function zai_interrupt_function
+#define zend_vm_interrupt zai_vm_interrupt
+#endif
+
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 zend_always_inline zai_str dd_from_ddog_char_slice(ddog_CharSlice slice) {
@@ -156,8 +162,10 @@ DDTRACE_PUBLIC void ddtrace_set_all_thread_vm_interrupt(void) {
 #endif
 #if PHP_VERSION_ID >= 80200
         zend_atomic_bool_store_ex(&EG(vm_interrupt), 1);
-#else
+#elif PHP_VERSION_ID >= 70100
         EG(vm_interrupt) = 1;
+#else
+        DDTRACE_G(zai_vm_interrupt) = 1;
 #endif
 #if ZTS
     } ZEND_HASH_FOREACH_END();

@@ -18,6 +18,7 @@
 #define ZEND_STR_TYPE "type"
 #define ZEND_STR_FUNCTION "function"
 #define ZEND_STR_TRACE "trace"
+#define ZEND_STR_MESSAGE "message"
 
 #define zend_hash_find(ht, name) zend_hash_str_find(ht, ZEND_STRL(name))
 #define ZSTR_KNOWN(id) id

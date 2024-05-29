@@ -95,6 +95,31 @@ static inline zend_long zval_get_long(zval *op) {
 #define PHP_DOUBLE_MAX_LENGTH 1080
 #endif
 
+enum {
+    ZEND_STR_TRACE,
+    ZEND_STR_LINE,
+    ZEND_STR_FILE,
+    ZEND_STR_MESSAGE,
+    ZEND_STR_CODE,
+    ZEND_STR_TYPE,
+    ZEND_STR_FUNCTION,
+    ZEND_STR_OBJECT,
+    ZEND_STR_CLASS,
+    ZEND_STR_OBJECT_OPERATOR,
+    ZEND_STR_PAAMAYIM_NEKUDOTAYIM,
+    ZEND_STR_ARGS,
+    ZEND_STR_UNKNOWN,
+    ZEND_STR_EVAL,
+    ZEND_STR_INCLUDE,
+    ZEND_STR_REQUIRE,
+    ZEND_STR_INCLUDE_ONCE,
+    ZEND_STR_REQUIRE_ONCE,
+    ZEND_STR_PREVIOUS,
+    ZEND_STR__LAST
+};
+extern zend_string *ddtrace_known_strings[ZEND_STR__LAST];
+#define ZSTR_KNOWN(idx) ddtrace_known_strings[idx]
+
 #define zend_declare_class_constant_ex(ce, name, value, access_type, doc_comment) zend_declare_class_constant(ce, ZSTR_VAL(name), ZSTR_LEN(name), value)
 #endif
 
@@ -135,6 +160,15 @@ static inline zend_string *php_base64_encode_str(const zend_string *str) {
 }
 
 #define DD_PARAM_PROLOGUE(deref, separate) Z_PARAM_PROLOGUE(deref)
+
+#define ZEND_HASH_REVERSE_FOREACH_STR_KEY_VAL(ht, _key, _val) \
+    ZEND_HASH_REVERSE_FOREACH(ht, 0); \
+    _key = _p->key; \
+    _val = _z;
+
+#if PHP_VERSION_ID >= 70100
+#define ZSTR_KNOWN(idx) CG(known_strings)[idx]
+#endif
 #else
 #define DD_PARAM_PROLOGUE Z_PARAM_PROLOGUE
 #endif
@@ -184,6 +218,12 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #undef zend_hash_str_add_new
 #define zend_hash_str_add_new(...) _zend_hash_str_add_new(__VA_ARGS__ ZEND_FILE_LINE_CC)
 
+#define zend_hash_real_init_packed(ht) zend_hash_real_init(ht, 1)
+#define zend_hash_real_init_mixed(ht) zend_hash_real_init(ht, 0)
+#define _zend_hash_append_ex(ht, key, zv, known) _zend_hash_append(ht, key, zv)
+#define zend_hash_find_ex(ht, key, known) zend_hash_find(ht, key)
+#define zend_hash_find_ex_ind(ht, key, known) zend_hash_find_ind(ht, key)
+
 #define smart_str_free_ex(str, persistent) smart_str_free(str)
 
 static inline zend_bool zend_ini_parse_bool(zend_string *str) {
@@ -195,12 +235,35 @@ static inline zend_bool zend_ini_parse_bool(zend_string *str) {
         return atoi(ZSTR_VAL(str)) != 0;
     }
 }
+
+static inline zend_string *zend_ini_get_value(zend_string *name) {
+    zend_ini_entry *ini_entry;
+
+    ini_entry = zend_hash_find_ptr(EG(ini_directives), name);
+    if (ini_entry) {
+        return ini_entry->value ? ini_entry->value : ZSTR_EMPTY_ALLOC();
+    } else {
+        return NULL;
+    }
+}
 #endif
 
 #if PHP_VERSION_ID < 70400
 #define ZEND_THIS (&EX(This))
 
 #define Z_PROP_FLAG_P(z) Z_EXTRA_P(z)
+#define ZVAL_COPY_VALUE_PROP ZVAL_COPY_VALUE
+
+#define ZEND_HASH_FILL_SET(_val) do { \
+        ZVAL_COPY_VALUE(&__fill_bkt->val, _val); \
+        __fill_bkt->h = (__fill_idx); \
+        __fill_bkt->key = NULL; \
+    } while (0)
+
+#define ZEND_HASH_FILL_NEXT() do { \
+        __fill_bkt++; \
+        __fill_idx++; \
+    } while (0)
 
 #define DD_PARAM_ERROR_CODE error_code
 #else
@@ -228,6 +291,8 @@ static inline const zend_function *dd_zend_get_closure_method_def(zend_object *o
     return zend_get_closure_method_def(&zv);
 }
 #define zend_get_closure_method_def dd_zend_get_closure_method_def
+
+#define instanceof_function_slow instanceof_function
 
 #define ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, classname, allow_null, default_value) ZEND_ARG_OBJ_INFO(pass_by_ref, name, classname, allow_null)
 #define ZEND_ARG_OBJ_TYPE_MASK(pass_by_ref, name, class_name, type_mask, default_value) ZEND_ARG_INFO(pass_by_ref, name)
@@ -327,6 +392,8 @@ static zend_always_inline void zend_array_release(zend_array *array)
 
 #define ZEND_ARG_SEND_MODE(arg_info) (arg_info)->pass_by_reference
 #define zend_value_error zend_type_error
+
+#define zend_update_property_ex(scope, object, name, value) do { zval _zv; ZVAL_OBJ(&_zv, object); zend_update_property_ex(scope, &_zv, name, value); } while (0)
 #endif
 
 #if PHP_VERSION_ID < 80100
@@ -358,6 +425,32 @@ static inline void smart_str_append_double(smart_str *str, double num, int preci
     }
 }
 
+#define zend_hash_find_known_hash zend_hash_find
+
+static zend_always_inline bool zend_array_is_list(zend_array *array) {
+    zend_long expected_idx = 0;
+    zend_long num_idx;
+    zend_string* str_idx;
+    /* Empty arrays are lists */
+    if (zend_hash_num_elements(array) == 0) {
+        return 1;
+    }
+
+#if PHP_VERSION_ID >= 70100
+    if (HT_IS_PACKED(array) && HT_IS_WITHOUT_HOLES(array)) {
+        return 1;
+    }
+#endif
+
+    /* Check if the list could theoretically be repacked */
+    ZEND_HASH_FOREACH_KEY(array, num_idx, str_idx) {
+        if (str_idx != NULL || num_idx != expected_idx++) {
+            return 0;
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    return 1;
+}
 #endif
 
 #if PHP_VERSION_ID < 80200
@@ -405,6 +498,8 @@ static inline zend_string *ddtrace_strpprintf(size_t max_len, const char *format
 #define zend_strpprintf ddtrace_strpprintf
 
 #define ZEND_HASH_ELEMENT(ht, idx) (&ht->arData[idx].val)
+#define ZEND_HASH_MAP_FOREACH_PTR ZEND_HASH_FOREACH_PTR
+#define ZEND_HASH_MAP_FOREACH_STR_KEY_VAL ZEND_HASH_FOREACH_STR_KEY_VAL
 
 #if PHP_VERSION_ID >= 80000
 #define zend_weakrefs_hash_add zend_weakrefs_hash_add_fallback

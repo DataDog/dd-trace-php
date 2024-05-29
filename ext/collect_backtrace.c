@@ -1,7 +1,9 @@
 #include "collect_backtrace.h"
 #include <php.h>
 #include <Zend/zend_generators.h>
+#if PHP_VERSION_ID >= 80000
 #include <Zend/zend_attributes.h>
+#endif
 #include <Zend/zend_interfaces.h>
 #include "compatibility.h"
 
@@ -9,7 +11,12 @@
 void ddtrace_call_get_locals(zend_execute_data *call, zval *locals_array, bool skip_args) {
     zend_op_array *op_array = &call->func->op_array;
 
-    if (ZEND_CALL_INFO(call) & ZEND_CALL_HAS_SYMBOL_TABLE) {
+#if PHP_VERSION_ID >= 70100
+    if (ZEND_CALL_INFO(call) & ZEND_CALL_HAS_SYMBOL_TABLE)
+#else
+    if (call->symbol_table)
+#endif
+    {
         // array_dup also duplicates indirects away
         ZVAL_ARR(locals_array, zend_array_dup(call->symbol_table));
         if (!skip_args) {
@@ -44,15 +51,29 @@ static void debug_backtrace_get_args(zend_execute_data *call, zval *arg_array) {
             if (call->func->type == ZEND_USER_FUNCTION) {
                 uint32_t first_extra_arg = MIN(num_args, call->func->op_array.num_args);
 
-                if (UNEXPECTED(ZEND_CALL_INFO(call) & ZEND_CALL_HAS_SYMBOL_TABLE)) {
+#if PHP_VERSION_ID >= 70100
+                if (UNEXPECTED(ZEND_CALL_INFO(call) & ZEND_CALL_HAS_SYMBOL_TABLE))
+#else
+                    if (call->symbol_table)
+#endif
+                {
                     /* In case of attached symbol_table, values on stack may be invalid
                      * and we have to access them through symbol_table
                      * See: https://bugs.php.net/bug.php?id=73156
                      */
                     while (i < first_extra_arg) {
                         zend_string *arg_name = call->func->op_array.vars[i];
-                        zval original_arg;
+                        zval original_arg = {0};
                         zval *arg = zend_hash_find_ex_ind(call->symbol_table, arg_name, 1);
+
+                        if (arg) {
+                            ZVAL_DEREF(arg);
+                            ZVAL_COPY_VALUE(&original_arg, arg);
+                        } else {
+                            ZVAL_NULL(&original_arg);
+                        }
+
+#if PHP_VERSION_ID >= 80200
                         zend_attribute *attribute = zend_get_parameter_attribute_str(
                                 call->func->common.attributes,
                                 "sensitiveparameter",
@@ -62,19 +83,14 @@ static void debug_backtrace_get_args(zend_execute_data *call, zval *arg_array) {
 
                         bool is_sensitive = attribute != NULL;
 
-                        if (arg) {
-                            ZVAL_DEREF(arg);
-                            ZVAL_COPY_VALUE(&original_arg, arg);
-                        } else {
-                            ZVAL_NULL(&original_arg);
-                        }
-
                         if (is_sensitive) {
                             zval redacted_arg;
                             object_init_ex(&redacted_arg, zend_ce_sensitive_parameter_value);
                             zend_call_method_with_1_params(Z_OBJ_P(&redacted_arg), zend_ce_sensitive_parameter_value, &zend_ce_sensitive_parameter_value->constructor, "__construct", NULL, &original_arg);
                             ZEND_HASH_FILL_SET(&redacted_arg);
-                        } else {
+                        } else
+#endif
+                        {
                             Z_TRY_ADDREF_P(&original_arg);
                             ZEND_HASH_FILL_SET(&original_arg);
                         }
@@ -84,15 +100,7 @@ static void debug_backtrace_get_args(zend_execute_data *call, zval *arg_array) {
                     }
                 } else {
                     while (i < first_extra_arg) {
-                        zval original_arg;
-                        zend_attribute *attribute = zend_get_parameter_attribute_str(
-                                call->func->common.attributes,
-                                "sensitiveparameter",
-                                sizeof("sensitiveparameter") - 1,
-                                i
-                        );
-                        bool is_sensitive = attribute != NULL;
-
+                        zval original_arg = {0};
                         if (EXPECTED(Z_TYPE_INFO_P(p) != IS_UNDEF)) {
                             zval *arg = p;
                             ZVAL_DEREF(arg);
@@ -101,12 +109,23 @@ static void debug_backtrace_get_args(zend_execute_data *call, zval *arg_array) {
                             ZVAL_NULL(&original_arg);
                         }
 
+#if PHP_VERSION_ID >= 80200
+                        zend_attribute *attribute = zend_get_parameter_attribute_str(
+                                call->func->common.attributes,
+                                "sensitiveparameter",
+                                sizeof("sensitiveparameter") - 1,
+                                i
+                        );
+                        bool is_sensitive = attribute != NULL;
+
                         if (is_sensitive) {
                             zval redacted_arg;
                             object_init_ex(&redacted_arg, zend_ce_sensitive_parameter_value);
                             zend_call_method_with_1_params(Z_OBJ_P(&redacted_arg), zend_ce_sensitive_parameter_value, &zend_ce_sensitive_parameter_value->constructor, "__construct", NULL, &original_arg);
                             ZEND_HASH_FILL_SET(&redacted_arg);
-                        } else {
+                        } else
+#endif
+                        {
                             Z_TRY_ADDREF_P(&original_arg);
                             ZEND_HASH_FILL_SET(&original_arg);
                         }
@@ -120,7 +139,16 @@ static void debug_backtrace_get_args(zend_execute_data *call, zval *arg_array) {
             }
 
             while (i < num_args) {
-                zval original_arg;
+                zval original_arg = {0};
+                if (EXPECTED(Z_TYPE_INFO_P(p) != IS_UNDEF)) {
+                    zval *arg = p;
+                    ZVAL_DEREF(arg);
+                    ZVAL_COPY_VALUE(&original_arg, arg);
+                } else {
+                    ZVAL_NULL(&original_arg);
+                }
+
+#if PHP_VERSION_ID >= 80200
                 bool is_sensitive = 0;
 
                 if (i < call->func->common.num_args || call->func->common.fn_flags & ZEND_ACC_VARIADIC) {
@@ -133,20 +161,14 @@ static void debug_backtrace_get_args(zend_execute_data *call, zval *arg_array) {
                     is_sensitive = attribute != NULL;
                 }
 
-                if (EXPECTED(Z_TYPE_INFO_P(p) != IS_UNDEF)) {
-                    zval *arg = p;
-                    ZVAL_DEREF(arg);
-                    ZVAL_COPY_VALUE(&original_arg, arg);
-                } else {
-                    ZVAL_NULL(&original_arg);
-                }
-
                 if (is_sensitive) {
                     zval redacted_arg;
                     object_init_ex(&redacted_arg, zend_ce_sensitive_parameter_value);
                     zend_call_method_with_1_params(Z_OBJ_P(&redacted_arg), zend_ce_sensitive_parameter_value, &zend_ce_sensitive_parameter_value->constructor, "__construct", NULL, &original_arg);
                     ZEND_HASH_FILL_SET(&redacted_arg);
-                } else {
+                } else
+#endif
+                {
                     Z_TRY_ADDREF_P(&original_arg);
                     ZEND_HASH_FILL_SET(&original_arg);
                 }
@@ -161,6 +183,7 @@ static void debug_backtrace_get_args(zend_execute_data *call, zval *arg_array) {
         ZVAL_EMPTY_ARRAY(arg_array);
     }
 
+#if PHP_VERSION_ID >= 80000
     if (ZEND_CALL_INFO(call) & ZEND_CALL_HAS_EXTRA_NAMED_PARAMS) {
         zend_string *name;
         zval *arg;
@@ -171,6 +194,7 @@ static void debug_backtrace_get_args(zend_execute_data *call, zval *arg_array) {
             zend_hash_add_new(Z_ARRVAL_P(arg_array), name, arg);
         } ZEND_HASH_FOREACH_END();
     }
+#endif
 }
 
 /* Copy of zend_fetch_debug_backtrace with ability to gather local variables */
@@ -239,7 +263,11 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
             if (EXPECTED((ZEND_CALL_INFO(call) & ZEND_CALL_TOP_FUNCTION) == 0)) {
                 break;
             }
+#if PHP_VERSION_ID < 70100
+        } else if (call->func->op_array.fn_flags & ZEND_ACC_GENERATOR) {
+#else
         } else if (UNEXPECTED((ZEND_CALL_INFO(call) & ZEND_CALL_GENERATOR) != 0)) {
+#endif
             prev = zend_generator_check_placeholder_frame(prev);
         }
 
@@ -394,8 +422,10 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
                 /* $this may be passed into regular internal functions */
                 if (func->common.scope) {
                     ZVAL_STR_COPY(&tmp, func->common.scope->name);
+#if PHP_VERSION_ID >= 70300
                 } else if (object->handlers->get_class_name == zend_std_get_class_name) {
                     ZVAL_STR_COPY(&tmp, object->ce->name);
+#endif
                 } else {
                     ZVAL_STR(&tmp, object->handlers->get_class_name(object));
                 }

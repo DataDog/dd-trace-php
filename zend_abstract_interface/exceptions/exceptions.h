@@ -12,10 +12,7 @@ static inline zend_class_entry *zai_get_exception_base(zend_object *object) {
     return instanceof_function(object->ce, zend_ce_exception) ? zend_ce_exception : zend_ce_error;
 }
 
-#if PHP_VERSION_ID < 70100
-#define ZEND_STR_MESSAGE "message"
-#define ZEND_STR_CODE "code"
-static inline zval *zai_exception_read_property(zend_object *object, const char *pn, size_t pnl) {
+static inline zval *zai_exception_read_property_str(zend_object *object, const char *pn, size_t pnl) {
     zval zv;
 
     ZVAL_OBJ(&zv, object);
@@ -28,8 +25,7 @@ static inline zval *zai_exception_read_property(zend_object *object, const char 
 
     return property;
 }
-#define ZAI_EXCEPTION_PROPERTY(object, id) zai_exception_read_property(object, ZEND_STRL(id))
-#else
+
 static inline zval *zai_exception_read_property(zend_object *object, zend_string *name) {
     zval zv;
 
@@ -43,11 +39,13 @@ static inline zval *zai_exception_read_property(zend_object *object, zend_string
 
     return property;
 }
-#if PHP_VERSION_ID < 70200
+
+#if PHP_VERSION_ID < 70100
+#define ZAI_EXCEPTION_PROPERTY(object, id) zai_exception_read_property_str(object, ZEND_STRL(id))
+#elif PHP_VERSION_ID < 70200
 #define ZAI_EXCEPTION_PROPERTY(object, id) zai_exception_read_property(object, CG(known_strings)[id])
 #else
 #define ZAI_EXCEPTION_PROPERTY(object, id) zai_exception_read_property(object, ZSTR_KNOWN(id))
-#endif
 #endif
 
 zend_string *zai_exception_message(zend_object *ex);  // fallback string if message invalid
