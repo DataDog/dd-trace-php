@@ -537,6 +537,9 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
+#if PHP_VERSION_ID < 70100
+    zai_vm_interrupt = &ddtrace_globals->zai_vm_interrupt;
+#endif
 #if ZTS
     ddtrace_thread_ginit();
 #endif
@@ -1227,6 +1230,31 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
+#if PHP_VERSION_ID < 70100
+zend_string *ddtrace_known_strings[ZEND_STR__LAST];
+void ddtrace_init_known_strings(void) {
+    ddtrace_known_strings[ZEND_STR_TRACE] = zend_string_init_interned(ZEND_STRL("trace"), 1);
+    ddtrace_known_strings[ZEND_STR_LINE] = zend_string_init_interned(ZEND_STRL("line"), 1);
+    ddtrace_known_strings[ZEND_STR_FILE] = zend_string_init_interned(ZEND_STRL("file"), 1);
+    ddtrace_known_strings[ZEND_STR_MESSAGE] = zend_string_init_interned(ZEND_STRL("message"), 1);
+    ddtrace_known_strings[ZEND_STR_CODE] = zend_string_init_interned(ZEND_STRL("code"), 1);
+    ddtrace_known_strings[ZEND_STR_TYPE] = zend_string_init_interned(ZEND_STRL("type"), 1);
+    ddtrace_known_strings[ZEND_STR_FUNCTION] = zend_string_init_interned(ZEND_STRL("function"), 1);
+    ddtrace_known_strings[ZEND_STR_OBJECT] = zend_string_init_interned(ZEND_STRL("object"), 1);
+    ddtrace_known_strings[ZEND_STR_CLASS] = zend_string_init_interned(ZEND_STRL("class"), 1);
+    ddtrace_known_strings[ZEND_STR_OBJECT_OPERATOR] = zend_string_init_interned(ZEND_STRL("->"), 1);
+    ddtrace_known_strings[ZEND_STR_PAAMAYIM_NEKUDOTAYIM] = zend_string_init_interned(ZEND_STRL("::"), 1);
+    ddtrace_known_strings[ZEND_STR_ARGS] = zend_string_init_interned(ZEND_STRL("args"), 1);
+    ddtrace_known_strings[ZEND_STR_UNKNOWN] = zend_string_init_interned(ZEND_STRL("unknown"), 1);
+    ddtrace_known_strings[ZEND_STR_EVAL] = zend_string_init_interned(ZEND_STRL("eval"), 1);
+    ddtrace_known_strings[ZEND_STR_INCLUDE] = zend_string_init_interned(ZEND_STRL("include"), 1);
+    ddtrace_known_strings[ZEND_STR_REQUIRE] = zend_string_init_interned(ZEND_STRL("require"), 1);
+    ddtrace_known_strings[ZEND_STR_INCLUDE_ONCE] = zend_string_init_interned(ZEND_STRL("include_once"), 1);
+    ddtrace_known_strings[ZEND_STR_REQUIRE_ONCE] = zend_string_init_interned(ZEND_STRL("require_once"), 1);
+    ddtrace_known_strings[ZEND_STR_PREVIOUS] = zend_string_init_interned(ZEND_STRL("previous"), 1);
+}
+#endif
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
@@ -1255,6 +1283,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
 #if PHP_VERSION_ID < 70300 || (defined(_WIN32) && PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400)
     ddtrace_startup_hrtime();
+#endif
+
+#if PHP_VERSION_ID < 70100
+    ddtrace_init_known_strings();
 #endif
 
     register_ddtrace_symbols(module_number);

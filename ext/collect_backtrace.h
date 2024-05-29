@@ -2,6 +2,7 @@
 #define DD_COLLECT_BACKTRACE_H
 
 #include <Zend/zend_types.h>
+#include <stdbool.h>
 
 #define DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS (1 << 30)
 

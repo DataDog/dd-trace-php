@@ -256,12 +256,6 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
 
 typedef zend_result (*add_tag_fn_t)(void *context, ddtrace_string key, ddtrace_string value);
 
-#if PHP_VERSION_ID < 70100
-#define ZEND_STR_LINE "line"
-#define ZEND_STR_FILE "file"
-#define ZEND_STR_PREVIOUS "previous"
-#endif
-
 enum dd_exception {
     DD_EXCEPTION_THROWN,
     DD_EXCEPTION_CAUGHT,
@@ -270,8 +264,8 @@ enum dd_exception {
 
 static zend_result dd_exception_to_error_msg(zend_object *exception, void *context, add_tag_fn_t add_tag, enum dd_exception exception_state) {
     zend_string *msg = zai_exception_message(exception);
-    zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
-    zend_string *file = ddtrace_convert_to_str(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
+    zend_long line = zval_get_long(zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_LINE)));
+    zend_string *file = ddtrace_convert_to_str(zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_FILE)));
 
     char *error_text, *status_line = NULL;
 
@@ -309,7 +303,7 @@ static zend_result dd_exception_to_error_type(zend_object *exception, void *cont
     ddtrace_string value, key = DDTRACE_STRING_LITERAL("error.type");
 
     if (instanceof_function(exception->ce, ddtrace_ce_fatal_error)) {
-        zval *code = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_CODE);
+        zval *code = zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_CODE));
         const char *error_type_string = "{unknown error}";
 
         if (Z_TYPE_P(code) == IS_LONG) {
@@ -453,8 +447,17 @@ static void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *val
             zval *val;
             zend_string *key;
             int remaining_fields = config->max_field_depth;
+#if PHP_VERSION_ID < 70400
+            int is_temp = 0;
+#endif
             // reverse to prefer child class properties first
-            HashTable *ht = ce->type == ZEND_INTERNAL_CLASS ? zend_get_properties_for(zv, ZEND_PROP_PURPOSE_DEBUG) : Z_OBJPROP_P(zv);
+            HashTable *ht = ce->type == ZEND_INTERNAL_CLASS ?
+#if PHP_VERSION_ID < 70400
+                    Z_OBJDEBUG_P(zv, is_temp)
+#else
+                    zend_get_properties_for(zv, ZEND_PROP_PURPOSE_DEBUG)
+#endif
+                    : Z_OBJPROP_P(zv);
             ZEND_HASH_REVERSE_FOREACH_STR_KEY_VAL(ht, key, val) {
                 if (!key) {
                     continue;
@@ -484,7 +487,13 @@ static void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *val
                 ddog_capture_value_add_field(value, fieldname, value_capture);
             } ZEND_HASH_FOREACH_END();
             if (ce->type == ZEND_INTERNAL_CLASS) {
+#if PHP_VERSION_ID < 70400
+                if (is_temp) {
+                    zend_array_release(ht);
+                }
+#else
                 zend_release_properties(ht);
+#endif
             }
             break;
         }
@@ -536,7 +545,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
         return;
     }
 
-    zval *trace = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_TRACE);
+    zval *trace = zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_TRACE));
     if (Z_TYPE_P(trace) != IS_ARRAY) {
         return;
     }
@@ -626,14 +635,14 @@ static zend_result ddtrace_exception_to_meta(zend_object *exception, zend_string
     zend_object *exception_root = exception;
     zend_string *full_trace = zai_get_trace_without_args_from_exception(exception);
 
-    zval *previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
+    zval *previous = zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_PREVIOUS));
     while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
            instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
         zend_string *trace_string = zai_get_trace_without_args_from_exception(Z_OBJ_P(previous));
 
         zend_string *msg = zai_exception_message(exception);
-        zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
-        zend_string *file = ddtrace_convert_to_str(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
+        zend_long line = zval_get_long(zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_LINE)));
+        zend_string *file = ddtrace_convert_to_str(zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_FILE)));
 
         zend_string *complete_trace =
             zend_strpprintf(0, "%s\n\nNext %s%s%s in %s:" ZEND_LONG_FMT "\nStack trace:\n%s", ZSTR_VAL(trace_string),
@@ -646,7 +655,7 @@ static zend_result ddtrace_exception_to_meta(zend_object *exception, zend_string
 
         Z_PROTECT_RECURSION_P(previous);
         exception = Z_OBJ_P(previous);
-        previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
+        previous = zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_PREVIOUS));
     }
 
     if (get_DD_EXCEPTION_DEBUGGING_ENABLED()) {
@@ -654,11 +663,11 @@ static zend_result ddtrace_exception_to_meta(zend_object *exception, zend_string
         ddtrace_collect_exception_debug_data(exception, service_name, time / 1000000, context, add_meta);
     }
 
-    previous = ZAI_EXCEPTION_PROPERTY(exception_root, ZEND_STR_PREVIOUS);
+    previous = zai_exception_read_property(exception_root, ZSTR_KNOWN(ZEND_STR_PREVIOUS));
     while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
            instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
         Z_UNPROTECT_RECURSION_P(previous);
-        previous = ZAI_EXCEPTION_PROPERTY(Z_OBJ_P(previous), ZEND_STR_PREVIOUS);
+        previous = zai_exception_read_property(Z_OBJ_P(previous), ZSTR_KNOWN(ZEND_STR_PREVIOUS));
     }
 
     bool success = dd_exception_to_error_msg(exception, context, add_meta, exception_state) == SUCCESS &&

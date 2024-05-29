@@ -75,15 +75,15 @@ bool ddog_remote_config_read(struct ddog_RemoteConfigReader *reader, ddog_CharSl
 
 void ddog_remote_config_reader_drop(struct ddog_RemoteConfigReader*);
 
-void ddog_sidecar_transport_drop(ddog_SidecarTransport*);
+void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
 
 /**
  * # Safety
  * Caller must ensure the process is safe to fork, at the time when this method is called
  */
-ddog_MaybeError ddog_sidecar_connect(ddog_SidecarTransport **connection);
+ddog_MaybeError ddog_sidecar_connect(struct ddog_SidecarTransport **connection);
 
-ddog_MaybeError ddog_sidecar_ping(ddog_SidecarTransport **transport);
+ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_flush_traces(struct ddog_SidecarTransport **transport);
 
@@ -100,42 +100,71 @@ struct ddog_RuntimeMetadata *ddog_sidecar_runtimeMeta_build(ddog_CharSlice langu
 
 void ddog_sidecar_runtimeMeta_drop(struct ddog_RuntimeMetadata *meta);
 
-ddog_MaybeError ddog_sidecar_telemetry_enqueueConfig(ddog_SidecarTransport **transport,
+/**
+ * Reports the runtime configuration to the telemetry.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_enqueueConfig(struct ddog_SidecarTransport **transport,
                                                      const struct ddog_InstanceId *instance_id,
                                                      const ddog_QueueId *queue_id,
                                                      ddog_CharSlice config_key,
                                                      ddog_CharSlice config_value,
                                                      enum ddog_ConfigurationOrigin origin);
 
-ddog_MaybeError ddog_sidecar_telemetry_addDependency(ddog_SidecarTransport **transport,
+/**
+ * Reports a dependency to the telemetry.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_addDependency(struct ddog_SidecarTransport **transport,
                                                      const struct ddog_InstanceId *instance_id,
                                                      const ddog_QueueId *queue_id,
                                                      ddog_CharSlice dependency_name,
                                                      ddog_CharSlice dependency_version);
 
-ddog_MaybeError ddog_sidecar_telemetry_addIntegration(ddog_SidecarTransport **transport,
+/**
+ * Reports an integration to the telemetry.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_addIntegration(struct ddog_SidecarTransport **transport,
                                                       const struct ddog_InstanceId *instance_id,
                                                       const ddog_QueueId *queue_id,
                                                       ddog_CharSlice integration_name,
                                                       ddog_CharSlice integration_version,
                                                       bool integration_enabled);
 
-ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(ddog_SidecarTransport **transport,
+/**
+ * Registers a service and flushes any queued actions.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(struct ddog_SidecarTransport **transport,
                                                         const struct ddog_InstanceId *instance_id,
                                                         const ddog_QueueId *queue_id,
                                                         const struct ddog_RuntimeMetadata *runtime_meta,
                                                         ddog_CharSlice service_name,
                                                         ddog_CharSlice env_name);
 
-ddog_MaybeError ddog_sidecar_lifecycle_end(ddog_SidecarTransport **transport,
+/**
+ * Enqueues a list of actions to be performed.
+ */
+ddog_MaybeError ddog_sidecar_lifecycle_end(struct ddog_SidecarTransport **transport,
                                            const struct ddog_InstanceId *instance_id,
                                            const ddog_QueueId *queue_id);
 
-bool ddog_sidecar_is_closed(ddog_SidecarTransport **transport);
+/**
+ * Flushes the telemetry data.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_flush(struct ddog_SidecarTransport **transport,
+                                             const struct ddog_InstanceId *instance_id,
+                                             const ddog_QueueId *queue_id);
 
-ddog_MaybeError ddog_sidecar_session_set_config(ddog_SidecarTransport **transport,
+/**
+ * Returns whether the sidecar transport is closed or not.
+ */
+bool ddog_sidecar_is_closed(struct ddog_SidecarTransport **transport);
+
+/**
+ * Sets the configuration for a session.
+ */
+ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **transport,
                                                 ddog_CharSlice session_id,
-                                                const struct ddog_Endpoint *endpoint,
+                                                const struct ddog_Endpoint *agent_endpoint,
+                                                const struct ddog_Endpoint *dogstatsd_endpoint,
                                                 ddog_CharSlice language,
                                                 ddog_CharSlice tracer_version,
                                                 uint32_t flush_interval_milliseconds,
@@ -150,30 +179,99 @@ ddog_MaybeError ddog_sidecar_session_set_config(ddog_SidecarTransport **transpor
                                                 const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
                                                 uintptr_t remote_config_capabilities_count);
 
-ddog_MaybeError ddog_sidecar_send_trace_v04_shm(ddog_SidecarTransport **transport,
+/**
+ * Sends a trace to the sidecar via shared memory.
+ */
+ddog_MaybeError ddog_sidecar_send_trace_v04_shm(struct ddog_SidecarTransport **transport,
                                                 const struct ddog_InstanceId *instance_id,
                                                 struct ddog_ShmHandle *shm_handle,
                                                 uintptr_t len,
                                                 const struct ddog_TracerHeaderTags *tracer_header_tags);
 
-ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(ddog_SidecarTransport **transport,
+/**
+ * Sends a trace as bytes to the sidecar.
+ */
+ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(struct ddog_SidecarTransport **transport,
                                                   const struct ddog_InstanceId *instance_id,
                                                   ddog_CharSlice data,
                                                   const struct ddog_TracerHeaderTags *tracer_header_tags);
 
-ddog_MaybeError ddog_sidecar_send_debugger_data(ddog_SidecarTransport **transport,
+ddog_MaybeError ddog_sidecar_send_debugger_data(struct ddog_SidecarTransport **transport,
                                                 const struct ddog_InstanceId *instance_id,
                                                 struct ddog_Vec_DebuggerPayloadCharSlice payloads);
 
-ddog_MaybeError ddog_sidecar_set_remote_config_data(ddog_SidecarTransport **transport,
+ddog_MaybeError ddog_sidecar_set_remote_config_data(struct ddog_SidecarTransport **transport,
                                                     const struct ddog_InstanceId *instance_id,
                                                     const ddog_QueueId *queue_id,
                                                     ddog_CharSlice service_name,
                                                     ddog_CharSlice env_name,
                                                     ddog_CharSlice app_version);
 
-ddog_CharSlice ddog_sidecar_dump(ddog_SidecarTransport **transport);
+/**
+ * Dumps the current state of the sidecar.
+ */
+ddog_CharSlice ddog_sidecar_dump(struct ddog_SidecarTransport **transport);
 
-ddog_CharSlice ddog_sidecar_stats(ddog_SidecarTransport **transport);
+/**
+ * Retrieves the current statistics of the sidecar.
+ */
+ddog_CharSlice ddog_sidecar_stats(struct ddog_SidecarTransport **transport);
+
+/**
+ * Send a DogStatsD "count" metric.
+ */
+ddog_MaybeError ddog_sidecar_dogstatsd_count(struct ddog_SidecarTransport **transport,
+                                             const struct ddog_InstanceId *instance_id,
+                                             ddog_CharSlice metric,
+                                             int64_t value,
+                                             const struct ddog_Vec_Tag *tags);
+
+/**
+ * Send a DogStatsD "distribution" metric.
+ */
+ddog_MaybeError ddog_sidecar_dogstatsd_distribution(struct ddog_SidecarTransport **transport,
+                                                    const struct ddog_InstanceId *instance_id,
+                                                    ddog_CharSlice metric,
+                                                    double value,
+                                                    const struct ddog_Vec_Tag *tags);
+
+/**
+ * Send a DogStatsD "gauge" metric.
+ */
+ddog_MaybeError ddog_sidecar_dogstatsd_gauge(struct ddog_SidecarTransport **transport,
+                                             const struct ddog_InstanceId *instance_id,
+                                             ddog_CharSlice metric,
+                                             double value,
+                                             const struct ddog_Vec_Tag *tags);
+
+/**
+ * Send a DogStatsD "histogram" metric.
+ */
+ddog_MaybeError ddog_sidecar_dogstatsd_histogram(struct ddog_SidecarTransport **transport,
+                                                 const struct ddog_InstanceId *instance_id,
+                                                 ddog_CharSlice metric,
+                                                 double value,
+                                                 const struct ddog_Vec_Tag *tags);
+
+/**
+ * Send a DogStatsD "set" metric.
+ */
+ddog_MaybeError ddog_sidecar_dogstatsd_set(struct ddog_SidecarTransport **transport,
+                                           const struct ddog_InstanceId *instance_id,
+                                           ddog_CharSlice metric,
+                                           int64_t value,
+                                           const struct ddog_Vec_Tag *tags);
+
+/**
+ * This function creates a new transport using the provided callback function when the current
+ * transport is closed.
+ *
+ * # Arguments
+ *
+ * * `transport` - The transport used for communication.
+ * * `factory` - A C function that must return a pointer to "ddog_SidecarTransport"
+ */
+void ddog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
+                            struct ddog_SidecarTransport *(*factory)(void));
 
 #endif /* DDOG_SIDECAR_H */

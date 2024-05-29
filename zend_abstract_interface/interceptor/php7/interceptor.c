@@ -44,6 +44,10 @@ static const zend_internal_function zend_pass_function = {
         NULL,                   /* module            */
         {0}                     /* reserved          */
 };
+
+void (*zai_interrupt_function)(zend_execute_data *execute_data) = NULL;
+static bool _zai_default_vm_interrupt = false;
+TSRM_TLS bool *zai_vm_interrupt = &_zai_default_vm_interrupt;
 #endif
 
 typedef struct {
@@ -167,6 +171,11 @@ uint32_t zai_interceptor_find_temporary(zend_op_array *op_array) {
 
 static user_opcode_handler_t prev_ext_nop_handler;
 static inline int zai_interceptor_ext_nop_handler_no_prev(zend_execute_data *execute_data) {
+#if PHP_VERSION_ID < 70100
+    if (UNEXPECTED(*zai_vm_interrupt) && zai_interrupt_function) {
+        zai_interrupt_function(execute_data);
+    }
+#endif
     zend_op_array *op_array = &execute_data->func->op_array;
     if (UNEXPECTED(zai_hook_installed_user(op_array))) {
         zai_interceptor_frame_memory frame_memory, *tmp;

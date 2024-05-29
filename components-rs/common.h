@@ -227,8 +227,6 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
 } ddog_RemoteConfigProduct;
 
-typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest;
-
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
  */
@@ -237,6 +235,17 @@ typedef struct ddog_InstanceId ddog_InstanceId;
 typedef struct ddog_RemoteConfigState ddog_RemoteConfigState;
 
 typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
+
+/**
+ * `SidecarTransport` is a wrapper around a BlockingTransport struct from the `datadog_ipc` crate
+ * that handles transparent reconnection.
+ * It is used for sending `SidecarInterfaceRequest` and receiving `SidecarInterfaceResponse`.
+ *
+ * This transport is used for communication between different parts of the sidecar service.
+ * It is a blocking transport, meaning that it will block the current thread until the operation is
+ * complete.
+ */
+typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -332,17 +341,6 @@ typedef struct ddog_LiveDebuggerSetup {
   const struct ddog_Evaluator *evaluator;
   struct ddog_LiveDebuggerCallbacks callbacks;
 } ddog_LiveDebuggerSetup;
-
-/**
- * `SidecarTransport` is a type alias for the `BlockingTransport` struct from the `datadog_ipc`
- * crate. It is used for sending `SidecarInterfaceRequest` and receiving
- * `SidecarInterfaceResponse`.
- *
- * This transport is used for communication between different parts of the sidecar service.
- * It is a blocking transport, meaning that it will block the current thread until the operation is
- * complete.
- */
-typedef struct ddog_BlockingTransport_SidecarInterfaceResponse__SidecarInterfaceRequest ddog_SidecarTransport;
 
 typedef struct ddog_DebuggerCapture ddog_DebuggerCapture;
 typedef struct ddog_DebuggerValue ddog_DebuggerValue;

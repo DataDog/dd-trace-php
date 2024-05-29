@@ -109,6 +109,10 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 #endif
     zend_bool in_shutdown;
 
+#if PHP_VERSION_ID < 70100
+    bool zai_vm_interrupt;
+#endif
+
     zend_long default_priority_sampling;
     zend_long propagated_priority_sampling;
     ddtrace_span_stack *active_stack; // never NULL except tracer is disabled
@@ -152,7 +156,7 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #    define ATTR_TLS_GLOBAL_DYNAMIC
 #  endif
 extern TSRM_TLS void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
-#  define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
+#  define DDTRACE_G(v) ZEND_TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
 #else
 #  define DDTRACE_G(v) (ddtrace_globals.v)
 #endif

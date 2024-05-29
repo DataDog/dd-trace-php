@@ -99,7 +99,7 @@ HashTable *dd_uhook_collect_args(zend_execute_data *execute_data) {
     ht->nTableSize = num_args;
 #endif
 
-    zend_hash_real_init(ht, 1);
+    zend_hash_real_init_packed(ht);
     ZEND_HASH_FILL_PACKED(ht) {
         if (EX(func)->type == ZEND_USER_FUNCTION) {
             uint32_t first_extra_arg = MIN(num_args, func->op_array.num_args);
