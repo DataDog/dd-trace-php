@@ -358,7 +358,9 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_OPENAI, "OpenAI\\Client", "__construct",
                                          "DDTrace\\Integrations\\OpenAI\\OpenAIIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_OPENAI, "OpenAI\\Factory", "make",
-                                             "DDTrace\\Integrations\\OpenAI\\OpenAIIntegration");
+                                         "DDTrace\\Integrations\\OpenAI\\OpenAIIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_OPENAI, "OpenAI\\Transporters\\HttpTransporter", "__construct",
+                                         "DDTrace\\Integrations\\OpenAI\\OpenAIIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Bootstrap\\Configurator", "__construct",
                                          "DDTrace\\Integrations\\Nette\\NetteIntegration");
