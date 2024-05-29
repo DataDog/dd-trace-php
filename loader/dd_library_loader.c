@@ -39,18 +39,17 @@ static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, i
 }
 
 static int ddloader_load_ddtrace(void) {
-    // The "json" extension is required by ddtrace
-    // We check the extension is loaded, and use it as reference for zend_api and build_id
-    zend_module_entry *json_ext = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("json"));
-    if (!json_ext) {
-        LOG("Cannot find the 'json' extension");
+    // Use the 'Core' extension as reference for zend_api and build_id
+    zend_module_entry *core_ext = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("core"));
+    if (!core_ext) {
+        LOG("Cannot find the 'core' extension");
         return SUCCESS;
     }
 
-    bool is_zts = (strstr(json_ext->build_id, "NTS") == NULL);
-    bool is_debug = (strstr(json_ext->build_id, "debug") != NULL);
+    bool is_zts = (strstr(core_ext->build_id, "NTS") == NULL);
+    bool is_debug = (strstr(core_ext->build_id, "debug") != NULL);
 
-    char *ext_path = ddloader_find_ext_path("trace", "ddtrace", json_ext->zend_api, is_zts, is_debug);
+    char *ext_path = ddloader_find_ext_path("trace", "ddtrace", core_ext->zend_api, is_zts, is_debug);
     // Extension not found
     if (!ext_path) {
         LOG("Extension file not found");
@@ -90,11 +89,11 @@ static int ddloader_load_ddtrace(void) {
         LOG("The extension is already loaded");
         goto abort_and_unload;
     }
-    if (module_entry->zend_api != json_ext->zend_api) {
+    if (module_entry->zend_api != core_ext->zend_api) {
         LOG("Wrong API number");
         goto abort_and_unload;
     }
-    if (strcmp(module_entry->build_id, json_ext->build_id)) {
+    if (strcmp(module_entry->build_id, core_ext->build_id)) {
         LOG("Wrong Build ID");
         goto abort_and_unload;
     }
@@ -102,28 +101,6 @@ static int ddloader_load_ddtrace(void) {
         LOG("Cannot register the module");
         goto abort_and_unload;
     }
-
-    // module_entry->handle = handle;
-    // if (zend_startup_module_ex(module_entry) == FAILURE) {
-    //     LOG("Cannot start the module");
-    //     goto abort;
-    // }
-
-    // // The ddtrace Zend Extension should have been loaded by the ddtrace module.
-    // zend_extension *ddtrace = zend_get_extension("ddtrace");
-    // if (!ddtrace) {
-    //     LOG("The ddtrace Zend extension cannot be found");
-    //     goto abort;
-    // }
-
-    // // Copy of private function zend_extension_startup();
-    // if (ddtrace->startup) {
-    //     if (ddtrace->startup(ddtrace) != SUCCESS) {
-    //         LOG("An error occurred during the startup of ddtrace Zend extension");
-    //         goto abort;
-    //     }
-    //     zend_append_version_info(ddtrace);
-    // }
 
     return SUCCESS;
 
@@ -171,6 +148,7 @@ static int ddloader_api_no_check(int api_no) {
 
 static int ddloader_build_id_check(const char *build_id) { return SUCCESS; }
 
+// Required. Otherwise the zend_extension is not loaded
 static int ddloader_zend_extension_startup(zend_extension *ext) {
     return SUCCESS;
 }
