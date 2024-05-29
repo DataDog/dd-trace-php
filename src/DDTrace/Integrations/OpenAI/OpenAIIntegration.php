@@ -67,7 +67,7 @@ class OpenAIIntegration extends Integration
             ['OpenAI\Resources\FineTuning', 'listJobs', 'listFineTunes', 'GET', '/v1/fine-tunes'],
             ['OpenAI\Resources\Models', 'retrieve', 'retrieveModel', 'GET', '/v1/models/*'],
             ['OpenAI\Resources\Files', 'retrieve', 'retrieveFile', 'GET', '/v1/files/*'],
-            ['OpenAI\Resources\FineTuning', 'retrieve', 'retrieveFineTune', 'GET', '/v1/fine-tunes/*'],
+            ['OpenAI\Resources\FineTuning', 'retrieveJob', 'retrieveFineTune', 'GET', '/v1/fine-tunes/*'],
             ['OpenAI\Resources\Models', 'delete', 'deleteModel', 'DELETE', '/v1/models/*'],
             ['OpenAI\Resources\Files', 'delete', 'deleteFile', 'DELETE', '/v1/files/*'],
             ['OpenAI\Resources\Images', 'create', 'createImage', 'POST', '/v1/images/generations'],
@@ -79,8 +79,8 @@ class OpenAIIntegration extends Integration
             ['OpenAI\Resources\Files', 'upload', 'createFile', 'POST', '/v1/files'],
             ['OpenAI\Resources\Files', 'download', 'downloadFile', 'GET', '/v1/files/*/content'],
             ['OpenAI\Resources\FineTuning', 'createJob', 'createFineTune', 'POST', '/v1/fine-tunes'],
-            ['OpenAI\Resources\FineTunes', 'cancelJob', 'cancelFineTune', 'POST', '/v1/fine-tunes/*/cancel'],
-            ['OpenAI\Resources\FineTunes', 'listJobEvents', 'listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events'],
+            ['OpenAI\Resources\FineTunes', 'cancel', 'cancelFineTune', 'POST', '/v1/fine-tunes/*/cancel'],
+            ['OpenAI\Resources\FineTunes', 'listEvents', 'listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events'],
         ];
 
         \DDTrace\hook_method(
@@ -144,8 +144,8 @@ class OpenAIIntegration extends Integration
                         /** @var \OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract $response */
                         OpenAIIntegration::handleResponse(
                             logger: $logger,
-                            headers: $response ? $response->meta()->toArray() : [],
-                            response: $response ? $response->toArray() : [],
+                            headers: method_exists($response, 'meta') ? $response->meta()->toArray() : [],
+                            response: \is_string($response) ? $response : ($response ? $response->toArray() : []),
                             httpMethod: $httpMethod,
                             endpoint: $endpoint,
                             args: $args,
@@ -385,7 +385,7 @@ class OpenAIIntegration extends Integration
             $prompt = $payload['prompt'];
             if (\is_string($prompt)) {
                 $span->meta["openai.request.prompt"] = OpenAIIntegration::normalizeStringOrTokenArray($prompt);
-            } else {
+            } elseif (\is_array($prompt)) {
                 foreach ($prompt as $idx => $value) {
                     $span->meta["openai.request.prompt.$idx"] = OpenAIIntegration::normalizeStringOrTokenArray($value);
                 }
@@ -420,40 +420,44 @@ class OpenAIIntegration extends Integration
             case 'createImage':
             case 'createImageEdit':
             case 'createImageVariation':
-                OpenAIIntegration::commonCreateImageRequestExtraction($payload);
+                $tags = OpenAIIntegration::commonCreateImageRequestExtraction($payload);
                 break;
 
             case 'createChatCompletion':
-                OpenAIIntegration::createChatCompletionRequestExtraction($payload);
+                $tags = OpenAIIntegration::createChatCompletionRequestExtraction($payload);
                 break;
 
             case 'createFile':
             case 'retrieveFile':
-                OpenAIIntegration::commonFileRequestExtraction($payload);
+                $tags = OpenAIIntegration::commonFileRequestExtraction($payload);
 
             case 'createTranscription':
             case 'createTranslation':
-                OpenAIIntegration::commonCreateAudioRequestExtraction($payload);
+                $tags = OpenAIIntegration::commonCreateAudioRequestExtraction($payload);
                 break;
 
             case 'retrieveModel':
-                OpenAIIntegration::retrieveModelRequestExtraction($payload);
+                $tags = OpenAIIntegration::retrieveModelRequestExtraction($payload);
                 break;
 
             case 'listFineTuneEvents':
             case 'retrieveFineTune':
             case 'deleteModel':
             case 'cancelFineTune':
-                OpenAIIntegration::commonLookupFineTuneRequestExtraction($payload);
+                $tags = OpenAIIntegration::commonLookupFineTuneRequestExtraction($payload);
                 break;
 
             case 'createEdit':
-                OpenAIIntegration::createEditRequestExtraction($payload);
+                $tags = OpenAIIntegration::createEditRequestExtraction($payload);
                 break;
         }
 
         foreach ($tags as $key => $value) {
-            if (!\is_null($value)) {
+            if (\is_null($value)) {
+                continue;
+            } elseif (\is_numeric($value)) {
+                $span->metrics[$key] = $value;
+            } else {
                 $span->meta[$key] = $value;
             }
         }
@@ -462,7 +466,7 @@ class OpenAIIntegration extends Integration
     public static function handleResponse(
         ?DatadogLogger $logger,
         array     $headers,
-        array     $response,
+        array|string     $response,
         string    $httpMethod,
         string    $endpoint,
         array     $args,
@@ -472,7 +476,7 @@ class OpenAIIntegration extends Integration
         $methodName = \explode('/', $span->resource)[0];
 
         if ($methodName === 'downloadFile') {
-            $response = ['file' => $response];
+            $response = ['bytes' => \strlen($response)];
         }
 
         $tags = [
@@ -553,7 +557,11 @@ class OpenAIIntegration extends Integration
         }
 
         foreach ($tags as $key => $value) {
-            if (!\is_null($value)) {
+            if (\is_null($value)) {
+                continue;
+            } elseif (\is_numeric($value)) {
+                $span->metrics[$key] = $value;
+            } else {
                 $span->meta[$key] = $value;
             }
         }
@@ -710,20 +718,23 @@ class OpenAIIntegration extends Integration
             dogstatsd_count('openai.request.error', 1, $tags);
         }
 
-        $usage = $response['usage'] ?? null;
-        if ($usage) {
-            $promptTokens = (int)$usage['prompt_tokens'];
-            $completionTokens = (int)$usage['completion_tokens'];
+        $promptTokens = (int)($response['usage']['prompt_tokens'] ?? 0);
+        $completionTokens = (int)($response['usage']['completion_tokens'] ?? 0);
+        if ($promptTokens) {
             dogstatsd_distribution(
                 'openai.tokens.prompt',
                 $promptTokens,
                 $tags
             );
+        }
+        if ($completionTokens) {
             dogstatsd_distribution(
                 'openai.tokens.completion',
                 $completionTokens,
                 $tags
             );
+        }
+        if ($promptTokens || $completionTokens) {
             dogstatsd_distribution(
                 'openai.tokens.total',
                 $promptTokens + $completionTokens,
@@ -811,10 +822,20 @@ class OpenAIIntegration extends Integration
 
     public static function commonCreateAudioRequestExtraction(array $payload): array
     {
+        $filename = null;
+        if (isset($payload['file']) && is_resource($payload['file'])) {
+            $metadata = stream_get_meta_data($payload['file']);
+            $uri = $metadata['uri'];
+            $filename = basename($uri);
+        } elseif (isset($payload['file']) && is_string($payload['file'])) {
+            $filename = basename($payload['file']);
+        }
+
+
         return [
             'openai.request.response_format' => $payload['response_format'] ?? null,
             'openai.request.language' => $payload['language'] ?? null,
-            'openai.request.filename' => $payload['file'] ?? null,
+            'openai.request.filename' => $filename,
         ];
     }
 
@@ -850,13 +871,19 @@ class OpenAIIntegration extends Integration
             return $tags;
         }
 
-        $tags['openai.response.flagged'] = $payload['results']['flagged'];
+        if (isset($payload['results'][0]) && is_array($payload['results'][0])) {
+            $payload['results'] = $payload['results'][0];
+        }
 
-        foreach ($payload['results']['categories'] as $category => $flag) {
+        $tags['openai.response.flagged'] = filter_var($payload['results']['flagged'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+
+        $categories = $payload['results']['categories'] ?? [];
+        foreach ($categories as $category => $flag) {
             $tags["openai.response.categories.$category"] = $flag;
         }
 
-        foreach ($payload['results']['category_scores'] as $category_score => $score) {
+        $category_scores = $payload['results']['category_scores'] ?? [];
+        foreach ($category_scores as $category_score => $score) {
             $tags["openai.response.category_scores.$category_score"] = $score;
         }
 
@@ -949,8 +976,8 @@ class OpenAIIntegration extends Integration
             'openai.response.hyperparams.prompt_loss_weight' => $payload['hyperparams']['prompt_loss_weight'] ?? null,
             'openai.response.hyperparams.learning_rate_multiplier' => $payload['hyperparams']['learning_rate_multiplier'] ?? null,
             //'openai.response.training_files_count' => \count($)
-            'openai.response.updated_at' => $payload['updated_at'],
-            'openai.response.status' => $payload['status'],
+            'openai.response.updated_at' => $payload['updated_at'] ?? null,
+            'openai.response.status' => $payload['status'] ?? null,
         ];
     }
 

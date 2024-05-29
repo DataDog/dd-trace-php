@@ -1,0 +1,51 @@
+[[
+  {
+    "name": "openai.request",
+    "service": "phpunit",
+    "resource": "retrieveFineTune",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "openai",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "6657419100000000",
+      "openai.api_base": "https://api.openai.com/v1/",
+      "openai.organization.id": "org-jwe45798ASN82s",
+      "openai.organization.name": "org-1234",
+      "openai.request.endpoint": "/v1/fine-tunes/*",
+      "openai.request.fine_tune_id": "ftjob-AF1WoRqd3aJAHsqc9NY7iL8F",
+      "openai.request.method": "GET",
+      "openai.response.fine_tuned_model": "ft:gpt-3.5-turbo-0613:jwe-dev::7qnxQ0sQ",
+      "openai.response.model": "gpt-3.5-turbo-instruct",
+      "openai.response.status": "succeeded",
+      "openai.user.api_key": "sk-...9d5d",
+      "runtime-id": "ecfe65fb-ad05-4a4b-b4b9-b94f81d2358a",
+      "span.kind": "client"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_dd.measured": 1,
+      "_sampling_priority_v1": 1,
+      "openai.response.created_at": 1614807352,
+      "openai.response.id": 42
+    }
+  },
+     {
+       "name": "Psr\\Http\\Client\\ClientInterface.sendRequest",
+       "service": "psr18",
+       "resource": "sendRequest",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "http",
+       "meta": {
+         "_dd.base_service": "phpunit",
+         "component": "psr18",
+         "http.method": "GET",
+         "http.status_code": "200",
+         "http.url": "https://api.openai.com/v1/fine_tuning/jobs/ftjob-AF1WoRqd3aJAHsqc9NY7iL8F?foo=bar",
+         "network.destination.name": "api.openai.com",
+         "span.kind": "client"
+       }
+     }]]

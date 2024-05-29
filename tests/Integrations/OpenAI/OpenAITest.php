@@ -63,24 +63,32 @@ class OpenAITest extends IntegrationTestCase
         }
     }
 
-    public function testChatCompletionCreate()
+    private function call($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters = null): string
     {
         $server = new UDPServer('127.0.0.1', 9876);
 
-        $this->isolateTracerSnapshot(function () {
-            $response = new Response(200, ['Content-Type' => 'application/json; charset=utf-8', ...metaHeaders()], json_encode(completion()));
+        $this->isolateTracerSnapshot(function () use ($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters) {
+            $response = new Response(200, ['Content-Type' => 'application/json; charset=utf-8', ...$metaHeaders], json_encode($responseBodyArray));
             $client = mockClient($response);
-
-
-            $client->completions()->create([
-                'model' => 'da-vince',
-                'prompt' => 'hi',
-            ]);
-
+            if ($openAIParameters) {
+                $client->{$resource}()->{$openAIFn}($openAIParameters);
+            } else {
+                $client->{$resource}()->{$openAIFn}();
+            }
         });
 
         $actualMetrics = $server->dump();
         $server->close();
+
+        return $actualMetrics;
+    }
+
+    public function testCreateCompletion()
+    {
+        $actualMetrics = $this->call('completions', 'create', metaHeaders(), completion(), [
+            'model' => 'da-vince',
+            'prompt' => 'hi',
+        ]);
 
         // Check Metrics
         $expectedMetrics = <<<EOF
@@ -125,5 +133,191 @@ EOF;
         $this->assertArrayHasKey('timestamp', $logRecord);
         $this->assertArrayHasKey('dd.trace_id', $logRecord);
         $this->assertArrayHasKey('dd.span_id', $logRecord);
+    }
+
+    public function testCreateChatCompletion()
+    {
+        $actualMetrics = $this->call('chat', 'create', metaHeaders(), chatCompletion(), [
+            'model' => 'gpt-3.5-turbo',
+            'messages' => ['role' => 'user', 'content' => 'Hello!'],
+        ]);
+    }
+
+    public function testCreateEmbedding()
+    {
+        $actualMetrics = $this->call('embeddings', 'create', metaHeaders(), embeddingList(), [
+            'model' => 'text-similarity-babbage-001',
+            'input' => 'The food was delicious and the waiter...',
+        ]);
+    }
+
+    public function testListModels()
+    {
+        $actualMetrics = $this->call('models', 'list', metaHeaders(), modelList());
+    }
+
+    public function testListFiles()
+    {
+        $actualMetrics = $this->call('files', 'list', metaHeaders(), fileListResource());
+    }
+
+    public function listFineTunes()
+    {
+        $actualMetrics = $this->call('fineTuning', 'listJobs', metaHeaders(), fineTuningJobListResource(), ['limit' => 3]);
+    }
+
+    public function testRetrieveModel()
+    {
+        $actualMetrics = $this->call('models', 'retrieve', metaHeaders(), model(), 'da-vince');
+    }
+
+    public function testRetrieveFile()
+    {
+        $actualMetrics = $this->call('files', 'retrieve', metaHeaders(), fileResource(), 'file-XjGxS3KTG0uNmNOK362iJua3');
+    }
+
+    public function testRetrieveFineTune()
+    {
+        $actualMetrics = $this->call('fineTuning', 'retrieveJob', metaHeaders(), fineTuningJobRetrieveResource(), 'ftjob-AF1WoRqd3aJAHsqc9NY7iL8F');
+    }
+
+    public function testDeleteModel()
+    {
+        $actualMetrics = $this->call('models', 'delete', metaHeaders(), fineTunedModelDeleteResource(), 'curie:ft-acmeco-2021-03-03-21-44-20');
+    }
+
+    public function testDeleteFile()
+    {
+        $actualMetrics = $this->call('files', 'delete', metaHeaders(), fileDeleteResource(), 'file-XjGxS3KTG0uNmNOK362iJua3');
+    }
+
+    public function testCreateImage()
+    {
+        $actualMetrics = $this->call('images', 'create', metaHeaders(), imageCreateWithUrl(), [
+            'prompt' => 'A cute baby sea otter',
+            'n' => 1,
+            'size' => '256x256',
+            'response_format' => 'url',
+        ]);
+    }
+
+    public function testCreateImageEdit()
+    {
+        $actualMetrics = $this->call('images', 'edit', metaHeaders(), imageEditWithUrl(), [
+            'image' => fileResourceResource(),
+            'mask' => fileResourceResource(),
+            'prompt' => 'A sunlit indoor lounge area with a pool containing a flamingo',
+            'n' => 1,
+            'size' => '256x256',
+            'response_format' => 'url',
+        ]);
+    }
+
+    public function testCreateImageVariation()
+    {
+        $actualMetrics = $this->call('images', 'variation', metaHeaders(), imageVariationWithUrl(), [
+            'image' => fileResourceResource(),
+            'n' => 1,
+            'size' => '256x256',
+            'response_format' => 'url',
+        ]);
+    }
+
+    public function testCreateTranscriptionToText()
+    {
+        $actualMetrics = $this->call('audio', 'transcribe', metaHeaders(), audioTranscriptionText(), [
+            'file' => audioFileResource(),
+            'model' => 'whisper-1',
+            'response_format' => 'text',
+        ]);
+    }
+
+    public function testCreateTranscriptionToJSON()
+    {
+        $actualMetrics = $this->call('audio', 'transcribe', metaHeaders(), audioTranscriptionJSON(), [
+            'file' => audioFileResource(),
+            'model' => 'whisper-1',
+            'response_format' => 'json',
+        ]);
+    }
+
+    public function testCreateTranscriptionToVerboseJSON()
+    {
+        $actualMetrics = $this->call('audio', 'transcribe', metaHeaders(), audioTranscriptionVerboseJSON(), [
+            'file' => audioFileResource(),
+            'model' => 'whisper-1',
+            'response_format' => 'verbose_json',
+        ]);
+    }
+
+    public function testCreateTranslationToText()
+    {
+        $actualMetrics = $this->call('audio', 'translate', metaHeaders(), audioTranslationText(), [
+            'file' => audioFileResource(),
+            'model' => 'whisper-1',
+            'response_format' => 'text',
+        ]);
+    }
+
+    public function testCreateTranslationToJSON()
+    {
+        $actualMetrics = $this->call('audio', 'translate', metaHeaders(), audioTranslationJson(), [
+            'file' => audioFileResource(),
+            'model' => 'whisper-1',
+            'response_format' => 'json',
+        ]);
+    }
+
+    public function testCreateTranslationToVerboseJSON()
+    {
+        $actualMetrics = $this->call('audio', 'translate', metaHeaders(), audioTranslationVerboseJson(), [
+            'file' => audioFileResource(),
+            'model' => 'whisper-1',
+            'response_format' => 'verbose_json',
+        ]);
+    }
+
+    public function testCreateModeration()
+    {
+        $actualMetrics = $this->call('moderations', 'create', metaHeaders(), moderationResource(), [
+            'model' => 'text-moderation-latest',
+            'input' => 'I want to kill them.',
+        ]);
+    }
+
+    public function testCreateFile()
+    {
+        $actualMetrics = $this->call('files', 'upload', metaHeaders(), fileResource(), [
+            'purpose' => 'fine-tune',
+            'file' => fileResourceResource(),
+        ]);
+    }
+
+    public function testDownloadFile()
+    {
+        $actualMetrics = $this->call('files', 'download', metaHeaders(), fileContentResource(), 'file-XjGxS3KTG0uNmNOK362iJua3');
+    }
+
+    public function testCreateJob()
+    {
+        $actualMetrics = $this->call('fineTuning', 'createJob', metaHeaders(), fineTuningJobCreateResource(), [
+            'training_file' => 'file-abc123',
+            'validation_file' => null,
+            'model' => 'gpt-3.5-turbo-0613',
+            'hyperparameters' => [
+                'n_epochs' => 4,
+            ],
+            'suffix' => null,
+        ]);
+    }
+
+    public function testCancelFineTune()
+    {
+        $actualMetrics = $this->call('fineTunes', 'cancel', metaHeaders(), [...fineTuneResource(), 'status' => 'cancelled'], 'ftjob-AF1WoRqd3aJAHsqc9NY7iL8F');
+    }
+
+    public function testListFineTuneEvents()
+    {
+        $actualMetrics = $this->call('fineTunes', 'listEvents', metaHeaders(), fineTuneListEventsResource(), 'ftjob-AF1WoRqd3aJAHsqc9NY7iL8F');
     }
 }
