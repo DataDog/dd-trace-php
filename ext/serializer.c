@@ -1017,6 +1017,10 @@ static void dd_serialize_array_metrics_recursively(zend_array *target, zend_stri
     dd_serialize_array_recursively(target, str, value, true);
 }
 
+static void dd_serialize_array_meta_struct_recursively(zend_array *target, zend_string *str, zval *value) {
+    dd_serialize_array_recursively(target, str, value, false);
+}
+
 struct iter {
     // caller owns key/value
     bool (*next)(struct iter *self, zend_string **key, zend_string **value);
@@ -1792,6 +1796,23 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("metrics"), &metrics_zv);
     } else {
         zend_array_destroy(Z_ARR(metrics_zv));
+    }
+
+    zend_array *meta_struct = ddtrace_property_array(&span->property_meta_struct);
+    zval meta_struct_zv;
+    array_init(&meta_struct_zv);
+    zend_string *ms_str_key;
+    zval *ms_val;
+    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(meta_struct, ms_str_key, ms_val) {
+        if (ms_str_key) {
+            dd_serialize_array_meta_struct_recursively(Z_ARRVAL(meta_struct_zv), ms_str_key, ms_val);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    if (zend_hash_num_elements(Z_ARR(meta_struct_zv))) {
+        zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("meta_struct"), &meta_struct_zv);
+    } else {
+        zend_array_destroy(Z_ARR(meta_struct_zv));
     }
 
     add_next_index_zval(array, el);

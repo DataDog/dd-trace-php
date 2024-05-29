@@ -95,6 +95,11 @@ namespace DDTrace {
         public string $version = "";
 
         /**
+         * @var array TBC
+         */
+        public array $meta_struct = [];
+
+        /**
          * @var string|null The type of request which can be set to: web, db, cache, or custom (Optional). Inherited
          * from parent.
          */

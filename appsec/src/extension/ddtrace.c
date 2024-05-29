@@ -26,6 +26,7 @@ static bool _ddtrace_loaded;
 static zend_string *_ddtrace_root_span_fname;
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
+static zend_string *_meta_struct_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
 static uint8_t *_ddtrace_runtime_id = NULL;
 
@@ -106,6 +107,8 @@ void dd_trace_startup()
         LSTRARG("ddtrace\\root_span"), 1 /* permanent */);
     _meta_propname = zend_string_init_interned(LSTRARG("meta"), 1);
     _metrics_propname = zend_string_init_interned(LSTRARG("metrics"), 1);
+    _meta_struct_propname =
+        zend_string_init_interned(LSTRARG("meta_struct"), 1);
 
     if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
@@ -285,6 +288,11 @@ zval *nullable dd_trace_span_get_metrics(zend_object *nonnull zobj)
     return _get_span_modifiable_array_property(zobj, _metrics_propname);
 }
 
+zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
+{
+    return _get_span_modifiable_array_property(zobj, _meta_struct_propname);
+}
+
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 {
@@ -429,6 +437,58 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_metrics) // NOLINT
     }
 }
 
+bool dd_trace_span_add_meta_struct(
+    zend_object *nonnull span, zend_string *nonnull key, zval *nonnull value)
+{
+    zval *meta_struct = dd_trace_span_get_meta_struct(span);
+    if (!meta_struct) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_warning, "Failed to retrieve root span meta struct");
+        }
+        zval_ptr_dtor(value);
+        return false;
+    }
+
+    if (Z_TYPE_P(value) == IS_STRING) {
+        mlog(dd_log_debug,
+            "Adding to root meta struct span the key '%s' with value '%s'",
+            ZSTR_VAL(key), Z_STRVAL_P(value));
+    } else {
+        mlog(dd_log_debug, "Adding to root meta struct span the key '%s'",
+            ZSTR_VAL(key));
+    }
+
+    if (zend_hash_add(Z_ARRVAL_P(meta_struct), key, value) == NULL) {
+        zval_ptr_dtor(value);
+        return false;
+    }
+
+    return true;
+}
+
+static PHP_FUNCTION(datadog_appsec_testing_root_span_add_meta_struct) // NOLINT
+{
+    zend_string *key = NULL;
+    zval *value = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sz", &key, &value) != SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    if (!key || !value || Z_TYPE_P(value) != IS_STRING) {
+        RETURN_FALSE;
+    }
+
+    __auto_type root_span = dd_trace_get_active_root_span();
+    if (!root_span) {
+        RETURN_FALSE;
+    }
+
+    Z_TRY_ADDREF_P(value);
+    bool result = dd_trace_span_add_meta_struct(root_span, key, value);
+
+    RETURN_BOOL(result);
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_get_formatted_runtime_id) // NOLINT
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -458,11 +518,17 @@ ZEND_ARG_TYPE_INFO(0, tag, IS_STRING, 0)
 ZEND_ARG_TYPE_INFO(0, value, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_root_span_add_meta_struct, 0, 0, _IS_BOOL, 2)
+ZEND_ARG_TYPE_INFO(0, tag, IS_STRING, 0)
+ZEND_ARG_TYPE_INFO(0, value, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "ddtrace_rshutdown", PHP_FN(datadog_appsec_testing_ddtrace_rshutdown), void_ret_bool_arginfo, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_tag", PHP_FN(datadog_appsec_testing_root_span_add_tag), arginfo_root_span_add_tag, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta", PHP_FN(datadog_appsec_testing_root_span_get_meta), void_ret_nullable_array, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_metrics", PHP_FN(datadog_appsec_testing_root_span_get_metrics), void_ret_nullable_array, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_meta_struct", PHP_FN(datadog_appsec_testing_root_span_add_meta_struct), arginfo_root_span_add_meta_struct, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "get_formatted_runtime_id", PHP_FN(datadog_appsec_testing_get_formatted_runtime_id), void_ret_nullable_string, 0)
     PHP_FE_END
 };

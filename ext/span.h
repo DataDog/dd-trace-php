@@ -45,6 +45,7 @@ typedef union ddtrace_span_properties {
         zval property_service;
         zval property_env;
         zval property_version;
+        zval property_meta_struct;
         zval property_type;
         zval property_meta;
         zval property_metrics;
