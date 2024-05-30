@@ -30,7 +30,7 @@
       "_sampling_priority_v1": 1,
       "openai.response.duration": 2.95,
       "openai.response.id": 42,
-      "openai.response.segments_count": 0
+      "openai.response.segments_count": 1
     }
   },
      {

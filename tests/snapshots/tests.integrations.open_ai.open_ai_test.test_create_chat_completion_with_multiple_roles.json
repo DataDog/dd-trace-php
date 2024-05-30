@@ -2,25 +2,27 @@
   {
     "name": "openai.request",
     "service": "phpunit",
-    "resource": "createTranslation/whisper-1",
+    "resource": "createChatCompletion/gpt-4o",
     "trace_id": 0,
     "span_id": 1,
     "parent_id": 0,
     "type": "openai",
     "meta": {
       "_dd.p.dm": "0",
-      "_dd.p.tid": "66588d6500000000",
+      "_dd.p.tid": "66588cfe00000000",
       "openai.api_base": "https://api.openai.com/v1/",
       "openai.organization.name": "org-1234",
-      "openai.request.endpoint": "/v1/audio/translations",
-      "openai.request.filename": "audio.mp3",
+      "openai.request.endpoint": "/v1/chat/completions",
+      "openai.request.message.0.content": "You are a helpful assistant.",
+      "openai.request.message.0.role": "system",
+      "openai.request.message.1.content": "Hello!",
+      "openai.request.message.1.role": "user",
       "openai.request.method": "POST",
-      "openai.request.model": "whisper-1",
-      "openai.request.prompt": "Translate the following audio",
-      "openai.request.response_format": "text",
-      "openai.request.temperature": "0.7",
+      "openai.request.model": "gpt-4o",
+      "openai.response.choices.0.finish_reason": "stop",
+      "openai.response.choices.0.message.content": "\\n\\nHello there, how may I assist you today?",
+      "openai.response.choices.0.message.role": "assistant",
       "openai.response.model": "gpt-3.5-turbo-instruct",
-      "openai.response.text": "Hello, how are you?",
       "openai.user.api_key": "sk-...9d5d",
       "runtime-id": "e2019ac0-83a6-472c-8fb8-b2ebead563df",
       "span.kind": "client"
@@ -29,8 +31,12 @@
       "_dd.agent_psr": 1,
       "_dd.measured": 1,
       "_sampling_priority_v1": 1,
+      "openai.response.choices_count": 1,
+      "openai.response.created": 1677652288,
       "openai.response.id": 42,
-      "openai.response.segments_count": 0
+      "openai.response.usage.completion_tokens": 12,
+      "openai.response.usage.prompt_tokens": 9,
+      "openai.response.usage.total_tokens": 21
     }
   },
      {
@@ -46,7 +52,7 @@
          "component": "psr18",
          "http.method": "POST",
          "http.status_code": "200",
-         "http.url": "https://api.openai.com/v1/audio/translations?foo=bar",
+         "http.url": "https://api.openai.com/v1/chat/completions?foo=bar",
          "network.destination.name": "api.openai.com",
          "span.kind": "client"
        }

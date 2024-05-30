@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Integrations\OpenAI;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\UDPServer;
 use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\Psr7\Stream;
 use Http\Discovery\Psr18ClientDiscovery;
 use Mockery;
 use OpenAI\Client;
@@ -83,6 +84,29 @@ class OpenAITest extends IntegrationTestCase
         return $actualMetrics;
     }
 
+    private function callStreamed($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters = null): string
+    {
+        $server = new UDPServer('127.0.0.1', 9876);
+
+        $this->isolateTracerSnapshot(function () use ($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters) {
+            $response = new Response(
+                headers: $metaHeaders,
+                body: new Stream($responseBodyArray)
+            );
+            $client = mockClient($response);
+            if ($openAIParameters) {
+                $client->{$resource}()->{$openAIFn}($openAIParameters);
+            } else {
+                $client->{$resource}()->{$openAIFn}();
+            }
+        });
+
+        $actualMetrics = $server->dump();
+        $server->close();
+
+        return $actualMetrics;
+    }
+
     public function testCreateCompletion()
     {
         $actualMetrics = $this->call('completions', 'create', metaHeaders(), completion(), [
@@ -140,6 +164,85 @@ EOF;
         $actualMetrics = $this->call('chat', 'create', metaHeaders(), chatCompletion(), [
             'model' => 'gpt-3.5-turbo',
             'messages' => ['role' => 'user', 'content' => 'Hello!'],
+        ]);
+    }
+
+    public function testCreateChatCompletionWithMultipleRoles()
+    {
+        $actualMetrics = $this->call('chat', 'create', metaHeaders(), chatCompletionDefaultExample(), [
+            'model' => 'gpt-4o',
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => 'You are a helpful assistant.',
+                ],
+                [
+                    'role' => 'user',
+                    'content' => 'Hello!',
+                ]
+            ]
+        ]);
+    }
+
+    public function testCreateChatCompletionWithImageInput()
+    {
+        $actualMetrics = $this->call('chat', 'create', metaHeaders(), chatCompletionFromImageInput(), [
+            'model' => 'gpt-4-turbo',
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => [
+                        [
+                            'type' => 'text',
+                            'text' => "What's in this image?",
+                        ],
+                        [
+                            'type' => 'image_url',
+                            'image_url' => [
+                                'url' => 'https://example.com/image.jpg',
+                            ],
+                        ]
+                    ]
+                ]
+            ],
+            'max_tokens' => 300,
+        ]);
+    }
+
+    public function testCreateChatCompletionWithFunctions()
+    {
+        $actualMetrics = $this->call('chat', 'create', metaHeaders(), chatCompletionWithFunctions(), [
+            'model' => 'gpt-4-turbo',
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => "What's the weather like in Boston today?",
+                ]
+            ],
+            'tools' => [
+                [
+                    'type' => 'function',
+                    'function' => [
+                        'name' => 'get_current_weather',
+                        'description' => 'Get the current weather in a given location',
+                        'parameters' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'location' => [
+                                    'type' => 'string',
+                                    'description' => 'The city and state, e.g. San Francisco, CA'
+                                ],
+                                'unit' => [
+                                    'type' => 'string',
+                                    'enum' => ['celsius', 'fahrenheit']
+                                ],
+                            ],
+                            'required' => ['location'],
+                        ]
+                    ]
+                ]
+            ],
+            'tool_choice' => 'auto'
         ]);
     }
 
@@ -229,6 +332,9 @@ EOF;
             'file' => audioFileResource(),
             'model' => 'whisper-1',
             'response_format' => 'text',
+            'language' => 'en-US',
+            'prompt' => 'Transcribe the following audio',
+            'temperature' => 0.7
         ]);
     }
 
@@ -256,6 +362,8 @@ EOF;
             'file' => audioFileResource(),
             'model' => 'whisper-1',
             'response_format' => 'text',
+            'prompt' => 'Translate the following audio',
+            'temperature' => 0.7
         ]);
     }
 
@@ -319,5 +427,28 @@ EOF;
     public function testListFineTuneEvents()
     {
         $actualMetrics = $this->call('fineTunes', 'listEvents', metaHeaders(), fineTuneListEventsResource(), 'ftjob-AF1WoRqd3aJAHsqc9NY7iL8F');
+    }
+
+    // Streamed Responses
+
+    public function testCreateCompletionStream()
+    {
+        $actualMetrics = $this->callStreamed('completions', 'createStreamed', metaHeaders(), completionStream(), [
+            'model' => 'gpt-3.5-turbo-instruct',
+            'prompt' => 'hi',
+        ]);
+    }
+
+    public function testCreateChatCompletionStream()
+    {
+        $actualMetrics = $this->callStreamed('chat', 'createStreamed', metaHeaders(), chatCompletionStream(), [
+            'model' => 'gpt-3.5-turbo',
+            'messages' => ['role' => 'user', 'content' => 'Hello!'],
+        ]);
+    }
+
+    public function testListFineTuneEventsStream()
+    {
+        $actualMetrics = $this->callStreamed('fineTunes', 'listEventsStreamed', metaHeaders(), fineTuneListEventsStream(), 'ft-MaoEAULREoazpupm8uB7qoIl');
     }
 }

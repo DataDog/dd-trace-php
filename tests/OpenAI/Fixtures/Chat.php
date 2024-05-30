@@ -30,16 +30,13 @@ function chatCompletion(): array
     ];
 }
 
-/**
- * @return array<string, mixed>
- */
-function chatCompletionWithSystemFingerprint(): array
+function chatCompletionDefaultExample(): array
 {
     return [
         'id' => 'chatcmpl-123',
         'object' => 'chat.completion',
         'created' => 1677652288,
-        'model' => 'gpt-3.5-turbo',
+        'model' => 'gpt-3.5-turbo-0125',
         'system_fingerprint' => 'fp_44709d6fcb',
         'choices' => [
             [
@@ -48,6 +45,7 @@ function chatCompletionWithSystemFingerprint(): array
                     'role' => 'assistant',
                     'content' => "\n\nHello there, how may I assist you today?",
                 ],
+                'logprobs' => null,
                 'finish_reason' => 'stop',
             ],
         ],
@@ -59,163 +57,25 @@ function chatCompletionWithSystemFingerprint(): array
     ];
 }
 
-/**
- * @return array<string, mixed>
- */
-function chatCompletionWithFunction(): array
-{
-    return [
-        'id' => 'chatcmpl-123',
-        'object' => 'chat.completion',
-        'created' => 1686689333,
-        'model' => 'gpt-3.5-turbo-0613',
-        'choices' => [
-            [
-                'index' => 0,
-                'message' => [
-                    'role' => 'assistant',
-                    'content' => null,
-                    'function_call' => [
-                        'name' => 'get_current_weather',
-                        'arguments' => "{\n  \"location\": \"Boston, MA\"\n}",
-                    ],
-                ],
-                'finish_reason' => 'function_call',
-            ],
-        ],
-        'usage' => [
-            'prompt_tokens' => 82,
-            'completion_tokens' => 18,
-            'total_tokens' => 100,
-        ],
-    ];
-}
-
-/**
- * @return array<string, mixed>
- */
-function chatCompletionWithToolCalls(): array
-{
-    return [
-        'id' => 'chatcmpl-123',
-        'object' => 'chat.completion',
-        'created' => 1699333252,
-        'model' => 'gpt-3.5-turbo-0613',
-        'choices' => [
-            [
-                'index' => 0,
-                'message' => [
-                    'role' => 'assistant',
-                    'content' => null,
-                    'tool_calls' => [
-                        [
-                            'id' => 'call_trlgKnhMpYSC7CFXKw3CceUZ',
-                            'type' => 'function',
-                            'function' => [
-                                'name' => 'get_current_weather',
-                                'arguments' => "{\n  \"location\": \"Boston, MA\"\n}",
-                            ],
-                        ],
-                    ],
-                ],
-                'finish_reason' => 'tool_calls',
-            ],
-        ],
-        'usage' => [
-            'prompt_tokens' => 71,
-            'completion_tokens' => 17,
-            'total_tokens' => 88,
-        ],
-    ];
-}
-
-/**
- * @return array<string, mixed>
- */
-function chatCompletionMessageWithFunctionAndNoContent(): array
-{
-    return [
-        'role' => 'assistant',
-        'function_call' => [
-            'name' => 'get_current_weather',
-            'arguments' => "{\n  \"location\": \"Boston, MA\"\n}",
-        ],
-    ];
-}
-
-/**
- * @return array<string, mixed>
- */
-function chatCompletionFromVision(): array
+function chatCompletionFromImageInput(): array
 {
     return [
         'id' => 'chatcmpl-123',
         'object' => 'chat.completion',
         'created' => 1677652288,
-        'model' => 'gpt-4-1106-vision-preview',
+        'model' => 'gpt-3.5-turbo-0125',
+        'system_fingerprint' => 'fp_44709d6fcb',
         'choices' => [
             [
                 'index' => 0,
                 'message' => [
                     'role' => 'assistant',
-                    'content' => 'The image shows a beautiful, tranquil natural landscape. A wooden boardwalk path stretches',
+                    'content' => "\n\nThis image shows a wooden boardwalk extending through a lush green marshland.",
                 ],
+                'logprobs' => null,
+                'finish_reason' => 'stop',
             ],
         ],
-        'usage' => [
-            'prompt_tokens' => 1114,
-            'completion_tokens' => 16,
-            'total_tokens' => 1130,
-        ],
-    ];
-}
-
-function chatCompletionStreamFirstChunk(): array
-{
-    return [
-        'id' => 'chatcmpl-6wdIE4DsUtqf1srdMTsfkJp0VWZgz',
-        'object' => 'chat.completion.chunk',
-        'created' => 1679432086,
-        'model' => 'gpt-4-0314',
-        'choices' => [
-            [
-                'index' => 0,
-                'delta' => [
-                    'role' => 'assistant',
-                ],
-                'finish_reason' => null,
-            ],
-        ],
-    ];
-}
-
-function chatCompletionStreamContentChunk(): array
-{
-    return [
-        'id' => 'chatcmpl-6wdIE4DsUtqf1srdMTsfkJp0VWZgz',
-        'object' => 'chat.completion.chunk',
-        'created' => 1679432086,
-        'model' => 'gpt-4-0314',
-        'choices' => [
-            [
-                'index' => 0,
-                'delta' => [
-                    'content' => 'Hello',
-                ],
-                'finish_reason' => null,
-            ],
-        ],
-    ];
-}
-
-function chatCompletionStreamUsageChunk(): array
-{
-    return [
-        'id' => 'chatcmpl-6wdIE4DsUtqf1srdMTsfkJp0VWZgz',
-        'object' => 'chat.completion.chunk',
-        'created' => 1679432086,
-        'model' => 'gpt-4-0314',
-        'choices' => [],
         'usage' => [
             'prompt_tokens' => 9,
             'completion_tokens' => 12,
@@ -224,71 +84,39 @@ function chatCompletionStreamUsageChunk(): array
     ];
 }
 
-function chatCompletionStreamFunctionCallChunk(): array
-{
-    return [
-        'id' => 'chatcmpl-6wdIE4DsUtqf1srdMTsfkJp0VWZgz',
-        'object' => 'chat.completion.chunk',
-        'created' => 1679432086,
-        'model' => 'gpt-4-0314',
-        'choices' => [
-            [
-                'index' => 0,
-                'delta' => [
-                    'content' => null,
-                    'function_call' => [
-                        'name' => 'get_current_weather',
-                        'arguments' => '',
-                    ],
-                ],
-                'finish_reason' => null,
-            ],
-        ],
-    ];
-}
 
-function chatCompletionStreamToolCallsChunk(): array
+function chatCompletionWithFunctions(): array
 {
     return [
-        'id' => 'chatcmpl-6wdIE4DsUtqf1srdMTsfkJp0VWZgz',
-        'object' => 'chat.completion.chunk',
-        'created' => 1679432086,
-        'model' => 'gpt-4-0314',
+        'id' => 'chatcmpl-abc123',
+        'object' => 'chat.completion',
+        'created' => 1699896916,
+        'model' => 'gpt-3.5-turbo-0125',
         'choices' => [
             [
                 'index' => 0,
-                'delta' => [
+                'message' => [
+                    'role' => 'assistant',
+                    'content' => null,
                     'tool_calls' => [
                         [
-                            'id' => 'call_trlgKnhMpYSC7CFXKw3CceUZ',
+                            'id' => 'call_abc123',
                             'type' => 'function',
                             'function' => [
                                 'name' => 'get_current_weather',
-                                'arguments' => '',
+                                'arguments' => "{\n\"location\": \"Boston, MA\"\n}",
                             ],
                         ],
                     ],
                 ],
-                'finish_reason' => null,
+                'logprobs' => null,
+                'finish_reason' => 'tool_calls',
             ],
         ],
-    ];
-}
-
-function chatCompletionStreamVisionContentChunk(): array
-{
-    return [
-        'id' => 'chatcmpl-6wdIE4DsUtqf1srdMTsfkJp0VWZgz',
-        'object' => 'chat.completion.chunk',
-        'created' => 1679432086,
-        'model' => 'gpt-4-1106-vision-preview',
-        'choices' => [
-            [
-                'index' => 0,
-                'delta' => [
-                    'content' => 'This',
-                ],
-            ],
+        'usage' => [
+            'prompt_tokens' => 82,
+            'completion_tokens' => 17,
+            'total_tokens' => 99,
         ],
     ];
 }

@@ -76,27 +76,6 @@ function audioTranscriptionText(): string
     return 'Hello, how are you?';
 }
 
-function audioTranscriptionVtt(): string
-{
-    return <<<'VTT'
-WEBVTT
-
-00:00:00.000 --> 00:00:04.000
-Hello, how are you?
-
-VTT;
-}
-
-function audioTranscriptionSrt(): string
-{
-    return <<<'SRT'
-1
-00:00:00,000 --> 00:00:04,000
-Hello, how are you?
-
-SRT;
-}
-
 /**
  * @return array<string, mixed>
  */
@@ -149,44 +128,10 @@ function audioTranslationText(): string
     return 'Hello, how are you?';
 }
 
-function audioTranslationVtt(): string
-{
-    return <<<'VTT'
-WEBVTT
-
-00:00:00.000 --> 00:00:04.000
-Hello, how are you?
-
-VTT;
-}
-
-function audioTranslationSrt(): string
-{
-    return <<<'SRT'
-1
-00:00:00,000 --> 00:00:04,000
-Hello, how are you?
-
-SRT;
-}
-
 /**
  * @return resource
  */
 function audioFileResource()
 {
     return fopen(__DIR__.'/audio.mp3', 'r');
-}
-
-function audioFileContent(): string
-{
-    return file_get_contents(__DIR__.'/audio.mp3');
-}
-
-/**
- * @return resource
- */
-function speechStream()
-{
-    return fopen(__DIR__.'/Streams/Speech.mp3', 'r');
 }

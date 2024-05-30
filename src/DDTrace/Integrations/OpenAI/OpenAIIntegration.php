@@ -56,8 +56,6 @@ class OpenAIIntegration extends Integration
     {
         $logger = \dd_trace_env_config('DD_OPENAI_LOGS_ENABLED') ? new DatadogLogger() : null;
 
-        $errorStorage = [];
-
         $targets = [
             ['OpenAI\Resources\Completions', 'create', 'createCompletion', 'POST', '/v1/completions'],
             ['OpenAI\Resources\Chat', 'create', 'createChatCompletion', 'POST', '/v1/chat/completions'],
@@ -81,6 +79,12 @@ class OpenAIIntegration extends Integration
             ['OpenAI\Resources\FineTuning', 'createJob', 'createFineTune', 'POST', '/v1/fine-tunes'],
             ['OpenAI\Resources\FineTunes', 'cancel', 'cancelFineTune', 'POST', '/v1/fine-tunes/*/cancel'],
             ['OpenAI\Resources\FineTunes', 'listEvents', 'listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events'],
+        ];
+
+        $streamedTargets = [
+            ['OpenAI\Resources\Completions', 'createStreamed', 'createCompletion', 'POST', '/v1/completions'],
+            ['OpenAI\Resources\Chat', 'createStreamed', 'createChatCompletion', 'POST', '/v1/chat/completions'],
+            ['OpenAI\Resources\FineTunes', 'listEventsStreamed', 'listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events'],
         ];
 
         \DDTrace\hook_method(
@@ -140,12 +144,51 @@ class OpenAIIntegration extends Integration
                             apiKey: $clientData['apiKey'],
                         );
                     },
-                    'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $errorStorage) {
+                    'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
                         /** @var \OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract $response */
                         OpenAIIntegration::handleResponse(
+                            span: $span,
                             logger: $logger,
                             headers: method_exists($response, 'meta') ? $response->meta()->toArray() : [],
                             response: \is_string($response) ? $response : ($response ? $response->toArray() : []),
+                            httpMethod: $httpMethod,
+                            endpoint: $endpoint,
+                            args: $args,
+                        );
+                    }
+                ]
+            );
+        }
+
+        foreach ($streamedTargets as [$class, $method, $methodName, $httpMethod, $endpoint]) {
+            \DDTrace\trace_method(
+                $class,
+                $method,
+                [
+                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($methodName) {
+                        $clientData = ObjectKVStore::get($this, 'client_data');
+                        if (\is_null($clientData)) {
+                            $transporter = ObjectKVStore::get($this, 'transporter');
+                            $clientData = ObjectKVStore::get($transporter, 'client_data');
+                            ObjectKVStore::put($this, 'client_data', $clientData);
+                        }
+                        /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
+                        OpenAIIntegration::handleRequest(
+                            span: $span,
+                            methodName: $methodName,
+                            args: $args,
+                            basePath: $clientData['baseUri'],
+                            apiKey: $clientData['apiKey'],
+                            streamed: true
+                        );
+                    },
+                    'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
+                        /** @var \OpenAI\Responses\StreamResponse $response */
+                        OpenAIIntegration::handleStreamedResponse(
+                            span: $span,
+                            logger: $logger,
+                            headers: method_exists($response, 'meta') ? $response->meta()->toArray() : [],
+                            response: \is_string($response) ? $response : ($response ? $response->getIterator() : []),
                             httpMethod: $httpMethod,
                             endpoint: $endpoint,
                             args: $args,
@@ -159,7 +202,7 @@ class OpenAIIntegration extends Integration
             'OpenAI\ValueObjects\Transporter\Response',
             'from',
             null,
-            function ($This, $scope, $args) use (&$errorStorage) {
+            function ($This, $scope, $args) {
                 /** @var \OpenAI\ValueObjects\Transporter\Response $response */
                 $data = $args[0];
 
@@ -298,7 +341,6 @@ class OpenAIIntegration extends Integration
                     'file_id' => $args[0],
                 ];
 
-            // TODO: Handle Streamed Version
             case 'listFineTuneEvents': // public function listEvents(string $fineTuneId): ListEventsResponse
                 return [
                     'fine_tune_id' => $args[0],
@@ -359,7 +401,8 @@ class OpenAIIntegration extends Integration
         string   $methodName,
         array    $args,
         string   $basePath,
-        string   $apiKey
+        string   $apiKey,
+        bool     $streamed = false
     )
     {
         $payload = OpenAIIntegration::normalizeRequestPayload($methodName, $args);
@@ -378,17 +421,34 @@ class OpenAIIntegration extends Integration
             }
         }
 
-        // createChatCompletion, createCompletion, createImage, createImageEdit, createTranscription, createTranslation
-        if (array_key_exists('prompt', $payload)
-            && OpenAIIntegration::shouldSample(\dd_trace_env_config('DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE'))
-        ) {
+        $tags = [];
+
+        // createCompletion, createImage, createImageEdit, createTranscription, createTranslation
+        if (array_key_exists('prompt', $payload)) {
             $prompt = $payload['prompt'];
-            if (\is_string($prompt)) {
-                $span->meta["openai.request.prompt"] = OpenAIIntegration::normalizeStringOrTokenArray($prompt);
-            } elseif (\is_array($prompt)) {
-                foreach ($prompt as $idx => $value) {
-                    $span->meta["openai.request.prompt.$idx"] = OpenAIIntegration::normalizeStringOrTokenArray($value);
+            if (OpenAIIntegration::shouldSample(\dd_trace_env_config('DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE'))) {
+                if (\is_string($prompt)) {
+                    $span->meta["openai.request.prompt"] = OpenAIIntegration::normalizeStringOrTokenArray($prompt);
+                } elseif (\is_array($prompt)) {
+                    foreach ($prompt as $idx => $value) {
+                        $span->meta["openai.request.prompt.$idx"] = OpenAIIntegration::normalizeStringOrTokenArray($value);
+                    }
                 }
+            }
+
+            if ($streamed) {
+                $numPromptTokens = 0;
+
+                if (\is_string($prompt)) {
+                    $numPromptTokens += self::estimateTokens($prompt);
+                } elseif (\is_array($prompt)) {
+                    foreach ($prompt as $value) {
+                        $numPromptTokens += self::estimateTokens($value);
+                    }
+                }
+
+                $tags['openai.request.prompt_tokens_estimated'] = 1;
+                $tags['openai.response.usage.prompt_tokens'] = $numPromptTokens;
             }
         }
 
@@ -411,7 +471,10 @@ class OpenAIIntegration extends Integration
             }
         }
 
-        $tags = [];
+        if ($streamed) {
+            $tags['openai.request.streamed'] = 1;
+        }
+
         switch ($methodName) {
             case 'createFineTune':
                 $tags = OpenAIIntegration::createFineTuneRequestExtraction($payload);
@@ -424,12 +487,13 @@ class OpenAIIntegration extends Integration
                 break;
 
             case 'createChatCompletion':
-                $tags = OpenAIIntegration::createChatCompletionRequestExtraction($payload);
+                $tags = OpenAIIntegration::createChatCompletionRequestExtraction($payload, $streamed);
                 break;
 
             case 'createFile':
             case 'retrieveFile':
                 $tags = OpenAIIntegration::commonFileRequestExtraction($payload);
+                break;
 
             case 'createTranscription':
             case 'createTranslation':
@@ -464,15 +528,15 @@ class OpenAIIntegration extends Integration
     }
 
     public static function handleResponse(
-        ?DatadogLogger $logger,
-        array     $headers,
-        array|string     $response,
-        string    $httpMethod,
-        string    $endpoint,
-        array     $args,
+        SpanData        $span,
+        ?DatadogLogger  $logger,
+        array           $headers,
+        array|string    $response,
+        string          $httpMethod,
+        string          $endpoint,
+        array           $args,
     )
     {
-        $span = \DDTrace\active_span();
         $methodName = \explode('/', $span->resource)[0];
 
         if ($methodName === 'downloadFile') {
@@ -569,8 +633,9 @@ class OpenAIIntegration extends Integration
         OpenAIIntegration::sendMetrics(
             span: $span,
             headers: $headers,
-            response: $response,
-            duration: $span->getDuration()
+            duration: $span->getDuration(),
+            promptTokens: (int)($response['usage']['prompt_tokens'] ?? 0),
+            completionTokens: (int)($response['usage']['completion_tokens'] ?? 0)
         );
         /*
         OpenAIIntegration::setLLMTags(
@@ -684,8 +749,10 @@ class OpenAIIntegration extends Integration
     public static function sendMetrics(
         SpanData  $span,
         array     $headers,
-        array     $response,
         int       $duration,
+        int       $promptTokens = 0,
+        int       $completionTokens = 0,
+        bool      $estimated = false
     )
     {
         if (!dd_trace_env_config('DD_OPENAI_METRICS_ENABLED')) {
@@ -702,7 +769,7 @@ class OpenAIIntegration extends Integration
             'openai.organization.name' => $span->meta['openai.organization.name'] ?? null,
             'openai.user.api_key' => $span->meta['openai.user.api_key'] ?? null,
             'openai.request.endpoint' => $span->meta['openai.request.endpoint'] ?? null,
-            'openai.estimated' => false,
+            'openai.estimated' => $estimated,
             'openai.request.error' => $span->exception ? 1 : 0,
             'error_type' => $span->meta[Tag::ERROR_TYPE] ?? null,
         ];
@@ -718,8 +785,6 @@ class OpenAIIntegration extends Integration
             dogstatsd_count('openai.request.error', 1, $tags);
         }
 
-        $promptTokens = (int)($response['usage']['prompt_tokens'] ?? 0);
-        $completionTokens = (int)($response['usage']['completion_tokens'] ?? 0);
         if ($promptTokens) {
             dogstatsd_distribution(
                 'openai.tokens.prompt',
@@ -788,25 +853,61 @@ class OpenAIIntegration extends Integration
 
     public static function commonCreateImageRequestExtraction(array $payload): array
     {
+        $image = null;
+        if (isset($payload['image']) && is_resource($payload['image'])) {
+            $metadata = stream_get_meta_data($payload['image']);
+            $uri = $metadata['uri'];
+            $image = basename($uri);
+        } elseif (isset($payload['image']) && is_string($payload['image'])) {
+            $image = basename($payload['image']);
+        }
+
+        $mask = null;
+        if (isset($payload['mask']) && is_resource($payload['mask'])) {
+            $metadata = stream_get_meta_data($payload['mask']);
+            $uri = $metadata['uri'];
+            $mask = basename($uri);
+        } elseif (isset($payload['mask']) && is_string($payload['mask'])) {
+            $mask = basename($payload['mask']);
+        }
+
         return [
-            'openai.request.image' => $payload['image'] ?? null,
-            'openai.request.mask' => $payload['mask'] ?? null,
+            'openai.request.image' => $image,
+            'openai.request.mask' => $mask,
             'openai.request.size' => $payload['size'] ?? null,
             'openai.request.response_format' => $payload['response_format'] ?? null,
             'openai.request.language' => $payload['language'] ?? null,
         ];
     }
 
-    public static function createChatCompletionRequestExtraction(array $payload): array
+    public static function createChatCompletionRequestExtraction(array $payload, bool $streamed = false): array
     {
         $messages = $payload['messages'] ?? [];
 
         $tags = [];
-        foreach ($messages as $idx => $message) {
-            $tags["openai.request.message.$idx.content"] = $message['content'] ?? null;
-            $tags["openai.request.message.$idx.role"] = $message['role'] ?? null;
-            $tags["openai.request.message.$idx.name"] = $message['name'] ?? null;
-            $tags["openai.request.message.$idx.finish_reason"] = $message['finish_reason'] ?? null;
+        if (isset($messages[0]) && is_array($messages[0])) {
+            foreach ($messages as $idx => $message) {
+                $tags["openai.request.message.$idx.content"] = $message['content'] ?? null;
+                $tags["openai.request.message.$idx.role"] = $message['role'] ?? null;
+            }
+        } else {
+            $tags['openai.request.message.0.content'] = $messages['content'] ?? null;
+            $tags['openai.request.message.0.role'] = $messages['role'] ?? null;
+        }
+
+        if ($streamed) {
+            // Iterate over the $payload['messages'] array and estimate the number of tokens
+            // Payload can be either an array ['role' => XX, 'content' => XX], or an array of these
+            $numPromptTokens = 0;
+            foreach ($messages as $key => $value) {
+                if ($key === 'content') {
+                    $numPromptTokens += self::estimateTokens($value);
+                } elseif (is_array($value) && isset($value['content'])) {
+                    $numPromptTokens += self::estimateTokens($value['content']);
+                }
+            }
+            $tags['openai.request.prompt_tokens_estimated'] = 1;
+            $tags['openai.response.usage.prompt_tokens'] = $numPromptTokens;
         }
 
         return $tags;
@@ -814,9 +915,18 @@ class OpenAIIntegration extends Integration
 
     public static function commonFileRequestExtraction(array $payload): array
     {
+        $file = null;
+        if (isset($payload['file']) && is_resource($payload['file'])) {
+            $metadata = stream_get_meta_data($payload['file']);
+            $uri = $metadata['uri'];
+            $file = basename($uri);
+        } elseif (isset($payload['file']) && is_string($payload['file'])) {
+            $file = basename($payload['file']);
+        }
+
         return [
             'openai.request.purpose' => $payload['purpose'] ?? null,
-            'openai.request.filename' => $payload['file'] ?? null,
+            'openai.request.filename' => $file,
         ];
     }
 
@@ -985,9 +1095,11 @@ class OpenAIIntegration extends Integration
     {
         return [
             'openai.response.text' => $payload['text'] ?? null,
+
+            // Verbose JSON
             'openai.response.language' => $payload['language'] ?? null,
             'openai.response.duration' => $payload['duration'] ?? null,
-            'openai.response.segments_count' => \count($payload['segments_count'] ?? []),
+            'openai.response.segments_count' => isset($payload['segments']) ? \count($payload['segments']) : null,
         ];
     }
 
@@ -1040,14 +1152,10 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    /**
-     * @param string|array $input
-     * @return string
-     */
-    public static function normalizeStringOrTokenArray(string|array $input): string
+    public static function normalizeStringOrTokenArray(string|array|null $input): string|null
     {
         if (empty($input)) {
-            return "";
+            return null;
         }
 
         if (\is_string($input)) {
@@ -1063,5 +1171,121 @@ class OpenAIIntegration extends Integration
         }
 
         return $input;
+    }
+
+    // ---
+
+    public static function handleStreamedResponse(
+        SpanData        $span,
+        ?DatadogLogger  $logger,
+        array           $headers,
+        \Generator      $response,
+        string          $httpMethod,
+        string          $endpoint,
+        array           $args,
+    )
+    {
+        $methodName = \explode('/', $span->resource)[0];
+
+        $tags = [
+            'openai.request.endpoint' => $endpoint,
+            'openai.request.method' => $httpMethod,
+            'openai.organization.name' => $headers['openai-organization'] ?? null,
+            'openai.response.model' => $headers['openai-model'] ?? null, // Specific model, often undefined
+            'openai.response.id' => $headers['x-request-id'] ?? null, // Common creation value, numeric epoch
+        ];
+
+        switch ($methodName) {
+            case 'createCompletion':
+                $tags += OpenAIIntegration::commonStreamedCreateResponseExtraction($span, $response);
+                break;
+            case 'createChatCompletion':
+                $tags += OpenAIIntegration::commonStreamedCreateChatResponseExtraction($span, $response);
+                break;
+        }
+
+        foreach ($tags as $key => $value) {
+            if (\is_null($value)) {
+                continue;
+            } elseif (\is_numeric($value)) {
+                $span->metrics[$key] = $value;
+            } else {
+                $span->meta[$key] = $value;
+            }
+        }
+
+        OpenAIIntegration::sendMetrics(
+            span: $span,
+            headers: $headers,
+            duration: $span->getDuration(),
+            promptTokens: $tags['openai.response.usage.prompt_tokens'] ?? 0,
+            completionTokens: $tags['openai.response.usage.completion_tokens'] ?? 0
+        );
+
+        OpenAIIntegration::sendLog(
+            logger: $logger,
+            span: $span,
+            methodName: $methodName
+        );
+    }
+
+    public static function commonStreamedCreateResponseExtraction(SpanData $span, \Generator $response): array
+    {
+        $numCompletionTokens = 0;
+        $current = $response->current();
+        while ($current) {
+            $numCompletionTokens += self::estimateTokens($current->toArray()['choices'][0]['text'] ?? '');
+            $response->next();
+            $current = $response->current();
+        }
+
+        $numPromptTokens = $span->metrics['openai.response.usage.prompt_tokens'] ?? 0;
+
+        return [
+            'openai.response.completion_tokens_estimated' => 1,
+            'openai.response.usage.completion_tokens' => $numCompletionTokens,
+            'openai.response.usage.total_tokens' => $numPromptTokens + $numCompletionTokens
+        ];
+    }
+
+    public static function commonStreamedCreateChatResponseExtraction(SpanData $span, \Generator $response): array
+    {
+        $numCompletionTokens = 0;
+        $current = $response->current();
+
+        while ($current) {
+            $numCompletionTokens += self::estimateTokens($current->toArray()['choices'][0]['delta']['content'] ?? '');
+            $response->next();
+            $current = $response->current();
+        }
+
+        $numPromptTokens = $span->metrics['openai.response.usage.prompt_tokens'] ?? 0;
+
+        return [
+            'openai.response.completion_tokens_estimated' => 1,
+            'openai.response.usage.completion_tokens' => $numCompletionTokens,
+            'openai.response.usage.total_tokens' => $numPromptTokens + $numCompletionTokens
+        ];
+    }
+
+    /**
+     * Provide a very rough estimate of the number of tokens.
+     * Approximate using the following assumptions:
+     * 1 token ~= 4 chars
+     * 1 token ~= ¾ words
+     * @param string|array<int> $prompt
+     * @return int
+     */
+    public static function estimateTokens(string|array $prompt): int
+    {
+        $estTokens = 0;
+        if (is_string($prompt)) {
+            $est1 = strlen($prompt) / 4;
+            $est2 = preg_match_all('/[.,!?]/', $prompt) * 0.75;
+            return round((1.5 * $est1 + 0.5 * $est2) / 2);
+        } elseif (is_array($prompt) && is_int($prompt[0])) {
+            return count($prompt);
+        }
+        return $estTokens;
     }
 }
