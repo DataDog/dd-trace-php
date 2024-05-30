@@ -414,6 +414,13 @@ static void dd_activate_once(void) {
             ddtrace_sidecar_setup();
             PG(modules_activated) = modules_activated;
         }
+#ifndef _WIN32
+        if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+            ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
+                               get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
+                               get_global_DD_TRACE_AGENT_STACK_BACKLOG());
+        }
+#endif
     }
 }
 
@@ -1134,14 +1141,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
 
     ddtrace_engine_hooks_minit();
-
-#ifndef _WIN32
-    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
-                           get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
-                           get_global_DD_TRACE_AGENT_STACK_BACKLOG());
-    }
-#endif
 
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();
