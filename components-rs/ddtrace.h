@@ -151,6 +151,11 @@ void ddog_reset_logger(void);
 
 uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
+ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
+                                         const char *error_path,
+                                         ddog_CharSlice log_level,
+                                         bool enable_telemetry);
+
 bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
                                             const struct ddog_InstanceId *instance_id,
                                             const ddog_QueueId *queue_id,
@@ -185,10 +190,5 @@ void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActi
                                                          ddog_CharSlice metric_name,
                                                          double metric_value,
                                                          ddog_CharSlice tags);
-
-ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
-                                         const char *error_path,
-                                         ddog_CharSlice log_level,
-                                         bool enable_telemetry);
 
 #endif /* DDTRACE_PHP_H */

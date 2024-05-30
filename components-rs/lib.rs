@@ -2,10 +2,10 @@
 #![feature(local_key_cell_methods)]
 
 pub mod log;
-pub mod telemetry;
 pub mod sidecar;
+pub mod telemetry;
 
-use ddcommon::container_id::{get_container_id, set_cgroup_file};
+use ddcommon::entity_id::{get_container_id, set_cgroup_file};
 use ddcommon_ffi::CharSlice;
 use uuid::Uuid;
 
