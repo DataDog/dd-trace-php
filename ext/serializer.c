@@ -1018,7 +1018,9 @@ static void dd_serialize_array_metrics_recursively(zend_array *target, zend_stri
 }
 
 static void dd_serialize_array_meta_struct_recursively(zend_array *target, zend_string *str, zval *value) {
-    dd_serialize_array_recursively(target, str, value, false);
+    zval serialised;
+    ddtrace_serialize_simple_array(value, &serialised);
+    dd_serialize_array_recursively(target, str, &serialised, false);
 }
 
 struct iter {
