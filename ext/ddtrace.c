@@ -423,6 +423,7 @@ void disable_sidecar_sending(void){
     zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].ini_entries[0]->name, zero,
                     ZEND_INI_SYSTEM, ZEND_INI_STAGE_RUNTIME);
     zend_string_release(zero);
+    ZVAL_FALSE(&zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].decoded_value);
 }
 #endif
 
