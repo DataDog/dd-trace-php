@@ -105,6 +105,9 @@ This changeset is on top of 1.0.0beta1.
 ### Added
 - Add uptime information to profiles #2610
 
+### Fixed
+- Fix exception profiling in Generator->throw() #2682
+
 ### Internal
 - Stack walking cleanup #2638
 - Shrink env/service/version and simplify #2640

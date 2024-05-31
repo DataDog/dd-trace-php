@@ -5,6 +5,7 @@
 #if CFG_FIBERS // defined by build.rs
 #include <Zend/zend_fibers.h>
 #endif
+#include <Zend/zend_generators.h>
 #include <Zend/zend_globals_macros.h>
 #include <Zend/zend_modules.h>
 #include <Zend/zend_alloc.h>

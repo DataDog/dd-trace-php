@@ -379,6 +379,22 @@ unsafe impl Sync for ModuleDep {}
 pub type InternalFunctionHandler =
     Option<unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval)>;
 
+impl datadog_php_zim_handler {
+    pub fn new(
+        class_name: &'static CStr,
+        name: &'static CStr,
+        old_handler: *mut InternalFunctionHandler,
+        new_handler: InternalFunctionHandler,
+    ) -> Self {
+        let class_name = class_name.to_bytes();
+        Self {
+            class_name: class_name.as_ptr() as *const c_char,
+            class_name_len: class_name.len(),
+            zif: datadog_php_zif_handler::new(name, old_handler, new_handler),
+        }
+    }
+}
+
 impl datadog_php_zif_handler {
     pub fn new(
         name: &'static CStr,
