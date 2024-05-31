@@ -5,7 +5,7 @@ orbs:
 parameters:
   build:
     type: boolean
-    default: true
+    default: false # FIXME: restore default value
   components-c:
     type: boolean
     default: false
@@ -16,6 +16,9 @@ parameters:
     type: boolean
     default: false
   appsec:
+    type: boolean
+    default: false
+  loader:
     type: boolean
     default: false
 
@@ -2941,6 +2944,83 @@ jobs:
             sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
             cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
 
+  "compile_loader":
+    working_directory: ~/datadog
+    parameters:
+      dd_library_package_url:
+        type: string
+      docker_image:
+        type: string
+      resource_class:
+        type: string
+        default: medium
+    <<: *BARE_DOCKER_MACHINE
+    environment:
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: << parameters.docker_image >>
+      - run:
+          name: Compile the loader extension
+          # FIXME:  -Wextra -Werror
+          command: |
+            set -eo pipefail
+            cd loader
+            phpize && ./configure
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall"
+      - run:
+          name: Download the dd-trace-php package
+          command: |
+            set -eo pipefail
+            cd loader
+            curl -Lo dd-library-php.tar.gz << parameters.dd_library_package_url >>
+            tar xzf dd-library-php.tar.gz
+      - persist_to_workspace:
+          root: '.'
+          paths: [ './loader/modules/dd_library_loader.so', './loader/dd-library-php' ]
+
+  "test_loader":
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+      resource_class:
+        type: string
+        default: medium
+    <<: *BARE_DOCKER_MACHINE
+    environment:
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: << parameters.docker_image >>
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - run:
+          name: Test the loader
+          command: |
+            set -eo pipefail
+            cd loader
+            export DD_LOADER_PACKAGE_PATH=$PWD/dd-library-php
+            php -n -v
+            echo
+            php -n -dzend_extension=$PWD/modules/dd_library_loader.so -v  | tee output.txt
+            grep -q "with ddtrace " output.txt
+            grep -q "with dd_library_loader " output.txt
+
   compile_extension_centos:
     working_directory: ~/datadog
     parameters:
@@ -5073,3 +5153,63 @@ workflows:
         docker_image: "datadog/dd-trace-ci:php-8.3_centos-7"
         triplet: "aarch64-unknown-linux-gnu"
         resource_class: "arm.medium"
+
+  loader_tests:
+    when: << pipeline.parameters.loader >>
+    jobs:
+      - "compile_loader":
+          name: "Compile Linux"
+          docker_image: "datadog/dd-trace-ci:php-8.3_buster"
+          dd_library_package_url: https://github.com/DataDog/dd-trace-php/releases/download/0.99.1/dd-library-php-0.99.1-x86_64-linux-gnu.tar.gz
+
+      - "compile_loader":
+          name: "Compile Alpine"
+          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
+          dd_library_package_url: https://github.com/DataDog/dd-trace-php/releases/download/0.99.1/dd-library-php-0.99.1-x86_64-linux-musl.tar.gz
+
+      - "test_loader":
+          requires:
+            - "Compile Linux"
+          name: "[Linux] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
+          docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
+          matrix:
+            parameters:
+              php_major_minor:
+                - "5.6"
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+              switch_php_version:
+                - debug
+                - nts
+
+      - "test_loader":
+          requires:
+            - "Compile Linux"
+          name: "[Linux] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
+          docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.4"
+                - "8.0"
+                - "8.1"
+                - "8.2"
+                - "8.3"
+              switch_php_version:
+                - debug
+                - zts
+                - nts
+
+      - "test_loader":
+          requires:
+            - "Compile Alpine"
+          name: "[Alpine] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
+          docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_alpine"
+          matrix:
+            parameters:
+              php_major_minor:
+                - "8.0"
+              switch_php_version:
+                - "8.0" # FIXME: switch-php on Alpine use the PHP version in addition to the flavour

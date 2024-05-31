@@ -124,7 +124,7 @@ static int ddloader_load_ddtrace() {
         goto abort_and_unload;
     }
 
-    // As the Zend extension are started up after the regular extension,
+    // As the Zend extensions are started up after the regular extension,
     // we need to start it up manually.
 
     module_entry->handle = handle;
