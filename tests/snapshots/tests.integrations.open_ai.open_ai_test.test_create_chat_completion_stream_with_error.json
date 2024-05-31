@@ -1,0 +1,55 @@
+[[
+  {
+    "name": "openai.request",
+    "service": "phpunit",
+    "resource": "createChatCompletion/gpt-3.5-turbo",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "openai",
+    "error": 1,
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "6659bc9300000000",
+      "error.message": "Uncaught OpenAI\\Exceptions\\ErrorException: The server had an error while processing your request. Sorry about that! in /home/circleci/app/tests/vendor/openai-php/client/src/Responses/StreamResponse.php:60",
+      "error.stack": "#0 [internal function]: OpenAI\\Responses\\StreamResponse->getIterator()\n#1 /home/circleci/app/src/DDTrace/Integrations/OpenAI/OpenAIIntegration.php(1154): Generator->valid()\n#2 /home/circleci/app/src/DDTrace/Integrations/OpenAI/OpenAIIntegration.php(1141): DDTrace\\Integrations\\OpenAI\\OpenAIIntegration::commonStreamedResponseExtraction()\n#3 /home/circleci/app/src/DDTrace/Integrations/OpenAI/OpenAIIntegration.php(1100): DDTrace\\Integrations\\OpenAI\\OpenAIIntegration::commonStreamedCreateChatResponseExtraction()\n#4 /home/circleci/app/src/DDTrace/Integrations/OpenAI/OpenAIIntegration.php(189): DDTrace\\Integrations\\OpenAI\\OpenAIIntegration::handleStreamedResponse()\n#5 /home/circleci/app/tests/vendor/openai-php/client/src/Resources/Chat.php(54): OpenAI\\Resources\\Chat->DDTrace\\Integrations\\OpenAI\\{closure}()\n#6 /home/circleci/app/tests/Integrations/OpenAI/OpenAITest.php(81): OpenAI\\Resources\\Chat->createStreamed()\n#7 /home/circleci/app/tests/Common/SnapshotTestTrait.php(343): DDTrace\\Tests\\Integrations\\OpenAI\\OpenAITest->DDTrace\\Tests\\Integrations\\OpenAI\\{closure}()\n#8 /home/circleci/app/tests/Integrations/OpenAI/OpenAITest.php(74): DDTrace\\Tests\\Common\\IntegrationTestCase->isolateTracerSnapshot()\n#9 /home/circleci/app/tests/Integrations/OpenAI/OpenAITest.php(393): DDTrace\\Tests\\Integrations\\OpenAI\\OpenAITest->callStreamed()\n#10 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(1617): DDTrace\\Tests\\Integrations\\OpenAI\\OpenAITest->testCreateChatCompletionStreamWithError()\n#11 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(1223): PHPUnit\\Framework\\TestCase->runTest()\n#12 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestResult.php(729): PHPUnit\\Framework\\TestCase->runBare()\n#13 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(973): PHPUnit\\Framework\\TestResult->run()\n#14 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestSuite.php(685): PHPUnit\\Framework\\TestCase->run()\n#15 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestSuite.php(685): PHPUnit\\Framework\\TestSuite->run()\n#16 /home/circleci/app/tests/vendor/phpunit/phpunit/src/TextUI/TestRunner.php(651): PHPUnit\\Framework\\TestSuite->run()\n#17 /home/circleci/app/tests/vendor/phpunit/phpunit/src/TextUI/Command.php(146): PHPUnit\\TextUI\\TestRunner->run()\n#18 /home/circleci/app/tests/vendor/phpunit/phpunit/src/TextUI/Command.php(99): PHPUnit\\TextUI\\Command->run()\n#19 /home/circleci/app/tests/vendor/phpunit/phpunit/phpunit(107): PHPUnit\\TextUI\\Command::main()\n#20 /home/circleci/app/tests/vendor/bin/phpunit(122): include()\n#21 {main}",
+      "error.type": "OpenAI\\Exceptions\\ErrorException",
+      "openai.api_base": "https://api.openai.com/v1/",
+      "openai.request.endpoint": "/v1/chat/completions",
+      "openai.request.message.0.content": "Hello!",
+      "openai.request.message.0.role": "user",
+      "openai.request.method": "POST",
+      "openai.request.model": "gpt-3.5-turbo",
+      "openai.user.api_key": "sk-...9d5d",
+      "runtime-id": "35488a5e-9861-4791-9161-4953aba3402e",
+      "span.kind": "client"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_dd.measured": 1,
+      "_sampling_priority_v1": 1,
+      "openai.request.prompt_tokens_estimated": 1,
+      "openai.response.completion_tokens_estimated": 1,
+      "openai.response.usage.completion_tokens": 0,
+      "openai.response.usage.prompt_tokens": 1,
+      "openai.response.usage.total_tokens": 1
+    }
+  },
+     {
+       "name": "Psr\\Http\\Client\\ClientInterface.sendRequest",
+       "service": "psr18",
+       "resource": "sendRequest",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "http",
+       "meta": {
+         "_dd.base_service": "phpunit",
+         "component": "psr18",
+         "http.method": "POST",
+         "http.status_code": "200",
+         "http.url": "https://api.openai.com/v1/chat/completions?foo=bar",
+         "network.destination.name": "api.openai.com",
+         "span.kind": "client"
+       }
+     }]]

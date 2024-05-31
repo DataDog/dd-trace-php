@@ -1,0 +1,2 @@
+openai.request.duration:4681417|d|#openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/models,openai.request.error:1,error_type:quota_exceeded
+openai.request.error:1|c|#openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/models,openai.request.error:1,error_type:quota_exceeded

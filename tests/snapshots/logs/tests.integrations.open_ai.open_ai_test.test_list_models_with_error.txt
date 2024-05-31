@@ -1,0 +1,1 @@
+{"message":"sampled listModels","context":{"openai.request.method":"GET","openai.request.endpoint":"\/v1\/models","openai.user.api_key":"sk-...9d5d"},"status":"error","timestamp":"2024-05-31T11:44:36.169200+00:00","dd.trace_id":"16941506775035015857","dd.span_id":"16941506775035015857"}

@@ -1,0 +1,1 @@
+{"message":"sampled createChatCompletion","context":{"openai.request.method":"POST","openai.request.endpoint":"\/v1\/chat\/completions","openai.request.model":"gpt-3.5-turbo","openai.user.api_key":"sk-...9d5d","messages.0.content":"Hello!"},"status":"error","timestamp":"2024-05-31T11:58:47.805800+00:00","dd.trace_id":"6894147815327104176","dd.span_id":"6894147815327104176"}

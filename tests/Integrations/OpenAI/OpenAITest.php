@@ -52,15 +52,19 @@ class OpenAITest extends IntegrationTestCase
         }
     }
 
-    private function call($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters = null)
+    private function call($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters = null, $responseCode = 200)
     {
-        $this->isolateTracerSnapshot(fn: function () use ($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters) {
-            $response = new Response(200, ['Content-Type' => 'application/json; charset=utf-8', ...$metaHeaders], json_encode($responseBodyArray));
+        $this->isolateTracerSnapshot(fn: function () use ($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters, $responseCode) {
+            $response = new Response($responseCode, ['Content-Type' => 'application/json; charset=utf-8', ...$metaHeaders], json_encode($responseBodyArray));
             $client = mockClient($response);
-            if ($openAIParameters) {
-                $client->{$resource}()->{$openAIFn}($openAIParameters);
-            } else {
-                $client->{$resource}()->{$openAIFn}();
+            try {
+                if ($openAIParameters) {
+                    $client->{$resource}()->{$openAIFn}($openAIParameters);
+                } else {
+                    $client->{$resource}()->{$openAIFn}();
+                }
+            } catch (\OpenAI\Exceptions\ErrorException $e) {
+                // Ignore exceptions, they're "expected"
             }
         }, snapshotMetrics: true, logsFile: __DIR__ . "/openai.log");
     }
@@ -380,5 +384,30 @@ class OpenAITest extends IntegrationTestCase
     public function testListFineTuneEventsStream()
     {
         $this->callStreamed('fineTunes', 'listEventsStreamed', metaHeaders(), fineTuneListEventsStream(), 'ft-MaoEAULREoazpupm8uB7qoIl');
+    }
+
+    // Errors
+
+    public function testCreateChatCompletionStreamWithError()
+    {
+        $this->callStreamed('chat', 'createStreamed', [], chatCompletionStreamError(), [
+            'model' => 'gpt-3.5-turbo',
+            'messages' => ['role' => 'user', 'content' => 'Hello!'],
+        ]);
+    }
+
+    public function testListModelsWithError()
+    {
+        $this->call('models', 'list', [], invalidAPIKeyProvided(), null, 401);
+    }
+
+    public function testCreateCompletionsWithMultipleErrorMessages()
+    {
+        $this->call('completions', 'create', [], errorMessageArray(), ['model' => 'gpt-4'], 404);
+    }
+
+    public function testListModelsWithNullErrorType()
+    {
+        $this->call('models', 'list', [], nullErrorType(), null, 429);
     }
 }

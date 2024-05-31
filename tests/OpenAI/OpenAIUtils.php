@@ -38,14 +38,41 @@ function mockClient(Response|ResponseInterface|string $response)
     return $client;
 }
 
-/*
-function mockContentClient(string $method, string $resource, array $params, string $response, bool $validateParams = true)
+function invalidAPIKeyProvided(): array
 {
-    return mockClient($method, $resource, $params, $response, 'requestContent', $validateParams);
+    return [
+        'error' => [
+            'message' => 'Incorrect API key provided: foo. You can find your API key at https://platform.openai.com.',
+            'type' => 'invalid_request_error',
+            'param' => null,
+            'code' => 'invalid_api_key',
+        ],
+    ];
 }
 
-function mockStreamClient(string $method, string $resource, array $params, ResponseInterface $response, bool $validateParams = true)
+function errorMessageArray(): array
 {
-    return mockClient($method, $resource, $params, $response, 'requestStream', $validateParams);
+    return [
+        'error' => [
+            'message' => [
+                'Invalid schema for function \'get_current_weather\':',
+                'In context=(\'properties\', \'location\'), array schema missing items',
+            ],
+            'type' => 'invalid_request_error',
+            'param' => null,
+            'code' => null,
+        ],
+    ];
 }
-*/
+
+function nullErrorType(): array
+{
+    return [
+        'error' => [
+            'message' => 'You exceeded your current quota, please check',
+            'type' => null,
+            'param' => null,
+            'code' => 'quota_exceeded',
+        ],
+    ];
+}

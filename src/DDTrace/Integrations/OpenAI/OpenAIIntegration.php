@@ -145,15 +145,15 @@ class OpenAIIntegration extends Integration
                         );
                     },
                     'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
-                        /** @var \OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract $response */
+                        /** @var (\OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract)|string $response */
+                        // Files::download - i.e., downloadFile - returns a string instead of a Response instance
                         OpenAIIntegration::handleResponse(
                             span: $span,
                             logger: $logger,
-                            headers: method_exists($response, 'meta') ? $response->meta()->toArray() : [],
+                            headers: $response ? (method_exists($response, 'meta') ? $response->meta()->toArray() : []) : [],
                             response: \is_string($response) ? $response : ($response ? $response->toArray() : []),
                             httpMethod: $httpMethod,
                             endpoint: $endpoint,
-                            args: $args,
                         );
                     }
                 ]
@@ -191,38 +191,11 @@ class OpenAIIntegration extends Integration
                             response: \is_string($response) ? $response : ($response ? $response->getIterator() : []),
                             httpMethod: $httpMethod,
                             endpoint: $endpoint,
-                            args: $args,
                         );
                     }
                 ]
             );
         }
-
-        \DDTrace\hook_method(
-            'OpenAI\ValueObjects\Transporter\Response',
-            'from',
-            null,
-            function ($This, $scope, $args) {
-                /** @var \OpenAI\ValueObjects\Transporter\Response $response */
-                $data = $args[0];
-
-
-                $error = $data['error'] ?? null;
-                if (!$error) {
-                    return;
-                }
-
-                $openAISpan = \DDTrace\active_span();
-                while ($openAISpan && $openAISpan->name !== 'openai.request') {
-                    $openAISpan = $openAISpan->parent;
-                }
-
-                if ($openAISpan) {
-                    $openAISpan->exception = new \OpenAI\Exceptions\ErrorException($error);
-                    $openAISpan->meta[Tag::ERROR_TYPE] = $error['type'];
-                }
-            }
-        );
 
         return Integration::LOADED;
     }
@@ -452,7 +425,6 @@ class OpenAIIntegration extends Integration
         array|string    $response,
         string          $httpMethod,
         string          $endpoint,
-        array           $args,
     )
     {
         $methodName = \explode('/', $span->resource)[0];
@@ -561,7 +533,8 @@ class OpenAIIntegration extends Integration
         OpenAIIntegration::sendLog(
             logger: $logger,
             span: $span,
-            methodName: $methodName
+            methodName: $methodName,
+            error: $span->exception ? true : false
         );
     }
 
@@ -630,9 +603,9 @@ class OpenAIIntegration extends Integration
 
     public static function sendLog(
         ?DatadogLogger $logger,
-        SpanData $span,
-        string   $methodName,
-        bool     $error = false
+        SpanData       $span,
+        string         $methodName,
+        bool           $error = false
     )
     {
         if (!(dd_trace_env_config('DD_OPENAI_LOGS_ENABLED')
@@ -672,6 +645,14 @@ class OpenAIIntegration extends Integration
             return;
         }
 
+        $errorType = null;
+        if ($span->exception instanceof \OpenAI\Exceptions\ErrorException) {
+            $errorType = $span->exception->getErrorType() ?? $span->exception->getErrorCode() ?? null;
+        } elseif ($span->exception) {
+            $errorType = \get_class($span->exception);
+        }
+
+
         $tags = [
             'env' => \dd_trace_env_config('DD_ENV'),
             'service' => \dd_trace_env_config('DD_OPENAI_SERVICE') ?? \dd_trace_env_config('DD_SERVICE') ?? $span->service,
@@ -684,7 +665,7 @@ class OpenAIIntegration extends Integration
             'openai.request.endpoint' => $span->meta['openai.request.endpoint'] ?? null,
             'openai.estimated' => $estimated,
             'openai.request.error' => $span->exception ? 1 : 0,
-            'error_type' => $span->meta[Tag::ERROR_TYPE] ?? null,
+            'error_type' => $errorType,
         ];
 
         $tags = array_filter($tags, fn($v) => !empty($v));
@@ -1018,7 +999,7 @@ class OpenAIIntegration extends Integration
 
     public static function commonImageResponseExtraction(array $payload): array
     {
-        $data = $payload['data'];
+        $data = $payload['data'] ?? [];
         if (empty($data)) {
             return [];
         }
@@ -1037,7 +1018,7 @@ class OpenAIIntegration extends Integration
 
     public static function listModelsResponseExtraction(array $payload): array
     {
-        $data = $payload['data'];
+        $data = $payload['data'] ?? [];
         if (empty($data)) {
             return [];
         }
@@ -1095,7 +1076,6 @@ class OpenAIIntegration extends Integration
         \Generator      $response,
         string          $httpMethod,
         string          $endpoint,
-        array           $args,
     )
     {
         $methodName = \explode('/', $span->resource)[0];
@@ -1138,41 +1118,44 @@ class OpenAIIntegration extends Integration
         OpenAIIntegration::sendLog(
             logger: $logger,
             span: $span,
-            methodName: $methodName
+            methodName: $methodName,
+            error: $span->exception ? true : false
         );
     }
 
     public static function commonStreamedCreateResponseExtraction(SpanData $span, \Generator $response): array
     {
-        $numCompletionTokens = 0;
-        $current = $response->current();
-        while ($current) {
-            $numCompletionTokens += self::estimateTokens($current->toArray()['choices'][0]['text'] ?? '');
-            $response->next();
-            $current = $response->current();
-        }
-
-        $numPromptTokens = $span->metrics['openai.response.usage.prompt_tokens'] ?? 0;
-
-        return [
-            'openai.response.completion_tokens_estimated' => 1,
-            'openai.response.usage.completion_tokens' => $numCompletionTokens,
-            'openai.response.usage.total_tokens' => $numPromptTokens + $numCompletionTokens
-        ];
+        return self::commonStreamedResponseExtraction(
+            $span,
+            $response,
+            fn($current) => self::estimateTokens($current['choices'][0]['text'] ?? '')
+        );
     }
 
     public static function commonStreamedCreateChatResponseExtraction(SpanData $span, \Generator $response): array
     {
+        return self::commonStreamedResponseExtraction(
+            $span,
+            $response,
+            fn($current) => self::estimateTokens($current['choices'][0]['delta']['content'] ?? '')
+        );
+    }
+
+    public static function commonStreamedResponseExtraction(SpanData $span, \Generator $response, callable $estimateTokens): array
+    {
         $numCompletionTokens = 0;
-        $current = $response->current();
-
-        while ($current) {
-            $numCompletionTokens += self::estimateTokens($current->toArray()['choices'][0]['delta']['content'] ?? '');
-            $response->next();
-            $current = $response->current();
-        }
-
         $numPromptTokens = $span->metrics['openai.response.usage.prompt_tokens'] ?? 0;
+
+        try {
+            while ($response->valid()) {
+                $current = $response->current();
+                $numCompletionTokens += $estimateTokens($current->toArray());
+                $response->next();
+            }
+        } catch (\OpenAI\Exceptions\ErrorException $e) { // This is the error class that could be thrown by requestStream
+            // If there was an error, it is THROWN by the generator
+            $span->exception = $e;
+        }
 
         return [
             'openai.response.completion_tokens_estimated' => 1,

@@ -1,0 +1,2 @@
+openai.request.duration:4788375|d|#openai.request.model:gpt-3.5-turbo,model:gpt-3.5-turbo,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/chat/completions,openai.request.error:1,error_type:server_error
+openai.request.error:1|c|#openai.request.model:gpt-3.5-turbo,model:gpt-3.5-turbo,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/chat/completions,openai.request.error:1,error_type:server_error

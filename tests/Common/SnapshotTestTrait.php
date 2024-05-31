@@ -191,7 +191,7 @@ trait SnapshotTestTrait
         $expectedLogs = $this->filterLogs($expectedLogs, $fieldsToIgnore);
         $receivedLogs = $this->filterLogs($receivedLogs, $fieldsToIgnore);
 
-        TestCase::assertEquals($expectedLogs, $receivedLogs);
+        TestCase::assertEquals($expectedLogs, $receivedLogs, "Log's don't match");
     }
 
     private function filterLogs(array $logs, array $fieldsToIgnore)
@@ -278,7 +278,7 @@ trait SnapshotTestTrait
         $expectedMetrics = $this->filterMetrics($expectedMetrics, $fieldsToIgnore);
         $receivedMetrics = $this->filterMetrics($receivedMetrics, $fieldsToIgnore);
 
-        TestCase::assertEquals($expectedMetrics, $receivedMetrics);
+        TestCase::assertEquals($expectedMetrics, $receivedMetrics, "Metrics don't match");
     }
 
     private function filterMetrics($metrics, $fieldsToIgnore)
