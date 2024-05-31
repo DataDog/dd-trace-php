@@ -84,6 +84,7 @@ This changeset is on top of 1.0.0beta1.
 - Use app name as service for laravel queue #2643
 - Mark Laravel Octane requests as laravel.request #2655
 - Move env and version from meta to span properties #2665
+- w3c(phase 3): ensure tracecontext headers always take precedence #2667
 
 ### Fixed
 - Do not check get_DD_TRACE_ENABLED() outside of a request #2631
