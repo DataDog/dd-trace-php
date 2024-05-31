@@ -14,6 +14,7 @@ trait SnapshotTestTrait
     protected static $dogstatsdPort = 9876;
     /** @var UDPServer */
     protected $server;
+    protected $logFileSize = 0;
 
     private function decamelize($string): string
     {
@@ -67,7 +68,7 @@ trait SnapshotTestTrait
      * @param string $token The token to associate with the snapshotting session
      * @return void
      */
-    private function startSnapshotSession(string $token, $snapshotMetrics = false)
+    private function startSnapshotSession(string $token, $snapshotMetrics = false, $logsFile = null)
     {
 
         $url = self::$testAgentUrl . '/test/session/start?test_session_token=' . $token;
@@ -82,6 +83,10 @@ trait SnapshotTestTrait
 
         if ($snapshotMetrics) {
             $this->startMetricsSnapshotSession();
+        }
+
+        if ($logsFile) {
+            $this->logFileSize = (int)filesize($logsFile);
         }
     }
 
@@ -132,6 +137,8 @@ trait SnapshotTestTrait
         int $numExpectedTraces = 1,
         bool $snapshotMetrics = false,
         array $fieldsToIgnoreMetrics = ['openai.request.duration'],
+        $logsFile = null,
+        $fieldsToIgnoreLogs = ['timestamp', 'dd.trace_id', 'dd.span_id']
     ) {
         $this->waitForTraces($token, $numExpectedTraces);
 
@@ -151,6 +158,52 @@ trait SnapshotTestTrait
         if ($snapshotMetrics) {
             $this->stopAndCompareMetricsSnapshotSession($token, $fieldsToIgnoreMetrics);
         }
+
+        if ($logsFile) {
+            $this->compareLogsSnapshotSession($token, $logsFile, $fieldsToIgnoreLogs);
+        }
+    }
+
+    private function compareLogsSnapshotSession(
+        string $token,
+        $logsFile,
+        $fieldsToIgnore = ['timestamp', 'dd.trace_id', 'dd.span_id']
+    ) {
+        $logs = file_get_contents($logsFile, false, null, $this->logFileSize);
+        $lines = explode("\n", $logs);
+        // Relevant logs are assumed to be in JSON format. If they're not, shame on you.
+        $lines = array_values(array_filter(array_map('json_decode', $lines)));
+
+        $basePath = implode('/', array_slice(explode('/', getcwd()), 0, 4)); // /home/circleci/[app|datadog]
+        $expectedLogsFile = $basePath . '/tests/snapshots/logs/' . $token . '.txt';
+        if (file_exists($expectedLogsFile)) {
+            $expectedLogs = file_get_contents($expectedLogsFile);
+            $expectedLogs = explode("\n", $expectedLogs);
+            $expectedLogs = array_values(array_filter(array_map('json_decode', $expectedLogs)));
+            $this->compareLogs($expectedLogs, $lines, $fieldsToIgnore);
+        } else {
+            file_put_contents($expectedLogsFile, array_map('json_encode', $lines));
+        }
+    }
+
+    private function compareLogs(array $expectedLogs, array $receivedLogs, array $fieldsToIgnore)
+    {
+        $expectedLogs = $this->filterLogs($expectedLogs, $fieldsToIgnore);
+        $receivedLogs = $this->filterLogs($receivedLogs, $fieldsToIgnore);
+
+        TestCase::assertEquals($expectedLogs, $receivedLogs);
+    }
+
+    private function filterLogs(array $logs, array $fieldsToIgnore)
+    {
+        return array_filter($logs, function ($log) use ($fieldsToIgnore) {
+            foreach ($fieldsToIgnore as $fieldToIgnore) {
+                if (isset($log->{$fieldToIgnore})) {
+                    unset($log->{$fieldToIgnore});
+                }
+            }
+            return true;
+        });
     }
 
     private function stopAndCompareMetricsSnapshotSession(
@@ -272,12 +325,14 @@ trait SnapshotTestTrait
         $config = [],
         $snapshotMetrics = false,
         $fieldsToIgnoreMetrics = ['openai.request.duration'],
+        $logsFile = null, // If provided, logs snapshot will be compared
+        $fieldsToIgnoreLogs = ['timestamp', 'dd.trace_id', 'dd.span_id']
     ) {
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
         self::putEnv('DD_TRACE_AGENT_RETRIES=3');
 
         $token = $this->generateToken();
-        $this->startSnapshotSession($token, $snapshotMetrics);
+        $this->startSnapshotSession($token, $snapshotMetrics, $logsFile);
 
         $this->resetTracer($tracer, $config);
 
@@ -295,6 +350,14 @@ trait SnapshotTestTrait
             $this->sendTracesToTestAgent($traces);
         }
 
-        $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, $numExpectedTraces, $snapshotMetrics, $fieldsToIgnoreMetrics);
+        $this->stopAndCompareSnapshotSession(
+            $token,
+            $fieldsToIgnore,
+            $numExpectedTraces,
+            $snapshotMetrics,
+            $fieldsToIgnoreMetrics,
+            $logsFile,
+            $fieldsToIgnoreLogs
+        );
     }
 }

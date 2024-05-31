@@ -1,0 +1,1 @@
+{"message":"sampled createFile","context":{"openai.request.method":"POST","openai.request.endpoint":"\/v1\/files","openai.organization.name":"org-1234","openai.user.api_key":"sk-...9d5d"},"status":"info","timestamp":"2024-05-31T09:13:11.655700+00:00","dd.trace_id":"9410505107180352818","dd.span_id":"9410505107180352818"}

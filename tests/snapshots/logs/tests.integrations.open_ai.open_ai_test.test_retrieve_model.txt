@@ -1,0 +1,1 @@
+{"message":"sampled retrieveModel","context":{"openai.request.method":"GET","openai.request.endpoint":"\/v1\/models\/*","openai.organization.name":"org-1234","openai.user.api_key":"sk-...9d5d"},"status":"info","timestamp":"2024-05-31T09:11:48.960500+00:00","dd.trace_id":"10207334326282909825","dd.span_id":"10207334326282909825"}

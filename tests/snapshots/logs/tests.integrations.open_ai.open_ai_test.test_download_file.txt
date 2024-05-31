@@ -1,0 +1,1 @@
+{"message":"sampled downloadFile","context":{"openai.request.method":"GET","openai.request.endpoint":"\/v1\/files\/*\/content","openai.user.api_key":"sk-...9d5d"},"status":"info","timestamp":"2024-05-31T09:13:16.810900+00:00","dd.trace_id":"1827646799270887835","dd.span_id":"1827646799270887835"}

@@ -3,20 +3,8 @@
 namespace DDTrace\Tests\Integrations\OpenAI;
 
 use DDTrace\Tests\Common\IntegrationTestCase;
-use DDTrace\Tests\Common\UDPServer;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Stream;
-use Http\Discovery\Psr18ClientDiscovery;
-use Mockery;
-use OpenAI\Client;
-use OpenAI\Enums\Transporter\ContentType;
-use OpenAI\ValueObjects\ApiKey;
-use OpenAI\ValueObjects\Transporter\BaseUri;
-use OpenAI\ValueObjects\Transporter\Headers;
-use OpenAI\ValueObjects\Transporter\QueryParams;
-use Psr\Http\Client\ClientInterface;
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 
 class OpenAITest extends IntegrationTestCase
 {
@@ -74,7 +62,7 @@ class OpenAITest extends IntegrationTestCase
             } else {
                 $client->{$resource}()->{$openAIFn}();
             }
-        }, snapshotMetrics: true);
+        }, snapshotMetrics: true, logsFile: __DIR__ . "/openai.log");
     }
 
     private function callStreamed($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters = null)
@@ -90,7 +78,7 @@ class OpenAITest extends IntegrationTestCase
             } else {
                 $client->{$resource}()->{$openAIFn}();
             }
-        }, snapshotMetrics: true);
+        }, snapshotMetrics: true, logsFile: __DIR__ . "/openai.log");
     }
 
     public function testCreateCompletion()
@@ -99,36 +87,6 @@ class OpenAITest extends IntegrationTestCase
             'model' => 'da-vince',
             'prompt' => 'hi',
         ]);
-
-        // Check Logs
-        $diff = file_get_contents(__DIR__ . "/openai.log", false, null, $this->errorLogSize);
-        $lines = array_values(array_filter(explode("\n", $diff), function ($line) {
-            return str_starts_with($line, '{');
-        }));
-        if (count($lines) === 0) {
-            $this->fail("No log record found");
-        } elseif (count($lines) > 1) {
-            $this->fail("More than one log record found. Received:\n$diff");
-        }
-        $line = $lines[0];
-        $logRecord = json_decode($line, true);
-
-        $this->assertSame('sampled createCompletion', $logRecord['message']);
-        $this->assertSame([
-            'openai.request.method' => 'POST',
-            'openai.request.endpoint' => '/v1/completions',
-            'openai.request.model' => 'da-vince',
-            'openai.organization.name' => 'org-1234',
-            'openai.user.api_key' => 'sk-...9d5d',
-            'prompt' => 'hi',
-            'choices.0.finish_reason' => 'length',
-            'choices.0.text' => 'el, she elaborates more on the Corruptor\'s role, suggesting K',
-        ], $logRecord['context']);
-        $this->assertSame('info', $logRecord['status']);
-
-        $this->assertArrayHasKey('timestamp', $logRecord);
-        $this->assertArrayHasKey('dd.trace_id', $logRecord);
-        $this->assertArrayHasKey('dd.span_id', $logRecord);
     }
 
     public function testCreateChatCompletion()
