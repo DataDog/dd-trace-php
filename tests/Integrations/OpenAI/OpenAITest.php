@@ -42,7 +42,11 @@ class OpenAITest extends IntegrationTestCase
             'DD_ENV=test',
             'DD_VERSION=1.0',
         ]);
-        $this->errorLogSize = (int)filesize(__DIR__ . "/openai.log");
+        if (file_exists(__DIR__ . "/openai.log")) {
+            $this->errorLogSize = (int)filesize(__DIR__ . "/openai.log");
+        } else {
+            $this->errorLogSize = 0;
+        }
     }
 
     protected function envsToCleanUpAtTearDown()

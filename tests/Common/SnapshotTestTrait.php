@@ -86,7 +86,11 @@ trait SnapshotTestTrait
         }
 
         if ($logsFile) {
-            $this->logFileSize = (int)filesize($logsFile);
+            if (file_exists($logsFile)) {
+                $this->logFileSize = (int)filesize($logsFile);
+            } else {
+                $this->logFileSize = 0;
+            }
         }
     }
 
