@@ -27,7 +27,7 @@ void ddtrace_downcase_zval(zval *src) {
     zend_string_release(str);
 }
 
-zend_string *ddtrace_convert_to_str(zval *op) {
+zend_string *ddtrace_convert_to_str(const zval *op) {
 try_again:
     switch (Z_TYPE_P(op)) {
         case IS_UNDEF:
