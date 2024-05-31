@@ -1018,8 +1018,24 @@ static void dd_serialize_array_metrics_recursively(zend_array *target, zend_stri
 }
 
 static void dd_serialize_array_meta_struct_recursively(zend_array *target, zend_string *str, zval *value) {
+    // encode to memory buffer
+    char *data;
+    size_t size;
+    mpack_writer_t writer;
+    mpack_writer_init_growable(&writer, &data, &size);
+
+    mpack_write_bin(&writer, Z_STRVAL_P(value), Z_STRLEN_P(value));
+    mpack_writer_destroy(&writer);
     zval serialised;
-    ddtrace_serialize_simple_array(value, &serialised);
+
+    ZVAL_STRINGL(&serialised, data, size);
+
+//    ddtrace_serialize_simple_array(value, &serialised);
+
+//    php_printf("Alex value is %s\n", Z_STRVAL_P(value));
+//    php_printf("Alex serialised is %s\n", Z_STRVAL(serialised));
+//    php_printf("Alex data is %s(%u)\n", Z_STRVAL(serialised), size);
+    free(data);
     dd_serialize_array_recursively(target, str, &serialised, false);
 }
 
