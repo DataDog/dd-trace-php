@@ -406,7 +406,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                     } else if (result.parent_id != 0) {
                         zval parent_id_zval;
                         ZVAL_STR(&parent_id_zval, zend_string_alloc(16, 0));
-                        sprintf(Z_STRVAL_P(&parent_id_zval), "%016" PRIu64, result.parent_id);
+                        sprintf(Z_STRVAL_P(&parent_id_zval), "%016" PRIx64, result.parent_id);
                         zend_hash_str_update(&result.propagated_tags, ZEND_STRL("_dd.parent_id"), &parent_id_zval);
                     }
                     result.parent_id = new_result.parent_id;
