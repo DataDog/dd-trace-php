@@ -37,9 +37,24 @@ class OpenAITest extends IntegrationTestCase
             'DD_OPENAI_LOGS_ENABLED=true',
             'DD_LOGS_INJECTION=true',
             'DD_TRACE_DEBUG=true',
-            'DD_TRACE_GENERATE_ROOT_SPAN=0'
+            'DD_TRACE_GENERATE_ROOT_SPAN=0',
+            'DD_SERVICE=openai-test',
+            'DD_ENV=test',
+            'DD_VERSION=1.0',
         ]);
         $this->errorLogSize = (int)filesize(__DIR__ . "/openai.log");
+    }
+
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_OPENAI_SERVICE',
+            'DD_OPENAI_METRICS_ENABLED',
+            'DD_OPENAI_LOGS_ENABLED',
+            'DD_OPENAI_SPAN_CHAR_LIMIT',
+            'DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE',
+            'DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE',
+        ];
     }
 
     protected function ddTearDown()
@@ -90,6 +105,10 @@ class OpenAITest extends IntegrationTestCase
         $this->call('completions', 'create', metaHeaders(), completion(), [
             'model' => 'da-vince',
             'prompt' => 'hi',
+            'logit_bias' => [
+                '50256' => -100
+            ],
+            'user' => 'dd-trace'
         ]);
     }
 
@@ -185,6 +204,14 @@ class OpenAITest extends IntegrationTestCase
         $this->call('embeddings', 'create', metaHeaders(), embeddingList(), [
             'model' => 'text-similarity-babbage-001',
             'input' => 'The food was delicious and the waiter...',
+        ]);
+    }
+
+    public function testCreateEmbeddingWithMultipleInputs()
+    {
+        $this->call('embeddings', 'create', metaHeaders(), embeddingList(), [
+            'model' => 'text-similarity-babbage-001',
+            'input' => ['The food was delicious and the waiter...', 'The food was terrible and the waiter...'],
         ]);
     }
 
@@ -340,7 +367,7 @@ class OpenAITest extends IntegrationTestCase
         $this->call('files', 'download', metaHeaders(), fileContentResource(), 'file-XjGxS3KTG0uNmNOK362iJua3');
     }
 
-    public function testCreateJob()
+    public function createFineTune()
     {
         $this->call('fineTuning', 'createJob', metaHeaders(), fineTuningJobCreateResource(), [
             'training_file' => 'file-abc123',
@@ -409,5 +436,82 @@ class OpenAITest extends IntegrationTestCase
     public function testListModelsWithNullErrorType()
     {
         $this->call('models', 'list', [], nullErrorType(), null, 429);
+    }
+
+    // Configurations
+
+    public function testOpenAIService()
+    {
+        self::putEnvAndReloadConfig([
+            'DD_OPENAI_SERVICE=openai'
+        ]);
+
+        $this->call('models', 'list', metaHeaders(), modelList());
+    }
+
+    public function testMetricsDisabled()
+    {
+        self::putEnvAndReloadConfig([
+            'DD_OPENAI_METRICS_ENABLED=false'
+        ]);
+
+        $this->call('models', 'list', metaHeaders(), modelList());
+    }
+
+    public function testLogsDisabled()
+    {
+        self::putEnvAndReloadConfig([
+            'DD_OPENAI_LOGS_ENABLED=false'
+        ]);
+
+        $this->call('models', 'list', metaHeaders(), modelList());
+    }
+
+    public function testSpanCharLimit()
+    {
+        self::putEnvAndReloadConfig([
+            'DD_OPENAI_SPAN_CHAR_LIMIT=3'
+        ]);
+
+        $this->call('completions', 'create', metaHeaders(), completion(), [
+            'model' => 'da-vince',
+            'prompt' => 'Tell me a joke',
+            'logit_bias' => [
+                '50256' => -100
+            ],
+            'user' => 'dd-trace'
+        ]);
+    }
+
+    public function testSpanPromptCompletionSampleRate()
+    {
+        self::putEnvAndReloadConfig([
+            'DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE=0.0'
+        ]);
+
+        $this->call('completions', 'create', metaHeaders(), completion(), [
+            'model' => 'da-vince',
+            'prompt' => 'Tell me a joke',
+            'logit_bias' => [
+                '50256' => -100
+            ],
+            'user' => 'dd-trace'
+        ]);
+    }
+
+    public function testLogPromptCompletionSampleRate()
+    {
+        self::putEnvAndReloadConfig([
+            'DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE=0.0'
+        ]);
+
+        $this->call('completions', 'create', metaHeaders(), completion(), [
+            'model' => 'da-vince',
+            'prompt' => 'Tell me a joke',
+            'logit_bias' => [
+                '50256' => -100
+            ],
+            'user' => 'dd-trace'
+        ]);
     }
 }

@@ -14,6 +14,7 @@ use function DDTrace\dogstatsd_gauge;
 
 class OpenAIIntegration extends Integration
 {
+
     const NAME = 'openai';
 
     const COMMON_PARAMETERS = [
@@ -33,6 +34,9 @@ class OpenAIIntegration extends Integration
         'file_id' => true
     ];
 
+    /** @var string */
+    public $serviceName;
+
     /**
      * @param string $apiKey The OpenAI API key to format
      * @return string The formatted API key 'XXX...YYYY', where XXX and YYYY are respectively the first three and last
@@ -49,11 +53,32 @@ class OpenAIIntegration extends Integration
         return $random <= $rate;
     }
 
+    public function setServiceName(SpanData $span)
+    {
+        if (!empty($this->serviceName)) {
+            $span->service = $this->serviceName;
+        }
+
+        if (\dd_trace_env_config('DD_OPENAI_SERVICE')) {
+            $this->serviceName = \dd_trace_env_config('DD_OPENAI_SERVICE');
+        } elseif (\dd_trace_env_config('DD_SERVICE')) {
+            $this->serviceName = \dd_trace_env_config('DD_SERVICE');
+        } else {
+            $this->serviceName = null;
+        }
+
+        if (!empty($this->serviceName)) {
+            $span->service = $this->serviceName;
+        }
+    }
+
     /**
      * Add instrumentation to OpenAI API Requests
      */
     public function init(): int
     {
+        $integration = $this;
+
         $logger = \dd_trace_env_config('DD_OPENAI_LOGS_ENABLED') ? new DatadogLogger() : null;
 
         $targets = [
@@ -128,7 +153,8 @@ class OpenAIIntegration extends Integration
                 $class,
                 $method,
                 [
-                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($methodName) {
+                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($methodName, $integration) {
+                        $integration->setServiceName($span);
                         $clientData = ObjectKVStore::get($this, 'client_data');
                         if (\is_null($clientData)) {
                             $transporter = ObjectKVStore::get($this, 'transporter');
@@ -165,7 +191,8 @@ class OpenAIIntegration extends Integration
                 $class,
                 $method,
                 [
-                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($methodName) {
+                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($methodName, $integration) {
+                        $integration->setServiceName($span);
                         $clientData = ObjectKVStore::get($this, 'client_data');
                         if (\is_null($clientData)) {
                             $transporter = ObjectKVStore::get($this, 'transporter');
@@ -293,10 +320,10 @@ class OpenAIIntegration extends Integration
         array    $args,
         string   $basePath,
         string   $apiKey,
-        bool     $streamed = false
+        bool     $streamed = false,
     )
     {
-        $payload = OpenAIIntegration::normalizeRequestPayload($methodName, $args);
+        $payload = self::normalizeRequestPayload($methodName, $args);
 
         $span->name = 'openai.request';
         $span->resource = isset($payload['model']) ? $methodName . '/' . $payload['model'] : $methodName;
@@ -307,7 +334,7 @@ class OpenAIIntegration extends Integration
         $span->metrics['_dd.measured'] = 1;
 
         foreach ($payload as $key => $value) {
-            if (isset(OpenAIIntegration::COMMON_PARAMETERS[$key]) && !\is_null($value)) {
+            if (isset(self::COMMON_PARAMETERS[$key]) && !\is_null($value)) {
                 $span->meta["openai.request.$key"] = $value;
             }
         }
@@ -317,13 +344,11 @@ class OpenAIIntegration extends Integration
         // createCompletion, createImage, createImageEdit, createTranscription, createTranslation
         if (array_key_exists('prompt', $payload)) {
             $prompt = $payload['prompt'];
-            if (OpenAIIntegration::shouldSample(\dd_trace_env_config('DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE'))) {
-                if (\is_string($prompt)) {
-                    $span->meta["openai.request.prompt"] = OpenAIIntegration::normalizeStringOrTokenArray($prompt);
-                } elseif (\is_array($prompt)) {
-                    foreach ($prompt as $idx => $value) {
-                        $span->meta["openai.request.prompt.$idx"] = OpenAIIntegration::normalizeStringOrTokenArray($value);
-                    }
+            if (\is_string($prompt)) {
+                $span->meta["openai.request.prompt"] = OpenAIIntegration::normalizeStringOrTokenArray($prompt);
+            } elseif (\is_array($prompt)) {
+                foreach ($prompt as $idx => $value) {
+                    $span->meta["openai.request.prompt.$idx"] = OpenAIIntegration::normalizeStringOrTokenArray($value);
                 }
             }
 
@@ -340,17 +365,19 @@ class OpenAIIntegration extends Integration
 
                 $tags['openai.request.prompt_tokens_estimated'] = 1;
                 $tags['openai.response.usage.prompt_tokens'] = $numPromptTokens;
+                // Note: Completion and Total completion tokens usage will be estimated during the response extraction
+                // See commonStreamedResponseExtraction
             }
         }
 
-        // createEdit, createEmbedding, createModeration
+        // createEmbedding, createModeration
         if (array_key_exists('input', $payload)) {
             $input = $payload['input'];
             if (\is_string($input)) {
-                $span->meta["openai.request.input"] = OpenAIIntegration::normalizeStringOrTokenArray($input);
+                $span->meta["openai.request.input"] = self::normalizeStringOrTokenArray($input);
             } else {
                 foreach ($input as $idx => $value) {
-                    $span->meta["openai.request.input.$idx"] = OpenAIIntegration::normalizeStringOrTokenArray($value);
+                    $span->meta["openai.request.input.$idx"] = self::normalizeStringOrTokenArray($value);
                 }
             }
         }
@@ -368,54 +395,42 @@ class OpenAIIntegration extends Integration
 
         switch ($methodName) {
             case 'createFineTune':
-                $tags = OpenAIIntegration::createFineTuneRequestExtraction($payload);
+                $tags = self::createFineTuneRequestExtraction($payload);
                 break;
 
             case 'createImage':
             case 'createImageEdit':
             case 'createImageVariation':
-                $tags = OpenAIIntegration::commonCreateImageRequestExtraction($payload);
+                $tags = self::commonCreateImageRequestExtraction($payload);
                 break;
 
             case 'createChatCompletion':
-                $tags = OpenAIIntegration::createChatCompletionRequestExtraction($payload, $streamed);
+                $tags = self::createChatCompletionRequestExtraction($payload, $streamed);
                 break;
 
             case 'createFile':
             case 'retrieveFile':
-                $tags = OpenAIIntegration::commonFileRequestExtraction($payload);
+                $tags = self::commonFileRequestExtraction($payload);
                 break;
 
             case 'createTranscription':
             case 'createTranslation':
-                $tags = OpenAIIntegration::commonCreateAudioRequestExtraction($payload);
+                $tags = self::commonCreateAudioRequestExtraction($payload);
                 break;
 
             case 'retrieveModel':
-                $tags = OpenAIIntegration::retrieveModelRequestExtraction($payload);
+                $tags = self::retrieveModelRequestExtraction($payload);
                 break;
 
             case 'listFineTuneEvents':
             case 'retrieveFineTune':
             case 'deleteModel':
             case 'cancelFineTune':
-                $tags = OpenAIIntegration::commonLookupFineTuneRequestExtraction($payload);
-                break;
-
-            case 'createEdit':
-                $tags = OpenAIIntegration::createEditRequestExtraction($payload);
+                $tags = self::commonLookupFineTuneRequestExtraction($payload);
                 break;
         }
 
-        foreach ($tags as $key => $value) {
-            if (\is_null($value)) {
-                continue;
-            } elseif (\is_numeric($value)) {
-                $span->metrics[$key] = $value;
-            } else {
-                $span->meta[$key] = $value;
-            }
-        }
+        self::applyTags($span, $tags);
     }
 
     public static function handleResponse(
@@ -454,75 +469,66 @@ class OpenAIIntegration extends Integration
 
         switch ($methodName) {
             case 'createModeration':
-                $tags += OpenAIIntegration::createModerationResponseExtraction($response);
+                $tags += self::createModerationResponseExtraction($response);
                 break;
 
             case 'createCompletion':
             case 'createChatCompletion':
-            case 'createEdit':
-                $tags += OpenAIIntegration::commonCreateResponseExtraction($response);
+                $tags += self::commonCreateResponseExtraction($response);
                 break;
 
             case 'listFiles':
             case 'listFineTunes':
             case 'listFineTuneEvents':
-                $tags += OpenAIIntegration::commonListCountResponseExtraction($response);
+                $tags += self::commonListCountResponseExtraction($response);
                 break;
 
             case 'createEmbedding':
-                $tags += OpenAIIntegration::createEmbeddingResponseExtraction($response);
+                $tags += self::createEmbeddingResponseExtraction($response);
                 break;
 
             case 'createFile':
             case 'retrieveFile':
-                $tags += OpenAIIntegration::createRetrieveFileResponseExtraction($response);
+                $tags += self::createRetrieveFileResponseExtraction($response);
                 break;
 
             case 'deleteFile':
-                $tags += OpenAIIntegration::deleteFileResponseExtraction($response);
+                $tags += self::deleteFileResponseExtraction($response);
                 break;
 
             case 'downloadFile':
-                $tags += OpenAIIntegration::downloadFileResponseExtraction($response);
+                $tags += self::downloadFileResponseExtraction($response);
                 break;
 
             case 'createFineTune':
             case 'retrieveFineTune':
             case 'cancelFineTune':
-                $tags += OpenAIIntegration::commonFineTuneResponseExtraction($response);
+                $tags += self::commonFineTuneResponseExtraction($response);
                 break;
 
             case 'createTranscription':
             case 'createTranslation':
-                $tags += OpenAIIntegration::createAudioResponseExtraction($response);
+                $tags += self::createAudioResponseExtraction($response);
                 break;
 
             case 'createImage':
             case 'createImageEdit':
             case 'createImageVariation':
-                $tags += OpenAIIntegration::commonImageResponseExtraction($response);
+                $tags += self::commonImageResponseExtraction($response);
                 break;
 
             case 'listModels':
-                $tags += OpenAIIntegration::listModelsResponseExtraction($response);
+                $tags += self::listModelsResponseExtraction($response);
                 break;
 
             case 'retrieveModel':
-                $tags += OpenAIIntegration::retrieveModelResponseExtraction($response);
+                $tags += self::retrieveModelResponseExtraction($response);
                 break;
         }
 
-        foreach ($tags as $key => $value) {
-            if (\is_null($value)) {
-                continue;
-            } elseif (\is_numeric($value)) {
-                $span->metrics[$key] = $value;
-            } else {
-                $span->meta[$key] = $value;
-            }
-        }
+        self::applyTags($span, $tags);
 
-        OpenAIIntegration::sendMetrics(
+        self::sendMetrics(
             span: $span,
             headers: $headers,
             duration: $span->getDuration(),
@@ -530,12 +536,14 @@ class OpenAIIntegration extends Integration
             completionTokens: (int)($response['usage']['completion_tokens'] ?? 0)
         );
 
-        OpenAIIntegration::sendLog(
+        self::sendLog(
             logger: $logger,
             span: $span,
             methodName: $methodName,
             error: $span->exception ? true : false
         );
+
+        self::applyPromptAndCompletionSampling($span);
     }
 
     public static function getLogTags(
@@ -546,7 +554,7 @@ class OpenAIIntegration extends Integration
         $tags = [
             'env' => \dd_trace_env_config('DD_ENV'),
             'version' => \dd_trace_env_config('DD_VERSION'),
-            'service' => \dd_trace_env_config('DD_OPENAI_SERVICE') ??  \dd_trace_env_config('DD_SERVICE') ?? $span->service,
+            'service' => $span->service,
             'openai.request.method' => $span->meta['openai.request.method'] ?? null,
             'openai.request.endpoint' => $span->meta['openai.request.endpoint'] ?? null,
             'openai.request.model' => $span->meta['openai.request.model'] ?? null,
@@ -557,30 +565,18 @@ class OpenAIIntegration extends Integration
         switch ($methodName) {
             case 'createCompletion':
                 $tags += [
-                    'prompt' => $span->meta['openai.request.prompt'] ?? null,
                     'choices.0.finish_reason' => $span->meta['openai.response.choices.0.finish_reason'] ?? null,
-                    'choices.0.text' => $span->meta['openai.response.choices.0.text'] ?? null,
                 ];
                 break;
             case 'createChatCompletion':
                 $tags += [
                     'messages.0.content' => $span->meta['openai.request.message.0.content'] ?? null,
-                    'completion.0.finish_reason' => $span->meta['openai.response.choices.0.finish_reason'] ?? null,
-                    'completion.0.message.content' => $span->meta['openai.response.choices.0.message.content'] ?? null,
-                ];
-                break;
-            case 'createEdit':
-                $tags += [
-                    'input' => $span->meta['openai.request.input'] ?? null,
-                    'instruction' => $span->meta['openai.request.instruction'] ?? null,
-                    'choices.0.text' => $span->meta['openai.response.choices.0.text'] ?? null,
                 ];
                 break;
             case 'createImage':
             case 'createImageEdit':
             case 'createImageVariation':
                 $tags += [
-                    'prompt' => $span->meta['openai.request.prompt'] ?? null,
                     'image' => $span->meta['openai.request.image'] ?? null,
                     'mask' => $span->meta['openai.request.mask'] ?? null,
                     'choices.0.b64_json' => $span->meta['openai.response.images.0.b64_json'] ?? null,
@@ -591,11 +587,34 @@ class OpenAIIntegration extends Integration
             case 'createTranslation':
                 $tags += [
                     'file' => $span->meta['openai.request.file'] ?? null,
-                    'prompt' => $span->meta['openai.request.prompt'] ?? null,
-                    'choices.0.text' => $span->meta['openai.response.choices.0.text'] ?? null,
                 ];
                 break;
+        }
 
+        if (self::shouldSample(\dd_trace_env_config('DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE'))) {
+            switch ($methodName) {
+                case 'createCompletion':
+                case 'createTranscription':
+                case 'createTranslation':
+                    $tags += [
+                        'prompt' => $span->meta['openai.request.prompt'] ?? null,
+                        'choices.0.text' => $span->meta['openai.response.choices.0.text'] ?? null,
+                    ];
+                    break;
+                case 'createChatCompletion':
+                    $tags += [
+                        'messages.0.content' => $span->meta['openai.request.message.0.content'] ?? null,
+                        'completion.0.message.content' => $span->meta['openai.response.choices.0.message.content'] ?? null,
+                    ];
+                    break;
+                case 'createImage':
+                case 'createImageEdit':
+                case 'createImageVariation':
+                    $tags += [
+                        'prompt' => $span->meta['openai.request.prompt'] ?? null,
+                    ];
+                    break;
+            }
         }
 
         return \array_filter($tags, fn($v) => !empty($v));
@@ -608,9 +627,7 @@ class OpenAIIntegration extends Integration
         bool           $error = false
     )
     {
-        if (!(dd_trace_env_config('DD_OPENAI_LOGS_ENABLED')
-            && OpenAIIntegration::shouldSample(\dd_trace_env_config('DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE')))
-        ) {
+        if (!(dd_trace_env_config('DD_OPENAI_LOGS_ENABLED'))) {
             return;
         }
 
@@ -621,11 +638,10 @@ class OpenAIIntegration extends Integration
             return;
         }
 
-        $tags = OpenAIIntegration::getLogTags(
+        $tags = self::getLogTags(
             span: $span,
             methodName: $methodName
         );
-
 
         $logMethod = $error ? 'error' : 'info';
         $logMessage = "sampled $methodName";
@@ -655,7 +671,7 @@ class OpenAIIntegration extends Integration
 
         $tags = [
             'env' => \dd_trace_env_config('DD_ENV'),
-            'service' => \dd_trace_env_config('DD_OPENAI_SERVICE') ?? \dd_trace_env_config('DD_SERVICE') ?? $span->service,
+            'service' => $span->service,
             'version' => \dd_trace_env_config('DD_VERSION'),
             'openai.request.model' => $span->meta['openai.request.model'] ?? null,
             'model' => $span->meta['openai.request.model'] ?? null,
@@ -747,27 +763,9 @@ class OpenAIIntegration extends Integration
 
     public static function commonCreateImageRequestExtraction(array $payload): array
     {
-        $image = null;
-        if (isset($payload['image']) && is_resource($payload['image'])) {
-            $metadata = stream_get_meta_data($payload['image']);
-            $uri = $metadata['uri'];
-            $image = basename($uri);
-        } elseif (isset($payload['image']) && is_string($payload['image'])) {
-            $image = basename($payload['image']);
-        }
-
-        $mask = null;
-        if (isset($payload['mask']) && is_resource($payload['mask'])) {
-            $metadata = stream_get_meta_data($payload['mask']);
-            $uri = $metadata['uri'];
-            $mask = basename($uri);
-        } elseif (isset($payload['mask']) && is_string($payload['mask'])) {
-            $mask = basename($payload['mask']);
-        }
-
         return [
-            'openai.request.image' => $image,
-            'openai.request.mask' => $mask,
+            'openai.request.image' => self::extractFileName($payload['image'] ?? null),
+            'openai.request.mask' => self::extractFileName($payload['mask'] ?? null),
             'openai.request.size' => $payload['size'] ?? null,
             'openai.request.response_format' => $payload['response_format'] ?? null,
             'openai.request.language' => $payload['language'] ?? null,
@@ -781,11 +779,11 @@ class OpenAIIntegration extends Integration
         $tags = [];
         if (isset($messages[0]) && is_array($messages[0])) {
             foreach ($messages as $idx => $message) {
-                $tags["openai.request.message.$idx.content"] = $message['content'] ?? null;
+                $tags["openai.request.message.$idx.content"] = self::normalizeStringOrTokenArray($message['content'] ?? null);
                 $tags["openai.request.message.$idx.role"] = $message['role'] ?? null;
             }
         } else {
-            $tags['openai.request.message.0.content'] = $messages['content'] ?? null;
+            $tags['openai.request.message.0.content'] = self::normalizeStringOrTokenArray($messages['content'] ?? null);
             $tags['openai.request.message.0.role'] = $messages['role'] ?? null;
         }
 
@@ -809,37 +807,18 @@ class OpenAIIntegration extends Integration
 
     public static function commonFileRequestExtraction(array $payload): array
     {
-        $file = null;
-        if (isset($payload['file']) && is_resource($payload['file'])) {
-            $metadata = stream_get_meta_data($payload['file']);
-            $uri = $metadata['uri'];
-            $file = basename($uri);
-        } elseif (isset($payload['file']) && is_string($payload['file'])) {
-            $file = basename($payload['file']);
-        }
-
         return [
             'openai.request.purpose' => $payload['purpose'] ?? null,
-            'openai.request.filename' => $file,
+            'openai.request.filename' => self::extractFileName($payload['file'] ?? null),
         ];
     }
 
     public static function commonCreateAudioRequestExtraction(array $payload): array
     {
-        $filename = null;
-        if (isset($payload['file']) && is_resource($payload['file'])) {
-            $metadata = stream_get_meta_data($payload['file']);
-            $uri = $metadata['uri'];
-            $filename = basename($uri);
-        } elseif (isset($payload['file']) && is_string($payload['file'])) {
-            $filename = basename($payload['file']);
-        }
-
-
         return [
             'openai.request.response_format' => $payload['response_format'] ?? null,
             'openai.request.language' => $payload['language'] ?? null,
-            'openai.request.filename' => $filename,
+            'openai.request.filename' => self::extractFileName($payload['file'] ?? null),
         ];
     }
 
@@ -855,13 +834,6 @@ class OpenAIIntegration extends Integration
         return [
             'openai.request.fine_tune_id' => $payload['fine_tune_id'] ?? null,
             'openai.request.stream' => $payload['stream'] ?? null,
-        ];
-    }
-
-    public static function createEditRequestExtraction(array $payload): array
-    {
-        return [
-            'openai.request.instruction' => $payload['instruction'] ?? null,
         ];
     }
 
@@ -896,7 +868,7 @@ class OpenAIIntegration extends Integration
 
     public static function commonCreateResponseExtraction(array $payload): array
     {
-        $tags = OpenAIIntegration::usageExtraction($payload);
+        $tags = self::usageExtraction($payload);
 
         $choices = $payload['choices'] ?? [];
         if (empty($choices)) {
@@ -908,13 +880,13 @@ class OpenAIIntegration extends Integration
         foreach ($choices as $idx => $choice) {
             $tags["openai.response.choices.$idx.finish_reason"] = $choice["finish_reason"];
             $tags["openai.response.choices.$idx.logprobs"] = ($choice["logprobs"] ?? null) ? 'returned' : null;
-            $tags["openai.response.choices.$idx.text"] = OpenAIIntegration::normalizeStringOrTokenArray($choice["text"] ?? "");
+            $tags["openai.response.choices.$idx.text"] = self::normalizeStringOrTokenArray($choice["text"] ?? "");
 
             $message = $choice['message'] ?? null;
             if ($message) {
                 $tags["openai.response.choices.$idx.message.role"] = $message['role'] ?? null;
-                $tags["openai.response.choices.$idx.message.content"] = OpenAIIntegration::normalizeStringOrTokenArray($message['content'] ?? "");
-                $tags["openai.response.choices.$idx.message.name"] = OpenAIIntegration::normalizeStringOrTokenArray($message['name'] ?? "");
+                $tags["openai.response.choices.$idx.message.content"] = self::normalizeStringOrTokenArray($message['content'] ?? "");
+                $tags["openai.response.choices.$idx.message.name"] = $message['name'] ?? null;
             }
         }
 
@@ -930,7 +902,7 @@ class OpenAIIntegration extends Integration
 
     public static function createEmbeddingResponseExtraction(array $payload): array
     {
-        $tags = OpenAIIntegration::usageExtraction($payload);
+        $tags = self::usageExtraction($payload);
 
         $data = $payload['data'] ?? [];
         if (empty($data)) {
@@ -973,22 +945,24 @@ class OpenAIIntegration extends Integration
     public static function commonFineTuneResponseExtraction(array $payload): array
     {
         return [
-            //'openai.response.events_count' => isset($payload['events']) ? \count($payload['events']) : null,
             'openai.response.fine_tuned_model' => $payload['fine_tuned_model'] ?? null,
             'openai.response.hyperparams.n_epochs' => $payload['hyperparams']['n_epochs'] ?? null,
             'openai.response.hyperparams.batch_size' => $payload['hyperparams']['batch_size'] ?? null,
             'openai.response.hyperparams.prompt_loss_weight' => $payload['hyperparams']['prompt_loss_weight'] ?? null,
             'openai.response.hyperparams.learning_rate_multiplier' => $payload['hyperparams']['learning_rate_multiplier'] ?? null,
-            //'openai.response.training_files_count' => \count($)
             'openai.response.updated_at' => $payload['updated_at'] ?? null,
             'openai.response.status' => $payload['status'] ?? null,
+            'openai.response.events_count' => isset($payload['events']) ? \count($payload['events']) : null,
+            'openai.response.training_files_count' => isset($payload['training_files']) ? \count($payload['training_files']) : null,
+            'openai.response.validation_files_count' => isset($payload['validation_files']) ? \count($payload['validation_files']) : null,
+            'openai.response.result_files_count' => isset($payload['result_files']) ? \count($payload['result_files']) : null,
         ];
     }
 
     public static function createAudioResponseExtraction(array $payload): array
     {
         return [
-            'openai.response.text' => $payload['text'] ?? null,
+            'openai.response.text' => self::normalizeStringOrTokenArray($payload['text'] ?? null),
 
             // Verbose JSON
             'openai.response.language' => $payload['language'] ?? null,
@@ -1009,7 +983,7 @@ class OpenAIIntegration extends Integration
         ];
 
         foreach ($data as $idx => $image) {
-            $tags["openai.response.images.$idx.url"] = OpenAIIntegration::normalizeStringOrTokenArray($image['url'] ?? '');
+            $tags["openai.response.images.$idx.url"] = self::normalizeStringOrTokenArray($image['url'] ?? '');
             $tags["openai.response.images.$idx.b64_json"] = isset($image['b64_json']) ? 'returned' : null;
         }
 
@@ -1090,24 +1064,16 @@ class OpenAIIntegration extends Integration
 
         switch ($methodName) {
             case 'createCompletion':
-                $tags += OpenAIIntegration::commonStreamedCreateResponseExtraction($span, $response);
+                $tags += self::commonStreamedCreateResponseExtraction($span, $response);
                 break;
             case 'createChatCompletion':
-                $tags += OpenAIIntegration::commonStreamedCreateChatResponseExtraction($span, $response);
+                $tags += self::commonStreamedCreateChatResponseExtraction($span, $response);
                 break;
         }
 
-        foreach ($tags as $key => $value) {
-            if (\is_null($value)) {
-                continue;
-            } elseif (\is_numeric($value)) {
-                $span->metrics[$key] = $value;
-            } else {
-                $span->meta[$key] = $value;
-            }
-        }
+        self::applyTags($span, $tags);
 
-        OpenAIIntegration::sendMetrics(
+        self::sendMetrics(
             span: $span,
             headers: $headers,
             duration: $span->getDuration(),
@@ -1115,12 +1081,14 @@ class OpenAIIntegration extends Integration
             completionTokens: $tags['openai.response.usage.completion_tokens'] ?? 0
         );
 
-        OpenAIIntegration::sendLog(
+        self::sendLog(
             logger: $logger,
             span: $span,
             methodName: $methodName,
             error: $span->exception ? true : false
         );
+
+        self::applyPromptAndCompletionSampling($span);
     }
 
     public static function commonStreamedCreateResponseExtraction(SpanData $span, \Generator $response): array
@@ -1183,5 +1151,47 @@ class OpenAIIntegration extends Integration
             return count($prompt);
         }
         return $estTokens;
+    }
+
+    public static function applyTags(SpanData $span, array $tags)
+    {
+        foreach ($tags as $key => $value) {
+            if (\is_null($value)) {
+                continue;
+            } elseif (\is_numeric($value)) {
+                $span->metrics[$key] = $value;
+            } else {
+                $span->meta[$key] = $value;
+            }
+        }
+    }
+
+    public static function extractFileName($file): string|null
+    {
+        if (is_resource($file)) {
+            $metadata = stream_get_meta_data($file);
+            $uri = $metadata['uri'];
+            return basename($uri);
+        } elseif (is_string($file)) {
+            return basename($file);
+        }
+        return null;
+    }
+
+    public static function applyPromptAndCompletionSampling(SpanData $span)
+    {
+        // MUST be called after sendLog
+        // This is because sendLog retrieve the information from the span's tags
+        $shouldSample = self::shouldSample(\dd_trace_env_config('DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE'));
+        if ($shouldSample) {
+            return; // We KEEP the tags
+        }
+
+        $tags = $span->meta;
+        foreach ($tags as $key => $value) {
+            if (preg_match('/(prompt|text|content|input)$/i', $key)) {
+                unset($span->meta[$key]);
+            }
+        }
     }
 }
