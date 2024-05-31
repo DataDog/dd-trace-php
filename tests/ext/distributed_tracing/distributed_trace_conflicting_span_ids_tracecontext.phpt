@@ -2,13 +2,13 @@
 Test consume_distributed_tracing_headers() with conflicting span_ids in tracestate and traceparent headers
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_PROPAGATION_STYLE=datadog,tracecontext
+DD_TRACE_PROPAGATION_STYLE=tracecontext
 --FILE--
 <?php
 
 DDTrace\consume_distributed_tracing_headers([
     "traceparent" => "00-0000000000000000000000000000002a-0000000000000001-01",
-    "tracestate" => "dd=p:00000000000000bb;s:1"
+    "tracestate" => "dd=p:00000000000000bb;s:1",
 ]);
 
 $local_span = \DDTrace\start_span();
