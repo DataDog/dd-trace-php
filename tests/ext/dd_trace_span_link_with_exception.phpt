@@ -47,11 +47,7 @@ try {
     echo 'Caught exception: ' . $e->getMessage() . PHP_EOL;
 }
 
-$rr->waitForFlush();
-if (!$replay = $rr->replayRequest()) {
-    $rr->waitForFlush();
-    $replay = $rr->replayRequest();
-}
+$replay = $rr->waitForDataAndReplay();
 $root = json_decode($replay["body"], true);
 $spans = $root["chunks"][0]["spans"] ?? $root[0];
 $span = $spans[0];

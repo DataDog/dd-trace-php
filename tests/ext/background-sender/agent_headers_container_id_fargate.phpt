@@ -22,7 +22,6 @@ include __DIR__ . '/../includes/request_replayer.inc';
 \DDTrace\close_span();
 
 $rr = new RequestReplayer();
-$rr->waitForFlush();
 
 $headers = $rr->replayHeaders();
 

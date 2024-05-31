@@ -66,7 +66,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                 .client_computed_top_level = false,
                                 .client_computed_stats = false,
                         };
-                        ddog_MaybeError send_error = ddog_sidecar_send_trace_v04_shm(&ddtrace_sidecar, ddtrace_sidecar_instance_id, shm, &tags);
+                        ddog_MaybeError send_error = ddog_sidecar_send_trace_v04_shm(&ddtrace_sidecar, ddtrace_sidecar_instance_id, shm, written, &tags);
                         do {
                             if (send_error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
                                 // retry sending it directly through the socket as last resort. May block though with large traces.

@@ -15,8 +15,16 @@ DD_TRACE_AUTO_FLUSH_ENABLED=1
 include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
+
+\DDTrace\start_span();
+\DDTrace\close_span();
+// make sure any outstanding data on the sidecar side has been flushed
+do {
+    $out = $rr->waitForDataAndReplay();
+} while ($out && strpos($out["body"], basename(__FILE__)) === false);
+
 $get_sampling = function() use ($rr) {
-    $root = json_decode($rr->replayRequest()["body"], true);
+    $root = json_decode($rr->waitForDataAndReplay()["body"], true);
     $spans = $root["chunks"][0]["spans"] ?? $root[0];
     return $spans[0]["metrics"]["_sampling_priority_v1"];
 };
@@ -26,8 +34,6 @@ $rr->setResponse(["rate_by_service" => ["service:,env:" => 0]]);
 \DDTrace\start_span();
 \DDTrace\close_span();
 
-$rr->waitForFlush();
-
 echo "Initial sampling: {$get_sampling()}\n";
 
 $rr->setResponse(["rate_by_service" => ["service:,env:" => 0, "service:foo,env:none" => 1]]);
@@ -35,19 +41,21 @@ $rr->setResponse(["rate_by_service" => ["service:,env:" => 0, "service:foo,env:n
 \DDTrace\start_span();
 \DDTrace\close_span();
 
-$rr->waitForFlush();
 echo "Generic sampling: {$get_sampling()}\n";
+
+// reset it for other tests
+$rr->setResponse(["rate_by_service" => []]);
 
 $s = \DDTrace\start_span();
 $s->service = "foo";
 $s->env = "none";
 \DDTrace\close_span();
 
-$rr->waitForFlush();
 echo "Specific sampling: {$get_sampling()}\n";
 
 ?>
 --EXPECTF--
+[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Initial sampling: 1
 [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80

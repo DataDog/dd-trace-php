@@ -160,6 +160,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
 ddog_MaybeError ddog_sidecar_send_trace_v04_shm(struct ddog_SidecarTransport **transport,
                                                 const struct ddog_InstanceId *instance_id,
                                                 struct ddog_ShmHandle *shm_handle,
+                                                uintptr_t len,
                                                 const struct ddog_TracerHeaderTags *tracer_header_tags);
 
 /**

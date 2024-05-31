@@ -21,7 +21,6 @@ RequestReplayer::launchUnixProxy(str_replace("unix://", "", getenv("DD_TRACE_AGE
 \DDTrace\close_span();
 
 $rr = new RequestReplayer();
-$rr->waitForFlush();
 
 echo PHP_EOL;
 $headers = $rr->replayHeaders([
