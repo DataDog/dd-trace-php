@@ -17,7 +17,7 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
-function mockClient(Response|ResponseInterface|string $response)
+function mockClient($response)
 {
     $httpClient = Mockery::mock(ClientInterface::class);
     $apiKey = ApiKey::from('sk-88fc337ff7867d234728c5b3d2358977148cb8f35501b09d5d'); // This key is obviously fake
