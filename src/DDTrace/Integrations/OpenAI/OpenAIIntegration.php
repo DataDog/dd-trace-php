@@ -227,88 +227,6 @@ class OpenAIIntegration extends Integration
         return Integration::LOADED;
     }
 
-    /** START LLM OBSERVABILITY **/
-
-    public static function setLLMTags(
-        SpanData $span,
-        string   $recordType,
-        array    $arguments,
-        array    $responseAttributes
-    )
-    {
-        $span->meta[Tag::SPAN_KIND] = Type::LLM;
-
-        $modelName = $span->meta['openai.response.model'] ?? $span->meta['openai.request.model'] ?? "";
-        $span->meta[Tag::LLMOBS_MODEL_NAME] = $modelName;
-        $span->meta[Tag::LLMOBS_MODEL_PROVIDER] = Type::OPENAI;
-
-        if ($recordType === 'completion') {
-            OpenAIIntegration::setLLMMetaFromCompletion($span, $arguments, $responseAttributes);
-        } elseif ($recordType === 'chat') {
-            OpenAIIntegration::setLLMMetaFromChat($span, $arguments, $responseAttributes);
-        }
-
-        OpenAIIntegration::setLLMMetrics($span, $responseAttributes);
-    }
-
-    public static function setLLMMetaFromCompletion(
-        SpanData $span,
-        array    $arguments,
-        array    $responseAttributes,
-    )
-    {
-        $prompt = $args['prompt'] ?? [];
-        $prompt = \is_string($prompt) ? [$prompt] : $prompt;
-        $span->meta[Tag::LLMOBS_INPUT_MESSAGES] = \json_encode(\array_map(fn($p) => ["content" => $p], $prompt));
-
-        $parameters = [
-            'temperature' => $arguments['temperature'] ?? 0,
-        ];
-        if (isset($arguments['max_tokens'])) {
-            $parameters['max_tokens'] = $arguments['max_tokens'];
-        }
-        $span->meta[Tag::LLMOBS_INPUT_PARAMETERS] = \json_encode($parameters);
-
-        // TODO: Handle Streamed Responses and Errors
-        if ($responseAttributes['choices']) {
-            $span->meta[Tag::LLMOBS_OUTPUT_MESSAGES] = \json_encode(
-                \array_map(
-                    fn($choice) => ["context" => $choice['text']],
-                    $responseAttributes['choices']
-                )
-            );
-        } else {
-            $span->meta[Tag::LLMOBS_OUTPUT_MESSAGES] = \json_encode(["content" => ""]);
-        }
-    }
-
-    public static function setLLMMetaFromChat(
-        SpanData $span,
-        array    $arguments,
-        array    $responseAttributes
-    )
-    {
-
-    }
-
-    public static function setLLMMetrics(
-        SpanData $span,
-        array    $responseAttributes
-    )
-    {
-        // TODO: Handle Streamed
-        $usage = $responseAttributes['usage'];
-        $metrics = [
-            'prompt_tokens' => $usage['prompt_tokens'],
-            'completion_tokens' => $usage['completion_tokens'],
-            'total_tokens' => $usage['prompt_tokens'] + $usage['completion_tokens']
-        ];
-
-        $span->meta[Tag::LLMOBS_METRICS] = \json_encode($metrics);
-    }
-
-    /** END LLM OBSERVABILITY **/
-
     public static function normalizeRequestPayload(
         string $methodName,
         array  $args
@@ -639,14 +557,7 @@ class OpenAIIntegration extends Integration
             promptTokens: (int)($response['usage']['prompt_tokens'] ?? 0),
             completionTokens: (int)($response['usage']['completion_tokens'] ?? 0)
         );
-        /*
-        OpenAIIntegration::setLLMTags(
-            span: $span,
-            recordType: $methodName === 'createCompletion' ? 'completion' : ($methodName === 'createChatCompletion' ? 'chat' : ''),
-            arguments: $args[0],
-            responseAttributes: $response
-        );
-        */
+
         OpenAIIntegration::sendLog(
             logger: $logger,
             span: $span,
