@@ -2951,10 +2951,8 @@ jobs:
         type: string
       docker_image:
         type: string
-      resource_class:
-        type: string
-        default: medium
-    <<: *BARE_DOCKER_MACHINE
+    docker:
+      - image: << parameters.docker_image >>
     environment:
     steps:
       - restore_cache:
@@ -2962,8 +2960,6 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
-      - setup_docker:
-          docker_image: << parameters.docker_image >>
       - run:
           name: Compile the loader extension
           # FIXME:  -Wextra -Werror
@@ -2994,10 +2990,8 @@ jobs:
       switch_php_version:
         type: string
         default: none
-      resource_class:
-        type: string
-        default: medium
-    <<: *BARE_DOCKER_MACHINE
+    docker:
+      - image: << parameters.docker_image >>
     environment:
     steps:
       - restore_cache:
@@ -3005,8 +2999,6 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
-      - setup_docker:
-          docker_image: << parameters.docker_image >>
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - run:
