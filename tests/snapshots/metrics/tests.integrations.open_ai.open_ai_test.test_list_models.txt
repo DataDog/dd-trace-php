@@ -1,0 +1,5 @@
+openai.request.duration:1669541|d|#openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/models
+openai.ratelimit.requests:3000|g|#openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/models
+openai.ratelimit.tokens:250000|g|#openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/models
+openai.ratelimit.remaining.requests:2999|g|#openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/models
+openai.ratelimit.remaining.tokens:249989|g|#openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/models

@@ -1,0 +1,1 @@
+openai.request.duration:421583|d|#openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/files/*/content

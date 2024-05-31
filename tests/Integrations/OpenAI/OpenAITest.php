@@ -64,11 +64,9 @@ class OpenAITest extends IntegrationTestCase
         }
     }
 
-    private function call($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters = null): string
+    private function call($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters = null)
     {
-        $server = new UDPServer('127.0.0.1', 9876);
-
-        $this->isolateTracerSnapshot(function () use ($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters) {
+        $this->isolateTracerSnapshot(fn: function () use ($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters) {
             $response = new Response(200, ['Content-Type' => 'application/json; charset=utf-8', ...$metaHeaders], json_encode($responseBodyArray));
             $client = mockClient($response);
             if ($openAIParameters) {
@@ -76,19 +74,12 @@ class OpenAITest extends IntegrationTestCase
             } else {
                 $client->{$resource}()->{$openAIFn}();
             }
-        });
-
-        $actualMetrics = $server->dump();
-        $server->close();
-
-        return $actualMetrics;
+        }, snapshotMetrics: true);
     }
 
-    private function callStreamed($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters = null): string
+    private function callStreamed($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters = null)
     {
-        $server = new UDPServer('127.0.0.1', 9876);
-
-        $this->isolateTracerSnapshot(function () use ($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters) {
+        $this->isolateTracerSnapshot(fn: function () use ($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters) {
             $response = new Response(
                 headers: $metaHeaders,
                 body: new Stream($responseBodyArray)
@@ -99,34 +90,15 @@ class OpenAITest extends IntegrationTestCase
             } else {
                 $client->{$resource}()->{$openAIFn}();
             }
-        });
-
-        $actualMetrics = $server->dump();
-        $server->close();
-
-        return $actualMetrics;
+        }, snapshotMetrics: true);
     }
 
     public function testCreateCompletion()
     {
-        $actualMetrics = $this->call('completions', 'create', metaHeaders(), completion(), [
+        $this->call('completions', 'create', metaHeaders(), completion(), [
             'model' => 'da-vince',
             'prompt' => 'hi',
         ]);
-
-        // Check Metrics
-        $expectedMetrics = <<<EOF
-openai.request.duration:\d\d+|d|#openai.request.model:da-vince,model:da-vince,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:\/v1\/completions
-openai.tokens.prompt:1|d|#openai.request.model:da-vince,model:da-vince,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:\/v1\/completions
-openai.tokens.completion:16|d|#openai.request.model:da-vince,model:da-vince,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:\/v1\/completions
-openai.tokens.total:17|d|#openai.request.model:da-vince,model:da-vince,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:\/v1\/completions
-openai.ratelimit.requests:3000|g|#openai.request.model:da-vince,model:da-vince,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:\/v1\/completions
-openai.ratelimit.tokens:250000|g|#openai.request.model:da-vince,model:da-vince,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:\/v1\/completions
-openai.ratelimit.remaining.requests:2999|g|#openai.request.model:da-vince,model:da-vince,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:\/v1\/completions
-openai.ratelimit.remaining.tokens:249989|g|#openai.request.model:da-vince,model:da-vince,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:\/v1\/completions
-EOF;
-        $this->assertMatchesRegularExpression("/$expectedMetrics/", $actualMetrics);
-
 
         // Check Logs
         $diff = file_get_contents(__DIR__ . "/openai.log", false, null, $this->errorLogSize);
@@ -161,7 +133,7 @@ EOF;
 
     public function testCreateChatCompletion()
     {
-        $actualMetrics = $this->call('chat', 'create', metaHeaders(), chatCompletion(), [
+        $this->call('chat', 'create', metaHeaders(), chatCompletion(), [
             'model' => 'gpt-3.5-turbo',
             'messages' => ['role' => 'user', 'content' => 'Hello!'],
         ]);
@@ -169,7 +141,7 @@ EOF;
 
     public function testCreateChatCompletionWithMultipleRoles()
     {
-        $actualMetrics = $this->call('chat', 'create', metaHeaders(), chatCompletionDefaultExample(), [
+        $this->call('chat', 'create', metaHeaders(), chatCompletionDefaultExample(), [
             'model' => 'gpt-4o',
             'messages' => [
                 [
@@ -186,7 +158,7 @@ EOF;
 
     public function testCreateChatCompletionWithImageInput()
     {
-        $actualMetrics = $this->call('chat', 'create', metaHeaders(), chatCompletionFromImageInput(), [
+        $this->call('chat', 'create', metaHeaders(), chatCompletionFromImageInput(), [
             'model' => 'gpt-4-turbo',
             'messages' => [
                 [
@@ -211,7 +183,7 @@ EOF;
 
     public function testCreateChatCompletionWithFunctions()
     {
-        $actualMetrics = $this->call('chat', 'create', metaHeaders(), chatCompletionWithFunctions(), [
+        $this->call('chat', 'create', metaHeaders(), chatCompletionWithFunctions(), [
             'model' => 'gpt-4-turbo',
             'messages' => [
                 [
@@ -248,7 +220,7 @@ EOF;
 
     public function testCreateEmbedding()
     {
-        $actualMetrics = $this->call('embeddings', 'create', metaHeaders(), embeddingList(), [
+        $this->call('embeddings', 'create', metaHeaders(), embeddingList(), [
             'model' => 'text-similarity-babbage-001',
             'input' => 'The food was delicious and the waiter...',
         ]);
@@ -256,47 +228,47 @@ EOF;
 
     public function testListModels()
     {
-        $actualMetrics = $this->call('models', 'list', metaHeaders(), modelList());
+        $this->call('models', 'list', metaHeaders(), modelList());
     }
 
     public function testListFiles()
     {
-        $actualMetrics = $this->call('files', 'list', metaHeaders(), fileListResource());
+        $this->call('files', 'list', metaHeaders(), fileListResource());
     }
 
     public function listFineTunes()
     {
-        $actualMetrics = $this->call('fineTuning', 'listJobs', metaHeaders(), fineTuningJobListResource(), ['limit' => 3]);
+        $this->call('fineTuning', 'listJobs', metaHeaders(), fineTuningJobListResource(), ['limit' => 3]);
     }
 
     public function testRetrieveModel()
     {
-        $actualMetrics = $this->call('models', 'retrieve', metaHeaders(), model(), 'da-vince');
+        $this->call('models', 'retrieve', metaHeaders(), model(), 'da-vince');
     }
 
     public function testRetrieveFile()
     {
-        $actualMetrics = $this->call('files', 'retrieve', metaHeaders(), fileResource(), 'file-XjGxS3KTG0uNmNOK362iJua3');
+        $this->call('files', 'retrieve', metaHeaders(), fileResource(), 'file-XjGxS3KTG0uNmNOK362iJua3');
     }
 
     public function testRetrieveFineTune()
     {
-        $actualMetrics = $this->call('fineTuning', 'retrieveJob', metaHeaders(), fineTuningJobRetrieveResource(), 'ftjob-AF1WoRqd3aJAHsqc9NY7iL8F');
+        $this->call('fineTuning', 'retrieveJob', metaHeaders(), fineTuningJobRetrieveResource(), 'ftjob-AF1WoRqd3aJAHsqc9NY7iL8F');
     }
 
     public function testDeleteModel()
     {
-        $actualMetrics = $this->call('models', 'delete', metaHeaders(), fineTunedModelDeleteResource(), 'curie:ft-acmeco-2021-03-03-21-44-20');
+        $this->call('models', 'delete', metaHeaders(), fineTunedModelDeleteResource(), 'curie:ft-acmeco-2021-03-03-21-44-20');
     }
 
     public function testDeleteFile()
     {
-        $actualMetrics = $this->call('files', 'delete', metaHeaders(), fileDeleteResource(), 'file-XjGxS3KTG0uNmNOK362iJua3');
+        $this->call('files', 'delete', metaHeaders(), fileDeleteResource(), 'file-XjGxS3KTG0uNmNOK362iJua3');
     }
 
     public function testCreateImage()
     {
-        $actualMetrics = $this->call('images', 'create', metaHeaders(), imageCreateWithUrl(), [
+        $this->call('images', 'create', metaHeaders(), imageCreateWithUrl(), [
             'prompt' => 'A cute baby sea otter',
             'n' => 1,
             'size' => '256x256',
@@ -306,7 +278,7 @@ EOF;
 
     public function testCreateImageEdit()
     {
-        $actualMetrics = $this->call('images', 'edit', metaHeaders(), imageEditWithUrl(), [
+        $this->call('images', 'edit', metaHeaders(), imageEditWithUrl(), [
             'image' => fileResourceResource(),
             'mask' => fileResourceResource(),
             'prompt' => 'A sunlit indoor lounge area with a pool containing a flamingo',
@@ -318,7 +290,7 @@ EOF;
 
     public function testCreateImageVariation()
     {
-        $actualMetrics = $this->call('images', 'variation', metaHeaders(), imageVariationWithUrl(), [
+        $this->call('images', 'variation', metaHeaders(), imageVariationWithUrl(), [
             'image' => fileResourceResource(),
             'n' => 1,
             'size' => '256x256',
@@ -328,7 +300,7 @@ EOF;
 
     public function testCreateTranscriptionToText()
     {
-        $actualMetrics = $this->call('audio', 'transcribe', metaHeaders(), audioTranscriptionText(), [
+        $this->call('audio', 'transcribe', metaHeaders(), audioTranscriptionText(), [
             'file' => audioFileResource(),
             'model' => 'whisper-1',
             'response_format' => 'text',
@@ -340,7 +312,7 @@ EOF;
 
     public function testCreateTranscriptionToJSON()
     {
-        $actualMetrics = $this->call('audio', 'transcribe', metaHeaders(), audioTranscriptionJSON(), [
+        $this->call('audio', 'transcribe', metaHeaders(), audioTranscriptionJSON(), [
             'file' => audioFileResource(),
             'model' => 'whisper-1',
             'response_format' => 'json',
@@ -349,7 +321,7 @@ EOF;
 
     public function testCreateTranscriptionToVerboseJSON()
     {
-        $actualMetrics = $this->call('audio', 'transcribe', metaHeaders(), audioTranscriptionVerboseJSON(), [
+        $this->call('audio', 'transcribe', metaHeaders(), audioTranscriptionVerboseJSON(), [
             'file' => audioFileResource(),
             'model' => 'whisper-1',
             'response_format' => 'verbose_json',
@@ -358,7 +330,7 @@ EOF;
 
     public function testCreateTranslationToText()
     {
-        $actualMetrics = $this->call('audio', 'translate', metaHeaders(), audioTranslationText(), [
+        $this->call('audio', 'translate', metaHeaders(), audioTranslationText(), [
             'file' => audioFileResource(),
             'model' => 'whisper-1',
             'response_format' => 'text',
@@ -369,7 +341,7 @@ EOF;
 
     public function testCreateTranslationToJSON()
     {
-        $actualMetrics = $this->call('audio', 'translate', metaHeaders(), audioTranslationJson(), [
+        $this->call('audio', 'translate', metaHeaders(), audioTranslationJson(), [
             'file' => audioFileResource(),
             'model' => 'whisper-1',
             'response_format' => 'json',
@@ -378,7 +350,7 @@ EOF;
 
     public function testCreateTranslationToVerboseJSON()
     {
-        $actualMetrics = $this->call('audio', 'translate', metaHeaders(), audioTranslationVerboseJson(), [
+        $this->call('audio', 'translate', metaHeaders(), audioTranslationVerboseJson(), [
             'file' => audioFileResource(),
             'model' => 'whisper-1',
             'response_format' => 'verbose_json',
@@ -387,7 +359,7 @@ EOF;
 
     public function testCreateModeration()
     {
-        $actualMetrics = $this->call('moderations', 'create', metaHeaders(), moderationResource(), [
+        $this->call('moderations', 'create', metaHeaders(), moderationResource(), [
             'model' => 'text-moderation-latest',
             'input' => 'I want to kill them.',
         ]);
@@ -395,7 +367,7 @@ EOF;
 
     public function testCreateFile()
     {
-        $actualMetrics = $this->call('files', 'upload', metaHeaders(), fileResource(), [
+        $this->call('files', 'upload', metaHeaders(), fileResource(), [
             'purpose' => 'fine-tune',
             'file' => fileResourceResource(),
         ]);
@@ -403,12 +375,12 @@ EOF;
 
     public function testDownloadFile()
     {
-        $actualMetrics = $this->call('files', 'download', metaHeaders(), fileContentResource(), 'file-XjGxS3KTG0uNmNOK362iJua3');
+        $this->call('files', 'download', metaHeaders(), fileContentResource(), 'file-XjGxS3KTG0uNmNOK362iJua3');
     }
 
     public function testCreateJob()
     {
-        $actualMetrics = $this->call('fineTuning', 'createJob', metaHeaders(), fineTuningJobCreateResource(), [
+        $this->call('fineTuning', 'createJob', metaHeaders(), fineTuningJobCreateResource(), [
             'training_file' => 'file-abc123',
             'validation_file' => null,
             'model' => 'gpt-3.5-turbo-0613',
@@ -421,19 +393,19 @@ EOF;
 
     public function testCancelFineTune()
     {
-        $actualMetrics = $this->call('fineTunes', 'cancel', metaHeaders(), [...fineTuneResource(), 'status' => 'cancelled'], 'ftjob-AF1WoRqd3aJAHsqc9NY7iL8F');
+        $this->call('fineTunes', 'cancel', metaHeaders(), [...fineTuneResource(), 'status' => 'cancelled'], 'ftjob-AF1WoRqd3aJAHsqc9NY7iL8F');
     }
 
     public function testListFineTuneEvents()
     {
-        $actualMetrics = $this->call('fineTunes', 'listEvents', metaHeaders(), fineTuneListEventsResource(), 'ftjob-AF1WoRqd3aJAHsqc9NY7iL8F');
+        $this->call('fineTunes', 'listEvents', metaHeaders(), fineTuneListEventsResource(), 'ftjob-AF1WoRqd3aJAHsqc9NY7iL8F');
     }
 
     // Streamed Responses
 
     public function testCreateCompletionStream()
     {
-        $actualMetrics = $this->callStreamed('completions', 'createStreamed', metaHeaders(), completionStream(), [
+        $this->callStreamed('completions', 'createStreamed', metaHeaders(), completionStream(), [
             'model' => 'gpt-3.5-turbo-instruct',
             'prompt' => 'hi',
         ]);
@@ -441,7 +413,7 @@ EOF;
 
     public function testCreateChatCompletionStream()
     {
-        $actualMetrics = $this->callStreamed('chat', 'createStreamed', metaHeaders(), chatCompletionStream(), [
+        $this->callStreamed('chat', 'createStreamed', metaHeaders(), chatCompletionStream(), [
             'model' => 'gpt-3.5-turbo',
             'messages' => ['role' => 'user', 'content' => 'Hello!'],
         ]);
@@ -449,6 +421,6 @@ EOF;
 
     public function testListFineTuneEventsStream()
     {
-        $actualMetrics = $this->callStreamed('fineTunes', 'listEventsStreamed', metaHeaders(), fineTuneListEventsStream(), 'ft-MaoEAULREoazpupm8uB7qoIl');
+        $this->callStreamed('fineTunes', 'listEventsStreamed', metaHeaders(), fineTuneListEventsStream(), 'ft-MaoEAULREoazpupm8uB7qoIl');
     }
 }
