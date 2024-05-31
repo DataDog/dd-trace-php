@@ -399,15 +399,15 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 }
                 if (result.parent_id != new_result.parent_id) {
                     // set last datadog span_id tag
-                    zval *lp_id = zend_hash_str_find(&new_result.propagated_tags, ZEND_STRL("_dd.parent_id"));
+                    zval *lp_id = zend_hash_str_find(&new_result.meta_tags, ZEND_STRL("_dd.parent_id"));
                     if (lp_id && !zend_string_equals_literal(Z_STR_P(lp_id), "0000000000000000")) {
                         Z_TRY_ADDREF_P(lp_id);
-                        zend_hash_str_update(&result.propagated_tags, ZEND_STRL("_dd.parent_id"), lp_id);
+                        zend_hash_str_update(&result.meta_tags, ZEND_STRL("_dd.parent_id"), lp_id);
                     } else if (result.parent_id != 0) {
                         zval parent_id_zval;
                         ZVAL_STR(&parent_id_zval, zend_string_alloc(16, 0));
                         sprintf(Z_STRVAL_P(&parent_id_zval), "%016" PRIx64, result.parent_id);
-                        zend_hash_str_update(&result.propagated_tags, ZEND_STRL("_dd.parent_id"), &parent_id_zval);
+                        zend_hash_str_update(&result.meta_tags, ZEND_STRL("_dd.parent_id"), &parent_id_zval);
                     }
                     result.parent_id = new_result.parent_id;
                 }

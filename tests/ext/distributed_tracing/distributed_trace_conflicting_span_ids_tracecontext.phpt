@@ -11,10 +11,10 @@ DDTrace\consume_distributed_tracing_headers([
     "tracestate" => "dd=p:00000000000000bb;s:1",
 ]);
 
-$local_span = \DDTrace\start_span();
-echo "span.trace_id = {$local_span->traceId}\n";
-echo "span.parent_id = {$local_span->parentId}\n";
-echo "span.meta[_dd.parent_id] = {$local_span->propagatedTags["_dd.parent_id"]}\n";
+$span = \DDTrace\start_span();
+echo "span.trace_id = {$span->traceId}\n";
+echo "span.parent_id = {$span->parentId}\n";
+echo "span.meta[_dd.parent_id] = {$span->meta["_dd.parent_id"]}\n";
 
 ?>
 --EXPECT--
