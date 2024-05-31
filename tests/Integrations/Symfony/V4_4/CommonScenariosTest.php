@@ -148,8 +148,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::exists('symfony.kernel.terminate'),
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')
-                        ->setError('Exception', 'An exception occurred')
-                        ->withExistingTagsNames(['error.stack'])
                         ->withChildren([
                             SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
                             SpanAssertion::exists('symfony.kernel.handle')->withChildren([

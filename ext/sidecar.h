@@ -10,12 +10,22 @@ void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_shutdown(void);
 void ddtrace_reset_sidecar_globals(void);
 
+void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags);
+void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags);
+void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *tags);
+void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval *tags);
+void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *tags);
+
 static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
     return (ddog_CharSlice){ .len = str->len, .ptr = str->val };
 }
 
 static inline ddog_CharSlice dd_zai_string_to_CharSlice(zai_string str) {
     return (ddog_CharSlice){ .len = str.len, .ptr = str.ptr };
+}
+
+static inline zend_string *dd_CharSlice_to_zend_string(ddog_CharSlice str) {
+    return zend_string_init(str.ptr, str.len, 0);
 }
 
 static inline bool ddtrace_ffi_try(const char *msg, ddog_MaybeError maybe_error) {

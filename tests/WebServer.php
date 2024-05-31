@@ -128,6 +128,10 @@ final class WebServer
 
     public function start()
     {
+        if (!isset($this->envs['DD_TRACE_DEBUG'])) {
+            $this->inis['datadog.trace.debug'] = 'true';
+        }
+
         $this->errorLogSize = (int)@filesize($this->defaultInis['error_log']);
 
         if ($this->roadrunnerVersion) {
@@ -279,7 +283,7 @@ final class WebServer
         $diff = @file_get_contents($this->defaultInis['error_log'], false, null, $this->errorLogSize);
         $out = "";
         foreach (explode("\n", $diff) as $line) {
-            if (preg_match("(\[ddtrace] \[(error|warn|deprecated)])", $line)) {
+            if (preg_match("(\[ddtrace] \[(error|warn|deprecated|warning)])", $line)) {
                 $out .= $line;
             }
         }

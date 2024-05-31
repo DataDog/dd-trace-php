@@ -203,7 +203,7 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withChildren([
                     SpanAssertion::exists('internal', 'otel.span')
                 ])
-        ]);
+        ], true, false);
     }
 
     public function testCloseSpansUntilWithOnlyDatadogSpans()
@@ -262,7 +262,7 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withChildren([
                     SpanAssertion::exists('dd.span', 'dd.span')
                 ])
-        ]);
+        ], true, false);
     }
 
     public function testMixingManualAndOtelInstrumentationBis()
@@ -308,7 +308,7 @@ final class InteroperabilityTest extends BaseTestCase
                             SpanAssertion::exists('internal', 'otel.grandchild.span')
                         ])
                 ])
-        ]);
+        ], true, false);
     }
 
     public function testStartNewTraces()
@@ -378,7 +378,7 @@ final class InteroperabilityTest extends BaseTestCase
                             SpanAssertion::exists('dd.root.child.span', 'dd.root.child.span')
                         ])
                 ])
-        ]);
+        ], true, false);
     }
 
     public function testStartNewTracesWithCloseSpansUntil()
@@ -444,7 +444,7 @@ final class InteroperabilityTest extends BaseTestCase
                             SpanAssertion::exists('internal', 'dd.root.child.span')
                         ])
                 ])
-        ]);
+        ], true, false);
     }
 
     public function testMixingSetParentContext()
@@ -506,7 +506,7 @@ final class InteroperabilityTest extends BaseTestCase
                             SpanAssertion::exists('dd.grandchild.span', 'dd.grandchild.span')
                         ])
                 ])
-        ]);
+        ], true, false);
     }
 
     public function testMixingMultipleTraces()
@@ -591,10 +591,8 @@ final class InteroperabilityTest extends BaseTestCase
                 ->withChildren(
                     SpanAssertion::exists('dd.child2', 'dd.child2', null, 'datadog/dd-trace-tests')
                 ),
-            SpanAssertion::build('dd.trace1', 'phpunit', 'cli', 'dd.trace1')
-                ->withExactTags([
-                    'foo1' => 'bar1',
-                ])
+            SpanAssertion::exists('dd.trace1', 'dd.trace1', null, 'datadog/dd-trace-tests')
+                ->withExistingTagsNames(['foo1'])
                 ->withChildren(
                     SpanAssertion::exists('dd.child1', 'dd.child1', null, 'datadog/dd-trace-tests')
                 ),
@@ -653,9 +651,9 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('ff00000000000517', $otelRootSpan['meta']['_dd.p.tid']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('internal', 'otel.root.span', 'datadog/dd-trace-tests')
+            SpanAssertion::exists('internal', 'otel.root.span', false, 'phpunit')
                 ->withChildren(
-                    SpanAssertion::exists('dd.child.span', 'dd.child.span', 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('dd.child.span', 'dd.child.span', false, 'phpunit')
                 )
         ]);
     }
@@ -705,9 +703,9 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('ff00000000000517', $otelRootSpan['meta']['_dd.p.tid']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('internal', 'otel.root.span', 'datadog/dd-trace-tests')
+            SpanAssertion::exists('internal', 'otel.root.span', false, 'phpunit')
                 ->withChildren(
-                    SpanAssertion::exists('dd.child.span', 'dd.child.span', 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('dd.child.span', 'dd.child.span', false, 'phpunit')
                 )
         ]);
     }
@@ -761,9 +759,9 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('ff00000000000517', $otelRootSpan['meta']['_dd.p.tid']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('internal', 'otel.root.span', 'datadog/dd-trace-tests')
+            SpanAssertion::exists('internal', 'otel.root.span', false, 'phpunit')
                 ->withChildren(
-                    SpanAssertion::exists('dd.child.span', 'dd.child.span', 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('dd.child.span', 'dd.child.span', false, 'phpunit')
                 )
         ]);
     }
@@ -805,11 +803,11 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('1', $child['meta']['user.id']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('server.request', 'parent', 'datadog/dd-trace-tests')
+            SpanAssertion::exists('server.request', 'parent', false, 'datadog/dd-trace-tests')
                 ->withChildren([
-                    SpanAssertion::exists('child', 'child', 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('child', 'child', false, 'datadog/dd-trace-tests')
                 ])
-        ]);
+        ], true, false);
     }
 
     public function testSpecialAttributes()

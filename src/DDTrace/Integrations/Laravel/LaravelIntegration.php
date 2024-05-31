@@ -86,7 +86,7 @@ class LaravelIntegration extends Integration
             'bootstrapWith',
             function ($app) use ($integration) {
                 $integration->serviceName = ddtrace_config_app_name();
-                if (empty($integration->serviceName)) {
+                if (empty($integration->serviceName) && file_exists($app->environmentPath() . '/' . $app->environmentFile())) {
                     $app->make('Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables')->bootstrap($app);
                     $configPath = realpath($app->configPath());
                     if (file_exists($configPath . '/app.php')) {
@@ -468,8 +468,12 @@ class LaravelIntegration extends Integration
             return $this->serviceName;
         }
         $this->serviceName = \ddtrace_config_app_name();
-        if (empty($this->serviceName) && is_callable('config')) {
-            $this->serviceName = config('app.name');
+        try {
+            if (empty($this->serviceName) && is_callable('config')) {
+                $this->serviceName = config('app.name');
+            }
+        } catch (\Throwable $e) {
+            return 'laravel';
         }
         return $this->serviceName ?: 'laravel';
     }

@@ -180,7 +180,8 @@ final class SpanChecker
 
     private function findOne(array $graph, SpanAssertion $expectedNodeRoot, $parentName, $parenResource)
     {
-        if ($expectedNodeRoot->getResource()) {
+        $expectedNodeRootResource = $expectedNodeRoot->getResource();
+        if ($expectedNodeRootResource && $expectedNodeRootResource !== SpanAssertion::NOT_TESTED) {
             // If the resource is specified, then we use it
             $found = array_values(array_filter($graph, function (array $node) use ($expectedNodeRoot) {
                 return empty($node['__visited'])
@@ -264,14 +265,14 @@ final class SpanChecker
         $normalizedExpected = $expected;
         $normalizedActual = $actual;
 
-        if (substr($normalizedExpected, -1) === '*') {
+        if (substr($normalizedExpected ?? '', -1) === '*') {
             // Ends with *
             $length = strlen($normalizedExpected) - 1;
             $normalizedExpected = substr($normalizedExpected, 0, $length);
             $normalizedActual = substr($normalizedActual, 0, $length);
         }
 
-        if (substr($normalizedExpected, 0, 1) === '*') {
+        if (substr($normalizedExpected ?? '', 0, 1) === '*') {
             // Starts with *
             $length = strlen($normalizedExpected) - 1;
             $normalizedExpected = substr($normalizedExpected, -$length);
@@ -418,20 +419,43 @@ final class SpanChecker
             TestCase::assertGreaterThan(0, $span['duration']);
         }
 
-        if ($exp->isOnlyCheckExistence()) {
-            return;
-        }
-
         TestCase::assertSame(
             $exp->getOperationName(),
             isset($span['name']) ? $span['name'] : '',
             $namePrefix . "Wrong value for 'operation name': " . print_r($span, true)
         );
-        TestCase::assertSame(
-            $exp->hasError(),
-            isset($span['error']) && 1 === $span['error'],
-            $namePrefix . "Wrong value for 'error': " . print_r($span, true)
-        );
+        if ($exp->hasError() !== SpanAssertion::NOT_TESTED) {
+            TestCase::assertSame(
+                $exp->hasError(),
+                isset($span['error']) && 1 === $span['error'],
+                $namePrefix . "Wrong value for 'error': " . print_r($span, true)
+            );
+        }
+        if ($exp->getService() !== SpanAssertion::NOT_TESTED) {
+            TestCase::assertSame(
+                $exp->getService(),
+                isset($span['service']) ? $span['service'] : '',
+                $namePrefix . "Wrong value for 'service' " . print_r($span, true)
+            );
+        }
+        if ($exp->getResource() !== SpanAssertion::NOT_TESTED) {
+            $expectedResource = $exp->getResource();
+            $actualResource = isset($span['resource']) ? $span['resource'] : '';
+            TestCase::assertTrue(
+                $this->exactWildcardsMatches($expectedResource, $actualResource),
+                $namePrefix . "Wrong value for 'resource'. Exp: '$expectedResource' - Act: '$actualResource' "
+                . print_r($span, true)
+            );
+        }
+
+        foreach ($exp->getExistingTagNames(true) as $key) {
+            TestCase::assertArrayHasKey($key, $spanMeta);
+        }
+
+        if ($exp->isOnlyCheckExistence()) {
+            return;
+        }
+
         if ($exp->getExactTags() !== SpanAssertion::NOT_TESTED) {
             $filtered = [];
             foreach ($spanMeta as $key => $value) {
@@ -522,27 +546,11 @@ final class SpanChecker
                 $namePrefix . "Wrong value for 'metrics' " . print_r($span, true)
             );
         }
-        if ($exp->getService() != SpanAssertion::NOT_TESTED) {
-            TestCase::assertSame(
-                $exp->getService(),
-                isset($span['service']) ? $span['service'] : '',
-                $namePrefix . "Wrong value for 'service' " . print_r($span, true)
-            );
-        }
         if ($exp->getType() != SpanAssertion::NOT_TESTED) {
             TestCase::assertSame(
                 $exp->getType(),
                 isset($span['type']) ? $span['type'] : '',
                 $namePrefix . "Wrong value for 'type' " . print_r($span, true)
-            );
-        }
-        if ($exp->getResource() != SpanAssertion::NOT_TESTED) {
-            $expectedResource = $exp->getResource();
-            $actualResource = isset($span['resource']) ? $span['resource'] : '';
-            TestCase::assertTrue(
-                $this->exactWildcardsMatches($expectedResource, $actualResource),
-                $namePrefix . "Wrong value for 'resource'. Exp: '$expectedResource' - Act: '$actualResource' "
-                    . print_r($span, true)
             );
         }
     }

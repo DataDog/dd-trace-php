@@ -1,9 +1,11 @@
-use crate::bindings as zend;
+use crate::zend::{self, zend_execute_data, zend_generator, zval, InternalFunctionHandler};
 use crate::PROFILER;
 use crate::REQUEST_LOCALS;
 use log::{error, info};
 use rand::rngs::ThreadRng;
 use std::cell::RefCell;
+use std::ffi::CStr;
+use std::ptr;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 
@@ -98,10 +100,44 @@ thread_local! {
     static EXCEPTION_PROFILING_STATS: RefCell<ExceptionProfilingStats> = RefCell::new(ExceptionProfilingStats::new());
 }
 
+static mut GENERATOR_THROW_HANDLER: InternalFunctionHandler = None;
+
+/// Wrapping the PHP `Generator::throw()` method to fixup the prev_execute_data of the fake frame
+#[no_mangle]
+unsafe extern "C" fn ddog_php_prof_generator_throw(
+    execute_data: *mut zend_execute_data,
+    return_value: *mut zval,
+) {
+    if let Some(func) = GENERATOR_THROW_HANDLER {
+        // SAFETY: if Zend is not broken, the pointers are all valid
+        let generator = (*execute_data).This.value.obj as *mut zend_generator;
+        let generator_ex = (*generator).execute_data;
+        // guard against Generator being already finished and execute_data freed
+        if !generator_ex.is_null() {
+            (*generator_ex).prev_execute_data = execute_data;
+        }
+
+        // SAFETY: simple forwarding to original func with original args.
+        func(execute_data, return_value);
+    }
+}
+
 pub fn exception_profiling_minit() {
     unsafe {
         PREV_ZEND_THROW_EXCEPTION_HOOK = zend::zend_throw_exception_hook;
         zend::zend_throw_exception_hook = Some(exception_profiling_throw_exception_hook);
+
+        let method_handlers = [zend::datadog_php_zim_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"generator\0"),
+            CStr::from_bytes_with_nul_unchecked(b"throw\0"),
+            ptr::addr_of_mut!(GENERATOR_THROW_HANDLER),
+            Some(ddog_php_prof_generator_throw),
+        )];
+
+        for handler in method_handlers.into_iter() {
+            // Safety: we've set all the parameters correctly for this C call.
+            zend::datadog_php_install_method_handler(handler);
+        }
     }
 }
 
