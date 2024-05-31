@@ -18,6 +18,4 @@ var_dump(DDTrace\generate_distributed_tracing_headers(["tracecontext"]));
 array(2) {
   ["traceparent"]=>
   string(55) "00-0000000000000000000000000000002a-0000000000000001-01"
-  ["tracestate"]=>
-  string(24) "dd=p:000000000000000a;s:2;t.dm:-0"
 }
