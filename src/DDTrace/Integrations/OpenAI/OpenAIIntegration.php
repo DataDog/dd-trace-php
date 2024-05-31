@@ -558,6 +558,8 @@ class OpenAIIntegration extends Integration
             // Here we're consciously choosing to surface this inconsistency instead of normalizing
             'openai.response.created' => $response['created'] ?? null,
             'openai.response.created_at' => $response['created_at'] ?? null,
+
+            'openai.response.object' => $response['object'] ?? null,
         ];
 
         switch ($methodName) {

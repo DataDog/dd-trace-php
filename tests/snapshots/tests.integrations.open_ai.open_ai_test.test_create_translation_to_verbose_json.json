@@ -9,7 +9,7 @@
     "type": "openai",
     "meta": {
       "_dd.p.dm": "0",
-      "_dd.p.tid": "66588e7100000000",
+      "_dd.p.tid": "665978f400000000",
       "openai.api_base": "https://api.openai.com/v1/",
       "openai.organization.name": "org-1234",
       "openai.request.endpoint": "/v1/audio/translations",
@@ -21,7 +21,7 @@
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.response.text": "Hello, how are you?",
       "openai.user.api_key": "sk-...9d5d",
-      "runtime-id": "124e96f5-cdb5-4f38-ad05-140f2db118c3",
+      "runtime-id": "54958726-ad2d-468f-a408-71a6c1e46cba",
       "span.kind": "client"
     },
     "metrics": {

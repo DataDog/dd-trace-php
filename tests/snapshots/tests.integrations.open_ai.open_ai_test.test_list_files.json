@@ -9,14 +9,15 @@
     "type": "openai",
     "meta": {
       "_dd.p.dm": "0",
-      "_dd.p.tid": "6657417c00000000",
+      "_dd.p.tid": "6659789c00000000",
       "openai.api_base": "https://api.openai.com/v1/",
       "openai.organization.name": "org-1234",
       "openai.request.endpoint": "/v1/files",
       "openai.request.method": "GET",
       "openai.response.model": "gpt-3.5-turbo-instruct",
+      "openai.response.object": "list",
       "openai.user.api_key": "sk-...9d5d",
-      "runtime-id": "ecfe65fb-ad05-4a4b-b4b9-b94f81d2358a",
+      "runtime-id": "54958726-ad2d-468f-a408-71a6c1e46cba",
       "span.kind": "client"
     },
     "metrics": {
