@@ -20,6 +20,6 @@ size_t ddtrace_spprintf(char **message, size_t max_len, char *format, ...);
  *      overflows due to recursion stemming from our own code as the root.
  **/
 void ddtrace_convert_to_string(zval *dst, zval *src);
-zend_string *ddtrace_convert_to_str(zval *op);
+zend_string *ddtrace_convert_to_str(const zval *op);
 
 #endif  // COMPAT_STRING_H

@@ -10,14 +10,18 @@
 #include <stdio.h>
 #include "common.h"
 
+void drop_span_decoration_probe(struct ddog_SpanDecorationProbe);
+
 struct ddog_Capture ddog_capture_defaults(void);
 
 void register_expr_evaluator(const struct ddog_Evaluator *eval);
 
-bool evaluate_condition(const struct ddog_ProbeCondition *condition, const void *context);
+bool evaluate_condition(const struct ddog_ProbeCondition *condition, void *context);
+
+void drop_void_collection_string(struct ddog_VoidCollection void_);
 
 struct ddog_VoidCollection evaluate_unmanaged_string(const struct ddog_DslString *condition,
-                                                     const void *context);
+                                                     void *context);
 
 struct ddog_LiveDebuggingParseResult parse_json(ddog_CharSlice json);
 

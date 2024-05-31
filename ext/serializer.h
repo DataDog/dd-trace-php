@@ -21,4 +21,6 @@ void ddtrace_shutdown_span_sampling_limiter(void);
 
 void ddtrace_serializer_startup(void);
 
+void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, const ddog_Capture *config, int remaining_nesting);
+
 #endif  // DD_SERIALIZER_H

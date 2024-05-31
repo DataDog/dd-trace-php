@@ -366,7 +366,7 @@ static void ddtrace_capture_long_value(zend_long num, struct ddog_CaptureValue *
     value->value = (ddog_CharSlice){ .ptr = integer, .len = len };
 }
 
-static void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, const ddog_Capture *config, int remaining_nesting) {
+void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, const ddog_Capture *config, int remaining_nesting) {
     ZVAL_DEREF(zv);
     switch (Z_TYPE_P(zv)) {
         case IS_FALSE:
@@ -501,6 +501,7 @@ static void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *val
         case IS_RESOURCE: {
             const char *type_name = zend_rsrc_list_get_rsrc_type(Z_RES_P(zv));
             value->type = (ddog_CharSlice){ .ptr = type_name, .len = strlen(type_name) };
+            ddtrace_capture_long_value(Z_RES_P(zv)->handle, value);
             break;
         }
 

@@ -1,5 +1,5 @@
-use datadog_live_debugger::{LiveDebuggingData, ProbeType, SpanProbe};
-use datadog_live_debugger_ffi::data::ProbeTarget;
+use datadog_live_debugger::{EvaluateAt, LiveDebuggingData, ProbeType, SpanProbe};
+use datadog_live_debugger_ffi::data::{LogProbe, MetricProbe, ProbeTarget, SpanDecorationProbe};
 use datadog_live_debugger_ffi::evaluator::{register_expr_evaluator, Evaluator};
 use datadog_remote_config::dynamic_configuration::data::{Configs, TracingSamplingRuleProvenance};
 use datadog_remote_config::{RemoteConfigCapabilities, RemoteConfigData, RemoteConfigProduct, Target};
@@ -58,8 +58,11 @@ pub struct LiveDebuggerSetup<'a> {
 #[repr(C)]
 #[derive(Clone)]
 pub struct LiveDebuggerCallbacks {
-    pub set_span_probe: extern "C" fn(target: &ProbeTarget) -> i64,
-    pub remove_span_probe: extern "C" fn(id: i64),
+    pub set_span_probe: extern "C" fn(id: CharSlice, target: &ProbeTarget) -> i64,
+    pub set_span_decoration: extern "C" fn(id: CharSlice, target: &ProbeTarget, evaluate_at: EvaluateAt, info: SpanDecorationProbe) -> i64,
+    pub set_log_probe: extern "C" fn(id: CharSlice, target: &ProbeTarget, evaluate_at: EvaluateAt, log: LogProbe) -> i64,
+    pub set_metric_probe: extern "C" fn(id: CharSlice, target: &ProbeTarget, evaluate_at: EvaluateAt, metric: MetricProbe) -> i64,
+    pub remove_probe: extern "C" fn(id: i64),
 }
 
 #[derive(Default)]
@@ -201,20 +204,23 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
 fn apply_config(remote_config: &mut RemoteConfigState, debugger: &LiveDebuggingData) {
     if let Some(callbacks) = unsafe { &LIVE_DEBUGGER_CALLBACKS } {
         match debugger {
-            LiveDebuggingData::Probe(probe) => match probe.probe {
-                ProbeType::Metric(_) => {}
-                ProbeType::Log(_) => {}
-                ProbeType::Span(SpanProbe {}) => {
-                    let proberef = (&probe.target).into();
-                    let id = (callbacks.set_span_probe)(&proberef);
-                    if id >= 0 {
-                        remote_config
-                            .live_debugger
-                            .spans_map
-                            .insert(probe.id.clone(), id);
+            LiveDebuggingData::Probe(probe) => {
+                let proberef = (&probe.target).into();
+                let id = CharSlice::from(probe.id.as_str());
+                let hook_id = match probe.probe {
+                    ProbeType::Metric(ref metric) => (callbacks.set_metric_probe)(id, &proberef, probe.evaluate_at, metric.into()),
+                    ProbeType::Log(ref log) => (callbacks.set_log_probe)(id, &proberef, probe.evaluate_at, log.into()),
+                    ProbeType::Span(SpanProbe {}) => (callbacks.set_span_probe)(id, &proberef),
+                    ProbeType::SpanDecoration(ref decoration) => {
+                        (callbacks.set_span_decoration)(id, &proberef, probe.evaluate_at, decoration.into())
                     }
+                };
+                if hook_id >= 0 {
+                    remote_config
+                        .live_debugger
+                        .spans_map
+                        .insert(probe.id.clone(), hook_id);
                 }
-                ProbeType::SpanDecoration(_) => {}
             },
             LiveDebuggingData::ServiceConfiguration(_) => {}
         }
@@ -224,15 +230,10 @@ fn apply_config(remote_config: &mut RemoteConfigState, debugger: &LiveDebuggingD
 fn remove_config(remote_config: &mut RemoteConfigState, debugger: &LiveDebuggingData) {
     if let Some(callbacks) = unsafe { &LIVE_DEBUGGER_CALLBACKS } {
         match debugger {
-            LiveDebuggingData::Probe(probe) => match probe.probe {
-                ProbeType::Metric(_) => {}
-                ProbeType::Log(_) => {}
-                ProbeType::Span(SpanProbe {}) => {
-                    if let Some(id) = remote_config.live_debugger.spans_map.remove(&probe.id) {
-                        (callbacks.remove_span_probe)(id);
-                    }
+            LiveDebuggingData::Probe(probe) => {
+                if let Some(id) = remote_config.live_debugger.spans_map.remove(&probe.id) {
+                    (callbacks.remove_probe)(id);
                 }
-                ProbeType::SpanDecoration(_) => {}
             },
             LiveDebuggingData::ServiceConfiguration(_) => {}
         }
