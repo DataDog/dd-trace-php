@@ -12,8 +12,8 @@
 static bool debug_logs = false;
 static bool force_load = false;
 
-static int module_api_no = 0;
-static int module_api_no_embed = 0;
+static int php_api_no = 0;
+static int zend_module_api_no = 0;
 char module_build_id[32] = {0};
 bool is_zts = false;
 bool is_debug = false;
@@ -66,7 +66,7 @@ static void *ddloader_dl_fetch_symbol(void *handle, const char *symbol_name_with
 }
 
 static int ddloader_load_ddtrace() {
-    char *ext_path = ddloader_find_ext_path("trace", "ddtrace", module_api_no, is_zts, is_debug);
+    char *ext_path = ddloader_find_ext_path("trace", "ddtrace", php_api_no, is_zts, is_debug);
     if (!ext_path) {
         LOG("Extension file not found");
         return SUCCESS;
@@ -92,7 +92,7 @@ static int ddloader_load_ddtrace() {
 
     module_entry = get_module();
 
-    if (module_entry->zend_api != module_api_no_embed) {
+    if (module_entry->zend_api != zend_module_api_no) {
         LOG("Wrong API number");
         goto abort_and_unload;
     }
@@ -102,12 +102,15 @@ static int ddloader_load_ddtrace() {
     }
 
     // Register the module, catching all errors that can happen (already loaded, unsatisied dep, ...)
-    if (module_api_no < 20151012) { // PHP 5
+    if (php_api_no < 20151012) { // PHP 5
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
         void (*old_error_handler)(int, const char *, const uint, const char*, va_list);
         old_error_handler = zend_error_cb;
         zend_error_cb = ddloader_error_handler_php5;
         module_entry = zend_register_internal_module(module_entry);
         zend_error_cb = old_error_handler;
+#pragma GCC diagnostic pop
     } else { // PHP 7+
         void (*old_error_handler)(int, zend_string *, const uint32_t, zend_string *);
         old_error_handler = zend_error_cb;
@@ -174,17 +177,16 @@ static int ddloader_api_no_check(int api_no) {
 
     switch (api_no) {
         case 220100525: // 5.4
-            module_api_no_embed = api_no % 100000000;
+            zend_module_api_no = api_no % 100000000;
             api_no = 220100412;
             break;
         case 220121212: // 5.5
-            module_api_no_embed = api_no % 100000000;
+            zend_module_api_no = api_no % 100000000;
             api_no = 220121113;
             break;
         case 220131226: // 5.6
-            module_api_no_embed = api_no % 100000000;
+            zend_module_api_no = api_no % 100000000;
             api_no = 220131106;
-            // FIXME
             break;
         case 320151012: // 7.0
         case 320160303: // 7.1
@@ -210,10 +212,10 @@ static int ddloader_api_no_check(int api_no) {
 
     // api_no is the Zend extension API number, similar to "420220829"
     // It is an int, but represented as a string, we must remove the first char to get the PHP module API number
-    module_api_no = api_no % 100000000;
+    php_api_no = api_no % 100000000;
 
-    if (!module_api_no_embed) {
-        module_api_no_embed = module_api_no;
+    if (!zend_module_api_no) {
+        zend_module_api_no = php_api_no;
     }
 
     return SUCCESS;
@@ -221,7 +223,7 @@ static int ddloader_api_no_check(int api_no) {
 
 static int ddloader_build_id_check(const char *build_id) {
     // Guardrail
-    if (!module_api_no) {
+    if (!php_api_no) {
         return SUCCESS;
     }
 
