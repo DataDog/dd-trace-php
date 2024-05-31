@@ -1,15 +1,17 @@
 --TEST--
-Test generate_distributed_tracing_headers()
+Test consume_distributed_tracing_headers() with array argument
 --ENV--
-HTTP_X_DATADOG_TRACE_ID=42
-HTTP_X_DATADOG_PARENT_ID=10
-HTTP_X_DATADOG_SAMPLING_PRIORITY=2
-HTTP_TRACEPARENT=00-0000000000000000000000000000002a-0000000000000001-01
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 
-var_dump(DDTrace\generate_distributed_tracing_headers());
+DDTrace\consume_distributed_tracing_headers([
+    "x-datadog-trace-id" => 42,
+    "x-datadog-parent-id" => 10,
+    "traceparent" => "00-0000000000000000000000000000002a-0000000000000001-01",
+    "x-datadog-sampling-priority" => 2,
+]);
+var_dump(DDTrace\generate_distributed_tracing_headers(["tracecontext"]));
 
 ?>
 --EXPECT--
