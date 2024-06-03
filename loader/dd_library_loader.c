@@ -9,21 +9,26 @@
 
 #include "php_dd_library_loader.h"
 
+static int (*origin_ddtrace_module_startup_func)(INIT_FUNC_ARGS);
+static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard") ZEND_MOD_OPTIONAL("ddtrace")
+                                                          ZEND_MOD_END};
+static const zend_function_entry *orig_functions;
+
 static bool debug_logs = false;
 static bool force_load = false;
 
 static int php_api_no = 0;
 static int zend_module_api_no = 0;
-char module_build_id[32] = {0};
-bool is_zts = false;
-bool is_debug = false;
+static char module_build_id[32] = {0};
+static bool is_zts = false;
+static bool is_debug = false;
 
 // Public only starting from PHP 5.6
 ZEND_API void zend_append_version_info(const zend_extension *extension) __attribute__((weak));
 
 static void ddloader_error_handler_php5(int error_num, const char *error_filename, const uint error_lineno, const char *format, va_list args) {}
 
-static void ddloader_error_handler(int error_num, zend_string *error_filename, const uint32_t error_lineno, zend_string *message) { }
+static void ddloader_error_handler(int error_num, zend_string *error_filename, const uint32_t error_lineno, zend_string *message) {}
 
 #define LOG(str) ddloader_log(str);
 
@@ -55,7 +60,7 @@ static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, i
 /**
  * Try to load a symbol from a library handle.
  * As some OS prepend _ to symbol names, we try to load with and without it.
-*/
+ */
 static void *ddloader_dl_fetch_symbol(void *handle, const char *symbol_name_with_underscoe) {
     void *symbol = DL_FETCH_SYMBOL(handle, symbol_name_with_underscoe + 1);
     if (!symbol) {
@@ -63,6 +68,48 @@ static void *ddloader_dl_fetch_symbol(void *handle, const char *symbol_name_with
     }
 
     return symbol;
+}
+
+static PHP_MINIT_FUNCTION(ddtrace_injected) {
+    zend_module_entry *ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
+    if (ddtrace) {
+        // If we return FAILURE, the module is removed, but it produces a fatal error
+        // "Fatal error: Unable to start ddtrace_injected module in Unknown on line 0"
+        // So let's keep the module but disable everything.
+        zend_module_entry *ddtrace_injected = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace_injected"));
+        ddtrace_injected->module_startup_func = NULL;
+        ddtrace_injected->module_shutdown_func = NULL;
+        ddtrace_injected->request_startup_func = NULL;
+        ddtrace_injected->request_shutdown_func = NULL;
+
+        LOG("ddtrace is already loaded, nothing to do");
+        return SUCCESS;
+    }
+
+    LOG("ddtrace is not loaded, rename ddtrace_injected to just ddtrace");
+
+    zend_module_entry *ddtrace_injected = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace_injected"));
+    if (!ddtrace_injected) {
+        LOG("ddtrace_injected not found. Something wrong happened");
+        return SUCCESS;
+    }
+
+    ddtrace_injected->name = "ddtrace";
+    zend_hash_str_add_ptr(&module_registry, ZEND_STRL("ddtrace"), ddtrace_injected);
+
+    // Change the key in the module_registry without destroying the module
+    dtor_func_t orig_pDestructor = module_registry.pDestructor;
+    module_registry.pDestructor = NULL;
+    zend_hash_str_del(&module_registry, ZEND_STRL("ddtrace_injected"));
+    module_registry.pDestructor = orig_pDestructor;
+
+    ddtrace_injected->functions = orig_functions;
+	if (ddtrace_injected->functions && zend_register_functions(NULL, ddtrace_injected->functions, NULL, ddtrace_injected->type) == FAILURE) {
+		LOG("Unable to register ddtrace's functions");
+        return SUCCESS;
+	}
+
+    return origin_ddtrace_module_startup_func(INIT_FUNC_ARGS_PASSTHRU);
 }
 
 static int ddloader_load_ddtrace() {
@@ -101,17 +148,32 @@ static int ddloader_load_ddtrace() {
         goto abort_and_unload;
     }
 
+    /**
+     * At that point, we don't know if ddtrace will be registered or not by the PHP configuration.
+     * So we register it under the name "ddtrace_injected", add an optional dependency to be sure
+     * that our injected extension will be started up after the regular ddtrace (if it's loaded!),
+     * and finally wrap the MINIT function to perform our checks there.
+     */
+    module_entry->name = "ddtrace_injected";
+    origin_ddtrace_module_startup_func = module_entry->module_startup_func;
+    module_entry->module_startup_func = ZEND_MODULE_STARTUP_N(ddtrace_injected);
+    // FIXME: allocate memory, copy existings deps then add the new optional one to "ddtrace"?
+    module_entry->deps = ddtrace_module_deps;
+    // Dont' register the functions twice
+    orig_functions = module_entry->functions;
+    module_entry->functions = NULL;
+
     // Register the module, catching all errors that can happen (already loaded, unsatisied dep, ...)
-    if (php_api_no < 20151012) { // PHP 5
+    if (php_api_no < 20151012) {  // PHP 5
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
-        void (*old_error_handler)(int, const char *, const uint, const char*, va_list);
+        void (*old_error_handler)(int, const char *, const uint, const char *, va_list);
         old_error_handler = zend_error_cb;
         zend_error_cb = ddloader_error_handler_php5;
         module_entry = zend_register_internal_module(module_entry);
         zend_error_cb = old_error_handler;
 #pragma GCC diagnostic pop
-    } else { // PHP 7+
+    } else {  // PHP 7+
         void (*old_error_handler)(int, zend_string *, const uint32_t, zend_string *);
         old_error_handler = zend_error_cb;
         zend_error_cb = ddloader_error_handler;
@@ -122,33 +184,6 @@ static int ddloader_load_ddtrace() {
     if (module_entry == NULL) {
         LOG("Cannot register the module");
         goto abort_and_unload;
-    }
-
-    // As the Zend extensions are started up after the regular extension,
-    // we need to start it up manually.
-
-    module_entry->handle = handle;
-    if (zend_startup_module_ex(module_entry) == FAILURE) {
-        LOG("Cannot start the module");
-        goto abort;
-    }
-
-    // The ddtrace Zend Extension should have been loaded by the ddtrace module.
-    zend_extension *ddtrace = zend_get_extension("ddtrace");
-    if (!ddtrace) {
-        LOG("The ddtrace Zend extension cannot be found");
-        goto abort;
-    }
-
-    // Copy of private function zend_extension_startup();
-    if (ddtrace->startup) {
-        if (ddtrace->startup(ddtrace) != SUCCESS) {
-            LOG("An error occurred during the startup of ddtrace Zend extension");
-            goto abort;
-        }
-        if (zend_append_version_info) {
-            zend_append_version_info(ddtrace);
-        }
     }
 
     return SUCCESS;
@@ -176,27 +211,27 @@ static int ddloader_api_no_check(int api_no) {
     ddloader_configure();
 
     switch (api_no) {
-        case 220100525: // 5.4
+        case 220100525:  // 5.4
             zend_module_api_no = api_no % 100000000;
             api_no = 220100412;
             break;
-        case 220121212: // 5.5
+        case 220121212:  // 5.5
             zend_module_api_no = api_no % 100000000;
             api_no = 220121113;
             break;
-        case 220131226: // 5.6
+        case 220131226:  // 5.6
             zend_module_api_no = api_no % 100000000;
             api_no = 220131106;
             break;
-        case 320151012: // 7.0
-        case 320160303: // 7.1
-        case 320170718: // 7.2
-        case 320180731: // 7.3
-        case 320190902: // 7.4
-        case 420200930: // 8.0
-        case 420210902: // 8.1
-        case 420220829: // 8.2
-        case 420230831: // 8.3
+        case 320151012:  // 7.0
+        case 320160303:  // 7.1
+        case 320170718:  // 7.2
+        case 320180731:  // 7.3
+        case 320190902:  // 7.4
+        case 420200930:  // 8.0
+        case 420210902:  // 8.1
+        case 420220829:  // 8.2
+        case 420230831:  // 8.3
             break;
 
         default:
@@ -238,11 +273,6 @@ static int ddloader_build_id_check(const char *build_id) {
         memcpy(module_build_id + 3, build_id + 4, sizeof(char) * (build_id_len - 4 + 1));
     }
 
-    return SUCCESS;
-}
-
-// Required. Otherwise the zend_extension is not loaded
-static int ddloader_zend_extension_startup(zend_extension *ext) {
     // Guardrail
     if (*module_build_id == '\0') {
         return SUCCESS;
@@ -252,6 +282,9 @@ static int ddloader_zend_extension_startup(zend_extension *ext) {
 
     return SUCCESS;
 }
+
+// Required. Otherwise the zend_extension is not loaded
+static int ddloader_zend_extension_startup(zend_extension *ext) { return SUCCESS; }
 
 // Define fake version information to force the engine to always call ddloader_api_no_check / ddloader_build_id_check
 ZEND_DLEXPORT zend_extension_version_info extension_version_info = {
