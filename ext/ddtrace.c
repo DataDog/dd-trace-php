@@ -1216,11 +1216,11 @@ static void dd_rinit_once(void) {
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         if (get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS() == 0) {
             // Set the default to 10 so that BGS flushes faster. With sidecar it's not needed generally.
-            zend_string *zero = zend_string_init("10", 2, 1);
-            zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS].ini_entries[0]->name, zero,
-                                 ZEND_INI_SYSTEM, ZEND_INI_STAGE_RUNTIME);
-            zend_string_release(zero);
-            ZVAL_LONG(&zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS].decoded_value, 10);
+            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, (zai_str) ZAI_STR_FROM_CSTR("10"));
+        }
+        if (get_DD_TRACE_AGENT_FLUSH_INTERVAL() == DD_TRACE_AGENT_FLUSH_INTERVAL_VAL) {
+            // Set the default to 5000 so that BGS does not flush too often. The sidecar can flush more often, but the BGS is per process. Keep it higher to avoid too much load on the agent.
+            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_INTERVAL, (zai_str) ZAI_STR_FROM_CSTR("5000"));
         }
         ddtrace_coms_init_and_start_writer();
     }

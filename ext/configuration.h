@@ -47,6 +47,8 @@ enum ddtrace_sampling_rules_format {
 /* This should be at least an order of magnitude higher than the userland HTTP Transport default. */
 #define DD_TRACE_BGS_TIMEOUT_VAL 5000
 
+#define DD_TRACE_AGENT_FLUSH_INTERVAL_VAL 1001
+
 #define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
 #define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1
 
@@ -153,7 +155,8 @@ enum ddtrace_sampling_rules_format {
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_BGS_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_TIMEOUT_VAL),                                 \
            .ini_change = zai_config_system_ini_change)                                                         \
-    CONFIG(INT, DD_TRACE_AGENT_FLUSH_INTERVAL, "5000", .ini_change = zai_config_system_ini_change)             \
+    CONFIG(INT, DD_TRACE_AGENT_FLUSH_INTERVAL, DD_CFG_EXPSTR(DD_TRACE_AGENT_FLUSH_INTERVAL_VAL),               \
+           .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "0")                                                    \
     CONFIG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                                \
@@ -171,6 +174,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(CUSTOM(STRING), DD_TRACE_CLIENT_IP_HEADER, "", .parser = ddtrace_parse_client_ip_header_config)     \
     CONFIG(BOOL, DD_TRACE_FORKED_PROCESS, "true")                                                              \
     CONFIG(INT, DD_TRACE_HOOK_LIMIT, "100")                                                                    \
+    CONFIG(INT, DD_TRACE_AGENT_FLUSH_SIZE, "1048576", .ini_change = zai_config_system_ini_change)              \
     CONFIG(INT, DD_TRACE_AGENT_MAX_PAYLOAD_SIZE, "52428800", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_INITIAL_SIZE, "131072", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_BACKLOG, "12", .ini_change = zai_config_system_ini_change)                \
@@ -257,5 +261,7 @@ static inline bool get_global_DD_TRACE_SIDECAR_TRACE_SENDER(void) { return true;
 static inline int ddtrace_quiet_zpp(void) {
     return PHP_DEBUG ? 0 : ZEND_PARSE_PARAMS_QUIET;
 }
+
+void ddtrace_change_default_ini(ddtrace_config_id config_id, zai_str str);
 
 #endif  // DD_CONFIGURATION_H

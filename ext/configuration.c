@@ -4,6 +4,7 @@
 
 #include "ip_extraction.h"
 #include "logging.h"
+#include "json/json.h"
 #include <components/log/log.h>
 #include <zai_string/string.h>
 
@@ -204,4 +205,24 @@ bool ddtrace_config_integration_enabled(ddtrace_integration_name integration_nam
     ddtrace_integration *integration = &ddtrace_integrations[integration_name];
 
     return integration->is_enabled();
+}
+
+void ddtrace_change_default_ini(ddtrace_config_id config_id, zai_str str) {
+    zai_config_memoized_entry *memoized = &zai_config_memoized_entries[config_id];
+    zend_ini_entry *entry = memoized->ini_entries[0];
+    zend_string_release(entry->value);
+    entry->value = zend_string_init(str.ptr, str.len, 1);
+    if (entry->modified) {
+        entry->modified = false;
+        zend_string_release(entry->orig_value);
+    }
+    memoized->default_encoded_value = str;
+    memoized->name_index = -1;
+
+    zval decoded;
+    ZVAL_UNDEF(&decoded);
+    if (zai_config_decode_value(str, memoized->type, memoized->parser, &decoded, 1)) {
+        zai_json_dtor_pzval(&memoized->decoded_value);
+        ZVAL_COPY_VALUE(&memoized->decoded_value, &decoded);
+    }
 }

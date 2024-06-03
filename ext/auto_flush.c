@@ -69,7 +69,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                         size_t size_hint = written;
                         zend_long n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS();
                         if (n_requests) {
-                            size_hint = MAX(get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE() * get_global_DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT() / 100 / n_requests, size_hint);
+                            size_hint = MAX(get_global_DD_TRACE_AGENT_FLUSH_SIZE() / n_requests, size_hint);
                         }
                         ddog_MaybeError send_error = ddog_sidecar_send_trace_v04_shm(&ddtrace_sidecar, ddtrace_sidecar_instance_id, shm, size_hint, &tags);
                         do {
