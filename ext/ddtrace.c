@@ -1197,6 +1197,14 @@ static void dd_rinit_once(void) {
 #ifndef _WIN32
     ddtrace_signals_first_rinit();
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        if (get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS() == 0) {
+            // Set the default to 10 so that BGS flushes faster. With sidecar it's not needed generally.
+            zend_string *zero = zend_string_init("10", 2, 1);
+            zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS].ini_entries[0]->name, zero,
+                                 ZEND_INI_SYSTEM, ZEND_INI_STAGE_RUNTIME);
+            zend_string_release(zero);
+            ZVAL_LONG(&zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS].decoded_value, 10);
+        }
         ddtrace_coms_init_and_start_writer();
     }
 #endif
@@ -2143,6 +2151,20 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_CharSlice slice = ddog_sidecar_stats(&ddtrace_sidecar);
             RETVAL_STRINGL(slice.ptr, slice.len);
             free((void *) slice.ptr);
+        } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
+            uint32_t timeout = 100;
+            if (params_count == 1) {
+                timeout = Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+#ifndef _WIN32
+            if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+                ddtrace_coms_synchronous_flush(timeout);
+            } else
+#endif
+            if (ddtrace_sidecar) {
+                ddog_sidecar_flush_traces(&ddtrace_sidecar);
+            }
+            RETVAL_TRUE;
 #ifndef _WIN32
         } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
             RETVAL_BOOL(ddtrace_coms_init_and_start_writer());
@@ -2175,13 +2197,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("test_msgpack_consumer")) {
             ddtrace_coms_test_msgpack_consumer();
-            RETVAL_TRUE;
-        } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
-            uint32_t timeout = 100;
-            if (params_count == 1) {
-                timeout = Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
-            }
-            ddtrace_coms_synchronous_flush(timeout);
             RETVAL_TRUE;
 #endif
         } else if (FUNCTION_NAME_MATCHES("test_logs")) {
@@ -2244,9 +2259,9 @@ PHP_FUNCTION(dd_trace_close_all_spans_and_flush) {
 
 /* {{{ proto void dd_trace_synchronous_flush(int) */
 PHP_FUNCTION(dd_trace_synchronous_flush) {
-    zend_long timeout;
+    zend_long timeout = 100;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &timeout) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &timeout) == FAILURE) {
         RETURN_THROWS();
     }
 
@@ -2257,8 +2272,13 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
     }
 
 #ifndef _WIN32
-    ddtrace_coms_synchronous_flush(timeout);
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        ddtrace_coms_synchronous_flush(timeout);
+    } else
 #endif
+    if (ddtrace_sidecar) {
+        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+    }
     RETURN_NULL();
 }
 
