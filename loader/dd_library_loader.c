@@ -70,41 +70,85 @@ static void *ddloader_dl_fetch_symbol(void *handle, const char *symbol_name_with
     return symbol;
 }
 
+// This is a copy of zend_hash_set_bucket_key which is only available only starting from PHP 7.4
+static Bucket *ddloader_hash_find_bucket(const HashTable *ht, const zend_string *key)
+{
+	uint32_t nIndex;
+	uint32_t idx;
+	Bucket *p, *arData;
+
+	ZEND_ASSERT(ZSTR_H(key) != 0 && "Hash must be known");
+
+	arData = ht->arData;
+	nIndex = ZSTR_H(key) | ht->nTableMask;
+	idx = HT_HASH_EX(arData, nIndex);
+
+	if (UNEXPECTED(idx == HT_INVALID_IDX)) {
+		return NULL;
+	}
+	p = HT_HASH_TO_BUCKET_EX(arData, idx);
+	if (EXPECTED(p->key == key)) { /* check for the same interned string */
+		return p;
+	}
+
+	while (1) {
+		if (p->h == ZSTR_H(key) &&
+		    EXPECTED(p->key) &&
+		    zend_string_equal_content(p->key, key)) {
+			return p;
+		}
+		idx = Z_NEXT(p->val);
+		if (idx == HT_INVALID_IDX) {
+			return NULL;
+		}
+		p = HT_HASH_TO_BUCKET_EX(arData, idx);
+		if (p->key == key) { /* check for the same interned string */
+			return p;
+		}
+	}
+}
+
 static PHP_MINIT_FUNCTION(ddtrace_injected) {
     zend_module_entry *ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
     if (ddtrace) {
-        // If we return FAILURE, the module is removed, but it produces a fatal error
-        // "Fatal error: Unable to start ddtrace_injected module in Unknown on line 0"
-        // So let's keep the module but disable everything.
+        LOG("ddtrace is already loaded, unregister ddtrace_injected");
+
+        /**
+         * If we return FAILURE, the module is removed, but it produces a fatal error
+         * "Fatal error: Unable to start ddtrace_injected module in Unknown on line 0".
+         * To avoid this message, we remove the module ourselves. But as the destructor
+         * calls the MSHUTDOWN function, we must set it to NULL first.
+         */
         zend_module_entry *ddtrace_injected = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace_injected"));
-        ddtrace_injected->module_startup_func = NULL;
         ddtrace_injected->module_shutdown_func = NULL;
-        ddtrace_injected->request_startup_func = NULL;
-        ddtrace_injected->request_shutdown_func = NULL;
+        zend_hash_str_del(&module_registry, ZEND_STRL("ddtrace_injected"));
 
-        LOG("ddtrace is already loaded, nothing to do");
         return SUCCESS;
     }
 
-    LOG("ddtrace is not loaded, rename ddtrace_injected to just ddtrace");
+    LOG("ddtrace is not loaded, rename ddtrace_injected to ddtrace");
 
-    zend_module_entry *ddtrace_injected = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace_injected"));
-    if (!ddtrace_injected) {
-        LOG("ddtrace_injected not found. Something wrong happened");
+    /**
+     * Rename the "key" of the module_registry to access ddtrace.
+     * Must be done at the bucket level to not change the order of the HashTable.
+     */
+    zend_string *old_name = zend_string_init(ZEND_STRL("ddtrace_injected"), 1);
+    (void)zend_string_hash_val(old_name);
+    Bucket *bucket = ddloader_hash_find_bucket(&module_registry, old_name);
+    zend_string_release(old_name);
+    zend_string *new_name = zend_string_init(ZEND_STRL("ddtrace"), 1);
+    zend_hash_set_bucket_key(&module_registry, bucket, new_name);
+    zend_string_release(new_name);
+
+    ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
+    if (!ddtrace) {
+        LOG("ddtrace not found. Something wrong happened");
         return SUCCESS;
     }
 
-    ddtrace_injected->name = "ddtrace";
-    zend_hash_str_add_ptr(&module_registry, ZEND_STRL("ddtrace"), ddtrace_injected);
-
-    // Change the key in the module_registry without destroying the module
-    dtor_func_t orig_pDestructor = module_registry.pDestructor;
-    module_registry.pDestructor = NULL;
-    zend_hash_str_del(&module_registry, ZEND_STRL("ddtrace_injected"));
-    module_registry.pDestructor = orig_pDestructor;
-
-    ddtrace_injected->functions = orig_functions;
-	if (ddtrace_injected->functions && zend_register_functions(NULL, ddtrace_injected->functions, NULL, ddtrace_injected->type) == FAILURE) {
+    /* Restore the functions of the module*/
+    ddtrace->functions = orig_functions;
+	if (ddtrace->functions && zend_register_functions(NULL, ddtrace->functions, NULL, ddtrace->type) == FAILURE) {
 		LOG("Unable to register ddtrace's functions");
         return SUCCESS;
 	}
@@ -159,7 +203,8 @@ static int ddloader_load_ddtrace() {
     module_entry->module_startup_func = ZEND_MODULE_STARTUP_N(ddtrace_injected);
     // FIXME: allocate memory, copy existings deps then add the new optional one to "ddtrace"?
     module_entry->deps = ddtrace_module_deps;
-    // Dont' register the functions twice
+    // Backup the function list and set it to NULL to make sure we don't register the functions twice
+    // They'll be restored if ddtrace is not already registered.
     orig_functions = module_entry->functions;
     module_entry->functions = NULL;
 
@@ -211,18 +256,18 @@ static int ddloader_api_no_check(int api_no) {
     ddloader_configure();
 
     switch (api_no) {
-        case 220100525:  // 5.4
-            zend_module_api_no = api_no % 100000000;
-            api_no = 220100412;
-            break;
-        case 220121212:  // 5.5
-            zend_module_api_no = api_no % 100000000;
-            api_no = 220121113;
-            break;
-        case 220131226:  // 5.6
-            zend_module_api_no = api_no % 100000000;
-            api_no = 220131106;
-            break;
+        // case 220100525:  // 5.4
+        //     zend_module_api_no = api_no % 100000000;
+        //     api_no = 220100412;
+        //     break;
+        // case 220121212:  // 5.5
+        //     zend_module_api_no = api_no % 100000000;
+        //     api_no = 220121113;
+        //     break;
+        // case 220131226:  // 5.6
+        //     zend_module_api_no = api_no % 100000000;
+        //     api_no = 220131106;
+        //     break;
         case 320151012:  // 7.0
         case 320160303:  // 7.1
         case 320170718:  // 7.2
