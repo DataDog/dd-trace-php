@@ -154,7 +154,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_BGS_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_TIMEOUT_VAL),                                 \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_INTERVAL, "5000", .ini_change = zai_config_system_ini_change)             \
-    CONFIG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "10")                                                   \
+    CONFIG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "0")                                                    \
     CONFIG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                                \
     CONFIG(BOOL, DD_TRACE_ONCE_LOGS, "true")                                                                   \
