@@ -5167,7 +5167,7 @@ workflows:
           matrix:
             parameters:
               php_major_minor:
-                - "5.6"
+#                - "5.6"
                 - "7.0"
                 - "7.1"
                 - "7.2"

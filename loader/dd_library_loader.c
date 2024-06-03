@@ -18,15 +18,6 @@ static bool debug_logs = false;
 static bool force_load = false;
 
 static int php_api_no = 0;
-static int zend_module_api_no = 0;
-static char module_build_id[32] = {0};
-static bool is_zts = false;
-static bool is_debug = false;
-
-// Public only starting from PHP 5.6
-ZEND_API void zend_append_version_info(const zend_extension *extension) __attribute__((weak));
-
-static void ddloader_error_handler_php5(int error_num, const char *error_filename, const uint error_lineno, const char *format, va_list args) {}
 
 static void ddloader_error_handler(int error_num, zend_string *error_filename, const uint32_t error_lineno, zend_string *message) {}
 
@@ -156,7 +147,7 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
     return origin_ddtrace_module_startup_func(INIT_FUNC_ARGS_PASSTHRU);
 }
 
-static int ddloader_load_ddtrace() {
+static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_zts, bool is_debug) {
     char *ext_path = ddloader_find_ext_path("trace", "ddtrace", php_api_no, is_zts, is_debug);
     if (!ext_path) {
         LOG("Extension file not found");
@@ -183,7 +174,7 @@ static int ddloader_load_ddtrace() {
 
     module_entry = get_module();
 
-    if (module_entry->zend_api != zend_module_api_no) {
+    if (module_entry->zend_api != php_api_no) {
         LOG("Wrong API number");
         goto abort_and_unload;
     }
@@ -209,22 +200,11 @@ static int ddloader_load_ddtrace() {
     module_entry->functions = NULL;
 
     // Register the module, catching all errors that can happen (already loaded, unsatisied dep, ...)
-    if (php_api_no < 20151012) {  // PHP 5
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
-        void (*old_error_handler)(int, const char *, const uint, const char *, va_list);
-        old_error_handler = zend_error_cb;
-        zend_error_cb = ddloader_error_handler_php5;
-        module_entry = zend_register_internal_module(module_entry);
-        zend_error_cb = old_error_handler;
-#pragma GCC diagnostic pop
-    } else {  // PHP 7+
-        void (*old_error_handler)(int, zend_string *, const uint32_t, zend_string *);
-        old_error_handler = zend_error_cb;
-        zend_error_cb = ddloader_error_handler;
-        module_entry = zend_register_internal_module(module_entry);
-        zend_error_cb = old_error_handler;
-    }
+    void (*old_error_handler)(int, zend_string *, const uint32_t, zend_string *);
+    old_error_handler = zend_error_cb;
+    zend_error_cb = ddloader_error_handler;
+    module_entry = zend_register_internal_module(module_entry);
+    zend_error_cb = old_error_handler;
 
     if (module_entry == NULL) {
         LOG("Cannot register the module");
@@ -256,18 +236,6 @@ static int ddloader_api_no_check(int api_no) {
     ddloader_configure();
 
     switch (api_no) {
-        // case 220100525:  // 5.4
-        //     zend_module_api_no = api_no % 100000000;
-        //     api_no = 220100412;
-        //     break;
-        // case 220121212:  // 5.5
-        //     zend_module_api_no = api_no % 100000000;
-        //     api_no = 220121113;
-        //     break;
-        // case 220131226:  // 5.6
-        //     zend_module_api_no = api_no % 100000000;
-        //     api_no = 220131106;
-        //     break;
         case 320151012:  // 7.0
         case 320160303:  // 7.1
         case 320170718:  // 7.2
@@ -294,10 +262,6 @@ static int ddloader_api_no_check(int api_no) {
     // It is an int, but represented as a string, we must remove the first char to get the PHP module API number
     php_api_no = api_no % 100000000;
 
-    if (!zend_module_api_no) {
-        zend_module_api_no = php_api_no;
-    }
-
     return SUCCESS;
 }
 
@@ -307,11 +271,12 @@ static int ddloader_build_id_check(const char *build_id) {
         return SUCCESS;
     }
 
-    is_zts = (strstr(build_id, "NTS") == NULL);
-    is_debug = (strstr(build_id, "debug") != NULL);
+    bool is_zts = (strstr(build_id, "NTS") == NULL);
+    bool is_debug = (strstr(build_id, "debug") != NULL);
 
     // build_id is the Zend extension build ID, similar to "API420220829,TS"
     // We must remove the 4th char to get the PHP module build ID
+    char module_build_id[32] = {0};
     size_t build_id_len = strlen(build_id);
     if (build_id_len >= 12 && build_id_len <= 32) {
         memcpy(module_build_id, build_id, sizeof(char) * 3);
@@ -323,7 +288,7 @@ static int ddloader_build_id_check(const char *build_id) {
         return SUCCESS;
     }
 
-    ddloader_load_ddtrace();
+    ddloader_load_ddtrace(php_api_no, module_build_id, is_zts, is_debug);
 
     return SUCCESS;
 }
